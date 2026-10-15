@@ -30,7 +30,7 @@ class TaskPresenter
         'users:id,name,image',
         'createBy:id,name,image',
         'addedByUser:id,name,image',
-        'category:id,category_name',
+        'category:id,category_name,action',
         'labels',
         'boardColumn:id,column_name,slug,label_color',
         'deals',
@@ -68,6 +68,7 @@ class TaskPresenter
             'category' => $task->category ? [
                 'id' => $task->category->id,
                 'category_name' => $task->category->category_name,
+                'action' => $task->category->action,
             ] : null,
             'users' => $task->users->map(function ($user) {
                 return [
@@ -111,6 +112,9 @@ class TaskPresenter
                     'id' => $lead->id,
                     'client_name' => $lead->client_name,
                     'company_name' => $lead->company_name,
+                    // Contact fields drive the category quick-action (call/email).
+                    'mobile' => $lead->mobile,
+                    'client_email' => $lead->client_email,
                 ];
             })->toArray(),
             'developer_projects' => $task->developerProjects->map(function ($project) {

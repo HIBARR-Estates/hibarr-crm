@@ -7,6 +7,7 @@ import Button from "@/Components/Redesign/primitives/Button";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
+import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
@@ -20,14 +21,26 @@ const NESTED_MODAL_Z_INDEX = 1400;
 interface TaskCategory {
     id: number;
     category_name: string;
+    action?: string | null;
 }
 
 interface TaskCategoriesResponse {
     categories: TaskCategory[];
 }
 
+/** Category quick-actions a task can trigger from its row/detail. */
+const CATEGORY_ACTIONS = [
+    { value: "", label: "None" },
+    { value: "email", label: "Email" },
+    { value: "call", label: "Call" },
+] as const;
+
 const ROW_GRID =
-    "grid grid-cols-[36px_minmax(0,1fr)_80px] items-center gap-x-3 px-3.5 py-3 border-b border-[#e2e5ea] last:border-b-0";
+    "grid grid-cols-[36px_minmax(0,1fr)_100px_80px] items-center gap-x-3 px-3.5 py-3 border-b border-[#e2e5ea] last:border-b-0";
+
+function actionLabel(value: string): string {
+    return CATEGORY_ACTIONS.find((a) => a.value === value)?.label ?? value;
+}
 
 /**
  * Task category CRUD, meant to be embedded inline (e.g. in a Drawer/Modal) rather
@@ -40,6 +53,7 @@ export default function TaskCategoryManager() {
     const [editingCategory, setEditingCategory] =
         useState<TaskCategory | null>(null);
     const [categoryName, setCategoryName] = useState("");
+    const [categoryAction, setCategoryAction] = useState("");
     const [deleteTarget, setDeleteTarget] = useState<TaskCategory | null>(null);
     const [deletingId, setDeletingId] = useState<number | null>(null);
 
@@ -53,10 +67,11 @@ export default function TaskCategoryManager() {
         setModalOpen(false);
         setEditingCategory(null);
         setCategoryName("");
+        setCategoryAction("");
     };
 
     const createMutation = useApiMutate<
-        { category_name: string },
+        { category_name: string; action: string | null },
         string,
         ApiSuccessResponse<string>
     >(route("taskCategory.store"), "POST", () => {
@@ -65,7 +80,7 @@ export default function TaskCategoryManager() {
     });
 
     const updateMutation = useApiMutate<
-        { category_name: string },
+        { category_name: string; action: string | null },
         string,
         ApiSuccessResponse<string>
     >(
@@ -98,12 +113,14 @@ export default function TaskCategoryManager() {
     const openCreateModal = () => {
         setEditingCategory(null);
         setCategoryName("");
+        setCategoryAction("");
         setModalOpen(true);
     };
 
     const openEditModal = (category: TaskCategory) => {
         setEditingCategory(category);
         setCategoryName(category.category_name);
+        setCategoryAction(category.action ?? "");
         setModalOpen(true);
     };
 
@@ -111,10 +128,15 @@ export default function TaskCategoryManager() {
         const trimmed = categoryName.trim();
         if (!trimmed) return;
 
+        const payload = {
+            category_name: trimmed,
+            action: categoryAction || null,
+        };
+
         if (editingCategory) {
-            updateMutation.mutate({ category_name: trimmed });
+            updateMutation.mutate(payload);
         } else {
-            createMutation.mutate({ category_name: trimmed });
+            createMutation.mutate(payload);
         }
     };
 
@@ -150,7 +172,8 @@ export default function TaskCategoryManager() {
                 >
                     <span>#</span>
                     <span>{t("modules.projectCategory.categoryName")}</span>
-                    <span className="text-right">{t("app.action")}</span>
+                    <span>{t("app.action")}</span>
+                    <span className="text-right" aria-hidden="true" />
                 </div>
 
                 {isLoading ? (
@@ -183,6 +206,14 @@ export default function TaskCategoryManager() {
                                     title={category.category_name}
                                 >
                                     {category.category_name}
+                                </span>
+                                <span
+                                    className="min-w-0 truncate text-sm"
+                                    style={{ color: T.TEXT_MUTED }}
+                                >
+                                    {category.action
+                                        ? t(actionLabel(category.action))
+                                        : "—"}
                                 </span>
                                 <span className="flex items-center justify-end gap-1">
                                     <Button
@@ -258,6 +289,28 @@ export default function TaskCategoryManager() {
                         if (e.key === "Enter") handleSubmit();
                     }}
                     autoFocus
+                />
+
+                <label
+                    style={{
+                        display: "block",
+                        margin: "16px 0 6px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: T.TEXT_MUTED,
+                    }}
+                >
+                    {t("app.action")}
+                </label>
+                <MenuSelect
+                    value={categoryAction}
+                    options={CATEGORY_ACTIONS.map((a) => ({
+                        value: a.value,
+                        label: t(a.label),
+                    }))}
+                    onChange={(value) => setCategoryAction(String(value))}
+                    placeholder={t("None")}
+                    fullWidth
                 />
             </Modal>
 

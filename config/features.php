@@ -49,6 +49,7 @@ return [
         'crm.meetings-page-redesign',
         'crm.deal-value-commission',
         'shared.3cx-calling',
+        'shared.softphone',
         'crm.mobile-responsive-layout',
         'crm.property-completeness-score',
     ],
@@ -64,5 +65,15 @@ return [
     'local_defaults' => [
         'crm.meeting-attendance-confirmation' => true,
         'crm.mobile-responsive-layout' => true,
+    ],
+
+    /*
+    | Force-enabled here regardless of the remote flags service — for a flag
+    | being built that isn't registered there yet. Applies on top of a real,
+    | successful remote response (unlike local_defaults, which only apply when
+    | the remote is unreachable). Never read outside LOCAL_FALLBACK_ENVIRONMENTS.
+    */
+    'local_overrides' => [
+        'shared.softphone' => true,
     ],
 ];

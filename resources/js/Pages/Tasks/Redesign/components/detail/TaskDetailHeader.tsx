@@ -5,6 +5,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import { TASK_ICON } from "../../config/taskDesignTokens";
 import type { TaskViewModel } from "../../adapters/taskViewModel";
 import { TaskGlyph, TaskPriorityStripe } from "../primitives/TaskGlyphs";
+import TaskCategoryAction from "../primitives/TaskCategoryAction";
 
 interface TaskDetailHeaderProps {
     vm: TaskViewModel;
@@ -82,6 +83,7 @@ export default function TaskDetailHeader({ vm }: TaskDetailHeaderProps) {
                     <TaskPriorityStripe priority={vm.priority} size={14} />
                     {td(`${vm.priority.label} priority`, { source: "en" })}
                 </span>
+                <TaskCategoryAction task={task} variant="button" />
             </div>
 
             <span

@@ -1,5 +1,8 @@
+import { useState, useSyncExternalStore } from "react";
 import { PhoneOutlined } from "@ant-design/icons";
-import { Tooltip } from "antd";
+import { message, Tooltip } from "antd";
+import { usePage } from "@inertiajs/react";
+import { softphone } from "@/lib/softphone/SoftphoneClient";
 import useClickToCall from "@/Hooks/useClickToCall";
 import useTranslation from "@/Hooks/useTranslation";
 import type { TelephonyCallEntity } from "@/Types/api/telephony";
@@ -13,6 +16,13 @@ interface ClickToCallButtonProps {
     label?: string;
 }
 
+/**
+ * Beside a phone number: originate a call. When the in-browser softphone is
+ * on it dials via sipgate (audio in the tab); otherwise it falls back to the
+ * OL click-to-call bridge. Reads registration state straight off the shared
+ * SoftphoneClient singleton (the SoftphoneDock owns register/unregister) so a
+ * button per number never triggers its own registration effects.
+ */
 export default function ClickToCallButton({
     phone,
     entity,
@@ -21,16 +31,44 @@ export default function ClickToCallButton({
     label,
 }: ClickToCallButtonProps) {
     const { t } = useTranslation();
-    const { isEnabled, initiateCall, isCalling } = useClickToCall();
-    const trimmedPhone = phone.trim();
-    const loading = isCalling(trimmedPhone, entity);
+    const { props } = usePage();
+    const { isEnabled: olEnabled, initiateCall, isCalling } = useClickToCall();
+    const softphoneEnabled = props.featureFlags?.["shared.softphone"] === true;
+    const [dialing, setDialing] = useState(false);
 
-    if (!isEnabled || !trimmedPhone) {
+    const registration = useSyncExternalStore(
+        (listener) => softphone.subscribe(listener),
+        () => softphone.getState().registration,
+        () => softphone.getState().registration,
+    );
+    const softphoneReady = registration === "registered";
+
+    const trimmedPhone = phone.trim();
+    if ((!softphoneEnabled && !olEnabled) || !trimmedPhone) {
         return null;
     }
 
+    const useSoftphonePath = softphoneEnabled;
+    const loading = useSoftphonePath ? dialing : isCalling(trimmedPhone, entity);
+
     const handleClick = () => {
         if (loading) {
+            return;
+        }
+
+        if (useSoftphonePath) {
+            if (!softphoneReady) {
+                message.warning(
+                    "Softphone is not registered — pick a line in the dock.",
+                );
+                return;
+            }
+            setDialing(true);
+            void softphone
+                .call(trimmedPhone)
+                .then(() => message.info(`Calling ${trimmedPhone}…`))
+                .catch(() => message.error(t("pages.telephony.generic_error")))
+                .finally(() => setDialing(false));
             return;
         }
 

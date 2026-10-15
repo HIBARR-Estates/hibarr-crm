@@ -17,9 +17,11 @@ import {
     ThunderboltOutlined,
     TagsOutlined,
     DollarOutlined,
+    PhoneOutlined,
 } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import TaskCategoryManager from "./TaskCategoryManager";
+import SoftphoneDeviceManager from "./SoftphoneDeviceManager";
 import { usePermission, isPermissionAll } from "../../lib/permissionUtils";
 
 interface EntitySettingCard {
@@ -50,11 +52,14 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
         permissions.manage_company_setting,
     );
     const [taskCategoriesOpen, setTaskCategoriesOpen] = useState(false);
+    const [softphoneOpen, setSoftphoneOpen] = useState(false);
     const pageProps = usePage().props as {
         featureFlags?: Record<string, boolean>;
     };
     const automationV2Enabled =
         pageProps.featureFlags?.["crm.automation-v2"] === true;
+    const softphoneEnabled =
+        pageProps.featureFlags?.["shared.softphone"] === true;
 
     const cards: EntitySettingCard[] = [
         {
@@ -123,6 +128,21 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
             connected: true,
             onOpen: () => setTaskCategoriesOpen(true),
         },
+        ...(softphoneEnabled
+            ? [
+                  {
+                      key: "softphone",
+                      icon: <PhoneOutlined />,
+                      iconBg: "bg-sky-50",
+                      iconColor: "text-sky-600",
+                      title: "Phone lines",
+                      description:
+                          "Manage sipgate Neo lines for the in-browser softphone.",
+                      connected: true,
+                      onOpen: () => setSoftphoneOpen(true),
+                  },
+              ]
+            : []),
         ...(canManageCustomFields
             ? [
                   {
@@ -293,6 +313,21 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
                 }}
             >
                 <TaskCategoryManager />
+            </Drawer>
+
+            <Drawer
+                title="Phone lines"
+                open={softphoneOpen}
+                onClose={() => setSoftphoneOpen(false)}
+                width={560}
+                destroyOnClose
+                maskClosable={false}
+                styles={{
+                    content: { boxShadow: "none" },
+                    wrapper: { boxShadow: "none" },
+                }}
+            >
+                <SoftphoneDeviceManager />
             </Drawer>
         </PageLayout>
     );

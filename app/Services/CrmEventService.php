@@ -181,6 +181,13 @@ class CrmEventService
             return;
         }
 
+        // Note triggers already appear on the timeline as the agent's own
+        // action — don't ALSO emit a separate lead_first_contact milestone for
+        // them (the first_contacted_at timestamp above is still stamped).
+        if (in_array($slug, config('crm_events.first_contact.skip_event_slugs', []), true)) {
+            return;
+        }
+
         // Not in first_contact.slugs, so this cannot recurse.
         $this->record([
             'event_type_slug' => 'lead_first_contact',

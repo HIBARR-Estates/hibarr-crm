@@ -27,14 +27,18 @@ class LeadFirstContactStampTest extends TestCase
 
         Config::set('database.default', 'sqlite');
         Config::set('database.connections.sqlite.database', ':memory:');
-        Config::set('crm_events.first_contact.slugs', ['lead_note_added', 'deal_note_added']);
+        Config::set('crm_events.first_contact.slugs', ['lead_note_added', 'deal_note_added', 'phone_call']);
+        Config::set('crm_events.first_contact.skip_event_slugs', ['lead_note_added', 'deal_note_added']);
+        // CrmEventObserver writes ol_webhook_deliveries rows for webhook-enabled
+        // slugs; this minimal schema doesn't model that table, so keep it off.
+        Config::set('services.ol_webhook.enabled', false);
 
         DB::purge('sqlite');
         DB::reconnect('sqlite');
 
         $this->resetSchema();
         $this->createMinimalSchema();
-        $this->seedEventTypes(['lead_note_added', 'deal_note_added', 'lead_updated', 'lead_first_contact']);
+        $this->seedEventTypes(['lead_note_added', 'deal_note_added', 'lead_updated', 'phone_call', 'lead_first_contact']);
     }
 
     protected function tearDown(): void
@@ -91,15 +95,34 @@ class LeadFirstContactStampTest extends TestCase
         );
     }
 
-    public function test_stamping_emits_a_lead_first_contact_event_exactly_once(): void
+    public function test_notes_stamp_first_contact_but_do_not_emit_a_milestone(): void
     {
         $leadId = $this->insertLead();
 
         $this->record('lead_note_added', Lead::class, $leadId, '2026-08-01 09:00:00');
         $this->record('lead_note_added', Lead::class, $leadId, '2026-08-05 16:00:00');
 
-        $firstContactTypeId = DB::table('crm_event_types')->where('slug', 'lead_first_contact')->value('id');
+        // The timestamp is still stamped…
+        $this->assertSame(
+            '2026-08-01 09:00:00',
+            DB::table('leads')->where('id', $leadId)->value('first_contacted_at')
+        );
 
+        // …but no redundant lead_first_contact milestone is emitted for notes.
+        $firstContactTypeId = DB::table('crm_event_types')->where('slug', 'lead_first_contact')->value('id');
+        $this->assertSame(
+            0,
+            DB::table('crm_events')->where('event_type_id', $firstContactTypeId)->count()
+        );
+    }
+
+    public function test_non_note_slug_still_emits_a_lead_first_contact_milestone(): void
+    {
+        $leadId = $this->insertLead();
+
+        $this->record('phone_call', Lead::class, $leadId, '2026-08-01 09:00:00');
+
+        $firstContactTypeId = DB::table('crm_event_types')->where('slug', 'lead_first_contact')->value('id');
         $this->assertSame(
             1,
             DB::table('crm_events')->where('event_type_id', $firstContactTypeId)->count()

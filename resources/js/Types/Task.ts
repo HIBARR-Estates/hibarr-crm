@@ -20,6 +20,8 @@ export interface Task {
     category?: {
         id: number;
         category_name: string;
+        /** Quick-action the category triggers from a task ("call" | "email" | null). */
+        action?: string | null;
     };
     users?: Array<{
         id: number;
@@ -86,6 +88,8 @@ export interface Task {
         id: number;
         client_name: string;
         company_name?: string;
+        mobile?: string | null;
+        client_email?: string | null;
     }>;
     /** Developer projects (the ones with units) linked to this task. */
     developer_projects?: Array<{ id: number; name: string }>;

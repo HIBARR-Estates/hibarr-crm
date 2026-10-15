@@ -153,6 +153,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('reminders:send-due')->everyMinute();
         $schedule->command('send-time-tracker')->everyMinute();
         $schedule->command('ol-webhook:reconcile')->everyFifteenMinutes()->withoutOverlapping();
+        // OL call bridge → timeline projection (poll_interval config default 30s;
+        // everyMinute is the finest standard schedule tick).
+        $schedule->command('call-bridge:poll')->everyMinute()->withoutOverlapping();
         // Retry queue process every 5 minutes
         // $schedule->command('activity:retry-queue process --limit=50')->everyFiveMinutes();
 
