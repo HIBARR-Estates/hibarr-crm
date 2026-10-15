@@ -14,10 +14,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Socialite\Facades\Socialite;
 use Mockery;
+use Tests\Concerns\SetsFeatureFlags;
 use Tests\TestCase;
 
 class SilentSsoTest extends TestCase
 {
+    use SetsFeatureFlags;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -25,7 +28,7 @@ class SilentSsoTest extends TestCase
         Config::set('database.default', 'sqlite');
         Config::set('database.connections.sqlite.database', ':memory:');
         Config::set('cache.default', 'array');
-        Config::set('services.keycloak.silent_sso', true);
+        $this->setFeatureFlag(SilentSso::FLAG, true);
 
         DB::purge('sqlite');
         DB::reconnect('sqlite');
@@ -70,7 +73,7 @@ class SilentSsoTest extends TestCase
 
     public function test_it_is_off_by_default(): void
     {
-        Config::set('services.keycloak.silent_sso', false);
+        $this->setFeatureFlag(SilentSso::FLAG, false);
 
         $this->assertFalse(SilentSso::enabled());
         $this->assertFalse(SilentSso::shouldAttempt($this->request()));

@@ -15,6 +15,9 @@ use Illuminate\Http\Request;
  */
 class SilentSso
 {
+    /** Feature flag (Unleash, via FeatureFlagService). Off = today's behaviour. */
+    public const FLAG = 'auth.silent-sso-crm';
+
     public const SESSION_KEY = 'sso.silent_attempt_at';
 
     /** A failed silent attempt is not retried for this long. */
@@ -23,10 +26,10 @@ class SilentSso
     /** Keycloak answers a `prompt=none` request with one of these when the user has to sign in. */
     private const DECLINED_ERRORS = ['login_required', 'interaction_required', 'consent_required'];
 
-    /** Per-app flag. Off = today's behaviour (the login page with a button). */
+    /** Per-app feature flag. Off = today's behaviour (the login page with a button). */
     public static function enabled(): bool
     {
-        return (bool) config('services.keycloak.silent_sso', false);
+        return FeatureFlags::enabled(self::FLAG);
     }
 
     /** Whether a guest's request should be sent through the silent sign-in instead of the login page. */
