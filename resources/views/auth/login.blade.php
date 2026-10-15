@@ -1,9 +1,9 @@
 <x-auth>
     <div id="login-form">
-        <h3 class="auth-title">@lang('auth.signIn')</h3>
+        <h1 class="auth-title">@lang('auth.welcomeBack')</h1>
+        <p class="auth-subtitle">@lang('auth.signInSubtitle')</p>
 
         <a href="{{ route('social_login', 'keycloak') }}" class="auth-sso-btn">
-            <span class="auth-sso-icon"><i class="fa fa-shield-alt"></i></span>
             @lang('auth.signInKeycloak')
         </a>
 
