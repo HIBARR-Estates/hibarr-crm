@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helper\Reply;
 use App\Http\Requests\Role\StoreRole;
+use App\Jobs\ResyncUserPermissionsJob;
 use App\Models\Module;
 use App\Models\ModuleSetting;
 use App\Models\Permission;
@@ -13,7 +14,6 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\UserPermission;
 use Illuminate\Http\Request;
-use const _PHPStan_7961f7ae1\__;
 
 class RolePermissionController extends AccountBaseController
 {
@@ -274,6 +274,27 @@ class RolePermissionController extends AccountBaseController
 
     }
 
+    /**
+     * Rebuild user_permissions from each user's primary role (same as
+     * `php artisan sync-user-permissions --resync-all --company=<id>`) when
+     * role templates and per-user copies have drifted.
+     *
+     * Scoped to the acting admin's own company and dispatched to the queue: a
+     * full rewrite does not fit inside an HTTP request. The job takes a
+     * per-company lock, so a second click while one is in flight is a no-op
+     * rather than a concurrent rewrite.
+     */
+    public function resyncAllUserPermissions()
+    {
+        abort_403(user()->permission('manage_role_permission_setting') != 'all');
+
+        ResyncUserPermissionsJob::dispatch((int) company()->id, (int) user()->id);
+
+        $this->logUserActivity(user()->id, 'messages.resyncUserPermissionsStarted');
+
+        return Reply::success(__('messages.resyncUserPermissionsStarted'));
+    }
+
     public function update(Request $request, $id)
     {
         Role::where('id', $id)->update(['display_name' => $request->role_name]);
@@ -361,6 +382,10 @@ class RolePermissionController extends AccountBaseController
         $users = $role->users;
 
         foreach ($users as $user) {
+            if ((int) $user->customised_permissions === 1) {
+                continue;
+            }
+
             $userRole = $user->roles->pluck('name')->toArray();
 
             if (!in_array('admin', $userRole)) {
