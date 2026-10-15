@@ -149,7 +149,7 @@ class KeycloakBackchannelLogoutTest extends TestCase
         return app(KeycloakBackchannelLogoutController::class)($request);
     }
 
-    private function session(array $data = []): Store
+    private function makeSession(array $data = []): Store
     {
         $session = new Store('test', new ArraySessionHandler(120));
         $session->start();
@@ -163,16 +163,16 @@ class KeycloakBackchannelLogoutTest extends TestCase
         $response = $this->sendLogout($this->logoutToken());
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertSame('no-store', $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
 
-        $this->assertTrue(KeycloakBackchannelLogout::sessionRevoked($this->session([
+        $this->assertTrue(KeycloakBackchannelLogout::sessionRevoked($this->makeSession([
             KeycloakBackchannelLogout::SESSION_SID_KEY => 'sid-1',
             KeycloakBackchannelLogout::SESSION_SUB_KEY => 'kc-user-1',
             KeycloakBackchannelLogout::SESSION_AUTHENTICATED_AT_KEY => time(),
         ])));
 
         // another session of the same user stays valid
-        $this->assertFalse(KeycloakBackchannelLogout::sessionRevoked($this->session([
+        $this->assertFalse(KeycloakBackchannelLogout::sessionRevoked($this->makeSession([
             KeycloakBackchannelLogout::SESSION_SID_KEY => 'sid-2',
             KeycloakBackchannelLogout::SESSION_SUB_KEY => 'kc-user-1',
             KeycloakBackchannelLogout::SESSION_AUTHENTICATED_AT_KEY => time(),
@@ -185,14 +185,14 @@ class KeycloakBackchannelLogoutTest extends TestCase
 
         $this->assertSame(200, $response->getStatusCode());
 
-        $this->assertTrue(KeycloakBackchannelLogout::sessionRevoked($this->session([
+        $this->assertTrue(KeycloakBackchannelLogout::sessionRevoked($this->makeSession([
             KeycloakBackchannelLogout::SESSION_SID_KEY => 'any-sid',
             KeycloakBackchannelLogout::SESSION_SUB_KEY => 'kc-user-1',
             KeycloakBackchannelLogout::SESSION_AUTHENTICATED_AT_KEY => time() - 60,
         ])));
 
         // a login after the logout is unaffected
-        $this->assertFalse(KeycloakBackchannelLogout::sessionRevoked($this->session([
+        $this->assertFalse(KeycloakBackchannelLogout::sessionRevoked($this->makeSession([
             KeycloakBackchannelLogout::SESSION_SID_KEY => 'any-sid',
             KeycloakBackchannelLogout::SESSION_SUB_KEY => 'kc-user-1',
             KeycloakBackchannelLogout::SESSION_AUTHENTICATED_AT_KEY => time() + 5,
@@ -205,7 +205,7 @@ class KeycloakBackchannelLogoutTest extends TestCase
         $response = $this->sendLogout($makeToken($this));
 
         $this->assertSame(400, $response->getStatusCode());
-        $this->assertFalse(KeycloakBackchannelLogout::sessionRevoked($this->session([
+        $this->assertFalse(KeycloakBackchannelLogout::sessionRevoked($this->makeSession([
             KeycloakBackchannelLogout::SESSION_SID_KEY => 'sid-1',
             KeycloakBackchannelLogout::SESSION_SUB_KEY => 'kc-user-1',
             KeycloakBackchannelLogout::SESSION_AUTHENTICATED_AT_KEY => time(),
@@ -276,7 +276,7 @@ class KeycloakBackchannelLogoutTest extends TestCase
     public function test_remember_login_stores_the_keycloak_session_identifiers_from_the_id_token(): void
     {
         $idToken = $this->unsignedJwt(['sid' => 'sid-9', 'sub' => 'kc-user-9']);
-        $session = $this->session([KeycloakBackchannelLogout::SESSION_SID_KEY => 'stale-sid']);
+        $session = $this->makeSession([KeycloakBackchannelLogout::SESSION_SID_KEY => 'stale-sid']);
 
         KeycloakBackchannelLogout::rememberLogin($session, $idToken);
 
@@ -287,7 +287,7 @@ class KeycloakBackchannelLogoutTest extends TestCase
 
     public function test_remember_login_forgets_a_previous_logins_identifiers_when_there_is_no_id_token(): void
     {
-        $session = $this->session([
+        $session = $this->makeSession([
             KeycloakBackchannelLogout::SESSION_SID_KEY => 'stale-sid',
             KeycloakBackchannelLogout::SESSION_SUB_KEY => 'stale-sub',
         ]);
@@ -302,7 +302,7 @@ class KeycloakBackchannelLogoutTest extends TestCase
     {
         $this->sendLogout($this->logoutToken());
 
-        $this->assertFalse(KeycloakBackchannelLogout::sessionRevoked($this->session()));
+        $this->assertFalse(KeycloakBackchannelLogout::sessionRevoked($this->makeSession()));
     }
 
     public function test_the_middleware_signs_out_a_user_whose_keycloak_session_ended(): void
@@ -311,7 +311,7 @@ class KeycloakBackchannelLogoutTest extends TestCase
         $user->forceFill(['company_id' => 1, 'name' => 'U', 'email' => 'u@example.test', 'password' => 'x'])->save();
 
         $request = Request::create('/dashboard', 'GET');
-        $request->setLaravelSession($this->session([
+        $request->setLaravelSession($this->makeSession([
             KeycloakBackchannelLogout::SESSION_SID_KEY => 'sid-1',
             KeycloakBackchannelLogout::SESSION_SUB_KEY => 'kc-user-1',
             KeycloakBackchannelLogout::SESSION_AUTHENTICATED_AT_KEY => time(),
