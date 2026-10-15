@@ -126,21 +126,31 @@ class KeycloakBackchannelLogout
         $sid = isset($claims->sid) && is_string($claims->sid) ? $claims->sid : null;
         $sub = isset($claims->sub) && is_string($claims->sub) ? $claims->sub : null;
 
-        // Revoking is idempotent, so it runs before the replay claim.
-        $ttl = $this->revocationTtlSeconds();
+        // Claim the jti before any side effect so a replayed token can't rotate a newer remember-me token.
+        // Invalid tokens never get here, so they never consume a jti.
+        $jtiKey = self::JTI_PREFIX.$claims->jti;
 
-        if ($sid) {
-            Cache::put(self::REVOKED_SID_PREFIX.$sid, 1, $ttl);
-        } else {
-            Cache::put(self::REVOKED_SUB_PREFIX.$sub, time(), $ttl);
-        }
-
-        if ($sub) {
-            $this->rotateRememberToken($sub);
-        }
-
-        if (! Cache::add(self::JTI_PREFIX.$claims->jti, 1, self::JTI_TTL_SECONDS)) {
+        if (! Cache::add($jtiKey, 1, self::JTI_TTL_SECONDS)) {
             throw new InvalidLogoutToken('Logout token was already processed.');
+        }
+
+        try {
+            $ttl = $this->revocationTtlSeconds();
+
+            if ($sid) {
+                Cache::put(self::REVOKED_SID_PREFIX.$sid, 1, $ttl);
+            } else {
+                Cache::put(self::REVOKED_SUB_PREFIX.$sub, time(), $ttl);
+            }
+
+            if ($sub) {
+                $this->rotateRememberToken($sub);
+            }
+        } catch (\Throwable $e) {
+            // Release the claim so Keycloak's retry of this token can still be applied.
+            Cache::forget($jtiKey);
+
+            throw $e;
         }
     }
 
