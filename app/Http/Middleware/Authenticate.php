@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use App\Models\User;
 use App\Models\Company;
+use App\Support\SilentSso;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Auth\Middleware\Authenticate as Middleware;
 
@@ -20,6 +21,11 @@ class Authenticate extends Middleware
     protected function redirectTo($request)
     {
         if (!$request->expectsJson()) {
+            // Signed in to another HIBARR app? Try Keycloak silently before showing the login page.
+            if (SilentSso::shouldAttempt($request)) {
+                return route('social_login', ['provider' => 'keycloak', 'silent' => 1]);
+            }
+
             return route('login');
         }
     }
