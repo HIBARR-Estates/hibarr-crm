@@ -54,7 +54,7 @@ class SilentSsoTest extends TestCase
         parent::tearDown();
     }
 
-    private function session(array $data = []): Store
+    private function makeSession(array $data = []): Store
     {
         $session = new Store('test', new ArraySessionHandler(120));
         $session->start();
@@ -66,7 +66,7 @@ class SilentSsoTest extends TestCase
     private function request(string $method = 'GET', string $uri = '/dashboard', array $params = [], ?Store $session = null): Request
     {
         $request = Request::create($uri, $method, $params);
-        $request->setLaravelSession($session ?? $this->session());
+        $request->setLaravelSession($session ?? $this->makeSession());
 
         return $request;
     }
@@ -99,7 +99,7 @@ class SilentSsoTest extends TestCase
 
     public function test_the_loop_guard_blocks_a_second_attempt_inside_the_window(): void
     {
-        $session = $this->session();
+        $session = $this->makeSession();
 
         $this->assertTrue(SilentSso::canAttempt($session, 1_000));
         SilentSso::markAttempt($session, 1_000);
@@ -125,7 +125,7 @@ class SilentSsoTest extends TestCase
         $driver->shouldReceive('redirect')->once()->andReturn(redirect('https://auth.example.test/auth'));
         Socialite::shouldReceive('driver')->with('keycloak')->andReturn($driver);
 
-        $session = $this->session();
+        $session = $this->makeSession();
         $response = app(LoginController::class)->redirect($this->request('GET', '/redirect/keycloak', ['silent' => 1], $session), 'keycloak');
 
         $this->assertSame('https://auth.example.test/auth', $response->getTargetUrl());
@@ -148,7 +148,7 @@ class SilentSsoTest extends TestCase
     {
         Socialite::shouldReceive('driver')->never();
 
-        $session = $this->session();
+        $session = $this->makeSession();
         SilentSso::markAttempt($session);
 
         $response = app(LoginController::class)->redirect($this->request('GET', '/redirect/keycloak', ['silent' => 1], $session), 'keycloak');

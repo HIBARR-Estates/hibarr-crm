@@ -103,17 +103,19 @@ class LoginController extends Controller
             abort(404);
         }
 
+        // Silent single sign-on: ask Keycloak without showing a login screen. The marker is set before
+        // redirecting, so a failed attempt is never retried within the window.
+        $silent = $request->boolean('silent');
+
+        if ($silent && (! SilentSso::enabled() || ! SilentSso::canAttempt($request->session()))) {
+            return redirect()->route('login');
+        }
+
         $this->setSocailAuthConfigs();
 
         $driver = Socialite::driver($provider);
 
-        // Silent single sign-on: ask Keycloak without showing a login screen. The marker is set before
-        // redirecting, so a failed attempt is never retried within the window.
-        if ($request->boolean('silent')) {
-            if (! SilentSso::enabled() || ! SilentSso::canAttempt($request->session())) {
-                return redirect()->route('login');
-            }
-
+        if ($silent) {
             SilentSso::markAttempt($request->session());
             $driver = $driver->with(['prompt' => 'none']);
         }
