@@ -1,5 +1,5 @@
 <?php
 
 return [
-    'sessionEnded' => 'Başka bir HIBARR uygulamasında oturumunuz sona erdiği için çıkış yaptınız. Lütfen tekrar giriş yapın.',
+    'sessionEnded' => 'Başka bir HIBARR uygulamasında oturumunuz sona erdiği için oturumunuz kapatıldı. Lütfen tekrar giriş yapın.',
 ];
