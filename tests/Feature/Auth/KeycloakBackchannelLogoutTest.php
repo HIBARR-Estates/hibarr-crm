@@ -273,6 +273,29 @@ class KeycloakBackchannelLogoutTest extends TestCase
         $this->assertSame(60, strlen($remember));
     }
 
+    public function test_a_replayed_logout_token_does_not_rotate_a_newer_remember_me_token(): void
+    {
+        $user = new User();
+        $user->forceFill([
+            'company_id' => 1,
+            'name' => 'SSO User',
+            'email' => 'sso-replay@example.test',
+            'password' => bcrypt('nobody-knows'),
+            'remember_token' => 'old-remember-token',
+        ])->save();
+        Social::create(['user_id' => $user->id, 'social_id' => 'kc-user-1', 'social_service' => 'keycloak']);
+
+        $token = $this->logoutToken(['jti' => 'replay-jti']);
+
+        $this->assertSame(200, $this->sendLogout($token)->getStatusCode());
+
+        // The user signs in again afterwards and gets a fresh remember-me token.
+        User::withoutGlobalScopes()->whereKey($user->id)->update(['remember_token' => 'newer-login-token']);
+
+        $this->assertSame(400, $this->sendLogout($token)->getStatusCode());
+        $this->assertSame('newer-login-token', User::withoutGlobalScopes()->find($user->id)->remember_token);
+    }
+
     public function test_remember_login_stores_the_keycloak_session_identifiers_from_the_id_token(): void
     {
         $idToken = $this->unsignedJwt(['sid' => 'sid-9', 'sub' => 'kc-user-9']);
