@@ -6,6 +6,7 @@ use Exception;
 use App\Models\User;
 use App\Helper\Reply;
 use App\Models\Social;
+use App\Support\KeycloakBackchannelLogout;
 use App\Support\KeycloakLogout;
 use Illuminate\Http\Request;
 use Laravel\Fortify\Fortify;
@@ -216,6 +217,9 @@ class LoginController extends Controller
             } else {
                 session()->forget(KeycloakLogout::REFRESH_TOKEN_SESSION_KEY);
             }
+
+            // Lets Keycloak's back-channel logout end this session.
+            KeycloakBackchannelLogout::rememberLogin(session()->driver(), $idToken);
 
             $redirectPath = $this->redirectPath();
             Log::info("Auth::login complete, redirecting", [
