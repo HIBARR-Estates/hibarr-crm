@@ -146,8 +146,12 @@ class LeadService
     }
 
     /**
-     * SQL for a lead's next action: the earliest open task due date or scheduled
-     * meeting, whichever comes first, NULL when the lead has neither.
+     * SQL for a lead's next action: the earliest open task due date or upcoming
+     * scheduled meeting, whichever comes first, NULL when the lead has neither.
+     *
+     * A meeting qualifies only while its status is scheduled and its start is
+     * strictly later than now. One that has started or ended is not "next",
+     * even when nobody has marked it completed or cancelled.
      *
      * Raw SQL rather than a relation because the Leads index sorts and filters
      * on it — eager-loading tasks + meetings to read one date per row would
@@ -162,9 +166,13 @@ class LeadService
         $least = DB::connection()->getDriverName() === 'sqlite' ? 'MIN' : 'LEAST';
         $bindings = [];
 
+        // Start is a UTC instant. `>` matches the meetings list and Lead detail:
+        // at the start instant the meeting is live, not upcoming.
         $meeting = "(SELECT MIN(f.next_follow_up_date) FROM lead_follow_up f
             WHERE f.lead_id = leads.id AND f.status = 'scheduled'
-              AND f.next_follow_up_date IS NOT NULL";
+              AND f.next_follow_up_date IS NOT NULL
+              AND f.next_follow_up_date > ?";
+        $bindings[] = TaskWallClock::utcNowDateTimeString();
 
         // Mirrors LeadContactController@show: with 'added' the user only sees
         // meetings they created, so those are the only ones that can be "next".
@@ -274,6 +282,10 @@ class LeadService
             ->whereIn('lead_id', $leadIds)
             ->where('status', 'scheduled')
             ->whereNotNull('next_follow_up_date')
+            // Same instant as nextActionAtSql(): started and ended meetings
+            // stay scheduled until someone records an outcome, and must not
+            // hide a later meeting or an open task.
+            ->where('next_follow_up_date', '>', TaskWallClock::utcNowDateTimeString())
             ->with('meetingType:id,name')
             ->orderBy('next_follow_up_date');
 
@@ -304,45 +316,56 @@ class LeadService
             $meeting = $meetings->get($lead->id)?->first();
             $task = $tasks->get($lead->id)?->first();
 
+            // `instant` is the raw UTC digits. Sorting those, not the converted
+            // wall clock, is what keeps this pick aligned with LEAST() in
+            // nextActionAtSql() across a daylight-saving fallback.
             $candidates = [];
 
             if ($meeting) {
                 $candidates[] = [
-                    'type' => 'meeting',
-                    'id' => $meeting->id,
-                    'title' => trim(strip_tags((string) $meeting->remark))
-                        ?: ($meeting->meetingType?->name ?? 'Meeting'),
-                    // Both branches are compared as instants in nextActionAtSql() and only
-                    // converted here, at the edge, for display — so the list, the
-                    // sort and the urgency filters cannot drift apart on which
-                    // action they call "next".
-                    'due_at' => $this->wallClockString($meeting->next_follow_up_date),
-                    'meta' => $meeting->meetingType?->name,
+                    'instant' => $this->utcInstant($meeting->next_follow_up_date),
+                    'action' => [
+                        'type' => 'meeting',
+                        'id' => $meeting->id,
+                        'title' => trim(strip_tags((string) $meeting->remark))
+                            ?: ($meeting->meetingType?->name ?? 'Meeting'),
+                        'due_at' => $this->wallClockString($meeting->next_follow_up_date),
+                        'meta' => $meeting->meetingType?->name,
+                    ],
                 ];
             }
 
             if ($task) {
                 $candidates[] = [
-                    'type' => 'task',
-                    'id' => $task->id,
-                    'title' => $task->heading,
-                    // tasks.due_date is a true UTC instant — every live write
-                    // runs through UserTimezone::interpretWallClock(), which is
-                    // not feature-flagged — so the raw column holds UTC digits
-                    // and must be converted before it leaves here. Formatting it
-                    // directly made the list disagree with the task modal: a
-                    // task due 17:00 was rendered as 14:00, three hours early.
-                    //
-                    // Same helper as the task modal, so the two surfaces cannot
-                    // drift, and it honours crm.user-timezone (a viewer's own
-                    // zone wins over the company default).
-                    'due_at' => $this->wallClockString($task->due_date),
-                    'meta' => null,
+                    'instant' => $this->utcInstant($task->due_date),
+                    'action' => [
+                        'type' => 'task',
+                        'id' => $task->id,
+                        'title' => $task->heading,
+                        // tasks.due_date is a true UTC instant — every live write
+                        // runs through UserTimezone::interpretWallClock(), which is
+                        // not feature-flagged — so the raw column holds UTC digits
+                        // and must be converted before it leaves here. Formatting it
+                        // directly made the list disagree with the task modal: a
+                        // task due 17:00 was rendered as 14:00, three hours early.
+                        //
+                        // Same helper as the task modal, so the two surfaces cannot
+                        // drift, and it honours crm.user-timezone (a viewer's own
+                        // zone wins over the company default).
+                        'due_at' => $this->wallClockString($task->due_date),
+                        'meta' => null,
+                    ],
                 ];
             }
 
-            $lead->next_action = collect($candidates)->sortBy('due_at')->first();
+            $lead->next_action = collect($candidates)->sortBy('instant')->value('action');
         });
+    }
+
+    /** UTC `Y-m-d H:i:s` digits, comparable with the raw columns and with each other. */
+    private function utcInstant(?\DateTimeInterface $date): ?string
+    {
+        return $date ? Carbon::instance($date)->copy()->utc()->format('Y-m-d H:i:s') : null;
     }
 
     /**
