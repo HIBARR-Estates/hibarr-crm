@@ -120,6 +120,9 @@ return [
         'realms'        => env('KEYCLOAK_REALM'),
         // Where Keycloak sends the user after ending its session; defaults to the login route.
         'post_logout_redirect' => env('KEYCLOAK_POST_LOGOUT_REDIRECT_URI'),
+        // Silent single sign-on (prompt=none) before showing the login page. Enable only after logout and
+        // back-channel logout are deployed. Spec: hibarr-os docs/architecture/silent-sso.md.
+        'silent_sso' => (bool) env('KEYCLOAK_SILENT_SSO', false),
     ],
 
     'ai' => [
