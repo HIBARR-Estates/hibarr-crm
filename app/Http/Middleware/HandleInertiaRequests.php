@@ -99,6 +99,10 @@ class HandleInertiaRequests extends Middleware
             'emailMailbox' => fn () => EmailFeature::enabled() && EmailFeature::enabledFor($request->user())
                 ? ['settingsUrl' => '/account/settings/mailbox']
                 : null,
+            // Admins manage the pilot list while the flag is on, even before they are listed.
+            'emailPilot' => fn () => EmailFeature::enabled() && $request->user()?->hasRole('admin')
+                ? ['manageUrl' => '/account/settings/email-pilot']
+                : null,
             'viewerTimezone' => fn () => UserTimezone::forViewer(
                 $request->user(),
                 function_exists('company') ? company() : null
