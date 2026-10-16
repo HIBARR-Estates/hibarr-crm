@@ -15,7 +15,7 @@ import {
     REDESIGN_TYPE,
 } from "@/Components/Redesign";
 import { pageAccessFor } from "@/lib/pageAccess";
-import type { PermissionScope } from "@/Types/permission";
+import type { PermissionKey, PermissionScope } from "@/Types/permission";
 
 type Tab = "flags" | "permissions";
 
@@ -99,7 +99,7 @@ export default function AccessInspector() {
         }
         const next: Record<string, PermissionScope | undefined> = {};
         for (const gate of entry.permissions ?? []) {
-            next[gate.key] = permissions[gate.key];
+            next[gate.key] = permissions[gate.key as PermissionKey];
         }
         return next;
     }, [pageScoped, entry, permissions]);

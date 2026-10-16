@@ -855,7 +855,7 @@ interface UnitTypeCardProps {
     onAdd: () => void;
     adding: boolean;
     disabled?: boolean;
-    formatPrice: (price: any) => string | null;
+    formatPrice: (price: any, currencyCode?: string | null) => string | null;
     insideFeatureOptions: FeatureOption[];
     outsideFeatureOptions: FeatureOption[];
 }
