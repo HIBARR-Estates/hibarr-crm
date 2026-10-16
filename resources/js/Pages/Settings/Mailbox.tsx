@@ -1,5 +1,5 @@
 import { Link, router, usePage } from "@inertiajs/react";
-import DashboardLayout from "@/Components/DashboardLayout";
+import DashboardLayout, { type PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import ConnectMailboxModal from "@/Email/ConnectMailboxModal";
 import useTranslation from "@/Hooks/useTranslation";
@@ -11,9 +11,7 @@ type MailboxSettingsProps = {
 
 export default function MailboxSettings({ pageTitle }: MailboxSettingsProps) {
     const { t } = useTranslation();
-    const { props } = usePage<{
-        emailPilot?: { manageUrl: string } | null;
-    }>();
+    const { props } = usePage<PageProps>();
     const breadcrumbs = [{ name: t("app.menu.settings_menu.mailbox") }];
     const pilotUrl = props.emailPilot?.manageUrl;
 
