@@ -142,4 +142,9 @@ return array(
     'leadFollowUpOwnerRequired' => 'Diesem Lead ist kein Eigentümer zugewiesen. Bitte weisen Sie einen Lead-Eigentümer zu, bevor Sie ein Meeting buchen.',
     'leadDuplicateEmail' => 'Diese E-Mail-Adresse wird bereits von einem anderen Lead verwendet.',
     'leadDuplicateContact' => 'Der Wert für :attribute wird bereits von einem anderen Lead verwendet.',
+    'confirmResyncAllUserPermissions' => 'Dies baut die Berechtigungen aller Benutzer dieses Unternehmens aus der Rollenvorlage neu auf (Benutzer mit eigenen Berechtigungen werden übersprungen). Verwenden Sie dies, wenn die Rollen korrekt aussehen, Benutzer aber dennoch Zugriffsfehler erhalten. Fortfahren?',
+    'resyncUserPermissionsStarted' => 'Die Neusynchronisierung der Benutzerberechtigungen wurde gestartet. Sie werden benachrichtigt, wenn sie abgeschlossen ist.',
+    'resyncUserPermissionsAlreadyRunning' => 'Für dieses Unternehmen läuft bereits eine Neusynchronisierung der Benutzerberechtigungen.',
+    'resyncUserPermissionsSuccess' => 'Berechtigungen für :synced Benutzer neu synchronisiert. :skipped ohne Rolle übersprungen.',
+    'resyncUserPermissionsFailed' => 'Die Neusynchronisierung der Benutzerberechtigungen ist fehlgeschlagen. Prüfen Sie die Anwendungsprotokolle und versuchen Sie es erneut.',
 );

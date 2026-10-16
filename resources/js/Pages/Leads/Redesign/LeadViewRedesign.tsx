@@ -73,6 +73,10 @@ import QuickStats from "./components/workspace/QuickStats";
 import WorkspaceCard from "./components/workspace/WorkspaceCard";
 import LeadDossier from "./components/dossier/LeadDossier";
 import DossierQuickActions from "./components/dossier/DossierQuickActions";
+import CommunicationModal from "@/Email/CommunicationModal";
+import { subscribeOpenSourceEmail } from "@/Email/openSourceEmail";
+import type { EmailFollowUpKind, EmailQuickAction } from "@/Email/types";
+import { replaceUrlKeepingHistoryState } from "@/lib/inertiaHistory";
 import LogActionModal from "@/Components/CrmEvents/LogActionModal";
 import { LEAD_TIMELINE_MODEL_TYPE } from "@/Pages/Deals/Redesign/hooks/useDealTimeline";
 import LeadMeetingDetailModal from "./components/workspace/LeadMeetingDetailModal";
@@ -132,6 +136,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const showQualification =
         featureFlags?.["crm.lead-qualification-tab"] === true;
     const showProductTour = featureFlags?.["crm.leads-product-tour"] === true;
+    // Fail closed: flag off or missing server gate → no Email Quick action.
+    const emailQuickAction: EmailQuickAction | null =
+        featureFlags?.["crm.email"] === true && props.emailQuickAction != null
+            ? props.emailQuickAction
+            : null;
     // An expose is always created on a deal, so the deal view keeps its tab
     // unconditionally. The lead tab is only a rollup of what those deals hold:
     // with nothing attached anywhere it would open on a permanently empty
@@ -238,7 +247,62 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const [addNoteOpen, setAddNoteOpen] = useState(false);
     const [addTaskOpen, setAddTaskOpen] = useState(false);
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
+    const [sourceEmailMessageId, setSourceEmailMessageId] = useState<
+        string | null
+    >(null);
     const [logActionOpen, setLogActionOpen] = useState(false);
+    const hasMailboxConnection = emailQuickAction?.has_connection === true;
+    const emailQuickActionForUi: EmailQuickAction | null =
+        emailQuickAction == null
+            ? null
+            : { ...emailQuickAction, has_connection: hasMailboxConnection };
+    const [communicationOpen, setCommunicationOpen] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return Boolean(
+            new URLSearchParams(window.location.search).get("email_message"),
+        );
+    });
+    const [emailFocusMessageId, setEmailFocusMessageId] = useState<
+        string | null
+    >(() => {
+        if (typeof window === "undefined") return null;
+        return new URLSearchParams(window.location.search).get(
+            "email_message",
+        );
+    });
+    const openCommunication = (messageId: string | null = null) => {
+        setEmailFocusMessageId(messageId);
+        setCommunicationOpen(true);
+    };
+    const closeCommunication = () => {
+        setCommunicationOpen(false);
+        setEmailFocusMessageId(null);
+    };
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const url = new URL(window.location.href);
+        if (communicationOpen && emailFocusMessageId) {
+            url.searchParams.set("email_message", emailFocusMessageId);
+        } else {
+            url.searchParams.delete("email_message");
+        }
+        replaceUrlKeepingHistoryState(url);
+    }, [communicationOpen, emailFocusMessageId]);
+    useEffect(
+        () =>
+            subscribeOpenSourceEmail((messageId) => {
+                openCommunication(messageId);
+            }),
+        [],
+    );
+    const openCreateFromEmail = (kind: EmailFollowUpKind, messageId: string) => {
+        closeCommunication();
+        setSourceEmailMessageId(messageId);
+        if (kind === "task") setAddTaskOpen(true);
+        else if (kind === "note") setAddNoteOpen(true);
+        else setAddMeetingOpen(true);
+    };
     const [detailMeeting, setDetailMeeting] = useState<DealFollowup | null>(
         null,
     );
@@ -580,6 +644,10 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         leadId={lead.id}
                         leadName={lead.client_name}
                         userId={page.props.auth?.user?.id}
+                        emailEnabled={emailQuickAction != null}
+                        onOpenEmailMessage={(messageId) =>
+                            openCommunication(messageId)
+                        }
                     />
                 );
             case "files":
@@ -741,6 +809,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                         onScheduleMeeting={() =>
                                             setAddMeetingOpen(true)
                                         }
+                                        emailQuickAction={emailQuickActionForUi}
+                                        onEmail={() => openCommunication(null)}
                                     />
                                 </div>
                             )}
@@ -819,6 +889,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                     onScheduleMeeting={() =>
                                         setAddMeetingOpen(true)
                                     }
+                                    emailQuickAction={emailQuickActionForUi}
+                                    onEmail={() => openCommunication(null)}
                                 />
                             )}
                             <LeadDossier
@@ -933,18 +1005,37 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 userId={page.props.auth?.user?.id}
             />
 
+            <CommunicationModal
+                open={communicationOpen && emailQuickAction != null}
+                onClose={closeCommunication}
+                record={{ type: "lead", id: lead.id }}
+                recordLabel={lead.client_name}
+                messageId={emailFocusMessageId}
+                hasConnection={hasMailboxConnection}
+                prefillTo={lead.client_email ?? null}
+                onCreateFollowUp={openCreateFromEmail}
+            />
+
             <AddNoteModal
                 open={addNoteOpen}
                 onClose={() => {
                     setAddNoteOpen(false);
+                    setSourceEmailMessageId(null);
                     clearNoteErrors();
                 }}
                 saving={noteSaving}
                 errors={noteErrors}
                 onSubmit={(form: AddNoteFormState) =>
                     createNote(
-                        { title: form.title, text: form.text },
-                        () => setAddNoteOpen(false),
+                        {
+                            title: form.title,
+                            text: form.text,
+                            sourceEmailMessageId,
+                        },
+                        () => {
+                            setAddNoteOpen(false);
+                            setSourceEmailMessageId(null);
+                        },
                     )
                 }
                 labels={{
@@ -976,6 +1067,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         errors={createRedesignedTaskErrors}
                         onClose={() => {
                             setAddTaskOpen(false);
+                            setSourceEmailMessageId(null);
                             clearCreateRedesignedErrors();
                         }}
                         onSubmit={(values) =>
@@ -992,6 +1084,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                     boardColumnId:
                                         values.boardColumnId ?? undefined,
                                     links: formLinksPayload(values),
+                                    sourceEmailMessageId,
                                 },
                                 afterCreateTaskFormSubmit(
                                     values,
@@ -1005,6 +1098,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                             );
                                         }
                                         setAddTaskOpen(false);
+                                        setSourceEmailMessageId(null);
                                     },
                                     (task, result) => {
                                         setTasks(
@@ -1026,16 +1120,21 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     open={addTaskOpen}
                     onClose={() => {
                         setAddTaskOpen(false);
+                        setSourceEmailMessageId(null);
                         clearTaskErrors();
                     }}
                     saving={taskCreating}
                     errors={taskErrors}
                     defaultAssigneeUserId={lead.lead_owner?.id}
                     onSubmit={(form: AddTaskFormState) =>
-                        createTask(form, (task) => {
-                            if (task) addTask(task);
-                            setAddTaskOpen(false);
-                        })
+                        createTask(
+                            { ...form, sourceEmailMessageId },
+                            (task) => {
+                                if (task) addTask(task);
+                                setAddTaskOpen(false);
+                                setSourceEmailMessageId(null);
+                            },
+                        )
                     }
                     labels={{
                         title: td("Create task", { source: "en" }),
@@ -1064,6 +1163,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 open={addMeetingOpen}
                 onClose={() => {
                     setAddMeetingOpen(false);
+                    setSourceEmailMessageId(null);
                     clearMeetingErrors();
                 }}
                 saving={meetingCreating}
@@ -1090,8 +1190,12 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             remark: form.remark,
                             reminders: form.reminders,
                             timezone: form.timezone,
+                            sourceEmailMessageId,
                         },
-                        () => setAddMeetingOpen(false),
+                        () => {
+                            setAddMeetingOpen(false);
+                            setSourceEmailMessageId(null);
+                        },
                     )
                 }
                 mustIncludeOwner={getMeetingOwner(lead)}

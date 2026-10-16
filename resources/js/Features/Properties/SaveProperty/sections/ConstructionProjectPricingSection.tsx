@@ -13,6 +13,10 @@ import {
 import type { FormInstance } from "antd/lib/form";
 import { LinkOutlined } from "@ant-design/icons";
 import { DOWNPAYMENT_TYPE_OPTIONS } from "../constructionProjectConfig";
+import {
+    CURRENCY_OPTIONS,
+    getCurrencySymbol,
+} from "@/Features/DeveloperProjects/unitTypeConfig";
 
 const { Text } = Typography;
 
@@ -38,9 +42,26 @@ const ConstructionProjectPricingSection: React.FC<
         form,
     );
     const availabilityLink = Form.useWatch("availability_link", form);
+    const currencyCode = Form.useWatch("currency", form) || "GBP";
+    const currencySymbol = getCurrencySymbol(currencyCode);
 
     return (
         <Row gutter={[16, 0]}>
+            <Col xs={24} md={8}>
+                <Form.Item
+                    name="currency"
+                    label="Currency"
+                    initialValue="GBP"
+                >
+                    <Select
+                        options={CURRENCY_OPTIONS.map((option) => ({
+                            value: option.value,
+                            label: option.label,
+                        }))}
+                    />
+                </Form.Item>
+            </Col>
+
             {/* Starting Price */}
             <Col xs={24} md={8}>
                 <Form.Item name="starting_price" label="Starting Price">
@@ -50,14 +71,14 @@ const ConstructionProjectPricingSection: React.FC<
                         style={{ width: "100%" }}
                         formatter={(value) =>
                             value != null
-                                ? `£ ${value}`.replace(
+                                ? `${currencySymbol} ${value}`.replace(
                                       /\B(?=(\d{3})+(?!\d))/g,
                                       ",",
                                   )
                                 : ""
                         }
                         parser={(value) => {
-                            const raw = value?.replace(/[£,\s]/g, "") ?? "";
+                            const raw = value?.replace(/[£€$₺,\s]/g, "") ?? "";
                             if (raw === "") {
                                 return undefined as unknown as number;
                             }
@@ -187,7 +208,9 @@ const ConstructionProjectPricingSection: React.FC<
                                 }
                                 style={{ width: "100%" }}
                                 addonAfter={
-                                    downpaymentType === "percentage" ? "%" : "£"
+                                    downpaymentType === "percentage"
+                                        ? "%"
+                                        : currencySymbol
                                 }
                             />
                         </Form.Item>

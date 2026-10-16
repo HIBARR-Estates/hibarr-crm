@@ -130,6 +130,26 @@ class LeadMergeServiceTest extends TestCase
         $this->assertSame('lead_merged', $this->recordedCrmEvents[0]['event_type_slug']);
     }
 
+    public function test_moved_follow_up_is_reconciled_to_its_deals_lead_outside_the_merge(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate']);
+        $otherId = $this->insertLead(['client_name' => 'Other']);
+        $dealId = DB::table('deals')->insertGetId([
+            'company_id' => $this->companyId,
+            'lead_id' => $otherId,
+        ]);
+        $followUpId = DB::table('lead_follow_up')->insertGetId([
+            'deal_id' => $dealId,
+            'lead_id' => $duplicateId,
+        ]);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 99);
+
+        $this->assertSame($otherId, (int) DB::table('deals')->where('id', $dealId)->value('lead_id'));
+        $this->assertSame($otherId, (int) DB::table('lead_follow_up')->where('id', $followUpId)->value('lead_id'));
+    }
+
     public function test_fills_primary_empty_contact_fields_from_duplicate(): void
     {
         $primaryId = $this->insertLead([
@@ -811,6 +831,7 @@ class LeadMergeServiceTest extends TestCase
         Schema::create('lead_follow_up', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('lead_id')->nullable();
+            $table->unsignedBigInteger('deal_id')->nullable();
             $table->timestamps();
         });
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\DataTables\LeadNotesDataTable;
+use App\Email\FollowUps\AttachesSourceEmail;
 use App\Helper\Reply;
 use App\Http\Requests\Lead\StoreLeadNote;
 use App\Http\Requests\StoreDealNote;
@@ -11,12 +12,11 @@ use App\Models\Deal;
 use App\Models\User;
 use App\Services\PermissionService;
 use App\Services\Reminders\NoteReminderSync;
-use App\Traits\RecordsCrmEvents;
 use Illuminate\Http\Request;
 
 class DealNoteController extends AccountBaseController
 {
-    use RecordsCrmEvents;
+    use AttachesSourceEmail;
 
     public function __construct()
     {
@@ -62,6 +62,12 @@ class DealNoteController extends AccountBaseController
             $notes = $notes->where('added_by', user()->id)->values();
         } elseif ($viewNotesPermission == 'owned') {
             $notes = $notes->where('added_by', '!=', user()->id)->values();
+        }
+
+        try {
+            app(\App\Email\FollowUps\FollowUpLinker::class)->decorateSourceUuids($notes);
+        } catch (\Throwable) {
+            // Email module unavailable — list still returns.
         }
 
         return response()->json(['status' => 'success', 'data' => $notes]);
@@ -148,20 +154,22 @@ class DealNoteController extends AccountBaseController
         }
         $note->save();
 
+        $this->attachSourceEmail(user(), $note, $request->input('source_email_message_id'));
+
         \Log::info('Deal Note Created: ', ['id' => $note->id, 'deal_id' => $note->deal_id,]);
 
-        // ── CRM Event: deal_note_added ──
-        $this->recordCrmEvent('deal_note_added', $noteDeal, [
-            'metadata' => [
-                'comment' => 'Note added: ' . ($note->title ?? 'Untitled'),
-                'note_id' => $note->id,
-                'note_title' => $note->title,
-            ],
-        ]);
-
+        // deal_note_added is recorded by DealNoteObserver via DealActivityEventService.
+        // Recording it here as well persisted a second event for the same note.
         app(NoteReminderSync::class)->syncFromDealNote($note->load('deal.leadAgent.user', 'addedBy'));
 
-        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => route('deals.show', $note->deal_id) . '?tab=notes', 'data' => $note->load('addedBy')]);
+        $note->load('addedBy');
+        $payload = $note->toArray();
+        $payload['source_email_message_id'] = $this->sourceEmailMessageIdFor($note);
+
+        return Reply::successWithData(__('messages.recordSaved'), [
+            'redirectUrl' => route('deals.show', $note->deal_id).'?tab=notes',
+            'data' => $payload,
+        ]);
     }
 
     public function edit($id)

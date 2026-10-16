@@ -28,6 +28,7 @@ class StoreLeadNote extends CoreRequest
         $rules = [
             'title' => 'nullable|string|max:191',
             'details' => 'required',
+            'source_email_message_id' => 'nullable|uuid',
         ];
 
         if ($this->type == 1 && is_null($this->user_id)) {

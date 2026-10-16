@@ -13,6 +13,7 @@ import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     BellOutlined,
     ControlOutlined,
+    MailOutlined,
     HomeOutlined,
     ReloadOutlined,
     SettingOutlined,
@@ -28,6 +29,7 @@ import NotificationDropdown from "./NotificationDropdown";
 import LanguageSwitcher from "./LanguageSwitcher";
 import AccessInspector from "./AccessInspector";
 import TimezoneIndicator from "./TimezoneIndicator";
+import EmailUnreadIndicator from "@/Email/EmailUnreadIndicator";
 
 interface BreadcrumbItem {
     name: string;
@@ -150,6 +152,17 @@ export default function PageLayout({
             label: t("app.menu.settings_menu.preferences"),
             onClick: () => router.visit("/account/settings/preferences"),
         },
+        ...(props.emailMailbox?.settingsUrl
+            ? [
+                  {
+                      key: "mailbox",
+                      icon: <MailOutlined />,
+                      label: t("app.menu.settings_menu.mailbox"),
+                      onClick: () =>
+                          router.visit(props.emailMailbox.settingsUrl),
+                  },
+              ]
+            : []),
         {
             key: "reminder-preferences",
             icon: <BellOutlined />,
@@ -246,6 +259,7 @@ export default function PageLayout({
                                 <AccessInspector />
                                 <TimezoneIndicator />
                             </div>
+                            <EmailUnreadIndicator />
                             <NotificationDropdown pollingInterval={30000} />
                             <Dropdown
                                 menu={{ items: userMenuItems }}

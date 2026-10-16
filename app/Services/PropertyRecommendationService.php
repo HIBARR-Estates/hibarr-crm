@@ -539,6 +539,7 @@ class PropertyRecommendationService
             'property_type' => $property->property_type,
             'sale_type' => $property->sale_type,
             'price' => $property->price,
+            'price_currency' => $property->price_currency,
             'city' => $property->city,
             'area' => $property->area,
             'bedrooms' => $property->bedrooms,

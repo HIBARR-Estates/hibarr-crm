@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Models\PartnerFlag;
-use App\Models\User;
+use App\Notifications\PartnerFlagAnswered;
 use App\Notifications\PartnerFlagRaised;
+use App\Support\FeatureFlags;
+use App\Support\PartnerFlagRecipients;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
@@ -87,19 +89,52 @@ class PartnerFlagController extends AccountBaseController
             'resolved_at' => now(),
         ]);
 
+        $this->notifyPartner($flag);
+
         return back()->with('success', __('messages.updateSuccess'));
     }
 
     /**
-     * Notify company admins. Permission-scoped managers are disabled until
-     * that routing is reviewed (TODO below).
+     * Mail and an in-app notification to admins and to everyone who can answer
+     * the flag. Sent now, not queued: a worker that is not running was dropping
+     * both, and the partner had already been told the flag was saved.
+     *
+     * The routing flag still decides where the button lands. It no longer
+     * decides who is told.
      */
     private function notifyManagers(PartnerFlag $flag): void
     {
-        // TODO: also notify users with manage_partner_flags = all.
-        Notification::send(
-            User::allAdmins((int) $flag->company_id),
-            new PartnerFlagRaised($flag),
+        try {
+            $routed = FeatureFlags::enabled(PartnerFlag::ROUTING_FLAG);
+        } catch (\Throwable $e) {
+            report($e);
+            $routed = false;
+        }
+
+        $this->deliver(
+            PartnerFlagRecipients::resolve((int) $flag->company_id, true),
+            new PartnerFlagRaised($flag, $routed),
         );
+    }
+
+    /** The partner who raised it hears the reply the same way. */
+    private function notifyPartner(PartnerFlag $flag): void
+    {
+        $partner = $flag->partner()->first()?->user;
+
+        if ($partner === null) {
+            return;
+        }
+
+        $this->deliver($partner, new PartnerFlagAnswered($flag));
+    }
+
+    private function deliver(mixed $notifiable, PartnerFlagRaised $notification): void
+    {
+        try {
+            Notification::sendNow($notifiable, $notification);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }

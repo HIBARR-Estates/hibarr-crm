@@ -158,7 +158,7 @@ Route::get('availability-requests/{id}/respond/{action}', [App\Http\Controllers\
     ->name('availability-requests.respond-email')
     ->middleware('signed');
 
-Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
+Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account'], function () {
     Route::post('image/upload', [ImageController::class, 'store'])->name('image.store');
 
     Route::get('account-unverified', [DashboardController::class, 'accountUnverified'])->name('account_unverified');
@@ -1554,9 +1554,18 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     // ══════════════════════════════════════════════════════════════
     //  Partners — manage which agents are flagged as partners
     // ══════════════════════════════════════════════════════════════
+    // A partner's own leads. Under /partner/, not /leads/: the latter is blocked
+    // for partner accounts by RestrictPartnerAccounts.
+    Route::prefix('partner/leads')->name('partner.leads.')->group(function () {
+        Route::get('/', [App\Http\Controllers\PartnerLeadController::class, 'index'])->name('index');
+        Route::get('{lead}', [App\Http\Controllers\PartnerLeadController::class, 'show'])->whereNumber('lead')->name('show');
+    });
+
     Route::prefix('partners')->name('partners.')->group(function () {
         Route::get('/', [App\Http\Controllers\PartnerAdminController::class, 'index'])->name('index');
         Route::post('/', [App\Http\Controllers\PartnerAdminController::class, 'store'])->name('store');
+        Route::post('invite', [App\Http\Controllers\PartnerAdminController::class, 'invite'])->name('invite');
+        Route::post('{id}/resend-invite', [App\Http\Controllers\PartnerAdminController::class, 'resendInvite'])->name('resend_invite');
         Route::delete('{id}', [App\Http\Controllers\PartnerAdminController::class, 'destroy'])->name('destroy');
     });
 

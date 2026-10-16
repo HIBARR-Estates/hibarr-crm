@@ -4,6 +4,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import NoteDetailModal from "@/Components/Redesign/modals/NoteDetailModal";
 import { hasNoteScopeAccess } from "@/Components/Redesign/adapters/noteAdapter";
+import { openSourceEmailMessage } from "@/Email/openSourceEmail";
 import useDealNoteMutations from "../../hooks/useDealNoteMutations";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 
@@ -33,6 +34,7 @@ export default function DealNoteDetailModal({
         !isWatcherOnly && hasNoteScopeAccess(permissions.edit_deal_note, isOwner);
     const canDelete =
         !isWatcherOnly && hasNoteScopeAccess(permissions.delete_deal_note, isOwner);
+    const sourceEmailId = note?.source_email_message_id ?? null;
 
     return (
         <NoteDetailModal
@@ -45,6 +47,19 @@ export default function DealNoteDetailModal({
             initialEditing={initialEditing}
             onUpdate={(payload, onSuccess) => updateNote(payload, onSuccess)}
             onDelete={(onSuccess) => deleteNote(onSuccess)}
+            onOpenSourceEmail={
+                sourceEmailId
+                    ? () => {
+                          onClose();
+                          openSourceEmailMessage(sourceEmailId);
+                      }
+                    : undefined
+            }
+            openSourceEmailLabel={
+                sourceEmailId
+                    ? t("pages.email.drawer.open_source")
+                    : undefined
+            }
             labels={{
                 viewTitle: t("pages.deals.workspace.notes.view_title"),
                 editTitle: t("pages.deals.workspace.notes.edit_note"),

@@ -6,17 +6,23 @@ import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
 import useTranslation from "@/Hooks/useTranslation";
 import type { Note } from "@/Types/api/note";
+import {
+    hasNoteBodyHtml,
+    normalizeNoteDetailsFromSave,
+} from "@/Components/Redesign/adapters/noteAdapter";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 export interface DealNoteCreateInput {
     text: string;
     title?: string;
+    sourceEmailMessageId?: string | null;
 }
 
 interface SaveNotePayload {
     title?: string;
     details: string;
     lead_id: number;
+    source_email_message_id?: string;
 }
 
 export default function useDealNoteCreate(dealId: number) {
@@ -32,10 +38,7 @@ export default function useDealNoteCreate(dealId: number) {
 
     const createNote = useCallback(
         (input: DealNoteCreateInput, onSuccess?: () => void) => {
-            const hasText =
-                input.text.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim()
-                    .length > 0;
-            if (!hasText) {
+            if (!hasNoteBodyHtml(input.text)) {
                 setErrors([t("pages.deals.workspace.notes.validation.details_required")]);
                 return;
             }
@@ -51,6 +54,12 @@ export default function useDealNoteCreate(dealId: number) {
                     title: input.title?.trim() || undefined,
                     details: input.text,
                     lead_id: dealId,
+                    ...(input.sourceEmailMessageId
+                        ? {
+                              source_email_message_id:
+                                  input.sourceEmailMessageId,
+                          }
+                        : {}),
                 },
                 {
                     onSuccess: (response) => {
@@ -58,7 +67,11 @@ export default function useDealNoteCreate(dealId: number) {
                             setErrors([]);
                             message.success(t("pages.deals.workspace.notes.messages.saved"));
                             if (response.data) {
-                                setNotes((prev) => [response.data as Note, ...prev]);
+                                const saved = normalizeNoteDetailsFromSave(
+                                    response.data as Note,
+                                    input.text,
+                                );
+                                setNotes((prev) => [saved, ...prev]);
                             }
                             onSuccess?.();
                             return;

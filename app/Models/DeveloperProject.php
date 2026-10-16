@@ -139,6 +139,7 @@ class DeveloperProject extends BaseModel
         'google_drive_link',
         'availability_link',
         'starting_price',
+        'currency',
         'primary_categories',
         'title_deed_type',
         'unit_types',
@@ -299,6 +300,68 @@ class DeveloperProject extends BaseModel
     }
 
     /**
+     * Supported pricing currencies. Shared with unit types so a project price
+     * and a unit-type price use the same codes.
+     *
+     * @return array<string, array{label: string, symbol: string}>
+     */
+    public static function pricingCurrencies(): array
+    {
+        return DeveloperProjectUnitType::CURRENCIES;
+    }
+
+    public static function pricingCurrencyRule(): string
+    {
+        return 'nullable|string|in:'.implode(',', array_keys(self::pricingCurrencies()));
+    }
+
+    /**
+     * Currency code stored for this project's own prices. Missing or unknown
+     * values read as GBP, which is the currency of existing project prices.
+     */
+    public function currencyCode(): string
+    {
+        $code = strtoupper((string) ($this->currency ?: 'GBP'));
+
+        return isset(self::pricingCurrencies()[$code]) ? $code : 'GBP';
+    }
+
+    public function currencySymbol(): string
+    {
+        return self::pricingCurrencies()[$this->currencyCode()]['symbol'];
+    }
+
+    /**
+     * Currency of the amount returned by resolvedStartingPrice().
+     *
+     * A saved project price uses the project currency. A unit-type fallback
+     * uses the currency stored on that unit type.
+     */
+    public function resolvedStartingPriceCurrency(): string
+    {
+        if ($this->starting_price !== null && $this->starting_price !== '') {
+            return $this->currencyCode();
+        }
+
+        if (! $this->relationLoaded('unitTypes')) {
+            return 'GBP';
+        }
+
+        $lowest = $this->unitTypes
+            ->whereNotNull('starting_price')
+            ->sortBy('starting_price')
+            ->first();
+
+        if ($lowest === null || $lowest->starting_price === null || $lowest->starting_price === '') {
+            return 'GBP';
+        }
+
+        $code = strtoupper((string) ($lowest->currency ?: 'GBP'));
+
+        return isset(self::pricingCurrencies()[$code]) ? $code : 'GBP';
+    }
+
+    /**
      * Project-level starting price, or the cheapest unit-type price when unset.
      */
     public function resolvedStartingPrice(): ?float
@@ -334,7 +397,7 @@ class DeveloperProject extends BaseModel
             return null;
         }
 
-        return '£'.number_format((float) $this->starting_price, 0);
+        return $this->currencySymbol().number_format((float) $this->starting_price, 0);
     }
 
     /**

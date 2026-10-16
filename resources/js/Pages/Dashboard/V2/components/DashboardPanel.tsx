@@ -27,6 +27,11 @@ interface DashboardPanelProps {
     footerTone?: "sunken" | "raised";
     /** Drops the header/body padding so tables can run edge to edge. */
     flush?: boolean;
+    /**
+     * Body fills the card and lays its children out as a column, so a pager
+     * can sit at the bottom while the list above takes the spare height.
+     */
+    fill?: boolean;
     /** `data-tour` selector target for the ProductTour engine. */
     dataTour?: string;
     style?: CSSProperties;
@@ -48,6 +53,7 @@ export default function DashboardPanel({
     footer,
     footerTone = "sunken",
     flush = false,
+    fill = false,
     dataTour,
     style,
     children,
@@ -118,7 +124,15 @@ export default function DashboardPanel({
                 </header>
             )}
 
-            <div style={{ flex: 1, padding: flush ? 0 : "16px 18px" }}>
+            <div
+                style={{
+                    flex: 1,
+                    display: fill ? "flex" : undefined,
+                    flexDirection: fill ? "column" : undefined,
+                    minHeight: fill ? 0 : undefined,
+                    padding: flush ? 0 : "16px 18px",
+                }}
+            >
                 {children}
             </div>
 

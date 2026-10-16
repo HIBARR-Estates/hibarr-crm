@@ -68,6 +68,10 @@ import {
     DealWorkspaceProvider,
     useDealWorkspace,
 } from "./context/DealWorkspaceContext";
+import CommunicationModal from "@/Email/CommunicationModal";
+import { subscribeOpenSourceEmail } from "@/Email/openSourceEmail";
+import type { EmailFollowUpKind, EmailQuickAction } from "@/Email/types";
+import { replaceUrlKeepingHistoryState } from "@/lib/inertiaHistory";
 
 /** Stable identity so an absent prop doesn't invalidate memos every render. */
 const EMPTY_FIELDS: any[] = [];
@@ -98,6 +102,9 @@ function DealViewRedesignInner(
     const [addTaskOpen, setAddTaskOpen] = useState(false);
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
     const [addNoteOpen, setAddNoteOpen] = useState(false);
+    const [sourceEmailMessageId, setSourceEmailMessageId] = useState<
+        string | null
+    >(null);
     const analysis = useDealAnalysis();
     const [recommendationsCount, setRecommendationsCount] = useState<
         number | undefined
@@ -120,6 +127,74 @@ function DealViewRedesignInner(
         featureFlags?.["crm.deal-info-count-indicator"] === true;
     const showAnalysis = featureFlags?.["crm.deal-analysis"] === true;
     const showExposes = featureFlags?.[DEAL_EXPOSES_FLAG] === true;
+    // Fail closed: flag off or missing server gate → no Email Quick action.
+    const emailQuickAction: EmailQuickAction | null =
+        featureFlags?.["crm.email"] === true && props.emailQuickAction != null
+            ? props.emailQuickAction
+            : null;
+    const hasMailboxConnection = emailQuickAction?.has_connection === true;
+    const emailQuickActionForUi: EmailQuickAction | null =
+        emailQuickAction == null
+            ? null
+            : { ...emailQuickAction, has_connection: hasMailboxConnection };
+    const [communicationOpen, setCommunicationOpen] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return Boolean(
+            new URLSearchParams(window.location.search).get("email_message"),
+        );
+    });
+    const [emailFocusMessageId, setEmailFocusMessageId] = useState<
+        string | null
+    >(() => {
+        if (typeof window === "undefined") return null;
+        return new URLSearchParams(window.location.search).get(
+            "email_message",
+        );
+    });
+    const openCommunication = (messageId: string | null = null) => {
+        setEmailFocusMessageId(messageId);
+        setCommunicationOpen(true);
+    };
+    const closeCommunication = () => {
+        setCommunicationOpen(false);
+        setEmailFocusMessageId(null);
+    };
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const url = new URL(window.location.href);
+        if (communicationOpen && emailFocusMessageId) {
+            url.searchParams.set("email_message", emailFocusMessageId);
+        } else {
+            url.searchParams.delete("email_message");
+        }
+        replaceUrlKeepingHistoryState(url);
+    }, [communicationOpen, emailFocusMessageId]);
+    useEffect(
+        () =>
+            subscribeOpenSourceEmail((messageId) => {
+                openCommunication(messageId);
+            }),
+        [],
+    );
+    const openCreateFromEmail = (kind: EmailFollowUpKind, messageId: string) => {
+        closeCommunication();
+        setSourceEmailMessageId(messageId);
+        if (kind === "task") setAddTaskOpen(true);
+        else if (kind === "note") setAddNoteOpen(true);
+        else setAddMeetingOpen(true);
+    };
+    const closeAddTask = () => {
+        setAddTaskOpen(false);
+        setSourceEmailMessageId(null);
+    };
+    const closeAddNote = () => {
+        setAddNoteOpen(false);
+        setSourceEmailMessageId(null);
+    };
+    const closeAddMeeting = () => {
+        setAddMeetingOpen(false);
+        setSourceEmailMessageId(null);
+    };
     const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
@@ -471,7 +546,7 @@ function DealViewRedesignInner(
             )}
             <DealAddTaskModal
                 open={addTaskOpen}
-                onClose={() => setAddTaskOpen(false)}
+                onClose={closeAddTask}
                 dealId={deal.id}
                 dealName={deal.name}
                 dealAgentUserId={
@@ -481,17 +556,20 @@ function DealViewRedesignInner(
                     deal.agent?.user_id ??
                     null
                 }
+                sourceEmailMessageId={sourceEmailMessageId}
             />
             <DealScheduleMeetingModal
                 open={addMeetingOpen}
-                onClose={() => setAddMeetingOpen(false)}
+                onClose={closeAddMeeting}
                 deal={deal}
                 meetingTypes={meetingTypes}
+                sourceEmailMessageId={sourceEmailMessageId}
             />
             <DealAddNoteModal
                 open={addNoteOpen}
-                onClose={() => setAddNoteOpen(false)}
+                onClose={closeAddNote}
                 dealId={deal.id}
+                sourceEmailMessageId={sourceEmailMessageId}
             />
             <ProductTour
                 ref={tourRef}
@@ -519,6 +597,8 @@ function DealViewRedesignInner(
                         }
                         onReplayGuide={() => tourRef.current?.restart()}
                         isMobileResponsive={isMobileResponsive}
+                        emailQuickAction={emailQuickActionForUi}
+                        onEmail={() => openCommunication(null)}
                     />
 
                     <div className="">
@@ -837,6 +917,17 @@ function DealViewRedesignInner(
                                                 dealId={deal.id}
                                                 dealName={deal.name}
                                                 userId={props.auth?.user?.id}
+                                                recordType="deal"
+                                                emailEnabled={
+                                                    emailQuickAction != null
+                                                }
+                                                onOpenEmailMessage={(
+                                                    messageId,
+                                                ) =>
+                                                    openCommunication(
+                                                        messageId,
+                                                    )
+                                                }
                                             />
                                         )}
                                     </div>
@@ -873,6 +964,17 @@ function DealViewRedesignInner(
                     </div>
                 </div>
             </div>
+
+            <CommunicationModal
+                open={communicationOpen && emailQuickAction != null}
+                onClose={closeCommunication}
+                record={{ type: "deal", id: deal.id }}
+                recordLabel={deal.name}
+                messageId={emailFocusMessageId}
+                hasConnection={hasMailboxConnection}
+                prefillTo={deal.contact?.client_email ?? null}
+                onCreateFollowUp={openCreateFromEmail}
+            />
         </PageLayout>
     );
 }

@@ -197,6 +197,7 @@ return [
         'offers' => 'Offers',
         'partner_network' => 'Partner Network',
         'partners' => 'Partners',
+        'partner_leads' => 'Referred leads',
         'affiliate_workspace' => 'Affiliate Workspace',
         'mlm' => [
             'dashboard' => 'Dashboard',
@@ -215,6 +216,7 @@ return [
         'settings_menu' => [
             'reminder_preferences' => 'Reminder Preferences',
             'preferences' => 'Preferences',
+            'mailbox' => 'Mailbox',
             'entity_reminder_defaults' => 'Reminder Defaults',
             'reminder_ledger' => 'Reminders',
         ],
@@ -1929,5 +1931,9 @@ return [
         'on' => 'On',
         'off' => 'Off',
         'read_only' => 'Read only',
+        'this_page' => 'This page',
+        'undeclared' => 'No entry for this page. Showing every flag and permission.',
+        'any_of' => 'Any one of these is enough.',
+        'needs' => 'Needs {{scopes}}',
     ],
 ];

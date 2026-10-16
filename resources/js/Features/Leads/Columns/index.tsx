@@ -7,9 +7,9 @@ import dayjs from "dayjs";
 import axios from "axios";
 import { Lead } from "@/Types/api/leads";
 import {
-    formatCompanyDate,
-    formatCompanyTime,
-} from "@/lib/companyDateTime";
+    formatTaskCompanyDate,
+    formatTaskCompanyTime,
+} from "@/lib/taskDateTime";
 import { formatUserDate, formatUserTime } from "@/lib/userDateTime";
 import UserIndicator from "@/Components/UserIndicator";
 import PageDataSorter from "@/Components/PageDataSorter";
@@ -73,6 +73,10 @@ type Urgency = "overdue" | "today" | "urgent" | "soon" | "later";
  * server's week bucket — it colours the pill, it does not filter.
  */
 export function nextActionUrgency(dueAt: string): Urgency {
+    // due_at is a wall-clock string in the viewer's zone, not an instant with
+    // an offset — there is nothing to convert, so it is compared as written.
+    // dayjs() reads a naive "Y-m-d H:i:s" as local, which is exactly the basis
+    // the value was rendered on (see LeadService::attachNextActions).
     const due = dayjs(dueAt);
     const now = dayjs();
 
@@ -96,12 +100,27 @@ const NEXT_ACTION_DUE: Record<Urgency, { bg: string; fg: string; bd: string }> =
     later: { bg: T.SURFACE_2, fg: T.TEXT_MUTED, bd: T.BORDER },
 };
 
-/** "3 days overdue · 12 Aug" / "Today · 17:00" / "Tomorrow · 10:00" / "18 Aug · 11:00" */
+/**
+ * "3 days overdue · 12 Aug" / "Today · 17:00" / "Tomorrow · 10:00" / "18 Aug · 11:00"
+ *
+ * `due_at` is a wall-clock string already rendered in the viewer's zone
+ * (LeadService::attachNextActions converts both branches out of UTC via
+ * Task::wallClockString), so it is read as written — no re-projection — and the
+ * clock face is formatted from the stored digits rather than off a Date, since a
+ * wall-clock time that doesn't exist in the viewer's zone (the DST
+ * spring-forward hour) can't survive a Date and would read an hour late.
+ *
+ * `urgency` supplies the day maths; the value is only ever compared to now.
+ */
 function dueLabel(dueAt: string, urgency: Urgency): string {
     const due = dayjs(dueAt);
     const now = dayjs();
-    const time = formatCompanyTime(dueAt);
-    const date = formatCompanyDate(dueAt, { omitCurrentYear: true });
+    const time = formatTaskCompanyTime(dueAt);
+    // Date only — formatTaskDateWithCompanyTime would append the time again,
+    // and `time` is already joined onto these labels separately.
+    const date = formatTaskCompanyDate(dueAt, { omitCurrentYear: true });
+
+    if (!due.isValid()) return `${date} · ${time}`;
 
     if (urgency === "overdue") {
         const days = now.startOf("day").diff(due.startOf("day"), "day");

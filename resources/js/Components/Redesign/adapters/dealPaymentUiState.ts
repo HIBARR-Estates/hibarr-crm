@@ -16,7 +16,7 @@ export function paymentUiStateLabel(uiState: DealPaymentUiState): string {
         case "failed":
             return "Failed";
         case "invalidated":
-            return "Invalidated";
+            return "Cancelled";
         default:
             return "Unknown";
     }

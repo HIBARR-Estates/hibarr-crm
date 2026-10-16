@@ -78,7 +78,12 @@ class PackageSettingsController extends AccountBaseController
         $validated = $request->validate($this->rules($request, creating: true));
         $this->assertValidTriggerRows($validated);
 
-        $package = Package::create($this->packageAttributes($validated));
+        // CompanyScope only filters reads; it never fills company_id in. Without
+        // it the row is saved company-less and disappears on the next load.
+        $package = Package::create(array_merge(
+            $this->packageAttributes($validated),
+            ['company_id' => company()->id],
+        ));
 
         $this->syncSideEffects($package, $validated);
 
