@@ -26,6 +26,7 @@ return [
     'signInTwitter' => 'Sign in with Twitter',
     'signIn' => 'Sign in to the CRM',
     'signInKeycloak' => 'Sign in with SSO',
+    'sessionEnded' => 'You were signed out because your session ended in another HIBARR app. Please sign in again.',
     'signInSupport' => 'If you have trouble signing in, contact :email',
     'useEmail' => 'or, use email address',
     'email' => 'Email Address',
