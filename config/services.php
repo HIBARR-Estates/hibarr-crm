@@ -1,5 +1,20 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| The one OL credential
+|--------------------------------------------------------------------------
+|
+| Resolved once, here, and referenced by every service that talks to OL.
+| Nothing else in this file (or in file_storage.php) names an OL host or key:
+| they read these, so a key is rotated in exactly one place. The literal
+| below is the only hardcoded OL URL in the application.
+|
+*/
+$olBaseUrl = env('OL_BASE_URL', 'https://develop-api.hibarr.org/v1');
+$olApiKey = env('OL_API_KEY');
+$olTimeout = (int) env('OL_API_TIMEOUT', 15);
+
 return [
 
     /*
@@ -93,9 +108,10 @@ return [
     ],
 
     'dynamic_translation' => [
-        'base_url' => env('DYNAMIC_TRANSLATION_API_URL', env('AI_BASE_URL', '')),
-        'timeout' => (int) env('DYNAMIC_TRANSLATION_API_TIMEOUT', env('AI_TIMEOUT', 30)),
-        'api_key' => env('DYNAMIC_TRANSLATION_API_KEY', env('AI_API_KEY')),
+        // Same host and same application key as `ol`; only the timeout is its own.
+        'base_url' => env('DYNAMIC_TRANSLATION_API_URL', $olBaseUrl),
+        'timeout' => (int) env('DYNAMIC_TRANSLATION_API_TIMEOUT', $olTimeout),
+        'api_key' => env('DYNAMIC_TRANSLATION_API_KEY', $olApiKey),
     ],
 
     'notification_service' => [
@@ -123,11 +139,12 @@ return [
     ],
 
     'ai' => [
-        'base_url' => env('AI_BASE_URL', ''),
+        // Same host and key as `ol`; only the model and timeout are its own.
+        'base_url' => $olBaseUrl,
         'timeout'  => (int) env('AI_TIMEOUT', 45),
         'provider' => env('AI_PROVIDER', 'openai'),
         'model'    => env('AI_MODEL', 'gpt-4o'),
-        'api_key'  => env('AI_API_KEY'),
+        'api_key'  => $olApiKey,
     ],
 
     'ol_webhook' => [
@@ -164,14 +181,15 @@ return [
     'ol' => [
         // Used for OL integration endpoints (e.g. Zoho Calendar sync jobs).
         // Default includes `/v1` to match frontend configuration.
-        'base_url' => env('OL_BASE_URL', env('MIX_OL_BASE_URL', 'https://develop-api.hibarr.org/v1')),
-        'api_key' => env('OL_API_KEY', env('MIX_OL_API_KEY')),
+        'base_url' => env('OL_BASE_URL', 'https://develop-api.hibarr.org/v1'),
+        'api_key' => env('OL_API_KEY'),
         'timeout' => (int) env('OL_API_TIMEOUT', 15),
         // Provisional HIB-1185 path; override via env when OL locks the contract.
         'payment_review_decision_path' => env(
             'OL_PAYMENT_REVIEW_DECISION_PATH',
             '/internal/payments/review-decision'
         ),
+        'crm_webhook_api_key' => env('OL_WEBHOOK_API_KEY'),
         'deal_payment_request_path' => env(
             'OL_DEAL_PAYMENT_REQUEST_PATH',
             '/internal/payments/deal-requests'

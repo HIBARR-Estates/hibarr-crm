@@ -7,13 +7,13 @@ export interface GenerateDescriptionOptions {
 
 /**
  * Check whether AI description generation is enabled.
- * Enabled by default and can be toggled off via AI_API_KEY.
+ * Enabled by default and can be toggled off via OL_API_KEY.
  */
 export function isAiEnabled(): boolean {
     return (
         typeof process !== "undefined" &&
         !!process.env &&
-        !!process.env.MIX_AI_API_KEY
+        !!process.env.OL_API_KEY
     );
 }
 
