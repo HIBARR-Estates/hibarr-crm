@@ -6,6 +6,7 @@ use App\Enums\CrmEventGenerationType;
 use App\Enums\CrmEventSource;
 use App\Enums\CrmEventStatus;
 use App\Enums\CrmEventDirection;
+use App\Scopes\CompanyScope;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -50,10 +51,24 @@ class CrmEvent extends BaseModel
 
     /**
      * Get the event type definition for this event.
+     *
+     * The CompanyScope on CrmEventType is lifted here on purpose. System event
+     * types (the `call_*` family among them) are seeded with `company_id IS
+     * NULL` so every company shares them, so the scope's
+     * `WHERE company_id = <current company>` filters them all out and the
+     * relation resolves to null. That left `event_type: null` on every call
+     * event, which the timeline could not describe, so calls rendered through the
+     * generic fallback instead of their call-specific summary.
+     *
+     * Dropping the scope is safe: `event_type_id` is a foreign key pinned on the
+     * event row, so this can only ever resolve the single type that row already
+     * points at — it cannot reach another company's data. Company isolation is
+     * enforced on the events themselves, which stay scoped.
      */
     public function eventType(): BelongsTo
     {
-        return $this->belongsTo(CrmEventType::class, 'event_type_id');
+        return $this->belongsTo(CrmEventType::class, 'event_type_id')
+            ->withoutGlobalScope(CompanyScope::class);
     }
 
     /**

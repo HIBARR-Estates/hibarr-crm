@@ -11,6 +11,7 @@ use App\Models\CrmEventCategory;
 use App\Models\CrmEventType;
 use App\Models\Deal;
 use App\Models\Lead;
+use App\Support\PolymorphicModelType;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -101,7 +102,7 @@ class CrmEventService
             'status' => $params['status'] ?? 'completed',
             'direction' => $params['direction'] ?? null,
             'user_id' => $params['user_id'] ?? null,
-            'model_type' => $params['model_type'] ?? $eventType->model_type,
+            'model_type' => PolymorphicModelType::canonicalize($params['model_type'] ?? $eventType->model_type),
             'model_id' => $params['model_id'] ?? null,
             'correlation_id' => $params['correlation_id'] ?? null,
             'causation_id' => $params['causation_id'] ?? null,
