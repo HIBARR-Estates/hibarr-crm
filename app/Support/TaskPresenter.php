@@ -2,7 +2,9 @@
 
 namespace App\Support;
 
+use App\Models\Lead;
 use App\Models\Task;
+use App\Services\PermissionService;
 use App\Services\TaskVisibilityService;
 
 /**
@@ -33,7 +35,10 @@ class TaskPresenter
         'category:id,category_name,action',
         'labels',
         'boardColumn:id,column_name,slug,label_color',
-        'deals',
+        // A deal's lead contact drives the category quick-action when the task
+        // hangs off the deal rather than the lead. The extra columns are the
+        // ones PermissionService::checkAccess() reads.
+        'deals.contact:id,client_name,company_name,mobile,client_email,added_by,lead_owner',
         'leads',
         'properties',
         'developerProjects:id,name',
@@ -105,17 +110,16 @@ class TaskPresenter
                 return [
                     'id' => $deal->id,
                     'name' => $deal->name,
+                    // The deal's lead contact, so a task attached to a deal can
+                    // still run the category quick-action against that lead.
+                    // Null when the user may not view it — the banner then falls
+                    // back to "no lead to call" rather than leaking contact
+                    // details.
+                    'lead' => self::visibleLeadSummary($deal->contact),
                 ];
             })->toArray(),
             'leads' => $task->leads->map(function ($lead) {
-                return [
-                    'id' => $lead->id,
-                    'client_name' => $lead->client_name,
-                    'company_name' => $lead->company_name,
-                    // Contact fields drive the category quick-action (call/email).
-                    'mobile' => $lead->mobile,
-                    'client_email' => $lead->client_email,
-                ];
+                return self::leadSummary($lead);
             })->toArray(),
             'developer_projects' => $task->developerProjects->map(function ($project) {
                 return [
@@ -143,6 +147,42 @@ class TaskPresenter
         }
 
         return $payload;
+    }
+
+    /**
+     * The lead fields the category quick-action needs (call / email).
+     *
+     * @return array{id: int, client_name: ?string, company_name: ?string, mobile: ?string, client_email: ?string}
+     */
+    private static function leadSummary(Lead $lead): array
+    {
+        return [
+            'id' => $lead->id,
+            'client_name' => $lead->client_name,
+            'company_name' => $lead->company_name,
+            // Contact fields drive the category quick-action (call/email).
+            'mobile' => $lead->mobile,
+            'client_email' => $lead->client_email,
+        ];
+    }
+
+    /**
+     * A deal's contact, but only for a user allowed to view that lead —
+     * otherwise the task payload would hand out a phone number for a record the
+     * agent cannot open.
+     */
+    private static function visibleLeadSummary(?Lead $lead): ?array
+    {
+        if ($lead === null) {
+            return null;
+        }
+
+        $access = PermissionService::checkAccess(user(), 'view_lead', $lead, [
+            'added' => 'added_by',
+            'owned' => 'lead_owner',
+        ]);
+
+        return ($access['canAccess'] ?? false) ? self::leadSummary($lead) : null;
     }
 
     /**

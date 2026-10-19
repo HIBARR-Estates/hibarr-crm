@@ -9,6 +9,10 @@
 
 return [
 
+    'telephony' => [
+        'insecure_context' => 'Доступ к микрофону требует безопасное соединение (HTTPS). Откройте CRM по HTTPS и попробуйте снова.',
+    ],
+
     'entity_summary' => [
         'title_deal' => 'ИИ-сводка',
         'title_lead' => 'ИИ-сводка по лиду',

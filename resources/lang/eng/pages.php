@@ -23,6 +23,7 @@ return [
         'no_extension' => 'No 3CX extension is bound to your account. Contact your administrator.',
         'permission_denied' => 'You do not have permission to place calls.',
         'generic_error' => 'Unable to initiate the call. Please try again.',
+        'insecure_context' => 'Microphone access requires a secure connection (HTTPS). Open the CRM over HTTPS and try again.',
     ],
 
     'entity_summary' => [

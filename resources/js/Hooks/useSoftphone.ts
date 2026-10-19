@@ -1,8 +1,17 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    useSyncExternalStore,
+} from "react";
 import axios from "axios";
 import { usePage } from "@inertiajs/react";
 import { softphone } from "@/lib/softphone/SoftphoneClient";
+import { SoftphoneTabLease } from "@/lib/softphone/SoftphoneTabLease";
 import type {
+    SoftphoneCallContext,
     SoftphoneDeviceCredentialsResponse,
     SoftphoneDeviceSummary,
     SoftphoneDevicesResponse,
@@ -40,12 +49,30 @@ export default function useSoftphone() {
     const [devices, setDevices] = useState<SoftphoneDeviceSummary[]>([]);
     const [activeDeviceId, setActiveDeviceIdState] = useState<number | null>(null);
     const [configLoaded, setConfigLoaded] = useState(false);
+    // Only the tab holding the cross-tab lease registers a SIP agent. Other
+    // tabs mirror the call so they never ring or race the owning tab.
+    const [isActiveTab, setIsActiveTab] = useState(true);
+    const leaseRef = useRef<SoftphoneTabLease | null>(null);
 
     const state: SoftphoneState = useSyncExternalStore(
         (listener) => softphone.subscribe(listener),
         () => softphone.getState(),
         () => softphone.getState(),
     );
+
+    // Mirror the owning tab's call into passive tabs so they can display it
+    // without registering or ringing themselves.
+    const [mirroredCall, setMirroredCall] = useState<SoftphoneState["call"] | null>(
+        null,
+    );
+
+    // Owner broadcasts its current call so other tabs stay in sync.
+    useEffect(() => {
+        if (!isActiveTab) {
+            return;
+        }
+        leaseRef.current?.broadcastCall(state.call ?? null);
+    }, [isActiveTab, state.call]);
 
     // Load the device list once.
     useEffect(() => {
@@ -76,9 +103,47 @@ export default function useSoftphone() {
         }
     }, [isEnabled, devices, activeDeviceId]);
 
+    // Acquire the cross-tab lease. Exactly one tab registers; the rest mirror.
+    useEffect(() => {
+        if (!isEnabled) {
+            return;
+        }
+
+        const lease = new SoftphoneTabLease();
+        leaseRef.current = lease;
+        const unsubscribe = lease.subscribe((owner, mirrored) => {
+            setIsActiveTab(owner);
+            if (!owner) {
+                setMirroredCall((mirrored as SoftphoneState["call"]) ?? null);
+            }
+        });
+
+        let cancelled = false;
+        void lease.acquire().then((owner) => {
+            if (cancelled) {
+                if (!owner) {
+                    // Not the owner — make sure this tab never registers.
+                    void softphone.stop();
+                }
+                return;
+            }
+            setIsActiveTab(owner);
+            if (!owner) {
+                void softphone.stop();
+            }
+        });
+
+        return () => {
+            cancelled = true;
+            unsubscribe();
+            lease.dispose();
+            leaseRef.current = null;
+        };
+    }, [isEnabled]);
+
     // Fetch credentials for the active line and register it. Re-runs on switch.
     useEffect(() => {
-        if (!isEnabled || activeDeviceId === null) {
+        if (!isEnabled || !isActiveTab || activeDeviceId === null) {
             return;
         }
         const device = devices.find((d) => d.id === activeDeviceId);
@@ -115,7 +180,7 @@ export default function useSoftphone() {
         return () => {
             cancelled = true;
         };
-    }, [isEnabled, devices, activeDeviceId]);
+    }, [isEnabled, isActiveTab, devices, activeDeviceId]);
 
     const setActiveDevice = useCallback((id: number) => {
         setActiveDeviceIdState(id);
@@ -126,10 +191,28 @@ export default function useSoftphone() {
         softphone.attachRemoteAudio(el);
     }, []);
 
-    const call = useCallback((target: string) => softphone.call(target), []);
-    const answer = useCallback(() => softphone.answer(), []);
-    const reject = useCallback(() => softphone.reject(), []);
-    const hangup = useCallback(() => softphone.hangup(), []);
+    // Passive tabs must never place/answer/reject — that is the owning tab's
+    // job, otherwise two tabs fight over the same SIP session.
+    const call = useCallback(
+        async (target: string, context?: SoftphoneCallContext | null) => {
+            if (!isActiveTab) return;
+            await softphone.call(target, context ?? null);
+        },
+        [isActiveTab],
+    );
+    const clearCallFailure = useCallback(() => softphone.clearCallFailure(), []);
+    const answer = useCallback(async () => {
+        if (!isActiveTab) return;
+        await softphone.answer();
+    }, [isActiveTab]);
+    const reject = useCallback(async () => {
+        if (!isActiveTab) return;
+        await softphone.reject();
+    }, [isActiveTab]);
+    const hangup = useCallback(async () => {
+        if (!isActiveTab) return;
+        await softphone.hangup();
+    }, [isActiveTab]);
     const setMuted = useCallback((muted: boolean) => softphone.setMuted(muted), []);
     const setHold = useCallback((hold: boolean) => softphone.setHold(hold), []);
 
@@ -145,9 +228,11 @@ export default function useSoftphone() {
         activeDevice,
         activeDeviceId,
         setActiveDevice,
-        state,
+        state: isActiveTab ? state : { ...state, call: mirroredCall },
+        isActiveTab,
         attachRemoteAudio,
         call,
+        clearCallFailure,
         answer,
         reject,
         hangup,

@@ -1,0 +1,257 @@
+/**
+ * Cross-tab single-instance guard for the in-browser softphone.
+ *
+ * Every open tab used to register its own SIP UserAgent on the same device.
+ * That made the provider ring all tabs at once, and answering in one tab raced
+ * the others — which surfaced as phantom sessions being terminated
+ * ("session terminated call-2" while "answer() start call-1") and duplicate
+ * `call_started` timeline rows.
+ *
+ * Only the tab holding the lease registers. The others stay passive: they do
+ * not register, do not ring, and do not accept. The lease is handed over
+ * automatically when the owning tab goes away (crash/close) via a heartbeat.
+ */
+
+const CHANNEL_NAME = "hibarr.softphone.lease";
+const STORAGE_KEY = "hibarr.softphone.lease.owner";
+const HEARTBEAT_MS = 2000;
+const STALE_MS = 6000;
+
+type LeaseMessage =
+    | { type: "claim"; tabId: string; at: number }
+    | { type: "heartbeat"; tabId: string; at: number }
+    | { type: "release"; tabId: string }
+    // Broadcast by the owning tab so passive tabs can mirror call state.
+    | { type: "call"; tabId: string; call: unknown | null };
+
+type Listener = (isOwner: boolean, mirroredCall: unknown | null) => void;
+
+function tabId(): string {
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export class SoftphoneTabLease {
+    private readonly id = tabId();
+    private channel: BroadcastChannel | null = null;
+    private heartbeatTimer: number | null = null;
+    private listeners = new Set<Listener>();
+    private owner = false;
+    private lastSeenAt = 0;
+
+    constructor() {
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        try {
+            this.channel = new BroadcastChannel(CHANNEL_NAME);
+            this.channel.addEventListener("message", this.onMessage);
+        } catch {
+            // BroadcastChannel unsupported — fall back to storage-only locking.
+            this.channel = null;
+        }
+
+        window.addEventListener("storage", this.onStorage);
+        window.addEventListener("pagehide", this.release);
+        window.addEventListener("beforeunload", this.release);
+    }
+
+    /** True when this tab is the one that should register the SIP agent. */
+    get isOwner(): boolean {
+        return this.owner;
+    }
+
+    subscribe(listener: Listener): () => void {
+        this.listeners.add(listener);
+        listener(this.owner, null);
+        return () => {
+            this.listeners.delete(listener);
+        };
+    }
+
+    /**
+     * Try to become the owning tab. Resolves to true when this tab holds the
+     * lease (either immediately or after the previous owner went away).
+     */
+    async acquire(): Promise<boolean> {
+        if (typeof window === "undefined") {
+            return true;
+        }
+
+        const current = this.readOwner();
+        if (!current || current.id === this.id) {
+            this.becomeOwner();
+            return true;
+        }
+
+        if (this.isStale(current)) {
+            // Previous owner crashed without releasing; take over.
+            this.becomeOwner();
+            return true;
+        }
+
+        // Another tab is alive and owning. Announce ourselves and let the owner
+        // answer; if it never does (tab frozen), fall back after the stale window.
+        this.post({ type: "claim", tabId: this.id, at: Date.now() });
+
+        return new Promise<boolean>((resolve) => {
+            const deadline = Date.now() + STALE_MS;
+            const poll = () => {
+                if (this.owner) {
+                    resolve(true);
+                    return;
+                }
+                const owner = this.readOwner();
+                if (!owner || this.isStale(owner)) {
+                    this.becomeOwner();
+                    resolve(true);
+                    return;
+                }
+                if (Date.now() >= deadline) {
+                    resolve(false);
+                    return;
+                }
+                window.setTimeout(poll, 250);
+            };
+            window.setTimeout(poll, 250);
+        });
+    }
+
+    /** Mirror the active call from the owning tab so passive tabs can display it. */
+    broadcastCall(call: unknown | null): void {
+        this.post({ type: "call", tabId: this.id, call });
+    }
+
+    release = (): void => {
+        if (this.heartbeatTimer !== null) {
+            window.clearInterval(this.heartbeatTimer);
+            this.heartbeatTimer = null;
+        }
+        try {
+            window.localStorage.removeItem(STORAGE_KEY);
+        } catch {
+            // ignore
+        }
+        if (this.owner) {
+            this.post({ type: "release", tabId: this.id });
+        }
+        this.owner = false;
+        this.notify();
+    };
+
+    dispose(): void {
+        this.release();
+        this.channel?.removeEventListener("message", this.onMessage);
+        window.removeEventListener("storage", this.onStorage);
+        window.removeEventListener("pagehide", this.release);
+        window.removeEventListener("beforeunload", this.release);
+        this.listeners.clear();
+        this.channel?.close();
+        this.channel = null;
+    }
+
+    // ── internals ────────────────────────────────────────────────────────
+
+    private becomeOwner(): void {
+        if (!this.owner) {
+            this.owner = true;
+            this.lastSeenAt = Date.now();
+            this.notify();
+        }
+
+        try {
+            window.localStorage.setItem(
+                STORAGE_KEY,
+                JSON.stringify({ id: this.id, at: Date.now() }),
+            );
+        } catch {
+            // ignore
+        }
+
+        if (this.heartbeatTimer === null) {
+            this.heartbeatTimer = window.setInterval(() => {
+                this.lastSeenAt = Date.now();
+                this.post({ type: "heartbeat", tabId: this.id, at: this.lastSeenAt });
+                try {
+                    window.localStorage.setItem(
+                        STORAGE_KEY,
+                        JSON.stringify({ id: this.id, at: this.lastSeenAt }),
+                    );
+                } catch {
+                    // ignore
+                }
+            }, HEARTBEAT_MS);
+        }
+    }
+
+    private onMessage = (event: MessageEvent): void => {
+        const message = event.data as LeaseMessage | undefined;
+        if (!message || message.tabId === this.id) {
+            return;
+        }
+
+        switch (message.type) {
+            case "heartbeat":
+                if (!this.owner) {
+                    this.lastSeenAt = message.at;
+                }
+                break;
+            case "release":
+                if (!this.owner) {
+                    // Owner went away cleanly — take over so the line keeps ringing.
+                    this.becomeOwner();
+                }
+                break;
+            case "claim":
+                if (this.owner) {
+                    // Reassert ownership so the claimant backs off.
+                    this.becomeOwner();
+                }
+                break;
+            case "call":
+                if (!this.owner) {
+                    this.notify(message.call ?? null);
+                }
+                break;
+        }
+    };
+
+    private onStorage = (event: StorageEvent): void => {
+        if (event.key === STORAGE_KEY && !this.owner) {
+            const owner = this.readOwner();
+            if (!owner || this.isStale(owner)) {
+                this.becomeOwner();
+            }
+        }
+    };
+
+    private post(message: LeaseMessage): void {
+        try {
+            this.channel?.postMessage(message);
+        } catch {
+            // ignore
+        }
+    }
+
+    private readOwner(): { id: string; at: number } | null {
+        try {
+            const raw = window.localStorage.getItem(STORAGE_KEY);
+            if (!raw) {
+                return null;
+            }
+            const parsed = JSON.parse(raw) as { id: string; at: number };
+            return typeof parsed?.id === "string" ? parsed : null;
+        } catch {
+            return null;
+        }
+    }
+
+    private isStale(owner: { id: string; at: number }): boolean {
+        const lastBeat = Math.max(owner.at, this.lastSeenAt);
+        return Date.now() - lastBeat > STALE_MS;
+    }
+
+    private notify(mirroredCall: unknown | null = null): void {
+        this.listeners.forEach((listener) => listener(this.owner, mirroredCall));
+    }
+}

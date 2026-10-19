@@ -9,6 +9,10 @@
 
 return [
 
+    'telephony' => [
+        'insecure_context' => 'Mikrofonzugriff erfordert eine sichere Verbindung (HTTPS). Öffnen Sie das CRM über HTTPS und versuchen Sie es erneut.',
+    ],
+
     'entity_summary' => [
         'title_deal' => 'KI-Zusammenfassung',
         'title_lead' => 'KI-Lead-Zusammenfassung',

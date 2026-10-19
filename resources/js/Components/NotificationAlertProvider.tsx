@@ -38,11 +38,12 @@ export type NotchSeverity =
 export interface NotificationAlertAction {
     label: string;
     primary?: boolean;
+    color?: string | null;
     href?: string | null;
     /** Open join/external meeting links without leaving the current page. */
     openInNewTab?: boolean;
-    /** Run a callback instead of navigating (e.g. "Undo"). Takes priority over href. */
-    onClick?: () => void;
+    /** Run a callback instead of navigating (e.g. "Undo"). Returning false keeps the island mounted. */
+    onClick?: () => void | Promise<void | boolean>;
 }
 
 export interface NotificationAlertPayload {
@@ -55,6 +56,7 @@ export interface NotificationAlertPayload {
     /** Destination breadcrumb (e.g. "Deals · #2841"), revealed on hover. */
     dest?: string;
     link?: string | null;
+    sticky?: boolean;
     severity?: NotchSeverity;
     timeAgo?: string;
     actions?: NotificationAlertAction[];
@@ -186,6 +188,10 @@ export default function NotificationAlertProvider({
     const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const hoverRef = useRef(false);
     const currentRef = useRef<NotificationAlertPayload | null>(null);
+    // Keeps sticky call alerts expanded while focus is inside the island or an
+    // action (Answer/Hang up) is still resolving.
+    const focusWithinRef = useRef(false);
+    const actionPendingRef = useRef(false);
 
     const clearTimer = (ref: MutableRefObject<ReturnType<typeof setTimeout> | null>) => {
         if (ref.current) {
@@ -206,7 +212,9 @@ export default function NotificationAlertProvider({
 
     const armDismiss = useCallback(() => {
         clearTimer(dismissTimer);
+        if (currentRef.current?.sticky) return;
         if (hoverRef.current) return;
+        if (focusWithinRef.current || actionPendingRef.current) return;
         dismissTimer.current = setTimeout(() => {
             setOpen(false);
             setHover(false);
@@ -275,12 +283,18 @@ export default function NotificationAlertProvider({
 
     const onBlur = useCallback(
         (e: FocusEvent<HTMLDivElement>) => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            const stillInside = e.currentTarget.contains(e.relatedTarget as Node);
+            focusWithinRef.current = stillInside;
+            if (!stillInside) {
                 onLeave();
             }
         },
         [onLeave],
     );
+
+    const onFocusCapture = useCallback(() => {
+        focusWithinRef.current = true;
+    }, []);
 
     const handleOpenClick = useCallback(
         (e: MouseEvent) => {
@@ -298,7 +312,21 @@ export default function NotificationAlertProvider({
         (action: NotificationAlertAction) => (e: MouseEvent) => {
             e.stopPropagation();
             if (action.onClick) {
-                action.onClick();
+                const result = action.onClick();
+                if (result && typeof (result as Promise<unknown>).then === "function") {
+                    actionPendingRef.current = true;
+                    (result as Promise<unknown>)
+                        .then((value) => {
+                            if (value !== false) {
+                                dismiss();
+                            }
+                        })
+                        .catch(() => dismiss())
+                        .finally(() => {
+                            actionPendingRef.current = false;
+                        });
+                    return;
+                }
                 dismiss();
                 return;
             }
@@ -337,9 +365,14 @@ export default function NotificationAlertProvider({
     const hasDetail = !!current && (!!current.body || !!current.dest);
     const shortBody =
         !!current?.body && current.body.trim().length > 0 && current.body.length <= 90;
+    // Call alerts (sticky) must stay expanded while focused or while an action
+    // is in flight (e.g. Answer), otherwise the pointer leaving the island
+    // collapses the action row and hides it behind aria-hidden mid-click.
     const expanded =
         open &&
-        hover &&
+        (hover ||
+            focusWithinRef.current ||
+            (!!current?.sticky && actionPendingRef.current)) &&
         !!current &&
         (hasDetail || (current.actions?.length ?? 0) > 0 || !!current.link);
 
@@ -408,6 +441,7 @@ export default function NotificationAlertProvider({
                         onMouseEnter={onEnter}
                         onMouseLeave={onLeave}
                         onFocus={onEnter}
+                        onFocusCapture={onFocusCapture}
                         onBlur={onBlur}
                         tabIndex={0}
                         animate={{

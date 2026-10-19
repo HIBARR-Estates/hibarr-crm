@@ -99,7 +99,7 @@ export default function AccessInspector() {
         }
         const next: Record<string, PermissionScope | undefined> = {};
         for (const gate of entry.permissions ?? []) {
-            next[gate.key] = permissions[gate.key];
+            next[gate.key] = (permissions as Record<string, PermissionScope | undefined>)[gate.key];
         }
         return next;
     }, [pageScoped, entry, permissions]);

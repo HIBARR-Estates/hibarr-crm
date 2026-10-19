@@ -179,7 +179,7 @@ export default function SoftphoneDeviceManager() {
             </div>
 
             <div
-                className="flex flex-col overflow-hidden rounded-[10px] border bg-white"
+                className="overflow-hidden rounded-[10px] border"
                 style={{ borderColor: T.BORDER }}
             >
                 <div

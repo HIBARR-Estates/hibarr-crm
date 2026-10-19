@@ -564,6 +564,9 @@ class CallBridgeService
     {
         $metadata = array_filter([
             'call_id' => $olEvent['call_id'] ?? null,
+            // Stable per-call reference shared with the recording upload, so the
+            // timeline can say whether audio was captured for this call.
+            'call_ref' => $olEvent['call_ref'] ?? null,
             'ol_event_id' => $olEvent['id'] ?? null,
             'phone_number' => $olEvent['phone_number'] ?? null,
             'direction' => $olEvent['direction'] ?? null,

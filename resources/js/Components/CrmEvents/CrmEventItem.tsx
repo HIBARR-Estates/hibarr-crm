@@ -144,6 +144,87 @@ const DIRECTION_CONFIG: Record<
     },
 };
 
+/** Renders a call duration from the `duration` (seconds) call-bridge metadata. */
+function formatCallDuration(seconds: number): string {
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+        return "";
+    }
+    const total = Math.round(seconds);
+    const mins = Math.floor(total / 60);
+    const secs = total % 60;
+    if (mins === 0) {
+        return `${secs}s`;
+    }
+    return `${mins}m ${String(secs).padStart(2, "0")}s`;
+}
+
+/**
+ * Builds a human-readable summary for the call-bridge event types so timeline
+ * rows carry context instead of just "Call Started".
+ *
+ * Uses the same fields the event definitions declare in
+ * `config/crm_events.php` (`direction`, `phone_number`, `duration`, `status`).
+ */
+function buildCallSummary(event: CrmEvent): string | null {
+    const slug = event.event_type?.slug ?? "";
+    if (!slug.startsWith("call_")) {
+        return null;
+    }
+
+    const meta = event.metadata ?? {};
+    const phone =
+        typeof meta.phone_number === "string" && meta.phone_number.trim() !== ""
+            ? meta.phone_number.trim()
+            : null;
+    const duration =
+        typeof meta.duration === "number"
+            ? formatCallDuration(meta.duration)
+            : "";
+    const direction =
+        event.direction === "inbound"
+            ? "inbound"
+            : event.direction === "outbound"
+              ? "outbound"
+              : null;
+
+    // "Inbound call from X" / "Outbound call to X" — fall back to a neutral
+    // verb when the direction badge has no data.
+    const counterparty = phone
+        ? direction === "inbound"
+            ? `Inbound call from ${phone}`
+            : direction === "outbound"
+              ? `Outbound call to ${phone}`
+              : `Call with ${phone}`
+        : direction === "inbound"
+          ? "Inbound call"
+          : direction === "outbound"
+            ? "Outbound call"
+            : "Call";
+
+    const outcome = (() => {
+        switch (slug) {
+            case "call_started":
+                return "started";
+            case "call_ended":
+                return duration ? `completed · ${duration}` : "completed";
+            case "call_missed":
+                return "missed — no answer";
+            case "call_declined":
+                return "declined";
+            case "call_voicemail":
+                return duration ? `voicemail · ${duration}` : "voicemail";
+            case "call_busy":
+                return "line busy";
+            case "call_failed":
+                return "failed to connect";
+            default:
+                return "";
+        }
+    })();
+
+    return outcome ? `${counterparty} — ${outcome}` : counterparty;
+}
+
 interface Props {
     event: CrmEvent;
     compact?: boolean;
@@ -162,6 +243,11 @@ export default function CrmEventItem({ event, compact = false }: Props) {
         ? DIRECTION_CONFIG[event.direction]
         : null;
     const message = event.metadata?.comment as string | undefined;
+    const callSummary = buildCallSummary(event);
+    // `call_started` is mapped to a "completed" status by the call bridge even
+    // though it only marks the beginning of a call — the summary carries that
+    // nuance, so the bare "Completed" chip would just be misleading.
+    const hideStatusChip = event.event_type?.slug === "call_started";
 
     const { td } = useTd();
 
@@ -199,6 +285,11 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                         >
                             {td(event.event_type?.name ?? "Unknown Event", { source: "en" })}
                         </Text>
+                        {callSummary && (
+                            <span className="text-[12px] font-normal text-gray-500 truncate">
+                                {td(callSummary, { source: "en" })}
+                            </span>
+                        )}
                         <span
                             className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${gen.className}`}
                         >
@@ -231,14 +322,16 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                         {event.event_type.category.name}
                     </span>
                 )}
-                <div
-                    className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${statusCfg.className}`}
-                >
-                    <span className="flex items-center scale-90">
-                        {statusCfg.icon}
-                    </span>
-                    {td(statusCfg.label, { source: "en" })}
-                </div>
+                {!hideStatusChip && (
+                    <div
+                        className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${statusCfg.className}`}
+                    >
+                        <span className="flex items-center scale-90">
+                            {statusCfg.icon}
+                        </span>
+                        {td(statusCfg.label, { source: "en" })}
+                    </div>
+                )}
                 {directionCfg && (
                     <div
                         className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-tight ${directionCfg.className}`}

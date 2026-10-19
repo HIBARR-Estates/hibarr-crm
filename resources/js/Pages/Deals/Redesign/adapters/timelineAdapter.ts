@@ -37,6 +37,83 @@ export interface TimelineEventViewModel {
     occurredAt: string;
 }
 
+/** Formats a call duration (seconds) as `m:ss` / `45s`. */
+function formatCallDuration(seconds: number): string {
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+        return "";
+    }
+    const total = Math.round(seconds);
+    const mins = Math.floor(total / 60);
+    const secs = total % 60;
+    return mins === 0 ? `${secs}s` : `${mins}m ${String(secs).padStart(2, "0")}s`;
+}
+
+/**
+ * Describes a call event in plain language, e.g.
+ * "Inbound call from +49 170 · completed · 2m 05s · Recording available".
+ *
+ * Returns null for non-call events so callers can fall back to the generic
+ * event-type name.
+ */
+export function describeCallEvent(event: CrmEvent): string | null {
+    const slug = event.event_type?.slug ?? "";
+    if (!slug.startsWith("call_")) {
+        return null;
+    }
+
+    const meta = (event.metadata ?? {}) as Record<string, unknown>;
+    const phone =
+        typeof meta.phone_number === "string" && meta.phone_number.trim() !== ""
+            ? meta.phone_number.trim()
+            : null;
+    const duration =
+        typeof meta.duration === "number" ? formatCallDuration(meta.duration) : "";
+
+    const counterparty = phone
+        ? event.direction === "inbound"
+            ? `Inbound call from ${phone}`
+            : event.direction === "outbound"
+              ? `Outbound call to ${phone}`
+              : `Call with ${phone}`
+        : event.direction === "inbound"
+          ? "Inbound call"
+          : event.direction === "outbound"
+            ? "Outbound call"
+            : "Call";
+
+    const outcome = (() => {
+        switch (slug) {
+            case "call_started":
+                return "started";
+            case "call_ended":
+                return duration ? `completed · ${duration}` : "completed";
+            case "call_missed":
+                return "missed — no answer";
+            case "call_declined":
+                return "declined";
+            case "call_voicemail":
+                return duration ? `voicemail · ${duration}` : "voicemail";
+            case "call_busy":
+                return "line busy";
+            case "call_failed":
+                return "failed to connect";
+            default:
+                return "";
+        }
+    })();
+
+    const parts = [counterparty];
+    if (outcome) {
+        parts.push(outcome);
+    }
+    // Recording linkage is stamped onto the event once the upload completes.
+    if (meta.has_recording === true || typeof meta.recording_id === "number") {
+        parts.push("Recording available");
+    }
+
+    return parts.join(" · ");
+}
+
 export const FILTER_TO_GENERATION_TYPE: Record<
     Exclude<TimelineFilter, "all">,
     "user_generated" | "system_generated" | "external"
@@ -112,7 +189,10 @@ export function crmEventToTimelineViewModel(event: CrmEvent): TimelineEventViewM
             : type === "external"
               ? "External"
               : "Agent");
-    const title = event.event_type?.name || "Activity updated";
+    // Call events get a plain-language summary; everything else uses its
+    // event-type name.
+    const callSummary = describeCallEvent(event);
+    const title = callSummary || event.event_type?.name || "Activity updated";
     const meta = `${actor} · ${dayjs(event.occurred_at).fromNow()}`;
 
     const metadata = event.metadata ?? {};

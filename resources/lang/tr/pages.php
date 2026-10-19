@@ -9,6 +9,10 @@
 
 return [
 
+    'telephony' => [
+        'insecure_context' => 'Mikrofon erişimi güvenli bir bağlantı (HTTPS) gerektirir. CRM\'i HTTPS üzerinden açın ve tekrar deneyin.',
+    ],
+
     'entity_summary' => [
         'title_deal' => 'Yapay Zeka Özeti',
         'title_lead' => 'Yapay Zeka Aday Özeti',

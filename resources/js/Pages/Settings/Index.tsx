@@ -21,7 +21,6 @@ import {
 } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import TaskCategoryManager from "./TaskCategoryManager";
-import SoftphoneDeviceManager from "./SoftphoneDeviceManager";
 import { usePermission, isPermissionAll } from "../../lib/permissionUtils";
 
 interface EntitySettingCard {
@@ -52,7 +51,6 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
         permissions.manage_company_setting,
     );
     const [taskCategoriesOpen, setTaskCategoriesOpen] = useState(false);
-    const [softphoneOpen, setSoftphoneOpen] = useState(false);
     const pageProps = usePage().props as {
         featureFlags?: Record<string, boolean>;
     };
@@ -135,11 +133,11 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
                       icon: <PhoneOutlined />,
                       iconBg: "bg-sky-50",
                       iconColor: "text-sky-600",
-                      title: "Phone lines",
+                      title: "Call Bridge",
                       description:
-                          "Manage sipgate Neo lines for the in-browser softphone.",
+                          "Phone lines, call pool and recordings for the browser softphone.",
                       connected: true,
-                      onOpen: () => setSoftphoneOpen(true),
+                      onOpen: () => router.visit(route("call-bridge.index")),
                   },
               ]
             : []),
@@ -315,20 +313,6 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
                 <TaskCategoryManager />
             </Drawer>
 
-            <Drawer
-                title="Phone lines"
-                open={softphoneOpen}
-                onClose={() => setSoftphoneOpen(false)}
-                width={560}
-                destroyOnClose
-                maskClosable={false}
-                styles={{
-                    content: { boxShadow: "none" },
-                    wrapper: { boxShadow: "none" },
-                }}
-            >
-                <SoftphoneDeviceManager />
-            </Drawer>
         </PageLayout>
     );
 }

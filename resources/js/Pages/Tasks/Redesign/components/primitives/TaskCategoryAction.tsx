@@ -1,9 +1,15 @@
 import { Button, Dropdown, type MenuProps } from "antd";
-import { PhoneOutlined } from "@ant-design/icons";
-import { router } from "@inertiajs/react";
-import useClickToCall from "@/Hooks/useClickToCall";
+import { useState } from "react";
+import {
+    MailOutlined,
+    PhoneOutlined,
+    PlayCircleOutlined,
+} from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import QualifyLaunchModal from "@/Pages/Leads/Redesign/components/qualification/QualifyLaunchModal";
+import type { Lead } from "@/Types/api/leads";
 import type { Task } from "@/Types/Task";
+import useTaskLeadCall from "../../hooks/useTaskLeadCall";
 
 interface TaskCategoryActionProps {
     task: Task;
@@ -14,64 +20,121 @@ interface TaskCategoryActionProps {
     variant?: "icon" | "button";
 }
 
+/** Actions a task category can configure (mirrors TaskCategoryManager). */
+const ACTION_LABEL: Record<string, string> = {
+    call: "Call",
+    email: "Email",
+};
+
 /**
- * Quick-action button shown on a task whose category has a configured action.
+ * Quick-action button shown on a task row whose category has a configured
+ * action. The button follows the category: `call` opens the phone menu,
+ * `email` offers a mailto for the lead. Renders nothing when there is no lead
+ * to act on.
  *
- * Only the "call" action is wired for now (Call / Begin qualification); the
- * "email" action is stored on the category but renders nothing yet. Targets
- * the task's first linked lead — call needs a phone, qualification is
- * lead-only — and renders nothing when there is no lead to act on.
+ * "Begin qualification" deliberately does NOT navigate to the lead: it opens the
+ * qualification modal over the current page and starts a call to that lead, so
+ * the agent keeps the script, the task list and the live call in one place.
+ *
+ * The task detail modal shows the call action as a full-width banner instead
+ * (detail/TaskCallBanner) — both place the call through the same hook.
  */
 export default function TaskCategoryAction({
     task,
     variant = "icon",
 }: TaskCategoryActionProps) {
     const { td } = useTd();
-    const { isEnabled, initiateCall, isCalling } = useClickToCall();
+    const { lead, phone, email, calling, softphoneEnabled, startCall } =
+        useTaskLeadCall(task);
+    const [qualifyLead, setQualifyLead] = useState<Lead | null>(null);
 
-    if (task.category?.action !== "call") return null;
+    const action = task.category?.action ?? "";
+    if (!action || !lead) return null;
 
-    const lead = task.leads?.[0];
-    if (!lead) return null;
+    const leadForQualification: Lead = {
+        id: lead.id,
+        client_name: lead.client_name ?? "",
+        mobile: lead.mobile ?? undefined,
+        client_email: lead.client_email ?? undefined,
+    };
 
-    const phone = lead.mobile?.trim() ?? "";
-    const entity = { type: "lead" as const, id: lead.id };
-    const calling = Boolean(phone) && isCalling(phone, entity);
+    if (action === "email") {
+        const label = td(ACTION_LABEL.email, { source: "en" });
+        if (!email) return null;
+        // antd renders `href` buttons as a real <a>, so this is a mailto link
+        // that still looks like the call button — no nested interactive nodes.
+        return (
+            <span onClick={(event) => event.stopPropagation()}>
+                <Button
+                    {...(variant === "icon" ? { type: "text" as const } : {})}
+                    href={`mailto:${email}?subject=${encodeURIComponent(
+                        task.heading ?? "",
+                    )}`}
+                    size="small"
+                    icon={<MailOutlined />}
+                    title={`${label} ${email}`}
+                    aria-label={`${label} ${lead.client_name ?? ""}`.trim()}
+                >
+                    {variant === "button" ? label : null}
+                </Button>
+            </span>
+        );
+    }
+
+    if (action !== "call") return null;
 
     const items: MenuProps["items"] = [];
 
-    if (isEnabled && phone) {
+    if (phone) {
         items.push({
             key: "call",
             icon: <PhoneOutlined />,
-            label: td("Call", { source: "en" }),
-            onClick: () => void initiateCall(phone, entity),
+            label: td(ACTION_LABEL.call, { source: "en" }),
+            onClick: () => void startCall(),
         });
     }
 
     items.push({
         key: "qualify",
+        icon: <PlayCircleOutlined />,
         label: td("Begin qualification", { source: "en" }),
-        onClick: () =>
-            router.visit(`${route("lead-contact.show", lead.id)}?tab=qualification`),
+        onClick: () => {
+            // Open the script where the agent already is, and ring the lead —
+            // navigating to the lead would drop both the task list and the call.
+            setQualifyLead(leadForQualification);
+            void startCall();
+        },
     });
 
     if (items.length === 0) return null;
 
-    const triggerLabel = td("Call", { source: "en" });
+    // With no phone on the lead there is nothing to call, so the trigger becomes
+    // the qualification action rather than a "Call" button that can't call.
+    const onlyQualification = !phone;
+    const triggerLabel = td(
+        onlyQualification ? "Begin qualification" : ACTION_LABEL.call,
+        { source: "en" },
+    );
+    const TriggerIcon = onlyQualification ? PlayCircleOutlined : PhoneOutlined;
 
     return (
         <span onClick={(event) => event.stopPropagation()}>
             <Dropdown
-                menu={{ items }}
+                menu={{ items: onlyQualification ? [] : items }}
                 trigger={["click"]}
                 placement="bottomRight"
+                disabled={onlyQualification}
             >
                 {variant === "button" ? (
                     <Button
                         size="small"
-                        icon={<PhoneOutlined />}
-                        loading={calling}
+                        icon={<TriggerIcon />}
+                        loading={softphoneEnabled && calling}
+                        onClick={
+                            onlyQualification
+                                ? () => setQualifyLead(leadForQualification)
+                                : undefined
+                        }
                     >
                         {triggerLabel}
                     </Button>
@@ -79,12 +142,25 @@ export default function TaskCategoryAction({
                     <Button
                         type="text"
                         size="small"
-                        icon={<PhoneOutlined />}
+                        icon={<TriggerIcon />}
                         aria-label={triggerLabel}
-                        loading={calling}
+                        loading={softphoneEnabled && calling}
+                        onClick={
+                            onlyQualification
+                                ? () => setQualifyLead(leadForQualification)
+                                : undefined
+                        }
                     />
                 )}
             </Dropdown>
+
+            {qualifyLead && (
+                <QualifyLaunchModal
+                    open
+                    lead={qualifyLead}
+                    onClose={() => setQualifyLead(null)}
+                />
+            )}
         </span>
     );
 }
