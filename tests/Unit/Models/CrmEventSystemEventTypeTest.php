@@ -24,7 +24,7 @@ class CrmEventSystemEventTypeTest extends TestCase
 {
     public function test_event_type_relation_lifts_the_company_scope(): void
     {
-        $removed = (new CrmEvent())->eventType()->removedScopes();
+        $removed = (new CrmEvent)->eventType()->removedScopes();
 
         $this->assertContains(
             CompanyScope::class,
@@ -38,9 +38,35 @@ class CrmEventSystemEventTypeTest extends TestCase
     {
         // The relation is keyed on a foreign key pinned to the event row, so
         // lifting any scope beyond the tenant one would widen it needlessly.
-        $removed = (new CrmEvent())->eventType()->removedScopes();
+        $removed = (new CrmEvent)->eventType()->removedScopes();
 
         $this->assertCount(1, $removed, 'Expected exactly one scope removed from eventType().');
+    }
+
+    public function test_relation_still_allows_shared_types_and_own_company_only(): void
+    {
+        $event = new CrmEvent;
+        $event->company_id = 42;
+
+        $query = $event->eventType()->getQuery();
+        $sql = $query->toSql();
+        $bindings = $query->getBindings();
+
+        $this->assertStringContainsString(
+            'company_id',
+            $sql,
+            'The scope was lifted, so the tenant constraint must be re-applied.'
+        );
+        $this->assertStringContainsString(
+            'is null',
+            $sql,
+            'Shared/system types (company_id IS NULL) must stay reachable.'
+        );
+        $this->assertContains(
+            42,
+            $bindings,
+            'The event own company must remain allowed.'
+        );
     }
 
     public function test_the_underlying_model_still_keeps_the_company_scope(): void
@@ -49,7 +75,7 @@ class CrmEventSystemEventTypeTest extends TestCase
         // for every other caller — only this one relation opts out.
         $this->assertContains(
             CompanyScope::class,
-            $this->registeredScopes(new \App\Models\CrmEventType()),
+            $this->registeredScopes(new \App\Models\CrmEventType),
             'CrmEventType must keep CompanyScope globally; the opt-out belongs on the relation.'
         );
     }

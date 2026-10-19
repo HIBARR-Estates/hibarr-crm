@@ -52,23 +52,35 @@ class CrmEvent extends BaseModel
     /**
      * Get the event type definition for this event.
      *
-     * The CompanyScope on CrmEventType is lifted here on purpose. System event
-     * types (the `call_*` family among them) are seeded with `company_id IS
-     * NULL` so every company shares them, so the scope's
-     * `WHERE company_id = <current company>` filters them all out and the
-     * relation resolves to null. That left `event_type: null` on every call
-     * event, which the timeline could not describe, so calls rendered through the
-     * generic fallback instead of their call-specific summary.
+     * The CompanyScope on CrmEventType is replaced here, not simply dropped.
+     * System event types (the `call_*` family among them) are seeded with
+     * `company_id IS NULL` so every company shares them, and the scope's
+     * `WHERE company_id = <current company>` filtered those out entirely — the
+     * relation resolved to null, so the timeline had no slug to describe and
+     * calls fell through to the generic "Activity updated" title.
      *
-     * Dropping the scope is safe: `event_type_id` is a foreign key pinned on the
-     * event row, so this can only ever resolve the single type that row already
-     * points at — it cannot reach another company's data. Company isolation is
-     * enforced on the events themselves, which stay scoped.
+     * The replacement constrains the same way the scope did, plus the shared
+     * rows: a type must belong to this event's own company or be shared. That
+     * keeps cross-tenant isolation intact even if a row ever points at another
+     * company's type — `event_type_id` is a plain FK with no same-company
+     * constraint on it, so the FK alone is not sufficient protection.
+     *
+     * Note for eager loads (`with('eventType.category')`): Eloquent builds this
+     * relation once, from the first model in the batch, so the company binding
+     * is that of the first row. Every caller here loads events already filtered
+     * to a single company — see CrmEventService::query(), which constrains
+     * `company_id` before eager loading — so the batch is single-tenant and the
+     * binding is correct. A future cross-company eager load would need this
+     * constraint applied per row instead.
      */
     public function eventType(): BelongsTo
     {
         return $this->belongsTo(CrmEventType::class, 'event_type_id')
-            ->withoutGlobalScope(CompanyScope::class);
+            ->withoutGlobalScope(CompanyScope::class)
+            ->where(function ($query): void {
+                $query->whereNull('crm_event_types.company_id')
+                    ->orWhere('crm_event_types.company_id', $this->company_id);
+            });
     }
 
     /**
