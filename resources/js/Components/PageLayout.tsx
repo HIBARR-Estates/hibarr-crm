@@ -13,6 +13,7 @@ import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     BellOutlined,
     ControlOutlined,
+    MailOutlined,
     HomeOutlined,
     ReloadOutlined,
     SettingOutlined,
@@ -151,6 +152,28 @@ export default function PageLayout({
             label: t("app.menu.settings_menu.preferences"),
             onClick: () => router.visit("/account/settings/preferences"),
         },
+        ...(props.emailMailbox?.settingsUrl
+            ? [
+                  {
+                      key: "mailbox",
+                      icon: <MailOutlined />,
+                      label: t("app.menu.settings_menu.mailbox"),
+                      onClick: () =>
+                          router.visit(props.emailMailbox.settingsUrl),
+                  },
+              ]
+            : []),
+        ...(props.emailPilot?.manageUrl
+            ? [
+                  {
+                      key: "email-pilot",
+                      icon: <MailOutlined />,
+                      label: t("app.menu.settings_menu.email_pilot"),
+                      onClick: () =>
+                          router.visit(props.emailPilot.manageUrl),
+                  },
+              ]
+            : []),
         {
             key: "reminder-preferences",
             icon: <BellOutlined />,

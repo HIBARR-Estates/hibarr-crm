@@ -11,8 +11,10 @@ export default function useEmailRecordDrawer(options: {
     record: EmailRecordRef | null;
     /** Deep-link / focus message uuid. */
     messageId: string | null;
+    /** Bump to reload the open thread after a send. */
+    revision?: number;
 }) {
-    const { open, record, messageId } = options;
+    const { open, record, messageId, revision = 0 } = options;
     const [payload, setPayload] =
         useState<EmailConversationDrawerPayload | null>(null);
     const [loading, setLoading] = useState(false);
@@ -51,7 +53,7 @@ export default function useEmailRecordDrawer(options: {
         } finally {
             setLoading(false);
         }
-    }, [open, record, messageId]);
+    }, [open, record, messageId, revision]);
 
     useEffect(() => {
         void load();

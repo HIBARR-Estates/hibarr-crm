@@ -4,6 +4,7 @@ namespace App\Email\Ingest;
 
 use App\Email\Data\AttachmentRef;
 use App\Email\Data\EmailAddress;
+use App\Email\Data\MessageDirection;
 use App\Email\Data\NormalizedMessage;
 use App\Email\Files\EmailFiles;
 use App\Email\Jobs\StoreEmailFileJob;
@@ -11,6 +12,7 @@ use App\Email\Matching\ContactMatcher;
 use App\Email\Models\EmailConnection;
 use App\Email\Models\EmailMailboxCopy;
 use App\Email\Models\EmailMessage;
+use App\Email\Notifications\InboundMailNotifier;
 use App\Email\Support\Charset;
 use App\Email\Support\EmailHtmlSanitizer;
 use App\Email\Support\SafePreview;
@@ -33,11 +35,12 @@ class MessageIngestor
         private readonly ContactMatcher $matcher,
         private readonly EmailFiles $files,
         private readonly EmailHtmlSanitizer $sanitizer,
+        private readonly InboundMailNotifier $inboundMail,
     ) {}
 
     public function ingestNormalized(EmailConnection $connection, NormalizedMessage $normalized): EmailMailboxCopy
     {
-        return DB::transaction(function () use ($connection, $normalized) {
+        $copy = DB::transaction(function () use ($connection, $normalized) {
             $copy = $this->findCopy($connection, $normalized->providerMessageId);
 
             if ($copy !== null) {
@@ -81,6 +84,14 @@ class MessageIngestor
 
             return $copy;
         });
+
+        // After the copy is committed, so a failed notify cannot roll the message back
+        // and a retried sync (wasRecentlyCreated is then false) cannot notify twice.
+        if ($copy->wasRecentlyCreated && $copy->direction === MessageDirection::Inbound) {
+            $this->inboundMail->notify($connection, $copy);
+        }
+
+        return $copy;
     }
 
     private function findCopy(EmailConnection $connection, string $providerMessageId): ?EmailMailboxCopy

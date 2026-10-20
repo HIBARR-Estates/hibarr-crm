@@ -192,6 +192,10 @@ export interface Property {
     construction_status?: ConstructionStatus;
     sale_type: "sale" | "rent";
     price: number;
+    /** Currency stored with the price JSON. Absent on legacy numeric prices. */
+    price_currency?: string | null;
+    /** Unit-type rows carry their own currency beside a numeric price. */
+    currency?: string | null;
     dues?: number;
     minimal_rental_period?: number;
     rent_payment_interval?: string;
@@ -638,6 +642,8 @@ export interface AuthType {
     user: User;
     permissions: AppPermission;
     modules: AppModule[];
+    /** Holds only the partner role: sidebar shows the partner surface and nothing else. */
+    isPartnerOnly?: boolean;
 }
 export interface AppProps extends PageProps {
     props: {

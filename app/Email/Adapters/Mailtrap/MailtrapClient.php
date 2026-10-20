@@ -4,6 +4,7 @@ namespace App\Email\Adapters\Mailtrap;
 
 use App\Email\Data\ConnectionContext;
 use App\Email\Exceptions\MailTransportException;
+use App\Email\Observability\EmailLog;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
@@ -63,9 +64,13 @@ class MailtrapClient
     {
         try {
             $response = $this->request()->get($this->inboxUrl($path), $query);
-        } catch (ConnectionException) {
+        } catch (ConnectionException $exception) {
+            $this->logTransportFailure('provider_unreachable', $path, $exception);
+
             throw new MailTransportException('provider_unreachable', retryable: true);
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            $this->logTransportFailure('provider_error', $path, $exception);
+
             throw new MailTransportException('provider_error', retryable: true);
         }
 
@@ -86,11 +91,26 @@ class MailtrapClient
 
         try {
             return $this->request()->get($this->baseUrl.$path);
-        } catch (ConnectionException) {
+        } catch (ConnectionException $exception) {
+            $this->logTransportFailure('provider_unreachable', $path, $exception);
+
             throw new MailTransportException('provider_unreachable', retryable: true);
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            $this->logTransportFailure('provider_error', $path, $exception);
+
             throw new MailTransportException('provider_error', retryable: true);
         }
+    }
+
+    private function logTransportFailure(string $errorCode, string $path, Throwable $exception): void
+    {
+        EmailLog::warning('email.mailtrap.transport_error', [
+            'error_code' => $errorCode,
+            'path' => $path,
+            'account_id' => $this->accountId,
+            'inbox_id' => $this->inboxId,
+            'exception' => $exception::class,
+        ]);
     }
 
     public function inboxUrl(string $path = ''): string

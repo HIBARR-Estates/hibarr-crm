@@ -14,7 +14,7 @@ class AddMissingRolePermission extends Command
      *
      * @var string
      */
-    protected $signature = 'add-missing-permissions';
+    protected $signature = 'add-missing-permissions {--company= : Limit the backfill to a single company_id}';
 
     /**
      * The console command description.
@@ -33,7 +33,11 @@ class AddMissingRolePermission extends Command
 
         $rolePerm = new RolePermissionController();
 
-        Company::active()->select('id')->chunk(50, function ($companies) use ($rolePerm) {
+        $companyId = $this->option('company');
+
+        Company::active()
+            ->when($companyId, fn ($query) => $query->where('id', $companyId))
+            ->select('id')->chunk(50, function ($companies) use ($rolePerm) {
 
             foreach ($companies as $company) {
                 $this->info('Running for company:' . $company->id);

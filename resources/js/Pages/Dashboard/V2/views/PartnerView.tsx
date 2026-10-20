@@ -1,17 +1,21 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Deferred } from "@inertiajs/react";
-import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
+import { Button, REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import DashboardPanel, {
     CardSkeleton,
     PanelSkeleton,
 } from "../components/DashboardPanel";
 import StatTile from "../components/StatTile";
+import MultiStatTile from "../components/MultiStatTile";
 import StageFunnel from "../components/StageFunnel";
 import PartnerTrendChart from "../components/PartnerTrendChart";
+import { currencyAmount } from "../format";
 import ReferralTable from "../components/ReferralTable";
+import ReferralFlagsCard from "../components/ReferralFlagsCard";
 import FlagReferralModal from "../components/FlagReferralModal";
 import type {
+    PartnerFlagThreadItem,
     PartnerForecast,
     PartnerReferral,
     PartnerStats,
@@ -23,6 +27,7 @@ export interface PartnerViewProps {
     partnerFunnel?: Array<{ label: string; count: number }> | null;
     partnerTrend?: PartnerTrendPoint[] | null;
     partnerReferrals?: PartnerReferral[] | null;
+    partnerFlags?: PartnerFlagThreadItem[] | null;
     partnerForecast?: PartnerForecast | null;
 }
 
@@ -37,19 +42,34 @@ const COMMISSION_TONE: Record<string, string> = {
  * The whole referral book, and nothing else.
  *
  * External partners sit outside the trust boundary: no deal values, no client
- * contact details, nothing about other partners. That scoping is enforced in
- * DashboardMetricsService — the fields never reach this component — so there is
- * no forecast tile here either, since forecasting would need the deal values.
+ * contact details, no handling agent, nothing about other partners. That
+ * scoping is enforced in DashboardMetricsService — the fields never reach this
+ * component. A partner's per-lead deal values live on the My leads view
+ * (Partner/Leads), which has its own scoping.
  */
 export default function PartnerView({
     partnerStats,
     partnerFunnel,
     partnerTrend,
     partnerReferrals,
+    partnerFlags,
     partnerForecast,
 }: PartnerViewProps) {
     const { td } = useTd();
-    const [flagging, setFlagging] = useState<PartnerReferral | null>(null);
+    const [raising, setRaising] = useState(false);
+    const flaggable = useMemo(() => {
+        const openLeadIds = new Set(
+            (partnerFlags ?? [])
+                .filter(
+                    (flag) =>
+                        flag.status === "open" ||
+                        flag.status === "acknowledged",
+                )
+                .map((flag) => flag.lead_id),
+        );
+
+        return (partnerReferrals ?? []).filter((row) => !openLeadIds.has(row.id));
+    }, [partnerFlags, partnerReferrals]);
 
     const commissions = Object.entries(partnerStats?.commissionsByStatus ?? {});
 
@@ -59,7 +79,7 @@ export default function PartnerView({
                 data="partnerStats"
                 fallback={
                     <div style={tileGrid}>
-                        {Array.from({ length: 5 }).map((_, index) => (
+                        {Array.from({ length: 4 }).map((_, index) => (
                             <CardSkeleton key={index} height={96} />
                         ))}
                     </div>
@@ -67,19 +87,26 @@ export default function PartnerView({
             >
                 {partnerStats ? (
                     <div style={tileGrid}>
-                        <StatTile
-                            label="Referred"
-                            value={partnerStats.referredLeads}
-                        />
-                        <StatTile
-                            label="In progress"
-                            value={partnerStats.inProgressLeads}
-                            note="With an open deal"
-                        />
-                        <StatTile
-                            label="Completed"
-                            tone="green"
-                            value={partnerStats.convertedLeads}
+                        <MultiStatTile
+                            label="Referrals"
+                            variant="team"
+                            segments={[
+                                {
+                                    label: "Referred",
+                                    value: partnerStats.referredLeads,
+                                },
+                                {
+                                    label: "In progress",
+                                    value: partnerStats.inProgressLeads,
+                                    tone: "blue",
+                                },
+                                {
+                                    label: "Completed",
+                                    value: partnerStats.convertedLeads,
+                                    tone: "green",
+                                },
+                            ]}
+                            hint="In progress means the referral has an open deal"
                         />
                         <StatTile
                             label="Conversion"
@@ -104,9 +131,10 @@ export default function PartnerView({
                             label="Forecast"
                             value={
                                 partnerForecast?.amount
-                                    ? Math.round(
+                                    ? currencyAmount(
                                           partnerForecast.amount,
-                                      ).toLocaleString()
+                                          partnerForecast.currency ?? null,
+                                      )
                                     : null
                             }
                             note={forecastNote(partnerForecast)}
@@ -117,19 +145,12 @@ export default function PartnerView({
                 )}
             </Deferred>
 
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                        "repeat(auto-fit, minmax(min(100%, 380px), 1fr))",
-                    gap: 14,
-                    alignItems: "start",
-                }}
-            >
+            <div className="dv2-partner-insights">
                 <DashboardPanel
                     title="Referrals over time"
                     note="Submitted against completed, last 12 months"
                     extra={<Legend />}
+                    style={{ height: "100%" }}
                 >
                     <Deferred
                         data="partnerTrend"
@@ -142,6 +163,7 @@ export default function PartnerView({
                 <DashboardPanel
                     title="Where your referrals stand"
                     note="Stage only — no client detail"
+                    style={{ height: "100%" }}
                 >
                     <Deferred
                         data="partnerFunnel"
@@ -165,36 +187,11 @@ export default function PartnerView({
                         />
                     </Deferred>
                 </DashboardPanel>
-            </div>
-
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                        "repeat(auto-fit, minmax(min(100%, 380px), 1fr))",
-                    gap: 14,
-                    alignItems: "start",
-                }}
-            >
-                <DashboardPanel flush>
-                    <Deferred
-                        data="partnerReferrals"
-                        fallback={
-                            <div style={{ padding: 18 }}>
-                                <PanelSkeleton rows={5} />
-                            </div>
-                        }
-                    >
-                        <ReferralTable
-                            rows={partnerReferrals ?? []}
-                            onFlag={setFlagging}
-                        />
-                    </Deferred>
-                </DashboardPanel>
 
                 <DashboardPanel
                     title="Commission ledger"
-                    note="In the currency each commission was recorded in"
+                    note="Company currency"
+                    style={{ height: "100%" }}
                     footer={
                         <span style={{ color: T.TEXT_MUTED, fontSize: 13 }}>
                             {td(
@@ -208,7 +205,7 @@ export default function PartnerView({
                     >
                         {commissions.length ? (
                             <div>
-                                {commissions.map(([status, amount], index) => (
+                                {commissions.map(([status, total], index) => (
                                     <div
                                         key={status}
                                         style={{
@@ -258,10 +255,10 @@ export default function PartnerView({
                                                 color: T.NAVY,
                                             }}
                                         >
-                                            {amount.toLocaleString(undefined, {
-                                                minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2,
-                                            })}
+                                            {currencyAmount(
+                                                total,
+                                                partnerStats?.currency ?? null,
+                                            )}
                                         </span>
                                     </div>
                                 ))}
@@ -281,10 +278,47 @@ export default function PartnerView({
                 </DashboardPanel>
             </div>
 
-            <FlagReferralModal
-                referral={flagging}
-                onClose={() => setFlagging(null)}
-            />
+            <Deferred
+                data={["partnerReferrals", "partnerFlags"]}
+                fallback={
+                    <div className="dv2-partner-book">
+                        <div style={{ padding: 18 }}>
+                            <PanelSkeleton rows={5} />
+                        </div>
+                        <PanelSkeleton rows={4} />
+                    </div>
+                }
+            >
+                <div className="dv2-partner-book">
+                    <DashboardPanel flush fill style={{ height: "100%" }}>
+                        <ReferralTable rows={partnerReferrals ?? []} />
+                    </DashboardPanel>
+                    <DashboardPanel
+                        flush
+                        fill
+                        title="Flags"
+                        note="Replies from the partner team"
+                        style={{ height: "100%" }}
+                        extra={
+                            <Button
+                                variant="primary"
+                                size="sm"
+                                disabled={flaggable.length === 0}
+                                onClick={() => setRaising(true)}
+                            >
+                                {td("Raise flag", { source: "en" })}
+                            </Button>
+                        }
+                    >
+                        <ReferralFlagsCard flags={partnerFlags ?? []} />
+                        <FlagReferralModal
+                            open={raising}
+                            referrals={flaggable}
+                            onClose={() => setRaising(false)}
+                        />
+                    </DashboardPanel>
+                </div>
+            </Deferred>
         </div>
     );
 }
@@ -299,8 +333,7 @@ const tileGrid = {
  * Says why the forecast is blank, because there are three different reasons
  * and "—" on its own reads as a fault.
  *
- * No currency symbol: commissions are summed across currencies without being
- * split, the same limitation the ledger carries.
+ * Both figures are in the company currency. currencyAmount prefixes them.
  */
 function forecastNote(forecast?: PartnerForecast | null): string | null {
     if (!forecast || forecast.deal_count === 0) {

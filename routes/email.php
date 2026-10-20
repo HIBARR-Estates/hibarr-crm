@@ -4,6 +4,8 @@ use App\Email\Http\Controllers\ConnectionController;
 use App\Email\Http\Controllers\CopyActionController;
 use App\Email\Http\Controllers\FileController;
 use App\Email\Http\Controllers\HandoffController;
+use App\Email\Http\Controllers\InboxController;
+use App\Email\Http\Controllers\PilotAllowlistController;
 use App\Email\Http\Controllers\ReadController;
 use App\Email\Http\Controllers\RecordHistoryController;
 use App\Email\Http\Controllers\ReportController;
@@ -12,6 +14,7 @@ use App\Email\Http\Controllers\SendController;
 use App\Email\Http\Controllers\ZohoOAuthController;
 use App\Email\Http\Middleware\EnsureEmailEnabled;
 use App\Email\Http\Middleware\EnsureEmailPilot;
+use App\Http\Middleware\EnsureUserIsAdmin;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -41,6 +44,8 @@ Route::middleware([EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::c
             ->whereUuid('connection')->name('connections.reconnect');
         Route::delete('connections/{connection}', [ConnectionController::class, 'destroy'])
             ->whereUuid('connection')->name('connections.destroy');
+
+        Route::get('inbox', [InboxController::class, 'index'])->name('inbox.index');
 
         Route::get('review', [ReviewController::class, 'index'])->name('review.index');
         Route::get('review/candidates', [ReviewController::class, 'candidates'])->name('review.candidates');
@@ -91,4 +96,22 @@ Route::middleware([EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::c
         Route::get('records/{type}/{id}/messages/{message}', [RecordHistoryController::class, 'message'])
             ->whereIn('type', ['lead', 'deal'])->whereNumber('id')->whereUuid('message')
             ->name('records.messages.show');
+    });
+
+/*
+| Pilot allowlist management. Flag + auth + admin only — deliberately without
+| EnsureEmailPilot so an admin who is not yet listed can seed the pilot.
+*/
+Route::middleware([EnsureEmailEnabled::class, 'web', 'auth', EnsureUserIsAdmin::class])
+    ->prefix('email')
+    ->name('email.')
+    ->group(function () {
+        Route::get('pilot-allowlist', [PilotAllowlistController::class, 'index'])
+            ->name('pilot-allowlist.index');
+        Route::get('pilot-allowlist/candidates', [PilotAllowlistController::class, 'candidates'])
+            ->name('pilot-allowlist.candidates');
+        Route::post('pilot-allowlist', [PilotAllowlistController::class, 'store'])
+            ->name('pilot-allowlist.store');
+        Route::delete('pilot-allowlist/{entry}', [PilotAllowlistController::class, 'destroy'])
+            ->whereNumber('entry')->name('pilot-allowlist.destroy');
     });

@@ -63,12 +63,8 @@ export default function DossierQuickActions({
     if (emailQuickAction != null && onEmail) {
         actions.push({
             id: "email",
-            labelKey: emailQuickAction.has_connection
-                ? "pages.leads.quick_actions.email"
-                : "pages.leads.quick_actions.email_connect",
-            titleKey: emailQuickAction.has_connection
-                ? "pages.leads.quick_actions.email_title"
-                : "pages.leads.quick_actions.email_connect_title",
+            labelKey: "pages.email.communication.open",
+            titleKey: "pages.email.communication.title",
             icon: "mail",
             onClick: onEmail,
         });
