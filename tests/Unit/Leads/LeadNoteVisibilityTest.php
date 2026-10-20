@@ -88,13 +88,62 @@ class LeadNoteVisibilityTest extends TestCase
         );
     }
 
-    public function test_all_scope_returns_every_note(): void
+    public function test_all_scope_hides_another_authors_private_note(): void
     {
         $this->seedNotes();
 
+        // The `all` scope widens the *scope*, not the private-note policy:
+        // a non-admin still only sees a private note they authored or are a
+        // member of.
         $visible = LeadNote::where('lead_id', 1)->visibleTo($this->viewer('all'))->get();
 
+        $this->assertEqualsCanonicalizing(
+            ['Mine', 'Shared with me'],
+            $visible->pluck('title')->all()
+        );
+    }
+
+    public function test_all_scope_returns_every_note_for_an_admin(): void
+    {
+        $this->seedNotes();
+
+        $visible = LeadNote::where('lead_id', 1)
+            ->visibleTo($this->viewer('all', 10, ['admin']))
+            ->get();
+
         $this->assertCount(3, $visible);
+    }
+
+    public function test_all_scope_keeps_public_notes_readable(): void
+    {
+        $this->seedNotes();
+
+        $visible = LeadNote::where('lead_id', 1)->visibleTo($this->viewer('all', 99))->get();
+
+        $this->assertEqualsCanonicalizing(
+            ['Mine'],
+            $visible->pluck('title')->all()
+        );
+    }
+
+    public function test_is_visible_to_applies_the_private_note_policy(): void
+    {
+        $this->seedNotes();
+
+        $viewer = $this->viewer('all', 99);
+        $theirs = LeadNote::where('title', 'Theirs')->first();
+
+        $this->assertFalse($theirs->isVisibleTo($viewer));
+    }
+
+    public function test_is_visible_to_allows_an_admin_to_read_a_private_note(): void
+    {
+        $this->seedNotes();
+
+        $admin = $this->viewer('all', 99, ['admin']);
+        $theirs = LeadNote::where('title', 'Theirs')->first();
+
+        $this->assertTrue($theirs->isVisibleTo($admin));
     }
 
     public function test_owned_scope_requires_membership(): void
@@ -125,6 +174,44 @@ class LeadNoteVisibilityTest extends TestCase
         $note = LeadNote::where('title', 'Theirs')->first();
 
         $this->assertFalse($note->isVisibleTo($viewer));
+    }
+
+    public function test_edit_permission_none_blocks_everyone(): void
+    {
+        $this->seedNotes();
+
+        $note = LeadNote::where('title', 'Mine')->first();
+
+        $this->assertFalse($note->isEditableBy($this->editor('none')));
+    }
+
+    public function test_edit_permission_all_allows_editing(): void
+    {
+        $this->seedNotes();
+
+        $note = LeadNote::where('title', 'Theirs')->first();
+
+        $this->assertTrue($note->isEditableBy($this->editor('all')));
+    }
+
+    public function test_edit_permission_added_only_allows_the_author(): void
+    {
+        $this->seedNotes();
+
+        $note = LeadNote::where('title', 'Mine')->first();
+
+        $this->assertTrue($note->isEditableBy($this->editor('added', 10)));
+        $this->assertFalse($note->isEditableBy($this->editor('added', 99)));
+    }
+
+    public function test_edit_permission_both_allows_a_member(): void
+    {
+        $this->seedNotes();
+
+        $shared = LeadNote::where('title', 'Shared with me')->first();
+
+        $this->assertTrue($shared->isEditableBy($this->editor('both', 10)));
+        $this->assertFalse($shared->isEditableBy($this->editor('both', 99)));
     }
 
     /**
@@ -163,8 +250,10 @@ class LeadNoteVisibilityTest extends TestCase
 
     /**
      * A viewer with the given `view_lead_note` scope.
+     *
+     * @param  array<int, string>  $roles
      */
-    private function viewer(string $scope, int $userId = 10): User
+    private function viewer(string $scope, int $userId = 10, array $roles = []): User
     {
         $user = Mockery::mock(User::class)->makePartial();
         $user->id = $userId;
@@ -172,6 +261,28 @@ class LeadNoteVisibilityTest extends TestCase
         $user->shouldReceive('permission')
             ->with('view_lead_note')
             ->andReturn($scope);
+
+        $user->setRelation('roles', collect(array_map(
+            fn (string $role) => (object) ['name' => $role],
+            $roles
+        )));
+
+        return $user;
+    }
+
+    /**
+     * A viewer with the given `edit_lead_note` scope.
+     */
+    private function editor(string $scope, int $userId = 10): User
+    {
+        $user = Mockery::mock(User::class)->makePartial();
+        $user->id = $userId;
+
+        $user->shouldReceive('permission')
+            ->with('edit_lead_note')
+            ->andReturn($scope);
+
+        $user->setRelation('roles', collect());
 
         return $user;
     }

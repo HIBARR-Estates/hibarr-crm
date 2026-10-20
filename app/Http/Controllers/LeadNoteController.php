@@ -158,8 +158,10 @@ class LeadNoteController extends AccountBaseController
         $this->pageTitle = __('app.editLeadNote');
 
         $this->note = LeadNote::findOrFail($id);
-        // Same rule as show() and as the Lead page's notes list.
+        // Read scope first — the note has to be visible at all — then the
+        // write scope, which is `edit_lead_note` and governs who may change it.
         abort_403(! $this->note->isVisibleTo(user()));
+        abort_403(! $this->note->isEditableBy(user()));
 
         $this->employees = User::allEmployees();
         /** @phpstan-ignore-next-line */
@@ -179,6 +181,10 @@ class LeadNoteController extends AccountBaseController
     public function update(StoreLeadNote $request, $id)
     {
         $note = LeadNote::findOrFail($id);
+        // Same two gates as edit(): the read scope, then the write scope.
+        abort_403(! $note->isVisibleTo(user()));
+        abort_403(! $note->isEditableBy(user()));
+
         $note->title = $request->filled('title') ? $request->title : null;
         $note->details = $request->details;
         // Preserve type/privacy when the redesign editor only sends title + details.

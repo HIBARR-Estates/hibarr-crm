@@ -184,6 +184,14 @@ class LeadSummaryInputBuilder
             ->values();
     }
 
+    /**
+     * The fingerprint of the input a summary was built from.
+     *
+     * It carries the viewer, because the input is viewer-scoped: the same
+     * lead yields a different input — and therefore a different summary — for
+     * a viewer with a different set of visible deals and notes. Without it a
+     * summary built for one viewer would look current to another.
+     */
     public function inputHash(Lead $lead): string
     {
         $fingerprint = [
@@ -193,6 +201,8 @@ class LeadSummaryInputBuilder
             'lead_owner' => $lead->lead_owner,
             'source_id' => $lead->source_id,
             'category_id' => $lead->category_id,
+            // The viewer the input was scoped to.
+            'viewer' => (string) (Auth::id() ?? ''),
             'deals_count' => Deal::where('lead_id', $lead->id)->count(),
             'deals_max_updated_at' => Deal::where('lead_id', $lead->id)->max('updated_at'),
             'notes_count' => LeadNote::where('lead_id', $lead->id)->count(),
