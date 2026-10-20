@@ -8,6 +8,7 @@ namespace App\Enums;
 enum CrmEventSource: string
 {
     case API = 'api';
+    case WEB = 'web';
     case GRPC = 'grpc';
     case OBSERVER = 'observer';
     case CONTROLLER = 'controller';
@@ -22,6 +23,7 @@ enum CrmEventSource: string
     {
         return match ($this) {
             self::API => 'REST API',
+            self::WEB => 'Web UI',
             self::GRPC => 'gRPC',
             self::OBSERVER => 'Model Observer',
             self::CONTROLLER => 'Controller',
