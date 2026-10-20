@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Enums\CrmEventDirection;
 use App\Enums\CrmEventSource;
 use App\Enums\CrmEventStatus;
+use App\Exceptions\CrmEventSubmissionException;
 use App\Models\CrmBusinessRule;
 use App\Models\CrmEvent;
 use App\Services\CrmEventService;
+use App\Services\CrmEventSubmissionGuard;
 use App\Support\RequestCompany;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,7 +25,8 @@ use Illuminate\Support\Facades\Log;
 class CrmEventController extends Controller
 {
     public function __construct(
-        protected CrmEventService $eventService
+        protected CrmEventService $eventService,
+        protected CrmEventSubmissionGuard $submissionGuard,
     ) {}
 
     /**
@@ -57,17 +60,30 @@ class CrmEventController extends Controller
         }
 
         $companyId = $this->resolveCompanyId($request);
+        $data = $validator->validated();
+
+        // A signed-in session is not a trusted source of attribution: who
+        // wrote the event, how it is classified and which record it belongs to
+        // are all decided server-side. Token callers keep their own contract.
+        $sessionUser = $request->user();
+        if ($sessionUser !== null) {
+            try {
+                $data = $this->submissionGuard->prepare($data, $sessionUser, $companyId);
+            } catch (CrmEventSubmissionException $e) {
+                return $this->submissionError($e);
+            }
+        }
 
         Log::info('[CrmEventController::store] Called.', [
             'company_id' => $companyId,
-            'source' => CrmEventSource::API->value,
+            'source' => $data['source'] ?? CrmEventSource::API->value,
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
 
-        $params = array_merge($validator->validated(), [
+        $params = array_merge($data, [
             'company_id' => $companyId,
-            'source' => CrmEventSource::API->value,
+            'source' => $data['source'] ?? CrmEventSource::API->value,
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
@@ -142,14 +158,37 @@ class CrmEventController extends Controller
         }
 
         $companyId = $this->resolveCompanyId($request);
-        $events = collect($validator->validated()['events'])->map(function ($event) use ($companyId, $request) {
+        $data = $validator->validated();
+
+        // A session batch is validated in full before anything is recorded,
+        // so one bad item cannot leave a half-written batch behind.
+        $sessionUser = $request->user();
+        if ($sessionUser !== null) {
+            $prepared = [];
+
+            foreach ($data['events'] as $index => $event) {
+                try {
+                    $prepared[] = $this->submissionGuard->prepare($event, $sessionUser, $companyId);
+                } catch (CrmEventSubmissionException $e) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Event '.($index + 1).': '.$e->getMessage(),
+                        'errors' => [$index => $e->getMessage()],
+                    ], $e->status);
+                }
+            }
+
+            $data['events'] = $prepared;
+        }
+
+        $events = collect($data['events'])->map(function ($event) use ($companyId, $request) {
             if (!empty($event['model_type'])) {
                 $event['model_type'] = $this->normalizeModelType($event['model_type']);
             }
 
             return array_merge($event, [
                 'company_id' => $companyId,
-                'source' => CrmEventSource::API->value,
+                'source' => $event['source'] ?? CrmEventSource::API->value,
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
@@ -162,6 +201,17 @@ class CrmEventController extends Controller
             'message' => $results->count() . ' events recorded.',
             'data' => $results->map(fn ($e) => $this->transformEvent($e))->values(),
         ], 201);
+    }
+
+    /**
+     * A refused submission: the reason, and a 4xx — never a success status.
+     */
+    private function submissionError(CrmEventSubmissionException $e): JsonResponse
+    {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+        ], $e->status);
     }
 
     /**
