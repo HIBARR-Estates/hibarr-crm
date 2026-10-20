@@ -117,14 +117,6 @@ class LeadNotesDataTable extends BaseDataTable
             });
         }
 
-        if (!in_array('admin', user_roles())) {
-            $notes->where(function ($query) {
-                return $query->whereHas('members', function ($query) {
-                    return $query->where('user_id', user()->id);
-                })->where('type', 1)->orWhere('type', 0);
-            });
-        }
-
         if (!is_null($request->searchText)) {
             $safeTerm = Common::safeString(request('searchText'));
             $notes->where('title', 'like', '%' . $safeTerm . '%');

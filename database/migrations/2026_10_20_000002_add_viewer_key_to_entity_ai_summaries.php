@@ -24,24 +24,27 @@ return new class extends Migration
             $table->string('viewer_key', 64)->default('')->after('entity_id');
         });
 
-        // The old unique key spans every viewer; it has to go before the
-        // per-viewer rows can coexist.
-        DB::statement('DROP INDEX IF EXISTS entity_ai_summaries_entity_unique');
-
         Schema::table('entity_ai_summaries', function (Blueprint $table): void {
+            // The per-viewer key is created first: the existing rows are
+            // already unique on the old key, so they satisfy the wider one.
             $table->unique(
                 ['company_id', 'entity_type', 'entity_id', 'viewer_key'],
                 'entity_ai_summaries_entity_viewer_unique'
             );
         });
+
+        Schema::table('entity_ai_summaries', function (Blueprint $table): void {
+            // The old unique key spans every viewer; it has to go before the
+            // per-viewer rows can coexist.
+            $table->dropUnique('entity_ai_summaries_entity_unique');
+        });
     }
 
     public function down(): void
     {
-        DB::statement('DROP INDEX IF EXISTS entity_ai_summaries_entity_viewer_unique');
-
         // Collapse the per-viewer rows back to one per entity, keeping the
-        // most recently generated.
+        // most recently generated — the old unique key cannot hold two rows
+        // for the same entity.
         $keep = DB::table('entity_ai_summaries')
             ->selectRaw('company_id, entity_type, entity_id, MAX(id) as id')
             ->groupBy('company_id', 'entity_type', 'entity_id')
@@ -54,11 +57,15 @@ return new class extends Migration
             ->delete();
 
         Schema::table('entity_ai_summaries', function (Blueprint $table): void {
-            $table->dropColumn('viewer_key');
+            $table->unique(['company_id', 'entity_type', 'entity_id'], 'entity_ai_summaries_entity_unique');
         });
 
         Schema::table('entity_ai_summaries', function (Blueprint $table): void {
-            $table->unique(['company_id', 'entity_type', 'entity_id'], 'entity_ai_summaries_entity_unique');
+            $table->dropUnique('entity_ai_summaries_entity_viewer_unique');
+        });
+
+        Schema::table('entity_ai_summaries', function (Blueprint $table): void {
+            $table->dropColumn('viewer_key');
         });
     }
 };

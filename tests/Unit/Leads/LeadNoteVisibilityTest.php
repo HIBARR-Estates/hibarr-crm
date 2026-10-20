@@ -150,10 +150,19 @@ class LeadNoteVisibilityTest extends TestCase
     {
         $this->seedNotes();
 
-        // User 5 is not a member of the shared note and does not author it.
-        $visible = LeadNote::where('lead_id', 1)->visibleTo($this->viewer('owned', 5))->get();
+        // Both viewers hold the employee role, so the membership predicate is
+        // what decides — not the role check.
+        $member = $this->viewer('owned', 10, ['employee']);
+        $nonMember = $this->viewer('owned', 5, ['employee']);
 
-        $this->assertCount(0, $visible);
+        $memberVisible = LeadNote::where('lead_id', 1)->visibleTo($member)->get();
+        $nonMemberVisible = LeadNote::where('lead_id', 1)->visibleTo($nonMember)->get();
+
+        $this->assertEqualsCanonicalizing(
+            ['Shared with me'],
+            $memberVisible->pluck('title')->all()
+        );
+        $this->assertCount(0, $nonMemberVisible);
     }
 
     public function test_is_visible_to_matches_the_scope(): void
