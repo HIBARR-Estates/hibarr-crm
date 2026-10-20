@@ -2303,6 +2303,9 @@ return [
         'duration_ms' => ':d dk :s sn',
         'duration_s' => ':s sn',
         'separator' => ' · ',
+        'from' => 'Kimden',
+        'to' => 'Kime',
+        'duration' => 'Süre',
     ],
 
 ];

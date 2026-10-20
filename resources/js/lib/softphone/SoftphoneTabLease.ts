@@ -266,10 +266,32 @@ export class SoftphoneTabLease {
      * the recorded owner id against ours: the tab that sorts before the
      * outgoing owner wins, which keeps a single deterministic claimant instead
      * of every passive tab promoting itself.
+     *
+     * When the released owner was the oldest (lowest id), no tab outranks it.
+     * In that case, fall back to a hash-based arbitration so exactly one
+     * successor can still claim ownership and the line keeps ringing.
      */
     private preferredPassiveTab(): boolean {
         const previous = this.lastReleasedOwnerId;
-        return previous === null || outranks(this.id, previous);
+        if (previous === null) return true;
+        if (outranks(this.id, previous)) return true;
+
+        // Previous owner was the oldest — use a deterministic hash to pick
+        // exactly one successor. The hash is based on the previous owner id,
+        // so all tabs compute the same value and agree on who should take over.
+        const previousHash = this.hashCode(previous);
+        const myHash = this.hashCode(this.id);
+        return myHash < previousHash;
+    }
+
+    private hashCode(str: string): number {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash |= 0; // Convert to 32bit integer
+        }
+        return Math.abs(hash);
     }
 
     /** Give up ownership without clearing another tab's claim. */

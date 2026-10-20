@@ -187,6 +187,7 @@ export default function NotificationAlertProvider({
     const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const hoverRef = useRef(false);
+    const pointerHoverRef = useRef(false);
     const currentRef = useRef<NotificationAlertPayload | null>(null);
     // Keeps sticky call alerts expanded while focus is inside the island or an
     // action (Answer/Hang up) is still resolving.
@@ -276,12 +277,14 @@ export default function NotificationAlertProvider({
     const onEnter = useCallback(() => {
         if (!current) return;
         hoverRef.current = true;
+        pointerHoverRef.current = true;
         clearTimer(dismissTimer);
         setHover(true);
     }, [current]);
 
     const onLeave = useCallback(() => {
         hoverRef.current = false;
+        pointerHoverRef.current = false;
         setHover(false);
         if (current) armDismiss();
     }, [current, armDismiss]);
@@ -292,9 +295,10 @@ export default function NotificationAlertProvider({
             focusWithinRef.current = stillInside;
             setFocusWithin(stillInside);
             if (!stillInside) {
-                // Losing focus must not clear hover — the pointer may still be
+                // Losing focus must not clear pointer hover — the pointer may still be
                 // over the island (and the dismiss timer would fire under it).
-                if (!hoverRef.current) {
+                // Only check pointer hover, not keyboard focus.
+                if (!pointerHoverRef.current) {
                     armDismiss();
                 }
             }
@@ -333,7 +337,7 @@ export default function NotificationAlertProvider({
                     setActionPending(true);
                     (result as Promise<unknown>)
                         .then((value) => {
-                            if (value !== false && currentRef.current?.id === actedOn?.id) {
+                            if (value !== false && currentRef.current === actedOn) {
                                 dismiss();
                             }
                         })
@@ -343,6 +347,7 @@ export default function NotificationAlertProvider({
                         .finally(() => {
                             actionPendingRef.current = false;
                             setActionPending(false);
+                            armDismiss();
                         });
                     return;
                 }

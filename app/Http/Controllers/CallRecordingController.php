@@ -85,9 +85,8 @@ class CallRecordingController extends AccountBaseController
         // Recordings are tenant data and every read path filters on company_id,
         // so an unowned row would be invisible rather than harmless. Resolve the
         // company up front instead of persisting a NULL one.
-        if (company()->id === null) {
-            abort_403();
-        }
+        $companyId = company()->id;
+        abort_403($companyId === null);
 
         $request->validate([
             'recording' => 'required|file|max:51200',
@@ -119,14 +118,19 @@ class CallRecordingController extends AccountBaseController
         $mp3Path = null;
         $transcoded = false;
         try {
-            // tempnam() creates the file; appending the extension made a second
-            // path and orphaned the first one on every upload.
+            // tempnam() creates the file; we need to delete the placeholder before
+            // transcoding and construct the final path manually to preserve
+            // the directory (replaceExtension would strip it).
             $mp3Path = tempnam(sys_get_temp_dir(), 'call-');
             if ($mp3Path === false) {
                 throw new \RuntimeException('Unable to allocate a temp file.');
             }
-            $mp3Path = $this->replaceExtension($mp3Path, $this->transcoder->extension());
-            $transcoded = $this->transcoder->toMp3($file->getRealPath(), $mp3Path);
+            $finalPath = $mp3Path . '.' . $this->transcoder->extension();
+            @unlink($mp3Path);
+            $transcoded = $this->transcoder->toMp3($file->getRealPath(), $finalPath);
+            if ($transcoded) {
+                $mp3Path = $finalPath;
+            }
         } catch (\Throwable $e) {
             $transcoded = false;
         }
@@ -162,7 +166,7 @@ class CallRecordingController extends AccountBaseController
         $callRef = $request->input('call_ref');
 
         $recording = CallRecording::create([
-            'company_id' => user()->company_id ?? null,
+            'company_id' => $companyId,
             'user_id' => user()->id,
             'entity_type' => $request->input('entity_type'),
             'entity_id' => $request->input('entity_id'),

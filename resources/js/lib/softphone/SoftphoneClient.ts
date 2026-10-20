@@ -163,6 +163,13 @@ class SoftphoneClient {
         this.config = config;
         this.setState({ ...EMPTY_STATE, registration: "registering" });
 
+        // Cancellation flag: if stop() is called while start() is in flight,
+        // this prevents the locally created UserAgent/Registerer from being
+        // assigned to this.userAgent/this.registerer after stop() has run.
+        let cancelled = false;
+        const cancel = () => { cancelled = true; };
+        this.startCancel = cancel;
+
         try {
             const uri = UserAgent.makeURI(config.uri);
             if (!uri) {
@@ -192,6 +199,12 @@ class SoftphoneClient {
 
             await userAgent.start();
 
+            // Check for cancellation after async operations
+            if (cancelled) {
+                await userAgent.stop();
+                return;
+            }
+
             const registerer = new Registerer(userAgent);
             registerer.stateChange.addListener((state) => {
                 if (state === RegistererState.Registered) {
@@ -208,6 +221,13 @@ class SoftphoneClient {
             });
             await registerer.register();
 
+            // Check for cancellation again before assigning
+            if (cancelled) {
+                await registerer.unregister();
+                await userAgent.stop();
+                return;
+            }
+
             this.userAgent = userAgent;
             this.registerer = registerer;
         } catch (error: unknown) {
@@ -217,10 +237,17 @@ class SoftphoneClient {
                 registrationError:
                     error instanceof Error ? error.message : "Registration failed",
             });
+        } finally {
+            this.startCancel = null;
         }
     }
 
+    private startCancel: (() => void) | null = null;
+
     async stop(): Promise<void> {
+        // Cancel any in-flight start() before tearing down
+        this.startCancel?.();
+        this.startCancel = null;
         await this.hangup();
         await this.teardown();
         this.config = null;

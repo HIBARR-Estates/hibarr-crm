@@ -115,6 +115,9 @@ export default function useSoftphone() {
             setIsActiveTab(owner);
             if (!owner) {
                 setMirroredCall((mirrored as SoftphoneState["call"]) ?? null);
+                // Ownership lost — tear down any SIP registration this tab
+                // may have started before the lease changed hands.
+                void softphone.stop();
             }
         });
 

@@ -106,7 +106,7 @@ export default function DealTimelineEventRow({
                     }}
                 >
                     <span style={{ fontSize: 13, fontWeight: 500 }}>
-                        {td(event.title, { source: "en" })}
+                        {event.titleLocalized ? event.title : td(event.title, { source: "en" })}
                     </span>
                     <span
                         className="dr-pill dr-pill-gray"
@@ -338,14 +338,16 @@ export default function DealTimelineEventRow({
                         >
                             {event.call.phone && (
                                 <span>
-                                    {event.direction === "inbound" ? "From: " : "To: "}
+                                    {event.direction === "inbound"
+                                        ? `${t("pages.call_summary.from")}: `
+                                        : `${t("pages.call_summary.to")}: `}
                                     {event.call.phone}
                                 </span>
                             )}
                             {event.call.durationSeconds != null &&
                                 event.call.durationSeconds > 0 && (
                                     <span>
-                                        Duration: {formatCallDurationShort(event.call.durationSeconds)}
+                                        {t("pages.call_summary.duration")}: {formatCallDurationShort(event.call.durationSeconds)}
                                     </span>
                                 )}
                         </div>

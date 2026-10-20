@@ -2325,6 +2325,9 @@ return [
         'duration_ms' => ':m Min. :s Sek.',
         'duration_s' => ':s Sek.',
         'separator' => ' · ',
+        'from' => 'Von',
+        'to' => 'An',
+        'duration' => 'Dauer',
     ],
 
 ];

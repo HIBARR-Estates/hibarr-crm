@@ -2298,6 +2298,9 @@ return [
         'duration_ms' => ':s мин :s сек',
         'duration_s' => ':s сек',
         'separator' => ' · ',
+        'from' => 'От',
+        'to' => 'Кому',
+        'duration' => 'Длительность',
     ],
 
 ];

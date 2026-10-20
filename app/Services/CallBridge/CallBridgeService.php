@@ -38,6 +38,10 @@ class CallBridgeService
 
     private const CORRELATION_TTL = 604800;
 
+    private const MAX_RETRIES = 3;
+
+    private const RETRY_DELAYS = [1, 2, 4]; // seconds
+
     public function __construct(
         private readonly CallBridgeClient $client,
         private readonly CrmEventService $events,
@@ -155,6 +159,17 @@ class CallBridgeService
         return $this->client->getCallStatus($callId);
     }
 
+    /**
+     * Emit a call event to the OL call bridge.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public function emitCallEvent(array $payload): array
+    {
+        return $this->client->emitCallEvent($payload);
+    }
+
     // ─── Polling ─────────────────────────────────────────────────────────
 
     /**
@@ -190,44 +205,57 @@ class CallBridgeService
                     $result ? $summary['logged']++ : $summary['skipped']++;
 
                     // Emit a leg event to the OL call bridge when the call is
-                    // answered or connected. This ensures OL records the full
-                    // call lifecycle (started → answered → ended) alongside
-                    // the CRM timeline.
-                    if ($result !== null) {
-                        $eventType = ($olEvent['event'] ?? $olEvent['type'] ?? '') ?? '';
-                        $lower = strtolower($eventType);
-                        $isAnswered = in_array($lower, [
-                            'call.started', 'call.initiated', 'started', 'initiated',
-                            'call.ended', 'call.completed', 'ended', 'completed',
-                            'call_answered', 'answered', 'connect', 'connected',
-                        ], true);
-
-                        if ($isAnswered) {
-                            try {
-                                $callId = $olEvent['call_id'] ?? null;
-                                if (! empty($callId)) {
-                                    $this->client->emitCallEvent([
-                                        'event' => 'call.answered',
-                                        'call_id' => $callId,
-                                        'status' => $result->status ?? 'completed',
-                                    ]);
-                                }
-                            } catch (\Throwable $e) {
-                                Log::warning('CallBridgeService: failed to emit call_answered to OL', [
-                                    'event' => $eventType,
-                                    'call_id' => $callId ?? null,
-                                    'error' => $e->getMessage(),
+                    // answered. This ensures OL records the full call
+                    // lifecycle (started → answered → ended) alongside
+                    // the CRM timeline. Use the mapped result rather than
+                    // raw event names for reliability.
+                    if ($result !== null
+                        && $result->eventType?->slug === 'call_ended'
+                        && $result->status === CrmEventStatus::COMPLETED
+                    ) {
+                        try {
+                            $callId = $olEvent['call_id'] ?? null;
+                            if (! empty($callId)) {
+                                $this->client->emitCallEvent([
+                                    'event' => 'call.answered',
+                                    'call_id' => $callId,
+                                    'status' => 'completed',
                                 ]);
                             }
+                        } catch (\Throwable $e) {
+                            Log::warning('CallBridgeService: failed to emit call_answered to OL', [
+                                'call_id' => $callId ?? null,
+                                'error' => $e->getMessage(),
+                            ]);
                         }
                     }
                 } catch (\Throwable $e) {
                     $errorsThisPage++;
                     $summary['errors']++;
-                    Log::error('CallBridgeService: failed to project OL call event', [
-                        'event' => is_array($olEvent) ? ($olEvent['id'] ?? null) : null,
-                        'error' => $e->getMessage(),
-                    ]);
+
+                    $dedupeKey = $this->dedupeKey($olEvent);
+                    $retryCount = $this->getRetryCount($dedupeKey);
+
+                    if ($retryCount < self::MAX_RETRIES) {
+                        $this->setRetryCount($dedupeKey, $retryCount + 1);
+                        $delay = self::RETRY_DELAYS[$retryCount] ?? end(self::RETRY_DELAYS);
+                        Log::warning('CallBridgeService: transient error projecting OL call event, will retry', [
+                            'event' => is_array($olEvent) ? ($olEvent['id'] ?? null) : null,
+                            'error' => $e->getMessage(),
+                            'retry_count' => $retryCount + 1,
+                            'max_retries' => self::MAX_RETRIES,
+                            'backoff_seconds' => $delay,
+                        ]);
+                    } else {
+                        Log::error('CallBridgeService: exhausted retries for OL call event, marking as processed', [
+                            'event' => is_array($olEvent) ? ($olEvent['id'] ?? null) : null,
+                            'error' => $e->getMessage(),
+                            'dedupe_key' => $dedupeKey,
+                        ]);
+                        if ($dedupeKey !== null) {
+                            $this->markProcessed($dedupeKey);
+                        }
+                    }
                 }
             }
 
@@ -732,6 +760,21 @@ class CallBridgeService
     private function processedCacheKey(string $key): string
     {
         return 'call_bridge:processed:' . sha1($key);
+    }
+
+    private function retryCountKey(string $key): string
+    {
+        return 'call_bridge:retries:' . sha1($key);
+    }
+
+    private function getRetryCount(string $key): int
+    {
+        return (int) Cache::get($this->retryCountKey($key));
+    }
+
+    private function setRetryCount(string $key, int $count): void
+    {
+        Cache::put($this->retryCountKey($key), $count, self::PROCESSED_TTL);
     }
 
     /** One correlation UUID per OL call so started/ended/status chain together. */

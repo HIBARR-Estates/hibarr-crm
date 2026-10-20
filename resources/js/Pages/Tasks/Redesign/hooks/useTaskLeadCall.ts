@@ -70,7 +70,9 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
     const startCall = useCallback(async () => {
         if (!lead) return;
 
-        if (!softphoneEnabled) {
+        // Require both the softphone feature and the canCall permission
+        // for the softphone path. Without canCall, fall back to the device dialler.
+        if (!softphoneEnabled || !canCall) {
             // No SIP registration in this browser — fall back to the dialler.
             if (phone) {
                 await clickToCall.initiateCall(phone, {
@@ -100,7 +102,10 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
 
         setCalling(true);
         try {
-            await softphone.call(phone, {
+            // Strip formatting spaces for the dialing target — softphone.call
+            // expects a raw E.164 number, not a human-formatted one.
+            const dialingPhone = phone.replace(/\s/g, "");
+            await softphone.call(dialingPhone, {
                 leadId: lead.id,
                 leadName: lead.client_name ?? null,
             });

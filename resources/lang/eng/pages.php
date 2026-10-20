@@ -2483,6 +2483,9 @@ return [
         'duration_ms' => ':m::s',
         'duration_s' => ':s s',
         'separator' => ' · ',
+        'from' => 'From',
+        'to' => 'To',
+        'duration' => 'Duration',
     ],
 
 ];

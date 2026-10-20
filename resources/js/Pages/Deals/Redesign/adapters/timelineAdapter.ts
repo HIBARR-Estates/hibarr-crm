@@ -16,6 +16,8 @@ export interface TimelineEventViewModel {
     id: string;
     type: Exclude<TimelineFilter, "all">;
     title: string;
+    /** True when `title` is already localized and should not be passed through td(). */
+    titleLocalized?: boolean;
     meta: string;
     dot: TimelineDotVariant;
     /** Human summary override from metadata (e.g. "Contact → In Progress"). */
@@ -163,10 +165,10 @@ export function describeCallEvent(
 
     const counterparty = phone
         ? event.direction === "inbound"
-            ? `${t("pages.call_summary.inbound")} `
+            ? `${t("pages.call_summary.inbound")} ${phone}`
             : event.direction === "outbound"
-              ? `${t("pages.call_summary.outbound")}`
-              : `${t("pages.call_summary")}`
+              ? `${t("pages.call_summary.outbound")} ${phone}`
+              : `${t("pages.call_summary.call")} ${phone}`
         : event.direction === "inbound"
           ? t("pages.call_summary.inbound")
           : event.direction === "outbound"
@@ -299,6 +301,7 @@ export function crmEventToTimelineViewModel(
     // event-type name.
     const callSummary = describeCallEvent(event, t);
     const title = callSummary || event.event_type?.name || "Activity updated";
+    const titleLocalized = callSummary !== null;
 
     const call = buildCallDetails(event);
     const meta = `${actor} · ${dayjs(event.occurred_at).fromNow()}`;
@@ -352,6 +355,7 @@ export function crmEventToTimelineViewModel(
         id: event.uuid,
         type,
         title,
+        titleLocalized,
         meta,
         dot,
         grouped: grouped || undefined,
