@@ -133,9 +133,8 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
                       icon: <PhoneOutlined />,
                       iconBg: "bg-sky-50",
                       iconColor: "text-sky-600",
-                      title: "Call Bridge",
-                      description:
-                          "Phone lines, call pool and recordings for the browser softphone.",
+                      title: t("pages.call_bridge.title"),
+                      description: t("pages.call_bridge.description"),
                       connected: true,
                       onOpen: () => router.visit(route("call-bridge.index")),
                   },

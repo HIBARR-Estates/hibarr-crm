@@ -41,6 +41,10 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
     {
         $this->assertSoftphoneEnabled();
 
+        // This returns the SIP authorization_password in cleartext, so it is
+        // gated on the softphone permission rather than the feature flag alone.
+        abort_403(user()->permission('make_softphone_calls') !== 'all');
+
         $device = SoftphoneDevice::findOrFail($id);
 
         return response()->json([
@@ -141,13 +145,21 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
             ? 'required|string|max:255'
             : 'nullable|string|max:255';
 
+        // On create every connection field is required. On update they are
+        // `sometimes` so an omitted field keeps its stored value — the settings
+        // UI only ever has the summary (label + is_default), never the
+        // connection settings, so a full update payload would blank them.
+        $connectionRule = $device === null
+            ? 'required|string|max:255'
+            : 'sometimes|string|max:255';
+
         $validated = $request->validate([
             'label' => 'required|string|max:60',
-            'wss_url' => 'required|string|max:255',
-            'uri' => 'required|string|max:255',
-            'authorization_username' => 'nullable|string|max:255',
+            'wss_url' => $connectionRule,
+            'uri' => $connectionRule,
+            'authorization_username' => 'sometimes|nullable|string|max:255',
             'authorization_password' => $passwordRule,
-            'display_name' => 'nullable|string|max:120',
+            'display_name' => 'sometimes|nullable|string|max:120',
             'is_default' => 'sometimes|boolean',
         ]);
 
@@ -162,11 +174,17 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
     private function fill(SoftphoneDevice $device, array $validated): void
     {
         $device->label = $validated['label'];
-        $device->wss_url = $validated['wss_url'];
-        $device->uri = $validated['uri'];
-        $device->authorization_username = $validated['authorization_username'] ?? null;
+
+        // Only overwrite connection fields that were actually sent. On create
+        // they are all required, so this is a straight assignment; on update an
+        // absent key means "unchanged" rather than "clear it".
+        foreach (['wss_url', 'uri', 'authorization_username', 'display_name'] as $field) {
+            if (array_key_exists($field, $validated)) {
+                $device->{$field} = $validated[$field];
+            }
+        }
+
         $device->authorization_password = $validated['authorization_password'];
-        $device->display_name = $validated['display_name'] ?? null;
     }
 
     private function makeDefault(SoftphoneDevice $device): void
@@ -195,10 +213,10 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
 
     private function assertCanManage(): void
     {
-        // Any authenticated company user may manage the company's own phone
-        // lines — the reads (list + credentials) are already open to every
-        // company user behind the flag, so gating writes on admin was both
-        // inconsistent and the reason a non-admin session got a silent 403.
-        abort_unless(user() !== null, 403);
+        // Writing a device row provisions SIP credentials for a company line, so
+        // this is admin-only. The previous check only asserted the user was
+        // logged in, which left store/update/destroy open to any agent. Reads
+        // (list) and credentials() have their own, deliberately looser gates.
+        abort_unless(user() !== null && user()->hasRole('admin'), 403);
     }
 }

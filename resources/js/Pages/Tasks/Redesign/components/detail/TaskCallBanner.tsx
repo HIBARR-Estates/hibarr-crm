@@ -53,7 +53,7 @@ export default function TaskCallBanner({ task }: TaskCallBannerProps) {
         <div
             className="task-call-banner"
             role="group"
-            aria-label={td(`Call ${leadName}`, { source: "en" })}
+            aria-label={td("Call", { source: "en" })}
         >
             <span className="task-call-banner__icon" aria-hidden="true">
                 <TaskGlyph d={TASK_ICON.phone} size={19} strokeWidth={1.7} />
@@ -65,7 +65,10 @@ export default function TaskCallBanner({ task }: TaskCallBannerProps) {
                     title={leadName}
                     style={{ color: T.NAVY }}
                 >
-                    {td(`Call ${leadName}`, { source: "en" })}
+                    {/* Only the fixed word goes through td() — leadName is user
+                        data, and the dynamic translator would send it out as
+                        source English. */}
+                    {td("Call", { source: "en" })} {leadName}
                 </div>
                 <div
                     className="task-call-banner__sub"

@@ -59,8 +59,13 @@ export default function RecordingPlayer({
         if (audio.paused) {
             setLoading(true);
             // Autoplay policies require a user gesture; this click is one.
-            void audio.play().catch(() => {
+            void audio.play().catch((err: unknown) => {
                 setLoading(false);
+                // Interrupting playback (a second play(), a pause, or seeking)
+                // rejects with AbortError. That is not a failure to report.
+                if (err instanceof DOMException && err.name === "AbortError") {
+                    return;
+                }
                 setFailed(true);
                 void message.error("The recording could not be played.");
             });

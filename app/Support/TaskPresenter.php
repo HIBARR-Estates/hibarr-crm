@@ -119,7 +119,23 @@ class TaskPresenter
                 ];
             })->toArray(),
             'leads' => $task->leads->map(function ($lead) {
-                return self::leadSummary($lead);
+                // Same permission gate as a deal's contact: a directly linked
+                // lead still belongs to a record the viewer may not open, so
+                // mobile/client_email are withheld and only the link chip
+                // fields survive.
+                $summary = self::visibleLeadSummary($lead);
+
+                if ($summary === null) {
+                    return [
+                        'id' => $lead->id,
+                        'client_name' => $lead->client_name,
+                        'company_name' => $lead->company_name,
+                        'mobile' => null,
+                        'client_email' => null,
+                    ];
+                }
+
+                return $summary;
             })->toArray(),
             'developer_projects' => $task->developerProjects->map(function ($project) {
                 return [

@@ -2268,4 +2268,36 @@ return [
         'confirm_failed' => 'Не удалось подтвердить перевод.',
     ],
 
+
+    'call_bridge' => [
+        'title' => 'Call Bridge',
+        'description' => 'Телефонные линии, пул звонков и записи для браузерного софтфона.',
+    ],
+    'task_category_actions' => [
+        'none' => 'Нет',
+        'email' => 'Эл. почта',
+        'call' => 'Звонок',
+        'select' => 'Выберите действие',
+    ],
+    'call_summary' => [
+        'inbound_from' => 'Входящий звонок от',
+        'outbound_to' => 'Исходящий звонок на',
+        'with' => 'Звонок с',
+        'inbound' => 'Входящий звонок',
+        'outbound' => 'Исходящий звонок',
+        'call' => 'Звонок',
+        'started' => 'начался',
+        'completed' => 'завершён',
+        'missed' => 'пропущен — нет ответа',
+        'declined' => 'отклонён',
+        'voicemail' => 'голосовое сообщение',
+        'busy' => 'занято',
+        'failed' => 'не удалось соединиться',
+        'recording_available' => 'Запись доступна',
+        'duration_hms' => ':s ч :s мин :s сек',
+        'duration_ms' => ':s мин :s сек',
+        'duration_s' => ':s сек',
+        'separator' => ' · ',
+    ],
+
 ];

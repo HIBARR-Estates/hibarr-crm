@@ -192,6 +192,11 @@ export default function NotificationAlertProvider({
     // action (Answer/Hang up) is still resolving.
     const focusWithinRef = useRef(false);
     const actionPendingRef = useRef(false);
+    // Mirrors of the two refs above for render-time reads — reading a ref during
+    // render does not re-render, so the expanded calculation was one frame stale.
+    // The refs stay for the timer callbacks, which must not re-subscribe.
+    const [focusWithin, setFocusWithin] = useState(false);
+    const [actionPending, setActionPending] = useState(false);
 
     const clearTimer = (ref: MutableRefObject<ReturnType<typeof setTimeout> | null>) => {
         if (ref.current) {
@@ -285,15 +290,21 @@ export default function NotificationAlertProvider({
         (e: FocusEvent<HTMLDivElement>) => {
             const stillInside = e.currentTarget.contains(e.relatedTarget as Node);
             focusWithinRef.current = stillInside;
+            setFocusWithin(stillInside);
             if (!stillInside) {
-                onLeave();
+                // Losing focus must not clear hover — the pointer may still be
+                // over the island (and the dismiss timer would fire under it).
+                if (!hoverRef.current) {
+                    armDismiss();
+                }
             }
         },
-        [onLeave],
+        [armDismiss],
     );
 
     const onFocusCapture = useCallback(() => {
         focusWithinRef.current = true;
+        setFocusWithin(true);
     }, []);
 
     const handleOpenClick = useCallback(
@@ -312,18 +323,26 @@ export default function NotificationAlertProvider({
         (action: NotificationAlertAction) => (e: MouseEvent) => {
             e.stopPropagation();
             if (action.onClick) {
+                // Captured so the async continuation can tell whether the alert
+                // it was fired from is still on screen, or has since been
+                // replaced by a newer one.
+                const actedOn = current;
                 const result = action.onClick();
                 if (result && typeof (result as Promise<unknown>).then === "function") {
                     actionPendingRef.current = true;
+                    setActionPending(true);
                     (result as Promise<unknown>)
                         .then((value) => {
-                            if (value !== false) {
+                            if (value !== false && currentRef.current?.id === actedOn?.id) {
                                 dismiss();
                             }
                         })
-                        .catch(() => dismiss())
+                        .catch(() => {
+                            // Failed — leave the alert up so the agent can retry.
+                        })
                         .finally(() => {
                             actionPendingRef.current = false;
+                            setActionPending(false);
                         });
                     return;
                 }
@@ -370,9 +389,7 @@ export default function NotificationAlertProvider({
     // collapses the action row and hides it behind aria-hidden mid-click.
     const expanded =
         open &&
-        (hover ||
-            focusWithinRef.current ||
-            (!!current?.sticky && actionPendingRef.current)) &&
+        (hover || focusWithin || (!!current?.sticky && actionPending)) &&
         !!current &&
         (hasDetail || (current.actions?.length ?? 0) > 0 || !!current.link);
 

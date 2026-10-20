@@ -2273,4 +2273,36 @@ return [
         'confirm_failed' => 'Havale onaylanamadı.',
     ],
 
+
+    'call_bridge' => [
+        'title' => 'Call Bridge',
+        'description' => 'Tarayıcı yazılım telefonu için hatlar, çağrı havuzu ve kayıtlar.',
+    ],
+    'task_category_actions' => [
+        'none' => 'Yok',
+        'email' => 'E-posta',
+        'call' => 'Ara',
+        'select' => 'Bir işlem seçin',
+    ],
+    'call_summary' => [
+        'inbound_from' => 'Gelen arama',
+        'outbound_to' => 'Giden arama',
+        'with' => 'Arama',
+        'inbound' => 'Gelen arama',
+        'outbound' => 'Giden arama',
+        'call' => 'Arama',
+        'started' => 'başladı',
+        'completed' => 'tamamlandı',
+        'missed' => 'cevapsız — yanıt yok',
+        'declined' => 'reddedildi',
+        'voicemail' => 'sesli mesaj',
+        'busy' => 'hat meşgul',
+        'failed' => 'bağlantı kurulamadı',
+        'recording_available' => 'Kayıt mevcut',
+        'duration_hms' => ':s sa :d dk :s sn',
+        'duration_ms' => ':d dk :s sn',
+        'duration_s' => ':s sn',
+        'separator' => ' · ',
+    ],
+
 ];

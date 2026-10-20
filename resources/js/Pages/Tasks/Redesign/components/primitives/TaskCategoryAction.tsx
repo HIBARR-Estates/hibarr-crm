@@ -117,42 +117,45 @@ export default function TaskCategoryAction({
     );
     const TriggerIcon = onlyQualification ? PlayCircleOutlined : PhoneOutlined;
 
+    const trigger = variant === "button" ? (
+        <Button
+            size="small"
+            icon={<TriggerIcon />}
+            loading={softphoneEnabled && calling}
+            onClick={
+                onlyQualification ? () => setQualifyLead(leadForQualification) : undefined
+            }
+        >
+            {triggerLabel}
+        </Button>
+    ) : (
+        <Button
+            type="text"
+            size="small"
+            icon={<TriggerIcon />}
+            aria-label={triggerLabel}
+            loading={softphoneEnabled && calling}
+            onClick={
+                onlyQualification ? () => setQualifyLead(leadForQualification) : undefined
+            }
+        />
+    );
+
     return (
         <span onClick={(event) => event.stopPropagation()}>
-            <Dropdown
-                menu={{ items: onlyQualification ? [] : items }}
-                trigger={["click"]}
-                placement="bottomRight"
-                disabled={onlyQualification}
-            >
-                {variant === "button" ? (
-                    <Button
-                        size="small"
-                        icon={<TriggerIcon />}
-                        loading={softphoneEnabled && calling}
-                        onClick={
-                            onlyQualification
-                                ? () => setQualifyLead(leadForQualification)
-                                : undefined
-                        }
-                    >
-                        {triggerLabel}
-                    </Button>
-                ) : (
-                    <Button
-                        type="text"
-                        size="small"
-                        icon={<TriggerIcon />}
-                        aria-label={triggerLabel}
-                        loading={softphoneEnabled && calling}
-                        onClick={
-                            onlyQualification
-                                ? () => setQualifyLead(leadForQualification)
-                                : undefined
-                        }
-                    />
-                )}
-            </Dropdown>
+            {/* Qualification renders the button bare: Dropdown swallows the
+                click, so the qualification onClick never fired. */}
+            {onlyQualification ? (
+                trigger
+            ) : (
+                <Dropdown
+                    menu={{ items }}
+                    trigger={["click"]}
+                    placement="bottomRight"
+                >
+                    {trigger}
+                </Dropdown>
+            )}
 
             {qualifyLead && (
                 <QualifyLaunchModal

@@ -28,17 +28,21 @@ interface TaskCategoriesResponse {
     categories: TaskCategory[];
 }
 
-/** Category quick-actions a task can trigger from its row/detail. */
+/**
+ * Category quick-actions a task can trigger from its row/detail.
+ * `label` is a translation key, resolved at the render site with t().
+ */
 const CATEGORY_ACTIONS = [
-    { value: "", label: "None" },
-    { value: "email", label: "Email" },
-    { value: "call", label: "Call" },
+    { value: "", label: "pages.task_category_actions.none" },
+    { value: "email", label: "pages.task_category_actions.email" },
+    { value: "call", label: "pages.task_category_actions.call" },
 ] as const;
 
 const ROW_GRID =
     "grid grid-cols-[36px_minmax(0,1fr)_100px_80px] items-center gap-x-3 px-3.5 py-3 border-b border-[#e2e5ea] last:border-b-0";
 
-function actionLabel(value: string): string {
+/** Translation key for a stored action value, or the raw value if unknown. */
+function actionLabelKey(value: string): string {
     return CATEGORY_ACTIONS.find((a) => a.value === value)?.label ?? value;
 }
 
@@ -212,7 +216,7 @@ export default function TaskCategoryManager() {
                                     style={{ color: T.TEXT_MUTED }}
                                 >
                                     {category.action
-                                        ? t(actionLabel(category.action))
+                                        ? t(actionLabelKey(category.action))
                                         : "—"}
                                 </span>
                                 <span className="flex items-center justify-end gap-1">
@@ -309,7 +313,7 @@ export default function TaskCategoryManager() {
                         label: t(a.label),
                     }))}
                     onChange={(value) => setCategoryAction(String(value))}
-                    placeholder={t("None")}
+                    placeholder={t("pages.task_category_actions.select")}
                     fullWidth
                 />
             </Modal>

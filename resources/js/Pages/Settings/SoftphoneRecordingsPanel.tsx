@@ -132,14 +132,6 @@ export default function SoftphoneRecordingsPanel({ devices }: Props) {
     if (query.isLoading) {
         return <div className="cb-empty">Loading…</div>;
     }
-    if (recordings.length === 0) {
-        return (
-            <EmptyState
-                title="No recordings yet"
-                description="Call recordings appear here once an agent records a call."
-            />
-        );
-    }
 
     return (
         <>
@@ -167,7 +159,15 @@ export default function SoftphoneRecordingsPanel({ devices }: Props) {
                 )}
             </div>
 
-            {groups.map((group) => (
+            {/* Empty state lives inside the panel so the toolbar — including the
+                admin-only "All agents" scope control — stays usable. */}
+            {recordings.length === 0 ? (
+                <EmptyState
+                    title="No recordings yet"
+                    description="Call recordings appear here once an agent records a call."
+                />
+            ) : (
+                groups.map((group) => (
                 <details key={group.key} className="cb-group" open>
                     <summary className="cb-summary">
                         <RightOutlined className="cb-chev" aria-hidden="true" />
@@ -235,7 +235,8 @@ export default function SoftphoneRecordingsPanel({ devices }: Props) {
                         })}
                     </div>
                 </details>
-            ))}
+                ))
+            )}
         </>
     );
 }

@@ -89,6 +89,17 @@ class CallBridgeClient
     }
 
     /**
+     * Emit a call event to the call bridge so OL records the call happening.
+     *
+     * @param  array{event: string, call_id: string, direction: string, phone_number: string, entity_type: string, entity_id: int, status: string, duration?: int}  $payload
+     * @return array<string, mixed>
+     */
+    public function emitCallEvent(array $payload): array
+    {
+        return $this->request('POST', 'emit_event', $payload);
+    }
+
+    /**
      * Whether the bridge is configured enough to be called at all.
      */
     public function configured(): bool

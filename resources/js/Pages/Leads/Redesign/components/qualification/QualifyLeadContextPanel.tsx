@@ -164,9 +164,13 @@ export default function QualifyLeadContextPanel({
     const { notes, notesLoading } = useLeadWorkspace();
     const [activeTab, setActiveTab] = useState<Tab>("lead");
     const [imgError, setImgError] = useState(false);
+    // The feature flag alone isn't enough: ClickToCallButton additionally requires
+    // make_softphone_calls for the softphone path, so an agent without it needs
+    // the plain tel: link to stay usable.
     const telephonyEnabled =
-        props.featureFlags?.["shared.softphone"] === true ||
-        props.featureFlags?.["shared.3cx-calling"] === true;
+        props.auth?.permissions?.make_softphone_calls === "all" &&
+        (props.featureFlags?.["shared.softphone"] === true ||
+            props.featureFlags?.["shared.3cx-calling"] === true);
     const canEdit = ["all", "added", "owned", "both"].includes(
         editLeadPermission,
     );

@@ -30,6 +30,21 @@ export interface TimelineEventViewModel {
     status: CrmEventStatus;
     direction?: CrmEventDirection | null;
     /**
+     * Call-specific detail for the `call_*` events: whether a recording exists
+     * and where to play it, plus the phone number and duration for the summary.
+     */
+    call?: {
+        phone: string | null;
+        durationSeconds: number | null;
+        /** Present when audio was captured for this call. */
+        recordingId: number | null;
+        /** Stream URL for inline playback. */
+        playUrl: string | null;
+        downloadUrl: string | null;
+        filename: string | null;
+        expired: boolean;
+    };
+    /**
      * Recorded by hand via Log Action (custom event type) rather than written
      * by the system as an audit trail. Only these may be edited/deleted.
      */
@@ -37,25 +52,102 @@ export interface TimelineEventViewModel {
     occurredAt: string;
 }
 
-/** Formats a call duration (seconds) as `m:ss` / `45s`. */
-function formatCallDuration(seconds: number): string {
+/**
+ * Formats a call duration (seconds) using the locale's own duration strings.
+ *
+ * `t` supplies the three shapes (`pages.call_summary.duration_*`); the params
+ * are declared there so the translator controls the unit wording, not just the
+ * digits.
+ */
+function formatCallDuration(seconds: number, t: (key: string) => string): string {
     if (!Number.isFinite(seconds) || seconds <= 0) {
         return "";
     }
+
     const total = Math.round(seconds);
-    const mins = Math.floor(total / 60);
+    const hours = Math.floor(total / 3600);
+    const mins = Math.floor((total % 3600) / 60);
     const secs = total % 60;
-    return mins === 0 ? `${secs}s` : `${mins}m ${String(secs).padStart(2, "0")}s`;
+
+    if (hours > 0) {
+        return t("pages.call_summary.duration_hms")
+            .replace(":h", String(hours))
+            .replace(":m", String(mins))
+            .replace(":s", String(secs));
+    }
+
+    if (mins > 0) {
+        return t("pages.call_summary.duration_ms")
+            .replace(":m", String(mins))
+            .replace(":s", String(secs).padStart(2, "0"));
+    }
+
+    return t("pages.call_summary.duration_s").replace(":s", String(secs));
+}
+
+/**
+ * Call detail carried by the timeline for `call_*` events.
+ *
+ * The recording link is what makes a call playable in place: the recording is
+ * stamped onto the event's metadata after the upload finishes, so the timeline
+ * row for the call already knows which recording belongs to it.
+ */
+function buildCallDetails(event: CrmEvent): TimelineEventViewModel["call"] {
+    const slug = event.event_type?.slug ?? "";
+    if (!slug.startsWith("call_")) {
+        return undefined;
+    }
+
+    const meta = (event.metadata ?? {}) as Record<string, unknown>;
+    const recordingId =
+        typeof meta.recording_id === "number"
+            ? meta.recording_id
+            : null;
+
+    return {
+        phone:
+            typeof meta.phone_number === "string" && meta.phone_number.trim() !== ""
+                ? meta.phone_number.trim()
+                : null,
+        durationSeconds: typeof meta.duration === "number" ? meta.duration : null,
+        recordingId,
+        // Streams the bytes back with a decodable Content-Type; the object
+        // storage link only works as a download.
+        playUrl: recordingId !== null ? route("call-recordings.play", recordingId) : null,
+        downloadUrl:
+            typeof meta.download_url === "string" && meta.download_url !== ""
+                ? meta.download_url
+                : null,
+        filename:
+            typeof meta.filename === "string" && meta.filename !== ""
+                ? meta.filename
+                : null,
+        // Expiry is not carried in the event metadata; the play endpoint
+        // answers 410 for an expired recording and the player surfaces that.
+        expired: false,
+    };
+}
+
+/** Joins already-translated parts with the locale's separator. */
+function joinParts(parts: string[], t: (key: string) => string): string {
+    const separator = t("pages.call_summary.separator");
+    return parts.filter((part) => part !== "").join(separator);
 }
 
 /**
  * Describes a call event in plain language, e.g.
  * "Inbound call from +49 170 · completed · 2m 05s · Recording available".
  *
+ * `t` resolves every user-facing fragment — counterparty labels, outcomes,
+ * duration units and the separator — from `pages.call_summary.*`.
+ *
  * Returns null for non-call events so callers can fall back to the generic
  * event-type name.
  */
-export function describeCallEvent(event: CrmEvent): string | null {
+export function describeCallEvent(
+    event: CrmEvent,
+    t: (key: string) => string,
+): string | null {
     const slug = event.event_type?.slug ?? "";
     if (!slug.startsWith("call_")) {
         return null;
@@ -67,36 +159,40 @@ export function describeCallEvent(event: CrmEvent): string | null {
             ? meta.phone_number.trim()
             : null;
     const duration =
-        typeof meta.duration === "number" ? formatCallDuration(meta.duration) : "";
+        typeof meta.duration === "number" ? formatCallDuration(meta.duration, t) : "";
 
     const counterparty = phone
         ? event.direction === "inbound"
-            ? `Inbound call from ${phone}`
+            ? `${t("pages.call_summary.inbound")} `
             : event.direction === "outbound"
-              ? `Outbound call to ${phone}`
-              : `Call with ${phone}`
+              ? `${t("pages.call_summary.outbound")}`
+              : `${t("pages.call_summary")}`
         : event.direction === "inbound"
-          ? "Inbound call"
+          ? t("pages.call_summary.inbound")
           : event.direction === "outbound"
-            ? "Outbound call"
-            : "Call";
+            ? t("pages.call_summary.outbound")
+            : t("pages.call_summary.call");
 
     const outcome = (() => {
         switch (slug) {
             case "call_started":
-                return "started";
+                return t("pages.call_summary.started");
             case "call_ended":
-                return duration ? `completed · ${duration}` : "completed";
+                return duration
+                    ? `${t("pages.call_summary.completed")}${t("pages.call_summary.separator").trim()}${duration}`
+                    : t("pages.call_summary.completed");
             case "call_missed":
-                return "missed — no answer";
+                return t("pages.call_summary.missed");
             case "call_declined":
-                return "declined";
+                return t("pages.call_summary.declined");
             case "call_voicemail":
-                return duration ? `voicemail · ${duration}` : "voicemail";
+                return duration
+                    ? `${t("pages.call_summary.voicemail")}${t("pages.call_summary.separator").trim()}${duration}`
+                    : t("pages.call_summary.voicemail");
             case "call_busy":
-                return "line busy";
+                return t("pages.call_summary.busy");
             case "call_failed":
-                return "failed to connect";
+                return t("pages.call_summary.failed");
             default:
                 return "";
         }
@@ -108,10 +204,10 @@ export function describeCallEvent(event: CrmEvent): string | null {
     }
     // Recording linkage is stamped onto the event once the upload completes.
     if (meta.has_recording === true || typeof meta.recording_id === "number") {
-        parts.push("Recording available");
+        parts.push(t("pages.call_summary.recording_available"));
     }
 
-    return parts.join(" · ");
+    return joinParts(parts, t);
 }
 
 export const FILTER_TO_GENERATION_TYPE: Record<
@@ -174,7 +270,17 @@ export function getTimelineDirectionLabel(
     return DIRECTION_LABELS[direction] ?? direction;
 }
 
-export function crmEventToTimelineViewModel(event: CrmEvent): TimelineEventViewModel {
+/**
+ * Maps one CRM event to the timeline's view model.
+ *
+ * `t` is the current locale's translator; only the call summary is localized
+ * here — actor names and timestamps stay as-is. Pure callers can pass a
+ * function that returns the key unchanged.
+ */
+export function crmEventToTimelineViewModel(
+    event: CrmEvent,
+    t: (key: string) => string,
+): TimelineEventViewModel {
     const type: TimelineEventViewModel["type"] =
         event.generation_type === "user_generated"
             ? "agent"
@@ -191,8 +297,10 @@ export function crmEventToTimelineViewModel(event: CrmEvent): TimelineEventViewM
               : "Agent");
     // Call events get a plain-language summary; everything else uses its
     // event-type name.
-    const callSummary = describeCallEvent(event);
+    const callSummary = describeCallEvent(event, t);
     const title = callSummary || event.event_type?.name || "Activity updated";
+
+    const call = buildCallDetails(event);
     const meta = `${actor} · ${dayjs(event.occurred_at).fromNow()}`;
 
     const metadata = event.metadata ?? {};
@@ -255,6 +363,7 @@ export function crmEventToTimelineViewModel(event: CrmEvent): TimelineEventViewM
         categoryName: event.event_type?.category?.name,
         status: event.status,
         direction: event.direction,
+        call,
         // Mirrors CrmEventController::isAgentLoggedEvent — a custom (non
         // system-seeded) event type means a person logged this by hand.
         isAgentLogged: event.event_type?.is_system === false,

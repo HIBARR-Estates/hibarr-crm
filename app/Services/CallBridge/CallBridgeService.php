@@ -76,6 +76,28 @@ class CallBridgeService
             ]);
         }
 
+        // Emit the call start event to the OL call bridge so it records
+        // the call happening on its side. This enables OL to track the
+        // call lifecycle (started → answered → ended) alongside the CRM.
+        if (! empty($response['call_id'])) {
+            try {
+                $this->client->emitCallEvent([
+                    'event' => 'call.started',
+                    'call_id' => $response['call_id'],
+                    'direction' => $payload['direction'] ?? 'outbound',
+                    'phone_number' => $payload['phone_number'],
+                    'entity_type' => $payload['entity_type'],
+                    'entity_id' => $payload['entity_id'],
+                    'status' => 'pending',
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('CallBridgeService: failed to emit call_started to OL', [
+                    'call_id' => $response['call_id'] ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         return $response;
     }
 
@@ -103,6 +125,23 @@ class CallBridgeService
                 'call_id' => $callId,
                 'error' => $e->getMessage(),
             ]);
+        }
+
+        // Emit the call end event to the OL call bridge so it records
+        // the call ending on its side.
+        if (! empty($callId)) {
+            try {
+                $this->client->emitCallEvent([
+                    'event' => 'call.ended',
+                    'call_id' => $callId,
+                    'status' => $response['status'] ?? null,
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('CallBridgeService: failed to emit call_ended to OL', [
+                    'call_id' => $callId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return $response;
@@ -141,13 +180,49 @@ class CallBridgeService
             $page = $this->client->fetchEvents($since, $limit);
             $pages++;
 
+            $errorsThisPage = 0;
+
             foreach ($page['events'] as $olEvent) {
                 $summary['fetched']++;
 
                 try {
                     $result = $this->logCallEvent($olEvent);
                     $result ? $summary['logged']++ : $summary['skipped']++;
+
+                    // Emit a leg event to the OL call bridge when the call is
+                    // answered or connected. This ensures OL records the full
+                    // call lifecycle (started → answered → ended) alongside
+                    // the CRM timeline.
+                    if ($result !== null) {
+                        $eventType = ($olEvent['event'] ?? $olEvent['type'] ?? '') ?? '';
+                        $lower = strtolower($eventType);
+                        $isAnswered = in_array($lower, [
+                            'call.started', 'call.initiated', 'started', 'initiated',
+                            'call.ended', 'call.completed', 'ended', 'completed',
+                            'call_answered', 'answered', 'connect', 'connected',
+                        ], true);
+
+                        if ($isAnswered) {
+                            try {
+                                $callId = $olEvent['call_id'] ?? null;
+                                if (! empty($callId)) {
+                                    $this->client->emitCallEvent([
+                                        'event' => 'call.answered',
+                                        'call_id' => $callId,
+                                        'status' => $result->status ?? 'completed',
+                                    ]);
+                                }
+                            } catch (\Throwable $e) {
+                                Log::warning('CallBridgeService: failed to emit call_answered to OL', [
+                                    'event' => $eventType,
+                                    'call_id' => $callId ?? null,
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
+                        }
+                    }
                 } catch (\Throwable $e) {
+                    $errorsThisPage++;
                     $summary['errors']++;
                     Log::error('CallBridgeService: failed to project OL call event', [
                         'event' => is_array($olEvent) ? ($olEvent['id'] ?? null) : null,
@@ -156,13 +231,30 @@ class CallBridgeService
                 }
             }
 
-            if ($page['cursor'] !== null && $page['cursor'] !== '') {
-                $since = $page['cursor'];
-                $this->setCursor($since);
-            } elseif ($latest = $this->latestOccurredAt($page['events'])) {
-                $since = $latest;
-                $this->setCursor($since);
+            // Don't advance past events that failed to project — the cursor is
+            // the only resume point, so moving it would silently drop them.
+            // They are re-fetched next poll; already-written events dedupe.
+            if ($errorsThisPage > 0) {
+                Log::warning('CallBridgeService: page had projection errors; cursor not advanced.', [
+                    'errors' => $errorsThisPage,
+                    'cursor' => $since,
+                ]);
+
+                break;
             }
+
+            $nextSince = ($page['cursor'] !== null && $page['cursor'] !== '')
+                ? $page['cursor']
+                : $this->latestOccurredAt($page['events']);
+
+            // No forward movement means the bridge is returning the same page;
+            // looping again would just refetch it ten times.
+            if ($nextSince === null || $nextSince === $since) {
+                break;
+            }
+
+            $since = $nextSince;
+            $this->setCursor($since);
         } while ($page['has_more'] && $pages < 10);
 
         Log::info('CallBridgeService: poll complete', $summary);
@@ -357,9 +449,18 @@ class CallBridgeService
      */
     private function completeCallTasks(Collection $tasks, int $companyId, string $correlationId): void
     {
-        $doneColumn = TaskboardColumn::doneColumn();
+        // Scoped to $companyId, not the session: this runs from the console/poller
+        // where TaskboardColumn::doneColumn() reads a session-derived cache key
+        // and can return another company's column.
+        $doneColumn = TaskboardColumn::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->where('slug', 'done')
+            ->first();
+
         if (!$doneColumn) {
-            Log::warning('CallBridgeService: no "done" taskboard column; tasks left open.');
+            Log::warning('CallBridgeService: no "done" taskboard column; tasks left open.', [
+                'company_id' => $companyId,
+            ]);
 
             return;
         }

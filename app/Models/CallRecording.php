@@ -33,6 +33,10 @@ class CallRecording extends Model
         'object_path',
         'external_url',
         'expires_at',
+        // Shared with crm_events.metadata.call_ref so the timeline can find the
+        // recording for a call. Without it here the create() below silently
+        // dropped it and no timeline row could ever be annotated.
+        'call_ref',
     ];
 
     protected $casts = [

@@ -5,8 +5,12 @@ namespace Tests\Unit\Support;
 use App\Models\Company;
 use App\Models\Deal;
 use App\Models\Lead;
+use App\Models\Permission;
+use App\Models\PermissionType;
+use App\Models\Role;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\UserPermission;
 use App\Support\TaskPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -62,7 +66,15 @@ class TaskPresenterDealLeadTest extends TestCase
         // view_lead scoped to 'added' and this agent added nobody — the lead is
         // someone else's, so its contact details must not ride along.
         $outsider = User::factory()->create(['company_id' => $lead->company_id]);
-        $this->actingAs($outsider, ['view_lead' => 'added']);
+        // Permissions go through the app's own UserPermission table so
+        // permissionMap() picks them up, and the user is then authenticated
+        // plainly — actingAs() with a guard map bypasses that pipeline.
+        UserPermission::create([
+            'user_id' => $outsider->id,
+            'permission_id' => Permission::where('name', 'view_lead')->value('id'),
+            'permission_type_id' => PermissionType::where('name', 'added')->value('id'),
+        ]);
+        $this->actingAs($outsider);
 
         $payload = TaskPresenter::present($task->fresh(TaskPresenter::RELATIONS));
 
@@ -72,7 +84,10 @@ class TaskPresenterDealLeadTest extends TestCase
 
     private function taskLinkedTo(Deal $deal): Task
     {
-        $task = Task::factory()->create([
+        // create() rather than the factory: the heading/company_id the tests
+        // assert on must be the exact values passed in, and the factory's own
+        // definitions can overwrite them.
+        $task = Task::create([
             'heading' => 'Call about the viewing',
             'company_id' => $deal->company_id,
         ]);
@@ -86,6 +101,19 @@ class TaskPresenterDealLeadTest extends TestCase
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id]);
         $admin->forceFill(['company_id' => $company->id])->save();
-        $this->actingAs($admin, ['view_lead' => 'all']);
+
+        UserPermission::create([
+            'user_id' => $admin->id,
+            'permission_id' => Permission::where('name', 'view_lead')->value('id'),
+            'permission_type_id' => PermissionType::where('name', 'all')->value('id'),
+        ]);
+
+        // user_roles() reads this session key and user()->roles, so both need
+        // the admin role for hasRole() to see it.
+        $role = Role::where('name', 'admin')->first();
+        $admin->roles()->attach($role->id);
+        session(['user_roles' => ['admin']]);
+
+        $this->actingAs($admin);
     }
 }

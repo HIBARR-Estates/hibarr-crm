@@ -4,6 +4,7 @@ import axios from "axios";
 import { usePage } from "@inertiajs/react";
 import { softphone } from "@/lib/softphone/SoftphoneClient";
 import useClickToCall from "@/Hooks/useClickToCall";
+import { resolveLeadPhoneDisplay } from "@/lib/utils";
 import type { Task } from "@/Types/Task";
 
 /** The lead shape the quick-action needs, from either link path. */
@@ -27,6 +28,8 @@ export interface TaskLeadCall {
     /** True while the softphone is dialling out. */
     calling: boolean;
     softphoneEnabled: boolean;
+    /** The user holds make_softphone_calls, so the softphone path is usable. */
+    canCall: boolean;
     /** Place the call. Falls back to the device dialler without the softphone. */
     startCall: () => Promise<void>;
 }
@@ -53,8 +56,16 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
     const lead = directLead ?? (dealLead as TaskActionLead | undefined);
     const source = directLead ? "lead" : dealLead ? "deal" : null;
 
-    const phone = lead?.mobile?.trim() ?? "";
+    // `mobile` may be stored in E.164 or human-formatted ("+46 70 123 45 67"),
+    // so resolve it the same way the meeting/contact surfaces do before using it
+    // as a dialler target.
+    const phone = resolveLeadPhoneDisplay(lead?.mobile).trim();
     const email = lead?.client_email?.trim() ?? "";
+
+    // Mirrors ClickToCallButton: the softphone needs make_softphone_calls;
+    // without it the button falls back to the device dialler.
+    const canCall =
+        props.auth?.permissions?.make_softphone_calls === "all";
 
     const startCall = useCallback(async () => {
         if (!lead) return;
@@ -71,6 +82,22 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
         }
 
         if (!phone || calling) return;
+
+        // Same preconditions as ClickToCallButton: getUserMedia needs a secure
+        // context, and calling before the line has registered fails silently.
+        if (
+            typeof navigator === "undefined" ||
+            !navigator.mediaDevices ||
+            !window.isSecureContext
+        ) {
+            message.error("Calling needs a secure connection.");
+            return;
+        }
+        if (softphone.getState().registration !== "registered") {
+            message.warning("Softphone is not registered — pick a line in the dock.");
+            return;
+        }
+
         setCalling(true);
         try {
             await softphone.call(phone, {
@@ -107,6 +134,7 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
         email,
         calling,
         softphoneEnabled,
+        canCall,
         startCall,
     };
 }

@@ -2295,4 +2295,36 @@ return [
         'confirm_failed' => 'Überweisung konnte nicht bestätigt werden.',
     ],
 
+
+    'call_bridge' => [
+        'title' => 'Call Bridge',
+        'description' => 'Telefonleitungen, Anrufpool und Aufnahmen für den Browser-Softphone.',
+    ],
+    'task_category_actions' => [
+        'none' => 'Keine',
+        'email' => 'E-Mail',
+        'call' => 'Anruf',
+        'select' => 'Aktion auswählen',
+    ],
+    'call_summary' => [
+        'inbound_from' => 'Eingehender Anruf von',
+        'outbound_to' => 'Ausgehender Anruf an',
+        'with' => 'Anruf mit',
+        'inbound' => 'Eingehender Anruf',
+        'outbound' => 'Ausgehender Anruf',
+        'call' => 'Anruf',
+        'started' => 'gestartet',
+        'completed' => 'abgeschlossen',
+        'missed' => 'verpasst — keine Antwort',
+        'declined' => 'abgelehnt',
+        'voicemail' => 'Sprachnachricht',
+        'busy' => 'Leitung besetzt',
+        'failed' => 'Verbindung fehlgeschlagen',
+        'recording_available' => 'Aufnahme verfügbar',
+        'duration_hms' => ':h Std. :m Min. :s Sek.',
+        'duration_ms' => ':m Min. :s Sek.',
+        'duration_s' => ':s Sek.',
+        'separator' => ' · ',
+    ],
+
 ];

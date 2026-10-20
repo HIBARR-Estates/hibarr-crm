@@ -11,6 +11,7 @@ import SoftphoneCallPoolManager from "./SoftphoneCallPoolManager";
 import SoftphoneRecordingsPanel from "./SoftphoneRecordingsPanel";
 
 import "@/Components/Redesign/redesign.css";
+import "@/Components/CallRecordingPlayer.css";
 import "./CallBridgeSettings.css";
 
 type TabKey = "lines" | "pool" | "recordings";

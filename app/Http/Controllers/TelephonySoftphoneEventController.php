@@ -194,6 +194,31 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 'company_id' => (int) company()->id,
                 'occurred_at' => now(),
             ]);
+            // Emit the call event to the OL call bridge so it records the
+            // call happening on its side. This is best-effort — a failure
+            // here must not block the call that already started or the
+            // softphone UI response.
+            try {
+                $emitDirection = $validated['direction'] ?? 'outbound';
+                $emitEvent = $validated['event'] ?? 'call.started';
+                if (! in_array($emitEvent, ['call.started', 'call.ended', 'call.missed', 'call_declined', 'call_voicemail', 'call_busy', 'call_failed'], true)) {
+                    $emitEvent = 'call.started';
+                }
+                $this->callBridge->emitCallEvent([
+                    'event' => $emitEvent,
+                    'call_id' => $validated['call_ref'] ?? null,
+                    'direction' => $emitDirection,
+                    'phone_number' => $validated['phone'],
+                    'status' => $validated['status'] ?? null,
+                ]);
+            } catch (\Throwable $e) {
+                // Emit failure must not block the call logging path.
+                Log::warning('TelephonySoftphoneEventController: failed to emit call event to OL', [
+                    'error' => $e->getMessage(),
+                    'event' => $validated['event'] ?? null,
+                    'call_ref' => $validated['call_ref'] ?? null,
+                ]);
+            }
         } catch (\Throwable $e) {
             // Logging must not block the call that already started.
         }

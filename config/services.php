@@ -193,6 +193,7 @@ return [
             'status' => env('OL_CALL_BRIDGE_STATUS_PATH', '/call-bridge/calls/status'),
             'events' => env('OL_CALL_BRIDGE_EVENTS_PATH', '/call-bridge/events'),
             'active_calls' => env('OL_CALL_BRIDGE_ACTIVE_CALLS_PATH', '/call-bridge/calls/active'),
+            'emit_event' => env('OL_CALL_BRIDGE_EMIT_EVENT_PATH', '/call-bridge/calls/emit'),
         ],
         // Task categories (task_category.category_name) the bridge links call
         // events to. Compared after normalising to lowercase alphanumerics, so

@@ -33,10 +33,10 @@ class CallRecordingController extends AccountBaseController
         $limit = (int) $request->input('limit', 50);
         $limit = max(1, min(200, $limit));
 
-        $query = CallRecording::query()
-            ->where(function ($q) use ($companyId): void {
-                $q->where('company_id', $companyId)->orWhereNull('company_id');
-            });
+        // Exact match only. The previous `orWhereNull('company_id')` also
+        // surfaced unowned rows to every company, and the recording filename is
+        // tenant-visible metadata.
+        $query = CallRecording::query()->where('company_id', $companyId);
 
         // `scope=company` is the Call Bridge "all recordings" view and is
         // admin-only; everyone else only ever sees their own.
@@ -82,6 +82,13 @@ class CallRecordingController extends AccountBaseController
         $permission = user()->permission('make_softphone_calls');
         abort_403(! in_array($permission, ['all']));
 
+        // Recordings are tenant data and every read path filters on company_id,
+        // so an unowned row would be invisible rather than harmless. Resolve the
+        // company up front instead of persisting a NULL one.
+        if (company()->id === null) {
+            abort_403();
+        }
+
         $request->validate([
             'recording' => 'required|file|max:51200',
             'duration' => 'nullable|integer|min:0',
@@ -93,6 +100,9 @@ class CallRecordingController extends AccountBaseController
             'phone_number' => 'nullable|string|max:50',
             'direction' => 'nullable|string|in:inbound,outbound',
             'routing_reason' => 'nullable|string|max:40',
+            // Matches the crm_events.metadata.call_ref column width — this value
+            // is what links the recording back to the call's timeline rows.
+            'call_ref' => 'nullable|string|max:64',
         ]);
 
         $file = $request->file('recording');
@@ -109,7 +119,13 @@ class CallRecordingController extends AccountBaseController
         $mp3Path = null;
         $transcoded = false;
         try {
-            $mp3Path = tempnam(sys_get_temp_dir(), 'call-').'.'.$this->transcoder->extension();
+            // tempnam() creates the file; appending the extension made a second
+            // path and orphaned the first one on every upload.
+            $mp3Path = tempnam(sys_get_temp_dir(), 'call-');
+            if ($mp3Path === false) {
+                throw new \RuntimeException('Unable to allocate a temp file.');
+            }
+            $mp3Path = $this->replaceExtension($mp3Path, $this->transcoder->extension());
             $transcoded = $this->transcoder->toMp3($file->getRealPath(), $mp3Path);
         } catch (\Throwable $e) {
             $transcoded = false;
@@ -323,7 +339,12 @@ class CallRecordingController extends AccountBaseController
         if (user()->id !== $callRecording->user_id && ! user()->hasRole('admin')) {
             abort(403);
         }
-        if (isset($callRecording->company_id) && (int) $callRecording->company_id !== (int) (user()->company_id ?? 0)) {
+
+        // Exact match, and a missing company_id on either side is a mismatch.
+        // `isset()` previously let NULL recordings through the check entirely.
+        if ($callRecording->company_id === null
+            || user()->company_id === null
+            || (int) $callRecording->company_id !== (int) user()->company_id) {
             abort(403);
         }
 

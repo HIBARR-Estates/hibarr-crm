@@ -25,11 +25,13 @@ interface DeviceDevicesResponse {
 
 interface DevicePayload {
     label: string;
-    wss_url: string;
-    uri: string;
-    authorization_username: string | null;
+    /** Required on create. Omitted on update to keep the stored value. */
+    wss_url?: string;
+    /** Required on create. Omitted on update to keep the stored value. */
+    uri?: string;
+    authorization_username?: string | null;
     authorization_password: string;
-    display_name: string | null;
+    display_name?: string | null;
     is_default?: boolean;
 }
 
@@ -129,8 +131,10 @@ export default function SoftphoneDeviceManager() {
     const openEdit = (device: SoftphoneDeviceSummary) => {
         setEditing(device);
         setLabel(device.label);
-        // Secrets aren't returned by the list endpoint — leave blank on edit
-        // (blank password means "keep stored").
+        // Connection settings and secrets aren't returned by the list endpoint,
+        // so they stay blank and are left out of the update payload — the API
+        // keeps whatever is stored when a field is absent. A blank password
+        // likewise means "keep stored".
         setWssUrl("");
         setUri("");
         setUsername("");
@@ -141,18 +145,26 @@ export default function SoftphoneDeviceManager() {
     };
 
     const handleSubmit = () => {
-        if (!label.trim() || !wssUrl.trim() || !uri.trim()) return;
-        if (!editing && !password.trim()) return;
+        if (!label.trim()) return;
+        if (!editing && (!wssUrl.trim() || !uri.trim() || !password.trim())) return;
 
+        // On edit only send fields that were actually filled in; an omitted
+        // field keeps its stored value server-side. Sending the blank strings
+        // shown above used to wipe the line's connection settings on a rename.
         const payload: DevicePayload = {
             label: label.trim(),
-            wss_url: wssUrl.trim(),
-            uri: uri.trim(),
-            authorization_username: username.trim() || null,
             authorization_password: password,
-            display_name: displayName.trim() || null,
             is_default: isDefault,
         };
+
+        if (!editing || wssUrl.trim()) payload.wss_url = wssUrl.trim();
+        if (!editing || uri.trim()) payload.uri = uri.trim();
+        if (username.trim()) {
+            payload.authorization_username = username.trim();
+        }
+        if (displayName.trim()) {
+            payload.display_name = displayName.trim();
+        }
 
         if (editing) {
             updateMutation.mutate(payload);
@@ -162,8 +174,12 @@ export default function SoftphoneDeviceManager() {
     };
 
     const saving = createMutation.isPending || updateMutation.isPending;
-    const canSubmit =
-        label.trim() && wssUrl.trim() && uri.trim() && (editing || password.trim());
+    const canSubmit = editing
+        ? !!label.trim()
+        : !!label.trim() &&
+          !!wssUrl.trim() &&
+          !!uri.trim() &&
+          !!password.trim();
 
     return (
         <div className="flex flex-col gap-4">

@@ -30,6 +30,21 @@ function tabId(): string {
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/**
+ * Total order over tab ids. Ids embed a base36 timestamp prefix, so a plain
+ * string compare already orders oldest-first; this just makes that explicit and
+ * keeps it stable if the id format ever changes.
+ */
+function outranks(mine: string, theirs: string): boolean {
+    if (theirs === "") {
+        return true;
+    }
+    if (mine === theirs) {
+        return false;
+    }
+    return mine < theirs;
+}
+
 export class SoftphoneTabLease {
     private readonly id = tabId();
     private channel: BroadcastChannel | null = null;
@@ -37,6 +52,11 @@ export class SoftphoneTabLease {
     private listeners = new Set<Listener>();
     private owner = false;
     private lastSeenAt = 0;
+    /**
+     * Id of the most recently seen owner, used to pick a single deterministic
+     * successor when that owner goes away. Null before any owner is seen.
+     */
+    private lastReleasedOwnerId: string | null = null;
 
     constructor() {
         if (typeof window === "undefined") {
@@ -133,6 +153,8 @@ export class SoftphoneTabLease {
             // ignore
         }
         if (this.owner) {
+            // Remember who left so the passive tabs can agree on one successor.
+            this.lastReleasedOwnerId = this.id;
             this.post({ type: "release", tabId: this.id });
         }
         this.owner = false;
@@ -194,12 +216,21 @@ export class SoftphoneTabLease {
             case "heartbeat":
                 if (!this.owner) {
                     this.lastSeenAt = message.at;
+                } else if (outranks(message.tabId, this.id)) {
+                    // A higher-priority tab is alive and claiming the lease;
+                    // step down rather than fight it for the SIP registration.
+                    this.stepDown();
                 }
                 break;
             case "release":
                 if (!this.owner) {
-                    // Owner went away cleanly — take over so the line keeps ringing.
-                    this.becomeOwner();
+                    // Owner went away cleanly — take over so the line keeps
+                    // ringing. Every passive tab hears this message, so only the
+                    // lowest-priority one claims; otherwise they all become owner
+                    // at once and re-create the duplicate-registration bug.
+                    if (this.preferredPassiveTab()) {
+                        this.becomeOwner();
+                    }
                 }
                 break;
             case "claim":
@@ -219,11 +250,40 @@ export class SoftphoneTabLease {
     private onStorage = (event: StorageEvent): void => {
         if (event.key === STORAGE_KEY && !this.owner) {
             const owner = this.readOwner();
-            if (!owner || this.isStale(owner)) {
+            // Same single-owner rule as the `release` message: the owner row is
+            // gone, but every passive tab sees it, so only the preferred one
+            // takes over.
+            if ((!owner || this.isStale(owner)) && this.preferredPassiveTab()) {
                 this.becomeOwner();
             }
         }
     };
+
+    /**
+     * True when this tab should be the next owner among the passive tabs.
+     *
+     * There is no shared view of "which passive tabs exist", so this compares
+     * the recorded owner id against ours: the tab that sorts before the
+     * outgoing owner wins, which keeps a single deterministic claimant instead
+     * of every passive tab promoting itself.
+     */
+    private preferredPassiveTab(): boolean {
+        const previous = this.lastReleasedOwnerId;
+        return previous === null || outranks(this.id, previous);
+    }
+
+    /** Give up ownership without clearing another tab's claim. */
+    private stepDown(): void {
+        if (this.heartbeatTimer !== null) {
+            window.clearInterval(this.heartbeatTimer);
+            this.heartbeatTimer = null;
+        }
+        if (!this.owner) {
+            return;
+        }
+        this.owner = false;
+        this.notify();
+    }
 
     private post(message: LeaseMessage): void {
         try {
@@ -240,7 +300,16 @@ export class SoftphoneTabLease {
                 return null;
             }
             const parsed = JSON.parse(raw) as { id: string; at: number };
-            return typeof parsed?.id === "string" ? parsed : null;
+            if (typeof parsed?.id !== "string") {
+                return null;
+            }
+            // Track the incumbent so a later take-over can be arbitrated against
+            // a real id rather than falling back to "everyone claims".
+            if (parsed.id !== this.id) {
+                this.lastReleasedOwnerId = parsed.id;
+            }
+
+            return parsed;
         } catch {
             return null;
         }

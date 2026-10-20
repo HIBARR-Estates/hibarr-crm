@@ -91,6 +91,8 @@ interface ManagedSession {
     invite(options?: unknown): Promise<void>;
     accept(options?: unknown): Promise<void>;
     reject(options?: unknown): Promise<void>;
+    /** Cancels an outbound INVITE that has not been answered yet. */
+    cancel(options?: unknown): Promise<void>;
     bye(): Promise<void>;
     state: SessionState;
 }
@@ -392,7 +394,15 @@ class SoftphoneClient {
         this.endedByUser = true;
         try {
             if (this.state.call?.phase === "inbound") {
+                // An inbound session is still in the INVITE phase; reject() is
+                // the valid way to refuse it.
                 await session.reject();
+            } else if (session.state === SessionState.Terminated) {
+                // Already gone; nothing to tear down.
+            } else if (session.state !== SessionState.Established) {
+                // bye() is only valid on an established session. Cancelling an
+                // outbound INVITE that never got a 200 OK throws otherwise.
+                await session.cancel();
             } else {
                 await session.bye();
             }

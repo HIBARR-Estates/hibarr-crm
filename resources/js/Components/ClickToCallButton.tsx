@@ -70,11 +70,14 @@ export default function ClickToCallButton({
     const softphoneReady = registration === "registered";
 
     const trimmedPhone = phone.trim();
-    if ((!softphoneEnabled && !olEnabled) || !trimmedPhone || !hasCallPermission) {
+    // The softphone is the path that needs make_softphone_calls; the 3CX/OL
+    // path is gated by its own flag, so requiring the permission here locked
+    // agents without it out of both.
+    const useSoftphonePath = softphoneEnabled && hasCallPermission;
+
+    if ((!useSoftphonePath && !olEnabled) || !trimmedPhone) {
         return null;
     }
-
-    const useSoftphonePath = softphoneEnabled;
     const loading = useSoftphonePath ? dialing : isCalling(trimmedPhone, entity);
     const cooldownSuffix = cooling ? ` (${coolingRemaining}s)` : "";
 

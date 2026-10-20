@@ -902,37 +902,6 @@ useEffect(() => {
                 </div>
             )}
 
-            {/* Inbound call was not matched to a lead — prompt to create one. */}
-            {unmatchedPromptPhone && (
-                <div className="sp__unmatched-notice">
-                    <p>
-                        {td("This call was not matched to an existing lead. Would you like to create a new lead from this call?", {
-                            source: "en",
-                        })}
-                    </p>
-                    <div className="sp__unmatched-actions">
-                        <button
-                            type="button"
-                            className="act act--ok"
-                            onClick={() => {
-                                window.location.href = route("lead.create", {
-                                    phone_number: unmatchedPromptPhone,
-                                });
-                            }}
-                        >
-                            {td("Create lead", { source: "en " })}
-                        </button>
-                        <button
-                            type="button"
-                            className="act act--danger"
-                            onClick={() => setUnmatchedPromptPhone(null)}
-                        >
-                            {td("Close", { source: "en " })}
-                        </button>
-                    </div>
-                </div>
-            )}
-
             {/* Idle state — line picker + status. Only when no call is live and no failed
                 call is being reported (otherwise both panels render at once). */}
             {!hasCall && !callFailure && open && (
