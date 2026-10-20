@@ -182,21 +182,15 @@ export default function LogActionModal({
                 event_type_slug: values.event_type_slug,
                 model_type: modelType,
                 model_id: modelId,
+                user_id: userId,
+                generation_type: "user_generated",
                 status: values.status || "completed",
                 direction: values.direction || undefined,
                 metadata:
                     Object.keys(metadata).length > 0 ? metadata : undefined,
-                // The author and the classification are assigned server-side
-                // from the signed-in session, so they are not sent from here.
-                // `occurred_at` is only sent when a date was actually chosen —
-                // otherwise the server stamps the current time.
-                ...(values.occurred_at
-                    ? {
-                          occurred_at: dayjs(values.occurred_at)
-                              .utc()
-                              .toISOString(),
-                      }
-                    : {}),
+                occurred_at: values.occurred_at
+                    ? dayjs(values.occurred_at).utc().toISOString()
+                    : dayjs().utc().toISOString(),
             };
 
             const finish = () => {
