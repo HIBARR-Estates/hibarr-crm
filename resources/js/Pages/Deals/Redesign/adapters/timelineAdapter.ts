@@ -165,10 +165,10 @@ export function describeCallEvent(
 
     const counterparty = phone
         ? event.direction === "inbound"
-            ? `${t("pages.call_summary.inbound")} ${phone}`
+            ? `${t("pages.call_summary.inbound_from")} ${phone}`
             : event.direction === "outbound"
-              ? `${t("pages.call_summary.outbound")} ${phone}`
-              : `${t("pages.call_summary.call")} ${phone}`
+              ? `${t("pages.call_summary.outbound_to")} ${phone}`
+              : `${t("pages.call_summary.with")} ${phone}`
         : event.direction === "inbound"
           ? t("pages.call_summary.inbound")
           : event.direction === "outbound"

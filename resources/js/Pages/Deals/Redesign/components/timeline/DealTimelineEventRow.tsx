@@ -340,7 +340,9 @@ export default function DealTimelineEventRow({
                                 <span>
                                     {event.direction === "inbound"
                                         ? `${t("pages.call_summary.from")}: `
-                                        : `${t("pages.call_summary.to")}: `}
+                                        : event.direction === "outbound"
+                                          ? `${t("pages.call_summary.to")}: `
+                                          : null}
                                     {event.call.phone}
                                 </span>
                             )}

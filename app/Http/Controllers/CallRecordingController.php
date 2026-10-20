@@ -133,6 +133,10 @@ class CallRecordingController extends AccountBaseController
             }
         } catch (\Throwable $e) {
             $transcoded = false;
+            // Clean up any partial output file from a failed transcode
+            if (isset($finalPath) && is_file($finalPath)) {
+                @unlink($finalPath);
+            }
         }
 
         $storedName = $transcoded

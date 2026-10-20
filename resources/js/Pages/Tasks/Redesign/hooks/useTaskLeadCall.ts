@@ -129,7 +129,7 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
         } finally {
             setCalling(false);
         }
-    }, [calling, clickToCall, lead, phone, softphoneEnabled]);
+    }, [calling, clickToCall, lead, phone, softphoneEnabled, canCall]);
 
     return {
         lead,

@@ -101,6 +101,7 @@ class SoftphoneClient {
     private config: SoftphoneConfig | null = null;
     private userAgent: UserAgent | null = null;
     private registerer: Registerer | null = null;
+    private startCancels: Set<() => void> = new Set();
     private session: ManagedSession | null = null;
     private answering = false;
     /** The agent pressed decline/hang up — not a failed call, so no notice. */
@@ -168,7 +169,8 @@ class SoftphoneClient {
         // assigned to this.userAgent/this.registerer after stop() has run.
         let cancelled = false;
         const cancel = () => { cancelled = true; };
-        this.startCancel = cancel;
+        // Track all in-flight start attempts so stop() can cancel them all
+        this.startCancels.add(cancel);
 
         try {
             const uri = UserAgent.makeURI(config.uri);
@@ -207,6 +209,8 @@ class SoftphoneClient {
 
             const registerer = new Registerer(userAgent);
             registerer.stateChange.addListener((state) => {
+                // Check cancellation before applying state changes
+                if (cancelled) return;
                 if (state === RegistererState.Registered) {
                     this.setState({
                         registration: "registered",
@@ -238,16 +242,16 @@ class SoftphoneClient {
                     error instanceof Error ? error.message : "Registration failed",
             });
         } finally {
-            this.startCancel = null;
+            this.startCancels.delete(cancel);
         }
     }
 
     private startCancel: (() => void) | null = null;
 
     async stop(): Promise<void> {
-        // Cancel any in-flight start() before tearing down
-        this.startCancel?.();
-        this.startCancel = null;
+        // Cancel all in-flight start attempts before tearing down
+        this.startCancels.forEach((cancel) => cancel());
+        this.startCancels.clear();
         await this.hangup();
         await this.teardown();
         this.config = null;

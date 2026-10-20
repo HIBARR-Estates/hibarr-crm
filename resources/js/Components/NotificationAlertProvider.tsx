@@ -289,6 +289,15 @@ export default function NotificationAlertProvider({
         if (current) armDismiss();
     }, [current, armDismiss]);
 
+    // Keyboard focus: update hoverRef and visible hover state, but NOT pointerHoverRef.
+    // This prevents keyboard focus from suppressing armDismiss when focus leaves.
+    const onFocus = useCallback(() => {
+        if (!current) return;
+        hoverRef.current = true;
+        clearTimer(dismissTimer);
+        setHover(true);
+    }, [current]);
+
     const onBlur = useCallback(
         (e: FocusEvent<HTMLDivElement>) => {
             const stillInside = e.currentTarget.contains(e.relatedTarget as Node);
@@ -297,7 +306,10 @@ export default function NotificationAlertProvider({
             if (!stillInside) {
                 // Losing focus must not clear pointer hover — the pointer may still be
                 // over the island (and the dismiss timer would fire under it).
-                // Only check pointer hover, not keyboard focus.
+                // Synchronize hoverRef with pointerHoverRef: if the pointer is still
+                // over the island, keep hover active; otherwise allow dismissal.
+                hoverRef.current = pointerHoverRef.current;
+                setHover(pointerHoverRef.current);
                 if (!pointerHoverRef.current) {
                     armDismiss();
                 }
@@ -337,7 +349,11 @@ export default function NotificationAlertProvider({
                     setActionPending(true);
                     (result as Promise<unknown>)
                         .then((value) => {
-                            if (value !== false && currentRef.current === actedOn) {
+                            // Compare by ID when both have one, otherwise fall back to identity
+                            const sameAlert = currentRef.current?.id && actedOn?.id
+                                ? currentRef.current.id === actedOn.id
+                                : currentRef.current === actedOn;
+                            if (value !== false && sameAlert) {
                                 dismiss();
                             }
                         })
@@ -462,7 +478,7 @@ export default function NotificationAlertProvider({
                         }
                         onMouseEnter={onEnter}
                         onMouseLeave={onLeave}
-                        onFocus={onEnter}
+                        onFocus={onFocus}
                         onFocusCapture={onFocusCapture}
                         onBlur={onBlur}
                         tabIndex={0}

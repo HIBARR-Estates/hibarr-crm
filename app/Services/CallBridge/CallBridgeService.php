@@ -233,14 +233,32 @@ class CallBridgeService
                     $errorsThisPage++;
                     $summary['errors']++;
 
+                    // Only call dedupeKey() for array events
+                    if (!is_array($olEvent)) {
+                        Log::error('CallBridgeService: failed to project OL call event (non-array)', [
+                            'error' => $e->getMessage(),
+                        ]);
+                        continue;
+                    }
+
                     $dedupeKey = $this->dedupeKey($olEvent);
+
+                    // When no usable dedupe key exists, log and continue
+                    if ($dedupeKey === null) {
+                        Log::error('CallBridgeService: failed to project OL call event (no dedupe key)', [
+                            'event' => $olEvent['id'] ?? null,
+                            'error' => $e->getMessage(),
+                        ]);
+                        continue;
+                    }
+
                     $retryCount = $this->getRetryCount($dedupeKey);
 
                     if ($retryCount < self::MAX_RETRIES) {
                         $this->setRetryCount($dedupeKey, $retryCount + 1);
-                        $delay = self::RETRY_DELAYS[$retryCount] ?? end(self::RETRY_DELAYS);
+                        $delay = self::RETRY_DELAYS[$retryCount] ?? self::RETRY_DELAYS[count(self::RETRY_DELAYS) - 1];
                         Log::warning('CallBridgeService: transient error projecting OL call event, will retry', [
-                            'event' => is_array($olEvent) ? ($olEvent['id'] ?? null) : null,
+                            'event' => $olEvent['id'] ?? null,
                             'error' => $e->getMessage(),
                             'retry_count' => $retryCount + 1,
                             'max_retries' => self::MAX_RETRIES,
@@ -248,13 +266,11 @@ class CallBridgeService
                         ]);
                     } else {
                         Log::error('CallBridgeService: exhausted retries for OL call event, marking as processed', [
-                            'event' => is_array($olEvent) ? ($olEvent['id'] ?? null) : null,
+                            'event' => $olEvent['id'] ?? null,
                             'error' => $e->getMessage(),
                             'dedupe_key' => $dedupeKey,
                         ]);
-                        if ($dedupeKey !== null) {
-                            $this->markProcessed($dedupeKey);
-                        }
+                        $this->markProcessed($dedupeKey);
                     }
                 }
             }
