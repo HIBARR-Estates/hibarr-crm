@@ -3,6 +3,7 @@
 /* Setting menu routes starts from here */
 
 use App\Email\Http\Controllers\MailboxSettingsController;
+use App\Email\Http\Controllers\PilotAllowlistSettingsController;
 use App\Email\Http\Middleware\EnsureEmailEnabled;
 use App\Email\Http\Middleware\EnsureEmailPilot;
 use App\Http\Controllers\ApiTokenSettingController;
@@ -120,6 +121,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('mailbox', [MailboxSettingsController::class, 'show'])
         ->middleware([EnsureEmailEnabled::class, EnsureEmailPilot::class])
         ->name('mailbox-settings.show');
+
+    /* Email pilot allowlist (crm.email + admin). Seedable before the admin is listed. */
+    Route::get('email-pilot', [PilotAllowlistSettingsController::class, 'show'])
+        ->middleware([EnsureEmailEnabled::class, EnsureUserIsAdmin::class])
+        ->name('email-pilot-settings.show');
 
     /* User preferences (timezone, in-app alerts, notification bypass) */
     Route::get('preferences', [UserPreferencesController::class, 'show'])->name('user-preferences.show');

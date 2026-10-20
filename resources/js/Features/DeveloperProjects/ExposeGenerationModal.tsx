@@ -49,6 +49,10 @@ interface Property {
     id: number;
     title: string;
     price: number | null;
+    /** Currency stored with the price JSON. Absent on legacy numeric prices. */
+    price_currency?: string | null;
+    /** Unit-type rows carry their own currency beside a numeric price. */
+    currency?: string | null;
     status: string;
     bedrooms: string | null;
     bathrooms: number | null;

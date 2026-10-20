@@ -163,6 +163,17 @@ export default function PageLayout({
                   },
               ]
             : []),
+        ...(props.emailPilot?.manageUrl
+            ? [
+                  {
+                      key: "email-pilot",
+                      icon: <MailOutlined />,
+                      label: t("app.menu.settings_menu.email_pilot"),
+                      onClick: () =>
+                          router.visit(props.emailPilot.manageUrl),
+                  },
+              ]
+            : []),
         {
             key: "reminder-preferences",
             icon: <BellOutlined />,
