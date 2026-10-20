@@ -33,8 +33,12 @@ class ReviewController
         private readonly EmailAccess $access,
     ) {}
 
-    public function index(Request $request): JsonResponse|InertiaResponse
+    public function index(Request $request): JsonResponse|InertiaResponse|\Illuminate\Http\RedirectResponse
     {
+        if ($this->wantsPage($request)) {
+            return redirect('/email/inbox?state=needs_review');
+        }
+
         $perPage = min(self::MAX_PER_PAGE, max(1, (int) $request->integer('per_page', self::PER_PAGE)));
 
         // Optional search within the user's own review.
@@ -58,26 +62,13 @@ class ReviewController
         return response()->json(['items' => $items, 'meta' => $meta]);
     }
 
-    public function show(Request $request, string $copy): JsonResponse|InertiaResponse
+    public function show(Request $request, string $copy): JsonResponse|InertiaResponse|\Illuminate\Http\RedirectResponse
     {
         $found = $this->queue->for($request->user())->where('uuid', $copy)->firstOrFail();
         $item = $this->queue->present($request->user(), [$found])[0];
 
         if ($this->wantsPage($request)) {
-            $page = $this->queue->for($request->user())->orderByDesc('id')->paginate(self::PER_PAGE);
-            $items = $this->queue->present($request->user(), $page->items());
-
-            // Deep link may land on an item outside the first page — keep it in the list.
-            if (! collect($items)->contains(fn (array $row) => $row['id'] === $item['id'])) {
-                array_unshift($items, $item);
-            }
-
-            return $this->page($request->user(), $items, [
-                'current_page' => $page->currentPage(),
-                'last_page' => $page->lastPage(),
-                'per_page' => $page->perPage(),
-                'total' => $page->total(),
-            ], null, $item['id']);
+            return redirect('/email/inbox?state=needs_review&focus='.$item['id']);
         }
 
         return response()->json(['item' => $item]);

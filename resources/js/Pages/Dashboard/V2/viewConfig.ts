@@ -38,13 +38,12 @@ export const WINDOWED: ViewKey[] = ["manager", "team"];
 /**
  * Views that appear in the switcher but can't be opened from it yet.
  *
- * They are built and reachable by URL; they simply aren't part of the
- * three-tab set the dashboard leads with today. Shown greyed rather than
- * omitted so the shape of what's coming is visible — but still only to
- * accounts that hold them, since a tab for a view you'll never be granted is
- * an advertisement, not a signpost.
+ * Company is built and reachable by URL; it simply isn't part of the set the
+ * dashboard leads with today. Shown greyed rather than omitted so the shape of
+ * what's coming is visible — but still only to accounts that hold it, since a
+ * tab for a view you'll never be granted is an advertisement, not a signpost.
  */
-const COMING_SOON: ViewKey[] = ["leadership", "partner"];
+const COMING_SOON: ViewKey[] = ["leadership"];
 
 /** Hover text on those, so a greyed tab doesn't read as a broken one. */
 const COMING_SOON_TITLE = "Coming soon";

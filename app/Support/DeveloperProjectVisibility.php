@@ -55,6 +55,16 @@ class DeveloperProjectVisibility
     }
 
     /**
+     * Whether the user may create or update a developer project, including its pricing currency.
+     */
+    public static function canEditProjects(?object $user = null): bool
+    {
+        $user = $user ?? user();
+
+        return self::hasEditPermission($user, 'edit_developer_projects');
+    }
+
+    /**
      * @param  Builder<Developer>  $query
      * @return Builder<Developer>
      */

@@ -12,7 +12,9 @@ use App\Email\Reads\ReadState;
 use App\Email\Search\MessageSearch;
 use App\Email\Support\SafePreview;
 use App\Models\User;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 /**
  * A mailbox owner's private review: their own copies that are on no record.
@@ -52,6 +54,39 @@ class ReviewQueue
         )->select('id');
 
         return $this->for($owner)->whereIn('message_id', $matching);
+    }
+
+    /**
+     * The owner's synced copies in a message-date window. Needs review is the
+     * unlinked subset. This never asks the provider for mail it has not stored.
+     *
+     * @return Collection<int, EmailMailboxCopy>
+     */
+    public function inbox(
+        User $owner,
+        DateTimeInterface $from,
+        DateTimeInterface $to,
+        bool $needsReview,
+        ?string $term = null,
+    ): Collection {
+        $query = $needsReview ? $this->for($owner) : $this->owned($owner);
+
+        if ($term !== null && trim($term) !== '') {
+            $matching = $this->search->filter(
+                EmailMessage::withoutGlobalScopes()->where('company_id', $owner->company_id),
+                $term,
+            )->select('id');
+            $query->whereIn('message_id', $matching);
+        }
+
+        return $query
+            ->whereHas('message', function (Builder $message) use ($from, $to) {
+                $message->where('sent_at', '>=', $from)->where('sent_at', '<=', $to);
+            })
+            ->with(['message.conversation', 'connection'])
+            ->get()
+            ->sortByDesc(fn (EmailMailboxCopy $copy) => $copy->message?->sent_at?->getTimestamp() ?? 0)
+            ->values();
     }
 
     /** Every copy in the user's own mailboxes, in review or not. */
@@ -110,6 +145,7 @@ class ReviewQueue
                     : null,
                 'to' => $message?->to_recipients ?? [],
                 'cc' => $message?->cc_recipients ?? [],
+                'conversation_id' => $message?->conversation?->uuid,
                 'subject' => $message?->subject,
                 'sent_at' => $message?->sent_at?->toIso8601String(),
                 'preview' => SafePreview::from($message?->text_body, $message?->html_raw),

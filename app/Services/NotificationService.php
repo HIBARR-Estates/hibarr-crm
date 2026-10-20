@@ -732,6 +732,8 @@ class NotificationService
 
             // Entity reminders (tasks, deals, leads, meetings, notes, properties, projects, units, flights)
             'reminder_notification' => 'reminder',
+
+            'inbound_mail_notification' => 'mail',
         ];
 
         return $icons[$typeSlug] ?? 'bell';

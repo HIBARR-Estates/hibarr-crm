@@ -4,8 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Helper\Reply;
 use App\Models\Lead;
+use App\Models\Role;
 use App\Models\LeadAgent;
+use App\Models\User;
+use App\Notifications\PartnerInvited;
+use App\Support\PartnerRole;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 /**
@@ -34,7 +39,7 @@ class PartnerAdminController extends AccountBaseController
         $query = LeadAgent::where('company_id', $companyId)
             ->where('is_partner', true)
             ->withCount('referredLeads')
-            ->with('user:id,name,email,image,status');
+            ->with(['user:id,name,email,image,status', 'user.roles']);
 
         if ($request->filled('search')) {
             $search = $request->get('search');
@@ -44,6 +49,8 @@ class PartnerAdminController extends AccountBaseController
 
         $agents = $query->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 15));
+
+        $agents->getCollection()->each(fn (LeadAgent $agent) => $this->markResendable($agent));
 
         return Inertia::render('Partners/Index', [
             'pageTitle' => 'Partners',
@@ -87,11 +94,122 @@ class PartnerAdminController extends AccountBaseController
             ->firstOrFail();
 
         $agent->update(['is_partner' => true]);
-        $agent->loadCount('referredLeads')->load('user:id,name,email,image,status');
+        $agent->loadCount('referredLeads')->load(['user:id,name,email,image,status', 'user.roles']);
+        $this->markResendable($agent);
 
         return Reply::successWithData(__('messages.recordSaved'), [
             'agent' => $agent,
         ]);
+    }
+
+    /**
+     * Create a brand-new partner account and tell them how to sign in.
+     *
+     * The user gets `employee` + `partner` and only the partner role's
+     * permissions (PartnerRole). An email that already has an account is
+     * refused rather than converted: turning an existing staff user into a
+     * partner would be a role change nobody asked for — flag them from the
+     * Add Partner picker instead.
+     *
+     * Sign-in is Keycloak SSO, which this app does not provision. The account
+     * here only becomes usable once the same, verified email exists at the
+     * identity provider; the invite mail says so.
+     */
+    public function invite(Request $request)
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email:rfc,strict|unique:users,email',
+            'mobile' => 'nullable|string|max:50',
+        ], [
+            'email.unique' => __('messages.duplicateEntryForEmail'),
+        ]);
+
+        $companyId = company()->id;
+        $partnerRole = PartnerRole::ensureFor($companyId);
+
+        $employeeRole = Role::where('name', 'employee')
+            ->where('company_id', $companyId)
+            ->first();
+
+        $agent = DB::transaction(function () use ($data, $companyId, $partnerRole, $employeeRole) {
+            $user = new User;
+            $user->company_id = $companyId;
+            $user->name = $data['name'];
+            $user->email = $data['email'];
+            $user->mobile = $data['mobile'] ?? null;
+            // Never used and never shared: sign-in is SSO only.
+            $user->password = bcrypt(str()->random(32));
+            $user->save();
+
+            if ($employeeRole) {
+                $user->attachRole($employeeRole->id);
+            }
+
+            $user->attachRole($partnerRole->id);
+            $user->assignUserRolePermission($partnerRole->id);
+
+            return LeadAgent::create([
+                'company_id' => $companyId,
+                'user_id' => $user->id,
+                'lead_category_id' => null,
+                'added_by' => user()->id,
+                'status' => 'enabled',
+                'is_partner' => true,
+            ]);
+        });
+
+        $agent->loadCount('referredLeads')->load(['user:id,name,email,image,status', 'user.roles']);
+        $this->markResendable($agent);
+
+        // The account now exists, so an email failure must not look like the
+        // invite failed: retrying would be refused (the address is taken). Say
+        // so, and let it be resent from the row.
+        $sent = $this->sendInvite($agent);
+
+        return Reply::successWithData(
+            $sent ? __('messages.recordSaved') : 'The partner was created, but the invitation email could not be sent. Use Resend invite.',
+            ['agent' => $agent, 'invite_sent' => $sent]
+        );
+    }
+
+    /**
+     * Send the invitation again to an account this flow created. Refused for
+     * anyone who is also staff: a partner flag on a colleague is not an invite.
+     */
+    public function resendInvite($id)
+    {
+        $agent = LeadAgent::where('company_id', company()->id)
+            ->where('is_partner', true)
+            ->with(['user', 'user.roles'])
+            ->findOrFail($id);
+
+        if (! PartnerRole::isPartnerOnly($agent->user)) {
+            return Reply::error('Only partner accounts created through Invite Partner can be re-invited.');
+        }
+
+        return $this->sendInvite($agent)
+            ? Reply::success('Invitation sent.')
+            : Reply::error('The invitation email could not be sent. Please try again.');
+    }
+
+    private function sendInvite(LeadAgent $agent): bool
+    {
+        try {
+            $agent->user->notify(new PartnerInvited($agent->user, user()->name));
+
+            return true;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return false;
+        }
+    }
+
+    /** Whether the row can be re-invited: a partner-only account, not a colleague flagged as a partner. */
+    private function markResendable(LeadAgent $agent): void
+    {
+        $agent->setAttribute('can_resend', PartnerRole::isPartnerOnly($agent->user));
     }
 
     /**

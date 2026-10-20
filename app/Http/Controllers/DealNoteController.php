@@ -12,13 +12,11 @@ use App\Models\Deal;
 use App\Models\User;
 use App\Services\PermissionService;
 use App\Services\Reminders\NoteReminderSync;
-use App\Traits\RecordsCrmEvents;
 use Illuminate\Http\Request;
 
 class DealNoteController extends AccountBaseController
 {
     use AttachesSourceEmail;
-    use RecordsCrmEvents;
 
     public function __construct()
     {
@@ -160,15 +158,8 @@ class DealNoteController extends AccountBaseController
 
         \Log::info('Deal Note Created: ', ['id' => $note->id, 'deal_id' => $note->deal_id,]);
 
-        // ── CRM Event: deal_note_added ──
-        $this->recordCrmEvent('deal_note_added', $noteDeal, [
-            'metadata' => [
-                'comment' => 'Note added: ' . ($note->title ?? 'Untitled'),
-                'note_id' => $note->id,
-                'note_title' => $note->title,
-            ],
-        ]);
-
+        // deal_note_added is recorded by DealNoteObserver via DealActivityEventService.
+        // Recording it here as well persisted a second event for the same note.
         app(NoteReminderSync::class)->syncFromDealNote($note->load('deal.leadAgent.user', 'addedBy'));
 
         $note->load('addedBy');

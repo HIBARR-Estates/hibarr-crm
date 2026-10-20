@@ -29,6 +29,7 @@ import { Property } from "@/Types";
 import {
     getStatusColor,
     parsePropertyPrice,
+    storedPriceCurrency,
     formatCurrencyWithSymbol,
     generatePropertySubtitle,
 } from "@/lib/utils";
@@ -96,13 +97,15 @@ function PropertyHeader({
     const [editAccessModal, setEditAccessModal] = useState(false);
     const [editAccessMessage, setEditAccessMessage] = useState("");
 
+    const storedCurrency = storedPriceCurrency(property);
     const { amount, currency } = parsePropertyPrice(
         (property as any).price,
-        defaultCurrencyCode || "TRY",
+        storedCurrency || defaultCurrencyCode || "TRY",
     );
+    const displayCurrency = storedCurrency || currency;
 
     const resolvedSymbol =
-        currencies.find((c: any) => c?.currency_code === currency)
+        currencies.find((c: any) => c?.currency_code === displayCurrency)
             ?.currency_symbol ||
         defaultCurrencySymbol ||
         "";

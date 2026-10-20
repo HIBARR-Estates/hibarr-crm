@@ -2,6 +2,10 @@
 
 /* Setting menu routes starts from here */
 
+use App\Email\Http\Controllers\MailboxSettingsController;
+use App\Email\Http\Controllers\PilotAllowlistSettingsController;
+use App\Email\Http\Middleware\EnsureEmailEnabled;
+use App\Email\Http\Middleware\EnsureEmailPilot;
 use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\AttendanceSettingController;
@@ -112,6 +116,16 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
         ->whereNumber('id');
     Route::resource('api-token-settings', ApiTokenSettingController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::resource('profile-settings', ProfileSettingController::class);
+
+    /* Connected mailbox (crm.email + pilot allowlist). Flag off → 404. */
+    Route::get('mailbox', [MailboxSettingsController::class, 'show'])
+        ->middleware([EnsureEmailEnabled::class, EnsureEmailPilot::class])
+        ->name('mailbox-settings.show');
+
+    /* Email pilot allowlist (crm.email + admin). Seedable before the admin is listed. */
+    Route::get('email-pilot', [PilotAllowlistSettingsController::class, 'show'])
+        ->middleware([EnsureEmailEnabled::class, EnsureUserIsAdmin::class])
+        ->name('email-pilot-settings.show');
 
     /* User preferences (timezone, in-app alerts, notification bypass) */
     Route::get('preferences', [UserPreferencesController::class, 'show'])->name('user-preferences.show');
@@ -347,6 +361,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::post('role-permissions/permissions', [RolePermissionController::class, 'permissions'])->name('role-permissions.permissions');
     Route::post('role-permissions/customPermissions', [RolePermissionController::class, 'customPermissions'])->name('role-permissions.custom_permissions');
     Route::post('role-permissions/reset-permissions', [RolePermissionController::class, 'resetPermissions'])->name('role-permissions.reset_permissions');
+    Route::post('role-permissions/resync-all-users', [RolePermissionController::class, 'resyncAllUserPermissions'])->name('role-permissions.resync_all_users');
     Route::resource('role-permissions', RolePermissionController::class);
 
     // Theme settings

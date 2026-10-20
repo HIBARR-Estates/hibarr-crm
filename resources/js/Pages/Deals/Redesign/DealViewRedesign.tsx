@@ -68,15 +68,9 @@ import {
     DealWorkspaceProvider,
     useDealWorkspace,
 } from "./context/DealWorkspaceContext";
-import ComposerEntryModal from "@/Email/ComposerEntryModal";
-import ConnectMailboxModal from "@/Email/ConnectMailboxModal";
-import EmailRecordDrawer from "@/Email/EmailRecordDrawer";
+import CommunicationModal from "@/Email/CommunicationModal";
 import { subscribeOpenSourceEmail } from "@/Email/openSourceEmail";
-import type { EmailFollowUpKind } from "@/Email/types";
-import type {
-    EmailComposerReplyContext,
-    EmailQuickAction,
-} from "@/Email/types";
+import type { EmailFollowUpKind, EmailQuickAction } from "@/Email/types";
 import { replaceUrlKeepingHistoryState } from "@/lib/inertiaHistory";
 
 /** Stable identity so an absent prop doesn't invalidate memos every render. */
@@ -138,21 +132,18 @@ function DealViewRedesignInner(
         featureFlags?.["crm.email"] === true && props.emailQuickAction != null
             ? props.emailQuickAction
             : null;
-    const [mailboxConnectedOverride, setMailboxConnectedOverride] = useState<
-        boolean | null
-    >(null);
-    const hasMailboxConnection =
-        mailboxConnectedOverride ??
-        emailQuickAction?.has_connection === true;
+    const hasMailboxConnection = emailQuickAction?.has_connection === true;
     const emailQuickActionForUi: EmailQuickAction | null =
         emailQuickAction == null
             ? null
             : { ...emailQuickAction, has_connection: hasMailboxConnection };
-    const [emailComposerOpen, setEmailComposerOpen] = useState(false);
-    const [emailConnectOpen, setEmailConnectOpen] = useState(false);
-    const [emailReply, setEmailReply] =
-        useState<EmailComposerReplyContext | null>(null);
-    const [emailDrawerMessageId, setEmailDrawerMessageId] = useState<
+    const [communicationOpen, setCommunicationOpen] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return Boolean(
+            new URLSearchParams(window.location.search).get("email_message"),
+        );
+    });
+    const [emailFocusMessageId, setEmailFocusMessageId] = useState<
         string | null
     >(() => {
         if (typeof window === "undefined") return null;
@@ -160,37 +151,33 @@ function DealViewRedesignInner(
             "email_message",
         );
     });
-    const openEmailQuickAction = () => {
-        if (hasMailboxConnection) {
-            setEmailReply(null);
-            setEmailComposerOpen(true);
-        } else {
-            setEmailConnectOpen(true);
-        }
+    const openCommunication = (messageId: string | null = null) => {
+        setEmailFocusMessageId(messageId);
+        setCommunicationOpen(true);
     };
-    const openMailboxSettings = () => {
-        setEmailComposerOpen(false);
-        setEmailConnectOpen(true);
+    const closeCommunication = () => {
+        setCommunicationOpen(false);
+        setEmailFocusMessageId(null);
     };
     useEffect(() => {
         if (typeof window === "undefined") return;
         const url = new URL(window.location.href);
-        if (emailDrawerMessageId) {
-            url.searchParams.set("email_message", emailDrawerMessageId);
+        if (communicationOpen && emailFocusMessageId) {
+            url.searchParams.set("email_message", emailFocusMessageId);
         } else {
             url.searchParams.delete("email_message");
         }
         replaceUrlKeepingHistoryState(url);
-    }, [emailDrawerMessageId]);
+    }, [communicationOpen, emailFocusMessageId]);
     useEffect(
         () =>
             subscribeOpenSourceEmail((messageId) => {
-                setEmailDrawerMessageId(messageId);
+                openCommunication(messageId);
             }),
         [],
     );
     const openCreateFromEmail = (kind: EmailFollowUpKind, messageId: string) => {
-        setEmailDrawerMessageId(null);
+        closeCommunication();
         setSourceEmailMessageId(messageId);
         if (kind === "task") setAddTaskOpen(true);
         else if (kind === "note") setAddNoteOpen(true);
@@ -611,7 +598,7 @@ function DealViewRedesignInner(
                         onReplayGuide={() => tourRef.current?.restart()}
                         isMobileResponsive={isMobileResponsive}
                         emailQuickAction={emailQuickActionForUi}
-                        onEmail={openEmailQuickAction}
+                        onEmail={() => openCommunication(null)}
                     />
 
                     <div className="">
@@ -934,8 +921,12 @@ function DealViewRedesignInner(
                                                 emailEnabled={
                                                     emailQuickAction != null
                                                 }
-                                                onOpenEmailMessage={
-                                                    setEmailDrawerMessageId
+                                                onOpenEmailMessage={(
+                                                    messageId,
+                                                ) =>
+                                                    openCommunication(
+                                                        messageId,
+                                                    )
                                                 }
                                             />
                                         )}
@@ -974,49 +965,15 @@ function DealViewRedesignInner(
                 </div>
             </div>
 
-            <ComposerEntryModal
-                open={emailComposerOpen}
-                onClose={() => {
-                    setEmailComposerOpen(false);
-                    setEmailReply(null);
-                }}
-                recordLabel={deal.name}
-                prefillTo={
-                    emailReply?.to?.[0] ??
-                    deal.contact?.client_email ??
-                    null
-                }
-                reply={emailReply}
-                enabled={hasMailboxConnection}
-                onManageMailbox={openMailboxSettings}
-            />
-
-            <ConnectMailboxModal
-                open={emailConnectOpen}
-                onClose={() => setEmailConnectOpen(false)}
-                onConnected={() => {
-                    setMailboxConnectedOverride(true);
-                    setEmailConnectOpen(false);
-                    setEmailReply(null);
-                    setEmailComposerOpen(true);
-                }}
-            />
-
-            <EmailRecordDrawer
-                open={Boolean(emailDrawerMessageId)}
-                onClose={() => setEmailDrawerMessageId(null)}
+            <CommunicationModal
+                open={communicationOpen && emailQuickAction != null}
+                onClose={closeCommunication}
                 record={{ type: "deal", id: deal.id }}
-                messageId={emailDrawerMessageId}
+                recordLabel={deal.name}
+                messageId={emailFocusMessageId}
+                hasConnection={hasMailboxConnection}
+                prefillTo={deal.contact?.client_email ?? null}
                 onCreateFollowUp={openCreateFromEmail}
-                onReply={
-                    hasMailboxConnection
-                        ? (reply) => {
-                              setEmailDrawerMessageId(null);
-                              setEmailReply(reply);
-                              setEmailComposerOpen(true);
-                          }
-                        : undefined
-                }
             />
         </PageLayout>
     );

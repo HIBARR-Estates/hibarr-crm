@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import { Link, router } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import { Avatar, REDESIGN_TOKENS as T, initialsFromName } from "@/Components/Redesign";
 import useTranslation from "@/Hooks/useTranslation";
 import { amount } from "../format";
@@ -40,6 +40,11 @@ export default function RecentCommissionsList({
     currency: string | null;
 }) {
     const { t } = useTranslation();
+    // A partner account has no deal pages to open (RestrictPartnerAccounts), so
+    // the deal name is shown as plain text for them.
+    const isPartnerOnly =
+        (usePage().props as { auth?: { isPartnerOnly?: boolean } }).auth
+            ?.isPartnerOnly === true;
 
     if (!rows.length) {
         return (
@@ -57,9 +62,10 @@ export default function RecentCommissionsList({
     return (
         <div>
             {rows.map((row, index) => {
-                const dealHref = row.deal_id
-                    ? route("deals.show", row.deal_id)
-                    : null;
+                const dealHref =
+                    row.deal_id && !isPartnerOnly
+                        ? route("deals.show", row.deal_id)
+                        : null;
 
                 return (
                     <div

@@ -5,6 +5,7 @@ namespace Tests\Feature\Email;
 use App\Email\EmailFeature;
 use App\Email\Http\Middleware\EnsureEmailEnabled;
 use App\Email\Http\Middleware\EnsureEmailPilot;
+use App\Http\Middleware\EnsureUserIsAdmin;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
@@ -53,11 +54,27 @@ class EmailModuleSkeletonTest extends TestCase
         $this->assertNotEmpty($moduleRoutes);
 
         foreach ($moduleRoutes as $route) {
-            $this->assertSame(
-                [EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::class],
-                $route->middleware(),
-                $route->uri(),
-            );
+            $uri = $route->uri();
+
+            // Settings pages live in the account-settings group (web + auth first).
+            // Pilot allowlist management is admin-gated and skips EnsureEmailPilot
+            // so an admin can seed the list before they are listed themselves.
+            $expected = match (true) {
+                $uri === 'account/settings/mailbox' => [
+                    'web', 'auth', EnsureEmailEnabled::class, EnsureEmailPilot::class,
+                ],
+                $uri === 'account/settings/email-pilot' => [
+                    'web', 'auth', EnsureEmailEnabled::class, EnsureUserIsAdmin::class,
+                ],
+                Str::startsWith($uri, 'email/pilot-allowlist') => [
+                    EnsureEmailEnabled::class, 'web', 'auth', EnsureUserIsAdmin::class,
+                ],
+                default => [
+                    EnsureEmailEnabled::class, 'web', 'auth', EnsureEmailPilot::class,
+                ],
+            };
+
+            $this->assertSame($expected, $route->middleware(), $uri);
         }
     }
 }

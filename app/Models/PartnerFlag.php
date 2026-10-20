@@ -25,6 +25,14 @@ class PartnerFlag extends BaseModel
 {
     use HasCompany;
 
+    /**
+     * When on, the flag email links to the Manager dashboard for someone who
+     * can open it, and to the home dashboard otherwise. Off sends every
+     * recipient to the Manager dashboard. Who is told does not depend on this:
+     * admins and everyone holding manage_partner_flags are always notified.
+     */
+    public const ROUTING_FLAG = 'crm.partner-flag-routing';
+
     public const STATUS_OPEN = 'open';
 
     public const STATUS_ACKNOWLEDGED = 'acknowledged';

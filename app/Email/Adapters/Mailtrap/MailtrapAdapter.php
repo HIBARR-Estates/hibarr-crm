@@ -16,6 +16,7 @@ use App\Email\Data\MessageDirection;
 use App\Email\Data\NormalizedMessage;
 use App\Email\Data\SendResult;
 use App\Email\Exceptions\MailTransportException;
+use App\Email\Observability\EmailLog;
 use App\Email\Support\RfcHeaders;
 use DateTimeImmutable;
 use Illuminate\Http\Client\Response;
@@ -444,6 +445,8 @@ class MailtrapAdapter implements MailTransport
         $data = $response->json();
 
         if (! is_array($data)) {
+            $this->logHttpFailure($response, 'provider_error');
+
             throw new MailTransportException('provider_error', retryable: true);
         }
 
@@ -461,12 +464,35 @@ class MailtrapAdapter implements MailTransport
             return;
         }
 
-        throw match (true) {
+        $exception = match (true) {
             in_array($response->status(), [401, 403], true) => new MailTransportException('unauthorized', retryable: false),
             $response->status() === 404 => new MailTransportException('inbox_not_found', retryable: false),
             $response->status() === 429 => new MailTransportException('rate_limited', retryable: true),
             default => new MailTransportException('provider_error', retryable: true),
         };
+
+        $this->logHttpFailure($response, $exception->errorCode);
+
+        throw $exception;
+    }
+
+    /**
+     * Status and a short excerpt only. The exception itself stays a short code
+     * so tokens and bodies never ride along on the error.
+     */
+    private function logHttpFailure(Response $response, string $errorCode): void
+    {
+        $uri = $response->effectiveUri();
+        $url = $uri !== null ? (string) $uri : '';
+        $query = strpos($url, '?');
+
+        EmailLog::warning('email.mailtrap.http_error', [
+            'error_code' => $errorCode,
+            'http_status' => $response->status(),
+            'url' => $query === false ? $url : substr($url, 0, $query),
+            'content_type' => $response->header('Content-Type'),
+            'body_excerpt' => substr(trim($response->body()), 0, 300),
+        ]);
     }
 
     /**

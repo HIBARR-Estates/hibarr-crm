@@ -2,6 +2,7 @@ import type {
     MatchFactor,
     PropertyRecommendation,
 } from "@/Types/api/property-recommendation";
+import { currencySymbolForCode, storedPriceCurrency } from "@/lib/utils";
 
 export type WorkspaceRecommendationMatchVariant = "green" | "blue" | "gray";
 
@@ -118,7 +119,13 @@ export function toWorkspaceRecommendationListItem(
         id: rank,
         rank,
         propertyTitle: property?.title || `Property #${rank}`,
-        priceLabel: formatPrice(property?.price, options.currencySymbol ?? ""),
+        priceLabel: formatPrice(
+            property?.price,
+            currencySymbolForCode(
+                storedPriceCurrency(property),
+                options.currencySymbol ?? "",
+            ),
+        ),
         matchPercentage: match_percentage,
         matchBadgeVariant: resolveMatchBadgeVariant(match_percentage),
         reasoningNotes: buildReasoningNotes(factors),
