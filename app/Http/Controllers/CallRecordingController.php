@@ -127,10 +127,10 @@ class CallRecordingController extends AccountBaseController
             }
             $finalPath = $mp3Path . '.' . $this->transcoder->extension();
             @unlink($mp3Path);
+            // Assign $finalPath before transcoding so existing cleanup removes
+            // partial files when toMp3() fails (returns false or throws).
+            $mp3Path = $finalPath;
             $transcoded = $this->transcoder->toMp3($file->getRealPath(), $finalPath);
-            if ($transcoded) {
-                $mp3Path = $finalPath;
-            }
         } catch (\Throwable $e) {
             $transcoded = false;
             // Clean up any partial output file from a failed transcode

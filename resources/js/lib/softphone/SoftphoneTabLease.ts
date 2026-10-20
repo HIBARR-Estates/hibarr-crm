@@ -268,37 +268,33 @@ export class SoftphoneTabLease {
      * of every passive tab promoting itself.
      *
      * When the released owner was the oldest (lowest id), no tab outranks it.
-     * In that case, fall back to a deterministic hash-based election: the tab
-     * with the lowest hash of (previous_owner_id + tab_id) becomes the
-     * successor. This ensures exactly one tab can claim ownership.
+     * In that case, fall back to a randomized delay: each passive tab waits a
+     * short random period, then re-reads the owner record. The first tab to
+     * find no active owner (or a stale one) claims the lease. This preserves
+     * single-owner handoff without requiring a shared candidate set.
      */
     private preferredPassiveTab(): boolean {
         const previous = this.lastReleasedOwnerId;
         if (previous === null) return true;
         if (outranks(this.id, previous)) return true;
 
-        // Previous owner was the oldest — use a deterministic election.
-        // Hash the previous owner ID and this tab's ID to produce a stable
-        // ordering. The tab with the lowest hash wins, ensuring exactly one
-        // successor even when the previous owner was the oldest.
-        const previousHash = this.hashCode(previous);
-        const myHash = this.hashCode(this.id);
-        if (myHash !== previousHash) {
-            return myHash < previousHash;
+        // Previous owner was the oldest — use a randomized delay to break ties.
+        // Each tab waits a random period, then re-reads the owner record.
+        // The first tab to find no active owner claims the lease.
+        const delay = Math.random() * 50; // 0-50ms
+        const startTime = Date.now();
+        while (Date.now() - startTime < delay) {
+            // Busy-wait for the random delay (synchronous, short)
         }
 
-        // Extremely unlikely hash collision — fall back to lexicographic order
-        return this.id < previous;
-    }
-
-    private hashCode(str: string): number {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash |= 0; // Convert to 32bit integer
+        // Re-read the owner record after the delay
+        const current = this.readOwner();
+        if (!current || this.isStale(current)) {
+            return true;
         }
-        return Math.abs(hash);
+
+        // Another tab has already claimed the lease
+        return false;
     }
 
     /** Give up ownership without clearing another tab's claim. */

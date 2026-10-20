@@ -235,7 +235,11 @@ class SoftphoneClient {
             this.userAgent = userAgent;
             this.registerer = registerer;
         } catch (error: unknown) {
-            await this.teardown();
+            // Skip teardown if this start was cancelled — it could tear down
+            // resources owned by a newer start attempt.
+            if (!cancelled) {
+                await this.teardown();
+            }
             this.setState({
                 registration: "failed",
                 registrationError:
