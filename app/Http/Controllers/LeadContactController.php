@@ -280,6 +280,10 @@ class LeadContactController extends AccountBaseController
         $this->activeTab = $tab ?: 'profile';
 
         // Shell: deals for header/summary + schedule-meeting picker + itinerary tab
+        // The Lead page is reachable with `view_lead`, but a Deal carries its
+        // own read scope (`view_deals`). Returning every linked deal would
+        // hand the caller records the direct Deal page refuses to show, so the
+        // same per-instance check the direct page runs is applied here.
         $deals = Deal::where('lead_id', $id)
             ->with([
                 'leadAgent.user',
@@ -294,6 +298,15 @@ class LeadContactController extends AccountBaseController
             ])
             ->withCount('products')
             ->get();
+
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+        ];
+
+        $deals = $deals
+            ->filter(fn (Deal $deal) => PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules)['canAccess'])
+            ->values();
 
         // One query for every listed deal's custom field values instead of
         // one per deal (CustomFieldsTrait::loadCustomFieldsDataBatch()) —
@@ -406,7 +419,14 @@ class LeadContactController extends AccountBaseController
                 'marketing'
             ),
             'notes' => Inertia::defer(function () use ($leadId) {
+                // The Lead page is reachable with `view_lead`, but a Note
+                // carries its own read scope (`view_lead_note`) and a private
+                // note is bound to its member list. Filter to the notes the
+                // caller may actually read, using the same rule the direct
+                // note page applies — so a note is never readable here
+                // through a weaker scope than through its own URL.
                 $notes = LeadNote::where('lead_id', $leadId)
+                    ->visibleTo(user())
                     ->with('addedBy')
                     ->orderBy('created_at', 'desc')
                     ->get();
