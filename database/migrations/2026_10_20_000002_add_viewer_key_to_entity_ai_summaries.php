@@ -42,6 +42,17 @@ return new class extends Migration
 
     public function down(): void
     {
+        // A lead summary is built from the records its viewer may read, so a
+        // viewer-scoped row cannot be collapsed into an entity-wide one:
+        // keeping it would serve one viewer's private records to everyone.
+        // Those rows are dropped instead — the lead summary is regenerated
+        // for the next viewer that asks for it. Deal summaries are shared and
+        // keep their empty key, so they survive the rollback.
+        DB::table('entity_ai_summaries')
+            ->where('entity_type', 'lead')
+            ->where('viewer_key', '!=', '')
+            ->delete();
+
         // Collapse the per-viewer rows back to one per entity, keeping the
         // most recently generated — the old unique key cannot hold two rows
         // for the same entity.
