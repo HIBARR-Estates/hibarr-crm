@@ -13,6 +13,10 @@ interface RecordingRow {
     id: number;
     filename: string;
     play_url: string;
+    /**
+     * Authorised app endpoint that serves the recording for download — not the
+     * raw object-storage link, which is a durable bearer credential.
+     */
     download_url: string | null;
     user_id: number;
     user_name: string | null;

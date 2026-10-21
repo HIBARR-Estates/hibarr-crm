@@ -164,7 +164,9 @@ class CallBridgeClient
                 'method' => $method,
                 'path_key' => $pathKey,
                 'status' => $response->status(),
-                'body' => $response->body(),
+                // The upstream body can contain phone numbers, names and
+                // credentials, so it is redacted before it reaches the log.
+                'body' => $this->redactForLog($response->body()),
             ]);
 
             throw new HttpException(
@@ -174,6 +176,30 @@ class CallBridgeClient
         }
 
         return $this->decode($response);
+    }
+
+    /**
+     * Make an upstream payload safe to write to the log.
+     *
+     * The call bridge echoes back the payload it was given, which carries
+     * phone numbers, contact names and occasionally a token. Only a short,
+     * redacted excerpt is kept so a failure can still be diagnosed.
+     */
+    private function redactForLog(string $body): string
+    {
+        $redacted = preg_replace('/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i', '[email]', $body) ?? $body;
+        // Phone numbers in every notation the bridge uses (+49 170 1234567,
+        // 0049-170-1234567, 491701234567).
+        $redacted = preg_replace('/(?<!\d)\+?\d[\d\s().\/-]{6,}\d(?!\d)/', '[phone]', $redacted) ?? $redacted;
+        $redacted = preg_replace('/\b(api[_-]?key|token|secret|password|authorization)\b\s*[:=]\s*\S+/i', '$1: [redacted]', $redacted) ?? $redacted;
+
+        $redacted = trim($redacted);
+
+        if (mb_strlen($redacted) > 500) {
+            $redacted = mb_substr($redacted, 0, 500).'…';
+        }
+
+        return $redacted;
     }
 
     /**

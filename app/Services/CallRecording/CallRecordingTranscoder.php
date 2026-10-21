@@ -47,6 +47,9 @@ class CallRecordingTranscoder
                 '-loglevel', 'error',
                 '-nostdin',
                 '-y',
+                // Only local files may be read — a crafted upload could
+                // otherwise pull in a network resource or a local file.
+                '-protocol_whitelist', 'file',
                 '-i', $sourcePath,
                 '-vn',                 // never carry a video stream through
                 '-ac', '1',            // mono — call audio is single channel

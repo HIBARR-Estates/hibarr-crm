@@ -4,8 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Helper\Reply;
 use App\Models\CallRecording;
+use App\Models\Deal;
+use App\Models\Lead;
+use App\Models\SoftphoneDevice;
 use App\Services\CallRecording\CallRecordingTranscoder;
 use App\Services\FileStorageService;
+use App\Services\PermissionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -69,8 +73,12 @@ class CallRecordingController extends AccountBaseController
                     'expires_at' => $recording->expires_at?->toIso8601String(),
                     'is_expired' => $recording->expires_at?->isPast() ?? false,
                     'play_url' => route('call-recordings.play', $recording->id),
-                    // Raw object-storage link, for anyone who wants the file itself.
-                    'download_url' => $recording->external_url,
+                    // An authorised app endpoint — never the raw object-storage
+                    // link. The storage URL is a durable bearer credential:
+                    // handing it to the browser would let anyone who copies it
+                    // fetch the audio without a session, without the ownership
+                    // check and without the expiry.
+                    'download_url' => route('call-recordings.download', $recording->id),
                 ];
             });
 
@@ -91,8 +99,13 @@ class CallRecordingController extends AccountBaseController
         $request->validate([
             'recording' => 'required|file|max:51200',
             'duration' => 'nullable|integer|min:0',
-            'entity_type' => 'nullable|string|max:50',
-            'entity_id' => 'nullable|integer',
+            // The entity reference and the line are pointers into this tenant.
+            // Both halves of the entity reference must be present, and both are
+            // resolved against the caller's own company before they are stored,
+            // so a recording can never be labelled with a record (or a line)
+            // from another company.
+            'entity_type' => 'nullable|string|in:lead,deal|required_with:entity_id',
+            'entity_id' => 'nullable|integer|min:1|required_with:entity_type',
             'device_id' => 'nullable|integer|min:1',
             // Why this call reached this agent — matched/unmatched, owner vs pool.
             'lead_name' => 'nullable|string|max:180',
@@ -103,6 +116,18 @@ class CallRecordingController extends AccountBaseController
             // is what links the recording back to the call's timeline rows.
             'call_ref' => 'nullable|string|max:64',
         ]);
+
+        $entityType = $request->input('entity_type');
+        $entityId = $request->input('entity_id');
+
+        if ($entityType !== null && $entityId !== null) {
+            $this->assertEntityIsAccessible((string) $entityType, (int) $entityId);
+        }
+
+        $deviceId = $request->input('device_id');
+        if ($deviceId !== null) {
+            $deviceId = $this->assertDeviceBelongsToCompany((int) $deviceId);
+        }
 
         $file = $request->file('recording');
         $duration = (int) $request->input('duration', 180);
@@ -172,9 +197,9 @@ class CallRecordingController extends AccountBaseController
         $recording = CallRecording::create([
             'company_id' => $companyId,
             'user_id' => user()->id,
-            'entity_type' => $request->input('entity_type'),
-            'entity_id' => $request->input('entity_id'),
-            'device_id' => $request->input('device_id'),
+            'entity_type' => $entityType,
+            'entity_id' => $entityId,
+            'device_id' => $deviceId,
             'lead_name' => $request->input('lead_name'),
             'phone_number' => $request->input('phone_number'),
             'direction' => $request->input('direction'),
@@ -198,6 +223,7 @@ class CallRecordingController extends AccountBaseController
                 (string) $callRef,
                 (int) $recording->id,
                 $recording->company_id !== null ? (int) $recording->company_id : null,
+                (int) user()->id,
             );
         }
 
@@ -212,16 +238,67 @@ class CallRecordingController extends AccountBaseController
     }
 
     /**
+     * Resolve the entity a recording is attached to.
+     *
+     * The id arrives from the browser, so it must be checked against the
+     * caller's own tenant and their record-level access — otherwise a
+     * recording could be labelled with (and link to) a lead or deal the
+     * uploader is not allowed to see.
+     */
+    private function assertEntityIsAccessible(string $entityType, int $entityId): void
+    {
+        if ($entityType === 'lead') {
+            $lead = Lead::findOrFail($entityId);
+            abort_if((int) $lead->company_id !== (int) company()->id, 404);
+            $access = PermissionService::checkAccess(user(), 'view_lead', $lead, [
+                'added' => 'added_by',
+                'owned' => 'lead_owner',
+            ]);
+            abort_unless($access['canAccess'], 403);
+
+            return;
+        }
+
+        $deal = Deal::findOrFail($entityId);
+        abort_if((int) $deal->company_id !== (int) company()->id, 404);
+        $access = PermissionService::checkAccess(user(), 'view_deals', $deal, [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+        ]);
+        abort_unless($access['canAccess'], 403);
+    }
+
+    /**
+     * Resolve the line a recording was made on.
+     *
+     * The device id arrives from the browser and is stored on the recording,
+     * so it must belong to the caller's own company.
+     */
+    private function assertDeviceBelongsToCompany(int $deviceId): int
+    {
+        $device = SoftphoneDevice::find($deviceId);
+        abort_if($device === null, 404);
+        abort_if((int) $device->company_id !== (int) company()->id, 404);
+
+        return (int) $device->id;
+    }
+
+    /**
      * Stamp `recording_id` into the metadata of every CRM event belonging to
      * this call, so the timeline row for the call shows that audio exists.
      *
      * The company id comes from the recording rather than the session, so this
      * does not depend on an authenticated company being resolvable.
+     *
+     * `call_ref` is a client-supplied string, so it must not be usable to
+     * annotate another agent's call rows: only the uploader's own events (and
+     * system rows that carry no user at all) are eligible.
      */
     private function attachRecordingToCallEvents(
         string $callRef,
         int $recordingId,
         ?int $companyId,
+        ?int $ownerUserId = null,
     ): void {
         if ($companyId === null || $companyId <= 0) {
             return;
@@ -232,6 +309,13 @@ class CallRecordingController extends AccountBaseController
                 ->where('company_id', $companyId)
                 ->whereHas('eventType', fn ($q) => $q->whereIn('slug', ['call_started', 'call_ended']))
                 ->where('metadata->call_ref', $callRef)
+                ->where(function ($q) use ($ownerUserId) {
+                    $q->whereNull('user_id');
+
+                    if ($ownerUserId !== null) {
+                        $q->orWhere('user_id', $ownerUserId);
+                    }
+                })
                 ->get();
 
             foreach ($events as $event) {
@@ -267,8 +351,11 @@ class CallRecordingController extends AccountBaseController
      *
      * The upstream Range header is forwarded and its 206/Content-Range echoed
      * back, which is what lets the <audio> element seek.
+     *
+     * @param  string  $disposition  `inline` to play in the browser, `attachment`
+     *                              to force a "save as" download.
      */
-    private function streamRemoteInline(CallRecording $recording)
+    private function streamRemoteInline(CallRecording $recording, string $disposition = 'inline')
     {
         $range = request()->header('Range');
 
@@ -302,7 +389,7 @@ class CallRecordingController extends AccountBaseController
 
             $headers = [
                 'Content-Type' => $contentType,
-                'Content-Disposition' => 'inline; filename="'.addslashes($recording->filename).'"',
+                'Content-Disposition' => $disposition.'; filename="'.addslashes($recording->filename).'"',
                 'Accept-Ranges' => 'bytes',
                 'Cache-Control' => 'private, max-age=0, no-store',
             ];
@@ -339,26 +426,38 @@ class CallRecordingController extends AccountBaseController
         }
     }
 
-    public function play(CallRecording $callRecording)
+    /**
+     * Authorise access to a recording.
+     *
+     * The recording is tenant data: the caller needs the softphone
+     * permission, must own the recording (or be an admin), must be in the
+     * recording's own company, and the recording must not have expired.
+     */
+    private function authorizeRecordingAccess(CallRecording $recording): void
     {
         $permission = user()->permission('make_softphone_calls');
         abort_403(! in_array($permission, ['all']));
 
-        if (user()->id !== $callRecording->user_id && ! user()->hasRole('admin')) {
+        if (user()->id !== $recording->user_id && ! user()->hasRole('admin')) {
             abort(403);
         }
 
         // Exact match, and a missing company_id on either side is a mismatch.
         // `isset()` previously let NULL recordings through the check entirely.
-        if ($callRecording->company_id === null
+        if ($recording->company_id === null
             || user()->company_id === null
-            || (int) $callRecording->company_id !== (int) user()->company_id) {
+            || (int) $recording->company_id !== (int) user()->company_id) {
             abort(403);
         }
 
-        if ($callRecording->expires_at && $callRecording->expires_at->isPast()) {
+        if ($recording->expires_at && $recording->expires_at->isPast()) {
             abort(410);
         }
+    }
+
+    public function play(CallRecording $callRecording)
+    {
+        $this->authorizeRecordingAccess($callRecording);
 
         // Recordings live in object storage behind a *download* URL. Redirecting
         // there makes the browser download the file instead of playing it, so
@@ -374,6 +473,43 @@ class CallRecordingController extends AccountBaseController
                 return response()->file($path, [
                     'Content-Type' => $callRecording->mime_type ?: 'audio/mpeg',
                     'Content-Disposition' => 'inline; filename="'.addslashes($callRecording->filename).'"',
+                    'Accept-Ranges' => 'bytes',
+                    'Cache-Control' => 'private, max-age=0, no-store',
+                ]);
+            }
+        }
+
+        abort(404);
+    }
+
+    /**
+     * Download a recording through the app.
+     *
+     * The raw object-storage URL is deliberately never handed to the browser:
+     * it is a durable bearer credential that would let anyone who copies it
+     * fetch the audio without a session, without the ownership check and
+     * without the expiry. The bytes are streamed through the app instead,
+     * under exactly the same authorisation as play().
+     *
+     * `?download=1` forces a "save as" download; the default streams inline so
+     * the link can also be opened in a new tab.
+     */
+    public function download(CallRecording $callRecording)
+    {
+        $this->authorizeRecordingAccess($callRecording);
+
+        $disposition = request()->boolean('download') ? 'attachment' : 'inline';
+
+        if (! empty($callRecording->external_url)) {
+            return $this->streamRemoteInline($callRecording, $disposition);
+        }
+
+        if (! empty($callRecording->object_path)) {
+            $path = storage_path('app/' . ltrim($callRecording->object_path, '/'));
+            if (is_file($path)) {
+                return response()->file($path, [
+                    'Content-Type' => $callRecording->mime_type ?: 'audio/mpeg',
+                    'Content-Disposition' => $disposition.'; filename="'.addslashes($callRecording->filename).'"',
                     'Accept-Ranges' => 'bytes',
                     'Cache-Control' => 'private, max-age=0, no-store',
                 ]);

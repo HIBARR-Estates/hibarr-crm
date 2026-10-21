@@ -412,7 +412,9 @@ class CallBridgeService
         return $entity->tasks()
             ->whereNull('tasks.completed_on')
             ->whereNull('tasks.deleted_at')
-            ->with('category')
+            // `users` and `project.project_admin` are needed by the status-change
+            // authorisation below, so they are eager loaded here.
+            ->with(['category', 'users:id', 'project:id,project_admin'])
             ->get()
             ->filter(function (Task $task) use ($wanted) {
                 $name = $task->category?->category_name;
@@ -450,7 +452,7 @@ class CallBridgeService
             $explicit = Task::withoutGlobalScopes()
                 ->where('company_id', $companyId)
                 ->whereKey((int) $olEvent['task_id'])
-                ->with('category')
+                ->with(['category', 'users:id', 'project:id,project_admin'])
                 ->first();
             if ($explicit && !$tasks->contains('id', $explicit->id)) {
                 $tasks->push($explicit);
@@ -514,6 +516,22 @@ class CallBridgeService
                 continue;
             }
 
+            // A call that ends is projected onto the timeline by a user-facing
+            // endpoint, so completing the task is a status change and needs the
+            // same authorisation a manual status change gets: a user must not
+            // be able to close another agent's task by placing a call. The
+            // console/poller path has no user actor — the bridge is the source
+            // of truth there — and stays unrestricted.
+            if (! $this->mayChangeTaskStatus($task)) {
+                Log::info('CallBridgeService: task completion skipped — the user may not change its status.', [
+                    'task_id' => $task->id,
+                    'company_id' => $companyId,
+                    'user_id' => auth()->hasUser() ? (int) user()->id : null,
+                ]);
+
+                continue;
+            }
+
             $task->board_column_id = $doneColumn->id;
             $task->completed_on = now()->toDateString();
             $task->saveQuietly();
@@ -539,6 +557,37 @@ class CallBridgeService
                 'occurred_at' => now(),
             ], forceSync: true);
         }
+    }
+
+    /**
+     * Whether the acting user is allowed to move this task to another column.
+     *
+     * Mirrors the rule that guards a manual status change in
+     * TaskController::changeStatus(): the `change_status` permission decides,
+     * and a task's assignee, its creator or its project admin may always
+     * change it.
+     *
+     * Without an authenticated user (console/poller) the bridge itself is the
+     * actor and the call is trusted.
+     */
+    private function mayChangeTaskStatus(Task $task): bool
+    {
+        if (! auth()->hasUser()) {
+            return true;
+        }
+
+        $permission = user()->permission('change_status');
+        $currentUserId = (int) user()->id;
+
+        $taskUsers = $task->relationLoaded('users')
+            ? $task->users->pluck('id')->map(fn ($id) => (int) $id)->all()
+            : [];
+
+        return $permission === 'all'
+            || ($permission === 'added' && (int) $task->added_by === $currentUserId)
+            || ($permission === 'owned' && in_array($currentUserId, $taskUsers, true))
+            || ($permission === 'both' && (in_array($currentUserId, $taskUsers, true) || (int) $task->added_by === $currentUserId))
+            || ($task->project && (int) $task->project->project_admin === $currentUserId);
     }
 
     // ─── Resolution helpers ──────────────────────────────────────────────
@@ -623,40 +672,83 @@ class CallBridgeService
     }
 
     /**
+     * The tenant an event belongs to.
+     *
+     * The entity the event points at and the user it was raised for are the
+     * authoritative source: their own company wins over the `company_id` in
+     * the payload, so a payload that names a different tenant can never pull
+     * the event (and its timeline row) into it. The payload's company is only
+     * used when the event references neither an entity nor a user.
+     *
      * @param  array<string, mixed>  $olEvent
      */
     private function resolveCompanyId(array $olEvent): ?int
     {
-        if (!empty($olEvent['company_id'])) {
-            return (int) $olEvent['company_id'];
+        $payloadCompanyId = !empty($olEvent['company_id']) ? (int) $olEvent['company_id'] : null;
+
+        $entityCompanyId = $this->companyIdForEntity($olEvent);
+        $userCompanyId = $this->companyIdForUser($olEvent);
+
+        $resolved = $entityCompanyId ?? $userCompanyId ?? $payloadCompanyId;
+
+        if ($payloadCompanyId !== null && $resolved !== null && $payloadCompanyId !== $resolved) {
+            Log::warning('CallBridgeService: payload company_id disagrees with the entity/user company; using the latter.', [
+                'payload_company_id' => $payloadCompanyId,
+                'resolved_company_id' => $resolved,
+                'entity_type' => $olEvent['entity_type'] ?? null,
+                'entity_id' => $olEvent['entity_id'] ?? null,
+                'user_id' => $olEvent['user_id'] ?? null,
+            ]);
         }
 
+        return $resolved;
+    }
+
+    /**
+     * The company that owns the entity the event points at.
+     *
+     * @param  array<string, mixed>  $olEvent
+     */
+    private function companyIdForEntity(array $olEvent): ?int
+    {
         $entityType = is_string($olEvent['entity_type'] ?? null) ? strtolower($olEvent['entity_type']) : null;
         $entityId = !empty($olEvent['entity_id']) ? (int) $olEvent['entity_id'] : 0;
-        if ($entityType && $entityId) {
-            $model = match ($entityType) {
-                'lead' => Lead::class,
-                'deal' => Deal::class,
-                default => null,
-            };
-            if ($model) {
-                $companyId = $model::withoutGlobalScopes()->whereKey($entityId)->value('company_id');
-                if ($companyId) {
-                    return (int) $companyId;
-                }
-            }
+
+        if (! $entityType || ! $entityId) {
+            return null;
         }
 
-        if (!empty($olEvent['user_id'])) {
-            $companyId = \App\Models\User::withoutGlobalScopes()
-                ->whereKey((int) $olEvent['user_id'])
-                ->value('company_id');
-            if ($companyId) {
-                return (int) $companyId;
-            }
+        $model = match ($entityType) {
+            'lead' => Lead::class,
+            'deal' => Deal::class,
+            default => null,
+        };
+
+        if (! $model) {
+            return null;
         }
 
-        return null;
+        $companyId = $model::withoutGlobalScopes()->whereKey($entityId)->value('company_id');
+
+        return $companyId ? (int) $companyId : null;
+    }
+
+    /**
+     * The company of the user the event was raised for.
+     *
+     * @param  array<string, mixed>  $olEvent
+     */
+    private function companyIdForUser(array $olEvent): ?int
+    {
+        if (empty($olEvent['user_id'])) {
+            return null;
+        }
+
+        $companyId = \App\Models\User::withoutGlobalScopes()
+            ->whereKey((int) $olEvent['user_id'])
+            ->value('company_id');
+
+        return $companyId ? (int) $companyId : null;
     }
 
     /**

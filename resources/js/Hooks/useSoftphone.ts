@@ -182,6 +182,10 @@ export default function useSoftphone() {
 
         return () => {
             cancelled = true;
+            // Unregister the line. Without this the SIP registration — and
+            // with it the browser's microphone — stayed active after the dock
+            // was unmounted, and the line kept ringing in the background.
+            void softphone.stop();
         };
     }, [isEnabled, isActiveTab, devices, activeDeviceId]);
 

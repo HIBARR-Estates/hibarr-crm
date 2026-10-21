@@ -35,6 +35,20 @@ type WatchedPeerConnection = RTCPeerConnection & { __spWatched?: boolean };
 
 type Listener = () => void;
 
+/**
+ * Dev-only trace.
+ *
+ * Driving SIP from the browser needs a lot of chatter, but none of it may
+ * reach a user's browser console in production: the console is shared over
+ * screen shares and ends up pasted into support tickets. Customer data (the
+ * counterparty's phone number) is never logged, not even here.
+ */
+const trace = (...args: unknown[]): void => {
+    if (import.meta.env.DEV) {
+        console.log(...args);
+    }
+};
+
 const EMPTY_STATE: SoftphoneState = {
     registration: "idle",
     registrationError: null,
@@ -132,17 +146,17 @@ class SoftphoneClient {
             el.muted = false;
             el.volume = 1;
             el.onended = () => {
-                console.log("softphone remote audio ended; refreshing");
+                trace("softphone remote audio ended; refreshing");
                 this.refreshRemoteAudio();
             };
             el.onpause = () => {
-                console.log("softphone remote audio paused; retrying play");
+                trace("softphone remote audio paused; retrying play");
                 window.setTimeout(() => {
                     void el.play().catch(() => undefined);
                 }, 100);
             };
             el.onerror = () => {
-                console.log("softphone remote audio error; refreshing");
+                trace("softphone remote audio error; refreshing");
                 this.refreshRemoteAudio();
             };
         }
@@ -370,7 +384,7 @@ class SoftphoneClient {
         }
         this.answering = true;
         const answeringCallId = this.state.call?.id ?? null;
-        console.log("softphone answer() start", answeringCallId);
+        trace("softphone answer() start", answeringCallId);
         try {
             if (this.state.call?.id !== answeringCallId) {
                 throw new Error("active call changed during answer");
@@ -394,9 +408,11 @@ class SoftphoneClient {
                 });
             }
         } catch (error) {
-            // eslint-disable-next-line no-console
-            console.log("softphone answer() failed", error);
-            console.error("softphone answer() failed", error);
+            trace("softphone answer() failed", error);
+            // The failure is shown to the agent in the UI already, so the
+            // production console only records that it happened — never the
+            // error object, which carries a stack trace and the SIP URI.
+            console.error("softphone answer() failed");
             this.setState({
                 lastCallError:
                     error instanceof Error ? error.message : "Unable to answer call",
@@ -601,7 +617,7 @@ class SoftphoneClient {
     private onIncoming(invitation: Invitation): void {
         // One call at a time — busy out any second simultaneous inbound.
         if (this.session) {
-            console.log("softphone onIncoming: busy — rejecting second invitation");
+            trace("softphone onIncoming: busy - rejecting second invitation");
             void invitation.reject();
             return;
         }
@@ -645,7 +661,8 @@ class SoftphoneClient {
             lastCallError: null,
             quality: "good",
         });
-        console.log("softphone beginCall", id, direction, peer);
+        // The counterparty number is deliberately not logged — it is customer data.
+        trace("softphone beginCall", id, direction);
 
         if (direction !== "inbound") {
             this.attachRemoteFromSession(session);
@@ -677,7 +694,7 @@ class SoftphoneClient {
                 // until ICE completes, so "connected" waits for that.
                 this.watchMediaPath(session);
             } else if (state === SessionState.Terminated) {
-                console.log("softphone session terminated", this.state.call?.id);
+                trace("softphone session terminated", this.state.call?.id);
                 const call = this.state.call;
                 // A call that never reached media and did not end by the agent's
                 // own hand is a failed connection — say so instead of closing.
@@ -739,7 +756,7 @@ class SoftphoneClient {
             if (ice === "connected" || ice === "completed") {
                 this.setStage("connected");
             } else if (ice === "failed") {
-                console.log("softphone media path failed");
+                trace("softphone media path failed");
                 this.failureRecorded = true;
                 this.failCall(
                     "media",
@@ -781,18 +798,18 @@ class SoftphoneClient {
     private attachRemoteFromSession(session: ManagedSession): void {
         const pc = this.peerConnectionOf(session);
         if (!pc) {
-            console.log("softphone attachRemoteFromSession: no peer connection");
+            trace("softphone attachRemoteFromSession: no peer connection");
             return;
         }
-        console.log("softphone attachRemoteFromSession: pc", pc.connectionState, pc.iceConnectionState);
+        trace("softphone attachRemoteFromSession: pc", pc.connectionState, pc.iceConnectionState);
         pc.addEventListener("iceconnectionstatechange", () => {
-            console.log("softphone iceConnectionState", pc.iceConnectionState);
+            trace("softphone iceConnectionState", pc.iceConnectionState);
         });
         pc.addEventListener("connectionstatechange", () => {
-            console.log("softphone connectionState", pc.connectionState);
+            trace("softphone connectionState", pc.connectionState);
         });
         pc.addEventListener("track", () => {
-            console.log("softphone remote track received");
+            trace("softphone remote track received");
             this.refreshRemoteAudio();
         });
         this.refreshRemoteAudio();
@@ -811,7 +828,7 @@ class SoftphoneClient {
         const tracks = receivers
             .map((receiver) => receiver.track)
             .filter((track): track is MediaStreamTrack => track !== null);
-        console.log("softphone refreshRemoteAudio receivers", receivers.length, "tracks", tracks.length);
+        trace("softphone refreshRemoteAudio receivers", receivers.length, "tracks", tracks.length);
         if (tracks.length === 0) {
             return;
         }

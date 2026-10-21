@@ -10,7 +10,11 @@ import {
 interface RecordingPlayerProps {
     /** API endpoint that streams the recording inline with the right MIME type. */
     playUrl: string;
-    /** Raw object-storage link, used for the explicit download action. */
+    /**
+     * API endpoint that serves the recording for download. It is an authorised
+     * app route, never the raw object-storage link — the storage URL is a
+     * durable bearer credential and is not handed to the browser.
+     */
     downloadUrl?: string | null;
     /** Duration in seconds, used as the scrubber's fallback length. */
     durationSeconds?: number | null;

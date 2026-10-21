@@ -51,7 +51,7 @@ return [
         'crm.meetings-page-redesign',
         'crm.deal-value-commission',
         'shared.3cx-calling',
-        'shared.softphone',
+        'crm.softphone',
         'crm.mobile-responsive-layout',
         'crm.property-completeness-score',
         'crm.email',
@@ -69,18 +69,5 @@ return [
         'crm.meeting-attendance-confirmation' => true,
         'crm.mobile-responsive-layout' => true,
         'crm.email' => true,
-    ],
-    /*
-    | Force-enabled here regardless of the remote flags service — for a flag
-    | being built that isn't registered there yet. Applies on top of a real,
-    | successful remote response (unlike local_defaults, which only apply when
-    | the remote is unreachable). Never read outside LOCAL_FALLBACK_ENVIRONMENTS.
-    |
-    | This was declared twice; PHP kept only the last one, silently dropping the
-    | crm.email override.
-    */
-    'local_overrides' => [
-        'crm.email' => true,
-        'shared.softphone' => true,
     ],
 ];

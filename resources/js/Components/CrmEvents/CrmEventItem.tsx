@@ -26,6 +26,8 @@ import type {
 } from "@/Types/api/crm-event";
 import getEventIcon from "./crmEvent";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
+import { describeCallEvent } from "@/lib/crmEvents/callSummary";
 
 dayjs.extend(relativeTime);
 
@@ -144,85 +146,23 @@ const DIRECTION_CONFIG: Record<
     },
 };
 
-/** Renders a call duration from the `duration` (seconds) call-bridge metadata. */
-function formatCallDuration(seconds: number): string {
-    if (!Number.isFinite(seconds) || seconds <= 0) {
-        return "";
-    }
-    const total = Math.round(seconds);
-    const mins = Math.floor(total / 60);
-    const secs = total % 60;
-    if (mins === 0) {
-        return `${secs}s`;
-    }
-    return `${mins}m ${String(secs).padStart(2, "0")}s`;
-}
-
 /**
  * Builds a human-readable summary for the call-bridge event types so timeline
  * rows carry context instead of just "Call Started".
  *
  * Uses the same fields the event definitions declare in
  * `config/crm_events.php` (`direction`, `phone_number`, `duration`, `status`).
+ *
+ * The summary is built from the locale's own strings (`pages.call_summary.*`)
+ * with the counterparty's number interpolated in the browser. It must never be
+ * sent to the dynamic translation service: that would ship a customer's phone
+ * number to a third party along with the rest of the tenant's data.
  */
-function buildCallSummary(event: CrmEvent): string | null {
-    const slug = event.event_type?.slug ?? "";
-    if (!slug.startsWith("call_")) {
-        return null;
-    }
-
-    const meta = event.metadata ?? {};
-    const phone =
-        typeof meta.phone_number === "string" && meta.phone_number.trim() !== ""
-            ? meta.phone_number.trim()
-            : null;
-    const duration =
-        typeof meta.duration === "number"
-            ? formatCallDuration(meta.duration)
-            : "";
-    const direction =
-        event.direction === "inbound"
-            ? "inbound"
-            : event.direction === "outbound"
-              ? "outbound"
-              : null;
-
-    // "Inbound call from X" / "Outbound call to X" — fall back to a neutral
-    // verb when the direction badge has no data.
-    const counterparty = phone
-        ? direction === "inbound"
-            ? `Inbound call from ${phone}`
-            : direction === "outbound"
-              ? `Outbound call to ${phone}`
-              : `Call with ${phone}`
-        : direction === "inbound"
-          ? "Inbound call"
-          : direction === "outbound"
-            ? "Outbound call"
-            : "Call";
-
-    const outcome = (() => {
-        switch (slug) {
-            case "call_started":
-                return "started";
-            case "call_ended":
-                return duration ? `completed · ${duration}` : "completed";
-            case "call_missed":
-                return "missed — no answer";
-            case "call_declined":
-                return "declined";
-            case "call_voicemail":
-                return duration ? `voicemail · ${duration}` : "voicemail";
-            case "call_busy":
-                return "line busy";
-            case "call_failed":
-                return "failed to connect";
-            default:
-                return "";
-        }
-    })();
-
-    return outcome ? `${counterparty} — ${outcome}` : counterparty;
+function buildCallSummary(
+    event: CrmEvent,
+    t: (key: string) => string,
+): string | null {
+    return describeCallEvent(event, t);
 }
 
 interface Props {
@@ -232,6 +172,7 @@ interface Props {
 
 export default function CrmEventItem({ event, compact = false }: Props) {
     const [expanded, setExpanded] = useState(false);
+    const { t } = useTranslation();
 
     const catSlug = event.event_type?.category?.slug ?? "";
     const colors = CATEGORY_COLORS[catSlug] || DEFAULT_CAT;
@@ -243,7 +184,7 @@ export default function CrmEventItem({ event, compact = false }: Props) {
         ? DIRECTION_CONFIG[event.direction]
         : null;
     const message = event.metadata?.comment as string | undefined;
-    const callSummary = buildCallSummary(event);
+    const callSummary = buildCallSummary(event, t);
     // `call_started` is mapped to a "completed" status by the call bridge even
     // though it only marks the beginning of a call — the summary carries that
     // nuance, so the bare "Completed" chip would just be misleading.
@@ -287,7 +228,7 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                         </Text>
                         {callSummary && (
                             <span className="text-[12px] font-normal text-gray-500 truncate">
-                                {td(callSummary, { source: "en" })}
+                                {callSummary}
                             </span>
                         )}
                         <span

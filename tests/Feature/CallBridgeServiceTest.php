@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\CrmEvent;
 use App\Models\Lead;
 use App\Models\Task;
+use App\Models\User;
 use App\Services\CallBridge\CallBridgeService;
 use App\Services\FeatureFlagService;
 use Illuminate\Database\Schema\Blueprint;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Mockery;
 use Tests\TestCase;
 
 /**
@@ -24,6 +26,8 @@ use Tests\TestCase;
 class CallBridgeServiceTest extends TestCase
 {
     private const COMPANY_ID = 1;
+
+    private const USER_ID = 99;
 
     private int $leadId;
 
@@ -329,6 +333,76 @@ class CallBridgeServiceTest extends TestCase
         $this->assertNotNull($task->completed_on);
     }
 
+    // ─── Task completion authorisation ─────────────────────────────────
+
+    public function test_a_user_who_may_not_change_status_cannot_complete_another_agents_task(): void
+    {
+        // The task belongs to somebody else: no creator, no assignee.
+        $taskId = $this->makeCallTask('Call Back');
+
+        $this->actingAsUser('none');
+
+        $this->service()->logCallEvent($this->olEvent([
+            'id' => 'ol-evt-forbidden-end',
+            'call_id' => 'call-forbidden-end',
+            'event' => 'call.ended',
+            'status' => 'answered',
+        ]));
+
+        $task = DB::table('tasks')->where('id', $taskId)->first();
+
+        $this->assertNull($task->completed_on, 'A user without the right may not close another agent\'s task.');
+        $this->assertSame($this->todoColumnId, (int) $task->board_column_id);
+        $this->assertSame(0, $this->countEvents('task_completed', Task::class, $taskId));
+    }
+
+    public function test_a_user_with_change_status_all_completes_the_task(): void
+    {
+        $taskId = $this->makeCallTask('Call Back');
+
+        $this->actingAsUser('all');
+
+        $this->service()->logCallEvent($this->olEvent([
+            'id' => 'ol-evt-allowed-end',
+            'call_id' => 'call-allowed-end',
+            'event' => 'call.ended',
+            'status' => 'answered',
+        ]));
+
+        $task = DB::table('tasks')->where('id', $taskId)->first();
+
+        $this->assertNotNull($task->completed_on);
+        $this->assertSame($this->doneColumnId, (int) $task->board_column_id);
+        $this->assertSame(1, $this->countEvents('task_completed', Task::class, $taskId));
+    }
+
+    public function test_the_project_admin_may_always_complete_the_task(): void
+    {
+        $projectId = DB::table('projects')->insertGetId([
+            'company_id' => self::COMPANY_ID,
+            'project_name' => 'Bridge Project',
+            'project_admin' => self::USER_ID,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $taskId = $this->makeCallTask('Call Back', $projectId);
+
+        $this->actingAsUser('none');
+
+        $this->service()->logCallEvent($this->olEvent([
+            'id' => 'ol-evt-admin-end',
+            'call_id' => 'call-admin-end',
+            'event' => 'call.ended',
+            'status' => 'answered',
+        ]));
+
+        $task = DB::table('tasks')->where('id', $taskId)->first();
+
+        $this->assertNotNull($task->completed_on, 'The project admin may always change the status.');
+        $this->assertSame($this->doneColumnId, (int) $task->board_column_id);
+    }
+
     // ─── Poller ─────────────────────────────────────────────────────────
 
     public function test_poll_projects_events_from_the_bridge(): void
@@ -446,6 +520,28 @@ class CallBridgeServiceTest extends TestCase
         Config::set('services.call_bridge.api_key', 'test-key');
     }
 
+    /**
+     * Act as an authenticated user whose `change_status` permission is the
+     * given scope.
+     *
+     * Without an authenticated user the bridge itself is the actor and the
+     * call is trusted, so the status-change authorisation is only exercised
+     * with a user in the picture.
+     */
+    private function actingAsUser(string $changeStatus): void
+    {
+        /** @var User&\Mockery\MockInterface $user */
+        $user = Mockery::mock(User::class)->makePartial();
+        $user->id = self::USER_ID;
+        $user->company_id = self::COMPANY_ID;
+        $user->shouldReceive('permission')->andReturnUsing(
+            fn (string $name) => $name === 'change_status' ? $changeStatus : 'none'
+        );
+
+        $this->actingAs($user);
+        session(['user' => $user, 'company' => (object) ['id' => self::COMPANY_ID]]);
+    }
+
     private function makeLead(): int
     {
         return DB::table('leads')->insertGetId([
@@ -458,7 +554,7 @@ class CallBridgeServiceTest extends TestCase
     }
 
     /** Insert an open task in the given category, linked to the test lead. */
-    private function makeCallTask(string $categoryName): int
+    private function makeCallTask(string $categoryName, ?int $projectId = null): int
     {
         $categoryId = DB::table('task_category')->insertGetId([
             'company_id' => self::COMPANY_ID,
@@ -475,6 +571,7 @@ class CallBridgeServiceTest extends TestCase
             'priority' => 'medium',
             'status' => 'not_started',
             'column_priority' => 0,
+            'project_id' => $projectId,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -604,6 +701,9 @@ class CallBridgeServiceTest extends TestCase
             $table->increments('id');
             $table->unsignedInteger('company_id')->nullable();
             $table->string('project_name')->nullable();
+            // The project admin may always change a task's status, so the
+            // column is part of the authorisation the bridge mirrors.
+            $table->unsignedInteger('project_admin')->nullable();
             $table->boolean('need_approval_by_admin')->default(false);
             $table->string('project_short_code')->nullable();
             $table->softDeletes();

@@ -548,6 +548,9 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     // recording duration.
     Route::post('call-recordings', [\App\Http\Controllers\CallRecordingController::class, 'store'])->name('call-recordings.store');
     Route::get('call-recordings/{callRecording}', [\App\Http\Controllers\CallRecordingController::class, 'play'])->name('call-recordings.play');
+    // The bytes are streamed through the app instead of handing out the raw
+    // object-storage link, which is a durable bearer credential.
+    Route::get('call-recordings/{callRecording}/download', [\App\Http\Controllers\CallRecordingController::class, 'download'])->name('call-recordings.download');
 
     // Follow up
     Route::get('deals/follow-up/{leadID}', [DealController::class, 'followUpCreate'])->name('deals.follow_up');
