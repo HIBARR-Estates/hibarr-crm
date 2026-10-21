@@ -89,17 +89,13 @@ export function describeCallEvent(
             case "call_started":
                 return t("pages.call_summary.started");
             case "call_ended":
-                return duration
-                    ? `${t("pages.call_summary.completed")}${t("pages.call_summary.separator").trim()}${duration}`
-                    : t("pages.call_summary.completed");
+                return t("pages.call_summary.completed");
             case "call_missed":
                 return t("pages.call_summary.missed");
             case "call_declined":
                 return t("pages.call_summary.declined");
             case "call_voicemail":
-                return duration
-                    ? `${t("pages.call_summary.voicemail")}${t("pages.call_summary.separator").trim()}${duration}`
-                    : t("pages.call_summary.voicemail");
+                return t("pages.call_summary.voicemail");
             case "call_busy":
                 return t("pages.call_summary.busy");
             case "call_failed":
@@ -112,6 +108,11 @@ export function describeCallEvent(
     const parts = [counterparty];
     if (outcome) {
         parts.push(outcome);
+    }
+    // Only the two outcomes that report one carry a duration, and it is a
+    // part of its own so joinParts() applies the locale's separator.
+    if (duration && (slug === "call_ended" || slug === "call_voicemail")) {
+        parts.push(duration);
     }
     // Recording linkage is stamped onto the event once the upload completes.
     if (meta.has_recording === true || typeof meta.recording_id === "number") {

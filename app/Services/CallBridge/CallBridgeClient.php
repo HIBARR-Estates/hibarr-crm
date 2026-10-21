@@ -188,10 +188,15 @@ class CallBridgeClient
     private function redactForLog(string $body): string
     {
         $redacted = preg_replace('/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i', '[email]', $body) ?? $body;
+
+        // Credentials are redacted before the phone numbers: a token can look
+        // like a phone number, and the phone pattern below would otherwise
+        // mangle it into "[phone]" instead of a redaction marker.
+        $redacted = $this->redactCredentials($redacted);
+
         // Phone numbers in every notation the bridge uses (+49 170 1234567,
         // 0049-170-1234567, 491701234567).
         $redacted = preg_replace('/(?<!\d)\+?\d[\d\s().\/-]{6,}\d(?!\d)/', '[phone]', $redacted) ?? $redacted;
-        $redacted = preg_replace('/\b(api[_-]?key|token|secret|password|authorization)\b\s*[:=]\s*\S+/i', '$1: [redacted]', $redacted) ?? $redacted;
 
         $redacted = trim($redacted);
 
@@ -200,6 +205,42 @@ class CallBridgeClient
         }
 
         return $redacted;
+    }
+
+    /**
+     * Replace credential values with a redaction marker.
+     *
+     * The bridge echoes the payload it was given, so the body carries keys
+     * like "access_token" or "refresh_token". The key may be quoted (JSON),
+     * bare (form encoding) or prefixed ("api_key"), and the value is either a
+     * JSON string or a bare token. The whole value is replaced — the key keeps
+     * its own quoting so the log stays readable.
+     */
+    private function redactCredentials(string $body): string
+    {
+        $names = 'api[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|token|secret|password|passwd|authorization|client[_-]?secret|private[_-]?key';
+
+        $redacted = preg_replace_callback(
+            '/(?:"(?P<quoted>[^"]*)"|(?P<bare>[A-Za-z0-9_.\-]+))(?P<sep>\s*[:=]\s*)(?P<value>"(?:[^"\\\\]|\\\\.)*"|\'[^\']*\'|(?:Bearer|Basic|Digest|Token)\s+[^\s,;}\]]+|[^\s,;}\]]+)/i',
+            function (array $matches) use ($names): string {
+                $name = $matches['quoted'] !== '' ? $matches['quoted'] : ($matches['bare'] ?? '');
+
+                if (! preg_match('/(?:^|[._\-])'.$names.'(?:$|[._\-])/i', $name)) {
+                    return $matches[0];
+                }
+
+                $key = $matches['quoted'] !== '' ? '"'.$name.'"' : $name;
+                $value = $matches['value'];
+                $marker = ($value !== '' && ($value[0] === '"' || $value[0] === "'"))
+                    ? '"[redacted]"'
+                    : '[redacted]';
+
+                return $key.$matches['sep'].$marker;
+            },
+            $body
+        );
+
+        return $redacted ?? $body;
     }
 
     /**

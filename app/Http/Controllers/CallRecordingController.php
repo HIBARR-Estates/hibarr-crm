@@ -438,7 +438,14 @@ class CallRecordingController extends AccountBaseController
         $permission = user()->permission('make_softphone_calls');
         abort_403(! in_array($permission, ['all']));
 
-        if (user()->id !== $recording->user_id && ! user()->hasRole('admin')) {
+        // The owner id can come back from the model as a string while the
+        // session user carries an int, so both sides are normalised before the
+        // comparison — otherwise the rightful owner is rejected. A null id on
+        // either side stays null and never matches the other.
+        $userId = user()->id === null ? null : (int) user()->id;
+        $ownerId = $recording->user_id === null ? null : (int) $recording->user_id;
+
+        if ($userId !== $ownerId && ! user()->hasRole('admin')) {
             abort(403);
         }
 

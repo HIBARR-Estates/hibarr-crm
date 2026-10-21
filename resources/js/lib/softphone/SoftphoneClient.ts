@@ -249,11 +249,13 @@ class SoftphoneClient {
             this.userAgent = userAgent;
             this.registerer = registerer;
         } catch (error: unknown) {
-            // Skip teardown if this start was cancelled — it could tear down
-            // resources owned by a newer start attempt.
-            if (!cancelled) {
-                await this.teardown();
+            // A cancelled start is not a failure: a newer attempt owns the
+            // resources now, so don't tear them down and don't report a
+            // failure state for a start nobody is waiting for.
+            if (cancelled) {
+                return;
             }
+            await this.teardown();
             this.setState({
                 registration: "failed",
                 registrationError:
@@ -408,7 +410,9 @@ class SoftphoneClient {
                 });
             }
         } catch (error) {
-            trace("softphone answer() failed", error);
+            // Only the fixed message is logged: the rejected error carries the
+            // SIP URI and other customer data.
+            trace("softphone answer() failed");
             // The failure is shown to the agent in the UI already, so the
             // production console only records that it happened — never the
             // error object, which carries a stack trace and the SIP URI.

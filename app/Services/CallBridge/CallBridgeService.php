@@ -243,15 +243,6 @@ class CallBridgeService
 
                     $dedupeKey = $this->dedupeKey($olEvent);
 
-                    // When no usable dedupe key exists, log and continue
-                    if ($dedupeKey === null) {
-                        Log::error('CallBridgeService: failed to project OL call event (no dedupe key)', [
-                            'event' => $olEvent['id'] ?? null,
-                            'error' => $e->getMessage(),
-                        ]);
-                        continue;
-                    }
-
                     $retryCount = $this->getRetryCount($dedupeKey);
 
                     if ($retryCount < self::MAX_RETRIES) {
@@ -329,7 +320,7 @@ class CallBridgeService
             : $generationType;
 
         $dedupeKey = $this->dedupeKey($olEvent);
-        if ($dedupeKey !== null && $this->alreadyProcessed($dedupeKey, $olEvent)) {
+        if ($this->alreadyProcessed($dedupeKey, $olEvent)) {
             return null;
         }
 
@@ -338,9 +329,7 @@ class CallBridgeService
         // Intermediate status pings and unrecognised events are not logged —
         // mark processed and move on so they are not re-fetched.
         if ($mapped === null) {
-            if ($dedupeKey !== null) {
-                $this->markProcessed($dedupeKey);
-            }
+            $this->markProcessed($dedupeKey);
 
             return null;
         }
@@ -385,9 +374,7 @@ class CallBridgeService
 
         $this->projectToCallTasks($olEvent, $slug, $status, $companyId, $correlationId, $event, $metadata, $generationType);
 
-        if ($dedupeKey !== null) {
-            $this->markProcessed($dedupeKey);
-        }
+        $this->markProcessed($dedupeKey);
 
         return $event;
     }
@@ -797,7 +784,7 @@ class CallBridgeService
      * @param  array<string, mixed>  $olEvent
      * @return array<string, mixed>
      */
-    private function buildMetadata(array $olEvent, ?string $dedupeKey): array
+    private function buildMetadata(array $olEvent, string $dedupeKey): array
     {
         $metadata = array_filter([
             'call_id' => $olEvent['call_id'] ?? null,
@@ -825,23 +812,46 @@ class CallBridgeService
     /**
      * @param  array<string, mixed>  $olEvent
      */
-    private function dedupeKey(array $olEvent): ?string
+    private function dedupeKey(array $olEvent): string
     {
         if (!empty($olEvent['id'])) {
             return 'evt:' . $olEvent['id'];
         }
 
-        if (empty($olEvent['call_id'])) {
-            return null;
+        if (!empty($olEvent['call_id'])) {
+            return implode(':', [
+                'call',
+                $olEvent['call_id'],
+                $olEvent['event'] ?? $olEvent['type'] ?? 'unknown',
+                $olEvent['status'] ?? '',
+                $olEvent['occurred_at'] ?? '',
+            ]);
         }
 
-        return implode(':', [
-            'call',
-            $olEvent['call_id'],
-            $olEvent['event'] ?? $olEvent['type'] ?? 'unknown',
-            $olEvent['status'] ?? '',
-            $olEvent['occurred_at'] ?? '',
-        ]);
+        return $this->fallbackDedupeKey($olEvent);
+    }
+
+    /**
+     * Deterministic key for an event the bridge sent without an id or a
+     * call_id.
+     *
+     * The key is derived from the serialized payload, so the same event always
+     * maps to the same key: the retry counter, the exhausted marker and
+     * markProcessed() then behave exactly as they do for identified events,
+     * and the cursor can move on once the retries are exhausted instead of
+     * the event being re-fetched forever.
+     *
+     * @param  array<string, mixed>  $olEvent
+     */
+    private function fallbackDedupeKey(array $olEvent): string
+    {
+        $encoded = json_encode($olEvent, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        if (!is_string($encoded)) {
+            $encoded = serialize($olEvent);
+        }
+
+        return 'payload:'.sha1($encoded);
     }
 
     private function alreadyProcessed(string $key, array $olEvent): bool

@@ -142,6 +142,32 @@ function usePrefersReducedMotion(): boolean {
     return reduced;
 }
 
+/**
+ * Identity of an alert for pending-action tracking.
+ *
+ * The notification id when there is one — so a refreshed copy of the same
+ * notification keeps its pending state — and the payload itself otherwise.
+ */
+type PendingAlertKey = string | NotificationAlertPayload;
+
+function pendingAlertKey(
+    alert: NotificationAlertPayload | null | undefined,
+): PendingAlertKey | null {
+    if (!alert) return null;
+    return alert.id ? `id:${alert.id}` : alert;
+}
+
+/** Whether the alert has an action that is still resolving. */
+function hasPendingAction(
+    pending: Map<PendingAlertKey, Set<string>>,
+    alert: NotificationAlertPayload | null | undefined,
+): boolean {
+    const key = pendingAlertKey(alert);
+    if (key === null) return false;
+    const actions = pending.get(key);
+    return !!actions && actions.size > 0;
+}
+
 function wrapperStyle(position: NotchPosition): CSSProperties {
     const isTop = position.indexOf("top") === 0;
     const hAlign =
@@ -192,12 +218,53 @@ export default function NotificationAlertProvider({
     // Keeps sticky call alerts expanded while focus is inside the island or an
     // action (Answer/Hang up) is still resolving.
     const focusWithinRef = useRef(false);
-    const actionPendingRef = useRef(false);
+    // Pending actions are tracked per alert and per action: an alert that
+    // replaces another one keeps its own state, and only the action that
+    // started the request can clear it.
+    const [pendingActions, setPendingActions] = useState<
+        Map<PendingAlertKey, Set<string>>
+    >(new Map());
+    // Mirror of the map above for the timer callbacks, which must not
+    // re-subscribe.
+    const pendingActionsRef = useRef(pendingActions);
     // Mirrors of the two refs above for render-time reads — reading a ref during
     // render does not re-render, so the expanded calculation was one frame stale.
     // The refs stay for the timer callbacks, which must not re-subscribe.
     const [focusWithin, setFocusWithin] = useState(false);
-    const [actionPending, setActionPending] = useState(false);
+
+    const markActionPending = useCallback(
+        (alert: NotificationAlertPayload | null, action: NotificationAlertAction) => {
+            const key = pendingAlertKey(alert);
+            if (key === null) return;
+
+            const pending = new Map(pendingActionsRef.current);
+            const actions = new Set(pending.get(key) ?? []);
+            actions.add(action.label);
+            pending.set(key, actions);
+            pendingActionsRef.current = pending;
+            setPendingActions(pending);
+        },
+        [],
+    );
+
+    const clearActionPending = useCallback(
+        (alert: NotificationAlertPayload | null, action: NotificationAlertAction) => {
+            const key = pendingAlertKey(alert);
+            if (key === null) return;
+
+            const pending = new Map(pendingActionsRef.current);
+            const actions = new Set(pending.get(key) ?? []);
+            actions.delete(action.label);
+            if (actions.size === 0) {
+                pending.delete(key);
+            } else {
+                pending.set(key, actions);
+            }
+            pendingActionsRef.current = pending;
+            setPendingActions(pending);
+        },
+        [],
+    );
 
     const clearTimer = (ref: MutableRefObject<ReturnType<typeof setTimeout> | null>) => {
         if (ref.current) {
@@ -220,7 +287,11 @@ export default function NotificationAlertProvider({
         clearTimer(dismissTimer);
         if (currentRef.current?.sticky) return;
         if (hoverRef.current) return;
-        if (focusWithinRef.current || actionPendingRef.current) return;
+        // Only the alert that owns the pending action is held open — an alert
+        // that replaced it is dismissed on its own schedule.
+        if (focusWithinRef.current) return;
+        if (hasPendingAction(pendingActionsRef.current, currentRef.current))
+            return;
         dismissTimer.current = setTimeout(() => {
             setOpen(false);
             setHover(false);
@@ -248,6 +319,10 @@ export default function NotificationAlertProvider({
             const hadPrevious = currentRef.current !== null;
             currentRef.current = notification;
             setCurrent(notification);
+
+            // The pending state belongs to the alert it was started from: the
+            // alert that replaces this one carries its own, so arming the
+            // dismiss timer below is judged against the new alert alone.
 
             if (hadPrevious) {
                 setPulse(true);
@@ -345,8 +420,8 @@ export default function NotificationAlertProvider({
                 const actedOn = current;
                 const result = action.onClick();
                 if (result && typeof (result as Promise<unknown>).then === "function") {
-                    actionPendingRef.current = true;
-                    setActionPending(true);
+                    // The pending state belongs to this alert and this action.
+                    markActionPending(actedOn, action);
                     (result as Promise<unknown>)
                         .then((value) => {
                             // Compare by ID when both have one, otherwise fall back to identity
@@ -361,8 +436,8 @@ export default function NotificationAlertProvider({
                             // Failed — leave the alert up so the agent can retry.
                         })
                         .finally(() => {
-                            actionPendingRef.current = false;
-                            setActionPending(false);
+                            // Only this action clears its own pending state.
+                            clearActionPending(actedOn, action);
                             armDismiss();
                         });
                     return;
@@ -386,7 +461,7 @@ export default function NotificationAlertProvider({
             }
             dismiss();
         },
-        [current, dismiss, markAsReadQuiet],
+        [current, dismiss, markAsReadQuiet, markActionPending, clearActionPending],
     );
 
     const handleDismissClick = useCallback(
@@ -405,6 +480,9 @@ export default function NotificationAlertProvider({
     const hasDetail = !!current && (!!current.body || !!current.dest);
     const shortBody =
         !!current?.body && current.body.trim().length > 0 && current.body.length <= 90;
+    // Only an action of this very alert keeps it open — an action that is
+    // still running on an alert that has since been replaced does not.
+    const actionPending = hasPendingAction(pendingActions, current);
     // Call alerts (sticky) must stay expanded while focused or while an action
     // is in flight (e.g. Answer), otherwise the pointer leaving the island
     // collapses the action row and hides it behind aria-hidden mid-click.
