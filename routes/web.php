@@ -542,6 +542,16 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::delete('lead-contact-files/{lead_contact_file}', [LeadContactFileController::class, 'destroy'])->name('lead-contact-files.destroy');
     Route::get('lead-contact/{leadId}/files', [LeadContactFileController::class, 'index'])->name('lead-contact.files.index');
 
+    Route::get('call-recordings', [\App\Http\Controllers\CallRecordingController::class, 'index'])->name('call-recordings.index');
+    // Call recordings (softphone) - stored like lead files; playable only by
+    // users with the make_softphone_calls permission, access expires after the
+    // recording duration.
+    Route::post('call-recordings', [\App\Http\Controllers\CallRecordingController::class, 'store'])->name('call-recordings.store');
+    Route::get('call-recordings/{callRecording}', [\App\Http\Controllers\CallRecordingController::class, 'play'])->name('call-recordings.play');
+    // The bytes are streamed through the app instead of handing out the raw
+    // object-storage link, which is a durable bearer credential.
+    Route::get('call-recordings/{callRecording}/download', [\App\Http\Controllers\CallRecordingController::class, 'download'])->name('call-recordings.download');
+
     // Follow up
     Route::get('deals/follow-up/{leadID}', [DealController::class, 'followUpCreate'])->name('deals.follow_up');
     Route::post('deals/follow-up-store', [DealController::class, 'followUpStore'])->name('deals.follow_up_store');
@@ -1431,6 +1441,20 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('payment-requests', [App\Http\Controllers\PaymentRequestController::class, 'index'])->name('payment-requests.index');
 
     Route::post('telephony/calls', [TelephonyCallController::class, 'store'])->name('telephony.calls.store');
+    Route::post('telephony/softphone/events', [\App\Http\Controllers\TelephonySoftphoneEventController::class, 'store'])->name('telephony.softphone.events.store');
+    Route::get('telephony/softphone/lead-match', [\App\Http\Controllers\TelephonySoftphoneEventController::class, 'leadByPhone'])->name('telephony.softphone.lead-match');
+    Route::get('telephony/softphone/devices', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'index'])->name('telephony.softphone.devices.index');
+    Route::post('telephony/softphone/devices', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'store'])->name('telephony.softphone.devices.store');
+    Route::get('telephony/softphone/devices/{id}/credentials', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'credentials'])->name('telephony.softphone.devices.credentials')->whereNumber('id');
+    Route::put('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'update'])->name('telephony.softphone.devices.update')->whereNumber('id');
+    Route::delete('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'destroy'])->name('telephony.softphone.devices.destroy')->whereNumber('id');
+
+    // Per-line incoming call pool (admin-managed).
+    Route::get('telephony/softphone/call-pool', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'index'])->name('telephony.softphone.call-pool.index');
+    Route::get('telephony/softphone/call-pool/eligible', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'eligibleAgents'])->name('telephony.softphone.call-pool.eligible');
+    Route::post('telephony/softphone/call-pool', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'store'])->name('telephony.softphone.call-pool.store');
+    Route::put('telephony/softphone/call-pool/{id}', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'update'])->name('telephony.softphone.call-pool.update')->whereNumber('id');
+    Route::delete('telephony/softphone/call-pool/{id}', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'destroy'])->name('telephony.softphone.call-pool.destroy')->whereNumber('id');
 
     // Property Asset Management (New System)
     Route::get('property-assets/options', [App\Http\Controllers\PropertyAssetController::class, 'getAssetOptions'])->name('properties.assets.options');

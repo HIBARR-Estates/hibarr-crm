@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Deal;
 use App\Models\Lead;
-use App\Services\OlTelephonyProxyService;
+use App\Services\CallBridge\CallBridgeService;
 use App\Services\PermissionService;
 use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
@@ -14,7 +14,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class TelephonyCallController extends AccountBaseController
 {
     public function __construct(
-        private readonly OlTelephonyProxyService $telephonyProxyService,
+        private readonly CallBridgeService $callBridge,
     ) {
         parent::__construct();
     }
@@ -50,11 +50,12 @@ class TelephonyCallController extends AccountBaseController
         }
 
         try {
-            $data = $this->telephonyProxyService->initiateCall([
+            $data = $this->callBridge->startCall([
                 'phone_number' => $phoneNumber,
                 'entity_type' => $entityType,
                 'entity_id' => $entityId,
                 'user_id' => (int) user()->id,
+                'company_id' => (int) company()->id,
             ]);
         } catch (HttpException $e) {
             return response()->json([

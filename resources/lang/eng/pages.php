@@ -23,6 +23,7 @@ return [
         'no_extension' => 'No 3CX extension is bound to your account. Contact your administrator.',
         'permission_denied' => 'You do not have permission to place calls.',
         'generic_error' => 'Unable to initiate the call. Please try again.',
+        'insecure_context' => 'Microphone access requires a secure connection (HTTPS). Open the CRM over HTTPS and try again.',
     ],
 
     'entity_summary' => [
@@ -2472,6 +2473,41 @@ return [
         'cancel' => 'Cancel',
         'confirmed_toast' => 'Bank transfer confirmed.',
         'confirm_failed' => 'Unable to confirm transfer.',
+    ],
+
+
+    'call_bridge' => [
+        'title' => 'Call Bridge',
+        'description' => 'Phone lines, call pool and recordings for the browser softphone.',
+    ],
+    'task_category_actions' => [
+        'none' => 'None',
+        'email' => 'Email',
+        'call' => 'Call',
+        'select' => 'Select an action',
+    ],
+    'call_summary' => [
+        'inbound_from' => 'Inbound call from',
+        'outbound_to' => 'Outbound call to',
+        'with' => 'Call with',
+        'inbound' => 'Inbound call',
+        'outbound' => 'Outbound call',
+        'call' => 'Call',
+        'started' => 'started',
+        'completed' => 'completed',
+        'missed' => 'missed — no answer',
+        'declined' => 'declined',
+        'voicemail' => 'voicemail',
+        'busy' => 'line busy',
+        'failed' => 'failed to connect',
+        'recording_available' => 'Recording available',
+        'duration_hms' => ':h::m::s',
+        'duration_ms' => ':m::s',
+        'duration_s' => ':s s',
+        'separator' => ' · ',
+        'from' => 'From',
+        'to' => 'To',
+        'duration' => 'Duration',
     ],
 
 ];

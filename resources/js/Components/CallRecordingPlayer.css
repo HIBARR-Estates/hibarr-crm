@@ -1,0 +1,130 @@
+/* Call recording player — shared by the Call Bridge settings page and the
+   entity timeline. Scoped to the `cb-*` class names below rather than a page
+   wrapper so the same markup works in both. */
+
+.cb-player {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.cb-play {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    border: 0;
+    background: var(--dr-button-primary-bg);
+    color: var(--dr-button-primary-text);
+    display: grid;
+    place-items: center;
+    flex: none;
+    transition: background 0.12s;
+}
+
+.cb-play:hover:not(:disabled) {
+    background: var(--dr-button-primary-hover-bg);
+}
+
+.cb-play:disabled {
+    background: var(--dr-gray);
+    color: var(--dr-text-hint);
+    cursor: not-allowed;
+}
+
+/* Scrubber: a 20px hit area wrapped around a 4px track, so the thin bar is
+   still easy to grab — with mouse, finger or keyboard. */
+.cb-seek {
+    position: relative;
+    flex: 1;
+    min-width: 40px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    touch-action: none;
+}
+
+.cb-seek[aria-disabled="true"] {
+    cursor: not-allowed;
+}
+
+.cb-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--dr-gray);
+    border-radius: 999px;
+    overflow: hidden;
+    transition: height 0.12s;
+}
+
+.cb-bar__fill {
+    display: block;
+    height: 100%;
+    width: var(--p, 0%);
+    background: var(--dr-blue);
+    border-radius: 999px;
+}
+
+.cb-seek:hover .cb-bar,
+.cb-seek:focus-visible .cb-bar {
+    height: 6px;
+}
+
+/* Thumb — revealed on hover/focus, positioned by the same --p variable. */
+.cb-seek::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: var(--p, 0%);
+    width: 11px;
+    height: 11px;
+    margin-left: -5.5px;
+    border-radius: 50%;
+    background: var(--dr-blue);
+    transform: translateY(-50%) scale(0.6);
+    opacity: 0;
+    pointer-events: none;
+    transition:
+        opacity 0.12s,
+        transform 0.12s;
+}
+
+.cb-seek:hover::after,
+.cb-seek:focus-visible::after,
+.cb-seek:focus-within::after {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+}
+
+.cb-seek:focus-visible {
+    outline: 3px solid var(--dr-blue);
+    outline-offset: 1px;
+    border-radius: 999px;
+}
+
+.cb-time {
+    font-size: 12px;
+    color: var(--dr-text-muted);
+    white-space: nowrap;
+}
+
+.cb-fail {
+    flex: 1 0 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--dr-red);
+    background: var(--dr-red-soft);
+    border-radius: var(--cb-radius-sm);
+    padding: 6px 10px;
+    margin-top: 4px;
+}
+
+.cb-fail a {
+    color: var(--dr-red);
+    font-weight: 600;
+}

@@ -39,6 +39,11 @@ class TelephonyCallTest extends TestCase
         config()->set('services.ol.timeout', 5);
         config()->set('services.ol.telephony_calls_path', '/telephony/calls');
 
+        config()->set('services.call_bridge.base_url', 'https://ol.test/v1');
+        config()->set('services.call_bridge.api_key', 'ol-test-key');
+        config()->set('services.call_bridge.timeout', 5);
+        config()->set('services.call_bridge.paths.start_call', '/telephony/calls');
+
         Lead::unsetEventDispatcher();
         Deal::unsetEventDispatcher();
     }

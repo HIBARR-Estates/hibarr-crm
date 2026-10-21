@@ -4,6 +4,7 @@ import { theme } from "antd";
 import { PageProps as InertiaPageProps } from "@inertiajs/core";
 import { AuthType } from "@/Types";
 import Sidebar from "./Sidebar/Sidebar";
+import SoftphoneDock from "./Softphone/SoftphoneDock";
 import { useTranslation } from "@/Hooks/useTranslation";
 import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
 import {
@@ -125,6 +126,10 @@ const DashboardLayoutInner: React.FC<{
                     {children}
                 </div>
             </main>
+
+            {/* In-browser softphone (sipgate Neo) — self-gated by the
+                shared.softphone feature flag; renders nothing when off. */}
+            <SoftphoneDock />
         </div>
     );
 };

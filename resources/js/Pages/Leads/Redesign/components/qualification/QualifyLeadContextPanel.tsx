@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
+import { usePage } from "@inertiajs/react";
 import type { Lead } from "@/Types/api/leads";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import ClickToCallButton from "@/Components/ClickToCallButton";
 import { useLeadWorkspace } from "../../context/LeadWorkspaceContext";
 import useLeadNoteCreate from "../../hooks/useLeadNoteCreate";
 import useLeadInfoFieldUpdate from "../../hooks/useLeadInfoFieldUpdate";
@@ -158,9 +160,21 @@ export default function QualifyLeadContextPanel({
     editLeadPermission = "all",
 }: QualifyLeadContextPanelProps) {
     const { td } = useTd();
+    const { props } = usePage();
     const { notes, notesLoading } = useLeadWorkspace();
     const [activeTab, setActiveTab] = useState<Tab>("lead");
     const [imgError, setImgError] = useState(false);
+    // The feature flag alone isn't enough: ClickToCallButton additionally requires
+    // make_softphone_calls for the softphone path, so an agent without it needs
+    // the plain tel: link to stay usable. The 3cx-calling path uses
+    // ClickToCallButton which has its own permission check, so it doesn't need
+    // make_softphone_calls here.
+    const softphoneEnabled =
+        props.auth?.permissions?.make_softphone_calls === "all" &&
+        props.featureFlags?.["shared.softphone"] === true;
+    const threeCxEnabled =
+        props.featureFlags?.["shared.3cx-calling"] === true;
+    const telephonyEnabled = softphoneEnabled || threeCxEnabled;
     const canEdit = ["all", "added", "owned", "both"].includes(
         editLeadPermission,
     );
@@ -353,13 +367,23 @@ export default function QualifyLeadContextPanel({
 
                 <div className="flex gap-2">
                     {phones[0] ? (
-                        <a
-                            href={`tel:${phones[0]}`}
-                            className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-white transition-colors"
-                            style={{ backgroundColor: T.NAVY }}
-                        >
-                            {td("Call", { source: "en" })}
-                        </a>
+                        telephonyEnabled ? (
+                            <ClickToCallButton
+                                phone={phones[0]}
+                                entity={{ type: "lead", id: lead.id }}
+                                variant="link"
+                                label={td("Call", { source: "en" })}
+                                className="flex flex-1 items-center justify-center gap-0.5 py-1.5 rounded-md text-xs font-medium text-white bg-dr-navy transition-colors disabled:opacity-60"
+                            />
+                        ) : (
+                            <a
+                                href={`tel:${phones[0]}`}
+                                className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-white transition-colors"
+                                style={{ backgroundColor: T.NAVY }}
+                            >
+                                {td("Call", { source: "en" })}
+                            </a>
+                        )
                     ) : null}
                     {email ? (
                         <a
