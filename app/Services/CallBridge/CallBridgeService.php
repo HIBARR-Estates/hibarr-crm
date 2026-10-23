@@ -13,6 +13,7 @@ use App\Models\Task;
 use App\Models\TaskboardColumn;
 use App\Services\CrmEventService;
 use App\Services\Reminders\TaskReminderSync;
+use App\Services\Suppression\SuppressionClient;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -45,6 +46,7 @@ class CallBridgeService
     public function __construct(
         private readonly CallBridgeClient $client,
         private readonly CrmEventService $events,
+        private readonly ?SuppressionClient $suppressionClient = null,
     ) {}
 
     // ─── Call control (proxied; timeline logging is the first consumer) ──
@@ -57,6 +59,12 @@ class CallBridgeService
      */
     public function startCall(array $payload): array
     {
+        $blocked = $this->checkCallSuppression($payload);
+
+        if ($blocked !== null) {
+            return $blocked;
+        }
+
         $response = $this->client->startCall($payload);
 
         // Best-effort: the call is already live; a timeline failure must not
@@ -103,6 +111,60 @@ class CallBridgeService
         }
 
         return $response;
+    }
+
+    /**
+     * Refuse to place a call to a globally suppressed number.
+     *
+     * Agent-initiated calls are transactional, so only an `all`-scope entry
+     * blocks them; an unreachable check falls back to allowing the call.
+     * Returns a normal caller result when the call is withheld, or null when
+     * it may proceed.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>|null
+     */
+    private function checkCallSuppression(array $payload): ?array
+    {
+        $phone = trim((string) ($payload['phone_number'] ?? ''));
+
+        if ($phone === '') {
+            return null;
+        }
+
+        $client = $this->suppressionClient ?? app(SuppressionClient::class);
+        $result = $client->checkPhone($phone, SuppressionClient::SCOPE_TRANSACTIONAL);
+
+        if ($result->wouldBlock && ! $result->blocked) {
+            // The global-suppression flag is off: record the observation but
+            // still place the call, exactly as email does.
+            Log::info('CallBridgeService: call would have been blocked by global suppression.', [
+                'phone' => SuppressionClient::maskPhone($phone),
+                'entity_type' => $payload['entity_type'] ?? null,
+                'entity_id' => $payload['entity_id'] ?? null,
+                'suppression_reason' => $result->reason,
+                'suppression_scope' => $result->scope,
+            ]);
+        }
+
+        if (! $result->blocked) {
+            return null;
+        }
+
+        Log::info('CallBridgeService: outbound call withheld by global suppression.', [
+            'phone' => SuppressionClient::maskPhone($phone),
+            'entity_type' => $payload['entity_type'] ?? null,
+            'entity_id' => $payload['entity_id'] ?? null,
+            'suppression_reason' => $result->reason,
+            'suppression_scope' => $result->scope,
+        ]);
+
+        return [
+            'call_id' => null,
+            'status' => 'blocked',
+            'suppressed' => true,
+            'message' => 'Call not placed: this number is on the global suppression list.',
+        ];
     }
 
     /**

@@ -2,9 +2,12 @@
 
 namespace Tests\Unit\Notifications;
 
+use App\Services\Notifications\MailCategory;
 use App\Services\Notifications\UnsClient;
 use App\Services\Notifications\UnsEmailPayloadMapper;
 use App\Services\Notifications\UnsRoutingTransport;
+use App\Services\Suppression\SuppressionCheckResult;
+use App\Services\Suppression\SuppressionClient;
 use Symfony\Component\Mailer\Envelope;
 use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mailer\Transport\TransportInterface;
@@ -21,7 +24,9 @@ class UnsRoutingTransportTest extends TestCase
         $transport = new UnsRoutingTransport(
             new FakeUnsClient(true),
             new FakeMapper(),
-            $fallback
+            $fallback,
+            app(\App\Services\Notifications\MailDeliveryRecorder::class),
+            new FakeSuppressionClient()
         );
 
         $result = $transport->send($this->buildMessage(withUnsRoute: false));
@@ -37,7 +42,9 @@ class UnsRoutingTransportTest extends TestCase
         $transport = new UnsRoutingTransport(
             $client,
             new FakeMapper(),
-            $fallback
+            $fallback,
+            app(\App\Services\Notifications\MailDeliveryRecorder::class),
+            new FakeSuppressionClient()
         );
 
         $result = $transport->send($this->buildMessage(withUnsRoute: true));
@@ -53,7 +60,9 @@ class UnsRoutingTransportTest extends TestCase
         $transport = new UnsRoutingTransport(
             new FakeUnsClient(false),
             new FakeMapper(),
-            $fallback
+            $fallback,
+            app(\App\Services\Notifications\MailDeliveryRecorder::class),
+            new FakeSuppressionClient()
         );
 
         $result = $transport->send($this->buildMessage(withUnsRoute: true));
@@ -69,7 +78,9 @@ class UnsRoutingTransportTest extends TestCase
         $transport = new UnsRoutingTransport(
             $client,
             new FakeMapper(),
-            $fallback
+            $fallback,
+            app(\App\Services\Notifications\MailDeliveryRecorder::class),
+            new FakeSuppressionClient()
         );
 
         $email = $this->buildMessage(withUnsRoute: true);
@@ -84,8 +95,74 @@ class UnsRoutingTransportTest extends TestCase
         $this->assertSame(0, $client->sendCount);
     }
 
-    private function buildMessage(bool $withUnsRoute = false): RawMessage
+    public function test_it_withholds_a_blocked_recipient_without_calling_the_fallback(): void
     {
+        $fallback = new FakeFallbackTransport(shouldReturnSentMessage: true);
+        $suppression = new FakeSuppressionClient(blocked: true, reason: 'unsubscribed');
+        $transport = $this->transport($fallback, $suppression);
+
+        $result = $transport->send($this->buildMessage());
+
+        $this->assertInstanceOf(SentMessage::class, $result);
+        $this->assertSame(0, $fallback->sendCount);
+        $this->assertCount(1, $suppression->checked);
+        $this->assertSame(SuppressionClient::SCOPE_NON_TRANSACTIONAL, $suppression->checked[0][0]['scope']);
+    }
+
+    public function test_it_delivers_when_the_flag_is_off_and_records_would_have_blocked(): void
+    {
+        $fallback = new FakeFallbackTransport(shouldReturnSentMessage: true);
+        $suppression = new FakeSuppressionClient(blocked: false, wouldBlock: true, reason: 'unsubscribed');
+        $transport = $this->transport($fallback, $suppression);
+
+        $result = $transport->send($this->buildMessage());
+
+        $this->assertInstanceOf(SentMessage::class, $result);
+        $this->assertSame(1, $fallback->sendCount);
+    }
+
+    public function test_it_holds_non_transactional_mail_when_the_check_is_unavailable(): void
+    {
+        $fallback = new FakeFallbackTransport(shouldReturnSentMessage: true);
+        $suppression = new FakeSuppressionClient(unavailable: true);
+        $transport = $this->transport($fallback, $suppression);
+
+        $result = $transport->send($this->buildMessage());
+
+        $this->assertInstanceOf(SentMessage::class, $result);
+        $this->assertSame(0, $fallback->sendCount);
+    }
+
+    public function test_it_delivers_transactional_mail_when_the_check_is_unavailable(): void
+    {
+        $fallback = new FakeFallbackTransport(shouldReturnSentMessage: true);
+        $suppression = new FakeSuppressionClient(unavailable: true);
+        $transport = $this->transport($fallback, $suppression);
+
+        $result = $transport->send($this->buildMessage(category: MailCategory::TRANSACTIONAL));
+
+        $this->assertInstanceOf(SentMessage::class, $result);
+        $this->assertSame(1, $fallback->sendCount);
+        $this->assertSame(SuppressionClient::SCOPE_TRANSACTIONAL, $suppression->checked[0][0]['scope']);
+    }
+
+    private function transport(
+        FakeFallbackTransport $fallback,
+        FakeSuppressionClient $suppression,
+    ): UnsRoutingTransport {
+        return new UnsRoutingTransport(
+            new FakeUnsClient(true),
+            new FakeMapper(),
+            $fallback,
+            app(\App\Services\Notifications\MailDeliveryRecorder::class),
+            $suppression,
+        );
+    }
+
+    private function buildMessage(
+        bool $withUnsRoute = false,
+        ?string $category = null,
+    ): RawMessage {
         $email = (new Email())
             ->from('sender@test.local')
             ->to('recipient@test.local')
@@ -96,7 +173,45 @@ class UnsRoutingTransportTest extends TestCase
             $email->getHeaders()->addTextHeader('X-Uns-Route', 'true');
         }
 
+        if ($category !== null) {
+            MailCategory::attach($email, $category);
+        }
+
         return $email;
+    }
+}
+
+class FakeSuppressionClient extends SuppressionClient
+{
+    /** @var array<int, array<int, array{email?: string, phone?: string, scope: string}>> */
+    public array $checked = [];
+
+    public function __construct(
+        private readonly bool $blocked = false,
+        private readonly bool $wouldBlock = false,
+        private readonly bool $unavailable = false,
+        private readonly ?string $reason = null,
+    ) {}
+
+    public function checkBatch(array $items): array
+    {
+        $this->checked[] = $items;
+
+        return array_map(function (array $item): SuppressionCheckResult {
+            $scope = (string) ($item['scope'] ?? SuppressionClient::SCOPE_NON_TRANSACTIONAL);
+
+            if ($this->unavailable) {
+                return SuppressionCheckResult::unavailable($scope);
+            }
+
+            return new SuppressionCheckResult(
+                blocked: $this->blocked,
+                wouldBlock: $this->wouldBlock || $this->blocked,
+                unavailable: false,
+                scope: $scope,
+                reason: $this->reason,
+            );
+        }, $items);
     }
 }
 

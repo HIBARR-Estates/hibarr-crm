@@ -10,6 +10,7 @@ use Carbon\CarbonInterval;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -64,6 +65,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot()
     {
+        // Keep Vite's dev-server marker out of public/hot: Laravel Mix's mix()
+        // helper reads public/hot and would prefix Mix assets with the Vite URL.
+        Vite::useHotFile(public_path('vite-hot'));
+
         $this->app->extend('auth.password', function ($ignored, $app) {
             return new \App\Auth\Passwords\CustomPasswordBrokerManager($app);
         });
