@@ -3,6 +3,7 @@
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\ImageController;
+use App\Http\Controllers\KeycloakBackchannelLogoutController;
 use App\Http\Controllers\LoginController;
 
 use App\Http\Controllers\RegisterController;
@@ -85,6 +86,10 @@ Route::post('/consent/l/update/{lead}', [PublicLeadGdprController::class, 'updat
 // Socialite routes
 Route::get('/redirect/{provider}', [LoginController::class, 'redirect'])->name('social_login');
 Route::get('/callback/{provider}', [LoginController::class, 'callback'])->name('social_login_callback');
+// Keycloak OIDC back-channel logout (CSRF-exempt, see VerifyCsrfToken).
+Route::post('/sso/backchannel-logout', KeycloakBackchannelLogoutController::class)
+    ->middleware('throttle:60,1')
+    ->name('sso.backchannel_logout');
 Route::post('check-email', [LoginController::class, 'checkEmail'])->name('check_email');
 Route::post('check-code', [LoginController::class, 'checkCode'])->name('check_code');
 Route::get('resend-code', [LoginController::class, 'resendCode'])->name('resend_code');
