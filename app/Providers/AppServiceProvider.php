@@ -65,9 +65,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot()
     {
-        // Keep Vite's dev-server marker out of public/hot: Laravel Mix's mix()
-        // helper reads public/hot and would prefix Mix assets with the Vite URL.
-        Vite::useHotFile(public_path('vite-hot'));
+        
 
         $this->app->extend('auth.password', function ($ignored, $app) {
             return new \App\Auth\Passwords\CustomPasswordBrokerManager($app);
