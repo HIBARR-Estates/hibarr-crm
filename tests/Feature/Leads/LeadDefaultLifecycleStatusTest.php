@@ -93,6 +93,33 @@ class LeadDefaultLifecycleStatusTest extends TestCase
         $this->assertNull($this->statusOf($noDefault));
     }
 
+    public function test_backfill_keeps_a_status_a_user_deliberately_cleared(): void
+    {
+        $newId = $this->insertStatus(1, 'new');
+
+        $cleared = $this->insertLead(1, null);
+        $this->insertStatusChangeEvent($cleared);
+        $missing = $this->insertLead(1, null);
+
+        $this->backfill()->up();
+
+        $this->assertNull($this->statusOf($cleared));
+        $this->assertSame($newId, $this->statusOf($missing));
+    }
+
+    private function insertStatusChangeEvent(int $leadId): void
+    {
+        $typeId = DB::table('crm_event_types')->insertGetId([
+            'slug' => 'lead_lifecycle_status_changed',
+        ]);
+
+        DB::table('crm_events')->insert([
+            'event_type_id' => $typeId,
+            'model_type' => Lead::class,
+            'model_id' => $leadId,
+        ]);
+    }
+
     private function backfill(): Migration
     {
         return require database_path('migrations/2026_10_23_000001_backfill_default_lifecycle_status_on_leads.php');
@@ -125,6 +152,8 @@ class LeadDefaultLifecycleStatusTest extends TestCase
 
     private function dropSchema(): void
     {
+        Schema::dropIfExists('crm_events');
+        Schema::dropIfExists('crm_event_types');
         Schema::dropIfExists('leads');
         Schema::dropIfExists('lead_lifecycle_statuses');
     }
@@ -136,6 +165,18 @@ class LeadDefaultLifecycleStatusTest extends TestCase
             $table->unsignedInteger('company_id');
             $table->string('key');
             $table->string('label');
+        });
+
+        Schema::create('crm_event_types', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('slug');
+        });
+
+        Schema::create('crm_events', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('event_type_id');
+            $table->string('model_type')->nullable();
+            $table->unsignedInteger('model_id')->nullable();
         });
 
         Schema::create('leads', function (Blueprint $table) {
