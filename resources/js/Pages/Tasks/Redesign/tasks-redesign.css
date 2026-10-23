@@ -65,6 +65,148 @@
     background: var(--dr-surface-2);
 }
 
+/* Call banner — task detail modal, for call categories. Colours resolve to the
+   CRM design tokens (design-tokens.json); nothing is hardcoded here. */
+.task-call-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    margin-bottom: 20px;
+    background: var(--dr-blue-light);
+    border: 1px solid var(--dr-blue-mid);
+    border-radius: 12px;
+}
+
+.task-call-banner__icon {
+    width: 40px;
+    height: 40px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--dr-blue);
+    color: var(--dr-white);
+}
+
+.task-call-banner__text {
+    flex: 1;
+    min-width: 0;
+}
+
+.task-call-banner__title {
+    font-size: 15.5px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.task-call-banner__sub {
+    margin-top: 2px;
+    font-size: 12px;
+}
+
+.task-call-banner__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+}
+
+.task-call-banner__btn {
+    height: 40px;
+    padding: 0 18px;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid var(--dr-button-primary-bg);
+    border-radius: 8px;
+    background: var(--dr-button-primary-bg);
+    color: var(--dr-button-primary-text);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease;
+}
+
+.task-call-banner__btn:hover:not(:disabled) {
+    background: var(--dr-button-primary-hover-bg);
+    border-color: var(--dr-button-primary-hover-bg);
+}
+
+.task-call-banner__btn:focus-visible {
+    outline: 3px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+/* No phone on the lead — the reason is already in the sub line. */
+.task-call-banner__btn:disabled {
+    background: var(--dr-border);
+    border-color: var(--dr-border);
+    color: var(--dr-text-muted);
+    cursor: not-allowed;
+}
+
+/* Secondary action (Qualification) — outlined rather than filled, so "Call
+   now" stays the primary. */
+.task-call-banner__btn--secondary {
+    background: var(--dr-white);
+    border-color: var(--dr-blue-mid);
+    color: var(--dr-blue-dark);
+}
+
+.task-call-banner__btn--secondary:hover:not(:disabled) {
+    background: var(--dr-blue-light);
+    border-color: var(--dr-blue);
+}
+
+.task-call-banner__btn--secondary:disabled {
+    background: none;
+    border-color: var(--dr-border);
+    color: var(--dr-text-hint);
+}
+
+.task-call-banner__spinner {
+    width: 15px;
+    height: 15px;
+    flex: none;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: task-call-spin 0.7s linear infinite;
+}
+
+@keyframes task-call-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .task-call-banner__spinner {
+        animation-duration: 2s;
+    }
+}
+
+@media (max-width: 560px) {
+    .task-call-banner {
+        flex-wrap: wrap;
+    }
+
+    .task-call-banner__actions {
+        width: 100%;
+    }
+
+    .task-call-banner__btn {
+        flex: 1;
+        justify-content: center;
+    }
+}
+
 /* Board cards must never widen their column — long headings/descriptions are
    clamped rather than pushing the board into horizontal overflow. */
 .tasks-clamp-2,

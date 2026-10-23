@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\Company;
+use App\Models\UserPermission;
+use App\Observers\UserPermissionObserver;
 use Barryvdh\LaravelIdeHelper\IdeHelperServiceProvider;
 use Carbon\CarbonInterval;
 use Illuminate\Database\Eloquent\Model;
@@ -103,6 +105,8 @@ class AppServiceProvider extends ServiceProvider
         });
 
             //    Model::preventLazyLoading(app()->environment('development'));
+
+        UserPermission::observe(UserPermissionObserver::class);
 
     }
 
