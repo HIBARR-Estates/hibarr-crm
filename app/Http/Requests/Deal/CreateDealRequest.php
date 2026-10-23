@@ -166,7 +166,13 @@ class CreateDealRequest extends CoreRequest
             'preferred_contact_time' => ['nullable', 'string', Rule::in(PreferredContactTime::values())],
             'preferred_contact_times' => 'sometimes|nullable|array',
             'preferred_contact_times.*' => ['string', Rule::in(PreferredContactTime::values())],
-            'lead_lifecycle_status_id' => 'nullable|integer|exists:lead_lifecycle_statuses,id',
+            // Scoped to the caller's company: another company's status would be
+            // stored on the lead and never match that company's status filters.
+            'lead_lifecycle_status_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('lead_lifecycle_statuses', 'id')->where('company_id', $companyId),
+            ],
             'has_joined_the_whatsapp_group' => 'nullable|boolean',
 
             // Optional lead custom fields (separate from deal custom_fields below)

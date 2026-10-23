@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Leads;
 
+use App\Http\Requests\Contact\CreateOrUpdateContactRequest;
 use App\Models\Lead;
 use App\Services\LeadLifecycleStatusService;
 use Illuminate\Database\Migrations\Migration;
@@ -9,6 +10,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
 use Tests\TestCase;
 
 /**
@@ -105,6 +107,28 @@ class LeadDefaultLifecycleStatusTest extends TestCase
 
         $this->assertNull($this->statusOf($cleared));
         $this->assertSame($newId, $this->statusOf($missing));
+    }
+
+    public function test_contact_api_rejects_another_companys_lifecycle_status(): void
+    {
+        $own = $this->insertStatus(1, 'qualified');
+        $foreign = $this->insertStatus(2, 'qualified');
+
+        $this->assertTrue($this->contactStatusRulePasses($own, 1));
+        $this->assertFalse($this->contactStatusRulePasses($foreign, 1));
+    }
+
+    private function contactStatusRulePasses(int $statusId, int $companyId): bool
+    {
+        $request = CreateOrUpdateContactRequest::create('/api/contact/create', 'POST', [], [], [], [
+            'HTTP_X_COMPANY_ID' => (string) $companyId,
+        ]);
+        $rule = $request->rules()['lead_lifecycle_status_id'];
+
+        return Validator::make(
+            ['lead_lifecycle_status_id' => $statusId],
+            ['lead_lifecycle_status_id' => $rule],
+        )->passes();
     }
 
     private function insertStatusChangeEvent(int $leadId): void
