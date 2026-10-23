@@ -11,6 +11,7 @@ import {
     CheckSquareIcon,
 } from "../../Components/icons";
 import {
+    AuditOutlined,
     FileTextOutlined,
     BellOutlined,
     NotificationOutlined,
@@ -158,6 +159,16 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
                   },
               ]
             : []),
+        {
+            key: "audit-log",
+            icon: <AuditOutlined />,
+            iconBg: "bg-slate-100",
+            iconColor: "text-slate-600",
+            title: t("app.auditLog.title"),
+            description: t("app.auditLog.cardDesc"),
+            connected: true,
+            onOpen: () => router.visit(route("audit-log.index")),
+        },
         {
             key: "notes",
             icon: <FileTextOutlined />,
