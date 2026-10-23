@@ -7,20 +7,23 @@ import { fileURLToPath } from "url";
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(({ mode }) => {
-    // Mix inlines MIX_* via webpack DefinePlugin; Vite does not. Redesign
-    // pages (this pipeline) still read process.env.MIX_FILE_UPLOAD_* in
-    // getFileUploadConfig, so stamp those two keys at build time.
+    // Mix inlines every MIX_*-prefixed env var via webpack DefinePlugin
+    // automatically; Vite has no equivalent built-in behavior, so mirror it
+    // here by forwarding every MIX_* key from loadEnv. Several frontend
+    // modules (resources/js/lib/config.ts, lib/ai/geminiClient.ts) read
+    // process.env.MIX_* directly and need this to resolve under Vite too.
     const env = loadEnv(mode, process.cwd(), "");
+    const mixDefines = Object.fromEntries(
+        Object.entries(env)
+            .filter(([key]) => key.startsWith("MIX_"))
+            .map(([key, value]) => [
+                `process.env.${key}`,
+                JSON.stringify(value),
+            ]),
+    );
 
     return {
-        define: {
-            "process.env.MIX_FILE_UPLOAD_BASE_URL": JSON.stringify(
-                env.MIX_FILE_UPLOAD_BASE_URL || "",
-            ),
-            "process.env.MIX_FILE_UPLOAD_API_KEY": JSON.stringify(
-                env.MIX_FILE_UPLOAD_API_KEY || "",
-            ),
-        },
+        define: mixDefines,
         plugins: [
             laravel({
                 input: ["resources/js/inertia.tsx"],
