@@ -20,6 +20,7 @@ use App\Notifications\LeadOwnerAssigned;
 use App\Services\DealAgentAssignmentService;
 use App\Services\DealAutomationService;
 use App\Services\LeadCoreFieldsService;
+use App\Services\LeadLifecycleStatusService;
 use App\Services\LeadUtmService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -714,6 +715,7 @@ class DealContactApiController extends Controller
         $this->applyAddressAndDobToLead($contact, $request);
         $this->applyLeadOptionalFields($contact, $request);
         $this->applyReferralAgentToLead($contact, $request);
+        app(LeadLifecycleStatusService::class)->applyDefaultIfMissing($contact);
         $contact->saveQuietly();
         $this->applyLeadCustomFields($contact, $request);
 
@@ -734,6 +736,10 @@ class DealContactApiController extends Controller
      */
     private function saveContact(Lead $contact, Request $request, bool $notify): void
     {
+        if (! $contact->exists) {
+            app(LeadLifecycleStatusService::class)->applyDefaultIfMissing($contact);
+        }
+
         if (! $notify) {
             $contact->saveQuietly();
 

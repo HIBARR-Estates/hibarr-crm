@@ -67,14 +67,7 @@ class LeadObserver
             $leadContact->company_id = company()->id;
         }
 
-        if (! $leadContact->lead_lifecycle_status_id && $leadContact->company_id) {
-            $defaultStatus = app(LeadLifecycleStatusService::class)
-                ->resolveDefaultForCompany((int) $leadContact->company_id);
-
-            if ($defaultStatus) {
-                $leadContact->lead_lifecycle_status_id = $defaultStatus->id;
-            }
-        }
+        app(LeadLifecycleStatusService::class)->applyDefaultIfMissing($leadContact);
     }
 
     public function created(Lead $leadContact)
