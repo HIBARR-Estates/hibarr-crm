@@ -62,14 +62,10 @@ class LeadNoteController extends AccountBaseController
         $this->noteMembers = $this->note->members->pluck('user_id')->toArray();
         $this->employees = User::whereIn('id', $this->noteMembers)->get();
 
-        $viewClientNotePermission = user()->permission('view_lead_note');
-        $memberIds = $this->note->members->pluck('user_id')->toArray(); /** @phpstan-ignore-line */
-        abort_403(! ($viewClientNotePermission == 'all'
-            || ($viewClientNotePermission == 'added' && $this->note->added_by == user()->id)
-            || ($viewClientNotePermission == 'owned' && in_array(user()->id, $memberIds) && in_array('employee', user_roles()))
-            || ($viewClientNotePermission == 'both' && (in_array(user()->id, $memberIds) || $this->note->added_by == user()->id))
-        )
-        );
+        // Same rule the Lead page's notes list applies (LeadNote::isVisibleTo /
+        // scopeVisibleTo), so a note is never readable through one route and
+        // hidden through another.
+        abort_403(! $this->note->isVisibleTo(user()));
 
         $this->pageTitle = __('app.lead').' '.__('app.note');
         $this->view = 'lead-contact.notes.show';
@@ -162,13 +158,10 @@ class LeadNoteController extends AccountBaseController
         $this->pageTitle = __('app.editLeadNote');
 
         $this->note = LeadNote::findOrFail($id);
-        $editClientNotePermission = user()->permission('view_lead_note');
-        $memberIds = $this->note->members->pluck('user_id')->toArray(); /** @phpstan-ignore-line */
-        abort_403(! ($editClientNotePermission == 'all'
-            || ($editClientNotePermission == 'added' && user()->id == $this->note->added_by)
-            || ($editClientNotePermission == 'owned' && in_array(user()->id, $memberIds) && in_array('employee', user_roles()))
-            || ($editClientNotePermission == 'both' && ($this->note->added_by == user()->id || in_array(user()->id, $memberIds)))
-        ));
+        // Read scope first — the note has to be visible at all — then the
+        // write scope, which is `edit_lead_note` and governs who may change it.
+        abort_403(! $this->note->isVisibleTo(user()));
+        abort_403(! $this->note->isEditableBy(user()));
 
         $this->employees = User::allEmployees();
         /** @phpstan-ignore-next-line */
@@ -188,6 +181,10 @@ class LeadNoteController extends AccountBaseController
     public function update(StoreLeadNote $request, $id)
     {
         $note = LeadNote::findOrFail($id);
+        // Same two gates as edit(): the read scope, then the write scope.
+        abort_403(! $note->isVisibleTo(user()));
+        abort_403(! $note->isEditableBy(user()));
+
         $note->title = $request->filled('title') ? $request->title : null;
         $note->details = $request->details;
         // Preserve type/privacy when the redesign editor only sends title + details.

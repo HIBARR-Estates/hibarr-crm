@@ -141,6 +141,9 @@ class LeadSummaryService
                 'company_id' => $lead->company_id,
                 'entity_type' => EntityAiSummary::TYPE_LEAD,
                 'entity_id' => $lead->id,
+                // The summary is built from the viewer's visible records, so
+                // it is stored per viewer and never served to another.
+                'viewer_key' => $this->viewerKey(),
             ],
             [
                 'summary_json' => $summary,
@@ -154,12 +157,26 @@ class LeadSummaryService
         return $summary;
     }
 
+    /**
+     * The viewer a lead summary belongs to.
+     *
+     * The authenticated viewer's id, or an empty key for the background /
+     * system context that has no viewer. It is part of the summary's cache
+     * key, so a summary built from one viewer's visible records is never
+     * handed to another.
+     */
+    public function viewerKey(): string
+    {
+        return (string) (Auth::id() ?? '');
+    }
+
     protected function findRecord(Lead $lead): ?EntityAiSummary
     {
         return EntityAiSummary::query()
             ->where('company_id', $lead->company_id)
             ->where('entity_type', EntityAiSummary::TYPE_LEAD)
             ->where('entity_id', $lead->id)
+            ->where('viewer_key', $this->viewerKey())
             ->first();
     }
 
@@ -197,7 +214,9 @@ class LeadSummaryService
 
     private function lockKey(Lead $lead): string
     {
-        return 'entity-ai-summary:lead:'.$lead->id;
+        // Per viewer: each viewer has their own summary row, so one viewer's
+        // regeneration must not block another's.
+        return 'entity-ai-summary:lead:'.$lead->id.':viewer:'.$this->viewerKey();
     }
 
     /**
