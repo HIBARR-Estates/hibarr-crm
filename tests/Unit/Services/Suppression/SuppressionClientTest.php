@@ -66,6 +66,50 @@ class SuppressionClientTest extends TestCase
         $this->assertSame('bounced', $result->reason);
     }
 
+    public function test_missing_or_non_array_rows_are_treated_as_unavailable(): void
+    {
+        $this->configure();
+
+        Http::fake([
+            'https://ol.test/v1/suppression/check' => Http::response([
+                'success' => true,
+                'data' => [
+                    'items' => [
+                        [
+                            'email' => 'first@example.com',
+                            'scope' => 'non_transactional',
+                            'blocked' => false,
+                            'wouldBlock' => false,
+                        ],
+                        'not-an-array',
+                    ],
+                    'unavailable' => false,
+                    'enforced' => true,
+                ],
+            ], 200),
+        ]);
+
+        $results = (new SuppressionClient)->checkBatch([
+            ['email' => 'first@example.com', 'scope' => 'non_transactional'],
+            ['email' => 'second@example.com', 'scope' => 'non_transactional'],
+            ['email' => 'third@example.com', 'scope' => 'transactional'],
+        ]);
+
+        $this->assertFalse($results[0]->unavailable);
+        $this->assertFalse($results[0]->blocked);
+
+        // A non-array row and a missing row both fail closed for
+        // non-transactional checks.
+        $this->assertTrue($results[1]->unavailable);
+        $this->assertTrue($results[1]->blocked);
+        $this->assertSame('unavailable', $results[1]->reason);
+
+        // Transactional mail is still allowed under the outage policy.
+        $this->assertTrue($results[2]->unavailable);
+        $this->assertFalse($results[2]->blocked);
+        $this->assertSame('unavailable', $results[2]->reason);
+    }
+
     public function test_an_unreachable_check_holds_non_transactional_and_allows_transactional(): void
     {
         Config::set('services.ol.base_url', '');

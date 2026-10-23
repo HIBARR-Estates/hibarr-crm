@@ -165,7 +165,16 @@ class SuppressionClient
 
         foreach (array_values($items) as $index => $item) {
             $scope = (string) ($item['scope'] ?? self::SCOPE_NON_TRANSACTIONAL);
-            $row = is_array($rows[$index] ?? null) ? $rows[$index] : [];
+            $row = $rows[$index] ?? null;
+
+            if (! is_array($row)) {
+                // A response that omits a requested item is not a clean
+                // "not suppressed" answer; apply the same outage policy as a
+                // failed request instead of allowing the send.
+                $results[] = SuppressionCheckResult::unavailable($scope);
+
+                continue;
+            }
 
             $wouldBlock = (bool) ($row['wouldBlock'] ?? $row['blocked'] ?? false);
             $reason = $row['suppression']['reason'] ?? null;

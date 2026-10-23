@@ -27,7 +27,7 @@ return new class extends Migration
             }
 
             if (! Schema::hasColumn('email_delivery_logs', 'suppression_reason')) {
-                $table->string('suppression_reason', 32)->nullable()->after('suppression_status');
+                $table->string('suppression_reason', 191)->nullable()->after('suppression_status');
             }
 
             if (! Schema::hasColumn('email_delivery_logs', 'suppression_scope')) {

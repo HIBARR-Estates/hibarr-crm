@@ -308,8 +308,16 @@ class UnsRoutingTransport implements TransportInterface
 
         $this->recorder->record($correlationId, $outcome);
 
+        $logOutcome = $outcome;
+
+        // `suppression_reason` is a 191-character column. Cap only the DB
+        // copy: the in-process recorder keeps the original outcome.
+        if (isset($logOutcome['suppression_reason']) && is_string($logOutcome['suppression_reason'])) {
+            $logOutcome['suppression_reason'] = mb_substr($logOutcome['suppression_reason'], 0, 191);
+        }
+
         try {
-            EmailDeliveryLog::create($outcome + [
+            EmailDeliveryLog::create($logOutcome + [
                 'company_id' => $context['company_id'] ?? null,
                 'sent_at' => now(),
             ]);

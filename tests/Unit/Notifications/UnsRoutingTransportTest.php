@@ -3,6 +3,7 @@
 namespace Tests\Unit\Notifications;
 
 use App\Services\Notifications\MailCategory;
+use App\Services\Notifications\MailDeliveryContext;
 use App\Services\Notifications\UnsClient;
 use App\Services\Notifications\UnsEmailPayloadMapper;
 use App\Services\Notifications\UnsRoutingTransport;
@@ -107,6 +108,32 @@ class UnsRoutingTransportTest extends TestCase
         $this->assertSame(0, $fallback->sendCount);
         $this->assertCount(1, $suppression->checked);
         $this->assertSame(SuppressionClient::SCOPE_NON_TRANSACTIONAL, $suppression->checked[0][0]['scope']);
+    }
+
+    public function test_it_keeps_the_original_suppression_reason_for_the_caller(): void
+    {
+        $reason = str_repeat('x', 250);
+        $fallback = new FakeFallbackTransport(shouldReturnSentMessage: true);
+        $suppression = new FakeSuppressionClient(blocked: true, reason: $reason);
+        $recorder = app(\App\Services\Notifications\MailDeliveryRecorder::class);
+        $transport = new UnsRoutingTransport(
+            new FakeUnsClient(true),
+            new FakeMapper(),
+            $fallback,
+            $recorder,
+            $suppression,
+        );
+
+        $message = $this->buildMessage();
+        $this->assertInstanceOf(Email::class, $message);
+        MailDeliveryContext::attach($message, ['correlation_id' => 'suppression-reason-test']);
+
+        $transport->send($message);
+
+        $outcome = $recorder->pull('suppression-reason-test');
+
+        $this->assertIsArray($outcome);
+        $this->assertSame($reason, $outcome['suppression_reason']);
     }
 
     public function test_it_delivers_when_the_flag_is_off_and_records_would_have_blocked(): void
