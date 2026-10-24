@@ -40,7 +40,17 @@ class AuditRecorder
 
     private const REDACTED = '[redacted]';
 
-    /** Whether `audit_logs` exists, per connection name ('' for the default). */
+    /** Seconds before a "table missing" answer is checked again. */
+    private const MISSING_TABLE_RECHECK_SECONDS = 60;
+
+    /**
+     * Whether `audit_logs` exists, per connection name ('' for the default):
+     * true, or the unix time it was found missing. A missing table is checked
+     * again later, so a long-running worker that booted before the migration
+     * starts recording once it has run.
+     *
+     * @var array<string, true|int>
+     */
     private array $tableReady = [];
 
     private bool $failureReported = false;
@@ -340,7 +350,7 @@ class AuditRecorder
         try {
             DB::connection($connection)->table(self::TABLE)->insert($row);
         } catch (Throwable $e) {
-            // Table dropped or not migrated on this connection: stop trying.
+            // Table dropped or not migrated on this connection: pause until the next re-check.
             unset($this->tableReady[$connection ?? '']);
             $this->tableReady($connection);
 
@@ -375,11 +385,20 @@ class AuditRecorder
     {
         $key = $connection ?? '';
 
-        if (! array_key_exists($key, $this->tableReady)) {
-            $this->tableReady[$key] = (bool) $this->safely(fn () => Schema::connection($connection)->hasTable(self::TABLE));
+        $cached = $this->tableReady[$key] ?? null;
+
+        if ($cached === true) {
+            return true;
         }
 
-        return $this->tableReady[$key];
+        if (is_int($cached) && now()->getTimestamp() - $cached < self::MISSING_TABLE_RECHECK_SECONDS) {
+            return false;
+        }
+
+        $exists = (bool) $this->safely(fn () => Schema::connection($connection)->hasTable(self::TABLE));
+        $this->tableReady[$key] = $exists ?: now()->getTimestamp();
+
+        return $exists;
     }
 
     private function isSkippedCommand(): bool

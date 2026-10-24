@@ -129,6 +129,19 @@ class AuditRecorderTest extends TestCase
         $this->assertSame(0, AuditLog::count());
     }
 
+    public function test_recording_resumes_once_a_missing_table_is_migrated(): void
+    {
+        Schema::drop('audit_logs');
+        AuditWidget::create(['name' => 'Before migration']);
+
+        (require base_path('database/migrations/2026_10_23_000002_create_audit_logs_table.php'))->up();
+        $this->travel(61)->seconds();
+
+        AuditWidget::create(['name' => 'After migration']);
+
+        $this->assertSame(['After migration'], AuditLog::pluck('auditable_label')->all());
+    }
+
     public function test_a_broken_audit_table_never_breaks_the_write(): void
     {
         AuditWidget::create(['name' => 'Alpha']);
