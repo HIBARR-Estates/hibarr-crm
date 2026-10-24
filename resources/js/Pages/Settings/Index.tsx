@@ -56,8 +56,7 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
     };
     const automationV2Enabled =
         pageProps.featureFlags?.["crm.automation-v2"] === true;
-    const softphoneEnabled =
-        pageProps.featureFlags?.["shared.softphone"] === true;
+    const softphoneEnabled = pageProps.featureFlags?.["crm.softphone"] === true;
 
     const cards: EntitySettingCard[] = [
         {
@@ -311,7 +310,6 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
             >
                 <TaskCategoryManager />
             </Drawer>
-
         </PageLayout>
     );
 }
