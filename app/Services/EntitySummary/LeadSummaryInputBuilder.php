@@ -7,7 +7,10 @@ use App\Models\Deal;
 use App\Models\DealFollowUp;
 use App\Models\Lead;
 use App\Models\LeadNote;
+use App\Models\User;
+use App\Services\PermissionService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class LeadSummaryInputBuilder
 {
@@ -76,7 +79,13 @@ class LeadSummaryInputBuilder
             $sections['personal_details'] = $personal;
         }
 
-        $deals = Deal::where('lead_id', $lead->id)->get();
+        // The summary is rendered to the viewer, so it must only be built from
+        // records that viewer may read: a Deal carries its own `view_deals`
+        // scope and a Note its own `view_lead_note` scope, and a summary that
+        // quotes a record the viewer cannot open leaks its content.
+        $viewer = Auth::user();
+
+        $deals = $this->visibleDeals($lead, $viewer);
         if ($deals->isNotEmpty()) {
             $sections['deals'] = $deals
                 ->map(fn (Deal $deal) => $this->dealSnapshotService->getOrGenerate($deal))
@@ -118,6 +127,7 @@ class LeadSummaryInputBuilder
         }
 
         $notes = LeadNote::where('lead_id', $lead->id)
+            ->when($viewer !== null, fn ($query) => $query->visibleTo($viewer))
             ->with('addedBy:id,name')
             ->orderByDesc('created_at')
             ->limit(10)
@@ -146,6 +156,42 @@ class LeadSummaryInputBuilder
         return $payload;
     }
 
+    /**
+     * The lead's deals the given viewer may read.
+     *
+     * Mirrors the per-instance check the direct Deal page runs, so a summary
+     * never quotes a deal the viewer cannot open.
+     *
+     * @return \Illuminate\Support\Collection<int, Deal>
+     */
+    private function visibleDeals(Lead $lead, ?User $viewer)
+    {
+        $deals = Deal::where('lead_id', $lead->id)->get();
+
+        if ($viewer === null) {
+            // No viewer context (background/system generation) — keep the
+            // unscoped behaviour rather than silently dropping every deal.
+            return $deals;
+        }
+
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+        ];
+
+        return $deals
+            ->filter(fn (Deal $deal) => PermissionService::checkAccess($viewer, 'view_deals', $deal, $dealRules)['canAccess'])
+            ->values();
+    }
+
+    /**
+     * The fingerprint of the input a summary was built from.
+     *
+     * It carries the viewer, because the input is viewer-scoped: the same
+     * lead yields a different input — and therefore a different summary — for
+     * a viewer with a different set of visible deals and notes. Without it a
+     * summary built for one viewer would look current to another.
+     */
     public function inputHash(Lead $lead): string
     {
         $fingerprint = [
@@ -155,6 +201,8 @@ class LeadSummaryInputBuilder
             'lead_owner' => $lead->lead_owner,
             'source_id' => $lead->source_id,
             'category_id' => $lead->category_id,
+            // The viewer the input was scoped to.
+            'viewer' => (string) (Auth::id() ?? ''),
             'deals_count' => Deal::where('lead_id', $lead->id)->count(),
             'deals_max_updated_at' => Deal::where('lead_id', $lead->id)->max('updated_at'),
             'notes_count' => LeadNote::where('lead_id', $lead->id)->count(),

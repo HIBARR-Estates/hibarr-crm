@@ -320,24 +320,38 @@ class BaseNotification extends Notification implements ShouldQueue
             return null;
         }
 
-        $entityType = $entity instanceof \App\Models\Deal
-            ? \App\Models\EntityAiSummary::TYPE_DEAL
-            : \App\Models\EntityAiSummary::TYPE_LEAD;
+        if ($entity instanceof \App\Models\Deal) {
+            // Deal summaries are shared.
+            return $this->aiSummarySnippetFor((int) $companyId, \App\Models\EntityAiSummary::TYPE_DEAL, (int) $entityId, $maxLength);
+        }
 
-        return $this->aiSummarySnippetFor((int) $companyId, $entityType, (int) $entityId, $maxLength);
+        // A lead summary belongs to the viewer it was built for.
+        return $this->aiSummarySnippetFor(
+            (int) $companyId,
+            \App\Models\EntityAiSummary::TYPE_LEAD,
+            (int) $entityId,
+            $maxLength,
+            (string) (\Illuminate\Support\Facades\Auth::id() ?? '')
+        );
     }
 
     /**
      * Fetch only status_line (capped in SQL) — never the full summary_json blob.
+     *
+     * `$viewerKey` selects the summary row: a lead summary is built from the
+     * viewer's visible records and is stored per viewer, so the reader's own
+     * row is the only one that may be quoted. An empty key is the shared /
+     * system row (the deal summaries).
      */
-    protected function aiSummarySnippetFor(int $companyId, string $entityType, int $entityId, int $maxLength = 110): ?string
+    protected function aiSummarySnippetFor(int $companyId, string $entityType, int $entityId, int $maxLength = 110, string $viewerKey = ''): ?string
     {
         try {
             $driver = \App\Models\EntityAiSummary::query()->getConnection()->getDriverName();
             $query = \App\Models\EntityAiSummary::query()
                 ->where('company_id', $companyId)
                 ->where('entity_type', $entityType)
-                ->where('entity_id', $entityId);
+                ->where('entity_id', $entityId)
+                ->where('viewer_key', $viewerKey);
 
             if (in_array($driver, ['mysql', 'mariadb'], true)) {
                 $statusLine = $query->value(\Illuminate\Support\Facades\DB::raw(
