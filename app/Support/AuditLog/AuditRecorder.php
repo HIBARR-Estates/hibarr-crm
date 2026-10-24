@@ -40,7 +40,8 @@ class AuditRecorder
 
     private const REDACTED = '[redacted]';
 
-    private ?bool $tableReady = null;
+    /** Whether `audit_logs` exists, per connection name ('' for the default). */
+    private array $tableReady = [];
 
     private bool $failureReported = false;
 
@@ -340,7 +341,7 @@ class AuditRecorder
             DB::connection($connection)->table(self::TABLE)->insert($row);
         } catch (Throwable $e) {
             // Table dropped or not migrated on this connection: stop trying.
-            $this->tableReady = null;
+            unset($this->tableReady[$connection ?? '']);
             $this->tableReady($connection);
 
             throw $e;
@@ -372,11 +373,13 @@ class AuditRecorder
 
     private function tableReady(?string $connection): bool
     {
-        if ($this->tableReady === null) {
-            $this->tableReady = (bool) $this->safely(fn () => Schema::connection($connection)->hasTable(self::TABLE));
+        $key = $connection ?? '';
+
+        if (! array_key_exists($key, $this->tableReady)) {
+            $this->tableReady[$key] = (bool) $this->safely(fn () => Schema::connection($connection)->hasTable(self::TABLE));
         }
 
-        return $this->tableReady;
+        return $this->tableReady[$key];
     }
 
     private function isSkippedCommand(): bool

@@ -42,17 +42,14 @@ class AuditLog extends Model
     ];
 
     /**
-     * Rows visible to a company: its own, plus system rows recorded with no
-     * company (e.g. a failed sign-in for an unknown email).
+     * Rows visible to a company: only its own. Rows recorded with no company
+     * (e.g. a failed sign-in for an unknown email) can't be attributed to a
+     * tenant, so they are shown only where there is no company context.
      */
     public function scopeVisibleToCompany(Builder $query, ?int $companyId): Builder
     {
-        return $query->where(function (Builder $q) use ($companyId) {
-            $q->whereNull('company_id');
-
-            if ($companyId) {
-                $q->orWhere('company_id', $companyId);
-            }
-        });
+        return $companyId
+            ? $query->where('company_id', $companyId)
+            : $query->whereNull('company_id');
     }
 }

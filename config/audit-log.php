@@ -64,16 +64,16 @@ return [
 
     /*
      * Attributes whose value is replaced with "[redacted]". Matched against
-     * the attribute name case-insensitively, as a substring.
+     * the attribute name case-insensitively, as a substring. `_key` covers
+     * api/private/access keys and payment gateway keys (paystack_key,
+     * live_razorpay_key, ...), at the cost of also hiding harmless *_key columns.
      */
     'redacted_attributes' => [
         'password',
         'secret',
         'token',
         'two_factor',
-        'api_key',
-        'private_key',
-        'access_key',
+        '_key',
     ],
 
     /* Longest stored value per attribute; longer strings are truncated. */

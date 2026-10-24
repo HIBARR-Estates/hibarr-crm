@@ -29,6 +29,7 @@ class AuditRecorderTest extends TestCase
             $table->string('status')->nullable();
             $table->string('password')->nullable();
             $table->string('pin_code')->nullable();
+            $table->string('paystack_key')->nullable();
             $table->timestamp('read_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
@@ -46,7 +47,7 @@ class AuditRecorderTest extends TestCase
 
     public function test_create_records_new_values_with_secrets_redacted(): void
     {
-        $widget = AuditWidget::create(['company_id' => 7, 'name' => 'Alpha', 'password' => 'hunter2', 'pin_code' => '1234']);
+        $widget = AuditWidget::create(['company_id' => 7, 'name' => 'Alpha', 'password' => 'hunter2', 'pin_code' => '1234', 'paystack_key' => 'pk_live_x']);
 
         $log = AuditLog::sole();
         $this->assertSame('created', $log->event);
@@ -57,6 +58,7 @@ class AuditRecorderTest extends TestCase
         $this->assertSame('Alpha', $log->new_values['name']);
         $this->assertSame('[redacted]', $log->new_values['password']);
         $this->assertSame('[redacted]', $log->new_values['pin_code'], 'hidden attributes are redacted');
+        $this->assertSame('[redacted]', $log->new_values['paystack_key']);
         $this->assertArrayNotHasKey('created_at', $log->new_values);
         $this->assertNull($log->old_values);
         $this->assertSame('console', $log->source);

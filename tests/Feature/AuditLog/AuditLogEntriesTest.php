@@ -26,9 +26,11 @@ class AuditLogEntriesTest extends TestCase
         $this->row(['company_id' => 1, 'user_id' => 10, 'user_name' => 'Ada', 'event' => 'created', 'auditable_type' => 'App\\Models\\Deal', 'auditable_id' => '5', 'auditable_label' => 'Villa deal', 'created_at' => '2026-10-01 09:00:00']);
         $this->row(['company_id' => 1, 'user_id' => 11, 'user_name' => 'Bo', 'event' => 'updated', 'auditable_type' => 'App\\Models\\Lead', 'auditable_id' => '9', 'auditable_label' => 'Jane Doe', 'created_at' => '2026-10-05 09:00:00']);
         $this->row(['company_id' => 1, 'user_id' => null, 'event' => 'deleted', 'auditable_type' => 'App\\Models\\Lead', 'auditable_id' => '9', 'source' => 'queue', 'created_at' => '2026-10-10 09:00:00']);
+        $this->row(['company_id' => null, 'user_id' => null, 'event' => 'login_failed', 'auditable_type' => 'App\\Models\\User', 'auditable_label' => 'typo@example.test', 'created_at' => '2026-10-07 09:00:00']);
         $this->row(['company_id' => 2, 'user_id' => 12, 'user_name' => 'Other co', 'event' => 'created', 'auditable_type' => 'App\\Models\\Deal', 'auditable_id' => '77', 'created_at' => '2026-10-06 09:00:00']);
     }
 
+    /** Rows with no company can't be attributed to a tenant, so no company sees them. */
     public function test_only_the_current_company_is_listed_newest_first(): void
     {
         $data = $this->entries();
