@@ -34,7 +34,7 @@ export default function ClickToCallButton({
     const { t } = useTranslation();
     const { props } = usePage();
     const { isEnabled: olEnabled, initiateCall, isCalling } = useClickToCall();
-    const softphoneEnabled = props.featureFlags?.["shared.softphone"] === true;
+    const softphoneEnabled = props.featureFlags?.["crm.softphone"] === true;
     const permissionValue = props.auth?.permissions?.make_softphone_calls;
     const hasCallPermission = permissionValue === "all";
     const [dialing, setDialing] = useState(false);
@@ -78,7 +78,9 @@ export default function ClickToCallButton({
     if ((!useSoftphonePath && !olEnabled) || !trimmedPhone) {
         return null;
     }
-    const loading = useSoftphonePath ? dialing : isCalling(trimmedPhone, entity);
+    const loading = useSoftphonePath
+        ? dialing
+        : isCalling(trimmedPhone, entity);
     const cooldownSuffix = cooling ? ` (${coolingRemaining}s)` : "";
 
     const handleClick = () => {
@@ -125,9 +127,7 @@ export default function ClickToCallButton({
                 .catch((error: unknown) => {
                     const detail =
                         error instanceof Error ? error.message?.trim() : "";
-                    message.error(
-                        detail || t("pages.telephony.generic_error"),
-                    );
+                    message.error(detail || t("pages.telephony.generic_error"));
                     if (
                         detail &&
                         (detail.includes("603") ||
@@ -154,7 +154,7 @@ export default function ClickToCallButton({
                 <PhoneOutlined className="mr-1" />
                 {cooling
                     ? `${label ?? t("pages.telephony.call")}${cooldownSuffix}`
-                    : label ?? t("pages.telephony.call")}
+                    : (label ?? t("pages.telephony.call"))}
             </button>
         );
     }

@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 /**
  * CRUD for the browser softphone's device lines (one per sipgate Neo channel,
  * e.g. German + Swedish). Reads (list/credentials) are open to any company
- * user behind the shared.softphone flag so the dock can list + register a
+ * user behind the crm.softphone flag so the dock can list + register a
  * line; writes are admin-only. Credentials are encrypted at rest.
  */
 class TelephonySoftphoneDeviceController extends AccountBaseController
@@ -208,7 +208,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
 
     private function assertSoftphoneEnabled(): void
     {
-        abort_unless(FeatureFlags::enabled('shared.softphone'), 404);
+        abort_unless(FeatureFlags::enabled('crm.softphone'), 404);
     }
 
     private function assertCanManage(): void
