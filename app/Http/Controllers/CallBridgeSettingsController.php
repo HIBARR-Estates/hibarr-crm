@@ -15,7 +15,7 @@ class CallBridgeSettingsController extends AccountBaseController
 {
     public function page(): Response
     {
-        abort_unless(FeatureFlags::enabled('shared.softphone'), 404);
+        abort_unless(FeatureFlags::enabled('crm.softphone'), 404);
 
         return Inertia::render('Settings/CallBridge', [
             'pageTitle' => 'Call Bridge',

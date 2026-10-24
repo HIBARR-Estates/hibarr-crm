@@ -11,6 +11,7 @@ import {
     CheckSquareIcon,
 } from "../../Components/icons";
 import {
+    AuditOutlined,
     FileTextOutlined,
     BellOutlined,
     NotificationOutlined,
@@ -56,8 +57,7 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
     };
     const automationV2Enabled =
         pageProps.featureFlags?.["crm.automation-v2"] === true;
-    const softphoneEnabled =
-        pageProps.featureFlags?.["shared.softphone"] === true;
+    const softphoneEnabled = pageProps.featureFlags?.["crm.softphone"] === true;
 
     const cards: EntitySettingCard[] = [
         {
@@ -158,6 +158,16 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
                   },
               ]
             : []),
+        {
+            key: "audit-log",
+            icon: <AuditOutlined />,
+            iconBg: "bg-slate-100",
+            iconColor: "text-slate-600",
+            title: t("app.auditLog.title"),
+            description: t("app.auditLog.cardDesc"),
+            connected: true,
+            onOpen: () => router.visit(route("audit-log.index")),
+        },
         {
             key: "notes",
             icon: <FileTextOutlined />,
@@ -311,7 +321,6 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
             >
                 <TaskCategoryManager />
             </Drawer>
-
         </PageLayout>
     );
 }

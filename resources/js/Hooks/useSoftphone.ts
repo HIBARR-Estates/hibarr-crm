@@ -18,7 +18,7 @@ import type {
     SoftphoneState,
 } from "@/Types/api/softphone";
 
-const FEATURE_FLAG = "shared.softphone";
+const FEATURE_FLAG = "crm.softphone";
 const ACTIVE_DEVICE_KEY = "softphone.active_device_id";
 
 function readStoredDeviceId(): number | null {
@@ -47,7 +47,9 @@ export default function useSoftphone() {
     const { props } = usePage();
     const isEnabled = props.featureFlags?.[FEATURE_FLAG] === true;
     const [devices, setDevices] = useState<SoftphoneDeviceSummary[]>([]);
-    const [activeDeviceId, setActiveDeviceIdState] = useState<number | null>(null);
+    const [activeDeviceId, setActiveDeviceIdState] = useState<number | null>(
+        null,
+    );
     const [configLoaded, setConfigLoaded] = useState(false);
     // Only the tab holding the cross-tab lease registers a SIP agent. Other
     // tabs mirror the call so they never ring or race the owning tab.
@@ -62,9 +64,9 @@ export default function useSoftphone() {
 
     // Mirror the owning tab's call into passive tabs so they can display it
     // without registering or ringing themselves.
-    const [mirroredCall, setMirroredCall] = useState<SoftphoneState["call"] | null>(
-        null,
-    );
+    const [mirroredCall, setMirroredCall] = useState<
+        SoftphoneState["call"] | null
+    >(null);
 
     // Owner broadcasts its current call so other tabs stay in sync.
     useEffect(() => {
@@ -80,7 +82,9 @@ export default function useSoftphone() {
             return;
         }
         axios
-            .get<SoftphoneDevicesResponse>(route("telephony.softphone.devices.index"))
+            .get<SoftphoneDevicesResponse>(
+                route("telephony.softphone.devices.index"),
+            )
             .then((response) => {
                 setDevices(response.data?.data?.devices ?? []);
             })
@@ -160,7 +164,9 @@ export default function useSoftphone() {
 
         axios
             .get<SoftphoneDeviceCredentialsResponse>(
-                route("telephony.softphone.devices.credentials", { id: device.id }),
+                route("telephony.softphone.devices.credentials", {
+                    id: device.id,
+                }),
             )
             .then(async (response) => {
                 if (cancelled) {
@@ -207,7 +213,10 @@ export default function useSoftphone() {
         },
         [isActiveTab],
     );
-    const clearCallFailure = useCallback(() => softphone.clearCallFailure(), []);
+    const clearCallFailure = useCallback(
+        () => softphone.clearCallFailure(),
+        [],
+    );
     const answer = useCallback(async () => {
         if (!isActiveTab) return;
         await softphone.answer();
@@ -220,7 +229,10 @@ export default function useSoftphone() {
         if (!isActiveTab) return;
         await softphone.hangup();
     }, [isActiveTab]);
-    const setMuted = useCallback((muted: boolean) => softphone.setMuted(muted), []);
+    const setMuted = useCallback(
+        (muted: boolean) => softphone.setMuted(muted),
+        [],
+    );
     const setHold = useCallback((hold: boolean) => softphone.setHold(hold), []);
 
     const activeDevice = useMemo(

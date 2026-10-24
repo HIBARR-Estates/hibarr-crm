@@ -16,7 +16,7 @@ use Illuminate\Http\Request;
  * fallback window. Membership is managed per line: one row per
  * (device_id, user_id).
  *
- * Reads are open to any company user behind the shared.softphone flag so the
+ * Reads are open to any company user behind the crm.softphone flag so the
  * dock can resolve the ring list. Writes are admin-only.
  */
 class TelephonySoftphoneCallPoolController extends AccountBaseController
@@ -38,7 +38,7 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
             ->orderBy('priority')
             ->orderBy('id')
             ->get()
-            ->map(fn (SoftphoneCallPoolAgent $agent) => [
+            ->map(fn(SoftphoneCallPoolAgent $agent) => [
                 'id' => $agent->id,
                 'user_id' => $agent->user_id,
                 'name' => $agent->user?->name,
@@ -64,7 +64,7 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
             'data' => [
                 'users' => SoftphoneCallPoolAgent::eligibleUsersForCompany(
                     (int) company()->id
-                )->map(fn ($user) => [
+                )->map(fn($user) => [
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
@@ -170,7 +170,7 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
 
     private function assertSoftphoneEnabled(): void
     {
-        abort_unless(FeatureFlags::enabled('shared.softphone'), 404);
+        abort_unless(FeatureFlags::enabled('crm.softphone'), 404);
     }
 
     /** Admin-only, consistent with how call/agent configuration is treated. */
