@@ -174,6 +174,7 @@ class Kernel extends ConsoleKernel
         // Trims email_delivery_logs (see config/mail.php delivery_log_retention_days).
         $schedule->command('model:prune', ['--model' => [\App\Models\EmailDeliveryLog::class]])->dailyAt('02:45');
         $schedule->command('crm:archive-events --sync')->dailyAt('03:00');
+        $schedule->command('audit-log:prune')->dailyAt('03:15');
         $schedule->command('inactive-employee')->dailyAt('02:50');
         $schedule->command('daily-schedule-reminder')->daily();
         $schedule->command('assign-shift-rotation')->dailyAt('00:01');
