@@ -9,6 +9,7 @@ use App\Email\Http\Middleware\EnsureEmailPilot;
 use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\AttendanceSettingController;
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AutomationSettingController;
 use App\Http\Controllers\BusinessAddressController;
 use App\Http\Controllers\ContractSettingController;
@@ -104,6 +105,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::post('leads/statuses', [LeadSettingsHubController::class, 'storeStatus'])->name('settings-leads.statuses.store');
     Route::put('leads/statuses/{status}', [LeadSettingsHubController::class, 'updateStatus'])->name('settings-leads.statuses.update');
     Route::delete('leads/statuses/{status}', [LeadSettingsHubController::class, 'destroyStatus'])->name('settings-leads.statuses.destroy');
+
+    /* Audit log — every recorded write and sign-in event (admin-only) */
+    Route::get('audit-log', [AuditLogController::class, 'index'])->name('audit-log.index');
+    Route::get('audit-log/entries', [AuditLogController::class, 'entries'])->name('audit-log.entries');
 
     /* Automation settings — email templates + trigger-based automations */
     Route::get('automation', [AutomationSettingController::class, 'index'])->name('settings-automation.index');

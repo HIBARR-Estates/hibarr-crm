@@ -128,7 +128,7 @@ const DashboardLayoutInner: React.FC<{
             </main>
 
             {/* In-browser softphone (sipgate Neo) — self-gated by the
-                shared.softphone feature flag; renders nothing when off. */}
+                crm.softphone feature flag; renders nothing when off. */}
             <SoftphoneDock />
         </div>
     );

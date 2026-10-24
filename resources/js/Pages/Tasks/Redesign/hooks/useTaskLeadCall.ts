@@ -8,9 +8,7 @@ import { resolveLeadPhoneDisplay } from "@/lib/utils";
 import type { Task } from "@/Types/Task";
 
 /** The lead shape the quick-action needs, from either link path. */
-export type TaskActionLead = NonNullable<
-    NonNullable<Task["leads"]>[number]
-> &
+export type TaskActionLead = NonNullable<NonNullable<Task["leads"]>[number]> &
     Partial<NonNullable<NonNullable<Task["deals"]>[number]["lead"]>>;
 
 export interface TaskLeadCall {
@@ -43,7 +41,7 @@ export interface TaskLeadCall {
  */
 export default function useTaskLeadCall(task: Task): TaskLeadCall {
     const { props } = usePage();
-    const softphoneEnabled = props.featureFlags?.["shared.softphone"] === true;
+    const softphoneEnabled = props.featureFlags?.["crm.softphone"] === true;
     const clickToCall = useClickToCall();
     const [calling, setCalling] = useState(false);
 
@@ -64,8 +62,7 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
 
     // Mirrors ClickToCallButton: the softphone needs make_softphone_calls;
     // without it the button falls back to the device dialler.
-    const canCall =
-        props.auth?.permissions?.make_softphone_calls === "all";
+    const canCall = props.auth?.permissions?.make_softphone_calls === "all";
 
     const startCall = useCallback(async () => {
         if (!lead) return;
@@ -96,7 +93,9 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
             return;
         }
         if (softphone.getState().registration !== "registered") {
-            message.warning("Softphone is not registered — pick a line in the dock.");
+            message.warning(
+                "Softphone is not registered — pick a line in the dock.",
+            );
             return;
         }
 
