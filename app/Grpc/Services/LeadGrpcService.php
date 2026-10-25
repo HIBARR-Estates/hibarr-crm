@@ -169,6 +169,14 @@ class LeadGrpcService implements LeadServiceInterface
                 }
             }
 
+            // Source and owner are owned by the CRM once set: callers may fill them
+            // when empty but never overwrite an existing value.
+            foreach (['source_id', 'lead_owner'] as $column) {
+                if ($lead->$column) {
+                    unset($data[$column]);
+                }
+            }
+
             DB::beginTransaction();
             try {
                 $lead->fill($data);
