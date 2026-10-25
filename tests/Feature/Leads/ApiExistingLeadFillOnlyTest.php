@@ -2,16 +2,21 @@
 
 namespace Tests\Feature\Leads;
 
+use App\Grpc\Generated\Lead\UpdateLeadRequest;
+use App\Grpc\Services\LeadGrpcService;
 use App\Http\Controllers\Api\DealContactApiController;
 use App\Models\Lead;
+use App\Observers\LeadObserver;
 use App\Services\CrmEventService;
 use App\Services\DealAutomationService;
 use App\Services\LeadApiChangeRecorder;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
+use Spiral\RoadRunner\GRPC\Context;
 use Tests\LeadCoreFieldsTestCase;
 
 /**
@@ -73,7 +78,6 @@ class ApiExistingLeadFillOnlyTest extends LeadCoreFieldsTestCase
             'city' => 'Berlin',
             'date_of_birth' => '1990-01-01',
             'nationality' => 'German',
-            'temperature' => 'hot',
             'salutation' => 'mrs',
             'lead_lifecycle_status_id' => 3,
         ]);
@@ -86,7 +90,6 @@ class ApiExistingLeadFillOnlyTest extends LeadCoreFieldsTestCase
             'city' => 'Hamburg',
             'date_of_birth' => '1985-05-05',
             'nationality' => 'Turkish',
-            'temperature' => 'cold',
             'salutation' => 'dr',
             'lead_lifecycle_status_id' => 1,
         ]);
@@ -99,7 +102,6 @@ class ApiExistingLeadFillOnlyTest extends LeadCoreFieldsTestCase
         $this->assertSame('Berlin', $lead->city);
         $this->assertStringStartsWith('1990-01-01', $lead->date_of_birth);
         $this->assertSame('German', $lead->nationality);
-        $this->assertSame('hot', $lead->temperature);
         $this->assertSame('mrs', $lead->salutation);
         $this->assertSame(3, (int) $lead->lead_lifecycle_status_id);
         $this->assertSame([], $this->recordedEvents, 'Nothing changed, so nothing is recorded');
@@ -198,7 +200,7 @@ class ApiExistingLeadFillOnlyTest extends LeadCoreFieldsTestCase
         $this->assertSame(['villas', 'apartments'], json_decode($values[$interests], true));
     }
 
-    public function test_marketing_flags_only_move_to_true_and_scalars_are_fill_only(): void
+    public function test_marketing_flags_only_move_to_true_and_scalars_are_fill_only_except_recalculated_ones(): void
     {
         $leadId = $this->seedLead();
         DB::table('lead_marketing')->insert([
@@ -206,6 +208,8 @@ class ApiExistingLeadFillOnlyTest extends LeadCoreFieldsTestCase
             'has_attended_the_webinar' => true,
             'has_downloaded_the_ebook' => false,
             'contact_score' => 40,
+            'ip_address' => null,
+            'user_agent' => 'Old browser',
         ]);
 
         $this->invoke('saveUtmInfo', $leadId, new Request([
@@ -213,13 +217,56 @@ class ApiExistingLeadFillOnlyTest extends LeadCoreFieldsTestCase
             'has_downloaded_the_ebook' => true,
             'contact_score' => 90,
             'ip_address' => '10.0.0.1',
+            'user_agent' => 'New browser',
         ]));
 
         $marketing = DB::table('lead_marketing')->where('lead_id', $leadId)->first();
         $this->assertSame(1, (int) $marketing->has_attended_the_webinar);
         $this->assertSame(1, (int) $marketing->has_downloaded_the_ebook);
-        $this->assertSame(40, (int) $marketing->contact_score);
+        $this->assertSame(90, (int) $marketing->contact_score, 'contact_score is recalculated by the backend and refreshes');
         $this->assertSame('10.0.0.1', $marketing->ip_address);
+        $this->assertSame('Old browser', $marketing->user_agent);
+    }
+
+    public function test_temperature_refreshes_and_the_change_is_recorded(): void
+    {
+        $leadId = $this->seedLead(['temperature' => 'cold']);
+
+        $recorder = app(LeadApiChangeRecorder::class);
+        $before = $recorder->snapshot($leadId);
+        $this->resolveContact(['temperature' => 'hot']);
+        $labels = $recorder->recordUpdated($leadId, $before, LeadApiChangeRecorder::CHANNEL_DEAL_CREATE);
+
+        $this->assertSame('hot', DB::table('leads')->where('id', $leadId)->value('temperature'));
+        $this->assertSame(['Temperature'], $labels);
+        $this->assertSame('cold', $this->recordedEvents[0]['metadata']['changes'][0]['old_value']);
+    }
+
+    public function test_lifecycle_status_is_never_changed_by_the_api(): void
+    {
+        $leadId = $this->seedLead(['lead_lifecycle_status_id' => 1]);
+
+        $this->resolveContact(['lead_lifecycle_status_id' => 4]);
+
+        $this->assertSame(1, (int) DB::table('leads')->where('id', $leadId)->value('lead_lifecycle_status_id'));
+    }
+
+    public function test_observer_timeline_events_are_suppressed_so_api_writes_record_once(): void
+    {
+        $observer = new LeadObserver;
+        $method = new \ReflectionMethod($observer, 'recordTimelineEvent');
+        $method->setAccessible(true);
+        $lead = Lead::withoutGlobalScopes()->find($this->seedLead());
+
+        LeadObserver::withoutTimelineEvents(function () use ($method, $observer, $lead) {
+            $method->invoke($observer, 'lead_owner_changed', $lead, ['metadata' => []]);
+            LeadObserver::withoutTimelineEvents(fn () => $method->invoke($observer, 'lead_updated', $lead, ['metadata' => []]));
+            $method->invoke($observer, 'lead_updated', $lead, ['metadata' => []]);
+        });
+        $this->assertSame([], $this->recordedEvents);
+
+        $method->invoke($observer, 'lead_updated', $lead, ['metadata' => []]);
+        $this->assertCount(1, $this->recordedEvents, 'Outside the API scope the observer records as before');
     }
 
     public function test_filled_fields_are_recorded_on_the_lead_and_its_deals(): void
@@ -257,6 +304,72 @@ class ApiExistingLeadFillOnlyTest extends LeadCoreFieldsTestCase
         $this->assertCount(1, $this->recordedEvents);
         $this->assertSame('lead_created', $this->recordedEvents[0]['event_type_slug']);
         $this->assertSame('deal_create', $this->recordedEvents[0]['metadata']['channel']);
+    }
+
+    public function test_grpc_update_fills_empty_fields_never_overwrites_and_records_the_change(): void
+    {
+        if (! class_exists(UpdateLeadRequest::class)) {
+            $this->markTestSkipped('gRPC classes not generated (run `make proto`).');
+        }
+
+        $source = $this->seedSource('Referral');
+        $otherSource = $this->seedSource('Website');
+        Notification::fake();
+        $owner = DB::table('users')->insertGetId(['company_id' => $this->companyId, 'name' => 'Grace Hopper', 'status' => 'active']);
+        $leadId = $this->seedLead(['source_id' => $source, 'lead_owner' => null, 'city' => null, 'country' => 'Germany']);
+
+        $request = new UpdateLeadRequest;
+        $request->setId($leadId);
+        $request->setClientName('Overwritten?');
+        $request->setSourceId($otherSource);
+        $request->setLeadOwner($owner);
+        $request->setCity('Hamburg');
+        $request->setCountry('Turkey');
+        $request->setAgentId(0);
+
+        app(LeadGrpcService::class)->Update(new Context(['authenticated_company_id' => $this->companyId]), $request);
+
+        $lead = DB::table('leads')->find($leadId);
+        $this->assertSame('Ada Lovelace', $lead->client_name);
+        $this->assertSame($source, (int) $lead->source_id);
+        $this->assertSame($owner, (int) $lead->lead_owner, 'An empty owner is filled');
+        $this->assertSame('Hamburg', $lead->city);
+        $this->assertSame('Germany', $lead->country);
+        $this->assertNull($lead->agent_id, 'A proto3 0 is treated as unset, not written');
+
+        $slugs = array_column($this->recordedEvents, 'event_type_slug');
+        // LeadObserver skips its events under PHPUnit (console), so suppression itself is
+        // covered by test_observer_timeline_events_are_suppressed_so_api_writes_record_once.
+        $this->assertSame(['lead_updated'], $slugs);
+        $this->assertSame('grpc', $this->recordedEvents[0]['source']);
+        $this->assertSame(['Lead owner', 'City'], array_column($this->recordedEvents[0]['metadata']['changes'], 'label'));
+        $this->assertSame('Grace Hopper', $this->recordedEvents[0]['metadata']['changes'][0]['new_value_display']);
+    }
+
+    public function test_grpc_update_merges_multi_value_custom_fields(): void
+    {
+        if (! class_exists(UpdateLeadRequest::class)) {
+            $this->markTestSkipped('gRPC classes not generated (run `make proto`).');
+        }
+
+        $groupId = DB::table('custom_field_groups')->insertGetId(['company_id' => $this->companyId, 'model' => Lead::CUSTOM_FIELD_MODEL]);
+        $note = $this->seedCustomField($groupId, 'note', 'text');
+        $interests = $this->seedCustomField($groupId, 'interests', 'checkbox');
+        $leadId = $this->seedLead();
+        DB::table('custom_fields_data')->insert([
+            ['custom_field_id' => $note, 'model_id' => $leadId, 'model' => Lead::CUSTOM_FIELD_MODEL, 'value' => 'Keep me'],
+            ['custom_field_id' => $interests, 'model_id' => $leadId, 'model' => Lead::CUSTOM_FIELD_MODEL, 'value' => json_encode(['villas'])],
+        ]);
+
+        $request = new UpdateLeadRequest;
+        $request->setId($leadId);
+        $request->setCustomFieldsJson(json_encode(['field_'.$note => 'Overwritten?', 'field_'.$interests => ['apartments']]));
+
+        app(LeadGrpcService::class)->Update(new Context(['authenticated_company_id' => $this->companyId]), $request);
+
+        $values = DB::table('custom_fields_data')->where('model_id', $leadId)->pluck('value', 'custom_field_id');
+        $this->assertSame('Keep me', $values[$note]);
+        $this->assertSame(['villas', 'apartments'], json_decode($values[$interests], true));
     }
 
     private function resolveContact(array $input): array
@@ -306,7 +419,7 @@ class ApiExistingLeadFillOnlyTest extends LeadCoreFieldsTestCase
     private function resetSchema(): void
     {
         foreach ([
-            'deals', 'lead_utm_touches', 'lead_marketing', 'custom_fields_data', 'custom_fields',
+            'users', 'deals', 'lead_utm_touches', 'lead_marketing', 'custom_fields_data', 'custom_fields',
             'custom_field_groups', 'lead_lead_category', 'lead_category', 'lead_sources',
             'language_settings', 'leads', 'companies',
         ] as $table) {
@@ -329,6 +442,15 @@ class ApiExistingLeadFillOnlyTest extends LeadCoreFieldsTestCase
             $table->string('client_email')->nullable();
             $table->string('company_name')->nullable();
             $table->string('mobile')->nullable();
+            $table->string('cell')->nullable();
+            $table->string('office')->nullable();
+            $table->string('website')->nullable();
+            $table->string('contact_type')->nullable();
+            $table->unsignedInteger('status_id')->nullable();
+            $table->unsignedInteger('agent_id')->nullable();
+            $table->unsignedInteger('currency_id')->nullable();
+            $table->double('total_value')->nullable();
+            $table->string('next_follow_up')->default('no');
             $table->string('gender')->nullable();
             $table->string('salutation')->nullable();
             $table->string('temperature')->nullable();
@@ -350,6 +472,7 @@ class ApiExistingLeadFillOnlyTest extends LeadCoreFieldsTestCase
             $table->unsignedInteger('lead_lifecycle_status_id')->nullable();
             $table->unsignedInteger('referred_by_agent_id')->nullable();
             $table->unsignedInteger('lead_owner')->nullable();
+            $table->timestamp('assigned_at')->nullable();
             $table->unsignedInteger('added_by')->nullable();
             $table->unsignedInteger('last_updated_by')->nullable();
             $table->softDeletes();
@@ -433,6 +556,15 @@ class ApiExistingLeadFillOnlyTest extends LeadCoreFieldsTestCase
                 $table->string($column)->nullable();
             }
             $table->boolean('is_first_touch')->default(false);
+            $table->timestamps();
+        });
+
+        Schema::create('users', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('name');
+            $table->string('email')->nullable();
+            $table->string('status')->default('active');
             $table->timestamps();
         });
 

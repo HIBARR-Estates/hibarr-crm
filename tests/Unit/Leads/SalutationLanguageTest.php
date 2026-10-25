@@ -94,15 +94,31 @@ class SalutationLanguageTest extends TestCase
         $this->assertFalse($this->invokeApplyAddressAndDob($lead, new Request(['language' => 'xx'])));
     }
 
-    public function test_the_api_never_replaces_languages_already_on_the_contact(): void
+    public function test_the_api_adds_the_single_language_to_languages_already_on_the_contact(): void
     {
         $service = Mockery::mock(LeadCoreFieldsService::class);
+        $service->shouldReceive('read')->andReturn(['languages' => ['en', 'tr']], ['languages' => ['en', 'tr', 'de']]);
+        $service->shouldReceive('supportedLanguageCode')->with('de')->andReturn('de');
+        $service->shouldReceive('write')
+            ->once()
+            ->with(Mockery::type(Lead::class), ['languages' => ['en', 'tr', 'de']]);
+        $this->app->instance(LeadCoreFieldsService::class, $service);
+
+        $lead = $this->lead(null, ['en', 'tr']);
+
+        $this->assertTrue($this->invokeApplyAddressAndDob($lead, new Request(['language' => 'de'])));
+    }
+
+    public function test_the_api_skips_a_single_language_the_contact_already_has(): void
+    {
+        $service = Mockery::mock(LeadCoreFieldsService::class);
+        $service->shouldReceive('supportedLanguageCode')->with('en')->andReturn('en');
         $service->shouldNotReceive('write');
         $this->app->instance(LeadCoreFieldsService::class, $service);
 
         $lead = $this->lead(null, ['en', 'tr']);
 
-        $this->assertFalse($this->invokeApplyAddressAndDob($lead, new Request(['language' => 'de'])));
+        $this->assertFalse($this->invokeApplyAddressAndDob($lead, new Request(['language' => 'en'])));
     }
 
     public function test_an_explicit_languages_list_wins_over_the_single_language_field(): void

@@ -19,9 +19,11 @@ use App\Models\LeadMarketing;
 use App\Models\LeadSource;
 use App\Models\PipelineStage;
 use App\Notifications\LeadOwnerAssigned;
+use App\Observers\LeadObserver;
 use App\Services\DealAgentAssignmentService;
 use App\Services\DealAutomationService;
 use App\Services\LeadApiChangeRecorder;
+use App\Services\LeadApiFieldMerger;
 use App\Services\LeadCoreFieldsService;
 use App\Services\LeadLifecycleStatusService;
 use App\Services\LeadUtmService;
@@ -175,6 +177,12 @@ class DealContactApiController extends Controller
      * @return \Illuminate\Http\JsonResponse
      */
     public function createDeal(CreateDealRequest $request)
+    {
+        // LeadApiChangeRecorder records this request's lead events; LeadObserver's own are suppressed.
+        return LeadObserver::withoutTimelineEvents(fn () => $this->processCreateDeal($request));
+    }
+
+    private function processCreateDeal(CreateDealRequest $request)
     {
         $duplicateKey = null;
 
@@ -477,7 +485,7 @@ class DealContactApiController extends Controller
     public function createOrUpdateContact(CreateOrUpdateContactRequest $request)
     {
         try {
-            return DB::transaction(function () use ($request) {
+            return LeadObserver::withoutTimelineEvents(fn () => DB::transaction(function () use ($request) {
                 $companyId = $request->header('X-COMPANY-ID');
 
                 if (! $companyId) {
@@ -571,12 +579,11 @@ class DealContactApiController extends Controller
                 // lead_marketing_* (or a merge tag) sees this request's final state.
                 $this->saveUtmInfo($contactId, $request);
 
-                // Timeline: quiet saves never reach LeadObserver, so record the lead events here.
+                // Timeline: LeadObserver's own events are suppressed for this request,
+                // so these are the only lead events it records, observed save or not.
                 $updatedFields = [];
                 if ($isNewContact) {
-                    if (! $notify) {
-                        $changeRecorder->recordCreated((int) $contactId, LeadApiChangeRecorder::CHANNEL_CONTACT_CREATE);
-                    }
+                    $changeRecorder->recordCreated((int) $contactId, LeadApiChangeRecorder::CHANNEL_CONTACT_CREATE);
                 } else {
                     $updatedFields = $changeRecorder->recordUpdated((int) $contactId, $before, LeadApiChangeRecorder::CHANNEL_CONTACT_CREATE);
                 }
@@ -596,7 +603,7 @@ class DealContactApiController extends Controller
                     'preferred_contact_times' => $preferredContactTimes,
                     'preferred_contact_time' => $preferredContactTimes[0] ?? null,
                 ]);
-            });
+            }));
         } catch (\Exception $e) {
             Log::error('Error creating/updating contact via API', [
                 'message' => $e->getMessage(),
@@ -833,8 +840,8 @@ class DealContactApiController extends Controller
      * Apply address fields, date_of_birth and the other core fields from the
      * request. Fill-only: a value is written only when the lead has none, so
      * the same helper is a plain "set" for a new lead and never overwrites an
-     * existing one. Languages are additive — incoming codes are added to the
-     * lead's list, none are removed.
+     * existing one. Languages (the list or the single `language`) are
+     * additive — incoming codes are added to the lead's list, none removed.
      * Returns true if any attribute was changed.
      */
     private function applyAddressAndDobToLead(Lead $lead, Request $request): bool
@@ -867,14 +874,15 @@ class DealContactApiController extends Controller
             $incoming = $request->input('languages');
             $incoming = is_array($incoming) ? $incoming : preg_split('/\s*,\s*/', (string) $incoming);
             $corePayload['languages'] = array_merge($lead->languages ?? [], $incoming);
-        } elseif ($request->filled('language') && empty($lead->languages)) {
-            // The website/backend send the visitor's single `language`. It fills an
-            // empty list; it never replaces languages already on the contact. Only a
+        } elseif ($request->filled('language')) {
+            // The website/backend send the visitor's single `language`. It is added
+            // to the contact's languages; none already there are removed. Only a
             // configured language is stored, an unsupported code is ignored rather
             // than rejected so contact creation never fails over it.
             $languageCode = $coreFieldsService->supportedLanguageCode($request->input('language'));
-            if ($languageCode !== null) {
-                $corePayload['languages'] = [$languageCode];
+            $languages = $lead->languages ?? [];
+            if ($languageCode !== null && ! in_array($languageCode, $languages, true)) {
+                $corePayload['languages'] = array_merge($languages, [$languageCode]);
             }
         }
 
@@ -892,10 +900,11 @@ class DealContactApiController extends Controller
 
     /**
      * Apply optional lead classification fields (temperature, salutation,
-     * preferred contact times, lifecycle status). Fill-only like
-     * applyAddressAndDobToLead(): set when the lead has no value, never
-     * overwritten. Preferred contact times are additive — incoming slots are
-     * added to the lead's list.
+     * preferred contact times, lifecycle status). Salutation and lifecycle
+     * status are fill-only like applyAddressAndDobToLead(): set when the lead
+     * has no value, never overwritten. Temperature refreshes on any new value.
+     * Preferred contact times are additive — incoming slots are added to the
+     * lead's list.
      * Returns true if any attribute was changed.
      * WhatsApp group membership is applied via saveUtmInfo (marketing record).
      */
@@ -903,9 +912,15 @@ class DealContactApiController extends Controller
     {
         $updated = false;
 
-        if ($request->filled('temperature') && blank($lead->temperature)) {
-            $lead->temperature = $request->input('temperature');
-            $updated = true;
+        // Temperature is recalculated by the backend, so it refreshes whenever a
+        // different value arrives (the change lands on the timeline).
+        if ($request->filled('temperature')) {
+            $temperature = $request->input('temperature');
+            $current = $lead->temperature?->value ?? $lead->temperature;
+            if ((string) $current !== (string) $temperature) {
+                $lead->temperature = $temperature;
+                $updated = true;
+            }
         }
 
         // How the visitor asked to be addressed. Only ever set from a non-empty,
@@ -1052,7 +1067,7 @@ class DealContactApiController extends Controller
             ['custom_fields_data' => $customFieldsData],
             (int) $lead->company_id
         );
-        $customFieldsData = $this->fillOnlyCustomFieldValues($lead, $filtered['custom_fields_data'] ?? []);
+        $customFieldsData = app(LeadApiFieldMerger::class)->customFieldValues($lead, $filtered['custom_fields_data'] ?? []);
 
         if ($customFieldsData === []) {
             return false;
@@ -1070,67 +1085,6 @@ class DealContactApiController extends Controller
 
             return false;
         }
-    }
-
-    /**
-     * Keep only the custom field values that fill an empty field. Multi-value
-     * fields (checkbox, multiselect, countries) are additive: incoming options
-     * are added to the stored ones. Any other stored value is left untouched.
-     *
-     * @param  array<string, mixed>  $customFieldsData  keyed field_{id}
-     * @return array<string, mixed>
-     */
-    private function fillOnlyCustomFieldValues(Lead $lead, array $customFieldsData): array
-    {
-        if ($customFieldsData === []) {
-            return [];
-        }
-
-        $stored = $lead->getCustomFieldsData()->toArray();
-        $ids = array_map(fn ($key) => (int) substr((string) $key, 6), array_keys($customFieldsData));
-        $types = CustomField::whereIn('id', $ids)->pluck('type', 'id');
-
-        $result = [];
-        foreach ($customFieldsData as $key => $value) {
-            $current = $stored[$key] ?? null;
-            if (blank($current)) {
-                $result[$key] = $value;
-
-                continue;
-            }
-
-            $type = $types->get((int) substr((string) $key, 6));
-            if (! in_array($type, ['checkbox', 'multiselect', 'multiSelectCountry'], true)) {
-                continue;
-            }
-
-            $currentList = $this->customFieldValueList($current);
-            $merged = array_values(array_unique(array_merge($currentList, $this->customFieldValueList($value))));
-            if ($merged !== $currentList) {
-                $result[$key] = $merged;
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * A stored or incoming multi-value custom field as a list of strings —
-     * JSON array, legacy comma-joined string, or a plain array.
-     *
-     * @return list<string>
-     */
-    private function customFieldValueList(mixed $value): array
-    {
-        if (is_string($value)) {
-            $decoded = json_decode($value, true);
-            $value = is_array($decoded) ? $decoded : explode(',', $value);
-        }
-
-        return array_values(array_filter(
-            array_map(fn ($item) => trim((string) $item), (array) $value),
-            fn ($item) => $item !== ''
-        ));
     }
 
     /**
@@ -1242,6 +1196,8 @@ class DealContactApiController extends Controller
      * Fill-only for the marketing record: a value is kept only when the stored
      * one is empty. Engagement flags only ever move to true — an incoming true
      * sets a stored false, an incoming false never clears a stored true.
+     * contact_score and last_webinar_date are recalculated by the backend and
+     * refresh on every push (the change lands on the timeline).
      *
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
@@ -1256,6 +1212,12 @@ class DealContactApiController extends Controller
         $result = [];
         foreach ($payload as $key => $value) {
             $current = $stored->getAttribute($key);
+
+            if (in_array($key, ['contact_score', 'last_webinar_date'], true)) {
+                $result[$key] = $value;
+
+                continue;
+            }
 
             if (is_bool($value)) {
                 if ($current === null || ($value && $current !== true)) {

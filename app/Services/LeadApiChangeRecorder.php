@@ -27,6 +27,8 @@ class LeadApiChangeRecorder
 
     public const CHANNEL_DEAL_CREATE = 'deal_create';
 
+    public const CHANNEL_GRPC = 'grpc';
+
     private const ATTRIBUTES = [
         'client_name' => 'Name',
         'mobile' => 'Phone',
@@ -47,6 +49,17 @@ class LeadApiChangeRecorder
         'preferred_contact_times' => 'Preferred contact times',
         'lead_lifecycle_status_id' => 'Lifecycle status',
         'referred_by_agent_id' => 'Referred by',
+        'company_name' => 'Company name',
+        'cell' => 'Cell',
+        'office' => 'Office phone',
+        'website' => 'Website',
+        'contact_type' => 'Contact type',
+        'status_id' => 'Status',
+        'category_id' => 'Category',
+        'agent_id' => 'Agent',
+        'currency_id' => 'Currency',
+        'total_value' => 'Total value',
+        'next_follow_up' => 'Next follow-up',
     ];
 
     private const MARKETING_ATTRIBUTES = [
@@ -158,9 +171,15 @@ class LeadApiChangeRecorder
         $customFieldLabels = $this->customFieldLabels(array_keys($after));
         $changes = [];
 
+        $categoriesChanged = ($before['categories'] ?? null) !== ($after['categories'] ?? null);
+
         foreach ($after as $key => $newValue) {
             $oldValue = $before[$key] ?? null;
             if ($oldValue === $newValue) {
+                continue;
+            }
+            // category_id mirrors the first category; the categories row already covers it.
+            if ($key === 'category_id' && $categoriesChanged) {
                 continue;
             }
 
@@ -185,7 +204,7 @@ class LeadApiChangeRecorder
                 'company_id' => $lead->company_id,
                 'model_type' => Lead::class,
                 'model_id' => $lead->id,
-                'source' => CrmEventSource::API->value,
+                'source' => $this->source($metadata['channel']),
                 'metadata' => $metadata,
             ]);
         } catch (\Throwable $e) {
@@ -215,7 +234,7 @@ class LeadApiChangeRecorder
                     'company_id' => $deal->company_id,
                     'model_type' => Deal::class,
                     'model_id' => $deal->id,
-                    'source' => CrmEventSource::API->value,
+                    'source' => $this->source($metadata['channel']),
                     'metadata' => array_merge($metadata, [
                         'comment' => 'Lead details updated via API: '.implode(', ', array_column($metadata['changes'], 'label')),
                         'lead_id' => $lead->id,
@@ -229,6 +248,11 @@ class LeadApiChangeRecorder
                 ]);
             }
         }
+    }
+
+    private function source(string $channel): string
+    {
+        return $channel === self::CHANNEL_GRPC ? CrmEventSource::GRPC->value : CrmEventSource::API->value;
     }
 
     private function normalize(mixed $value): mixed
