@@ -248,6 +248,8 @@ class DealContactApiController extends Controller
                 $before = $resolved['before'];
                 if ($leadWasCreated) {
                     $changeRecorder->recordCreated((int) $contactId, LeadApiChangeRecorder::CHANNEL_DEAL_CREATE);
+                    // Baseline for what the deal job then writes to the new lead (e.g. lead_owner).
+                    $before = $changeRecorder->snapshot((int) $contactId);
                 }
             } else {
                 $contactId = (int) $contactId;
@@ -277,11 +279,10 @@ class DealContactApiController extends Controller
             try {
                 ProcessDealRequestJob::dispatchSync((int) $contactId, $companyId, $request->all());
             } finally {
-                // After the deal job too: it may fill lead_owner, and the mirror
-                // event then also lands on the deal this request created.
-                if (! $leadWasCreated) {
-                    $changeRecorder->recordUpdated((int) $contactId, $before, LeadApiChangeRecorder::CHANNEL_DEAL_CREATE);
-                }
+                // After the deal job too: it may fill lead_owner (quietly, on new and
+                // existing leads), and the mirror event then also lands on the deal
+                // this request created.
+                $changeRecorder->recordUpdated((int) $contactId, $before, LeadApiChangeRecorder::CHANNEL_DEAL_CREATE);
                 // After marketing + the deal job, even if the job failed — the
                 // lead row already exists and a retry may look like an update.
                 if ($shouldFireLeadTrigger) {
