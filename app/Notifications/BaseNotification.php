@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\GlobalSetting;
 use App\Models\SmtpSetting;
+use App\Services\Notifications\MailCategory;
 use App\Services\Notifications\MailDeliveryContext;
 use App\Services\Notifications\UnsEmailPayloadMapper;
 use App\Support\FeatureFlags;
@@ -101,6 +102,16 @@ class BaseNotification extends Notification implements ShouldQueue
         }
 
         return (int) $notifiable->id === $this->triggeredByUserId;
+    }
+
+    /**
+     * Suppression category declared on the outgoing email. Most CRM
+     * notifications are transactional; bulk/automation notifications override
+     * this so the suppression list can withhold them independently.
+     */
+    protected function mailCategory(): string
+    {
+        return MailCategory::TRANSACTIONAL;
     }
 
     /**
@@ -464,6 +475,13 @@ class BaseNotification extends Notification implements ShouldQueue
 
         // Initialize a mail message instance
         $build = (new MailMessage);
+
+        // Every email declares its suppression category so both the UNS send
+        // and the SMTP fallback check the right scope.
+        $category = $this->mailCategory();
+        $build->withSymfonyMessage(static function (Email $message) use ($category): void {
+            MailCategory::attach($message, $category);
+        });
 
         if ($this->deliveryContext !== []) {
             $deliveryContext = $this->deliveryContext;

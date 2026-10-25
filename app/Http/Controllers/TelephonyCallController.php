@@ -64,8 +64,10 @@ class TelephonyCallController extends AccountBaseController
             ], $e->getStatusCode());
         }
 
+        $suppressed = ($data['suppressed'] ?? false) === true;
+
         return response()->json([
-            'status' => 'success',
+            'status' => $suppressed ? 'fail' : 'success',
             'message' => is_string($data['message'] ?? null) ? $data['message'] : 'Call initiated.',
             'data' => $data,
         ]);

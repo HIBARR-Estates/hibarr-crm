@@ -3,6 +3,7 @@
 namespace Tests\Unit\Notifications;
 
 use App\Models\User;
+use App\Services\Notifications\MailCategory;
 use App\Services\Notifications\UnsEmailPayloadMapper;
 use Illuminate\Support\Facades\Config;
 use Symfony\Component\Mime\Email;
@@ -161,6 +162,38 @@ class UnsEmailPayloadMapperTest extends TestCase
         $payload = $mapper->map($email);
 
         $this->assertSame('crm-reminder-26-unique', $payload['idempotencyKey']);
+    }
+
+    public function test_it_defaults_category_to_non_transactional(): void
+    {
+        $mapper = new StubUnsEmailPayloadMapper([], null);
+
+        $payload = $mapper->map(
+            (new Email)
+                ->from('sender@test.local')
+                ->to('external@example.com')
+                ->subject('Subject')
+                ->text('Hello')
+        );
+
+        $this->assertSame(MailCategory::NON_TRANSACTIONAL, $payload['category']);
+    }
+
+    public function test_it_carries_a_declared_transactional_category(): void
+    {
+        $mapper = new StubUnsEmailPayloadMapper([], null);
+
+        $email = (new Email)
+            ->from('sender@test.local')
+            ->to('external@example.com')
+            ->subject('Subject')
+            ->text('Hello');
+        MailCategory::attach($email, MailCategory::TRANSACTIONAL);
+
+        $payload = $mapper->map($email);
+
+        $this->assertSame(MailCategory::TRANSACTIONAL, $payload['category']);
+        $this->assertFalse($email->getHeaders()->has(MailCategory::HEADER));
     }
 
     private function makeUser(int $id, int $companyId): User

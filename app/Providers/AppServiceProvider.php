@@ -10,6 +10,7 @@ use Carbon\CarbonInterval;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -64,6 +65,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot()
     {
+        
+
         $this->app->extend('auth.password', function ($ignored, $app) {
             return new \App\Auth\Passwords\CustomPasswordBrokerManager($app);
         });

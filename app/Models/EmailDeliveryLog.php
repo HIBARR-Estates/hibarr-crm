@@ -28,9 +28,26 @@ class EmailDeliveryLog extends BaseModel
     /** Delivered by the PHP mailer (SMTP) — by design, or as the UNS fallback. */
     public const SYSTEM_SMTP = 'smtp';
 
+    /** Withheld by the global suppression list — nothing left the CRM. */
+    public const SYSTEM_SUPPRESSION = 'suppression';
+
     public const STATUS_SENT = 'sent';
 
     public const STATUS_FAILED = 'failed';
+
+    public const STATUS_BLOCKED = 'blocked';
+
+    /**
+     * Suppression decision recorded alongside the delivery outcome. `blocked`
+     * means the send was withheld; `would_have_blocked` is the log-only soak
+     * (OL's `communications.global-suppression` flag is off); `unavailable`
+     * is the fail-closed fallback when OL could not be reached.
+     */
+    public const SUPPRESSION_BLOCKED = 'blocked';
+
+    public const SUPPRESSION_WOULD_HAVE_BLOCKED = 'would_have_blocked';
+
+    public const SUPPRESSION_UNAVAILABLE = 'unavailable';
 
     /**
      * The send raised no error, but no transport outcome was recorded for it —
@@ -53,6 +70,9 @@ class EmailDeliveryLog extends BaseModel
         'response_body',
         'error',
         'fallback_reason',
+        'suppression_status',
+        'suppression_reason',
+        'suppression_scope',
         'context',
         'correlation_id',
         'sent_at',
