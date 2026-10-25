@@ -226,6 +226,9 @@ class CreateDealRequest extends CoreRequest
             // Optional meeting object
             'meeting' => 'nullable|array',
             'meeting.meeting_date' => 'nullable|date',
+            // End of the booked slot; createMeeting() stores it as the duration. Not
+            // `date`: an unusable end is ignored there, it must not fail the whole deal.
+            'meeting.meeting_end_date' => 'nullable|string|max:64',
             'meeting.meeting_type' => 'nullable|string|max:255',
             'meeting.meeting_location' => 'nullable|string|max:255',
             'meeting.meeting_link' => 'nullable|url|max:500',
