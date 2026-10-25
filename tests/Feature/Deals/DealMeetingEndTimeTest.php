@@ -2,11 +2,14 @@
 
 namespace Tests\Feature\Deals;
 
+use App\Http\Requests\Deal\CreateDealRequest;
 use App\Models\Deal;
 use App\Services\DealCreationService;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
 use Tests\LeadCoreFieldsTestCase;
 
 /**
@@ -115,6 +118,23 @@ class DealMeetingEndTimeTest extends LeadCoreFieldsTestCase
         );
     }
 
+    public function test_deal_create_accepts_an_unparsable_end_time_instead_of_failing_the_request(): void
+    {
+        $rules = Arr::only((new CreateDealRequest)->rules(), ['meeting', 'meeting.meeting_date', 'meeting.meeting_end_date']);
+
+        $valid = Validator::make(['meeting' => [
+            'meeting_date' => '2026-11-03T10:00:00Z',
+            'meeting_end_date' => '2026-11-03T10:45:00Z',
+        ]], $rules);
+        $unparsable = Validator::make(['meeting' => [
+            'meeting_date' => '2026-11-03T10:00:00Z',
+            'meeting_end_date' => 'not a date',
+        ]], $rules);
+
+        $this->assertFalse($valid->fails());
+        $this->assertFalse($unparsable->fails(), 'createMeeting() ignores it; the deal must still be created');
+    }
+
     private function createMeeting(Deal $deal, array $meeting): void
     {
         $service = new DealCreationService;
@@ -132,7 +152,7 @@ class DealMeetingEndTimeTest extends LeadCoreFieldsTestCase
 
     private function resetSchema(): void
     {
-        foreach (['lead_follow_up', 'meeting_types', 'deals'] as $table) {
+        foreach (['custom_field_groups', 'lead_follow_up', 'meeting_types', 'deals'] as $table) {
             Schema::dropIfExists($table);
         }
     }
@@ -145,6 +165,14 @@ class DealMeetingEndTimeTest extends LeadCoreFieldsTestCase
             $table->unsignedInteger('lead_id')->nullable();
             $table->unsignedInteger('agent_id')->nullable();
             $table->softDeletes();
+            $table->timestamps();
+        });
+
+        // CreateDealRequest::rules() looks up the deal custom field group.
+        Schema::create('custom_field_groups', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('model');
             $table->timestamps();
         });
 
