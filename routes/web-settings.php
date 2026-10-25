@@ -3,11 +3,13 @@
 /* Setting menu routes starts from here */
 
 use App\Email\Http\Controllers\MailboxSettingsController;
+use App\Email\Http\Controllers\PilotAllowlistSettingsController;
 use App\Email\Http\Middleware\EnsureEmailEnabled;
 use App\Email\Http\Middleware\EnsureEmailPilot;
 use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\AttendanceSettingController;
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AutomationSettingController;
 use App\Http\Controllers\BusinessAddressController;
 use App\Http\Controllers\ContractSettingController;
@@ -104,6 +106,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::put('leads/statuses/{status}', [LeadSettingsHubController::class, 'updateStatus'])->name('settings-leads.statuses.update');
     Route::delete('leads/statuses/{status}', [LeadSettingsHubController::class, 'destroyStatus'])->name('settings-leads.statuses.destroy');
 
+    /* Audit log — every recorded write and sign-in event (admin-only) */
+    Route::get('audit-log', [AuditLogController::class, 'index'])->name('audit-log.index');
+    Route::get('audit-log/entries', [AuditLogController::class, 'entries'])->name('audit-log.entries');
+
     /* Automation settings — email templates + trigger-based automations */
     Route::get('automation', [AutomationSettingController::class, 'index'])->name('settings-automation.index');
 
@@ -120,6 +126,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('mailbox', [MailboxSettingsController::class, 'show'])
         ->middleware([EnsureEmailEnabled::class, EnsureEmailPilot::class])
         ->name('mailbox-settings.show');
+
+    /* Email pilot allowlist (crm.email + admin). Seedable before the admin is listed. */
+    Route::get('email-pilot', [PilotAllowlistSettingsController::class, 'show'])
+        ->middleware([EnsureEmailEnabled::class, EnsureUserIsAdmin::class])
+        ->name('email-pilot-settings.show');
 
     /* User preferences (timezone, in-app alerts, notification bypass) */
     Route::get('preferences', [UserPreferencesController::class, 'show'])->name('user-preferences.show');
@@ -185,6 +196,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('meeting-attendance-confirmation-settings', [MeetingAttendanceConfirmationSettingsApiController::class, 'page'])->name('meeting-attendance-confirmation-settings.index');
     Route::get('meeting-attendance-confirmation-settings/data', [MeetingAttendanceConfirmationSettingsApiController::class, 'index'])->name('meeting-attendance-confirmation-settings.data');
     Route::put('meeting-attendance-confirmation-settings/data', [MeetingAttendanceConfirmationSettingsApiController::class, 'update'])->name('meeting-attendance-confirmation-settings.update');
+
+    // Call Bridge — channels, per-line call pool and call recordings.
+    Route::get('call-bridge', [\App\Http\Controllers\CallBridgeSettingsController::class, 'page'])->name('call-bridge.index');
 
     // Currency Settings routes
     Route::get('currency-settings/update/exchange-rates', [CurrencySettingController::class, 'updateExchangeRate'])->name('currency_settings.update_exchange_rates');

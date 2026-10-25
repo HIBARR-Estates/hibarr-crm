@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\Config;
 
 trait SocialAuthSettings
 {
-
     public function setSocailAuthConfigs()
     {
         $settings = SocialAuthSetting::first();
@@ -39,7 +38,7 @@ trait SocialAuthSettings
         // are not overwritten by whatever is in social_auth_settings (e.g. "crm").
         Config::set('services.keycloak.client_id', $this->firstFilled(config('services.keycloak.client_id'), $settings->keycloak_client_id));
         Config::set('services.keycloak.client_secret', $this->firstFilled(config('services.keycloak.client_secret'), $settings->keycloak_secret_id));
-        Config::set('services.keycloak.redirect', $this->updateMainAppUrl(route('social_login_callback', 'keycloak')));
+        Config::set('services.keycloak.redirect', $this->keycloakSocialRedirectUri());
         Config::set('services.keycloak.base_url', $this->firstFilled(config('services.keycloak.base_url'), $settings->keycloak_base_url));
         Config::set('services.keycloak.realms', $this->firstFilled(config('services.keycloak.realms'), $settings->keycloak_realm));
     }
@@ -47,6 +46,26 @@ trait SocialAuthSettings
     private function firstFilled($fromConfig, $fromSettings)
     {
         return (is_string($fromConfig) && $fromConfig !== '') ? $fromConfig : $fromSettings;
+    }
+
+    /**
+     * OAuth redirect URI for Keycloak — must match APP_URL / KEYCLOAK_REDIRECT_URI,
+     * not the current request scheme (Herd often serves HTTPS while APP_URL is http).
+     */
+    private function keycloakSocialRedirectUri(): string
+    {
+        $fromConfig = config('services.keycloak.redirect');
+
+        if (is_string($fromConfig) && $fromConfig !== '') {
+            // Preserve an explicitly configured redirect URI verbatim, including
+            // its request host.
+            return $fromConfig;
+        }
+
+        $fallback = rtrim((string) config('app.url'), '/').'/callback/keycloak';
+
+        // Host rewriting only applies to the generated fallback URI.
+        return $this->updateMainAppUrl($fallback);
     }
 
     private function updateMainAppUrl($url)
@@ -60,5 +79,4 @@ trait SocialAuthSettings
 
         return $url;
     }
-
 }

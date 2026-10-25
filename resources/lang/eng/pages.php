@@ -23,6 +23,7 @@ return [
         'no_extension' => 'No 3CX extension is bound to your account. Contact your administrator.',
         'permission_denied' => 'You do not have permission to place calls.',
         'generic_error' => 'Unable to initiate the call. Please try again.',
+        'insecure_context' => 'Microphone access requires a secure connection (HTTPS). Open the CRM over HTTPS and try again.',
     ],
 
     'entity_summary' => [
@@ -744,6 +745,28 @@ return [
             'handoff_search' => 'Hand off to',
             'dismiss' => 'Dismiss',
             'work_report' => 'Work report',
+        ],
+        'pilot' => [
+            'title' => 'Email pilot',
+            'help' => 'Only people on this list can connect a mailbox and sync mail while the Email feature is on. Company-wide access includes everyone in your company.',
+            'company_title' => 'Company access',
+            'company_enabled' => 'Everyone in this company is on the pilot.',
+            'company_disabled' => 'Only the users listed below are on the pilot.',
+            'add_company' => 'Allow whole company',
+            'users_title' => 'People',
+            'users_empty' => 'No individual people listed yet.',
+            'search_placeholder' => 'Search by name or email',
+            'search' => 'Search',
+            'add_user' => 'Add',
+            'remove' => 'Remove',
+            'added_by' => 'Added by',
+            'open_mailbox' => 'Mailbox settings',
+            'open_from_mailbox' => 'Manage who can use Email',
+            'errors' => [
+                'search_failed' => 'Could not search people.',
+                'add_failed' => 'Could not update the pilot list.',
+                'remove_failed' => 'Could not remove that entry.',
+            ],
         ],
         'composer' => [
             'new_title' => 'New email',
@@ -2450,6 +2473,41 @@ return [
         'cancel' => 'Cancel',
         'confirmed_toast' => 'Bank transfer confirmed.',
         'confirm_failed' => 'Unable to confirm transfer.',
+    ],
+
+
+    'call_bridge' => [
+        'title' => 'Call Bridge',
+        'description' => 'Phone lines, call pool and recordings for the browser softphone.',
+    ],
+    'task_category_actions' => [
+        'none' => 'None',
+        'email' => 'Email',
+        'call' => 'Call',
+        'select' => 'Select an action',
+    ],
+    'call_summary' => [
+        'inbound_from' => 'Inbound call from',
+        'outbound_to' => 'Outbound call to',
+        'with' => 'Call with',
+        'inbound' => 'Inbound call',
+        'outbound' => 'Outbound call',
+        'call' => 'Call',
+        'started' => 'started',
+        'completed' => 'completed',
+        'missed' => 'missed — no answer',
+        'declined' => 'declined',
+        'voicemail' => 'voicemail',
+        'busy' => 'line busy',
+        'failed' => 'failed to connect',
+        'recording_available' => 'Recording available',
+        'duration_hms' => ':h::m::s',
+        'duration_ms' => ':m::s',
+        'duration_s' => ':s s',
+        'separator' => ' · ',
+        'from' => 'From',
+        'to' => 'To',
+        'duration' => 'Duration',
     ],
 
 ];

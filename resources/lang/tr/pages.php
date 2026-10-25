@@ -9,6 +9,10 @@
 
 return [
 
+    'telephony' => [
+        'insecure_context' => 'Mikrofon erişimi güvenli bir bağlantı (HTTPS) gerektirir. CRM\'i HTTPS üzerinden açın ve tekrar deneyin.',
+    ],
+
     'entity_summary' => [
         'title_deal' => 'Yapay Zeka Özeti',
         'title_lead' => 'Yapay Zeka Aday Özeti',
@@ -704,6 +708,28 @@ return [
             'handoff_search' => 'Devret',
             'dismiss' => 'Yoksay',
             'work_report' => 'İş raporu',
+        ],
+        'pilot' => [
+            'title' => 'E-posta pilotu',
+            'help' => 'E-posta özelliği açıkken yalnızca bu listedekiler posta kutusu bağlayıp eşitleyebilir. Şirket geneli erişim, şirketinizdeki herkesi kapsar.',
+            'company_title' => 'Şirket erişimi',
+            'company_enabled' => 'Bu şirketteki herkes pilot listesinde.',
+            'company_disabled' => 'Yalnızca aşağıda listelenen kişiler pilot listesinde.',
+            'add_company' => 'Tüm şirkete izin ver',
+            'users_title' => 'Kişiler',
+            'users_empty' => 'Henüz bireysel kişi yok.',
+            'search_placeholder' => 'Ad veya e-posta ile ara',
+            'search' => 'Ara',
+            'add_user' => 'Ekle',
+            'remove' => 'Kaldır',
+            'added_by' => 'Ekleyen',
+            'open_mailbox' => 'Posta kutusu ayarları',
+            'open_from_mailbox' => 'E-postayı kimlerin kullanabileceğini yönet',
+            'errors' => [
+                'search_failed' => 'Kişiler aranamadı.',
+                'add_failed' => 'Pilot listesi güncellenemedi.',
+                'remove_failed' => 'Bu kayıt kaldırılamadı.',
+            ],
         ],
         'composer' => [
             'new_title' => 'Yeni e-posta',
@@ -2267,6 +2293,41 @@ return [
         'cancel' => 'İptal',
         'confirmed_toast' => 'Banka havalesi onaylandı.',
         'confirm_failed' => 'Havale onaylanamadı.',
+    ],
+
+
+    'call_bridge' => [
+        'title' => 'Call Bridge',
+        'description' => 'Tarayıcı yazılım telefonu için hatlar, çağrı havuzu ve kayıtlar.',
+    ],
+    'task_category_actions' => [
+        'none' => 'Yok',
+        'email' => 'E-posta',
+        'call' => 'Ara',
+        'select' => 'Bir işlem seçin',
+    ],
+    'call_summary' => [
+        'inbound_from' => 'Gelen arama',
+        'outbound_to' => 'Giden arama',
+        'with' => 'Arama',
+        'inbound' => 'Gelen arama',
+        'outbound' => 'Giden arama',
+        'call' => 'Arama',
+        'started' => 'başladı',
+        'completed' => 'tamamlandı',
+        'missed' => 'cevapsız — yanıt yok',
+        'declined' => 'reddedildi',
+        'voicemail' => 'sesli mesaj',
+        'busy' => 'hat meşgul',
+        'failed' => 'bağlantı kurulamadı',
+        'recording_available' => 'Kayıt mevcut',
+        'duration_hms' => ':s sa :d dk :s sn',
+        'duration_ms' => ':d dk :s sn',
+        'duration_s' => ':s sn',
+        'separator' => ' · ',
+        'from' => 'Kimden',
+        'to' => 'Kime',
+        'duration' => 'Süre',
     ],
 
 ];

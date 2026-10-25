@@ -8,12 +8,14 @@ import {
     Button,
     Icon,
     Segmented,
+    Switch,
     REDESIGN_FONT_STACK,
     REDESIGN_RADIUS,
     REDESIGN_TOKENS as T,
     REDESIGN_TYPE,
 } from "@/Components/Redesign";
-import type { PermissionScope } from "@/Types/permission";
+import { pageAccessFor } from "@/lib/pageAccess";
+import type { PermissionKey, PermissionScope } from "@/Types/permission";
 
 type Tab = "flags" | "permissions";
 
@@ -51,20 +53,28 @@ function scopeVariant(
     return "gray";
 }
 
+function isGranted(scope: PermissionScope | undefined): boolean {
+    return scopeLabel(scope) !== "none";
+}
+
 /**
  * Read-only flags + permissions inspector. Admin in all envs; anyone on Vite
  * DEV so local non-admin debugging still works. Does not mutate remote flags.
+ *
+ * "This page" (default on) limits the lists to entry gates in pageAccess.ts.
+ * An uncatalogued page keeps the full catalogs.
  */
 export default function AccessInspector() {
     const isAdmin = useIsAdminRole();
     const { t } = useTranslation();
-    const { props } = usePage();
+    const page = usePage();
     const [open, setOpen] = useState(false);
     const [tab, setTab] = useState<Tab>("flags");
     const [query, setQuery] = useState("");
+    const [pageOnly, setPageOnly] = useState(true);
 
-    const flags = props.featureFlags ?? {};
-    const permissions = props.auth?.permissions ?? {};
+    const flags = page.props.featureFlags ?? {};
+    const permissions = page.props.auth?.permissions ?? {};
 
     // `import.meta.env` only exists under the Vite pipeline — webpack/Mix
     // leaves `import.meta.env` undefined, which previously crashed this
@@ -75,32 +85,73 @@ export default function AccessInspector() {
             process?.env?.NODE_ENV === "development");
     const visible = isAdmin || isDev;
 
+    const entry = pageOnly ? pageAccessFor(page.component) : undefined;
+    const pageScoped = pageOnly && entry !== undefined;
+    const showUndeclared = pageOnly && entry === undefined;
+
+    const scopedFlags = useMemo(() => {
+        if (!pageScoped || !entry) {
+            return flags;
+        }
+        const next: Record<string, boolean> = {};
+        for (const name of entry.flags ?? []) {
+            next[name] = flags[name] === true;
+        }
+        return next;
+    }, [pageScoped, entry, flags]);
+
+    const scopedPermissions = useMemo(() => {
+        if (!pageScoped || !entry) {
+            return permissions;
+        }
+        const next: Record<string, PermissionScope | undefined> = {};
+        for (const gate of entry.permissions ?? []) {
+            next[gate.key] = permissions[gate.key as PermissionKey];
+        }
+        return next;
+    }, [pageScoped, entry, permissions]);
+
+    const requiredScopes = useMemo(() => {
+        const map = new Map<string, string[]>();
+        if (!pageScoped || !entry) {
+            return map;
+        }
+        for (const gate of entry.permissions ?? []) {
+            if (gate.scopes && gate.scopes.length > 0) {
+                map.set(gate.key, gate.scopes);
+            }
+        }
+        return map;
+    }, [pageScoped, entry]);
+
     const flagRows = useMemo(() => {
         const q = query.trim().toLowerCase();
-        return Object.entries(flags)
+        return Object.entries(scopedFlags)
             .filter(([name]) => !q || name.toLowerCase().includes(q))
             .sort(([a], [b]) => a.localeCompare(b));
-    }, [flags, query]);
+    }, [scopedFlags, query]);
 
     const permissionRows = useMemo(() => {
         const q = query.trim().toLowerCase();
-        return Object.entries(permissions)
+        return Object.entries(scopedPermissions)
             .filter(([name]) => !q || name.toLowerCase().includes(q))
             .sort(([a], [b]) => a.localeCompare(b));
-    }, [permissions, query]);
+    }, [scopedPermissions, query]);
 
     const enabledFlagCount = useMemo(
-        () => Object.values(flags).filter(Boolean).length,
-        [flags],
+        () => Object.values(scopedFlags).filter(Boolean).length,
+        [scopedFlags],
     );
     const grantedPermissionCount = useMemo(
-        () =>
-            Object.values(permissions).filter((scope) => {
-                const label = scopeLabel(scope);
-                return label !== "none";
-            }).length,
-        [permissions],
+        () => Object.values(scopedPermissions).filter((scope) => isGranted(scope)).length,
+        [scopedPermissions],
     );
+
+    const showAnyOf =
+        pageScoped &&
+        entry?.permissionsMatch === "any" &&
+        tab === "permissions" &&
+        (entry.permissions?.length ?? 0) > 0;
 
     if (!visible) {
         return null;
@@ -185,6 +236,19 @@ export default function AccessInspector() {
                         }}
                     />
                 </div>
+                <div style={{ marginTop: 10 }}>
+                    <Switch
+                        checked={pageOnly}
+                        onChange={() => setPageOnly((current) => !current)}
+                        label={t("app.access_inspector.this_page")}
+                        aria-label={t("app.access_inspector.this_page")}
+                    />
+                    {showUndeclared ? (
+                        <Caption>
+                            {t("app.access_inspector.undeclared")}
+                        </Caption>
+                    ) : null}
+                </div>
             </div>
             <div
                 style={{
@@ -193,6 +257,9 @@ export default function AccessInspector() {
                     borderTop: `1px solid ${T.BORDER_SOFT}`,
                 }}
             >
+                {showAnyOf ? (
+                    <Caption inset>{t("app.access_inspector.any_of")}</Caption>
+                ) : null}
                 {tab === "flags" ? (
                     flagRows.length === 0 ? (
                         <EmptyRow label={t("app.access_inspector.empty")} />
@@ -210,13 +277,26 @@ export default function AccessInspector() {
                 ) : permissionRows.length === 0 ? (
                     <EmptyRow label={t("app.access_inspector.empty")} />
                 ) : (
-                    permissionRows.map(([name, scope]) => (
-                        <Row key={name} name={name}>
-                            <Badge variant={scopeVariant(scope)}>
-                                {scopeLabel(scope)}
-                            </Badge>
-                        </Row>
-                    ))
+                    permissionRows.map(([name, scope]) => {
+                        const scopes = requiredScopes.get(name);
+                        return (
+                            <Row
+                                key={name}
+                                name={name}
+                                hint={
+                                    scopes
+                                        ? t("app.access_inspector.needs", {
+                                              scopes: scopes.join(", "),
+                                          })
+                                        : undefined
+                                }
+                            >
+                                <Badge variant={scopeVariant(scope)}>
+                                    {scopeLabel(scope)}
+                                </Badge>
+                            </Row>
+                        );
+                    })
                 )}
             </div>
             <div
@@ -270,11 +350,35 @@ export default function AccessInspector() {
     );
 }
 
+function Caption({
+    children,
+    inset = false,
+}: {
+    children: ReactNode;
+    inset?: boolean;
+}) {
+    return (
+        <div
+            style={{
+                marginTop: 8,
+                padding: inset ? "0 16px" : undefined,
+                fontSize: REDESIGN_TYPE.CAPTION,
+                color: T.TEXT_HINT,
+                lineHeight: 1.4,
+            }}
+        >
+            {children}
+        </div>
+    );
+}
+
 function Row({
     name,
+    hint,
     children,
 }: {
     name: string;
+    hint?: string;
     children: ReactNode;
 }) {
     return (
@@ -302,6 +406,17 @@ function Row({
             >
                 {name}
             </span>
+            {hint ? (
+                <span
+                    style={{
+                        flexShrink: 0,
+                        fontSize: REDESIGN_TYPE.CAPTION,
+                        color: T.TEXT_HINT,
+                    }}
+                >
+                    {hint}
+                </span>
+            ) : null}
             {children}
         </div>
     );

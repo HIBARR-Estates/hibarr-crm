@@ -146,8 +146,12 @@ class LeadService
     }
 
     /**
-     * SQL for a lead's next action: the earliest open task due date or scheduled
-     * meeting, whichever comes first, NULL when the lead has neither.
+     * SQL for a lead's next action: the earliest open task due date or upcoming
+     * scheduled meeting, whichever comes first, NULL when the lead has neither.
+     *
+     * A meeting qualifies only while its status is scheduled and its start is
+     * strictly later than now. One that has started or ended is not "next",
+     * even when nobody has marked it completed or cancelled.
      *
      * Raw SQL rather than a relation because the Leads index sorts and filters
      * on it — eager-loading tasks + meetings to read one date per row would
@@ -162,9 +166,13 @@ class LeadService
         $least = DB::connection()->getDriverName() === 'sqlite' ? 'MIN' : 'LEAST';
         $bindings = [];
 
+        // Start is a UTC instant. `>` matches the meetings list and Lead detail:
+        // at the start instant the meeting is live, not upcoming.
         $meeting = "(SELECT MIN(f.next_follow_up_date) FROM lead_follow_up f
             WHERE f.lead_id = leads.id AND f.status = 'scheduled'
-              AND f.next_follow_up_date IS NOT NULL";
+              AND f.next_follow_up_date IS NOT NULL
+              AND f.next_follow_up_date > ?";
+        $bindings[] = TaskWallClock::utcNowDateTimeString();
 
         // Mirrors LeadContactController@show: with 'added' the user only sees
         // meetings they created, so those are the only ones that can be "next".
@@ -202,8 +210,8 @@ class LeadService
     private function applyContactStatusFilter(Builder $query, mixed $status): void
     {
         match ($status) {
-            'contacted' => $query->whereNotNull('first_contacted_at'),
-            'uncontacted' => $query->whereNull('first_contacted_at'),
+            'contacted' => $query->whereNotNull('leads.first_contacted_at'),
+            'uncontacted' => $query->whereNull('leads.first_contacted_at'),
             default => null,
         };
     }
@@ -274,6 +282,10 @@ class LeadService
             ->whereIn('lead_id', $leadIds)
             ->where('status', 'scheduled')
             ->whereNotNull('next_follow_up_date')
+            // Same instant as nextActionAtSql(): started and ended meetings
+            // stay scheduled until someone records an outcome, and must not
+            // hide a later meeting or an open task.
+            ->where('next_follow_up_date', '>', TaskWallClock::utcNowDateTimeString())
             ->with('meetingType:id,name')
             ->orderBy('next_follow_up_date');
 
@@ -304,45 +316,56 @@ class LeadService
             $meeting = $meetings->get($lead->id)?->first();
             $task = $tasks->get($lead->id)?->first();
 
+            // `instant` is the raw UTC digits. Sorting those, not the converted
+            // wall clock, is what keeps this pick aligned with LEAST() in
+            // nextActionAtSql() across a daylight-saving fallback.
             $candidates = [];
 
             if ($meeting) {
                 $candidates[] = [
-                    'type' => 'meeting',
-                    'id' => $meeting->id,
-                    'title' => trim(strip_tags((string) $meeting->remark))
-                        ?: ($meeting->meetingType?->name ?? 'Meeting'),
-                    // Both branches are compared as instants in nextActionAtSql() and only
-                    // converted here, at the edge, for display — so the list, the
-                    // sort and the urgency filters cannot drift apart on which
-                    // action they call "next".
-                    'due_at' => $this->wallClockString($meeting->next_follow_up_date),
-                    'meta' => $meeting->meetingType?->name,
+                    'instant' => $this->utcInstant($meeting->next_follow_up_date),
+                    'action' => [
+                        'type' => 'meeting',
+                        'id' => $meeting->id,
+                        'title' => trim(strip_tags((string) $meeting->remark))
+                            ?: ($meeting->meetingType?->name ?? 'Meeting'),
+                        'due_at' => $this->wallClockString($meeting->next_follow_up_date),
+                        'meta' => $meeting->meetingType?->name,
+                    ],
                 ];
             }
 
             if ($task) {
                 $candidates[] = [
-                    'type' => 'task',
-                    'id' => $task->id,
-                    'title' => $task->heading,
-                    // tasks.due_date is a true UTC instant — every live write
-                    // runs through UserTimezone::interpretWallClock(), which is
-                    // not feature-flagged — so the raw column holds UTC digits
-                    // and must be converted before it leaves here. Formatting it
-                    // directly made the list disagree with the task modal: a
-                    // task due 17:00 was rendered as 14:00, three hours early.
-                    //
-                    // Same helper as the task modal, so the two surfaces cannot
-                    // drift, and it honours crm.user-timezone (a viewer's own
-                    // zone wins over the company default).
-                    'due_at' => $this->wallClockString($task->due_date),
-                    'meta' => null,
+                    'instant' => $this->utcInstant($task->due_date),
+                    'action' => [
+                        'type' => 'task',
+                        'id' => $task->id,
+                        'title' => $task->heading,
+                        // tasks.due_date is a true UTC instant — every live write
+                        // runs through UserTimezone::interpretWallClock(), which is
+                        // not feature-flagged — so the raw column holds UTC digits
+                        // and must be converted before it leaves here. Formatting it
+                        // directly made the list disagree with the task modal: a
+                        // task due 17:00 was rendered as 14:00, three hours early.
+                        //
+                        // Same helper as the task modal, so the two surfaces cannot
+                        // drift, and it honours crm.user-timezone (a viewer's own
+                        // zone wins over the company default).
+                        'due_at' => $this->wallClockString($task->due_date),
+                        'meta' => null,
+                    ],
                 ];
             }
 
-            $lead->next_action = collect($candidates)->sortBy('due_at')->first();
+            $lead->next_action = collect($candidates)->sortBy('instant')->value('action');
         });
+    }
+
+    /** UTC `Y-m-d H:i:s` digits, comparable with the raw columns and with each other. */
+    private function utcInstant(?\DateTimeInterface $date): ?string
+    {
+        return $date ? Carbon::instance($date)->copy()->utc()->format('Y-m-d H:i:s') : null;
     }
 
     /**
@@ -415,7 +438,7 @@ class LeadService
         $query = Lead::query()->select('leads.id');
         $this->applyPermissionScope($query, $viewPermission);
         $this->applyFilters($query, $request);
-        $query->where('temperature', $temperature);
+        $query->where('leads.temperature', $temperature);
 
         return $query->count();
     }
@@ -525,15 +548,15 @@ class LeadService
 
         switch ($viewPermission) {
             case 'added':
-                $query->where('added_by', $userId);
+                $query->where('leads.added_by', $userId);
                 break;
             case 'owned':
-                $query->where('lead_owner', $userId);
+                $query->where('leads.lead_owner', $userId);
                 break;
             case 'both':
                 $query->where(function ($q) use ($userId) {
-                    $q->where('added_by', $userId)
-                        ->orWhere('lead_owner', $userId);
+                    $q->where('leads.added_by', $userId)
+                        ->orWhere('leads.lead_owner', $userId);
                 });
                 break;
             case 'all':
@@ -544,31 +567,36 @@ class LeadService
     }
 
     /**
-     * Apply request filters
+     * Apply request filters.
+     *
+     * Every lead column is qualified with `leads.`: applySorting() left-joins
+     * users / lead_category / lead_sources, which share column names with
+     * leads (added_by, created_at, mobile, gender, company_id, ...), so an
+     * unqualified predicate fails as ambiguous once a joined sort is active.
      */
     private function applyFilters(Builder $query, Request $request): void
     {
-        if ($request->filled('search')) {
-            $search = $request->get('search');
-            $query->where(function ($q) use ($search) {
-                $term = '%'.$search.'%';
-                $q->where('client_name', 'like', $term)
-                    ->orWhere('client_email', 'like', $term)
-                    ->orWhere('company_name', 'like', $term)
-                    ->orWhere('country', 'like', $term);
-                LeadSearchQuery::applyMobileMatch($q, $search);
-                LeadSearchQuery::applyContactMethodMatch($q, $search);
-            });
+        $search = $this->normalizeSearch($request->get('search'));
+        if ($search !== '') {
+            $this->applySearch($query, $search);
+        }
+
+        if ($request->filled('lead_type')) {
+            match ($request->get('lead_type')) {
+                'lead' => $query->whereNull('leads.client_id'),
+                'client' => $query->whereNotNull('leads.client_id'),
+                default => null,
+            };
         }
 
         if ($request->filled('lead_source')) {
-            $query->whereIn('source_id', $this->toValueArray($request->get('lead_source')));
+            $query->whereIn('leads.source_id', $this->toValueArray($request->get('lead_source')));
         }
 
         if ($request->filled('category_id')) {
             $categoryIds = $this->toValueArray($request->get('category_id'));
             $query->where(function ($q) use ($categoryIds) {
-                $q->whereIn('category_id', $categoryIds)
+                $q->whereIn('leads.category_id', $categoryIds)
                     ->orWhereHas('categories', function ($cq) use ($categoryIds) {
                         $cq->whereIn('lead_category.id', $categoryIds);
                     });
@@ -576,53 +604,56 @@ class LeadService
         }
 
         if ($request->filled('lead_owner_id')) {
-            $query->whereIn('lead_owner', $this->toValueArray($request->get('lead_owner_id')));
+            $query->whereIn('leads.lead_owner', $this->toValueArray($request->get('lead_owner_id')));
         }
 
         if ($request->filled('added_by_id')) {
-            $query->whereIn('added_by', $this->toValueArray($request->get('added_by_id')));
+            $query->whereIn('leads.added_by', $this->toValueArray($request->get('added_by_id')));
         }
 
         if ($request->filled('referred_by_agent_id')) {
             $query->whereIn(
-                'referred_by_agent_id',
+                'leads.referred_by_agent_id',
                 $this->toValueArray($request->get('referred_by_agent_id'))
             );
         }
 
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->whereBetween('created_at', [
-                $this->dateBound($request->get('start_date'), '00:00:00'),
-                $this->dateBound($request->get('end_date'), '23:59:59'),
-            ]);
+        // Each bound applies on its own: an open-ended range ("created since")
+        // used to be dropped entirely, returning every lead.
+        if ($request->filled('start_date')) {
+            $query->where('leads.created_at', '>=', $this->dateBound($request->get('start_date'), '00:00:00'));
+        }
+
+        if ($request->filled('end_date')) {
+            $query->where('leads.created_at', '<=', $this->dateBound($request->get('end_date'), '23:59:59'));
         }
 
         if ($request->filled('lifecycle_status_id')) {
-            $query->whereIn('lead_lifecycle_status_id', $this->toValueArray($request->get('lifecycle_status_id')));
+            $query->whereIn('leads.lead_lifecycle_status_id', $this->toValueArray($request->get('lifecycle_status_id')));
         }
 
         if ($request->filled('temperature')) {
-            $query->whereIn('temperature', $this->toValueArray($request->get('temperature')));
+            $query->whereIn('leads.temperature', $this->toValueArray($request->get('temperature')));
         }
 
         if ($request->filled('preferred_contact_time')) {
-            $query->whereIn('preferred_contact_time', $this->toValueArray($request->get('preferred_contact_time')));
+            $query->whereIn('leads.preferred_contact_time', $this->toValueArray($request->get('preferred_contact_time')));
         }
 
         if ($request->filled('gender')) {
-            $query->whereIn('gender', $this->toValueArray($request->get('gender')));
+            $query->whereIn('leads.gender', $this->toValueArray($request->get('gender')));
         }
 
         if ($request->filled('age_range')) {
-            $query->whereIn('age_range', $this->toValueArray($request->get('age_range')));
+            $query->whereIn('leads.age_range', $this->toValueArray($request->get('age_range')));
         }
 
         if ($request->filled('nationality')) {
-            $query->whereIn('nationality', $this->toValueArray($request->get('nationality')));
+            $query->whereIn('leads.nationality', $this->toValueArray($request->get('nationality')));
         }
 
         if ($request->filled('country')) {
-            $query->whereIn('country', $this->toValueArray($request->get('country')));
+            $query->whereIn('leads.country', $this->toValueArray($request->get('country')));
         }
 
         if ($request->filled('next_action')) {
@@ -637,7 +668,7 @@ class LeadService
             $languageCodes = $this->toValueArray($request->get('language'));
             $query->where(function ($q) use ($languageCodes) {
                 foreach ($languageCodes as $code) {
-                    $q->orWhereJsonContains('languages', $code);
+                    $q->orWhereJsonContains('leads.languages', $code);
                 }
             });
         }
@@ -646,7 +677,9 @@ class LeadService
 
         if ($request->filled('qualification_segment_key')) {
             $segmentKey = $request->get('qualification_segment_key');
-            $answerValues = array_filter((array) $request->get('qualification_answer_values', []));
+            // The filter UI sends a comma-separated string; casting it with
+            // (array) kept "a,b" as one value that no answer could contain.
+            $answerValues = $this->toValueArray($request->get('qualification_answer_values'));
 
             $query->whereExists(function ($sub) use ($segmentKey, $answerValues) {
                 $sub->select(DB::raw(1))
@@ -668,6 +701,41 @@ class LeadService
         }
 
         $this->applyCustomFieldFilters($query, $request);
+    }
+
+    /** Trimmed search text with inner whitespace collapsed; '' when absent. */
+    private function normalizeSearch(mixed $search): string
+    {
+        if (! is_scalar($search)) {
+            return '';
+        }
+
+        return trim((string) preg_replace('/\s+/u', ' ', (string) $search));
+    }
+
+    /**
+     * Free-text search. A phone-shaped term ("+49 176 123") is matched as one
+     * number. Anything else is split into words and every word must match
+     * some field, so "smith john" still finds "John Smith" and an extra word
+     * narrows the result instead of matching nothing.
+     */
+    private function applySearch(Builder $query, string $search): void
+    {
+        $terms = LeadSearchQuery::looksLikePhone($search)
+            ? [$search]
+            : array_slice(array_values(array_unique(explode(' ', $search))), 0, 6);
+
+        foreach ($terms as $term) {
+            $query->where(function ($q) use ($term) {
+                $like = '%'.$term.'%';
+                $q->where('leads.client_name', 'like', $like)
+                    ->orWhere('leads.client_email', 'like', $like)
+                    ->orWhere('leads.company_name', 'like', $like)
+                    ->orWhere('leads.country', 'like', $like);
+                LeadSearchQuery::applyMobileMatch($q, $term, 'leads.mobile');
+                LeadSearchQuery::applyContactMethodMatch($q, $term);
+            });
+        }
     }
 
     /**

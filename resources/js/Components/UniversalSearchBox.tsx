@@ -3,6 +3,7 @@ import { Input, InputRef, Tooltip } from "antd";
 import { CornerDownLeft } from "lucide-react";
 import { useFilter } from "@/contexts/FilterContext";
 import { router } from "@inertiajs/react";
+import { mergeQueryParams } from "@/lib/inertiaQuery";
 
 interface UniversalSearchBoxProps {
     placeholder?: string;
@@ -101,30 +102,13 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
         setFilter("search", value);
 
         if (config) {
-            // Get current URL parameters to preserve them
-            const urlParams = new URLSearchParams(window.location.search);
-            const currentParams: Record<string, any> = {};
-            urlParams.forEach((val, key) => {
-                currentParams[key] = val;
-            });
-
-            // Merge params
-            const finalParams: Record<string, any> = {
-                ...currentParams,
-                ...filters,
-                search: value,
+            // The URL is the source of truth for the active filters. Spreading
+            // in-memory filter state here re-serialised multiselects as
+            // `key[]=…` pairs (or stale values), which the filter form could
+            // not read back, so the next filter change dropped selections.
+            const finalParams = mergeQueryParams({
+                search: value.trim(),
                 page: 1,
-            };
-
-            // Remove empty keys
-            Object.keys(finalParams).forEach((key) => {
-                if (
-                    finalParams[key] === null ||
-                    finalParams[key] === "" ||
-                    finalParams[key] === undefined
-                ) {
-                    delete finalParams[key];
-                }
             });
 
             router.get(route(config.routeName), finalParams, {

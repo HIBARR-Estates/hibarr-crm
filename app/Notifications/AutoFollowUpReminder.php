@@ -6,6 +6,7 @@ use App\Models\DealFollowUp;
 use App\Models\EmailNotificationSetting;
 use App\Models\Lead;
 use App\Models\ReminderEmailTemplate;
+use App\Services\Notifications\MailCategory;
 use App\Support\LeadLocaleResolver;
 use App\Support\MeetingEmailPresenter;
 use App\Support\MeetingIcsBuilder;
@@ -35,6 +36,14 @@ class AutoFollowUpReminder extends BaseNotification
         }
 
         $this->initUnsRouting();
+    }
+
+    /**
+     * Meeting follow-ups are relationship/bulk mail, not transactional.
+     */
+    protected function mailCategory(): string
+    {
+        return MailCategory::NON_TRANSACTIONAL;
     }
 
     public function via($notifiable)

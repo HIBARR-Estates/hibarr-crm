@@ -169,6 +169,8 @@ export interface DeveloperProject {
     google_drive_link: string | null;
     availability_link: string | null;
     starting_price: number | null;
+    /** Currency of starting_price and fixed-amount downpayments. */
+    currency?: string | null;
     /** Overrides the developer's rate as the deal's commission ceiling. Null = inherit. */
     commission_percentage: number | null;
     primary_categories: string[] | null;

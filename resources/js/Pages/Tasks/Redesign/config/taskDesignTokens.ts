@@ -47,6 +47,8 @@ export const TASK_ICON = {
     check: "M20 6 9 17l-5-5",
     download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3",
     enter: "M9 10 4 15l5 5M20 4v7a4 4 0 0 1-4 4H4",
+    /** Play triangle — the qualification / run-script action. */
+    play: "M5 3.5l14 8.5-14 8.5z",
 } as const;
 
 export type TaskPriorityKey =

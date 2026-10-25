@@ -9,6 +9,10 @@
 
 return [
 
+    'telephony' => [
+        'insecure_context' => 'Mikrofonzugriff erfordert eine sichere Verbindung (HTTPS). Öffnen Sie das CRM über HTTPS und versuchen Sie es erneut.',
+    ],
+
     'entity_summary' => [
         'title_deal' => 'KI-Zusammenfassung',
         'title_lead' => 'KI-Lead-Zusammenfassung',
@@ -723,6 +727,28 @@ return [
             'handoff_search' => 'Übergeben an',
             'dismiss' => 'Verwerfen',
             'work_report' => 'Arbeitsbericht',
+        ],
+        'pilot' => [
+            'title' => 'E-Mail-Pilot',
+            'help' => 'Nur Personen auf dieser Liste können ein Postfach verbinden und synchronisieren, solange die E-Mail-Funktion aktiv ist. Firmenweiter Zugang gilt für alle in Ihrem Unternehmen.',
+            'company_title' => 'Firmenzugang',
+            'company_enabled' => 'Alle in diesem Unternehmen sind im Pilot.',
+            'company_disabled' => 'Nur die unten gelisteten Personen sind im Pilot.',
+            'add_company' => 'Ganzes Unternehmen zulassen',
+            'users_title' => 'Personen',
+            'users_empty' => 'Noch keine einzelnen Personen gelistet.',
+            'search_placeholder' => 'Nach Name oder E-Mail suchen',
+            'search' => 'Suchen',
+            'add_user' => 'Hinzufügen',
+            'remove' => 'Entfernen',
+            'added_by' => 'Hinzugefügt von',
+            'open_mailbox' => 'Postfach-Einstellungen',
+            'open_from_mailbox' => 'Festlegen, wer E-Mail nutzen darf',
+            'errors' => [
+                'search_failed' => 'Personen konnten nicht gesucht werden.',
+                'add_failed' => 'Die Pilotliste konnte nicht aktualisiert werden.',
+                'remove_failed' => 'Dieser Eintrag konnte nicht entfernt werden.',
+            ],
         ],
         'composer' => [
             'new_title' => 'Neue E-Mail',
@@ -2289,6 +2315,41 @@ return [
         'cancel' => 'Abbrechen',
         'confirmed_toast' => 'Banküberweisung bestätigt.',
         'confirm_failed' => 'Überweisung konnte nicht bestätigt werden.',
+    ],
+
+
+    'call_bridge' => [
+        'title' => 'Call Bridge',
+        'description' => 'Telefonleitungen, Anrufpool und Aufnahmen für den Browser-Softphone.',
+    ],
+    'task_category_actions' => [
+        'none' => 'Keine',
+        'email' => 'E-Mail',
+        'call' => 'Anruf',
+        'select' => 'Aktion auswählen',
+    ],
+    'call_summary' => [
+        'inbound_from' => 'Eingehender Anruf von',
+        'outbound_to' => 'Ausgehender Anruf an',
+        'with' => 'Anruf mit',
+        'inbound' => 'Eingehender Anruf',
+        'outbound' => 'Ausgehender Anruf',
+        'call' => 'Anruf',
+        'started' => 'gestartet',
+        'completed' => 'abgeschlossen',
+        'missed' => 'verpasst — keine Antwort',
+        'declined' => 'abgelehnt',
+        'voicemail' => 'Sprachnachricht',
+        'busy' => 'Leitung besetzt',
+        'failed' => 'Verbindung fehlgeschlagen',
+        'recording_available' => 'Aufnahme verfügbar',
+        'duration_hms' => ':h Std. :m Min. :s Sek.',
+        'duration_ms' => ':m Min. :s Sek.',
+        'duration_s' => ':s Sek.',
+        'separator' => ' · ',
+        'from' => 'Von',
+        'to' => 'An',
+        'duration' => 'Dauer',
     ],
 
 ];

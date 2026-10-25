@@ -24,6 +24,35 @@ class LeadObserver
 {
     use RecordsCrmEvents;
 
+    private static int $timelineEventsSuppressed = 0;
+
+    /**
+     * Run $callback without this observer's timeline events (lead_created,
+     * lead_updated, lead_lifecycle_status_changed, lead_owner_changed).
+     * Automations and notifications still run. The external contact/deal API
+     * and gRPC use this so LeadApiChangeRecorder is the one place that records
+     * their writes, whether or not the save was observed.
+     */
+    public static function withoutTimelineEvents(callable $callback): mixed
+    {
+        self::$timelineEventsSuppressed++;
+
+        try {
+            return $callback();
+        } finally {
+            self::$timelineEventsSuppressed--;
+        }
+    }
+
+    private function recordTimelineEvent(string $slug, Lead $lead, array $extra): void
+    {
+        if (self::$timelineEventsSuppressed > 0) {
+            return;
+        }
+
+        $this->recordCrmEvent($slug, $lead, $extra);
+    }
+
     public function saving(Lead $lead)
     {
         if (! isRunningInConsoleOrSeeding()) {
@@ -67,14 +96,7 @@ class LeadObserver
             $leadContact->company_id = company()->id;
         }
 
-        if (! $leadContact->lead_lifecycle_status_id && $leadContact->company_id) {
-            $defaultStatus = app(LeadLifecycleStatusService::class)
-                ->resolveDefaultForCompany((int) $leadContact->company_id);
-
-            if ($defaultStatus) {
-                $leadContact->lead_lifecycle_status_id = $defaultStatus->id;
-            }
-        }
+        app(LeadLifecycleStatusService::class)->applyDefaultIfMissing($leadContact);
     }
 
     public function created(Lead $leadContact)
@@ -117,7 +139,7 @@ class LeadObserver
         }
 
         // ── CRM Event: lead_created ──
-        $this->recordCrmEvent('lead_created', $leadContact, [
+        $this->recordTimelineEvent('lead_created', $leadContact, [
             'metadata' => [
                 'comment' => 'New lead created'.(session()->has('is_imported') ? ' (imported)' : ''),
                 'client_name' => $leadContact->client_name,
@@ -209,7 +231,7 @@ class LeadObserver
             $to = $leadContact->temperature;
 
             // ── CRM Event: lead_updated (manual temperature change) ──
-            $this->recordCrmEvent('lead_updated', $leadContact, [
+            $this->recordTimelineEvent('lead_updated', $leadContact, [
                 'metadata' => [
                     'comment' => 'Lead temperature changed',
                     'from_temperature' => $from instanceof \App\Enums\LeadTemperature ? $from->value : $from,
@@ -227,7 +249,7 @@ class LeadObserver
                 ->keyBy('id');
 
             // ── CRM Event: lead_lifecycle_status_changed ──
-            $this->recordCrmEvent('lead_lifecycle_status_changed', $leadContact, [
+            $this->recordTimelineEvent('lead_lifecycle_status_changed', $leadContact, [
                 'metadata' => [
                     'comment' => 'Lifecycle status changed from '
                         .($statuses->get($fromId)?->label ?? 'none')
@@ -278,7 +300,7 @@ class LeadObserver
         });
 
         // ── CRM Event: lead_owner_changed ──
-        $this->recordCrmEvent('lead_owner_changed', $leadContact, [
+        $this->recordTimelineEvent('lead_owner_changed', $leadContact, [
             'metadata' => [
                 'comment' => 'Lead owner changed',
                 'from_owner_id' => $oldOwnerId,

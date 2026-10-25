@@ -5,6 +5,9 @@ import type {
     CrmEventDirection,
     CrmEventStatus,
 } from "@/Types/api/crm-event";
+import { describeCallEvent } from "@/lib/crmEvents/callSummary";
+
+export { describeCallEvent };
 
 dayjs.extend(relativeTime);
 
@@ -16,6 +19,8 @@ export interface TimelineEventViewModel {
     id: string;
     type: Exclude<TimelineFilter, "all">;
     title: string;
+    /** True when `title` is already localized and should not be passed through td(). */
+    titleLocalized?: boolean;
     meta: string;
     dot: TimelineDotVariant;
     /** Human summary override from metadata (e.g. "Contact → In Progress"). */
@@ -30,11 +35,71 @@ export interface TimelineEventViewModel {
     status: CrmEventStatus;
     direction?: CrmEventDirection | null;
     /**
+     * Call-specific detail for the `call_*` events: whether a recording exists
+     * and where to play it, plus the phone number and duration for the summary.
+     */
+    call?: {
+        phone: string | null;
+        durationSeconds: number | null;
+        /** Present when audio was captured for this call. */
+        recordingId: number | null;
+        /** Stream URL for inline playback. */
+        playUrl: string | null;
+        /**
+         * Download URL for the explicit "save the file" action. It is an
+         * authorised app endpoint, not the raw object-storage link — the
+         * storage URL is a durable bearer credential and is never exposed.
+         */
+        downloadUrl: string | null;
+        expired: boolean;
+    };
+    /**
      * Recorded by hand via Log Action (custom event type) rather than written
      * by the system as an audit trail. Only these may be edited/deleted.
      */
     isAgentLogged: boolean;
     occurredAt: string;
+}
+
+/**
+ * Call detail carried by the timeline for `call_*` events.
+ *
+ * The recording link is what makes a call playable in place: the recording is
+ * stamped onto the event's metadata after the upload finishes, so the timeline
+ * row for the call already knows which recording belongs to it.
+ */
+function buildCallDetails(event: CrmEvent): TimelineEventViewModel["call"] {
+    const slug = event.event_type?.slug ?? "";
+    if (!slug.startsWith("call_")) {
+        return undefined;
+    }
+
+    const meta = (event.metadata ?? {}) as Record<string, unknown>;
+    const recordingId =
+        typeof meta.recording_id === "number"
+            ? meta.recording_id
+            : null;
+
+    return {
+        phone:
+            typeof meta.phone_number === "string" && meta.phone_number.trim() !== ""
+                ? meta.phone_number.trim()
+                : null,
+        durationSeconds: typeof meta.duration === "number" ? meta.duration : null,
+        recordingId,
+        // Streams the bytes back with a decodable Content-Type; the object
+        // storage link only works as a download.
+        playUrl: recordingId !== null ? route("call-recordings.play", recordingId) : null,
+        // The download goes through the app as well, so the raw object-storage
+        // link never reaches the browser.
+        downloadUrl:
+            recordingId !== null
+                ? route("call-recordings.download", recordingId)
+                : null,
+        // Expiry is not carried in the event metadata; the play endpoint
+        // answers 410 for an expired recording and the player surfaces that.
+        expired: false,
+    };
 }
 
 export const FILTER_TO_GENERATION_TYPE: Record<
@@ -97,7 +162,17 @@ export function getTimelineDirectionLabel(
     return DIRECTION_LABELS[direction] ?? direction;
 }
 
-export function crmEventToTimelineViewModel(event: CrmEvent): TimelineEventViewModel {
+/**
+ * Maps one CRM event to the timeline's view model.
+ *
+ * `t` is the current locale's translator; only the call summary is localized
+ * here — actor names and timestamps stay as-is. Pure callers can pass a
+ * function that returns the key unchanged.
+ */
+export function crmEventToTimelineViewModel(
+    event: CrmEvent,
+    t: (key: string) => string,
+): TimelineEventViewModel {
     const type: TimelineEventViewModel["type"] =
         event.generation_type === "user_generated"
             ? "agent"
@@ -112,7 +187,13 @@ export function crmEventToTimelineViewModel(event: CrmEvent): TimelineEventViewM
             : type === "external"
               ? "External"
               : "Agent");
-    const title = event.event_type?.name || "Activity updated";
+    // Call events get a plain-language summary; everything else uses its
+    // event-type name.
+    const callSummary = describeCallEvent(event, t);
+    const title = callSummary || event.event_type?.name || "Activity updated";
+    const titleLocalized = callSummary !== null;
+
+    const call = buildCallDetails(event);
     const meta = `${actor} · ${dayjs(event.occurred_at).fromNow()}`;
 
     const metadata = event.metadata ?? {};
@@ -164,6 +245,7 @@ export function crmEventToTimelineViewModel(event: CrmEvent): TimelineEventViewM
         id: event.uuid,
         type,
         title,
+        titleLocalized,
         meta,
         dot,
         grouped: grouped || undefined,
@@ -175,6 +257,7 @@ export function crmEventToTimelineViewModel(event: CrmEvent): TimelineEventViewM
         categoryName: event.event_type?.category?.name,
         status: event.status,
         direction: event.direction,
+        call,
         // Mirrors CrmEventController::isAgentLoggedEvent — a custom (non
         // system-seeded) event type means a person logged this by hand.
         isAgentLogged: event.event_type?.is_system === false,
