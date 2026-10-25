@@ -96,6 +96,48 @@ class CallBridgeServiceTest extends TestCase
             ->count());
     }
 
+    public function test_outbound_call_is_withheld_when_number_is_suppressed(): void
+    {
+        Config::set('services.ol.base_url', 'https://ol.test/v1');
+        Config::set('services.ol.api_key', 'test-key');
+
+        Http::fake([
+            'https://ol.test/v1/suppression/check' => Http::response([
+                'success' => true,
+                'data' => [
+                    'items' => [[
+                        'phone' => '+35799123456',
+                        'scope' => 'transactional',
+                        'blocked' => true,
+                        'wouldBlock' => true,
+                        'unavailable' => false,
+                    ]],
+                    'unavailable' => false,
+                    'enforced' => true,
+                ],
+            ], 200),
+            '*' => Http::response([], 200),
+        ]);
+
+        $result = $this->service()->startCall([
+            'phone_number' => '+35799123456',
+            'entity_type' => 'lead',
+            'entity_id' => $this->leadId,
+            'user_id' => self::USER_ID,
+            'company_id' => self::COMPANY_ID,
+        ]);
+
+        $this->assertTrue($result['suppressed']);
+        $this->assertNull($result['call_id']);
+        $this->assertSame('blocked', $result['status']);
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/suppression/check')
+            && $request['items'][0]['phone'] === '+35799123456'
+            && $request['items'][0]['scope'] === 'transactional');
+
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'start_call'));
+    }
+
     public function test_replayed_ol_event_is_not_logged_twice(): void
     {
         $payload = $this->olEvent([
