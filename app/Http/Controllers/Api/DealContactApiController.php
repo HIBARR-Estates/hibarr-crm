@@ -535,9 +535,9 @@ class DealContactApiController extends Controller
                         $existingContact->gender = $request->gender;
                         $updated = true;
                     }
-                    // Update source_id if provided (must be valid lead_source_id)
+                    // Fill source_id only when the lead has none — an existing source is never overwritten
                     if ($request->has('lead_source_id') && ! empty($request->lead_source_id)) {
-                        if ($existingContact->source_id != $request->lead_source_id) {
+                        if (! $existingContact->source_id) {
                             $existingContact->source_id = $request->lead_source_id;
                             $updated = true;
                         }
@@ -630,9 +630,9 @@ class DealContactApiController extends Controller
                     $existingContact->gender = $request->gender;
                     $updated = true;
                 }
-                // Update source_id if provided
+                // Fill source_id only when the lead has none — an existing source is never overwritten
                 $sourceId = $this->resolveSourceId($request, $companyId);
-                if ($sourceId && $existingContact->source_id !== $sourceId) {
+                if ($sourceId && ! $existingContact->source_id) {
                     $existingContact->source_id = $sourceId;
                     $updated = true;
                 }
@@ -673,9 +673,9 @@ class DealContactApiController extends Controller
                     $existingContact->gender = $request->gender;
                     $updated = true;
                 }
-                // Update source_id if provided
+                // Fill source_id only when the lead has none — an existing source is never overwritten
                 $sourceId = $this->resolveSourceId($request, $companyId);
-                if ($sourceId && $existingContact->source_id !== $sourceId) {
+                if ($sourceId && ! $existingContact->source_id) {
                     $existingContact->source_id = $sourceId;
                     $updated = true;
                 }
