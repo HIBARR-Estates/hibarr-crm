@@ -421,6 +421,19 @@ return [
             ],
         ],
         [
+            'slug' => 'deal_lead_updated',
+            'name' => 'Deal Lead Updated',
+            'category' => 'deal',
+            'model_type' => 'App\\Models\\Deal',
+            'description' => 'The lead linked to a deal was updated through the external API.',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'comment' => ['type' => 'string', 'label' => 'Description'],
+                'channel' => ['type' => 'string', 'label' => 'API Channel'],
+                'lead_id' => ['type' => 'number', 'label' => 'Lead ID'],
+            ],
+        ],
+        [
             'slug' => 'deal_closed_won',
             'name' => 'Deal Closed Won',
             'category' => 'deal',
