@@ -170,6 +170,11 @@ class SallyMeetingInsightService
             $clean = self::$summaryPurifier->purify($html);
         }
 
+        // HTMLPurifier normalizes newlines to the OS default (CRLF on
+        // Windows), which would make stored summaries differ between
+        // machines. Store LF everywhere.
+        $clean = str_replace(["\r\n", "\r"], "\n", $clean);
+
         return trim($clean);
     }
 
