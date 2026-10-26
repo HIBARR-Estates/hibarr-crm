@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useApiInfiniteQuery } from "@/lib/api/client/useApiQuery";
+import useTranslation from "@/Hooks/useTranslation";
 import type { CrmEventsIndexResponse } from "@/Types/api/crm-event";
 import {
     FILTER_TO_GENERATION_TYPE,
@@ -25,6 +26,8 @@ export default function useDealTimeline(
     entityId: number,
     modelType: string = DEAL_TIMELINE_MODEL_TYPE,
 ) {
+    const { t } = useTranslation();
+
     const [filter, setFilter] = useState<TimelineFilter>("all");
     const [dateRange, setDateRange] = useState<DealTimelineDateRange | null>(
         null,
@@ -73,8 +76,14 @@ export default function useDealTimeline(
         () =>
             (data?.pages ?? [])
                 .flatMap((page) => page.data ?? [])
-                .map(crmEventToTimelineViewModel),
-        [data],
+                // Email lives in compact conversation groups (E-28) — never
+                // also as a generic CRM catalog row for the same mail.
+                .filter((event) => {
+                    const slug = event.event_type?.slug;
+                    return slug !== "email_sent" && slug !== "email_received";
+                })
+                .map((event) => crmEventToTimelineViewModel(event, t)),
+        [data, t],
     );
 
     const clearDateRange = () => setDateRange(null);

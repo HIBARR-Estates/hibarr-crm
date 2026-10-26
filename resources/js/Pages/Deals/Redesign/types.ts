@@ -1,4 +1,5 @@
 import type { PageProps } from "@/Components/DashboardLayout";
+import type { EmailQuickAction } from "@/Email/types";
 import type { DealSummaryPayload } from "@/Types/entity-summary";
 import type { Deal } from "@/Types/api/deals";
 import type { Proposal } from "@/Types/api/proposal";
@@ -13,6 +14,7 @@ export type DealRecordTab =
     | "tasks"
     | "meetings"
     | "files"
+    | "payments"
     | "offers"
     | "exposes"
     | "recommendations"
@@ -28,6 +30,7 @@ export interface DealTabCount {
     tasks?: number;
     meetings?: number;
     files?: number;
+    payments?: number;
     offers?: number;
     exposes?: number;
     recommendations?: number;
@@ -58,6 +61,8 @@ export interface DealShowProps extends PageProps {
     pageTitle: string;
     dealAiSummary?: DealSummaryPayload | null;
     restrictPackageOrProperty?: boolean;
+    /** Null when crm.email is off or the user is not on the pilot allowlist. */
+    emailQuickAction?: EmailQuickAction | null;
     visibleLeadFieldKeys?: string[] | null;
     // notes / dealFollowUps / files / tasks fetch independently via
     // deals.notes.index / deals.meetings.index / deals.files.index /

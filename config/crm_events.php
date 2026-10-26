@@ -421,6 +421,19 @@ return [
             ],
         ],
         [
+            'slug' => 'deal_lead_updated',
+            'name' => 'Deal Lead Updated',
+            'category' => 'deal',
+            'model_type' => 'App\\Models\\Deal',
+            'description' => 'The lead linked to a deal was updated through the external API.',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'comment' => ['type' => 'string', 'label' => 'Description'],
+                'channel' => ['type' => 'string', 'label' => 'API Channel'],
+                'lead_id' => ['type' => 'number', 'label' => 'Lead ID'],
+            ],
+        ],
+        [
             'slug' => 'deal_closed_won',
             'name' => 'Deal Closed Won',
             'category' => 'deal',
@@ -667,6 +680,95 @@ return [
             'description' => 'A WhatsApp message was received.',
             'sync_processing' => false,
         ],
+        //Call Bridge events
+        [
+            'slug' => 'call_started',
+            'name' => 'Call Started',
+            'category' => 'communication',
+            'description' => 'A call was initiated via the call bridge.',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'call_id' => ['type' => 'string', 'label' => 'Call ID'],
+                'phone_number' => ['type' => 'string', 'label' => 'Phone Number'],
+                'direction' => ['type' => 'string', 'label' => 'Direction'],
+                'task_id' => ['type' => 'number', 'label' => 'Task ID'],
+            ],
+        ],
+        [
+            'slug' => 'call_ended',
+            'name' => 'Call Ended',
+            'category' => 'communication',
+            'description' => 'A call was ended via the call bridge.',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'call_id' => ['type' => 'string', 'label' => 'Call ID'],
+                'phone_number' => ['type' => 'string', 'label' => 'Phone Number'],
+                'duration' => ['type' => 'number', 'label' => 'Duration (seconds)'],
+                'direction' => ['type' => 'string', 'label' => 'Direction'],
+                'task_id' => ['type' => 'number', 'label' => 'Task ID'],
+            ],
+        ],
+        [
+            'slug' => 'call_missed',
+            'name' => 'Call Missed',
+            'category' => 'communication',
+            'description' => 'A call was missed (inbound, not answered).',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'call_id' => ['type' => 'string', 'label' => 'Call ID'],
+                'phone_number' => ['type' => 'string', 'label' => 'Phone Number'],
+                'direction' => ['type' => 'string', 'label' => 'Direction'],
+            ],
+        ],
+        [
+            'slug' => 'call_declined',
+            'name' => 'Call Declined',
+            'category' => 'communication',
+            'description' => 'A call was declined or rejected by the callee.',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'call_id' => ['type' => 'string', 'label' => 'Call ID'],
+                'phone_number' => ['type' => 'string', 'label' => 'Phone Number'],
+                'direction' => ['type' => 'string', 'label' => 'Direction'],
+            ],
+        ],
+        [
+            'slug' => 'call_voicemail',
+            'name' => 'Call Voicemail',
+            'category' => 'communication',
+            'description' => 'A call was routed to voicemail.',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'call_id' => ['type' => 'string', 'label' => 'Call ID'],
+                'phone_number' => ['type' => 'string', 'label' => 'Phone Number'],
+                'duration' => ['type' => 'number', 'label' => 'Duration (seconds)'],
+                'direction' => ['type' => 'string', 'label' => 'Direction'],
+            ],
+        ],
+        [
+            'slug' => 'call_busy',
+            'name' => 'Call Busy',
+            'category' => 'communication',
+            'description' => 'A call could not be completed because the line was busy.',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'call_id' => ['type' => 'string', 'label' => 'Call ID'],
+                'phone_number' => ['type' => 'string', 'label' => 'Phone Number'],
+                'direction' => ['type' => 'string', 'label' => 'Direction'],
+            ],
+        ],
+        [
+            'slug' => 'call_failed',
+            'name' => 'Call Failed',
+            'category' => 'communication',
+            'description' => 'A call failed to connect or was cancelled before connecting.',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'call_id' => ['type' => 'string', 'label' => 'Call ID'],
+                'phone_number' => ['type' => 'string', 'label' => 'Phone Number'],
+                'direction' => ['type' => 'string', 'label' => 'Direction'],
+            ],
+        ],
 
         // ── System Events ────────────────────────────────────────
         [
@@ -890,6 +992,15 @@ return [
             'deal_followup_created',
             'qualification_completed',
             'phone_call',
+            'call_started',
+        ],
+        // These slugs still stamp leads.first_contacted_at, but do NOT emit a
+        // separate lead_first_contact timeline milestone — the note/follow-up
+        // event itself already represents the contact on the timeline, so the
+        // extra "First contact logged" row is redundant noise.
+        'skip_event_slugs' => [
+            'lead_note_added',
+            'deal_note_added',
         ],
     ],
 

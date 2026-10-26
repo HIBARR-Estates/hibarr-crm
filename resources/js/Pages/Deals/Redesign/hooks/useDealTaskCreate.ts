@@ -21,6 +21,7 @@ export interface DealTaskCreateInput {
     priority: "low" | "medium" | "high" | "highest" | "urgent";
     description?: string;
     assignees?: number[];
+    sourceEmailMessageId?: string | null;
 }
 
 interface CreateTaskRequest {
@@ -35,6 +36,7 @@ interface CreateTaskRequest {
     user_id?: number[];
     estimate_hours: number;
     estimate_minutes: number;
+    source_email_message_id?: string;
 }
 
 export default function useDealTaskCreate(dealId: number) {
@@ -70,6 +72,10 @@ export default function useDealTaskCreate(dealId: number) {
                 estimate_hours: 0,
                 estimate_minutes: 0,
             };
+
+            if (input.sourceEmailMessageId) {
+                payload.source_email_message_id = input.sourceEmailMessageId;
+            }
 
             const assignees = input.assignees?.length
                 ? input.assignees

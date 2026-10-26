@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Contact;
 
 use App\Enums\PreferredContactTime;
+use App\Enums\Salutation;
 use App\Http\Requests\CoreRequest;
 use Illuminate\Validation\Rule;
 
@@ -57,11 +58,21 @@ class CreateOrUpdateContactRequest extends CoreRequest
      */
     public function rules()
     {
+        // Scoped to the caller's company: another company's status would be
+        // stored on the lead and never match that company's status filters.
+        // Without the header the controller rejects the request anyway.
+        $companyId = (int) $this->header('X-COMPANY-ID');
+        $lifecycleStatusExists = Rule::exists('lead_lifecycle_statuses', 'id');
+        if ($companyId > 0) {
+            $lifecycleStatusExists->where('company_id', $companyId);
+        }
+
         return [
             // Required contact fields
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'gender' => 'nullable|string|in:male,female',
+            'salutation' => ['nullable', 'string', Rule::in(array_column(Salutation::cases(), 'value'))],
 
             // Optional contact fields
             'phone' => 'nullable|string|max:50',
@@ -114,7 +125,7 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'preferred_contact_time' => ['nullable', 'string', Rule::in(PreferredContactTime::values())],
             'preferred_contact_times' => 'sometimes|nullable|array',
             'preferred_contact_times.*' => ['string', Rule::in(PreferredContactTime::values())],
-            'lead_lifecycle_status_id' => 'nullable|integer|exists:lead_lifecycle_statuses,id',
+            'lead_lifecycle_status_id' => ['nullable', 'integer', $lifecycleStatusExists],
             'has_joined_the_whatsapp_group' => 'nullable|boolean',
 
             // Optional lead custom fields: {"131": "value", "132": ["a","b"]}

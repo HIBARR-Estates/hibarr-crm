@@ -14,7 +14,6 @@ use App\Models\LeadSetting;
 use App\Models\LeadSource;
 use App\Models\MlmCommission;
 use App\Models\PartnerFlag;
-use App\Models\PipelineStage;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
 use App\Services\CrmEventService;
@@ -29,9 +28,9 @@ use Illuminate\Support\Facades\DB;
  * Query layer behind the v2 dashboards.
  *
  * Every method takes an explicit scope (a user id, or a set of lead_agent ids)
- * rather than reading auth() internally — the same query serves the agent view
- * scoped to one person and the manager view scoped to a team, which is what
- * keeps this from becoming four parallel dashboards.
+ * rather than reading auth() internally — the same query serves the personal
+ * view scoped to one person and the manager view scoped to every active agent,
+ * which is what keeps this from becoming four parallel dashboards.
  *
  * Company scoping is automatic via CompanyScope on Lead, Deal, Task and
  * LeadAgent. It is NOT on DealFollowUp or MlmCommission, so anything touching
@@ -87,22 +86,24 @@ class DashboardMetricsService
     private bool $trackingSinceResolved = false;
 
     /**
-     * Lead agent ids a manager's view covers: themselves plus their direct reports.
+     * Lead agent ids the manager view covers: every enabled agent whose user
+     * account is still active.
      *
-     * ponytail: one level deep via lead_agents.parent_agent_id. The agent_hierarchy
-     * closure table would give arbitrary depth but is currently empty (0 rows), so
-     * using it would silently return no team at all. Swap to it once it's backfilled.
+     * This is a company-wide coaching surface, not a downline. Hierarchy —
+     * parent_agent_id, skip-level reports, "people under you" — belongs on the
+     * team view. A manager of agents needs to see everyone who currently has
+     * a book, including people who don't report to them.
+     *
+     * "Active" matches how deal assignment already lists agents: lead_agents
+     * status is enabled, and the linked user is active. Disabled agent rows
+     * and deactivated employees stay out so the table is people a manager can
+     * still coach.
      */
-    public function teamAgentIds(int $userId): array
+    public function activeAgentIds(): array
     {
-        $agent = LeadAgent::where('user_id', $userId)->first();
-
-        if (! $agent) {
-            return [];
-        }
-
-        return LeadAgent::where('id', $agent->id)
-            ->orWhere('parent_agent_id', $agent->id)
+        return LeadAgent::query()
+            ->where('lead_agents.status', 'enabled')
+            ->whereHas('user', fn ($query) => $query->where('users.status', 'active'))
             ->pluck('id')
             ->all();
     }
@@ -891,9 +892,11 @@ class DashboardMetricsService
     {
         $ownerIds = $this->ownerIdsFor($agentIds);
 
+        $from = now()->subDays($days)->startOfDay();
+
         $cohort = Lead::query()
             ->whereIn('lead_owner', $ownerIds ?: [0])
-            ->where('leads.created_at', '>=', now()->subDays($days)->startOfDay())
+            ->where('leads.created_at', '>=', $from)
             ->toBase()
             ->get([
                 'leads.id',
@@ -940,7 +943,14 @@ class DashboardMetricsService
             ];
         }
 
-        return ['days' => $days, 'steps' => $rows];
+        return [
+            'days' => $days,
+            // The list-page date filter is a closed range; 23:59:59 keeps
+            // leads created today inside the same window the funnel counted.
+            'from' => $from->toDateString(),
+            'to' => now()->toDateString(),
+            'steps' => $rows,
+        ];
     }
 
     /**
@@ -1161,8 +1171,8 @@ class DashboardMetricsService
     /**
      * Per-agent detail with the one column a manager acts on: what's slipping.
      *
-     * The team median contact rate rides along so the UI can mark it on each
-     * bar — an agent at 75% means nothing until you know the team sits at 68%.
+     * The median contact rate rides along so the UI can mark it on each bar —
+     * an agent at 75% means nothing until you know the set sits at 68%.
      *
      * @return array{rows: array, median_contact_rate: float|null, sla_hours: int}
      */
@@ -1494,6 +1504,9 @@ class DashboardMetricsService
                 ? null
                 : (int) round($median),
             'commissionsByStatus' => $commissions,
+            // mlm_commissions has no currency of its own. Every leg is stored
+            // in the company currency, the same convention as commissionSummary.
+            'currency' => $this->defaultCurrencyCode(),
         ];
     }
 
@@ -1555,7 +1568,7 @@ class DashboardMetricsService
      * ponytail: N previews for N open referred deals (single digits today).
      * Batch the level and hierarchy lookups if a partner ever carries hundreds.
      *
-     * @return array{deal_count: int, amount: float|null, suppressed: bool}
+     * @return array{deal_count: int, amount: float|null, suppressed: bool, currency: string|null}
      */
     public function partnerForecast(int $leadAgentId, MlmCommissionService $commissions): array
     {
@@ -1581,6 +1594,8 @@ class DashboardMetricsService
             'deal_count' => $deals->count(),
             'amount' => $suppressed ? null : round((float) $amount, 2),
             'suppressed' => $suppressed,
+            // preview() already converts each leg into the company currency.
+            'currency' => $this->defaultCurrencyCode(),
         ];
     }
 
@@ -1660,15 +1675,35 @@ class DashboardMetricsService
     }
 
     /**
+     * When on, a partner referral is stalled only after someone has worked it
+     * and then left it idle. Off keeps the earlier rule: 30 days since the
+     * lead row last changed, whether or not anyone touched it.
+     */
+    public const PARTNER_LEAD_STALLED_FLAG = 'crm.partner.lead-stalled';
+
+    /**
      * A partner's open referrals, one row each.
      *
      * Names are abbreviated server-side ("Sarah Al-Rashid" → "S. Al-Rashid")
      * and no email, phone or deal value is selected at all — the partner sits
      * outside the trust boundary, so the redaction happens in the query rather
      * than by the UI choosing not to render a field it was handed.
+     *
+     * Stalled, behind PARTNER_LEAD_STALLED_FLAG: the lead was touched (first
+     * contact, a held meeting, or any deal) and leads.updated_at is then at
+     * least $stalledAfterDays old. A referral nobody has started is not
+     * stalled, however long it has sat there. With the flag off, age alone
+     * is enough, which is the behaviour this replaces.
      */
     public function partnerReferrals(int $leadAgentId, int $stalledAfterDays = 30): array
     {
+        try {
+            $requireTouch = FeatureFlags::enabled(self::PARTNER_LEAD_STALLED_FLAG);
+        } catch (\Throwable $e) {
+            report($e);
+            $requireTouch = false;
+        }
+
         return Lead::query()
             ->where('referred_by_agent_id', $leadAgentId)
             ->whereNotExists(function ($sub) {
@@ -1677,7 +1712,6 @@ class DashboardMetricsService
                     ->whereColumn('deals.lead_id', 'leads.id')
                     ->where('deals.outcome_status', 'won');
             })
-            ->leftJoin('users', 'users.id', '=', 'leads.lead_owner')
             // Same query, no extra round trip: the row needs to know whether
             // this partner already flagged it, and what came back.
             ->leftJoin('partner_flags', function ($join) use ($leadAgentId) {
@@ -1697,15 +1731,18 @@ class DashboardMetricsService
                 'leads.created_at',
                 'leads.updated_at',
                 'leads.first_contacted_at',
-                'users.name as agent_name',
                 'partner_flags.status as flag_status',
                 'partner_flags.response as flag_response',
                 DB::raw($this->firstMeetingSubquery().' as met_at'),
                 DB::raw('(SELECT COUNT(*) FROM deals d WHERE d.lead_id = leads.id AND d.outcome_status IS NULL) as open_deals'),
+                DB::raw('(SELECT COUNT(*) FROM deals dx WHERE dx.lead_id = leads.id) as deal_count'),
             ])
-            ->map(function ($row) use ($stalledAfterDays) {
+            ->map(function ($row) use ($stalledAfterDays, $requireTouch) {
                 $lastUpdate = Carbon::parse($row->updated_at);
                 $idleDays = (int) $lastUpdate->diffInDays(now());
+                $touched = $row->first_contacted_at !== null
+                    || $row->met_at !== null
+                    || (int) $row->deal_count > 0;
 
                 $stage = match (true) {
                     $row->open_deals > 0 => 'Deal open',
@@ -1718,14 +1755,53 @@ class DashboardMetricsService
                     'id' => $row->id,
                     'client' => $this->abbreviateName($row->client_name),
                     'stage' => $stage,
-                    'stalled' => $idleDays >= $stalledAfterDays,
-                    'agent' => $this->abbreviateName($row->agent_name),
+                    'stalled' => self::referralIsStalled($touched, $idleDays, $stalledAfterDays, $requireTouch),
                     'days_open' => (int) Carbon::parse($row->created_at)->diffInDays(now()),
                     'idle_days' => $idleDays,
                     'flag_status' => $row->flag_status,
                     'flag_response' => $row->flag_response,
                 ];
             })
+            ->all();
+    }
+
+    /**
+     * Idle long enough, and — when the flag is on — only if someone has
+     * already worked the lead. An untouched referral is waiting, not stalled.
+     */
+    private static function referralIsStalled(bool $touched, int $idleDays, int $stalledAfterDays, bool $requireTouch): bool
+    {
+        if ($idleDays < $stalledAfterDays) {
+            return false;
+        }
+
+        return $requireTouch ? $touched : true;
+    }
+
+    /**
+     * This partner's flags, newest first, including ones already answered.
+     *
+     * The referral table only joins a flag while it is still open, so a reply
+     * would vanish from that row the moment it was sent. This list is where
+     * the partner reads it.
+     */
+    public function partnerFlags(int $leadAgentId): array
+    {
+        return PartnerFlag::query()
+            ->where('lead_agent_id', $leadAgentId)
+            ->with(['lead:id,client_name'])
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get()
+            ->map(fn (PartnerFlag $flag) => [
+                'id' => $flag->id,
+                'lead_id' => $flag->lead_id,
+                'client' => $this->abbreviateName($flag->lead?->client_name),
+                'reason' => $flag->reason,
+                'message' => $flag->message,
+                'status' => $flag->status,
+                'response' => $flag->response,
+            ])
             ->all();
     }
 
@@ -1862,12 +1938,10 @@ class DashboardMetricsService
                     ->where('lead_follow_up.status', 'completed')));
     }
 
-    /** Human-readable form of the cutover, for panel notes. */
+    /** Explains how "held" is counted, without naming the cutover date. */
     public function meetingsHeldNote(): string
     {
-        return 'Marked held; before '
-            .Carbon::parse(self::STATUS_TRUSTED_FROM)->format('j M Y')
-            .', past and not cancelled';
+        return 'Marked held; older meetings count if past and not cancelled';
     }
 
     /**
@@ -1976,12 +2050,6 @@ class DashboardMetricsService
      */
     private function abbreviateName(?string $name): ?string
     {
-        $parts = array_values(array_filter(explode(' ', trim((string) $name))));
-
-        if (count($parts) < 2) {
-            return $parts[0] ?? null;
-        }
-
-        return mb_substr($parts[0], 0, 1).'. '.implode(' ', array_slice($parts, 1));
+        return \App\Support\PartnerRole::abbreviateName($name);
     }
 }

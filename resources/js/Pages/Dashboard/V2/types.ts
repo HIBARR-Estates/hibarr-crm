@@ -65,6 +65,9 @@ export type TeamKpis = TeamKpiMetrics & {
 
 export interface LifecycleFunnel {
     days: number;
+    /** Inclusive created-at window the steps were counted over (Y-m-d). */
+    from: string;
+    to: string;
     steps: Array<{
         key: string;
         label: string;
@@ -129,6 +132,8 @@ export interface PartnerStats {
     conversionRate: number | null;
     medianDaysToClose: number | null;
     commissionsByStatus: Record<string, number>;
+    /** Company currency. Null when the company has none configured. */
+    currency: string | null;
 }
 
 export interface PartnerForecast {
@@ -137,6 +142,8 @@ export interface PartnerForecast {
     amount: number | null;
     /** True when there are too few open deals to aggregate safely. */
     suppressed: boolean;
+    /** Company currency the forecast legs were converted into. */
+    currency: string | null;
 }
 
 export interface PartnerTrendPoint {
@@ -151,12 +158,22 @@ export interface PartnerReferral {
     client: string | null;
     stage: string;
     stalled: boolean;
-    agent: string | null;
     days_open: number;
     idle_days: number;
     /** Null when this partner has no open flag on the referral. */
     flag_status: "open" | "acknowledged" | null;
     flag_response: string | null;
+}
+
+/** A flag this partner raised, including ones the team has already answered. */
+export interface PartnerFlagThreadItem {
+    id: number;
+    lead_id: number;
+    client: string | null;
+    reason: string;
+    message: string | null;
+    status: string;
+    response: string | null;
 }
 
 export interface PartnerFlagRow {

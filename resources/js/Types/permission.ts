@@ -329,6 +329,7 @@ export const permissions = {
     "view_notice": "all",
     "view_order": "all",
     "view_overview_dashboard": "all",
+    "view_partner_dashboard": "all",
     "view_payments": "all",
     "view_product": "all",
     "view_project_budget": "all",
@@ -365,7 +366,8 @@ export const permissions = {
     "view_time_log_report": "all",
     "view_timelog_earnings": "all",
     "view_timelogs": "all",
-    "view_unassigned_tasks": "all"
+    "view_unassigned_tasks": "all",
+    "make_softphone_calls": "all"
 } as const;
 
 export type PermissionScope = "all" | "added" | "owned" | "both"| "none" | number;

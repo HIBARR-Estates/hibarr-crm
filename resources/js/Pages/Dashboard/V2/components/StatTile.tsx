@@ -2,6 +2,7 @@ import { InfoCircleOutlined } from "@ant-design/icons";
 import { Tooltip } from "antd";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { figure } from "../format";
 
 export interface StatTileProps {
     /**
@@ -118,11 +119,20 @@ export default function StatTile({
         const size = Math.abs(delta);
 
         if (previous && Math.abs(previous) >= 0.05) {
-            return `${sign}${Math.round((size / previous) * 100)}%`;
+            return `${sign}${figure(Math.round((size / previous) * 100))}%`;
         }
 
-        return `${sign}${Math.round(size)}${unit === "%" ? "%" : ""}`;
+        return `${sign}${figure(Math.round(size))}${unit === "%" ? "%" : ""}`;
     })();
+
+    const displayValue =
+        value === null
+            ? DASH
+            : typeof value === "number"
+              ? figure(value, {
+                    maximumFractionDigits: unit === "%" ? 1 : 0,
+                })
+              : value;
 
     const improving = delta === null ? null : lowerIsBetter ? delta < 0 : delta > 0;
     const deltaColor =
@@ -169,7 +179,7 @@ export default function StatTile({
                         lineHeight: 1,
                     }}
                 >
-                    {value === null ? DASH : value}
+                    {displayValue}
                     {value !== null && unit ? unit : ""}
                 </span>
 

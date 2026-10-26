@@ -1085,9 +1085,11 @@ class DealCreationService
             }
         }
 
+        $duration = $this->meetingDurationMinutes($meetingDate, $meetingData['meeting_end_date'] ?? null);
+
         // Use transaction with row-level locking to prevent race conditions
         // This ensures only one request can create/update a follow-up for the same meeting_id/deal_id combination
-        DB::transaction(function () use ($meetingId, $deal, $meetingTypeId, $meetingDate, $meetingData) {
+        DB::transaction(function () use ($meetingId, $deal, $meetingTypeId, $meetingDate, $meetingData, $duration) {
             $followUp = null;
             
             if ($meetingId !== null) {
@@ -1111,6 +1113,10 @@ class DealCreationService
                 // Only update next_follow_up_date if it's not null
                 if ($meetingDate !== null) {
                     $updateData['next_follow_up_date'] = $meetingDate;
+                }
+
+                if ($duration !== null) {
+                    $updateData['duration'] = $duration;
                 }
                 
                 if (isset($meetingData['meeting_location'])) $updateData['location'] = $meetingData['meeting_location'];
@@ -1150,6 +1156,9 @@ class DealCreationService
                         if ($meetingDate !== null) {
                             $updateData['next_follow_up_date'] = $meetingDate;
                         }
+                        if ($duration !== null) {
+                            $updateData['duration'] = $duration;
+                        }
                         if (isset($meetingData['meeting_location'])) $updateData['location'] = $meetingData['meeting_location'];
                         if (isset($meetingData['meeting_link'])) $updateData['meeting_link'] = $meetingData['meeting_link'];
                         
@@ -1171,11 +1180,17 @@ class DealCreationService
                 // Create new DealFollowUp (only if it doesn't exist after all checks)
                 $followUp = new DealFollowUp();
                 $followUp->deal_id = $deal->id;
+                // saveQuietly() skips the model's saving hook, so link the lead here.
+                // Resolved through the linker so a dangling deals.lead_id can't trip the FK.
+                $followUp->lead_id = $deal->lead_id
+                    ? app(DealMeetingLeadLinker::class)->leadIdForDeal((int) $deal->id)
+                    : null;
                 $followUp->meeting_type_id = $meetingTypeId;
                 $followUp->location = $meetingData['meeting_location'] ?? 'office';
                 $followUp->meeting_link = $meetingData['meeting_link'] ?? null;
                 $followUp->meeting_id = $meetingId;
                 $followUp->next_follow_up_date = $meetingDate;
+                $followUp->duration = $duration; // null → DealFollowUp::DEFAULT_DURATION_MINUTES
                 $followUp->status = 'scheduled';
                 $followUp->added_by = $deal->agent_id ? LeadAgent::find($deal->agent_id)?->user_id : null;
                 
@@ -1183,6 +1198,40 @@ class DealCreationService
                 $followUp->saveQuietly();
             }
         });
+    }
+
+    /**
+     * Minutes between the meeting start and the caller's meeting_end_date (e.g.
+     * Calendly's end_time). Null when no usable end is given, so the meeting keeps
+     * DealFollowUp's default; an end at/before the start or beyond the 600-minute
+     * limit the meeting forms enforce is ignored rather than stored.
+     */
+    private function meetingDurationMinutes(?\Carbon\Carbon $start, mixed $end): ?int
+    {
+        if ($start === null || ! is_string($end) || trim($end) === '') {
+            return null;
+        }
+
+        try {
+            $endAt = \Carbon\Carbon::parse($end);
+        } catch (\Exception $e) {
+            Log::warning('DealCreationService: Invalid meeting_end_date format: '.$end);
+
+            return null;
+        }
+
+        $minutes = (int) round(($endAt->getTimestamp() - $start->getTimestamp()) / 60);
+        if ($minutes < 1 || $minutes > 600) {
+            Log::warning('DealCreationService: Ignoring meeting_end_date outside 1-600 minutes of the start', [
+                'meeting_date' => $start->toIso8601String(),
+                'meeting_end_date' => $end,
+                'minutes' => $minutes,
+            ]);
+
+            return null;
+        }
+
+        return $minutes;
     }
 
     /**

@@ -10,12 +10,19 @@ const SEVERITY_FILL = {
     bad: T.RED,
 } as const;
 
+/** Fixed track for the bars so percentage heights resolve against a real size. */
+const BAR_TRACK_PX = 88;
+
 /**
  * First-response time as a distribution, not a mean.
  *
  * A mean hides the shape that matters: most leads answered inside an hour plus
  * a handful never picked up averages out to the same number as a uniformly
  * mediocre team, and the two need completely different responses.
+ *
+ * Bar height is a share of the tallest bucket — they are not meant to look
+ * level. The track itself is a fixed height so percentage sizing works;
+ * without that, every bar collapses to the same min-height.
  */
 export default function ResponseDistribution({ data }: { data: Data }) {
     const { td } = useTd();
@@ -47,41 +54,56 @@ export default function ResponseDistribution({ data }: { data: Data }) {
                     display: "flex",
                     alignItems: "flex-end",
                     gap: 6,
-                    height: 110,
                 }}
             >
-                {data.buckets.map((bucket) => (
-                    <div
-                        key={bucket.label}
-                        style={{
-                            flex: 1,
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            gap: 6,
-                        }}
-                        title={`${bucket.count} ${td("leads", { source: "en" })}`}
-                    >
-                        <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>
-                            {bucket.count || ""}
-                        </span>
+                {data.buckets.map((bucket) => {
+                    const heightPx =
+                        bucket.count > 0
+                            ? Math.max(4, (bucket.count / max) * BAR_TRACK_PX)
+                            : 1;
+
+                    return (
                         <div
+                            key={bucket.label}
                             style={{
-                                width: "100%",
-                                height: `${(bucket.count / max) * 100}%`,
-                                minHeight: bucket.count > 0 ? 4 : 1,
-                                background:
-                                    bucket.count > 0
-                                        ? SEVERITY_FILL[bucket.severity]
-                                        : T.BORDER,
-                                borderRadius: 3,
+                                flex: 1,
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                gap: 6,
+                                minWidth: 0,
                             }}
-                        />
-                        <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>
-                            {bucket.label}
-                        </span>
-                    </div>
-                ))}
+                            title={`${bucket.count} ${td("leads", { source: "en" })}`}
+                        >
+                            <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>
+                                {bucket.count || ""}
+                            </span>
+                            <div
+                                style={{
+                                    width: "100%",
+                                    height: BAR_TRACK_PX,
+                                    display: "flex",
+                                    alignItems: "flex-end",
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        width: "100%",
+                                        height: heightPx,
+                                        background:
+                                            bucket.count > 0
+                                                ? SEVERITY_FILL[bucket.severity]
+                                                : T.BORDER,
+                                        borderRadius: 3,
+                                    }}
+                                />
+                            </div>
+                            <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>
+                                {bucket.label}
+                            </span>
+                        </div>
+                    );
+                })}
             </div>
 
             <div

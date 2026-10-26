@@ -78,7 +78,12 @@ return [
     'meta' => [
         'pixel_id' => env('META_PIXEL_ID'),
         'access_token' => env('META_ACCESS_TOKEN'),
-        'api_version' => env('META_CONVERSIONS_API_VERSION', 'v18.0'),
+        // Graph API version for the Conversions API. Meta retires each version
+        // after ~2 years — keep this in step with the backend's
+        // facebook-nodejs-business-sdk major (v23 -> 'v23.0'). `?:` (not a
+        // default arg) so an empty META_CONVERSIONS_API_VERSION= in .env still
+        // falls back instead of producing a malformed URL.
+        'api_version' => env('META_CONVERSIONS_API_VERSION') ?: 'v23.0',
     ],
 
     'property_recommendation' => [
@@ -113,6 +118,8 @@ return [
         'redirect'      => env('KEYCLOAK_REDIRECT_URI'),
         'base_url'      => env('KEYCLOAK_BASE_URL'),
         'realms'        => env('KEYCLOAK_REALM'),
+        // Where Keycloak sends the user after ending its session; defaults to the login route.
+        'post_logout_redirect' => env('KEYCLOAK_POST_LOGOUT_REDIRECT_URI'),
     ],
 
     'ai' => [
@@ -165,7 +172,6 @@ return [
             'OL_PAYMENT_REVIEW_DECISION_PATH',
             '/internal/payments/review-decision'
         ),
-        'crm_webhook_api_key' => env('CRM_WEBHOOK_API_KEY'),
         'deal_payment_request_path' => env(
             'OL_DEAL_PAYMENT_REQUEST_PATH',
             '/internal/payments/deal-requests'
@@ -174,5 +180,27 @@ return [
             'OL_TELEPHONY_CALLS_PATH',
             '/telephony/calls'
         ),
+    ],
+
+    'call_bridge' => [
+        'base_url' => env('OL_CALL_BRIDGE_BASE_URL', env('OL_BASE_URL', 'https://develop-api.hibarr.org/v1')),
+        'api_key' => env('OL_CALL_BRIDGE_API_KEY', env('OL_API_KEY')),
+        'timeout' => (int) env('OL_CALL_BRIDGE_TIMEOUT', 15),
+        'poll_interval' => (int) env('OL_CALL_BRIDGE_POLL_INTERVAL', 30),
+        'paths' => [
+            'start_call' => env('OL_CALL_BRIDGE_START_CALL_PATH', '/call-bridge/calls/start'),
+            'end_call' => env('OL_CALL_BRIDGE_END_CALL_PATH', '/call-bridge/calls/end'),
+            'status' => env('OL_CALL_BRIDGE_STATUS_PATH', '/call-bridge/calls/status'),
+            'events' => env('OL_CALL_BRIDGE_EVENTS_PATH', '/call-bridge/events'),
+            'active_calls' => env('OL_CALL_BRIDGE_ACTIVE_CALLS_PATH', '/call-bridge/calls/active'),
+            'emit_event' => env('OL_CALL_BRIDGE_EMIT_EVENT_PATH', '/call-bridge/calls/emit'),
+        ],
+        // Task categories (task_category.category_name) the bridge links call
+        // events to. Compared after normalising to lowercase alphanumerics, so
+        // "Call Back", "call-back" and "callback" all match "call back".
+        'task_categories' => ['call', 'call back'],
+        // Move matching open call/callback tasks to the done column when a
+        // call for their linked entity ends answered.
+        'complete_tasks_on_call_end' => (bool) env('OL_CALL_BRIDGE_COMPLETE_TASKS', true),
     ],
 ];

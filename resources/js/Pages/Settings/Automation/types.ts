@@ -18,6 +18,8 @@ export type TriggerKey =
     | "lead_created"
     | "lead_updated"
     | "lead_followup_created"
+    | "meeting_attended"
+    | "deal_payment_received"
     | "date_based"
     | "lead_created_api"
     | "lead_updated_api"
@@ -77,6 +79,8 @@ export interface DealAutomationAction {
     due_time: string | null;
     meta_event_name: string | null;
     meta_event_value: number | null;
+    /** null / "fixed" = meta_event_value; "deal_value" = the triggering deal's value (deal automations only). */
+    meta_event_value_source: "fixed" | "deal_value" | null;
     wait_duration_value: number | null;
     wait_duration_unit: "minutes" | "hours" | "days" | null;
     targetStage?: { id: number; name: string } | null;
@@ -91,6 +95,8 @@ export interface Automation {
     trigger: TriggerKey | null;
     date_field: string | null;
     date_recurrence: "yearly" | "once" | null;
+    /** meeting_attended trigger only: meeting types it fires for. null/empty = every type. */
+    meeting_type_ids?: number[] | null;
     wait_duration_value: number | null;
     wait_duration_unit: "minutes" | "hours" | "days" | null;
     active: boolean;
@@ -188,6 +194,10 @@ export interface RunLogDetails {
     event_name?: string;
     value?: number;
     meta?: MetaDeliveryDetail;
+    /** meta rows: set on the failed step once a manual retry succeeded. */
+    resolved_by_log_id?: number;
+    /** meta rows: set on a manual-retry step — the failed step it re-sent. */
+    retry_of_log_id?: number;
     [key: string]: unknown;
 }
 
@@ -306,6 +316,8 @@ export interface AutomationCatalog {
     leadSettableFields: Record<string, string>;
     dateFields: { lead: Record<string, string>; deal: Record<string, string> };
     dateRecurrences: Record<string, string>;
+    /** Active meeting types — the meeting_attended trigger can be scoped to some of them. */
+    meetingTypes: { id: number; name: string }[];
     dealActionTypes: ActionType[];
     leadActionTypes: ActionType[];
     assignmentTypes: Record<string, string>;

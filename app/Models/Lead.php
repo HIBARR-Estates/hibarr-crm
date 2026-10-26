@@ -216,8 +216,21 @@ class Lead extends BaseModel
     public function clientNameSalutation(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => ($this->salutation ? $this->salutation->label().' ' : '').$this->client_name
+            get: fn ($value) => ($this->salutation ? $this->salutation->label($this->salutationLocale()).' ' : '').$this->client_name
         );
+    }
+
+    /**
+     * The locale to render this lead's salutation in: its own language when it
+     * has one, otherwise null (the viewer's locale, as before). Deliberately
+     * does not fall back to the company locale: this runs for every lead in a
+     * list, and that fallback loads the company relation.
+     */
+    private function salutationLocale(): ?string
+    {
+        $code = LeadLocaleResolver::preferredLanguageCode($this);
+
+        return $code === null ? null : LeadLocaleResolver::toAppLocale($code);
     }
 
     /**
@@ -483,6 +496,12 @@ class Lead extends BaseModel
     public function marketing(): HasOne
     {
         return $this->hasOne(LeadMarketing::class, 'lead_id');
+    }
+
+    /** Every UTM set the lead has arrived with, oldest first (the first is the first touch). */
+    public function utmTouches(): HasMany
+    {
+        return $this->hasMany(LeadUtmTouch::class, 'lead_id')->orderBy('id');
     }
 
     public function lifecycleStatus(): BelongsTo

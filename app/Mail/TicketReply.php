@@ -9,6 +9,8 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use App\Models\TicketReply as ModelsTicketReply;
+use App\Services\Notifications\MailCategory;
+use Symfony\Component\Mime\Email;
 
 class TicketReply extends Mailable implements ShouldQueue
 {
@@ -44,7 +46,11 @@ class TicketReply extends Mailable implements ShouldQueue
         if ($this->ticketEmailSetting->status == 1) {
             $this->from($this->ticketEmailSetting->mail_from_email, $this->ticketEmailSetting->mail_from_name)
                 ->subject($this->ticketReply->ticket->subject)
-                ->view('emails.ticket.reply');
+                ->view('emails.ticket.reply')
+                ->withSymfonyMessage(static function (Email $message): void {
+                    // A reply on an existing ticket is transactional.
+                    MailCategory::attach($message, MailCategory::TRANSACTIONAL);
+                });
 
             if (!is_null($previousReply) && !is_null($previousReply->imap_message_id)) {
                 ModelsTicketReply::where('id', $this->ticketReply->id)->update(['imap_message_id' => $previousReply->imap_message_id]);

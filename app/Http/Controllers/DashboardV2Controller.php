@@ -15,6 +15,7 @@ use App\Services\MeetingVisibilityService;
 use App\Services\MlmCommissionService;
 use App\Support\DashboardDateRange;
 use App\Support\FeatureFlags;
+use App\Support\PartnerRole;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -29,7 +30,7 @@ use Inertia\Inertia;
  * Partner is gated twice: on the permission, and on the account actually having
  * referral data, because the permission alone cannot express "is a partner".
  * Manager is gated on view_manager_dashboard and crm.manager-dashboard so the
- * direct-reports rollup can roll out separately from the team hierarchy view.
+ * all-agents rollup can roll out separately from the team hierarchy view.
  * Team is gated twice as well: on view_team_dashboard, and on the
  * crm.team-dashboard flag — it is the first surface to show commission across a
  * whole hierarchy, so it rolls out per manager rather than all at once.
@@ -84,6 +85,12 @@ class DashboardV2Controller extends AccountBaseController
         $availableViews = $this->availableViews();
         $requestedView = $request->query('view');
         $personalDashboardEnabled = FeatureFlags::enabled('crm.personal-dashboard');
+
+        // A partner account has no tasks or queue for the personal dashboard to
+        // show; the referral book is their home.
+        if ($requestedView === null && PartnerRole::isPartnerOnly($user) && in_array('partner', $availableViews, true)) {
+            $requestedView = 'partner';
+        }
 
         // Behind the flag, the personal dashboard is the default landing for
         // everyone, not just accounts with no view_*_dashboard permission —
@@ -232,28 +239,28 @@ class DashboardV2Controller extends AccountBaseController
         // resolved range's length keeps one picker driving both views without
         // rewriting metrics this change isn't touching.
         $days = $range->days();
-        // Resolved once per request rather than inside every closure: each view
-        // fans out to several panels that all need the same scope.
-        $team = fn () => $metrics->teamAgentIds($userId);
+        // Every enabled agent in the company — not the viewer's downline. Team
+        // is the hierarchy surface; this one is for managers of agents.
+        $agents = fn () => $metrics->activeAgentIds();
 
         return match ($view) {
             'manager' => [
-                'teamKpis' => Inertia::defer(fn () => $metrics->teamKpis($team(), $days), 'kpis'),
+                'teamKpis' => Inertia::defer(fn () => $metrics->teamKpis($agents(), $days), 'kpis'),
                 'lifecycleFunnel' => Inertia::defer(
-                    fn () => $metrics->lifecycleFunnel($team(), max($days, 90)),
+                    fn () => $metrics->lifecycleFunnel($agents(), max($days, 90)),
                     'funnel'
                 ),
                 'responseDistribution' => Inertia::defer(
-                    fn () => $metrics->responseDistribution($team(), $days),
+                    fn () => $metrics->responseDistribution($agents(), $days),
                     'funnel'
                 ),
                 'sourceQuality' => Inertia::defer(
-                    fn () => $metrics->sourceQuality($team(), max($days, 90)),
+                    fn () => $metrics->sourceQuality($agents(), max($days, 90)),
                     'sources'
                 ),
-                'teamAgents' => Inertia::defer(fn () => $metrics->teamAgents($team(), $days), 'team'),
+                'teamAgents' => Inertia::defer(fn () => $metrics->teamAgents($agents(), $days), 'team'),
                 'openPartnerFlags' => Inertia::defer(
-                    fn () => $metrics->openPartnerFlags($team()),
+                    fn () => $metrics->openPartnerFlags($agents()),
                     'team'
                 ),
             ],
@@ -282,6 +289,10 @@ class DashboardV2Controller extends AccountBaseController
                 ),
                 'partnerReferrals' => Inertia::defer(
                     fn () => $this->forPartner($userId, fn ($id) => $metrics->partnerReferrals($id)),
+                    'referrals'
+                ),
+                'partnerFlags' => Inertia::defer(
+                    fn () => $this->forPartner($userId, fn ($id) => $metrics->partnerFlags($id)),
                     'referrals'
                 ),
                 'partnerForecast' => Inertia::defer(

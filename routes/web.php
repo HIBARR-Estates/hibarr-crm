@@ -158,7 +158,7 @@ Route::get('availability-requests/{id}/respond/{action}', [App\Http\Controllers\
     ->name('availability-requests.respond-email')
     ->middleware('signed');
 
-Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
+Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account'], function () {
     Route::post('image/upload', [ImageController::class, 'store'])->name('image.store');
 
     Route::get('account-unverified', [DashboardController::class, 'accountUnverified'])->name('account_unverified');
@@ -543,6 +543,16 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('lead-contact/{leadId}/files', [LeadContactFileController::class, 'index'])->name('lead-contact.files.index');
     Route::get('lead-contact/{leadId}/sally-insights', [LeadContactController::class, 'leadSallyInsights'])->name('lead-contact.sally-insights.index');
     Route::patch('sally-insights/{insight}', [LeadContactController::class, 'updateSallyInsight'])->name('sally-insights.update');
+
+    Route::get('call-recordings', [\App\Http\Controllers\CallRecordingController::class, 'index'])->name('call-recordings.index');
+    // Call recordings (softphone) - stored like lead files; playable only by
+    // users with the make_softphone_calls permission, access expires after the
+    // recording duration.
+    Route::post('call-recordings', [\App\Http\Controllers\CallRecordingController::class, 'store'])->name('call-recordings.store');
+    Route::get('call-recordings/{callRecording}', [\App\Http\Controllers\CallRecordingController::class, 'play'])->name('call-recordings.play');
+    // The bytes are streamed through the app instead of handing out the raw
+    // object-storage link, which is a durable bearer credential.
+    Route::get('call-recordings/{callRecording}/download', [\App\Http\Controllers\CallRecordingController::class, 'download'])->name('call-recordings.download');
 
     // Follow up
     Route::get('deals/follow-up/{leadID}', [DealController::class, 'followUpCreate'])->name('deals.follow_up');
@@ -1435,6 +1445,20 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('payment-requests', [App\Http\Controllers\PaymentRequestController::class, 'index'])->name('payment-requests.index');
 
     Route::post('telephony/calls', [TelephonyCallController::class, 'store'])->name('telephony.calls.store');
+    Route::post('telephony/softphone/events', [\App\Http\Controllers\TelephonySoftphoneEventController::class, 'store'])->name('telephony.softphone.events.store');
+    Route::get('telephony/softphone/lead-match', [\App\Http\Controllers\TelephonySoftphoneEventController::class, 'leadByPhone'])->name('telephony.softphone.lead-match');
+    Route::get('telephony/softphone/devices', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'index'])->name('telephony.softphone.devices.index');
+    Route::post('telephony/softphone/devices', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'store'])->name('telephony.softphone.devices.store');
+    Route::get('telephony/softphone/devices/{id}/credentials', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'credentials'])->name('telephony.softphone.devices.credentials')->whereNumber('id');
+    Route::put('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'update'])->name('telephony.softphone.devices.update')->whereNumber('id');
+    Route::delete('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'destroy'])->name('telephony.softphone.devices.destroy')->whereNumber('id');
+
+    // Per-line incoming call pool (admin-managed).
+    Route::get('telephony/softphone/call-pool', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'index'])->name('telephony.softphone.call-pool.index');
+    Route::get('telephony/softphone/call-pool/eligible', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'eligibleAgents'])->name('telephony.softphone.call-pool.eligible');
+    Route::post('telephony/softphone/call-pool', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'store'])->name('telephony.softphone.call-pool.store');
+    Route::put('telephony/softphone/call-pool/{id}', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'update'])->name('telephony.softphone.call-pool.update')->whereNumber('id');
+    Route::delete('telephony/softphone/call-pool/{id}', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'destroy'])->name('telephony.softphone.call-pool.destroy')->whereNumber('id');
 
     // Property Asset Management (New System)
     Route::get('property-assets/options', [App\Http\Controllers\PropertyAssetController::class, 'getAssetOptions'])->name('properties.assets.options');
@@ -1553,9 +1577,18 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     // ══════════════════════════════════════════════════════════════
     //  Partners — manage which agents are flagged as partners
     // ══════════════════════════════════════════════════════════════
+    // A partner's own leads. Under /partner/, not /leads/: the latter is blocked
+    // for partner accounts by RestrictPartnerAccounts.
+    Route::prefix('partner/leads')->name('partner.leads.')->group(function () {
+        Route::get('/', [App\Http\Controllers\PartnerLeadController::class, 'index'])->name('index');
+        Route::get('{lead}', [App\Http\Controllers\PartnerLeadController::class, 'show'])->whereNumber('lead')->name('show');
+    });
+
     Route::prefix('partners')->name('partners.')->group(function () {
         Route::get('/', [App\Http\Controllers\PartnerAdminController::class, 'index'])->name('index');
         Route::post('/', [App\Http\Controllers\PartnerAdminController::class, 'store'])->name('store');
+        Route::post('invite', [App\Http\Controllers\PartnerAdminController::class, 'invite'])->name('invite');
+        Route::post('{id}/resend-invite', [App\Http\Controllers\PartnerAdminController::class, 'resendInvite'])->name('resend_invite');
         Route::delete('{id}', [App\Http\Controllers\PartnerAdminController::class, 'destroy'])->name('destroy');
     });
 

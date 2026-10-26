@@ -1,5 +1,5 @@
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
-import { formatDateWithTime } from "@/Components/Redesign/adapters/dateFormat";
+import { formatTaskDateWithCompanyTime } from "@/lib/taskDateTime";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { TASK_ICON } from "../../config/taskDesignTokens";
@@ -82,6 +82,8 @@ export default function TaskDetailHeader({ vm }: TaskDetailHeaderProps) {
                     <TaskPriorityStripe priority={vm.priority} size={14} />
                     {td(`${vm.priority.label} priority`, { source: "en" })}
                 </span>
+                {/* The category quick-action lives in the modal body as a call
+                    banner (TaskCallBanner) — not here in the meta row. */}
             </div>
 
             <span
@@ -110,7 +112,7 @@ export default function TaskDetailHeader({ vm }: TaskDetailHeaderProps) {
                 />
                 {task.due_date ? (
                     <>
-                        {formatDateWithTime(task.due_date)}
+                        {formatTaskDateWithCompanyTime(task.due_date)}
                         {" · "}
                         {td(vm.dueSub, { source: "en" })}
                     </>

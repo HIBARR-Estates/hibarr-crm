@@ -287,3 +287,14 @@ export function useLeadWorkspace() {
     }
     return ctx;
 }
+
+/**
+ * The workspace value, or null when there is no provider above.
+ *
+ * Lets a surface that borrows lead components from elsewhere (the qualification
+ * modal opened from the Tasks workspace, say) supply its own provider only when
+ * one is missing, instead of shadowing the lead page's own provider.
+ */
+export function useOptionalLeadWorkspace(): LeadWorkspaceValue | null {
+    return useContext(LeadWorkspaceContext);
+}

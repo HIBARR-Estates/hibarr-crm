@@ -13,6 +13,7 @@ import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     BellOutlined,
     ControlOutlined,
+    MailOutlined,
     HomeOutlined,
     ReloadOutlined,
     SettingOutlined,
@@ -28,6 +29,7 @@ import NotificationDropdown from "./NotificationDropdown";
 import LanguageSwitcher from "./LanguageSwitcher";
 import AccessInspector from "./AccessInspector";
 import TimezoneIndicator from "./TimezoneIndicator";
+import EmailUnreadIndicator from "@/Email/EmailUnreadIndicator";
 
 interface BreadcrumbItem {
     name: string;
@@ -150,6 +152,28 @@ export default function PageLayout({
             label: t("app.menu.settings_menu.preferences"),
             onClick: () => router.visit("/account/settings/preferences"),
         },
+        ...(props.emailMailbox?.settingsUrl
+            ? [
+                  {
+                      key: "mailbox",
+                      icon: <MailOutlined />,
+                      label: t("app.menu.settings_menu.mailbox"),
+                      onClick: () =>
+                          router.visit(props.emailMailbox.settingsUrl),
+                  },
+              ]
+            : []),
+        ...(props.emailPilot?.manageUrl
+            ? [
+                  {
+                      key: "email-pilot",
+                      icon: <MailOutlined />,
+                      label: t("app.menu.settings_menu.email_pilot"),
+                      onClick: () =>
+                          router.visit(props.emailPilot.manageUrl),
+                  },
+              ]
+            : []),
         {
             key: "reminder-preferences",
             icon: <BellOutlined />,
@@ -168,9 +192,12 @@ export default function PageLayout({
                         logoutMutation.mutate(
                             {},
                             {
-                                onSuccess: () => {
-                                    // Redirect to login page on successful logout
-                                    window.location.href = route("login");
+                                onSuccess: (res) => {
+                                    // The server returns the Keycloak end-session URL so
+                                    // the SSO session ends too; fall back to the login page.
+                                    window.location.href =
+                                        (res as { url?: string } | undefined)
+                                            ?.url ?? route("login");
                                 },
                             },
                         );
@@ -243,6 +270,7 @@ export default function PageLayout({
                                 <AccessInspector />
                                 <TimezoneIndicator />
                             </div>
+                            <EmailUnreadIndicator />
                             <NotificationDropdown pollingInterval={30000} />
                             <Dropdown
                                 menu={{ items: userMenuItems }}

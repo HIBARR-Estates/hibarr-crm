@@ -127,6 +127,18 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             ],
         },
         {
+            key: "contact_status",
+            label: "First contact",
+            type: "select",
+            control: "segmented",
+            sentence: "first contact",
+            section: "General",
+            options: [
+                { value: "contacted", label: "Contacted" },
+                { value: "uncontacted", label: "Not contacted" },
+            ],
+        },
+        {
             key: "lead_type",
             label: "Lead type",
             type: "select",

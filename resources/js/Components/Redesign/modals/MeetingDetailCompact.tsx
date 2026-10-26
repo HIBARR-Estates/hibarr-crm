@@ -56,6 +56,8 @@ interface MeetingDetailCompactProps {
     summaryPanel?: ReactNode;
     /** Which tab to open on first paint — e.g. summary pills land on Summary. */
     initialPanel?: Panel;
+    onOpenSourceEmail?: () => void;
+    openSourceEmailLabel?: string;
 }
 
 /** One icon + label + value line of the details list. */
@@ -136,6 +138,8 @@ export default function MeetingDetailCompact({
     isUpdating = false,
     summaryPanel,
     initialPanel = "info",
+    onOpenSourceEmail,
+    openSourceEmailLabel,
 }: MeetingDetailCompactProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -227,6 +231,15 @@ export default function MeetingDetailCompact({
                             </Button>
                         )}
                         <span style={{ flex: 1 }} />
+                        {onOpenSourceEmail && openSourceEmailLabel ? (
+                            <Button
+                                variant="ghost"
+                                onClick={onOpenSourceEmail}
+                                disabled={isUpdating}
+                            >
+                                {openSourceEmailLabel}
+                            </Button>
+                        ) : null}
                         {onMarkHeld &&
                             item.isConcluded &&
                             item.statusLabel !== "completed" && (

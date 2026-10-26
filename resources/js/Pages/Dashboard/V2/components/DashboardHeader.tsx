@@ -86,8 +86,16 @@ export default function DashboardHeader({
  *
  * English source string in, translated here — the role views keep their
  * descriptions in a config object that can't call hooks.
+ *
+ * Pass `localize={false}` when the caller already resolved copy with t().
  */
-export function HeaderSubtext({ children }: { children: string }) {
+export function HeaderSubtext({
+    children,
+    localize = true,
+}: {
+    children: string;
+    localize?: boolean;
+}) {
     const { td } = useTd();
 
     return (
@@ -99,7 +107,7 @@ export function HeaderSubtext({ children }: { children: string }) {
                 color: T.TEXT,
             }}
         >
-            {td(children, { source: "en" })}
+            {localize ? td(children, { source: "en" }) : children}
         </p>
     );
 }

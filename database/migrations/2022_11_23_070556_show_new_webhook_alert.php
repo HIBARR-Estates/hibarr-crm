@@ -20,7 +20,13 @@ return new class extends Migration {
     public function up()
     {
 
-        DB::statement("ALTER TABLE file_storage CHANGE COLUMN storage_location storage_location ENUM('local', 'aws_s3', 'digitalocean') NOT NULL DEFAULT 'local'");
+        // `CHANGE COLUMN` is MySQL-only syntax. SQLite cannot alter a column in
+        // place, and the test suite (phpunit.xml) runs against in-memory sqlite,
+        // so the enum narrowing is skipped there — tests never write
+        // file_storage rows that depend on it.
+        if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE file_storage CHANGE COLUMN storage_location storage_location ENUM('local', 'aws_s3', 'digitalocean') NOT NULL DEFAULT 'local'");
+        }
 
 
         $companies = Company::select('id')->get();
@@ -118,6 +124,13 @@ return new class extends Migration {
             });
             //phpcs:ignore
         } catch (\Throwable $th) {
+        }
+
+        // SQLite cannot drop a foreign key without rebuilding the whole table,
+        // and the FK definitions built from the original create migrations are
+        // already what the test suite needs. Nothing to tighten here on sqlite.
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            return;
         }
 
         $currencyTables = GlobalSetting::CURRENCY_TABLES;

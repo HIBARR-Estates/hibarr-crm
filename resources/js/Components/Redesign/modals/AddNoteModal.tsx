@@ -2,11 +2,8 @@ import { useEffect, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
+import { hasNoteBodyHtml } from "@/Components/Redesign/adapters/noteAdapter";
 import HtmlEditor from "@/Components/HtmlEditor";
-
-function hasText(html: string): boolean {
-    return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0;
-}
 
 export interface AddNoteFormState {
     title: string;
@@ -66,7 +63,7 @@ export default function AddNoteModal({
             title={labels.title}
             onClose={handleClose}
             maxWidth={760}
-            dirty={Boolean(form.title.trim() || hasText(form.text))}
+            dirty={Boolean(form.title.trim() || hasNoteBodyHtml(form.text))}
             footer={
                 <>
                     <Button
@@ -79,7 +76,7 @@ export default function AddNoteModal({
                     <Button
                         variant="primary"
                         onClick={handleSubmit}
-                        disabled={!hasText(form.text) || saving}
+                        disabled={!hasNoteBodyHtml(form.text) || saving}
                         loading={saving}
                     >
                         {labels.submit}

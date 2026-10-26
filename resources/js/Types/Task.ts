@@ -20,6 +20,8 @@ export interface Task {
     category?: {
         id: number;
         category_name: string;
+        /** Quick-action the category triggers from a task ("call" | "email" | null). */
+        action?: string | null;
     };
     users?: Array<{
         id: number;
@@ -81,11 +83,25 @@ export interface Task {
     deals?: Array<{
         id: number;
         name: string;
+        /**
+         * The deal's lead contact, when the viewer may see it. Null for a deal
+         * with no lead (or a lead they lack access to) — a task attached to a
+         * deal can still run the category quick-action against this lead.
+         */
+        lead?: {
+            id: number;
+            client_name?: string | null;
+            company_name?: string | null;
+            mobile?: string | null;
+            client_email?: string | null;
+        } | null;
     }>;
     leads?: Array<{
         id: number;
         client_name: string;
         company_name?: string;
+        mobile?: string | null;
+        client_email?: string | null;
     }>;
     /** Developer projects (the ones with units) linked to this task. */
     developer_projects?: Array<{ id: number; name: string }>;

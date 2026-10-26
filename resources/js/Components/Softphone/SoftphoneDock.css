@@ -1,0 +1,463 @@
+/*
+ * Softphone widget.
+ *
+ * Colours resolve to the CRM design tokens (`--dr-*`, emitted from
+ * design-tokens.json by tailwind.config.js) — no second palette, no purple.
+ * Colour carries meaning here: blue = the agent, amber = something in flight,
+ * green = connected, red = failed. Nothing is hard-coded below.
+ */
+
+.sp {
+    /* Role aliases → design tokens. */
+    --bg: var(--dr-bg);
+    --surface: var(--dr-surface);
+    --panel: var(--dr-surface-2);
+    --ink: var(--dr-navy);
+    --text: var(--dr-text);
+    --muted: var(--dr-text-muted);
+    --hint: var(--dr-text-hint);
+    --line: var(--dr-border);
+    --brand: var(--dr-blue);
+    --brand-soft: var(--dr-blue-light);
+    --brand-ink: var(--dr-white);
+    /* In flight (calling / ringing / connecting) */
+    --pending: var(--dr-amber-text);
+    --pending-bg: var(--dr-amber-bg);
+    --pending-line: var(--dr-amber-border);
+    /* Connected */
+    --ok: var(--dr-green);
+    --ok-ink: var(--dr-white);
+    --ok-soft: var(--dr-green-light);
+    /* Failed */
+    --danger: var(--dr-red);
+    --danger-ink: var(--dr-white);
+    --danger-soft: var(--dr-red-soft);
+    --danger-line: var(--dr-red-mid);
+    --ctl: var(--dr-gray);
+    --ctl-on: var(--dr-navy);
+    --ctl-on-ink: var(--dr-white);
+    --radius-card: 20px;
+    --radius-ctl: 50%;
+    --shadow: 0 1px 2px rgba(20, 30, 50, 0.06), 0 12px 32px rgba(20, 30, 50, 0.1);
+
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 9999;
+    width: 300px;
+    background: var(--surface);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    font-family: var(--sp-font, inherit);
+    color: var(--ink);
+}
+
+.sp * {
+    box-sizing: border-box;
+}
+
+/* header ------------------------------------------------------------------ */
+
+.sp__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.sp__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+}
+
+.sp__dot--registered { background: var(--ok); }
+.sp__dot--registering { background: var(--pending); }
+.sp__dot--failed,
+.sp__dot--unregistered { background: var(--danger); }
+
+.sp__signal {
+    margin-left: auto;
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 12px;
+}
+
+.sp__signal i {
+    width: 3px;
+    border-radius: 1px;
+    background: var(--line);
+}
+
+.sp__signal i:nth-child(1) { height: 4px; }
+.sp__signal i:nth-child(2) { height: 7px; }
+.sp__signal i:nth-child(3) { height: 10px; }
+
+.sp__signal[data-quality="good"] i { background: var(--ok); }
+.sp__signal[data-quality="fair"] i:nth-child(-n + 2) { background: var(--pending); }
+.sp__signal[data-quality="poor"] i:nth-child(1) { background: var(--danger); }
+
+/* identity ---------------------------------------------------------------- */
+
+.sp__body {
+    padding: 28px 18px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.sp__avatar {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--brand-soft);
+    color: var(--brand);
+    display: grid;
+    place-items: center;
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+}
+
+/* Ring only while an inbound call is ringing. */
+.sp--incoming .sp__avatar::before,
+.sp--incoming .sp__avatar::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid var(--brand);
+    opacity: 0;
+    animation: sp-ring 2s ease-out infinite;
+}
+
+.sp--incoming .sp__avatar::after { animation-delay: 1s; }
+
+@keyframes sp-ring {
+    0% { transform: scale(1); opacity: 0.5; }
+    100% { transform: scale(1.6); opacity: 0; }
+}
+
+.sp__name {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.sp__number {
+    margin: 4px 0 0;
+    font-size: 15px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.sp__lead {
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--brand);
+    background: var(--brand-soft);
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 0;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+/* call lifecycle state ---------------------------------------------------- */
+
+/*
+ * Replaces the bare timer while the call is still setting up. The dot pulses
+ * for the pending stages (something is still happening), then goes solid and
+ * green once media is actually flowing.
+ */
+.sp__state {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 14px 0 0;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    /* In flight: amber, with a pulsing dot — something is still happening. */
+    color: var(--pending);
+    background: var(--pending-bg);
+    border: 1px solid var(--pending-line);
+}
+
+.sp__state::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+}
+
+.sp__state[data-stage="calling"]::before,
+.sp__state[data-stage="ringing"]::before,
+.sp__state[data-stage="connecting"]::before {
+    animation: sp-blink 1.4s ease-in-out infinite;
+}
+
+/* Connected: green. The only other thing that means "you are live". */
+.sp__state[data-stage="connected"] {
+    color: var(--ok);
+    background: var(--ok-soft);
+    border-color: var(--ok);
+}
+
+.sp__state[data-stage="ended"] {
+    color: var(--muted);
+    background: var(--ctl);
+    border-color: var(--line);
+}
+
+@keyframes sp-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+}
+
+/* Matched lead name → opens the lead in place (call keeps running) -------- */
+
+.sp__name-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--brand);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+}
+
+.sp__name-link:hover {
+    border-bottom-color: currentColor;
+}
+
+.sp__name-open {
+    width: 15px;
+    height: 15px;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.sp__timer {
+    margin: 12px 0 0;
+    font-size: 28px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
+/* actions ----------------------------------------------------------------- */
+
+.sp__actions {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 28px;
+    margin-top: 28px;
+}
+
+.act {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.act__btn {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-ctl);
+    display: grid;
+    place-items: center;
+    background: var(--ctl);
+    color: var(--ink);
+    transition: transform 0.12s, background 0.12s;
+}
+
+.act:hover .act__btn { transform: scale(1.05); }
+.act:active .act__btn { transform: scale(0.96); }
+.act:focus-visible { outline: none; }
+.act:focus-visible .act__btn {
+    outline: 3px solid var(--brand);
+    outline-offset: 3px;
+}
+
+.act--ok .act__btn { background: var(--ok); color: var(--ok-ink); }
+.act--danger .act__btn { background: var(--danger); color: var(--danger-ink); }
+
+.act[aria-pressed="true"] .act__btn {
+    background: var(--ctl-on);
+    color: var(--ctl-on-ink);
+}
+
+.act svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sp--incoming .sp__avatar::before,
+    .sp--incoming .sp__avatar::after,
+    .sp__state::before {
+        animation: none !important;
+    }
+    .act__btn { transition: none; }
+}
+
+/* Failed call notice ----------------------------------------------------- */
+
+/*
+ * The strongest signal in the widget: a call that never connected. Red is
+ * reserved for exactly this, so it reads before the words do.
+ */
+.sp--failed .sp__body {
+    background: var(--danger-soft);
+}
+
+.sp__avatar--failed {
+    background: var(--danger);
+    color: var(--danger-ink);
+}
+
+.sp__number--peer {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.sp__reason {
+    margin: 12px 0 0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--danger-line);
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 600;
+    color: var(--danger);
+    text-align: center;
+}
+
+.sp--failed .sp__actions {
+    margin-top: 20px;
+    gap: 20px;
+}
+
+/* "Try again" carries the action; "Close" is deliberately the quiet one. */
+.sp--failed .act:first-child .act__btn {
+    background: var(--brand);
+    color: var(--brand-ink);
+}
+
+.sp--failed .act:first-child {
+    color: var(--brand);
+}
+
+.sp--failed .act:last-child .act__btn {
+    background: var(--ctl);
+    color: var(--muted);
+}
+
+/* Idle (no call) extras — line picker, recording, diagnostics ------------- */
+
+.sp__idle {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+    font-size: 13px;
+}
+
+.sp__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sp__field > span {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.sp__select {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+}
+
+.sp__note {
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.sp__note--danger { color: var(--danger); }
+.sp__note--ok { color: var(--ok); }
+
+.sp__card {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: var(--bg);
+}
+
+.sp__card audio { width: 100%; }
+
+.sp__lead-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.sp__link {
+    color: var(--brand);
+    font-weight: 600;
+}
+
+.sp__close {
+    margin-left: auto;
+    background: none;
+    border: 0;
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    padding: 0 2px;
+}

@@ -50,6 +50,50 @@ export function amount(value: number, currency: string | null): string {
 }
 
 /**
+ * A money figure kept to the cent, with its currency in front.
+ *
+ * `amount()` rounds and abbreviates, which is right for a pipeline total and
+ * wrong for a ledger line. Unknown or unconfigured currency stays bare rather
+ * than wearing a symbol we invented.
+ */
+export function currencyAmount(value: number, currency: string | null): string {
+    const exact = value.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+
+    if (!currency) {
+        return exact;
+    }
+
+    try {
+        return new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(value);
+    } catch {
+        const symbol = CURRENCY_SYMBOLS[currency] ?? `${currency} `;
+
+        return `${symbol}${exact}`;
+    }
+}
+
+/**
+ * Plain count / rate for a tile — always with grouping separators so a four-
+ * digit delta (+1,240%) and a four-digit lead count read the same way.
+ */
+export function figure(
+    value: number,
+    options: { maximumFractionDigits?: number } = {},
+): string {
+    return value.toLocaleString("en-US", {
+        maximumFractionDigits: options.maximumFractionDigits ?? 0,
+    });
+}
+
+/**
  * "Good morning" / "Good afternoon" / "Good evening", from the page's clock.
  *
  * English source string — the caller translates it through td().

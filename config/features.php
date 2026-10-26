@@ -4,6 +4,9 @@ return [
     'app_name' => 'crm',
     'cache_ttl' => (int) env('FEATURE_FLAGS_CACHE_TTL', 10),
     'known_flags' => [
+        // Silent single sign-on (prompt=none) before the login page (HIB-1871, epic HIB-1859). Enable only after
+        // logout and back-channel logout (HIB-1866) are deployed. Spec: hibarr-os docs/architecture/silent-sso.md.
+        'auth.silent-sso-crm',
         'crm.lead-qualification-tab',
         'crm.deal-view-redesign',
         'crm.lead-view-redesign',
@@ -45,13 +48,17 @@ return [
         'crm.personal-dashboard',
         'crm.manager-dashboard',
         'crm.team-dashboard',
+        'crm.partner-flag-routing',
+        'crm.partner.lead-stalled',
         'packages.online-payment',
         'crm.deal-files-grouping',
         'crm.meetings-page-redesign',
         'crm.deal-value-commission',
         'shared.3cx-calling',
+        'crm.softphone',
         'crm.mobile-responsive-layout',
         'crm.property-completeness-score',
+        'crm.email',
     ],
 
     /*
@@ -65,5 +72,6 @@ return [
     'local_defaults' => [
         'crm.meeting-attendance-confirmation' => true,
         'crm.mobile-responsive-layout' => true,
+        'crm.email' => true,
     ],
 ];

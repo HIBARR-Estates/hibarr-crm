@@ -7,6 +7,7 @@ import React, {
     useEffect,
 } from "react";
 import { router } from "@inertiajs/react";
+import { getCurrentQueryParams } from "@/lib/inertiaQuery";
 
 export interface FilterValue {
     key: string;
@@ -78,10 +79,12 @@ export interface FilterConfig {
     defaultValues?: Record<string, any>;
     /**
      * Inertia partial-reload prop keys to request when filters change. Omit
-     * to fall back to a full (unscoped) visit — every scoped reload
-     * elsewhere on these pages (pagination, tab switches, pipeline/board
-     * switches) already knows its own list, so pass the same one here
-     * instead of re-fetching the whole page on every filter change.
+     * (or leave unset) to fall back to a full (unscoped) visit — do not pass
+     * `only: undefined`, which overwrites Inertia's default `only: []` and
+     * crashes isPartial(). Every scoped reload elsewhere on these pages
+     * (pagination, tab switches, pipeline/board switches) already knows its
+     * own list, so pass the same one here instead of re-fetching the whole
+     * page on every filter change.
      */
     only?: string[];
 }
@@ -129,6 +132,74 @@ interface FilterContextValue {
 }
 
 const FilterContext = createContext<FilterContextValue | null>(null);
+
+/** Wire keys for daterange fields (tasks use due_start_date, not due_date_range_start). */
+function dateRangeParamKeys(field: FilterFieldConfig): [string, string] {
+    return field.rangeKeys ?? [`${field.key}_start`, `${field.key}_end`];
+}
+
+function addManagedFilterKeys(
+    managedKeys: Set<string>,
+    field: FilterFieldConfig,
+): void {
+    managedKeys.add(field.key);
+    if (field.type === "daterange") {
+        const [startKey, endKey] = dateRangeParamKeys(field);
+        managedKeys.add(startKey);
+        managedKeys.add(endKey);
+    } else if (field.type === "numberrange") {
+        managedKeys.add(`min_${field.key}`);
+        managedKeys.add(`max_${field.key}`);
+    }
+}
+
+function isEmptyFilterValue(value: any): boolean {
+    return (
+        value === null ||
+        value === undefined ||
+        value === "" ||
+        (Array.isArray(value) && value.length === 0)
+    );
+}
+
+/**
+ * Query params for a filter visit: the current URL minus every key the filter
+ * form owns, plus the given filter values.
+ *
+ * Fields in `excludeFields` (e.g. `search`, owned by UniversalSearchBox) are
+ * not rendered by the form, so the form never owns them: their URL value is
+ * kept as-is. Taking them from form state instead let a stale value
+ * overwrite — or drop — a search typed after the page loaded.
+ *
+ * The URL is read with getCurrentQueryParams so repeated `key[]=a&key[]=b`
+ * pairs survive as arrays instead of collapsing to the last value.
+ */
+function buildFilterVisitParams(
+    config: FilterConfig,
+    values: Record<string, any>,
+): Record<string, any> {
+    const excluded = new Set(config.excludeFields ?? []);
+    const managedKeys = new Set<string>();
+    config.fields.forEach((field) => {
+        if (!excluded.has(field.key)) {
+            addManagedFilterKeys(managedKeys, field);
+        }
+    });
+
+    const params: Record<string, any> = getCurrentQueryParams();
+    managedKeys.forEach((key) => {
+        delete params[key];
+    });
+
+    Object.entries(values).forEach(([key, value]) => {
+        if (excluded.has(key) || isEmptyFilterValue(value)) return;
+        // Multiselect values are comma-joined on the wire so setConfig's URL
+        // parser (which splits on ",") can read them back.
+        params[key] = Array.isArray(value) ? value.join(",") : value;
+    });
+
+    return { ...params, page: 1 };
+}
 
 export const useFilter = () => {
     const context = useContext(FilterContext);
@@ -324,59 +395,17 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
 
                 if (!config) return;
 
-                const urlParams = new URLSearchParams(window.location.search);
-                const currentParams: Record<string, any> = {};
-                urlParams.forEach((value, k) => {
-                    currentParams[k] = value;
-                });
-
-                // Get current filters but exclude the removed key
+                // Current filters minus the removed key
                 const updatedFilters = { ...filters };
                 delete updatedFilters[key];
 
-                const cleanFilters = Object.entries(updatedFilters).reduce(
-                    (acc, [k, value]) => {
-                        if (
-                            value !== null &&
-                            value !== undefined &&
-                            value !== "" &&
-                            !(Array.isArray(value) && value.length === 0)
-                        ) {
-                            // Multiselect values are comma-joined on the wire so
-                            // setConfig's URL parser (which splits on ",") can read them back.
-                            acc[k] = Array.isArray(value)
-                                ? value.join(",")
-                                : value;
-                        }
-                        return acc;
-                    },
-                    {} as Record<string, any>
+                const finalParams = buildFilterVisitParams(
+                    config,
+                    updatedFilters,
                 );
 
-                const managedKeys = new Set<string>();
-                config.fields.forEach((field) => {
-                    managedKeys.add(field.key);
-                    if (field.type === "daterange") {
-                        managedKeys.add(`${field.key}_start`);
-                        managedKeys.add(`${field.key}_end`);
-                    } else if (field.type === "numberrange") {
-                        managedKeys.add(`min_${field.key}`);
-                        managedKeys.add(`max_${field.key}`);
-                    }
-                });
-
-                managedKeys.forEach((k) => {
-                    delete currentParams[k];
-                });
-
-                const finalParams = {
-                    ...currentParams,
-                    ...cleanFilters,
-                    page: 1,
-                };
-
                 router.get(route(config.routeName), finalParams, {
-                    only: config.only,
+                    ...(config.only ? { only: config.only } : {}),
                     preserveState: true,
                     preserveScroll: true,
                     replace: true,
@@ -395,7 +424,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
         if (!config) return;
 
         router.get(route(config.routeName), config.defaultValues || {}, {
-            only: config.only,
+            ...(config.only ? { only: config.only } : {}),
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -409,60 +438,11 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
         setFilters({ ...draftFilters });
         setFilterMetadata({ ...draftFilterMetadata });
 
-        // Get current URL parameters to preserve them
-        const urlParams = new URLSearchParams(window.location.search);
-        const currentParams: Record<string, any> = {};
-        urlParams.forEach((value, key) => {
-            currentParams[key] = value;
-        });
-
-        // Clean filters - remove empty values (use draftFilters since applied state hasn't updated yet)
-        const cleanFilters = Object.entries(draftFilters).reduce(
-            (acc, [key, value]) => {
-                if (
-                    value !== null &&
-                    value !== undefined &&
-                    value !== "" &&
-                    !(Array.isArray(value) && value.length === 0)
-                ) {
-                    // Multiselect values are comma-joined on the wire so
-                    // setConfig's URL parser (which splits on ",") can read them back.
-                    acc[key] = Array.isArray(value) ? value.join(",") : value;
-                }
-                return acc;
-            },
-            {} as Record<string, any>
-        );
-
-        // Identify keys that are managed by the current filter config
-        // We need to remove these from currentParams if they are not in cleanFilters
-        // (meaning they were cleared by the user)
-        const managedKeys = new Set<string>();
-        config.fields.forEach((field) => {
-            managedKeys.add(field.key);
-            if (field.type === "daterange") {
-                managedKeys.add(`${field.key}_start`);
-                managedKeys.add(`${field.key}_end`);
-            } else if (field.type === "numberrange") {
-                managedKeys.add(`min_${field.key}`);
-                managedKeys.add(`max_${field.key}`);
-            }
-        });
-
-        // Remove managed keys from currentParams
-        managedKeys.forEach((key) => {
-            delete currentParams[key];
-        });
-
-        // Merge preserved params with new filters
-        const finalParams = {
-            ...currentParams,
-            ...cleanFilters,
-            page: 1, // Reset to first page
-        };
+        // Use draftFilters since applied state hasn't updated yet
+        const finalParams = buildFilterVisitParams(config, draftFilters);
 
         router.get(route(config.routeName), finalParams, {
-            only: config.only,
+            ...(config.only ? { only: config.only } : {}),
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -477,7 +457,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
         clearAllFilters();
 
         router.get(route(config.routeName), config.defaultValues || {}, {
-            only: config.only,
+            ...(config.only ? { only: config.only } : {}),
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -489,31 +469,42 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
     const setConfig = useCallback((newConfig: FilterConfig) => {
         setConfigState(newConfig);
 
-        // Initialize filters from URL params if available
-        const urlParams = new URLSearchParams(window.location.search);
+        // Initialize filters from URL params if available. Read via
+        // getCurrentQueryParams so a bracketed `key[]=a&key[]=b` URL is
+        // understood too, instead of the filter silently vanishing.
+        const urlParams = getCurrentQueryParams();
         const initialFilters: Record<string, any> = {};
         const initialMetadata: Record<string, FilterValue> = {};
 
         newConfig.fields.forEach((field) => {
             // Helper to process a single key
             const processKey = (key: string, label: string, type: string) => {
-                const value = urlParams.get(key);
+                const raw = urlParams[key];
+                const value = Array.isArray(raw)
+                    ? raw.join(",")
+                    : raw == null
+                      ? ""
+                      : String(raw);
                 if (value) {
                     let parsedValue: any = value;
 
                     if (type === "multiselect") {
                         parsedValue = value.split(",");
-                        // Try to convert to numbers if possible
+                        // Only canonical numbers become numbers: "007" or
+                        // "1e3" must round-trip unchanged or the filter
+                        // silently matches a different value.
                         parsedValue = parsedValue.map((v: string) => {
                             const num = Number(v);
-                            return !isNaN(num) ? num : v;
+                            return v.trim() !== "" && String(num) === v
+                                ? num
+                                : v;
                         });
                     } else if (type === "number" || type === "numberrange") {
                         parsedValue = Number(value);
                     } else if (type === "select") {
                         // Try to convert to number if it looks like one
                         const num = Number(value);
-                        if (!isNaN(num) && value.trim() !== "") {
+                        if (value.trim() !== "" && String(num) === value) {
                             parsedValue = num;
                         }
                     }
@@ -533,12 +524,9 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
             };
 
             if (field.type === "daterange") {
-                processKey(
-                    `${field.key}_start`,
-                    `${field.label} Start`,
-                    "date"
-                );
-                processKey(`${field.key}_end`, `${field.label} End`, "date");
+                const [startKey, endKey] = dateRangeParamKeys(field);
+                processKey(startKey, `${field.label} Start`, "date");
+                processKey(endKey, `${field.label} End`, "date");
             } else if (field.type === "numberrange") {
                 processKey(
                     `min_${field.key}`,

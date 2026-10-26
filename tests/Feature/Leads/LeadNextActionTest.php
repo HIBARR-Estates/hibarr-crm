@@ -2,8 +2,13 @@
 
 namespace Tests\Feature\Leads;
 
+use App\Models\Company;
 use App\Models\Lead;
+use App\Models\Task;
+use App\Models\User;
+use App\Services\FeatureFlagService;
 use App\Services\LeadService;
+use App\Support\UserTimezone;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
@@ -19,8 +24,9 @@ use Tests\TestCase;
  *
  * Two mechanisms have to agree — a raw SQL expression the page sorts and
  * filters on, and a per-page lookup that says what the action actually is.
- * These tests pin the boundary cases where they could drift: done tasks and
- * cancelled meetings are not "next", and the earlier of the two wins.
+ * These tests pin the boundary cases where they could drift: done tasks,
+ * cancelled meetings, and meetings that have already started are not "next",
+ * and the earlier of the remaining candidates wins.
  */
 class LeadNextActionTest extends TestCase
 {
@@ -43,21 +49,44 @@ class LeadNextActionTest extends TestCase
 
         // user() reads the session before auth; leaving auth empty also keeps
         // CompanyScope inert, which is what lets this run on a stub schema.
-        session(['user' => new class
-        {
-            public int $id = 10;
-
-            public function permission(string $ability): string
-            {
-                return 'all';
-            }
-        }]);
+        // Real User/Company models rather than stubs: attachNextActions() calls
+        // Task::wallClockString(), which passes both into
+        // UserTimezone::forViewer(?User, ?Company) — type-hinted, so an
+        // anonymous class or stdClass is a TypeError, not a silent fallback.
+        session(['user' => $this->viewerUser()]);
 
         // company() checks session('company') first, short-circuiting before
         // it ever touches user()->company. UTC keeps this a no-op shift, so
         // every pre-existing assertion below is unaffected; the timezone
         // conversion itself gets its own dedicated tests further down.
-        session(['company' => (object) ['timezone' => 'UTC']]);
+        session(['company' => $this->viewerCompany()]);
+    }
+
+    /** `id` is guarded on User, so it has to be assigned rather than mass-assigned. */
+    private function viewerUser(?string $timezone = null): User
+    {
+        $user = new User();
+        $user->id = 10;
+
+        if ($timezone !== null) {
+            $user->timezone = $timezone;
+        }
+
+        // permission() resolves through a container-scoped map keyed on the
+        // user id, not the session, so it has to be primed for this stub
+        // schema (which has none of the permission tables).
+        app()->instance('user.permission-map.10', ['view_lead_follow_up' => 'all']);
+
+        return $user;
+    }
+
+    private function viewerCompany(string $timezone = 'UTC'): Company
+    {
+        $company = new Company();
+        $company->id = $this->companyId;
+        $company->timezone = $timezone;
+
+        return $company;
     }
 
     protected function tearDown(): void
@@ -105,17 +134,149 @@ class LeadNextActionTest extends TestCase
 
     public function test_an_overdue_item_is_still_the_next_action(): void
     {
+        $overdue = now()->subDays(2);
         $this->makeLead(1);
-        $this->makeTask(1, 1, now()->subDays(2));
+        $this->makeTask(1, 1, $overdue);
         $this->makeTask(2, 1, now()->addDays(2));
 
         $action = $this->nextActionFor(1);
 
         $this->assertSame(
-            now()->subDays(2)->format('Y-m-d H:i:s'),
+            $overdue->format('Y-m-d H:i:s'),
             $action['due_at'],
             'An overdue task is the most urgent thing, not a skipped one',
         );
+    }
+
+    public function test_an_ended_scheduled_meeting_does_not_hide_a_future_task(): void
+    {
+        $this->makeLead(1);
+        $this->makeMeeting(1, 1, now()->subDay());
+        $taskDue = now()->addDay();
+        $this->makeTask(1, 1, $taskDue);
+
+        $action = $this->nextActionFor(1);
+
+        $this->assertSame('task', $action['type']);
+        $this->assertSame('Book a viewing', $action['title']);
+        $this->assertSame($taskDue->format('Y-m-d H:i:s'), $action['due_at']);
+        $this->assertSame($action['due_at'], $this->nextActionAtFor(1));
+        $this->assertSame([], $this->leadIdsMatching('overdue'));
+        $this->assertSame([], $this->leadIdsMatching('none'));
+        $this->assertSame([1], $this->leadIdsMatching('week'));
+    }
+
+    public function test_an_ended_scheduled_meeting_does_not_hide_an_upcoming_meeting(): void
+    {
+        $this->makeLead(1);
+        $this->makeMeeting(1, 1, now()->subDay());
+        $upcoming = now()->addDays(2);
+        $this->makeMeeting(2, 1, $upcoming);
+
+        $action = $this->nextActionFor(1);
+
+        $this->assertSame('meeting', $action['type']);
+        $this->assertSame(2, $action['id']);
+        $this->assertSame($upcoming->format('Y-m-d H:i:s'), $action['due_at']);
+        $this->assertSame($action['due_at'], $this->nextActionAtFor(1));
+    }
+
+    public function test_a_started_or_ended_meeting_alone_is_not_a_next_action(): void
+    {
+        $now = \Carbon\Carbon::parse('2026-10-15 12:00:00', 'UTC');
+        \Carbon\Carbon::setTestNow($now);
+
+        $this->makeLead(1);
+        $this->makeMeeting(1, 1, $now->copy()->subDay());
+
+        $this->makeLead(2);
+        $this->makeMeeting(2, 2, $now->copy());
+
+        $this->assertNull($this->nextActionFor(1));
+        $this->assertNull($this->nextActionAtFor(1));
+        $this->assertNull($this->nextActionFor(2));
+        $this->assertNull($this->nextActionAtFor(2));
+        $this->assertSame([1, 2], $this->leadIdsMatching('none'));
+        $this->assertSame([], $this->leadIdsMatching('overdue'));
+    }
+
+    public function test_a_meeting_qualifies_until_the_instant_it_starts(): void
+    {
+        $now = \Carbon\Carbon::parse('2026-10-15 12:00:00', 'UTC');
+        \Carbon\Carbon::setTestNow($now);
+
+        $this->makeLead(1);
+        $starts = $now->copy()->addSecond();
+        $this->makeMeeting(1, 1, $starts);
+
+        $this->makeLead(2);
+        $this->makeMeeting(2, 2, $now->copy());
+
+        $this->assertSame('meeting', $this->nextActionFor(1)['type']);
+        $this->assertSame($starts->format('Y-m-d H:i:s'), $this->nextActionAtFor(1));
+        $this->assertNull($this->nextActionFor(2));
+        $this->assertNull($this->nextActionAtFor(2));
+    }
+
+    public function test_an_overdue_task_stays_selected_beside_an_ended_meeting(): void
+    {
+        $overdue = now()->subDays(2);
+        $this->makeLead(1);
+        $this->makeMeeting(1, 1, now()->subDay());
+        $this->makeTask(1, 1, $overdue);
+
+        $action = $this->nextActionFor(1);
+
+        $this->assertSame('task', $action['type']);
+        $this->assertSame($overdue->format('Y-m-d H:i:s'), $action['due_at']);
+        $this->assertSame($action['due_at'], $this->nextActionAtFor(1));
+        $this->assertSame([1], $this->leadIdsMatching('overdue'));
+        $this->assertSame([], $this->leadIdsMatching('none'));
+    }
+
+    public function test_display_sort_and_filters_agree_for_a_non_utc_viewer(): void
+    {
+        // 23:30 UTC is already the next calendar morning in Tokyo. The meeting
+        // below is 30 minutes in the past as an instant, even though its Tokyo
+        // wall clock (08:00 on the 15th) still reads as "today".
+        \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse('2026-08-14 23:30:00', 'UTC'));
+        session(['company' => $this->viewerCompany('Asia/Tokyo')]);
+
+        $this->makeLead(1);
+        $this->makeMeeting(1, 1, \Carbon\Carbon::parse('2026-08-14 23:00:00', 'UTC'));
+        $this->makeTask(1, 1, \Carbon\Carbon::parse('2026-08-15 01:00:00', 'UTC'));
+
+        $action = $this->nextActionFor(1);
+
+        $this->assertSame('task', $action['type']);
+        $this->assertSame('2026-08-15 10:00:00', $action['due_at']);
+        $this->assertSame('2026-08-15 01:00:00', $this->nextActionAtFor(1));
+        $this->assertSame([1], $this->leadIdsMatching('today'));
+        $this->assertSame([1], $this->leadIdsMatching('week'));
+        $this->assertSame([], $this->leadIdsMatching('overdue'));
+        $this->assertSame([], $this->leadIdsMatching('none'));
+    }
+
+    public function test_added_visibility_ignores_another_users_upcoming_meeting(): void
+    {
+        app()->instance('user.permission-map.10', ['view_lead_follow_up' => 'added']);
+
+        $this->makeLead(1);
+        $this->makeMeeting(1, 1, now()->addDay(), addedBy: 99);
+        $ours = now()->addDays(3);
+        $this->makeMeeting(2, 1, $ours);
+
+        $this->makeLead(2);
+        $this->makeMeeting(3, 2, now()->addDay(), addedBy: 99);
+
+        $action = $this->nextActionFor(1);
+
+        $this->assertSame('meeting', $action['type']);
+        $this->assertSame(2, $action['id']);
+        $this->assertSame($ours->format('Y-m-d H:i:s'), $this->nextActionAtFor(1));
+        $this->assertNull($this->nextActionFor(2));
+        $this->assertNull($this->nextActionAtFor(2));
+        $this->assertSame([2], $this->leadIdsMatching('none'));
     }
 
     public function test_an_action_on_another_lead_does_not_leak(): void
@@ -137,13 +298,14 @@ class LeadNextActionTest extends TestCase
         $this->assertSame($this->nextActionFor(1)['due_at'], $this->nextActionAtFor(1));
     }
 
-    public function test_meeting_due_at_is_converted_from_utc_to_company_timezone(): void
+    public function test_meeting_due_at_is_converted_from_utc_for_the_viewer(): void
     {
         // lead_follow_up.next_follow_up_date is stored as true UTC (see
-        // DealController::followUpStore's ->setTimezone('UTC')) — unlike
-        // tasks.due_date, which carries no timezone label at all. Asia/Tokyo
+        // DealController::followUpStore's ->setTimezone('UTC')). Asia/Tokyo
         // is UTC+9 with no DST, so the expected shift is unambiguous.
-        session(['company' => (object) ['timezone' => 'Asia/Tokyo']]);
+        // Freeze before the start so the meeting is still eligible.
+        \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse('2026-08-14 08:00:00', 'UTC'));
+        session(['company' => $this->viewerCompany('Asia/Tokyo')]);
 
         $this->makeLead(1);
         $this->makeMeeting(1, 1, \Carbon\Carbon::parse('2026-08-14 09:00:00', 'UTC'));
@@ -158,30 +320,74 @@ class LeadNextActionTest extends TestCase
         );
     }
 
-    public function test_task_bucket_uses_company_local_now_not_utc_now(): void
+    public function test_task_due_at_is_converted_from_utc_for_the_viewer(): void
     {
-        // tasks.due_date carries no timezone label — it's raw wall-clock
-        // digits (see Task::wallClockString's docblock), so bucketing it
-        // against real UTC now() is the actual pre-fix bug, independent of
-        // the meeting UTC-storage issue.
+        // tasks.due_date is a true UTC instant: every live write path runs
+        session(['company' => $this->viewerCompany('Asia/Tokyo')]);
+
+        $this->makeLead(1);
+        // A task the user saved as 09:00 Tokyo wall-clock, i.e. 00:00 UTC.
+        $this->makeTask(1, 1, \Carbon\Carbon::parse('2026-08-14 00:00:00', 'UTC'));
+
+        $action = $this->nextActionFor(1);
+
+        $this->assertSame('task', $action['type']);
+        $this->assertSame(
+            Task::wallClockString(\Carbon\Carbon::parse('2026-08-14 00:00:00', 'UTC')),
+            $action['due_at'],
+            'due_at must be the wall-clock time the task modal shows, never raw UTC digits',
+        );
+        $this->assertSame(
+            '2026-08-14 09:00:00',
+            $action['due_at'],
+            'with the company zone at Asia/Tokyo the wall clock is 09:00 (00:00 UTC + 9h)',
+        );
+    }
+
+    public function test_task_due_at_follows_the_viewers_own_timezone_not_the_companys(): void
+    {
+        // With crm.user-timezone on, a viewer's own zone wins over the company
+        app(FeatureFlagService::class)->setTestingOverrides([
+            UserTimezone::FLAG => true,
+        ]);
+
+        session(['company' => $this->viewerCompany('UTC')]);
+        session(['user' => $this->viewerUser('Europe/Istanbul')]);
+
+        $this->makeLead(1);
+        $this->makeTask(1, 1, \Carbon\Carbon::parse('2026-08-14 06:00:00', 'UTC'));
+
+        $this->assertSame(
+            '2026-08-14 09:00:00',
+            $this->nextActionFor(1)['due_at'],
+            'a viewer in Istanbul should see 09:00 for an instant stored as 06:00 UTC',
+        );
+    }
+
+    public function test_task_bucket_compares_instants_across_the_utc_date_rollover(): void
+    {
+        // Both sides of the filter are UTC instants, so a task 30 minutes
+        // before "now" is overdue even when their calendar dates differ once
+        // converted. Previously the task column was compared against a
+        // company-local "now" while the meeting column was shifted into it,
+        // so the same instant could bucket differently depending on the branch.
         //
         // Freeze UTC "now" late enough that Tokyo (+9h) has already rolled
         // to the next calendar date: 23:30 UTC on the 14th is 08:30 Tokyo
         // on the 15th.
         \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse('2026-08-14 23:30:00', 'UTC'));
-        session(['company' => (object) ['timezone' => 'Asia/Tokyo']]);
+        session(['company' => $this->viewerCompany('Asia/Tokyo')]);
 
         $this->makeLead(1);
-        // A task due 08:00 on the 15th — 30 minutes ago in Tokyo wall-clock
-        // terms, stored as the same raw digits (no shift, matching how
-        // TaskController@store actually writes it).
-        $this->makeTask(1, 1, \Carbon\Carbon::parse('2026-08-15 08:00:00'));
+        // tasks.due_date holds a true UTC instant, so "30 minutes ago in Tokyo"
+        // is stored as 23:00 UTC — the raw digits 08:00 on the 15th would be a
+        // different instant entirely (eight and a half hours in the future).
+        $this->makeTask(1, 1, \Carbon\Carbon::parse('2026-08-14 23:00:00', 'UTC'));
 
         $this->assertSame(
             [1],
             $this->leadIdsMatching('overdue'),
-            'comparing the task\'s raw digits against real UTC now() (23:30 on the 14th) would read '
-                . 'the task as hours in the future instead of 30 minutes overdue in Tokyo',
+            'the filter compares two UTC instants, so this must read as overdue',
         );
     }
 
@@ -293,6 +499,7 @@ class LeadNextActionTest extends TestCase
         int $leadId,
         $date,
         string $status = 'scheduled',
+        int $addedBy = 10,
     ): void {
         DB::table('lead_follow_up')->insert([
             'id' => $id,
@@ -300,7 +507,7 @@ class LeadNextActionTest extends TestCase
             'status' => $status,
             'next_follow_up_date' => $date->format('Y-m-d H:i:s'),
             'remark' => '<p>Site visit</p>',
-            'added_by' => 10,
+            'added_by' => $addedBy,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

@@ -175,6 +175,62 @@ class DealPaymentRequestTest extends TestCase
         }
     }
 
+    public function test_create_propagates_ol_api_error_envelope_message(): void
+    {
+        Http::fake([
+            'https://ol.test/v1/internal/payments/deal-requests' => Http::response([
+                'success' => false,
+                'error' => [
+                    'code' => 'PAYMENT_PROVIDER_ERROR',
+                    'message' => 'Failed to create payment with NowPayments. Amount below minimum.',
+                ],
+            ], 502),
+        ]);
+
+        try {
+            app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+                'currency' => 'EUR',
+                'provider_key' => 'nowpayments',
+            ]);
+            $this->fail('Expected OL provider failure to propagate.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $this->assertSame(502, $e->getStatusCode());
+            $this->assertStringContainsString(
+                'Failed to create payment with NowPayments. Amount below minimum.',
+                $e->getMessage()
+            );
+            $this->assertStringNotContainsString('Payment service request failed.', $e->getMessage());
+        }
+    }
+
+    public function test_create_propagates_ol_joi_validation_field_details(): void
+    {
+        Http::fake([
+            'https://ol.test/v1/internal/payments/deal-requests' => Http::response([
+                'message' => 'Validation error.',
+                'data' => [
+                    'error' => [
+                        [
+                            'field' => 'amount',
+                            'message' => '"amount" must be a positive number',
+                        ],
+                    ],
+                ],
+            ], 400),
+        ]);
+
+        try {
+            app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+                'currency' => 'EUR',
+            ]);
+            $this->fail('Expected OL validation failure to propagate.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $this->assertSame(400, $e->getStatusCode());
+            $this->assertStringContainsString('"amount" must be a positive number', $e->getMessage());
+            $this->assertStringNotContainsString('Payment service request failed.', $e->getMessage());
+        }
+    }
+
     public function test_a_new_request_can_be_created_once_the_previous_one_was_invalidated(): void
     {
         $this->insertPayment(['external_reference' => '531', 'ol_status' => 'cancelled', 'status' => 'failed']);

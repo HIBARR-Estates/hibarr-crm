@@ -8,12 +8,14 @@ interface DealAddNoteModalProps {
     open: boolean;
     onClose: () => void;
     dealId: number;
+    sourceEmailMessageId?: string | null;
 }
 
 export default function DealAddNoteModal({
     open,
     onClose,
     dealId,
+    sourceEmailMessageId = null,
 }: DealAddNoteModalProps) {
     const { t } = useTranslation();
     const { createNote, isSaving, errors, clearErrors } =
@@ -26,7 +28,14 @@ export default function DealAddNoteModal({
     };
 
     const handleSubmit = (form: AddNoteFormState) => {
-        createNote({ text: form.text, title: form.title }, handleClose);
+        createNote(
+            {
+                text: form.text,
+                title: form.title,
+                sourceEmailMessageId,
+            },
+            handleClose,
+        );
     };
 
     return (

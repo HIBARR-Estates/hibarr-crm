@@ -19,6 +19,7 @@ class DealAutomation extends BaseModel
         'trigger',
         'date_field',
         'date_recurrence',
+        'meeting_type_ids',
         'wait_duration_value',
         'wait_duration_unit',
         'active',
@@ -41,6 +42,26 @@ class DealAutomation extends BaseModel
     public const TRIGGER_DATE_BASED = 'date_based';
 
     public const TRIGGER_LEAD_FOLLOWUP_CREATED = 'lead_followup_created';
+
+    /**
+     * Fire when a meeting's attendance outcome is logged as "Attended"
+     * (MeetingAttendanceConfirmationService — the confirmation prompt or the
+     * meeting's own edit form). One trigger for both subjects: a meeting
+     * attached to a deal runs the deal-scoped automations, a lead-only meeting
+     * runs the lead-scoped ones (the automation's own subject type is the
+     * differentiator). Used to send the Meta "Contact" conversion once a lead
+     * actually shows up.
+     */
+    public const TRIGGER_MEETING_ATTENDED = 'meeting_attended';
+
+    /**
+     * Fires once per payment, when a deal's payment is confirmed as paid
+     * (DealPaymentService::markConfirmed — online payment settled, bank
+     * transfer confirmed, or OL pushing a completed payment). Used to send the
+     * Meta "Purchase" conversion. Unlike every other deal trigger it still runs
+     * for a deal that already has a paid request — that is exactly its moment.
+     */
+    public const TRIGGER_DEAL_PAYMENT_RECEIVED = 'deal_payment_received';
 
     /**
      * "Via API" triggers fire explicitly from the external, API-token-
@@ -79,6 +100,7 @@ class DealAutomation extends BaseModel
     protected $casts = [
         'active' => 'boolean',
         'priority' => 'integer',
+        'meeting_type_ids' => 'array',
     ];
 
     /**

@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
+import { usePage } from "@inertiajs/react";
 import type { Lead } from "@/Types/api/leads";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import ClickToCallButton from "@/Components/ClickToCallButton";
 import { useLeadWorkspace } from "../../context/LeadWorkspaceContext";
 import useLeadNoteCreate from "../../hooks/useLeadNoteCreate";
 import useLeadInfoFieldUpdate from "../../hooks/useLeadInfoFieldUpdate";
@@ -23,7 +25,10 @@ interface QualifyLeadContextPanelProps {
 type Tab = "lead" | "notes";
 
 function stripHtml(html: string): string {
-    return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    return html
+        .replace(/<[^>]*>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 }
 
 function FieldGroup({
@@ -122,7 +127,10 @@ function LeadQuickNote({ leadId }: { leadId: number }) {
             />
             {text.trim() ? (
                 <div className="flex items-center justify-between">
-                    <span className="text-[11px]" style={{ color: T.TEXT_HINT }}>
+                    <span
+                        className="text-[11px]"
+                        style={{ color: T.TEXT_HINT }}
+                    >
                         {td("⌘↵ to save", { source: "en" })}
                     </span>
                     <button
@@ -158,9 +166,20 @@ export default function QualifyLeadContextPanel({
     editLeadPermission = "all",
 }: QualifyLeadContextPanelProps) {
     const { td } = useTd();
+    const { props } = usePage();
     const { notes, notesLoading } = useLeadWorkspace();
     const [activeTab, setActiveTab] = useState<Tab>("lead");
     const [imgError, setImgError] = useState(false);
+    // The feature flag alone isn't enough: ClickToCallButton additionally requires
+    // make_softphone_calls for the softphone path, so an agent without it needs
+    // the plain tel: link to stay usable. The 3cx-calling path uses
+    // ClickToCallButton which has its own permission check, so it doesn't need
+    // make_softphone_calls here.
+    const softphoneEnabled =
+        props.auth?.permissions?.make_softphone_calls === "all" &&
+        props.featureFlags?.["crm.softphone"] === true;
+    const threeCxEnabled = props.featureFlags?.["shared.3cx-calling"] === true;
+    const telephonyEnabled = softphoneEnabled || threeCxEnabled;
     const canEdit = ["all", "added", "owned", "both"].includes(
         editLeadPermission,
     );
@@ -256,17 +275,50 @@ export default function QualifyLeadContextPanel({
                   ? td("Yes", { source: "en" })
                   : td("No", { source: "en" });
         return [
-            { label: td("UTM Source", { source: "en" }), value: marketing.utm_source ?? "" },
-            { label: td("UTM Medium", { source: "en" }), value: marketing.utm_medium ?? "" },
-            { label: td("UTM Campaign", { source: "en" }), value: marketing.utm_campaign ?? "" },
-            { label: td("UTM Content", { source: "en" }), value: marketing.utm_content ?? "" },
-            { label: td("UTM Term", { source: "en" }), value: marketing.utm_term ?? "" },
-            { label: td("UTM Audience", { source: "en" }), value: marketing.utm_audience ?? "" },
-            { label: td("Ebook", { source: "en" }), value: bool(marketing.has_downloaded_the_ebook) },
-            { label: td("Facebook Group", { source: "en" }), value: bool(marketing.has_joined_the_facebook_group) },
-            { label: td("WhatsApp Group", { source: "en" }), value: bool(marketing.has_joined_the_whatsapp_group) },
-            { label: td("Webinar Registration", { source: "en" }), value: bool(marketing.has_registered_for_the_webinar) },
-            { label: td("Webinar Attendance", { source: "en" }), value: bool(marketing.has_attended_the_webinar) },
+            {
+                label: td("UTM Source", { source: "en" }),
+                value: marketing.utm_source ?? "",
+            },
+            {
+                label: td("UTM Medium", { source: "en" }),
+                value: marketing.utm_medium ?? "",
+            },
+            {
+                label: td("UTM Campaign", { source: "en" }),
+                value: marketing.utm_campaign ?? "",
+            },
+            {
+                label: td("UTM Content", { source: "en" }),
+                value: marketing.utm_content ?? "",
+            },
+            {
+                label: td("UTM Term", { source: "en" }),
+                value: marketing.utm_term ?? "",
+            },
+            {
+                label: td("UTM Audience", { source: "en" }),
+                value: marketing.utm_audience ?? "",
+            },
+            {
+                label: td("Ebook", { source: "en" }),
+                value: bool(marketing.has_downloaded_the_ebook),
+            },
+            {
+                label: td("Facebook Group", { source: "en" }),
+                value: bool(marketing.has_joined_the_facebook_group),
+            },
+            {
+                label: td("WhatsApp Group", { source: "en" }),
+                value: bool(marketing.has_joined_the_whatsapp_group),
+            },
+            {
+                label: td("Webinar Registration", { source: "en" }),
+                value: bool(marketing.has_registered_for_the_webinar),
+            },
+            {
+                label: td("Webinar Attendance", { source: "en" }),
+                value: bool(marketing.has_attended_the_webinar),
+            },
         ].filter((row) => row.value !== "");
     }, [record.marketing, td]);
 
@@ -353,13 +405,23 @@ export default function QualifyLeadContextPanel({
 
                 <div className="flex gap-2">
                     {phones[0] ? (
-                        <a
-                            href={`tel:${phones[0]}`}
-                            className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-white transition-colors"
-                            style={{ backgroundColor: T.NAVY }}
-                        >
-                            {td("Call", { source: "en" })}
-                        </a>
+                        telephonyEnabled ? (
+                            <ClickToCallButton
+                                phone={phones[0]}
+                                entity={{ type: "lead", id: lead.id }}
+                                variant="link"
+                                label={td("Call", { source: "en" })}
+                                className="flex flex-1 items-center justify-center gap-0.5 py-1.5 rounded-md text-xs font-medium text-white bg-dr-navy transition-colors disabled:opacity-60"
+                            />
+                        ) : (
+                            <a
+                                href={`tel:${phones[0]}`}
+                                className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-white transition-colors"
+                                style={{ backgroundColor: T.NAVY }}
+                            >
+                                {td("Call", { source: "en" })}
+                            </a>
+                        )
                     ) : null}
                     {email ? (
                         <a
@@ -452,24 +514,76 @@ export default function QualifyLeadContextPanel({
                             "temperature",
                             lead.temperature ?? null,
                             [
-                                { value: "cold", label: td("Cold", { source: "en" }) },
-                                { value: "warm", label: td("Warm", { source: "en" }) },
-                                { value: "hot", label: td("Hot", { source: "en" }) },
+                                {
+                                    value: "cold",
+                                    label: td("Cold", { source: "en" }),
+                                },
+                                {
+                                    value: "warm",
+                                    label: td("Warm", { source: "en" }),
+                                },
+                                {
+                                    value: "hot",
+                                    label: td("Hot", { source: "en" }),
+                                },
                             ],
                         )}
                     </FieldGroup>
 
                     <FieldGroup label={td("Personal Info", { source: "en" })}>
-                        {coreRow(103, "Salutation", "text", "salutation", record.salutation)}
-                        {coreRow(104, "Gender", "select", "gender", record.gender_value ?? record.gender, [
-                            { value: "male", label: td("Male", { source: "en" }) },
-                            { value: "female", label: td("Female", { source: "en" }) },
-                        ])}
-                        {coreRow(105, "Date of Birth", "date", "date_of_birth", record.date_of_birth)}
+                        {coreRow(
+                            103,
+                            "Salutation",
+                            "text",
+                            "salutation",
+                            record.salutation,
+                        )}
+                        {coreRow(
+                            104,
+                            "Gender",
+                            "select",
+                            "gender",
+                            record.gender_value ?? record.gender,
+                            [
+                                {
+                                    value: "male",
+                                    label: td("Male", { source: "en" }),
+                                },
+                                {
+                                    value: "female",
+                                    label: td("Female", { source: "en" }),
+                                },
+                            ],
+                        )}
+                        {coreRow(
+                            105,
+                            "Date of Birth",
+                            "date",
+                            "date_of_birth",
+                            record.date_of_birth,
+                        )}
                         {coreRow(106, "Age", "number", "age", record.age)}
-                        {coreRow(107, "Nationality", "country", "nationality", record.nationality)}
-                        {coreRow(108, "Occupation", "text", "occupation", record.occupation)}
-                        {coreRow(109, "Company", "text", "company_name", lead.company_name)}
+                        {coreRow(
+                            107,
+                            "Nationality",
+                            "country",
+                            "nationality",
+                            record.nationality,
+                        )}
+                        {coreRow(
+                            108,
+                            "Occupation",
+                            "text",
+                            "occupation",
+                            record.occupation,
+                        )}
+                        {coreRow(
+                            109,
+                            "Company",
+                            "text",
+                            "company_name",
+                            lead.company_name,
+                        )}
                         <CoreFieldRow
                             label={td("Languages", { source: "en" })}
                             value={(lead.languages ?? []).join(", ")}
@@ -477,12 +591,48 @@ export default function QualifyLeadContextPanel({
                     </FieldGroup>
 
                     <FieldGroup label={td("Contact", { source: "en" })}>
-                        {coreRow(110, "Mobile", "phone", "mobile", mobileDisplay)}
-                        {coreRow(111, "Office phone", "phone", "office", officeDisplay)}
-                        {coreRow(112, "Email", "text", "email", lead.client_email)}
-                        {coreRow(113, "WhatsApp", "phone", "client_whatsapp", whatsapp)}
-                        {coreRow(114, "Telegram", "text", "client_telegram", record.client_telegram)}
-                        {coreRow(115, "Instagram", "text", "client_instagram", record.client_instagram)}
+                        {coreRow(
+                            110,
+                            "Mobile",
+                            "phone",
+                            "mobile",
+                            mobileDisplay,
+                        )}
+                        {coreRow(
+                            111,
+                            "Office phone",
+                            "phone",
+                            "office",
+                            officeDisplay,
+                        )}
+                        {coreRow(
+                            112,
+                            "Email",
+                            "text",
+                            "email",
+                            lead.client_email,
+                        )}
+                        {coreRow(
+                            113,
+                            "WhatsApp",
+                            "phone",
+                            "client_whatsapp",
+                            whatsapp,
+                        )}
+                        {coreRow(
+                            114,
+                            "Telegram",
+                            "text",
+                            "client_telegram",
+                            record.client_telegram,
+                        )}
+                        {coreRow(
+                            115,
+                            "Instagram",
+                            "text",
+                            "client_instagram",
+                            record.client_instagram,
+                        )}
                     </FieldGroup>
 
                     {marketingRows.length > 0 ? (

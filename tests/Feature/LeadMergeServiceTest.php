@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Lead;
 use App\Models\LeadMarketing;
+use App\Models\LeadUtmTouch;
 use App\Models\LeadNote;
 use App\Services\CrmEventService;
 use App\Services\LeadDuplicateDetectionService;
@@ -127,6 +128,26 @@ class LeadMergeServiceTest extends TestCase
 
         $this->assertNotEmpty($this->recordedCrmEvents);
         $this->assertSame('lead_merged', $this->recordedCrmEvents[0]['event_type_slug']);
+    }
+
+    public function test_moved_follow_up_is_reconciled_to_its_deals_lead_outside_the_merge(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate']);
+        $otherId = $this->insertLead(['client_name' => 'Other']);
+        $dealId = DB::table('deals')->insertGetId([
+            'company_id' => $this->companyId,
+            'lead_id' => $otherId,
+        ]);
+        $followUpId = DB::table('lead_follow_up')->insertGetId([
+            'deal_id' => $dealId,
+            'lead_id' => $duplicateId,
+        ]);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 99);
+
+        $this->assertSame($otherId, (int) DB::table('deals')->where('id', $dealId)->value('lead_id'));
+        $this->assertSame($otherId, (int) DB::table('lead_follow_up')->where('id', $followUpId)->value('lead_id'));
     }
 
     public function test_fills_primary_empty_contact_fields_from_duplicate(): void
@@ -269,6 +290,89 @@ class LeadMergeServiceTest extends TestCase
         $this->assertSame(1, LeadMarketing::query()->where('lead_id', $primaryId)->count());
         $this->assertSame('primary-src', LeadMarketing::query()->where('lead_id', $primaryId)->value('utm_source'));
         $this->assertSame(0, DB::table('lead_marketing')->where('lead_id', $duplicateId)->count());
+    }
+
+    public function test_merge_keeps_primary_first_touch_and_demotes_duplicate_touches(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary', 'client_email' => 'a@example.com']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate', 'client_email' => 'b@example.com']);
+
+        DB::table('lead_marketing')->insert([
+            ['lead_id' => $primaryId, 'utm_source' => 'primary-src', 'created_at' => now(), 'updated_at' => now()],
+            ['lead_id' => $duplicateId, 'utm_source' => 'dup-src', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        $this->insertTouch($primaryId, 'primary-src', true);
+        $this->insertTouch($duplicateId, 'dup-src', true);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $touches = LeadUtmTouch::query()->where('lead_id', $primaryId)->orderBy('id')->get();
+        $this->assertCount(2, $touches);
+        $this->assertTrue($touches[0]->is_first_touch);
+        $this->assertSame('primary-src', $touches[0]->utm_source);
+        $this->assertFalse($touches[1]->is_first_touch);
+        $this->assertSame('dup-src', $touches[1]->utm_source);
+        $this->assertSame('primary-src', LeadMarketing::query()->where('lead_id', $primaryId)->value('utm_source'));
+    }
+
+    public function test_merge_inherits_duplicate_utm_when_primary_has_none(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary', 'client_email' => 'a@example.com']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate', 'client_email' => 'b@example.com']);
+
+        DB::table('lead_marketing')->insert([
+            ['lead_id' => $primaryId, 'utm_source' => null, 'created_at' => now(), 'updated_at' => now()],
+            ['lead_id' => $duplicateId, 'utm_source' => 'dup-src', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        $this->insertTouch($duplicateId, 'dup-src', true);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $this->assertSame('dup-src', LeadMarketing::query()->where('lead_id', $primaryId)->value('utm_source'));
+        $touch = LeadUtmTouch::query()->where('lead_id', $primaryId)->sole();
+        $this->assertTrue($touch->is_first_touch);
+    }
+
+    public function test_merge_moves_duplicate_marketing_when_primary_has_no_marketing_row(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary', 'client_email' => 'a@example.com']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate', 'client_email' => 'b@example.com']);
+
+        DB::table('lead_marketing')->insert([
+            'lead_id' => $duplicateId, 'utm_source' => 'dup-src', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->insertTouch($duplicateId, 'dup-src', true);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $this->assertSame('dup-src', LeadMarketing::query()->where('lead_id', $primaryId)->value('utm_source'));
+        $this->assertTrue(LeadUtmTouch::query()->where('lead_id', $primaryId)->sole()->is_first_touch);
+    }
+
+    public function test_merge_does_not_flag_first_touch_when_duplicate_marketing_has_no_utm(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary', 'client_email' => 'a@example.com']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate', 'client_email' => 'b@example.com']);
+
+        DB::table('lead_marketing')->insert([
+            'lead_id' => $duplicateId, 'utm_source' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->insertTouch($duplicateId, 'stray', true);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $this->assertFalse(LeadUtmTouch::query()->where('lead_id', $primaryId)->sole()->is_first_touch);
+    }
+
+    private function insertTouch(int $leadId, string $source, bool $first): void
+    {
+        DB::table('lead_utm_touches')->insert([
+            'lead_id' => $leadId,
+            'utm_source' => $source,
+            'is_first_touch' => $first,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     public function test_reassigns_empty_custom_fields_and_notes_conflicts(): void
@@ -618,6 +722,7 @@ class LeadMergeServiceTest extends TestCase
         Schema::dropIfExists('communication_activities');
         Schema::dropIfExists('lead_qualifications');
         Schema::dropIfExists('lead_notes');
+        Schema::dropIfExists('lead_utm_touches');
         Schema::dropIfExists('lead_marketing');
         Schema::dropIfExists('lead_contact_methods');
         Schema::dropIfExists('deals');
@@ -726,6 +831,7 @@ class LeadMergeServiceTest extends TestCase
         Schema::create('lead_follow_up', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('lead_id')->nullable();
+            $table->unsignedBigInteger('deal_id')->nullable();
             $table->timestamps();
         });
 
@@ -740,7 +846,20 @@ class LeadMergeServiceTest extends TestCase
         Schema::create('lead_marketing', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('lead_id')->nullable();
-            $table->string('utm_source')->nullable();
+            foreach (LeadUtmTouch::UTM_FIELDS as $field) {
+                $table->string($field)->nullable();
+            }
+            $table->timestamps();
+        });
+
+        Schema::create('lead_utm_touches', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('lead_id');
+            foreach (LeadUtmTouch::UTM_FIELDS as $field) {
+                $table->string($field)->nullable();
+            }
+            $table->string('origin', 50)->nullable();
+            $table->boolean('is_first_touch')->default(false);
             $table->timestamps();
         });
 

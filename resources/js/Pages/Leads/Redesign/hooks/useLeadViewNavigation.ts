@@ -4,10 +4,7 @@ import { parseCategorySectionId } from "@/Pages/Deals/Redesign/config/dealInfoSe
 import { isLeadInfoCoreSection } from "../config/leadInfoSections";
 import type { LeadInfoSectionId, WorkspaceTabId } from "../types";
 import { normalizeTabId, WORKSPACE_TABS } from "../config/workspaceTabs";
-import {
-    replaceHistoryOnPartialReloads,
-    replaceUrlKeepingHistoryState,
-} from "@/lib/inertiaHistory";
+import { replaceUrlKeepingHistoryState } from "@/lib/inertiaHistory";
 
 const VALID_TABS: WorkspaceTabId[] = WORKSPACE_TABS.map((t) => t.id);
 const DEFAULT_INFO_SECTION: LeadInfoSectionId = "personal";
@@ -133,9 +130,6 @@ export default function useLeadViewNavigation(
     }, [categories]);
 
     useEffect(() => {
-        // Partial/deferred reloads must replace, not push: see
-        // replaceHistoryOnPartialReloads.
-        const stopReplacingPartialReloads = replaceHistoryOnPartialReloads();
         const stopRestamping = router.on("finish", () => {
             syncQuery(
                 tabRef.current,
@@ -147,7 +141,6 @@ export default function useLeadViewNavigation(
             );
         });
         return () => {
-            stopReplacingPartialReloads();
             stopRestamping();
         };
     }, []);

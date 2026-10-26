@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\PreferredContactTime;
+use App\Enums\Salutation;
 use App\Helper\Reply;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Contact\CreateOrUpdateContactRequest;
@@ -13,12 +15,18 @@ use App\Models\Deal;
 use App\Models\DealAutomation;
 use App\Models\DealHistory;
 use App\Models\Lead;
+use App\Models\LeadMarketing;
 use App\Models\LeadSource;
 use App\Models\PipelineStage;
 use App\Notifications\LeadOwnerAssigned;
+use App\Observers\LeadObserver;
 use App\Services\DealAgentAssignmentService;
 use App\Services\DealAutomationService;
+use App\Services\LeadApiChangeRecorder;
+use App\Services\LeadApiFieldMerger;
 use App\Services\LeadCoreFieldsService;
+use App\Services\LeadLifecycleStatusService;
+use App\Services\LeadUtmService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
@@ -170,6 +178,12 @@ class DealContactApiController extends Controller
      */
     public function createDeal(CreateDealRequest $request)
     {
+        // LeadApiChangeRecorder records this request's lead events; LeadObserver's own are suppressed.
+        return LeadObserver::withoutTimelineEvents(fn () => $this->processCreateDeal($request));
+    }
+
+    private function processCreateDeal(CreateDealRequest $request)
+    {
         $duplicateKey = null;
 
         try {
@@ -223,17 +237,26 @@ class DealContactApiController extends Controller
             // have to run, and the trigger must see that final state.
             $leadWasCreated = false;
             $shouldFireLeadTrigger = false;
+            $changeRecorder = app(LeadApiChangeRecorder::class);
+            $before = [];
             $contactId = $request->input('lead_id') ?? null;
             if (! $contactId) {
                 $resolved = $this->resolveContact($request, $companyId);
                 $contactId = $resolved['id'];
                 $leadWasCreated = $resolved['was_created'];
                 $shouldFireLeadTrigger = $resolved['should_fire'];
+                $before = $resolved['before'];
+                if ($leadWasCreated) {
+                    $changeRecorder->recordCreated((int) $contactId, LeadApiChangeRecorder::CHANNEL_DEAL_CREATE);
+                    // Baseline for what the deal job then writes to the new lead (e.g. lead_owner).
+                    $before = $changeRecorder->snapshot((int) $contactId);
+                }
             } else {
                 $contactId = (int) $contactId;
-                // lead_id bypasses resolveContact — still apply optional lead fields / CFs
+                // lead_id bypasses resolveContact — still fill optional lead fields / CFs
                 $existingLead = Lead::where('company_id', $companyId)->find($contactId);
                 if ($existingLead) {
+                    $before = $changeRecorder->snapshot($contactId);
                     $fieldsChanged = $this->applyLeadOptionalFields($existingLead, $request);
                     if ($fieldsChanged) {
                         $existingLead->saveQuietly();
@@ -256,6 +279,10 @@ class DealContactApiController extends Controller
             try {
                 ProcessDealRequestJob::dispatchSync((int) $contactId, $companyId, $request->all());
             } finally {
+                // After the deal job too: it may fill lead_owner (quietly, on new and
+                // existing leads), and the mirror event then also lands on the deal
+                // this request created.
+                $changeRecorder->recordUpdated((int) $contactId, $before, LeadApiChangeRecorder::CHANNEL_DEAL_CREATE);
                 // After marketing + the deal job, even if the job failed — the
                 // lead row already exists and a retry may look like an update.
                 if ($shouldFireLeadTrigger) {
@@ -459,7 +486,7 @@ class DealContactApiController extends Controller
     public function createOrUpdateContact(CreateOrUpdateContactRequest $request)
     {
         try {
-            return DB::transaction(function () use ($request) {
+            return LeadObserver::withoutTimelineEvents(fn () => DB::transaction(function () use ($request) {
                 $companyId = $request->header('X-COMPANY-ID');
 
                 if (! $companyId) {
@@ -488,6 +515,8 @@ class DealContactApiController extends Controller
 
                 $isNewContact = ! $existingContact;
                 $shouldFireLeadTrigger = false;
+                $changeRecorder = app(LeadApiChangeRecorder::class);
+                $before = $existingContact ? $changeRecorder->snapshot((int) $existingContact->id) : [];
 
                 if ($isNewContact) {
                     // Create new contact
@@ -499,9 +528,9 @@ class DealContactApiController extends Controller
                     $contact->mobile = $request->phone;
                     $contact->gender = ($request->has('gender') && in_array($request->gender, ['male', 'female'])) ? $request->gender : null;
 
-                    // Set source_id if provided (must be valid lead_source_id)
-                    if ($request->has('lead_source_id') && ! empty($request->lead_source_id)) {
-                        $contact->source_id = $request->lead_source_id;
+                    $sourceId = $this->companyLeadSourceId($request, $companyId);
+                    if ($sourceId) {
+                        $contact->source_id = $sourceId;
                     }
 
                     // Set lead_owner if provided (user_id directly, not agent_id)
@@ -513,40 +542,21 @@ class DealContactApiController extends Controller
                     $this->applyLeadOptionalFields($contact, $request);
                     $this->applyReferralAgentToLead($contact, $request);
                     $this->saveContact($contact, $request, $notify);
-                    $this->applyLeadCategories($contact, $request, true);
+                    $this->applyLeadCategories($contact, $request);
                     $this->applyLeadCustomFields($contact, $request);
                     $contactId = $contact->id;
                     $shouldFireLeadTrigger = true;
                 } else {
-                    // Update existing contact
-                    $updated = false;
-                    if ($request->has('name') && ! empty($request->name) && $existingContact->client_name !== $request->name) {
-                        $existingContact->client_name = $request->name;
-                        $updated = true;
-                    }
-                    if ($request->has('phone') && ! empty($request->phone) && $existingContact->mobile !== $request->phone) {
-                        $existingContact->mobile = $request->phone;
-                        $updated = true;
-                    }
-                    if ($request->has('gender') && $existingContact->gender?->value !== $request->gender) {
-                        $existingContact->gender = $request->gender;
-                        $updated = true;
-                    }
-                    // Update source_id if provided (must be valid lead_source_id)
-                    if ($request->has('lead_source_id') && ! empty($request->lead_source_id)) {
-                        if ($existingContact->source_id != $request->lead_source_id) {
-                            $existingContact->source_id = $request->lead_source_id;
-                            $updated = true;
-                        }
-                    }
-                    // Update lead_owner if provided (user_id directly, not agent_id)
+                    // Existing contact: fill what is empty, never overwrite (see fillExistingContactBasics)
+                    $updated = $this->fillExistingContactBasics($existingContact, $request, $this->companyLeadSourceId($request, $companyId));
+                    // Fill lead_owner only when the lead has none (user_id directly, not agent_id)
                     if ($request->has('lead_owner_id') && ! empty($request->lead_owner_id)) {
                         if (! $existingContact->lead_owner && $updateAgentIfExists) {
                             $existingContact->lead_owner = $request->lead_owner_id;
                             $updated = true;
                         }
                     }
-                    if ($this->applyLeadCategories($existingContact, $request, false)) {
+                    if ($this->applyLeadCategories($existingContact, $request)) {
                         $updated = true;
                     }
                     if ($this->applyAddressAndDobToLead($existingContact, $request)) {
@@ -570,6 +580,15 @@ class DealContactApiController extends Controller
                 // lead_marketing_* (or a merge tag) sees this request's final state.
                 $this->saveUtmInfo($contactId, $request);
 
+                // Timeline: LeadObserver's own events are suppressed for this request,
+                // so these are the only lead events it records, observed save or not.
+                $updatedFields = [];
+                if ($isNewContact) {
+                    $changeRecorder->recordCreated((int) $contactId, LeadApiChangeRecorder::CHANNEL_CONTACT_CREATE);
+                } else {
+                    $updatedFields = $changeRecorder->recordUpdated((int) $contactId, $before, LeadApiChangeRecorder::CHANNEL_CONTACT_CREATE);
+                }
+
                 if ($shouldFireLeadTrigger) {
                     $this->fireLeadApiTrigger((int) $contactId, $isNewContact);
                 }
@@ -580,11 +599,12 @@ class DealContactApiController extends Controller
                 return Reply::successWithData($isNewContact ? 'Contact created successfully' : 'Contact updated successfully', [
                     'contact_id' => $contactId,
                     'is_new' => $isNewContact,
+                    'updated_fields' => $updatedFields,
                     'referred_by_agent_id' => $savedContact?->referred_by_agent_id,
                     'preferred_contact_times' => $preferredContactTimes,
                     'preferred_contact_time' => $preferredContactTimes[0] ?? null,
                 ]);
-            });
+            }));
         } catch (\Exception $e) {
             Log::error('Error creating/updating contact via API', [
                 'message' => $e->getMessage(),
@@ -602,7 +622,7 @@ class DealContactApiController extends Controller
      * Does not fire the via-API lead trigger — the caller fires once after
      * marketing (and on deal/create, the deal job) have been written.
      *
-     * @return array{id: int, was_created: bool, should_fire: bool}
+     * @return array{id: int, was_created: bool, should_fire: bool, before: array<string, mixed>}
      */
     private function resolveContact(Request $request, int $companyId): array
     {
@@ -613,42 +633,7 @@ class DealContactApiController extends Controller
                 ->first();
 
             if ($existingContact) {
-                // Update contact info if provided
-                $updated = false;
-                if ($request->has('name') && ! empty($request->name) && $existingContact->client_name !== $request->name) {
-                    $existingContact->client_name = $request->name;
-                    $updated = true;
-                }
-                if ($request->has('phone') && ! empty($request->phone) && $existingContact->mobile !== $request->phone) {
-                    $existingContact->mobile = $request->phone;
-                    $updated = true;
-                }
-                if ($request->has('gender') && $existingContact->gender?->value !== $request->gender) {
-                    $existingContact->gender = $request->gender;
-                    $updated = true;
-                }
-                // Update source_id if provided
-                $sourceId = $this->resolveSourceId($request, $companyId);
-                if ($sourceId && $existingContact->source_id !== $sourceId) {
-                    $existingContact->source_id = $sourceId;
-                    $updated = true;
-                }
-                if ($this->applyAddressAndDobToLead($existingContact, $request)) {
-                    $updated = true;
-                }
-                if ($this->applyLeadOptionalFields($existingContact, $request)) {
-                    $updated = true;
-                }
-                if ($updated) {
-                    $existingContact->saveQuietly();
-                }
-                $customFieldsChanged = $this->applyLeadCustomFields($existingContact, $request);
-
-                return [
-                    'id' => (int) $existingContact->id,
-                    'was_created' => false,
-                    'should_fire' => $updated || $customFieldsChanged,
-                ];
+                return $this->fillResolvedContact($existingContact, $request, $companyId);
             }
         }
 
@@ -660,38 +645,7 @@ class DealContactApiController extends Controller
                 ->first();
 
             if ($existingContact) {
-                // Update phone if provided and different
-                $updated = false;
-                if ($request->has('phone') && ! empty($request->phone) && $existingContact->mobile !== $request->phone) {
-                    $existingContact->mobile = $request->phone;
-                    $updated = true;
-                }
-                if ($request->has('gender') && $existingContact->gender?->value !== $request->gender) {
-                    $existingContact->gender = $request->gender;
-                    $updated = true;
-                }
-                // Update source_id if provided
-                $sourceId = $this->resolveSourceId($request, $companyId);
-                if ($sourceId && $existingContact->source_id !== $sourceId) {
-                    $existingContact->source_id = $sourceId;
-                    $updated = true;
-                }
-                if ($this->applyAddressAndDobToLead($existingContact, $request)) {
-                    $updated = true;
-                }
-                if ($this->applyLeadOptionalFields($existingContact, $request)) {
-                    $updated = true;
-                }
-                if ($updated) {
-                    $existingContact->saveQuietly();
-                }
-                $customFieldsChanged = $this->applyLeadCustomFields($existingContact, $request);
-
-                return [
-                    'id' => (int) $existingContact->id,
-                    'was_created' => false,
-                    'should_fire' => $updated || $customFieldsChanged,
-                ];
+                return $this->fillResolvedContact($existingContact, $request, $companyId);
             }
         }
 
@@ -712,6 +666,7 @@ class DealContactApiController extends Controller
         $this->applyAddressAndDobToLead($contact, $request);
         $this->applyLeadOptionalFields($contact, $request);
         $this->applyReferralAgentToLead($contact, $request);
+        app(LeadLifecycleStatusService::class)->applyDefaultIfMissing($contact);
         $contact->saveQuietly();
         $this->applyLeadCustomFields($contact, $request);
 
@@ -719,7 +674,84 @@ class DealContactApiController extends Controller
             'id' => (int) $contact->id,
             'was_created' => true,
             'should_fire' => true,
+            'before' => [],
         ];
+    }
+
+    /**
+     * Fill an existing contact matched by resolveContact(). Only empty fields are
+     * filled; nothing already on the lead is overwritten.
+     *
+     * @return array{id: int, was_created: bool, should_fire: bool, before: array<string, mixed>}
+     */
+    private function fillResolvedContact(Lead $existingContact, Request $request, int $companyId): array
+    {
+        $before = app(LeadApiChangeRecorder::class)->snapshot((int) $existingContact->id);
+
+        $updated = $this->fillExistingContactBasics($existingContact, $request, $this->resolveSourceId($request, $companyId));
+        if ($this->applyAddressAndDobToLead($existingContact, $request)) {
+            $updated = true;
+        }
+        if ($this->applyLeadOptionalFields($existingContact, $request)) {
+            $updated = true;
+        }
+        if ($updated) {
+            $existingContact->saveQuietly();
+        }
+        $customFieldsChanged = $this->applyLeadCustomFields($existingContact, $request);
+
+        return [
+            'id' => (int) $existingContact->id,
+            'was_created' => false,
+            'should_fire' => $updated || $customFieldsChanged,
+            'before' => $before,
+        ];
+    }
+
+    /**
+     * Name, phone, gender and source on a contact the API matched: each is only
+     * set when the lead has none, so a value already in the CRM always wins.
+     *
+     * @return bool True when an attribute was set on the in-memory lead (caller saves).
+     */
+    private function fillExistingContactBasics(Lead $contact, Request $request, ?int $sourceId): bool
+    {
+        $updated = false;
+
+        if ($request->filled('name') && blank($contact->client_name)) {
+            $contact->client_name = $request->name;
+            $updated = true;
+        }
+        if ($request->filled('phone') && blank($contact->mobile)) {
+            $contact->mobile = $request->phone;
+            $updated = true;
+        }
+        if (! $contact->gender && in_array($request->input('gender'), ['male', 'female'], true)) {
+            $contact->gender = $request->input('gender');
+            $updated = true;
+        }
+        if ($sourceId && ! $contact->source_id) {
+            $contact->source_id = $sourceId;
+            $updated = true;
+        }
+
+        return $updated;
+    }
+
+    /**
+     * lead_source_id from the request when it is one of this company's sources.
+     */
+    private function companyLeadSourceId(Request $request, int $companyId): ?int
+    {
+        if (! $request->filled('lead_source_id')) {
+            return null;
+        }
+
+        $id = LeadSource::where('company_id', $companyId)
+            ->where('id', $request->lead_source_id)
+            ->value('id');
+
+        return $id !== null ? (int) $id : null;
     }
 
     /**
@@ -732,6 +764,10 @@ class DealContactApiController extends Controller
      */
     private function saveContact(Lead $contact, Request $request, bool $notify): void
     {
+        if (! $contact->exists) {
+            app(LeadLifecycleStatusService::class)->applyDefaultIfMissing($contact);
+        }
+
         if (! $notify) {
             $contact->saveQuietly();
 
@@ -802,7 +838,11 @@ class DealContactApiController extends Controller
     }
 
     /**
-     * Apply address fields and date_of_birth from request to a lead.
+     * Apply address fields, date_of_birth and the other core fields from the
+     * request. Fill-only: a value is written only when the lead has none, so
+     * the same helper is a plain "set" for a new lead and never overwrites an
+     * existing one. Languages (the list or the single `language`) are
+     * additive — incoming codes are added to the lead's list, none removed.
      * Returns true if any attribute was changed.
      */
     private function applyAddressAndDobToLead(Lead $lead, Request $request): bool
@@ -816,37 +856,42 @@ class DealContactApiController extends Controller
             'postal_code' => 'postal_code',
         ];
         foreach ($fields as $requestKey => $attribute) {
-            if ($request->has($requestKey)) {
-                $value = $request->input($requestKey);
-                if ((string) $lead->getAttribute($attribute) !== (string) $value) {
-                    $lead->setAttribute($attribute, $value);
-                    $updated = true;
-                }
+            if ($request->filled($requestKey) && blank($lead->getAttribute($attribute))) {
+                $lead->setAttribute($attribute, $request->input($requestKey));
+                $updated = true;
             }
         }
 
         $coreFieldsService = app(LeadCoreFieldsService::class);
         $corePayload = [];
 
-        if ($request->has('date_of_birth')) {
-            $corePayload['date_of_birth'] = $request->input('date_of_birth');
+        foreach (['date_of_birth', 'nationality', 'occupation'] as $field) {
+            if ($request->filled($field) && blank($lead->getAttribute($field))) {
+                $corePayload[$field] = $request->input($field);
+            }
         }
-        if ($request->has('languages')) {
-            $corePayload['languages'] = $request->input('languages');
-        }
-        if ($request->has('nationality')) {
-            $corePayload['nationality'] = $request->input('nationality');
-        }
-        if ($request->has('occupation')) {
-            $corePayload['occupation'] = $request->input('occupation');
+
+        if ($request->filled('languages')) {
+            $incoming = $request->input('languages');
+            $incoming = is_array($incoming) ? $incoming : preg_split('/\s*,\s*/', (string) $incoming);
+            $corePayload['languages'] = array_merge($lead->languages ?? [], $incoming);
+        } elseif ($request->filled('language')) {
+            // The website/backend send the visitor's single `language`. It is added
+            // to the contact's languages; none already there are removed. Only a
+            // configured language is stored, an unsupported code is ignored rather
+            // than rejected so contact creation never fails over it.
+            $languageCode = $coreFieldsService->supportedLanguageCode($request->input('language'));
+            $languages = $lead->languages ?? [];
+            if ($languageCode !== null && ! in_array($languageCode, $languages, true)) {
+                $corePayload['languages'] = array_merge($languages, [$languageCode]);
+            }
         }
 
         if ($corePayload !== []) {
             $before = $coreFieldsService->read($lead);
             $coreFieldsService->write($lead, $corePayload);
-            $after = $coreFieldsService->read($lead);
 
-            if ($before !== $after) {
+            if ($coreFieldsService->read($lead) !== $before) {
                 $updated = true;
             }
         }
@@ -855,7 +900,12 @@ class DealContactApiController extends Controller
     }
 
     /**
-     * Apply optional lead classification fields (temperature, preferred contact time, lifecycle status).
+     * Apply optional lead classification fields (temperature, salutation,
+     * preferred contact times, lifecycle status). Salutation and lifecycle
+     * status are fill-only like applyAddressAndDobToLead(): set when the lead
+     * has no value, never overwritten. Temperature refreshes on any new value.
+     * Preferred contact times are additive — incoming slots are added to the
+     * lead's list.
      * Returns true if any attribute was changed.
      * WhatsApp group membership is applied via saveUtmInfo (marketing record).
      */
@@ -863,6 +913,8 @@ class DealContactApiController extends Controller
     {
         $updated = false;
 
+        // Temperature is recalculated by the backend, so it refreshes whenever a
+        // different value arrives (the change lands on the timeline).
         if ($request->filled('temperature')) {
             $temperature = $request->input('temperature');
             $current = $lead->temperature?->value ?? $lead->temperature;
@@ -872,19 +924,49 @@ class DealContactApiController extends Controller
             }
         }
 
-        if (Lead::applyPreferredContactTimesFromRequest($lead, $request)) {
-            $updated = true;
-        }
-
-        if ($request->filled('lead_lifecycle_status_id')) {
-            $statusId = (int) $request->input('lead_lifecycle_status_id');
-            if ((int) $lead->lead_lifecycle_status_id !== $statusId) {
-                $lead->lead_lifecycle_status_id = $statusId;
+        // How the visitor asked to be addressed. Only ever set from a non-empty,
+        // valid value, and only when the contact has none yet.
+        if ($request->filled('salutation') && blank($lead->salutation)) {
+            $salutation = Salutation::tryFrom((string) $request->input('salutation'));
+            if ($salutation) {
+                $lead->salutation = $salutation;
                 $updated = true;
             }
         }
 
+        if ($this->addPreferredContactTimes($lead, $request)) {
+            $updated = true;
+        }
+
+        if ($request->filled('lead_lifecycle_status_id') && ! $lead->lead_lifecycle_status_id) {
+            $lead->lead_lifecycle_status_id = (int) $request->input('lead_lifecycle_status_id');
+            $updated = true;
+        }
+
         return $updated;
+    }
+
+    /**
+     * Add preferred_contact_times (or the single preferred_contact_time) to the
+     * lead's existing slots. Never removes a slot, so an empty value is a no-op.
+     */
+    private function addPreferredContactTimes(Lead $lead, Request $request): bool
+    {
+        $key = $request->exists('preferred_contact_times') ? 'preferred_contact_times' : 'preferred_contact_time';
+        $incoming = PreferredContactTime::normalizeList($request->input($key));
+        if ($incoming === []) {
+            return false;
+        }
+
+        $current = $lead->resolvedPreferredContactTimes();
+        $merged = PreferredContactTime::normalizeList(array_merge($current, $incoming));
+        if ($merged === $current) {
+            return false;
+        }
+
+        $lead->syncPreferredContactTimes($merged);
+
+        return true;
     }
 
     /**
@@ -986,7 +1068,7 @@ class DealContactApiController extends Controller
             ['custom_fields_data' => $customFieldsData],
             (int) $lead->company_id
         );
-        $customFieldsData = $filtered['custom_fields_data'] ?? [];
+        $customFieldsData = app(LeadApiFieldMerger::class)->customFieldValues($lead, $filtered['custom_fields_data'] ?? []);
 
         if ($customFieldsData === []) {
             return false;
@@ -1097,12 +1179,61 @@ class DealContactApiController extends Controller
             return $value !== null;
         });
 
+        // UTM is first-touch: the first set is kept on lead_marketing, later sets are logged separately.
+        [$utm, $marketingPayload] = app(LeadUtmService::class)->splitPayload($marketingPayload);
+        app(LeadUtmService::class)->record($contact, $utm, 'api');
+
+        $marketingPayload = $this->fillOnlyMarketingValues($contactId, $marketingPayload);
+
         if (! empty($marketingPayload)) {
             $contact->marketing()->updateOrCreate(
                 ['lead_id' => $contactId],
                 $marketingPayload
             );
         }
+    }
+
+    /**
+     * Fill-only for the marketing record: a value is kept only when the stored
+     * one is empty. Engagement flags only ever move to true — an incoming true
+     * sets a stored false, an incoming false never clears a stored true.
+     * contact_score and last_webinar_date are recalculated by the backend and
+     * refresh on every push (the change lands on the timeline).
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function fillOnlyMarketingValues(int $contactId, array $payload): array
+    {
+        $stored = LeadMarketing::where('lead_id', $contactId)->first();
+        if (! $stored) {
+            return $payload;
+        }
+
+        $result = [];
+        foreach ($payload as $key => $value) {
+            $current = $stored->getAttribute($key);
+
+            if (in_array($key, ['contact_score', 'last_webinar_date'], true)) {
+                $result[$key] = $value;
+
+                continue;
+            }
+
+            if (is_bool($value)) {
+                if ($current === null || ($value && $current !== true)) {
+                    $result[$key] = $value;
+                }
+
+                continue;
+            }
+
+            if (blank($current)) {
+                $result[$key] = $value;
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -1178,33 +1309,34 @@ class DealContactApiController extends Controller
     }
 
     /**
-     * Sync taxonomy categories onto a saved lead.
-     * `lead_category_ids` replaces the full set; legacy `lead_category_id` only
-     * applies when the contact has no primary category yet.
+     * Additive: lead_category_ids / lead_category_id are added to the lead's
+     * categories; none are removed and the primary category stays first.
      */
-    private function applyLeadCategories(Lead $contact, Request $request, bool $isNewContact): bool
+    private function applyLeadCategories(Lead $contact, Request $request): bool
     {
         if (! $contact->id) {
             return false;
         }
 
-        if ($request->has('lead_category_ids')) {
-            $contact->syncCategories($this->normalizeLeadCategoryIdsFromRequest($request) ?? []);
-
-            return true;
-        }
-
-        if (! $request->has('lead_category_id') || empty($request->lead_category_id)) {
+        $requested = $this->normalizeLeadCategoryIdsFromRequest($request) ?? [];
+        if ($requested === []) {
             return false;
         }
 
-        if ($isNewContact || ! $contact->category_id) {
-            $contact->syncCategories([(int) $request->lead_category_id]);
+        $current = $contact->categories()->pluck('lead_category.id')->map(fn ($id) => (int) $id)->all();
+        if ($contact->category_id) {
+            array_unshift($current, (int) $contact->category_id);
+        }
+        $current = array_values(array_unique($current));
 
-            return true;
+        $merged = array_values(array_unique(array_merge($current, $requested)));
+        if ($merged === $current) {
+            return false;
         }
 
-        return false;
+        $contact->syncCategories($merged);
+
+        return true;
     }
 
     /**

@@ -1,3 +1,4 @@
+import BackButton from "@/Components/Redesign/primitives/BackButton";
 import { useState, type ReactNode } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -21,6 +22,8 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import Avatar from "@/Components/Redesign/primitives/Avatar";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
+import type { EmailQuickAction } from "@/Email/types";
+import useEmailUnreadCount from "@/Email/hooks/useEmailUnreadCount";
 import DealValueBlock from "../primitives/DealValueBlock";
 import DealActionsMenu from "./DealActionsMenu";
 import DealAgentCard from "./DealAgentCard";
@@ -40,6 +43,9 @@ interface DealStickyHeaderProps {
     onReplayGuide?: () => void;
     onOpenAnalysis?: () => void;
     isMobileResponsive?: boolean;
+    /** Fail-closed Email Quick action (flag + pilot). */
+    emailQuickAction?: EmailQuickAction | null;
+    onEmail?: () => void;
 }
 
 export default function DealStickyHeader({
@@ -54,9 +60,16 @@ export default function DealStickyHeader({
     onReplayGuide,
     onOpenAnalysis,
     isMobileResponsive = false,
+    emailQuickAction = null,
+    onEmail,
 }: DealStickyHeaderProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    const { unread: emailUnread, available: emailUnreadAvailable } =
+        useEmailUnreadCount({
+            enabled: emailQuickAction != null,
+            pollingInterval: 60_000,
+        });
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
     const header = useDealHeaderData(deal);
@@ -166,6 +179,7 @@ export default function DealStickyHeader({
                 <div className="flex flex-wrap items-start justify-between gap-6">
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
+                            <BackButton fallbackHref={route("deals.index")} />
                             <EditableTitle
                                 value={deal.name ?? ""}
                                 canEdit={dealPermissions.canEdit}
@@ -189,6 +203,48 @@ export default function DealStickyHeader({
                                 <span className="dr-pill dr-pill-amber">
                                     {t("pages.deals.header.locked")}
                                 </span>
+                            )}
+                            {emailQuickAction != null && onEmail && (
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    icon={
+                                        <span className="relative inline-flex">
+                                            <Icon name="mail" size={14} />
+                                            {emailUnreadAvailable &&
+                                            emailUnread > 0 ? (
+                                                <span
+                                                    className="absolute -right-1.5 -top-1.5 h-2 w-2 rounded-full bg-dr-red"
+                                                    aria-hidden="true"
+                                                    data-tour="deal-email-unread-dot"
+                                                />
+                                            ) : null}
+                                        </span>
+                                    }
+                                    onClick={onEmail}
+                                    title={t("pages.email.communication.title")}
+                                    aria-label={
+                                        emailUnreadAvailable && emailUnread > 0
+                                            ? t(
+                                                  "pages.email.indicator.unread_aria",
+                                              ).replace(
+                                                  "{{count}}",
+                                                  String(emailUnread),
+                                              )
+                                            : t(
+                                                  "pages.email.communication.title",
+                                              )
+                                    }
+                                    data-tour="deal-email-action"
+                                    data-action="email"
+                                    data-email-unread={
+                                        emailUnreadAvailable
+                                            ? emailUnread
+                                            : undefined
+                                    }
+                                >
+                                    {t("pages.email.communication.open")}
+                                </Button>
                             )}
                             <DealActionsMenu
                                 onAddNote={onAddNote}

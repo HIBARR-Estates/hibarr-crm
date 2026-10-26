@@ -14,8 +14,9 @@ import DateRangePicker from "./components/DateRangePicker";
 import {
     buildSwitcher,
     localizeSwitcherSegments,
-    VIEW_SUBTEXT,
     WINDOWED,
+    windowLabel,
+    windowParams,
     type DashboardRange,
     type ViewKey,
 } from "./viewConfig";
@@ -51,16 +52,6 @@ type DashboardV2Props = {
     PartnerViewProps;
 
 /**
- * How the window reads in the subtext: rolling for a preset, dated for a range
- * the user picked. English source strings — translated at the call site.
- */
-function windowLabel(range: DashboardRange): string {
-    return range.preset
-        ? `Last ${range.preset} days.`
-        : `${range.from} to ${range.to}.`;
-}
-
-/**
  * Shell for the role-scoped dashboards.
  *
  * Which views appear comes from independent view_*_dashboard permissions, so a
@@ -82,17 +73,15 @@ export default function DashboardV2(props: DashboardV2Props) {
     const teamTourSteps = useMemo(() => buildTeamDashboardTourSteps(), []);
 
     // The current window travels with every visit so switching views keeps it.
-    // A custom range carries from/to; a preset carries days — sending both
-    // would let the server pick the wrong one.
-    const windowParams = range.preset
-        ? { days: range.preset }
-        : { from: range.from, to: range.to };
+    // A named/rolling preset and a custom range use different query keys —
+    // sending both would let the server pick the wrong one.
+    const currentWindow = windowParams(range);
 
     const go = (params: Record<string, string | number>) =>
         router.visit(
             route("dashboard.v2", {
                 view: activeView,
-                ...windowParams,
+                ...currentWindow,
                 ...params,
             }),
             { preserveScroll: true },
@@ -133,10 +122,12 @@ export default function DashboardV2(props: DashboardV2Props) {
                         userName={userName}
                         now={now}
                         subtext={
-                            <HeaderSubtext>
+                            <HeaderSubtext localize={false}>
                                 {WINDOWED.includes(activeView)
-                                    ? `${VIEW_SUBTEXT[activeView]} ${windowLabel(range)}`
-                                    : VIEW_SUBTEXT[activeView]}
+                                    ? `${t(`pages.dashboard.views.subtext.${activeView}`)} ${windowLabel(range, t)}`
+                                    : t(
+                                          `pages.dashboard.views.subtext.${activeView}`,
+                                      )}
                             </HeaderSubtext>
                         }
                         actions={
@@ -198,6 +189,8 @@ export default function DashboardV2(props: DashboardV2Props) {
                         <ManagerView
                             {...props}
                             period={range.days}
+                            from={range.from}
+                            to={range.to}
                             currentUserId={auth?.user?.id}
                         />
                     )}

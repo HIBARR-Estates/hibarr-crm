@@ -29,6 +29,7 @@ import WorkspaceExposesTab from "./components/workspace/WorkspaceExposesTab";
 import WorkspaceRecommendationsTab from "./components/workspace/WorkspaceRecommendationsTab";
 import WorkspaceItineraryTab from "./components/workspace/WorkspaceItineraryTab";
 import WorkspaceSallyTab from "./components/workspace/WorkspaceSallyTab";
+import WorkspacePaymentsTab from "./components/workspace/WorkspacePaymentsTab";
 import {
     OverviewDeferredSkeleton,
     TabDeferredSkeleton,
@@ -58,6 +59,7 @@ import {
 } from "@/Features/Deals/pipelineScopeUtils";
 import { DealShowProps, DealTab } from "./types";
 import "@/Components/Redesign/redesign.css";
+import "@/Components/CallRecordingPlayer.css";
 import "./deal-redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
 import { setDealDateLocale } from "./adapters/dateFormat";
@@ -68,6 +70,10 @@ import {
     DealWorkspaceProvider,
     useDealWorkspace,
 } from "./context/DealWorkspaceContext";
+import CommunicationModal from "@/Email/CommunicationModal";
+import { subscribeOpenSourceEmail } from "@/Email/openSourceEmail";
+import type { EmailFollowUpKind, EmailQuickAction } from "@/Email/types";
+import { replaceUrlKeepingHistoryState } from "@/lib/inertiaHistory";
 
 /** Stable identity so an absent prop doesn't invalidate memos every render. */
 const EMPTY_FIELDS: any[] = [];
@@ -105,6 +111,9 @@ function DealViewRedesignInner(
     const [addTaskOpen, setAddTaskOpen] = useState(false);
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
     const [addNoteOpen, setAddNoteOpen] = useState(false);
+    const [sourceEmailMessageId, setSourceEmailMessageId] = useState<
+        string | null
+    >(null);
     const analysis = useDealAnalysis();
     const [recommendationsCount, setRecommendationsCount] = useState<
         number | undefined
@@ -127,6 +136,74 @@ function DealViewRedesignInner(
         featureFlags?.["crm.deal-info-count-indicator"] === true;
     const showAnalysis = featureFlags?.["crm.deal-analysis"] === true;
     const showExposes = featureFlags?.[DEAL_EXPOSES_FLAG] === true;
+    // Fail closed: flag off or missing server gate → no Email Quick action.
+    const emailQuickAction: EmailQuickAction | null =
+        featureFlags?.["crm.email"] === true && props.emailQuickAction != null
+            ? props.emailQuickAction
+            : null;
+    const hasMailboxConnection = emailQuickAction?.has_connection === true;
+    const emailQuickActionForUi: EmailQuickAction | null =
+        emailQuickAction == null
+            ? null
+            : { ...emailQuickAction, has_connection: hasMailboxConnection };
+    const [communicationOpen, setCommunicationOpen] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return Boolean(
+            new URLSearchParams(window.location.search).get("email_message"),
+        );
+    });
+    const [emailFocusMessageId, setEmailFocusMessageId] = useState<
+        string | null
+    >(() => {
+        if (typeof window === "undefined") return null;
+        return new URLSearchParams(window.location.search).get(
+            "email_message",
+        );
+    });
+    const openCommunication = (messageId: string | null = null) => {
+        setEmailFocusMessageId(messageId);
+        setCommunicationOpen(true);
+    };
+    const closeCommunication = () => {
+        setCommunicationOpen(false);
+        setEmailFocusMessageId(null);
+    };
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const url = new URL(window.location.href);
+        if (communicationOpen && emailFocusMessageId) {
+            url.searchParams.set("email_message", emailFocusMessageId);
+        } else {
+            url.searchParams.delete("email_message");
+        }
+        replaceUrlKeepingHistoryState(url);
+    }, [communicationOpen, emailFocusMessageId]);
+    useEffect(
+        () =>
+            subscribeOpenSourceEmail((messageId) => {
+                openCommunication(messageId);
+            }),
+        [],
+    );
+    const openCreateFromEmail = (kind: EmailFollowUpKind, messageId: string) => {
+        closeCommunication();
+        setSourceEmailMessageId(messageId);
+        if (kind === "task") setAddTaskOpen(true);
+        else if (kind === "note") setAddNoteOpen(true);
+        else setAddMeetingOpen(true);
+    };
+    const closeAddTask = () => {
+        setAddTaskOpen(false);
+        setSourceEmailMessageId(null);
+    };
+    const closeAddNote = () => {
+        setAddNoteOpen(false);
+        setSourceEmailMessageId(null);
+    };
+    const closeAddMeeting = () => {
+        setAddMeetingOpen(false);
+        setSourceEmailMessageId(null);
+    };
     const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
@@ -147,6 +224,8 @@ function DealViewRedesignInner(
         refetchSallyInsights,
         files,
         filesLoading,
+        paymentRequests,
+        paymentRequestLoading,
     } = useDealWorkspace();
     const pageTitle = props?.pageTitle || deal?.name;
     const sallyInsightsEnabled = props.sallyInsightsEnabled === true;
@@ -311,6 +390,9 @@ function DealViewRedesignInner(
         if (permissions.view_tasks !== "none") tabs.push("tasks");
         if (permissions.view_lead_follow_up !== "none") tabs.push("meetings");
         if (permissions.view_lead_files !== "none") tabs.push("files");
+        if (props.showOnlinePayment) {
+            tabs.push("payments");
+        }
         // Offers only appear when a property on this deal has an applied offer.
         if (showOffersTab) {
             tabs.push("offers");
@@ -349,6 +431,7 @@ function DealViewRedesignInner(
         sallyInsights.length,
         sallyInsightsSettled,
         sallyInsightsError,
+        props.showOnlinePayment,
     ]);
 
     // Summary edits patch the local list in place — no Inertia reload. Each
@@ -448,6 +531,11 @@ function DealViewRedesignInner(
             files: filesLoading
                 ? undefined
                 : fileDocuments.filter((doc) => doc.uploaded).length,
+            payments: props.showOnlinePayment
+                ? paymentRequestLoading
+                    ? undefined
+                    : paymentRequests.length
+                : undefined,
             offers: showOffersTab ? offerApplicationsCount : undefined,
             exposes:
                 exposesCount?.dealId === deal.id
@@ -474,6 +562,9 @@ function DealViewRedesignInner(
             offerApplicationsCount,
             exposesCount,
             recommendationsCount,
+            props.showOnlinePayment,
+            paymentRequestLoading,
+            paymentRequests.length,
         ],
     );
 
@@ -503,7 +594,7 @@ function DealViewRedesignInner(
             )}
             <DealAddTaskModal
                 open={addTaskOpen}
-                onClose={() => setAddTaskOpen(false)}
+                onClose={closeAddTask}
                 dealId={deal.id}
                 dealName={deal.name}
                 dealAgentUserId={
@@ -513,17 +604,20 @@ function DealViewRedesignInner(
                     deal.agent?.user_id ??
                     null
                 }
+                sourceEmailMessageId={sourceEmailMessageId}
             />
             <DealScheduleMeetingModal
                 open={addMeetingOpen}
-                onClose={() => setAddMeetingOpen(false)}
+                onClose={closeAddMeeting}
                 deal={deal}
                 meetingTypes={meetingTypes}
+                sourceEmailMessageId={sourceEmailMessageId}
             />
             <DealAddNoteModal
                 open={addNoteOpen}
-                onClose={() => setAddNoteOpen(false)}
+                onClose={closeAddNote}
                 dealId={deal.id}
+                sourceEmailMessageId={sourceEmailMessageId}
             />
             <ProductTour
                 ref={tourRef}
@@ -551,6 +645,8 @@ function DealViewRedesignInner(
                         }
                         onReplayGuide={() => tourRef.current?.restart()}
                         isMobileResponsive={isMobileResponsive}
+                        emailQuickAction={emailQuickActionForUi}
+                        onEmail={() => openCommunication(null)}
                     />
 
                     <div className="">
@@ -786,6 +882,22 @@ function DealViewRedesignInner(
                                                     leadFileFieldsData={leadFileFieldsData}
                                                 />
                                             ))}
+                                        {activeTab === "payments" &&
+                                            props.showOnlinePayment &&
+                                            (paymentRequestLoading &&
+                                            paymentRequests.length === 0 ? (
+                                                <TabDeferredSkeleton />
+                                            ) : (
+                                                <WorkspacePaymentsTab
+                                                    deal={deal}
+                                                    canCreatePaymentRequest={
+                                                        canCreatePaymentRequest
+                                                    }
+                                                    canConfirmPaymentTransfer={
+                                                        canConfirmPaymentTransfer
+                                                    }
+                                                />
+                                            ))}
                                         {activeTab === "offers" &&
                                             showOffersTab && (
                                                 <WorkspaceOffersTab
@@ -866,6 +978,17 @@ function DealViewRedesignInner(
                                                 dealId={deal.id}
                                                 dealName={deal.name}
                                                 userId={props.auth?.user?.id}
+                                                recordType="deal"
+                                                emailEnabled={
+                                                    emailQuickAction != null
+                                                }
+                                                onOpenEmailMessage={(
+                                                    messageId,
+                                                ) =>
+                                                    openCommunication(
+                                                        messageId,
+                                                    )
+                                                }
                                             />
                                         )}
                                     </div>
@@ -902,6 +1025,17 @@ function DealViewRedesignInner(
                     </div>
                 </div>
             </div>
+
+            <CommunicationModal
+                open={communicationOpen && emailQuickAction != null}
+                onClose={closeCommunication}
+                record={{ type: "deal", id: deal.id }}
+                recordLabel={deal.name}
+                messageId={emailFocusMessageId}
+                hasConnection={hasMailboxConnection}
+                prefillTo={deal.contact?.client_email ?? null}
+                onCreateFollowUp={openCreateFromEmail}
+            />
         </PageLayout>
     );
 }

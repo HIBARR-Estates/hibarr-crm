@@ -11,6 +11,7 @@ import {
 } from "../../adapters/timelineAdapter";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import Icon from "@/Components/Redesign/primitives/Icon";
+import RecordingPlayer from "@/Components/CallRecordingPlayer";
 
 const DOT_COLORS = {
     agent: T.GREEN,
@@ -105,7 +106,7 @@ export default function DealTimelineEventRow({
                     }}
                 >
                     <span style={{ fontSize: 13, fontWeight: 500 }}>
-                        {td(event.title, { source: "en" })}
+                        {event.titleLocalized ? event.title : td(event.title, { source: "en" })}
                     </span>
                     <span
                         className="dr-pill dr-pill-gray"
@@ -312,7 +313,63 @@ export default function DealTimelineEventRow({
                         {event.preview}
                     </div>
                 )}
+
+                {/* Call events: show the recording inline with its metadata. */}
+                {event.call?.playUrl && (
+                    <div
+                        style={{
+                            marginTop: 8,
+                            padding: "10px 12px",
+                            border: `1px solid ${T.BORDER}`,
+                            borderRadius: 8,
+                            background: T.SURFACE_2,
+                            maxWidth: 520,
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: "4px 10px",
+                                fontSize: 12,
+                                color: T.TEXT_MUTED,
+                                marginBottom: 8,
+                            }}
+                        >
+                            {event.call.phone && (
+                                <span>
+                                    {event.direction === "inbound"
+                                        ? `${t("pages.call_summary.from")}: `
+                                        : event.direction === "outbound"
+                                          ? `${t("pages.call_summary.to")}: `
+                                          : null}
+                                    {event.call.phone}
+                                </span>
+                            )}
+                            {event.call.durationSeconds != null &&
+                                event.call.durationSeconds > 0 && (
+                                    <span>
+                                        {t("pages.call_summary.duration")}: {formatCallDurationShort(event.call.durationSeconds)}
+                                    </span>
+                                )}
+                        </div>
+                        <RecordingPlayer
+                            playUrl={event.call.playUrl}
+                            downloadUrl={event.call.downloadUrl}
+                            durationSeconds={event.call.durationSeconds}
+                            expired={event.call.expired}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );
+}
+
+/** `125` → `2:05`. Mirrors CallRecordingPlayer's local formatter. */
+function formatCallDurationShort(totalSeconds: number): string {
+    const total = Math.floor(totalSeconds);
+    const mins = Math.floor(total / 60);
+    const secs = total % 60;
+    return `${mins}:${String(secs).padStart(2, "0")}`;
 }
