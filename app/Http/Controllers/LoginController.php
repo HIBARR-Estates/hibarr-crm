@@ -8,6 +8,7 @@ use App\Helper\Reply;
 use App\Models\Social;
 use App\Support\KeycloakBackchannelLogout;
 use App\Support\KeycloakLogout;
+use App\Support\SilentSso;
 use Illuminate\Http\Request;
 use Laravel\Fortify\Fortify;
 use App\Events\TwoFactorCodeEvent;
@@ -94,7 +95,7 @@ class LoginController extends Controller
         return Reply::success(__('messages.codeSent'));
     }
 
-    public function redirect($provider)
+    public function redirect(Request $request, $provider)
     {
         // Keycloak SSO is the only supported way to sign in to the CRM,
         // and it can't be disabled (Social Login Settings forces it on).
@@ -102,9 +103,24 @@ class LoginController extends Controller
             abort(404);
         }
 
+        // Silent single sign-on: ask Keycloak without showing a login screen. The marker is set before
+        // redirecting, so a failed attempt is never retried within the window.
+        $silent = $request->boolean('silent');
+
+        if ($silent && (! SilentSso::enabled() || ! SilentSso::canAttempt($request->session()))) {
+            return redirect()->route('login');
+        }
+
         $this->setSocailAuthConfigs();
 
-        return Socialite::driver($provider)->redirect();
+        $driver = Socialite::driver($provider);
+
+        if ($silent) {
+            SilentSso::markAttempt($request->session());
+            $driver = $driver->with(['prompt' => 'none']);
+        }
+
+        return $driver->redirect();
     }
 
     public function callback(Request $request, $provider)
@@ -119,6 +135,11 @@ class LoginController extends Controller
         // provider needs no extra redirect URI registered.
         if (session()->has(SsoPasswordConfirmationController::SESSION_KEY)) {
             return app(SsoPasswordConfirmationController::class)->confirm($provider);
+        }
+
+        // A silent sign-in found no Keycloak session: not an error, just show the login page.
+        if (SilentSso::isDeclined($request->query('error'))) {
+            return redirect()->route('login');
         }
 
         // Query string carries the OAuth code — kept out of the log.
