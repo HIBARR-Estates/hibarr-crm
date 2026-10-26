@@ -115,6 +115,15 @@ mix.js("resources/js/bootstrap.js", "public/js")
     })
     .webpackConfig({
         plugins: [new RemoveSvgStylingPlugin()],
+        // Async chunks (one per Inertia page, plus posthog) carry a content
+        // hash. With fixed names, a browser holding one release's runtime or
+        // vendor bundle (open tab, or a cached copy — .htaccess caches .js for
+        // 3h) fetched the next release's `pages-*.js` under the same URL; its
+        // module ids were missing from the old bundles and webpack threw
+        // "Cannot read properties of undefined (reading 'call')" on navigation.
+        output: mix.inProduction()
+            ? { chunkFilename: "js/[name].[contenthash:8].js" }
+            : {},
         // A1: emit vendor/common chunks (prep for async page imports in A2).
         // Names include `js/` because initial split chunks use output.filename
         // (`[name].js`), not chunkFilename — same pattern as Mix `.extract()`.
@@ -186,3 +195,10 @@ mix.js("resources/js/bootstrap.js", "public/js")
             },
         },
     });
+
+// Entry bundles keep fixed names (Blade tags them via mix()), so version them:
+// mix() then appends ?id=<hash>, and a cached react/vendor/antd/inertia.js from
+// an earlier release is never paired with this release's page chunks.
+if (mix.inProduction()) {
+    mix.version();
+}
