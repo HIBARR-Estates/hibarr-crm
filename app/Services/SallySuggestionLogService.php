@@ -32,9 +32,19 @@ class SallySuggestionLogService
      */
     public function log(SallyMeetingInsight $insight, string $suggestionId, ?string $text, User $user): SallySuggestionLog
     {
-        $working = $this->findSuggestion($insight, $suggestionId);
+        return DB::transaction(function () use ($insight, $suggestionId, $text, $user) {
+            // Reload the insight by its key without the company scope and lock
+            // it so concurrent log() calls for the same suggestion serialize:
+            // the first writer wins, later ones hit the unique-constraint check
+            // and lose rather than overwriting suggested_notes or duplicating
+            // logs.
+            $insight = SallyMeetingInsight::withoutGlobalScope(CompanyScope::class)
+                ->where('id', $insight->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        return DB::transaction(function () use ($insight, $suggestionId, $text, $user, $working) {
+            $working = $this->findSuggestion($insight, $suggestionId);
+
             // Re-read under a lock: a concurrent log for the same suggestion
             // must lose here rather than double-create the note.
             $existingLog = SallySuggestionLog::withoutGlobalScope(CompanyScope::class)

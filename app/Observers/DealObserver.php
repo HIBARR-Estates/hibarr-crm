@@ -679,6 +679,12 @@ class DealObserver
             app(SallyInsightRetentionService::class)->purgeForDeal($deal->id);
         } catch (\Illuminate\Database\QueryException $e) {
             \Log::warning('Failed to release Sally insights for deal ID '.$deal->id.': '.$e->getMessage());
+
+            // Schedule a durable retry so a transient DB failure doesn't leave
+            // orphaned insights behind; remaining cleanup continues below.
+            app(\Illuminate\Contracts\Bus\Dispatcher::class)->dispatch(
+                new \App\Jobs\PurgeSallyInsightRetentionJob('deal', $deal->id)
+            );
         }
 
         UniversalSearch::where('searchable_id', $deal->id)->where('module_type', 'lead')->delete();

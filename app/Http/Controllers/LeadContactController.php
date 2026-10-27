@@ -2316,12 +2316,7 @@ class LeadContactController extends AccountBaseController
         ]);
     }
 
-    /**
-     * Write gate for the card's editable fields, mirroring leadSallyInsights'
-     * read filter: a deal-scoped insight needs the deal's write gate (team
-     * member, not watcher) and the lead's edit gate.
-     */
-    private function canEditSallyInsight(SallyMeetingInsight $model): bool
+    protected function canEditSallyInsight(SallyMeetingInsight $model): bool
     {
         $canEdit = true;
 

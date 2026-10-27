@@ -17,6 +17,11 @@ class UpsertSallyMeetingV2Request extends CoreRequest
         return true;
     }
 
+    protected function resolvesTargetFromMeeting(): bool
+    {
+        return true;
+    }
+
     protected function prepareForValidation(): void
     {
         $this->prepareCrmWriteTargetValidation();
@@ -112,6 +117,15 @@ class UpsertSallyMeetingV2Request extends CoreRequest
 
             if ($transcript !== null && ! is_string($transcript) && ! is_array($transcript)) {
                 $validator->errors()->add('transcript', 'Transcript must be a string or an array of segments.');
+            }
+
+            // recording_url must use http(s) — no javascript:, data:, or other
+            // schemes that could introduce XSS or open-redirect risks.
+            foreach (['recording_url', 'payload.recording_url'] as $key) {
+                $url = $this->input($key);
+                if ($url !== null && $url !== '' && ! preg_match('#^https?://#i', $url)) {
+                    $validator->errors()->add($key, 'Recording URL must use http:// or https://.');
+                }
             }
         });
     }

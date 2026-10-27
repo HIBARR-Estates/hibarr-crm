@@ -69,9 +69,13 @@ export default function useSallySuggestionMutations(
                 return true;
             }
 
+            message.error(
+                response?.message ??
+                    t("pages.deals.sally.messages.suggestion_failed"),
+            );
             return false;
         },
-        [insightId, patch],
+        [insightId, patch, t],
     );
 
     /** A logged suggestion can only be logged once — surface the server's say-so. */

@@ -208,6 +208,12 @@ class LeadObserver
             app(SallyInsightRetentionService::class)->purgeForLead($leadContact->id);
         } catch (\Illuminate\Database\QueryException $e) {
             \Log::warning('Failed to purge Sally insights for lead ID '.$leadContact->id.': '.$e->getMessage());
+
+            // Schedule a durable retry so a transient DB failure doesn't leave
+            // orphaned insights behind; remaining cleanup continues below.
+            app(\Illuminate\Contracts\Bus\Dispatcher::class)->dispatch(
+                new \App\Jobs\PurgeSallyInsightRetentionJob('lead', $leadContact->id)
+            );
         }
 
         try {

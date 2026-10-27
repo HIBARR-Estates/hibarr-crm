@@ -16,7 +16,10 @@ class SallyTranscriptNormalizer
 
         if (is_array($transcriptSegments) && $transcriptSegments !== []) {
             $segments = self::normalizeSegments($transcriptSegments);
-        } elseif (is_array($transcript) && self::looksLikeSegmentList($transcript)) {
+        } elseif (is_array($transcript) && $transcript !== []) {
+            // Any non-empty transcript array — including lists containing only
+            // strings — is a segment list and can be normalized by
+            // normalizeSegments(), which handles strings and arrays alike.
             $segments = self::normalizeSegments($transcript);
         }
 

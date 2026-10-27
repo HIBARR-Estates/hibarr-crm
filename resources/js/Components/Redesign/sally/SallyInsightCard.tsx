@@ -388,6 +388,17 @@ export default function SallyInsightCard({
             .replace(/\s+/g, " ")
             .trim();
 
+    // Convert HTML block tags to newlines before stripping remaining tags, so
+    // paragraph breaks survive as real line breaks instead of collapsing to
+    // whitespace. Preserves <br> and block-level tags (<p>, <div>, <li>, …).
+    const htmlToText = (html: string) =>
+        html
+            .replace(/<\/?(p|div|h[1-6]|li|tr|blockquote|section|article|pre|hr|br)[^>]*>/gi, "\n")
+            .replace(/<[^>]*>/g, " ")
+            .replace(/&nbsp;/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+
     const startEditing = () => {
         setDraft(summaryToEditorHtml(insight.summary));
         setEditing(true);
@@ -447,12 +458,12 @@ export default function SallyInsightCard({
 
     /** Compose the note body from the summary and bullet points. */
     const noteContent = useMemo(() => {
-        const summaryText = asText(insight.summary ?? "");
+        const summaryText = htmlToText(normalizeSummary(insight.summary ?? ""));
         const bulletText = bullets.length > 0
-            ? `\n\nKey points:\n${bullets.map((b) => `- ${b}`).join("\n")}`
+            ? `\n\n${t("pages.deals.sally.key_points")}\n${bullets.map((b) => `- ${b}`).join("\n")}`
             : "";
         return `${summaryText}${bulletText}`.trim();
-    }, [insight.summary, bullets, asText]);
+    }, [insight.summary, bullets]);
 
     const startNoteEditing = () => {
         setNoteDraft(noteContent);
@@ -496,7 +507,7 @@ export default function SallyInsightCard({
                     ) : null}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                    {insight.recording_url ? (
+                    {insight.recording_url && /^https?:\/\//i.test(insight.recording_url) ? (
                         // External recording — always a browser tab, never an
                         // in-app navigation, so the agent keeps their place.
                         <a

@@ -1061,6 +1061,7 @@ return [
             'suggested_notes' => 'Предложенные заметки',
             'no_bullet_points' => 'Пока нет ключевых пунктов.',
             'bullets_placeholder' => 'По одному ключевому пункту на строке...',
+            'key_points' => 'Ключевые пункты',
             'view_recording' => 'Запись',
             'add_as_note' => 'Добавить как заметку',
             'add_to_note' => 'Добавить в заметку',

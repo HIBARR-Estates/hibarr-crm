@@ -35,6 +35,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -1924,18 +1925,25 @@ class CrmWriteService
 
     private function isUniqueConstraintViolation(QueryException $e): bool
     {
-        // 23000 is the whole integrity-constraint class — it also covers foreign
-        // key and NOT NULL failures — so check the driver's duplicate-key code
-        // (1062 on MySQL/MariaDB, 23505 on PostgreSQL) and fall back to the
-        // message for drivers that report neither.
-        if (in_array((string) $e->getCode(), ['1062', '23505'], true)) {
+        // Laravel's dedicated exception type takes precedence when available.
+        if ($e instanceof UniqueConstraintViolationException) {
             return true;
         }
 
-        if ($e->getCode() === '23000' || $e->getCode() === 23000) {
-            return false;
+        // Read the driver-specific error code from errorInfo[1] (MySQL/MariaDB
+        // report 1062 there; getCode() returns the SQLSTATE '23000' which also
+        // covers foreign-key and NOT NULL failures, so it is not sufficient alone).
+        $errorInfo = $e->errorInfo;
+        if (is_array($errorInfo) && isset($errorInfo[1]) && (int) $errorInfo[1] === 1062) {
+            return true;
         }
 
+        // PostgreSQL reports SQLSTATE 23505 for unique violations.
+        if ($e->getCode() === '23505') {
+            return true;
+        }
+
+        // Fall back to message matching for drivers that report neither.
         return str_contains(strtolower($e->getMessage()), 'unique constraint')
             || str_contains(strtolower($e->getMessage()), 'duplicate entry')
             || str_contains(strtolower($e->getMessage()), 'duplicate key');

@@ -1062,6 +1062,7 @@ return [
             'suggested_notes' => 'Önerilen notlar',
             'no_bullet_points' => 'Henüz önemli nokta yok.',
             'bullets_placeholder' => 'Her satırda bir önemli nokta...',
+            'key_points' => 'Önemli Noktalar',
             'view_recording' => 'Kayıt',
             'add_as_note' => 'Not olarak ekle',
             'add_to_note' => 'Not ekle',

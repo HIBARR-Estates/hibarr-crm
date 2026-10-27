@@ -1129,19 +1129,17 @@ class DealController extends AccountBaseController
     public function updateDealSallyInsight(Request $request, $dealId, $insight)
     {
         $deal = Deal::findOrFail($dealId);
-        // Write gate, same as DealController::update and DealPaymentController:
-        // agent/participant/creator scopes only — watchers can read a deal but
-        // never write to it, so isVisibleToUser() would be too permissive here.
-        $dealRules = [
-            'added' => 'added_by',
-            'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
-        ];
-        $access = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules);
-        abort_403(! $access['canAccess']);
 
         $model = SallyMeetingInsight::query()
             ->where('deal_id', $deal->id)
             ->findOrFail($insight);
+
+        // Write gate: deal-scoped insights need edit_deals on the deal; when the
+        // insight also carries a lead_id, edit_lead on the lead is required too.
+        // Reuses LeadContactController::canEditSallyInsight() so the deal and
+        // lead routes enforce identical access (the deal routes cannot bypass
+        // the lead edit gate).
+        abort_403(! $this->canEditSallyInsight($model));
 
         $data = $request->validate([
             'summary' => ['nullable', 'string', 'max:50000'],
@@ -1175,16 +1173,14 @@ class DealController extends AccountBaseController
     public function updateDealSallySuggestion(Request $request, $dealId, $insight, $suggestionId)
     {
         $deal = Deal::findOrFail($dealId);
-        $dealRules = [
-            'added' => 'added_by',
-            'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
-        ];
-        $access = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules);
-        abort_403(! $access['canAccess']);
 
         $model = SallyMeetingInsight::query()
             ->where('deal_id', $deal->id)
             ->findOrFail($insight);
+
+        // Same write gate as updateDealSallyInsight — reuses shared
+        // authorization so deal routes cannot bypass the lead edit gate.
+        abort_403(! $this->canEditSallyInsight($model));
 
         $data = $request->validate([
             'text' => ['required', 'string', 'max:5000'],
@@ -1238,6 +1234,42 @@ class DealController extends AccountBaseController
             'message' => __('messages.recordSaved'),
             'data' => app(SallyMeetingInsightService::class)->serialize($model->fresh(['meetingFollowUp', 'suggestionLogs'])),
         ]);
+    }
+
+    /**
+     * Shared Sally insight write gate. Mirrors LeadContactController::canEditSallyInsight():
+     * a deal-scoped insight needs edit_deals on the deal; when it also carries a
+     * lead_id, edit_lead on the lead is required too. Used by both the deal-route
+     * handlers (updateDealSallyInsight, updateDealSallySuggestion) and the lead
+     * routes so neither path can bypass the other's gate.
+     */
+    private function canEditSallyInsight(SallyMeetingInsight $model): bool
+    {
+        $canEdit = true;
+
+        if ($model->deal_id) {
+            $deal = Deal::find($model->deal_id);
+
+            if ($deal === null) {
+                return false;
+            }
+
+            $dealRules = [
+                'added' => 'added_by',
+                'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
+            ];
+            $canEdit = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules)['canAccess'];
+        }
+
+        if ($model->lead_id) {
+            $lead = Lead::find($model->lead_id);
+            $leadRules = ['added' => 'added_by', 'owned' => 'lead_owner'];
+            $leadCanEdit = $lead !== null
+                && PermissionService::checkAccess(user(), 'edit_lead', $lead, $leadRules)['canAccess'];
+            $canEdit = $model->deal_id ? ($canEdit && $leadCanEdit) : $leadCanEdit;
+        }
+
+        return $canEdit;
     }
 
     /**

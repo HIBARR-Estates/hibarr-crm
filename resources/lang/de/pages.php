@@ -1080,6 +1080,7 @@ return [
             'suggested_notes' => 'Vorgeschlagene Notizen',
             'no_bullet_points' => 'Noch keine wichtigen Punkte.',
             'bullets_placeholder' => 'Ein wichtiger Punkt pro Zeile ...',
+            'key_points' => 'Wichtige Punkte',
             'view_recording' => 'Aufnahme',
             'add_as_note' => 'Als Notiz hinzufügen',
             'add_to_note' => 'Zu Notiz hinzufügen',

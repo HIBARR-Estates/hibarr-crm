@@ -1098,6 +1098,7 @@ return [
             'suggested_notes' => 'Suggested notes',
             'no_bullet_points' => 'No key points yet.',
             'bullets_placeholder' => 'One key point per line...',
+            'key_points' => 'Key points',
             'view_recording' => 'Recording',
             'add_as_note' => 'Add as note',
             'add_to_note' => 'Add to note',

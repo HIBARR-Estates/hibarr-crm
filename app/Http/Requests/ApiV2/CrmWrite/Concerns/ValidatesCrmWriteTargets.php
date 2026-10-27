@@ -47,10 +47,14 @@ trait ValidatesCrmWriteTargets
      * True when a Sally payload may omit lead_id/deal_id: the target is then
      * resolved from the meeting itself (which may carry only a deal_id, and
      * whose lead the service backfills from that deal).
+     *
+     * Defaults to false so shared requests cannot bypass the lead_id/deal_id
+     * requirement based on raw meeting_id input. Override only in requests
+     * that genuinely support meeting-based target resolution.
      */
     protected function resolvesTargetFromMeeting(): bool
     {
-        return $this->input('meeting_id') !== null;
+        return false;
     }
 
     protected function validateCrmWriteTargets(Validator $validator): void
