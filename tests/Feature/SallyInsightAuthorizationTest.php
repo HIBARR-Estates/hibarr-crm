@@ -297,6 +297,24 @@ class SallyInsightAuthorizationTest extends TestCase
             $table->longText('transcript')->nullable();
             $table->json('transcript_segments')->nullable();
             $table->json('bullet_points')->nullable();
+            $table->text('recording_url')->nullable();
+            $table->text('original_summary')->nullable();
+            $table->json('original_bullet_points')->nullable();
+            $table->json('suggested_notes')->nullable();
+            $table->json('original_suggested_notes')->nullable();
+            $table->timestamp('summary_edited_at')->nullable();
+            $table->timestamp('bullet_points_edited_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('sally_suggestion_logs', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id');
+            $table->unsignedInteger('sally_meeting_insight_id');
+            $table->string('suggestion_id', 64);
+            $table->unsignedInteger('note_id');
+            $table->string('logged_mode', 16);
+            $table->timestamp('logged_at');
             $table->timestamps();
         });
 

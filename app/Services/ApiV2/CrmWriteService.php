@@ -1661,7 +1661,7 @@ class CrmWriteService
     public function listSallyMeetingInsights(int $companyId, array $filters): array
     {
         $query = SallyMeetingInsight::withoutGlobalScope(CompanyScope::class)
-            ->with(['meetingFollowUp'])
+            ->with(['meetingFollowUp', 'suggestionLogs'])
             ->where('company_id', $companyId);
 
         if (! empty($filters['deal_id'])) {
@@ -1691,7 +1691,7 @@ class CrmWriteService
     public function getSallyMeetingInsight(int $companyId, int $meetingFollowUpId): SallyMeetingInsight
     {
         $insight = SallyMeetingInsight::withoutGlobalScope(CompanyScope::class)
-            ->with(['meetingFollowUp'])
+            ->with(['meetingFollowUp', 'suggestionLogs'])
             ->where('company_id', $companyId)
             ->where('meeting_follow_up_id', $meetingFollowUpId)
             ->first();
@@ -1757,15 +1757,15 @@ class CrmWriteService
         }
 
         $content = [];
+        $rawDecodedSummary = null;
         if (array_key_exists('summary', $data)) {
             // This endpoint is the one write path that takes content from an
             // external system, so the summary is purified here rather than only
             // on the two edit routes. Every other consumer of the column — the
             // gRPC transformer, exports, and this API's own reads — then sees
             // stored HTML that is already safe.
-            $content['summary'] = SallyMeetingInsightService::sanitizeSummary(
-                (string) $this->decodeSallyText($data['summary'])
-            );
+            $rawDecodedSummary = (string) $this->decodeSallyText($data['summary']);
+            $content['summary'] = SallyMeetingInsightService::sanitizeSummary($rawDecodedSummary);
         }
         if (array_key_exists('transcript', $data) || array_key_exists('transcript_segments', $data)) {
             $normalized = SallyTranscriptNormalizer::normalize(
@@ -1777,15 +1777,36 @@ class CrmWriteService
         }
         if (array_key_exists('bullet_points', $data)) {
             $content['bullet_points'] = array_map(
-                fn ($point) => is_string($point) ? $this->decodeSallyText($point) : $point,
+                fn ($point) => is_string($point)
+                    ? SallyMeetingInsightService::sanitizePlainText(
+                        (string) $this->decodeSallyText($point)
+                    )
+                    : $point,
                 $data['bullet_points'],
+            );
+        }
+        if (array_key_exists('recording_url', $data)) {
+            $content['recording_url'] = SallyMeetingInsightService::normalizeRecordingUrl(
+                $data['recording_url']
+            );
+        }
+
+        $receivedSuggestions = null;
+        if (array_key_exists('suggested_notes', $data)) {
+            $receivedSuggestions = SallyMeetingInsightService::normalizeReceivedSuggestions(
+                array_map(
+                    fn ($note) => is_array($note) && is_string($note['text'] ?? null)
+                        ? array_merge($note, ['text' => (string) $this->decodeSallyText($note['text'])])
+                        : $note,
+                    $data['suggested_notes'],
+                )
             );
         }
 
         // meeting_follow_up_id is globally unique, so the lookup has to be
         // tenant-aware even when no user is authenticated (API-token requests
         // skip CompanyScope entirely).
-        return DB::transaction(function () use ($companyId, $meetingFollowUpId, $content, $leadId, $dealId) {
+        return DB::transaction(function () use ($companyId, $meetingFollowUpId, $content, $leadId, $dealId, $receivedSuggestions, $rawDecodedSummary) {
             // The unique key is meeting_follow_up_id alone, so a row already
             // held by another tenant can never be written by this one.
             $claimedByOtherCompany = SallyMeetingInsight::withoutGlobalScope(CompanyScope::class)
@@ -1806,13 +1827,14 @@ class CrmWriteService
                 ->first();
 
             if ($existing) {
-                $existing->fill(array_merge($content, [
+                $this->applySallySyncToExisting($existing, $content, $receivedSuggestions, $rawDecodedSummary);
+                $existing->fill([
                     'lead_id' => $leadId ?? $existing->lead_id,
                     'deal_id' => $dealId ?? $existing->deal_id,
-                ]));
+                ]);
                 $existing->save();
 
-                return ['insight' => $existing->fresh(['meetingFollowUp']), 'created' => false];
+                return ['insight' => $existing->fresh(['meetingFollowUp', 'suggestionLogs']), 'created' => false];
             }
 
             try {
@@ -1821,6 +1843,16 @@ class CrmWriteService
                     'meeting_follow_up_id' => $meetingFollowUpId,
                     'lead_id' => $leadId,
                     'deal_id' => $dealId,
+                    // Sally's versions as received — frozen once agents edit
+                    // their working copies (see applySallySyncToExisting).
+                    'original_summary' => $rawDecodedSummary !== null && trim($rawDecodedSummary) !== ''
+                        ? $rawDecodedSummary
+                        : null,
+                    'original_bullet_points' => $content['bullet_points'] ?? null,
+                    'suggested_notes' => $receivedSuggestions !== null
+                        ? array_map(fn (array $note) => $note + ['edited' => false], $receivedSuggestions)
+                        : null,
+                    'original_suggested_notes' => $receivedSuggestions,
                 ]));
             } catch (QueryException $e) {
                 // Two concurrent first writes for the same meeting both miss
@@ -1840,17 +1872,54 @@ class CrmWriteService
                     throw $e;
                 }
 
-                $winner->fill(array_merge($content, [
+                $this->applySallySyncToExisting($winner, $content, $receivedSuggestions, $rawDecodedSummary);
+                $winner->fill([
                     'lead_id' => $leadId ?? $winner->lead_id,
                     'deal_id' => $dealId ?? $winner->deal_id,
-                ]));
+                ]);
                 $winner->save();
 
-                return ['insight' => $winner->fresh(['meetingFollowUp']), 'created' => false];
+                return ['insight' => $winner->fresh(['meetingFollowUp', 'suggestionLogs']), 'created' => false];
             }
 
-            return ['insight' => $insight->load('meetingFollowUp'), 'created' => true];
+            return ['insight' => $insight->load(['meetingFollowUp', 'suggestionLogs']), 'created' => true];
         });
+    }
+
+    /**
+     * Re-sync of an existing insight. Sally's latest content updates the
+     * working copies only while agents have not touched them; once they have
+     * (edited_at set), the incoming field is dropped. Sally's originals are
+     * written once and never refreshed afterwards.
+     */
+    private function applySallySyncToExisting(
+        SallyMeetingInsight $row,
+        array $content,
+        ?array $receivedSuggestions,
+        ?string $rawDecodedSummary,
+    ): void {
+        if ($row->summary_edited_at !== null) {
+            unset($content['summary']);
+        } elseif ($row->original_summary === null && $rawDecodedSummary !== null && trim($rawDecodedSummary) !== '') {
+            $row->original_summary = $rawDecodedSummary;
+        }
+
+        if ($row->bullet_points_edited_at !== null) {
+            unset($content['bullet_points']);
+        } elseif ($row->original_bullet_points === null && array_key_exists('bullet_points', $content)) {
+            $row->original_bullet_points = $content['bullet_points'];
+        }
+
+        if ($receivedSuggestions !== null) {
+            $merged = app(SallyMeetingInsightService::class)->mergeReceivedSuggestions(
+                $row->loadMissing('suggestionLogs'),
+                $receivedSuggestions,
+            );
+            $row->suggested_notes = $merged['working'];
+            $row->original_suggested_notes = $merged['original'];
+        }
+
+        $row->fill($content);
     }
 
     private function isUniqueConstraintViolation(QueryException $e): bool

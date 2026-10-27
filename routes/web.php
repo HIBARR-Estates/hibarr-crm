@@ -543,6 +543,8 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('lead-contact/{leadId}/files', [LeadContactFileController::class, 'index'])->name('lead-contact.files.index');
     Route::get('lead-contact/{leadId}/sally-insights', [LeadContactController::class, 'leadSallyInsights'])->name('lead-contact.sally-insights.index');
     Route::patch('sally-insights/{insight}', [LeadContactController::class, 'updateSallyInsight'])->name('sally-insights.update');
+    Route::patch('sally-insights/{insight}/suggestions/{suggestionId}', [LeadContactController::class, 'updateSallySuggestion'])->name('sally-insights.suggestions.update');
+    Route::post('sally-insights/{insight}/suggestions/{suggestionId}/log', [LeadContactController::class, 'logSallySuggestion'])->name('sally-insights.suggestions.log');
 
     Route::get('call-recordings', [\App\Http\Controllers\CallRecordingController::class, 'index'])->name('call-recordings.index');
     // Call recordings (softphone) - stored like lead files; playable only by
@@ -1438,6 +1440,8 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('deals/{dealId}/meetings', [DealController::class, 'dealMeetings'])->name('deals.meetings.index');
     Route::get('deals/{dealId}/sally-insights', [DealController::class, 'dealSallyInsights'])->name('deals.sally-insights.index');
     Route::patch('deals/{dealId}/sally-insights/{insight}', [DealController::class, 'updateDealSallyInsight'])->name('deals.sally-insights.update');
+    Route::patch('deals/{dealId}/sally-insights/{insight}/suggestions/{suggestionId}', [DealController::class, 'updateDealSallySuggestion'])->name('deals.sally-insights.suggestions.update');
+    Route::post('deals/{dealId}/sally-insights/{insight}/suggestions/{suggestionId}/log', [DealController::class, 'logDealSallySuggestion'])->name('deals.sally-insights.suggestions.log');
     Route::get('deals/{dealId}/files', [LeadFileController::class, 'dealFiles'])->name('deals.files.index');
     Route::get('deals/{deal}/payment-request', [DealPaymentController::class, 'show'])->name('deals.payment-request.show');
     Route::post('deals/{deal}/payment-requests', [DealPaymentController::class, 'store'])->name('deals.payment-requests.store');

@@ -47,6 +47,7 @@ use App\Services\LeadQualificationService;
 use App\Services\LeadService;
 use App\Services\PermissionService;
 use App\Services\SallyMeetingInsightService;
+use App\Services\SallySuggestionLogService;
 use App\Support\FeatureFlags;
 use App\Support\LeadExportFields;
 use App\Support\TaskPresenter;
@@ -2217,23 +2218,120 @@ class LeadContactController extends AccountBaseController
     }
 
     /**
-     * The Sally summary is a human-editable field: the bot's version is a
-     * starting point, and the team corrects it. The transcript stays
-     * read-only — it is the source recording, not CRM copy.
+     * The Sally summary and bullet points are human-editable fields: the
+     * bot's versions are starting points, and the team corrects them. The
+     * transcript stays read-only — it is the source recording, not CRM copy.
      */
     public function updateSallyInsight(Request $request, $insight)
     {
         $model = SallyMeetingInsight::query()->findOrFail($insight);
-        $lead = $model->lead_id ? Lead::find($model->lead_id) : null;
-        $deal = $model->deal_id ? Deal::find($model->deal_id) : null;
 
         // leadSallyInsights hides an insight whose deal the user may not view,
         // so editing one must not be granted on the lead's permission alone:
         // a lead editor with no access to the deal could otherwise write a
         // summary they cannot even read. A deal-scoped insight needs both gates.
-        $canEdit = false;
+        abort_403(! $this->canEditSallyInsight($model));
 
-        if ($deal) {
+        $data = $request->validate([
+            'summary' => ['nullable', 'string', 'max:50000'],
+            'bullet_points' => ['nullable', 'array', 'max:50'],
+            'bullet_points.*' => ['string', 'max:2000'],
+        ]);
+
+        if (! array_key_exists('summary', $data) && ! array_key_exists('bullet_points', $data)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'summary' => ['Provide a summary or bullet points.'],
+            ]);
+        }
+
+        app(SallyMeetingInsightService::class)->applyAgentContentEdit(
+            $model,
+            array_key_exists('summary', $data) ? $data['summary'] : null,
+            array_key_exists('bullet_points', $data) ? $data['bullet_points'] : null,
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => __('messages.sallyInsightUpdated'),
+            'data' => app(SallyMeetingInsightService::class)->serialize($model->fresh(['meetingFollowUp', 'suggestionLogs'])),
+        ]);
+    }
+
+    /**
+     * Edit a suggested note's working text. Once the suggestion has been
+     * logged as a note its text is fixed — the note carries it.
+     */
+    public function updateSallySuggestion(Request $request, $insight, $suggestionId)
+    {
+        $model = SallyMeetingInsight::query()->findOrFail($insight);
+        abort_403(! $this->canEditSallyInsight($model));
+
+        $data = $request->validate([
+            'text' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $service = app(SallyMeetingInsightService::class);
+        $service->updateSuggestionText($model, (string) $suggestionId, $data['text']);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => __('messages.sallyInsightUpdated'),
+            'data' => $service->serialize($model->fresh(['meetingFollowUp', 'suggestionLogs'])),
+        ]);
+    }
+
+    /**
+     * Log a suggested note as a normal CRM note on the insight's lead (or its
+     * deal, for insights without a lead). Logging uses the existing note
+     * permissions — no new permission is introduced for the Sally card.
+     */
+    public function logSallySuggestion(Request $request, $insight, $suggestionId)
+    {
+        $model = SallyMeetingInsight::query()->findOrFail($insight);
+        abort_403(! $this->canReadSallyInsight($model));
+
+        $data = $request->validate([
+            'text' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        if ($model->lead_id) {
+            abort_403(! in_array(user()->permission('add_lead_note'), ['all', 'added', 'both']));
+        } else {
+            abort_403(! in_array(user()->permission('add_deal_note'), ['all', 'added', 'both']));
+            $this->abortForDealWatchers((int) $model->deal_id);
+        }
+
+        $log = app(SallySuggestionLogService::class)->log(
+            $model,
+            (string) $suggestionId,
+            $data['text'] ?? null,
+            user(),
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => __('messages.recordSaved'),
+            'data' => app(SallyMeetingInsightService::class)->serialize($model->fresh(['meetingFollowUp', 'suggestionLogs'])),
+            'logged' => ['note_id' => $log->note_id, 'mode' => $log->logged_mode],
+        ]);
+    }
+
+    /**
+     * Write gate for the card's editable fields, mirroring leadSallyInsights'
+     * read filter: a deal-scoped insight needs the deal's write gate (team
+     * member, not watcher) and the lead's edit gate.
+     */
+    private function canEditSallyInsight(SallyMeetingInsight $model): bool
+    {
+        $canEdit = true;
+
+        if ($model->deal_id) {
+            $deal = Deal::find($model->deal_id);
+
+            if ($deal === null) {
+                return false;
+            }
+
             // Write gate: watchers may read a deal but never write to it, so
             // this uses hasTeamMemberAccess() rather than isVisibleToUser().
             $dealRules = [
@@ -2243,27 +2341,68 @@ class LeadContactController extends AccountBaseController
             $canEdit = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules)['canAccess'];
         }
 
-        if ($lead) {
+        if ($model->lead_id) {
+            $lead = Lead::find($model->lead_id);
             $leadRules = ['added' => 'added_by', 'owned' => 'lead_owner'];
-            $leadCanEdit = PermissionService::checkAccess(user(), 'edit_lead', $lead, $leadRules)['canAccess'];
-            $canEdit = $deal ? ($canEdit && $leadCanEdit) : $leadCanEdit;
+            $leadCanEdit = $lead !== null
+                && PermissionService::checkAccess(user(), 'edit_lead', $lead, $leadRules)['canAccess'];
+            $canEdit = $model->deal_id ? ($canEdit && $leadCanEdit) : $leadCanEdit;
         }
 
-        abort_403(! $canEdit);
+        return $canEdit;
+    }
 
-        $data = $request->validate([
-            'summary' => ['present', 'nullable', 'string', 'max:50000'],
-        ]);
+    /**
+     * Read gate for actions that only need the insight to be visible —
+     * logging a suggestion. Mirrors leadSallyInsights: the lead must be
+     * viewable and, for a deal-scoped insight, the deal as well.
+     */
+    private function canReadSallyInsight(SallyMeetingInsight $model): bool
+    {
+        $canRead = true;
 
-        $model->summary = $data['summary'] === null
-            ? null
-            : SallyMeetingInsightService::sanitizeSummary($data['summary']);
-        $model->save();
+        if ($model->deal_id) {
+            $deal = Deal::find($model->deal_id);
 
-        return response()->json([
-            'status' => 'success',
-            'message' => __('messages.sallyInsightUpdated'),
-            'data' => app(SallyMeetingInsightService::class)->serialize($model->fresh(['meetingFollowUp'])),
-        ]);
+            if ($deal === null) {
+                return false;
+            }
+
+            $dealRules = [
+                'added' => 'added_by',
+                'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+            ];
+            $canRead = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules)['canAccess'];
+        }
+
+        if ($model->lead_id) {
+            $lead = Lead::find($model->lead_id);
+            $leadRules = ['added' => 'added_by', 'owned' => 'lead_owner'];
+            $leadCanRead = $lead !== null
+                && PermissionService::checkAccess(user(), 'view_lead', $lead, $leadRules)['canAccess'];
+            $canRead = $canRead && $leadCanRead;
+        }
+
+        return $canRead;
+    }
+
+    /**
+     * Watchers can see everything but never write — the same rule the note
+     * form applies (DealNoteController::store): watchers are blocked unless
+     * they are admins or hold unrestricted edit_deals.
+     */
+    private function abortForDealWatchers(int $dealId): void
+    {
+        $deal = Deal::findOrFail($dealId);
+        $isUnrestrictedWriter = in_array('admin', user_roles())
+            || user()->permission('edit_deals') === 'all';
+
+        if (! $isUnrestrictedWriter
+            && $deal->added_by != user()->id
+            && ! $deal->hasTeamMemberAccess(user()->id)
+            && $deal->dealWatchers()->where('user_id', user()->id)->exists()
+        ) {
+            abort_403(true);
+        }
     }
 }

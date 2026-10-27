@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import SallyInsightCard from "@/Components/Redesign/sally/SallyInsightCard";
-import useSallyInsightMutations from "@/Components/Redesign/sally/useSallyInsightMutations";
+import type { SallyInsightPatch } from "@/Components/Redesign/sally/useSallyInsightMutations";
 import type { Deal } from "@/Types/api/deals";
 import type { SallyMeetingInsight } from "@/Types/api/sally-meeting-insight";
 
@@ -19,10 +19,13 @@ interface SallyInsightsPanelProps {
      */
     groupByDeal?: Deal[];
     /**
-     * Enables the summary's inline edit; omit for a read-only panel. Each card
-     * owns its own mutation, since the update route is keyed by insight id.
+     * Enables the cards' editable fields (summary, key points, suggested
+     * notes); omit for a read-only panel. Each card owns its own mutations,
+     * since the routes are keyed by insight id.
      */
-    patchSummary?: (insightId: number, summary: string | null) => void;
+    patchInsight?: SallyInsightPatch;
+    /** Callback to turn an insight's summary + bullet points into a CRM note. */
+    onAddNote?: (content: string) => void;
     emptyTitle?: string;
     emptyDescription?: string;
 }
@@ -33,7 +36,8 @@ export default function SallyInsightsPanel({
     error = false,
     onRetry,
     groupByDeal,
-    patchSummary,
+    patchInsight,
+    onAddNote,
     emptyTitle,
     emptyDescription,
 }: SallyInsightsPanelProps) {
@@ -95,17 +99,18 @@ export default function SallyInsightsPanel({
     return (
         <div className="space-y-3">
             {insights.map((insight) => (
-                <SallyInsightCard
-                    key={insight.id}
-                    insight={insight}
-                    groupLabel={
-                        insight.deal_id
-                            ? dealNameById.get(insight.deal_id) ||
-                              t("pages.deals.sally.deal_fallback")
-                            : undefined
-                    }
-                    onSummaryChange={patchSummary}
-                />
+                    <SallyInsightCard
+                        key={insight.id}
+                        insight={insight}
+                        groupLabel={
+                            insight.deal_id
+                                ? dealNameById.get(insight.deal_id) ||
+                                  t("pages.deals.sally.deal_fallback")
+                                : undefined
+                        }
+                        patchInsight={patchInsight}
+                        onAddNote={onAddNote}
+                    />
             ))}
         </div>
     );

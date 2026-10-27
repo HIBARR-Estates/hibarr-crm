@@ -3,6 +3,7 @@ import usePageRefresh from "@/Hooks/usePageRefresh";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
+import type { SallyMeetingInsight } from "@/Types/api/sally-meeting-insight";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import useIsAdminRole from "@/Hooks/useIsAdminRole";
 import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
@@ -434,13 +435,13 @@ function DealViewRedesignInner(
         props.showOnlinePayment,
     ]);
 
-    // Summary edits patch the local list in place — no Inertia reload. Each
-    // card owns its own mutation (the update route is keyed by insight id).
-    const patchSallySummary = useCallback(
-        (insightId: number, summary: string | null) => {
+    // Sally edits patch the local list in place — no Inertia reload. Each
+    // card owns its own mutations (the routes are keyed by insight id).
+    const patchSallyInsight = useCallback(
+        (insightId: number, data: Partial<SallyMeetingInsight>) => {
             setSallyInsights((prev) =>
                 prev.map((insight) =>
-                    insight.id === insightId ? { ...insight, summary } : insight,
+                    insight.id === insightId ? { ...insight, ...data } : insight,
                 ),
             );
         },
@@ -935,8 +936,8 @@ function DealViewRedesignInner(
                                                 onRetry={
                                                     refetchSallyInsights
                                                 }
-                                                patchSummary={
-                                                    patchSallySummary
+                                                patchInsight={
+                                                    patchSallyInsight
                                                 }
                                             />
                                         )}

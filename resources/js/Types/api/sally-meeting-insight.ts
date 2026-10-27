@@ -7,6 +7,30 @@ export interface SallyTranscriptSegment {
     sortOrder?: number | null;
 }
 
+/** Sally's generated note kinds (mirrors SallyMeetingInsight::SUGGESTION_TYPES). */
+export type SallySuggestionType =
+    | "objection"
+    | "decision"
+    | "insight"
+    | "meeting_type";
+
+export interface SallySuggestedNote {
+    /** OL-stable id — the logged/unlogged state hangs off it. */
+    id: string;
+    type: SallySuggestionType;
+    /** Working copy: Sally's text until an agent edits it. */
+    text: string;
+    /** Agent rewrote the text before logging (a re-sync then leaves it alone). */
+    edited: boolean;
+    /** True once the suggestion was logged as a CRM note. */
+    logged: boolean;
+    /** "as_is" — logged verbatim; "after_edit" — logged with the agent's text. */
+    logged_mode?: "as_is" | "after_edit" | null;
+    logged_at?: string | null;
+    logged_by?: number | null;
+    logged_note_id?: number | null;
+}
+
 export interface SallyMeetingInsightMeeting {
     id: number;
     remark?: string | null;
@@ -35,7 +59,35 @@ export interface SallyMeetingInsight {
     bullet_points: string[];
     /** Grouped insight fields (mirrors write API `payload`). */
     payload?: SallyMeetingInsightPayload;
+    /** Link to the meeting recording; opens in a new tab. Hidden when absent. */
+    recording_url?: string | null;
+    /**
+     * Sally's suggested notes with their logging state. These are working
+     * copies — Sally's originals (`original_*`) are API-only, agents never
+     * see them in the UI.
+     */
+    suggested_notes?: SallySuggestedNote[];
+    /** Sally's original summary, as first received. API-only — agents never see it. */
+    original_summary?: string | null;
+    /** Sally's original bullet points, as first received. API-only. */
+    original_bullet_points?: string[] | null;
+    /**
+     * Sally's original suggested notes, as first received. Parallel to
+     * `suggested_notes` (same order, same ids); the working copy may have
+     * been edited or logged. API-only.
+     */
+    original_suggested_notes?: SallySuggestedNoteOriginal[];
+    /** Set once an agent edited the field; a re-sync then leaves it alone. */
+    summary_edited_at?: string | null;
+    bullet_points_edited_at?: string | null;
     created_at?: string | null;
     updated_at?: string | null;
     meeting?: SallyMeetingInsightMeeting | null;
+}
+
+/** Sally's original suggestion, before any agent edit. API-only. */
+export interface SallySuggestedNoteOriginal {
+    id: string;
+    type?: SallySuggestionType | null;
+    text: string;
 }

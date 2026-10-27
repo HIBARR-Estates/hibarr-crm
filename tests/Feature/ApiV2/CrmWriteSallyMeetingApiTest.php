@@ -432,6 +432,244 @@ class CrmWriteSallyMeetingApiTest extends TestCase
         $this->assertSame('Hello', $payload['summary']);
     }
 
+    /**
+     * @return array{company: int, lead: int, deal: int, meeting: int, headers: array<string, string>}
+     */
+    private function makeMeetingFixture(?int $companyId = 1): array
+    {
+        $leadId = DB::table('leads')->insertGetId([
+            'company_id' => $companyId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $dealId = DB::table('deals')->insertGetId([
+            'company_id' => $companyId,
+            'lead_id' => $leadId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $meetingId = DB::table('lead_follow_up')->insertGetId([
+            'lead_id' => $leadId,
+            'deal_id' => $dealId,
+            'remark' => 'Call',
+            'location' => 'zoom',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->insertApiToken('test-crm-write-token', companyId: $companyId);
+
+        return [
+            'company' => $companyId,
+            'lead' => $leadId,
+            'deal' => $dealId,
+            'meeting' => $meetingId,
+            'headers' => [
+                'X-API-TOKEN' => 'test-crm-write-token',
+                'X-COMPANY-ID' => (string) $companyId,
+            ],
+        ];
+    }
+
+    public function test_upsert_stores_recording_url_and_suggested_notes(): void
+    {
+        $fixture = $this->makeMeetingFixture();
+
+        $response = $this->postJson('/api/v2/sally-meetings', [
+            'meeting_id' => $fixture['meeting'],
+            'lead_id' => $fixture['lead'],
+            'deal_id' => $fixture['deal'],
+            'summary' => 'Fee is **1,400**.',
+            'payload' => [
+                'recording_url' => 'https://sally.example/recordings/abc',
+                'suggested_notes' => [
+                    ['id' => 'obj-1', 'type' => 'objection', 'text' => 'Deposit is too high'],
+                    ['id' => 'dec-1', 'type' => 'decision', 'text' => 'Confirm unit on Friday'],
+                ],
+            ],
+        ], $fixture['headers']);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.recording_url', 'https://sally.example/recordings/abc')
+            ->assertJsonPath('data.suggested_notes.0.id', 'obj-1')
+            ->assertJsonPath('data.suggested_notes.0.type', 'objection')
+            ->assertJsonPath('data.suggested_notes.0.logged', false)
+            ->assertJsonPath('data.suggested_notes.0.edited', false)
+            ->assertJsonPath('data.suggested_notes.1.type', 'decision');
+
+        $row = DB::table('sally_meeting_insights')
+            ->where('meeting_follow_up_id', $fixture['meeting'])
+            ->first();
+
+        // Sally's originals are stored alongside the working copies.
+        $this->assertSame('Fee is **1,400**.', $row->original_summary);
+        $original = json_decode((string) $row->original_suggested_notes, true);
+        $this->assertSame('Deposit is too high', $original[0]['text']);
+        $working = json_decode((string) $row->suggested_notes, true);
+        $this->assertFalse($working[0]['edited']);
+        $this->assertNull($row->summary_edited_at);
+    }
+
+    public function test_resync_does_not_overwrite_agent_edits(): void
+    {
+        $fixture = $this->makeMeetingFixture();
+
+        $this->postJson('/api/v2/sally-meetings', [
+            'meeting_id' => $fixture['meeting'],
+            'lead_id' => $fixture['lead'],
+            'summary' => 'Sally version',
+            'bullet_points' => ['Sally bullet'],
+            'suggested_notes' => [
+                ['id' => 'obj-1', 'type' => 'objection', 'text' => 'Sally text'],
+            ],
+        ], $fixture['headers'])->assertCreated();
+
+        // The agent corrects the summary and the bullets on the card.
+        DB::table('sally_meeting_insights')
+            ->where('meeting_follow_up_id', $fixture['meeting'])
+            ->update([
+                'summary' => 'Agent version',
+                'summary_edited_at' => now(),
+                'bullet_points' => json_encode(['Agent bullet']),
+                'bullet_points_edited_at' => now(),
+                'suggested_notes' => json_encode([
+                    ['id' => 'obj-1', 'type' => 'objection', 'text' => 'Agent text', 'edited' => true],
+                ]),
+            ]);
+
+        // OL re-syncs with everything it has — the CRM must ignore the
+        // fields the agent touched.
+        $this->postJson('/api/v2/sally-meetings', [
+            'meeting_id' => $fixture['meeting'],
+            'lead_id' => $fixture['lead'],
+            'summary' => 'Sally rewrite',
+            'bullet_points' => ['Sally bullet 2'],
+            'suggested_notes' => [
+                ['id' => 'obj-1', 'type' => 'objection', 'text' => 'Sally rewrite'],
+            ],
+        ], $fixture['headers'])->assertOk();
+
+        $row = DB::table('sally_meeting_insights')
+            ->where('meeting_follow_up_id', $fixture['meeting'])
+            ->first();
+
+        $this->assertSame('Agent version', $row->summary);
+        $this->assertNotNull($row->summary_edited_at);
+        $this->assertSame(['Agent bullet'], json_decode((string) $row->bullet_points, true));
+        $this->assertSame(
+            'Sally version',
+            $row->original_summary,
+            "Sally's original stays as first received.",
+        );
+        $this->assertSame('Agent text', json_decode((string) $row->suggested_notes, true)[0]['text']);
+    }
+
+    public function test_resync_does_not_unlog_logged_suggestions(): void
+    {
+        $fixture = $this->makeMeetingFixture();
+
+        $this->postJson('/api/v2/sally-meetings', [
+            'meeting_id' => $fixture['meeting'],
+            'lead_id' => $fixture['lead'],
+            'suggested_notes' => [
+                ['id' => 'obj-1', 'type' => 'objection', 'text' => 'Logged one'],
+                ['id' => 'dec-1', 'type' => 'decision', 'text' => 'Untouched one'],
+            ],
+        ], $fixture['headers'])->assertCreated();
+
+        $insightId = DB::table('sally_meeting_insights')
+            ->where('meeting_follow_up_id', $fixture['meeting'])
+            ->value('id');
+
+        // The agent logs the objection as a note.
+        DB::table('sally_suggestion_logs')->insert([
+            'company_id' => $fixture['company'],
+            'sally_meeting_insight_id' => $insightId,
+            'suggestion_id' => 'obj-1',
+            'note_id' => 99,
+            'logged_mode' => 'as_is',
+            'logged_text' => 'Logged one',
+            'logged_by' => 1,
+            'logged_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Re-sync: Sally rewrote both texts and added a new suggestion.
+        $response = $this->postJson('/api/v2/sally-meetings', [
+            'meeting_id' => $fixture['meeting'],
+            'lead_id' => $fixture['lead'],
+            'suggested_notes' => [
+                ['id' => 'obj-1', 'type' => 'objection', 'text' => 'Sally rewrite'],
+                ['id' => 'dec-1', 'type' => 'decision', 'text' => 'Refreshed text'],
+                ['id' => 'ins-1', 'type' => 'insight', 'text' => 'New one'],
+            ],
+        ], $fixture['headers'])->assertOk();
+
+        $suggestions = collect($response->json('data.suggested_notes'))->keyBy('id');
+
+        $this->assertTrue($suggestions['obj-1']['logged']);
+        $this->assertSame('Logged one', $suggestions['obj-1']['text'], 'A logged suggestion keeps its logged text.');
+        $this->assertSame(99, $suggestions['obj-1']['logged_note_id']);
+        $this->assertFalse($suggestions['dec-1']['logged']);
+        $this->assertSame('Refreshed text', $suggestions['dec-1']['text']);
+        $this->assertFalse($suggestions['ins-1']['logged']);
+        $this->assertSame('New one', $suggestions['ins-1']['text']);
+        $this->assertCount(3, $suggestions);
+
+        $this->assertSame(
+            1,
+            DB::table('sally_suggestion_logs')->where('sally_meeting_insight_id', $insightId)->count(),
+        );
+    }
+
+    public function test_recording_url_must_be_http(): void
+    {
+        $fixture = $this->makeMeetingFixture();
+
+        $response = $this->postJson('/api/v2/sally-meetings', [
+            'meeting_id' => $fixture['meeting'],
+            'lead_id' => $fixture['lead'],
+            'recording_url' => 'javascript:alert(1)//sally.example',
+        ], $fixture['headers']);
+
+        $response->assertCreated()->assertJsonPath('data.recording_url', null);
+    }
+
+    public function test_upsert_rejects_unknown_suggestion_type(): void
+    {
+        $fixture = $this->makeMeetingFixture();
+
+        $response = $this->postJson('/api/v2/sally-meetings', [
+            'meeting_id' => $fixture['meeting'],
+            'lead_id' => $fixture['lead'],
+            'summary' => 'Some summary',
+            'suggested_notes' => [
+                ['id' => 'x-1', 'type' => 'worry', 'text' => 'Not a known type'],
+            ],
+        ], $fixture['headers'])->assertStatus(422);
+
+        // ApiV2 renders validation errors under error.details (see
+        // Handler/api middleware), not Laravel's flat errors body.
+        $details = $response->json('error.details') ?? [];
+        $this->assertArrayHasKey('suggested_notes.0.type', $details);
+
+        // Duplicate ids inside one payload are rejected too — they would
+        // break the logged/unlogged bookkeeping.
+        $response = $this->postJson('/api/v2/sally-meetings', [
+            'meeting_id' => $fixture['meeting'],
+            'lead_id' => $fixture['lead'],
+            'summary' => 'Some summary',
+            'suggested_notes' => [
+                ['id' => 'x-1', 'type' => 'insight', 'text' => 'One'],
+                ['id' => 'x-1', 'type' => 'insight', 'text' => 'Two'],
+            ],
+        ], $fixture['headers'])->assertStatus(422);
+
+        $details = $response->json('error.details') ?? [];
+        $this->assertArrayHasKey('suggested_notes.1.id', $details);
+    }
+
     private function ensureApiTokensTable(): void
     {
         if (Schema::hasTable('api_tokens')) {
@@ -493,6 +731,28 @@ class CrmWriteSallyMeetingApiTest extends TestCase
                 $table->longText('transcript')->nullable();
                 $table->json('transcript_segments')->nullable();
                 $table->json('bullet_points')->nullable();
+                $table->text('recording_url')->nullable();
+                $table->text('original_summary')->nullable();
+                $table->json('original_bullet_points')->nullable();
+                $table->json('suggested_notes')->nullable();
+                $table->json('original_suggested_notes')->nullable();
+                $table->timestamp('summary_edited_at')->nullable();
+                $table->timestamp('bullet_points_edited_at')->nullable();
+                $table->timestamps();
+            });
+
+            Schema::create('sally_suggestion_logs', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedInteger('company_id');
+                $table->unsignedInteger('sally_meeting_insight_id');
+                $table->string('suggestion_id', 64);
+                $table->unsignedInteger('lead_id')->nullable();
+                $table->unsignedBigInteger('deal_id')->nullable();
+                $table->unsignedInteger('note_id');
+                $table->string('logged_mode', 16);
+                $table->longText('logged_text')->nullable();
+                $table->unsignedInteger('logged_by')->nullable();
+                $table->timestamp('logged_at');
                 $table->timestamps();
             });
         }

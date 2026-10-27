@@ -73,5 +73,17 @@ return [
         'crm.meeting-attendance-confirmation' => true,
         'crm.mobile-responsive-layout' => true,
         'crm.email' => true,
+        'crm.sally-insights-tab' => true,
+        'crm.lead-view-redesign' => true,
+    ],
+
+    /*
+    | Force-enable specific flags in local-ish environments regardless of what
+    | the remote flags service returns. Used for flags under active development
+    | that may not be registered in the remote service yet. Never applies
+    | outside local/development/codecanyon environments.
+    */
+    'local_overrides' => [
+        'crm.sally-insights-tab' => true,
     ],
 ];

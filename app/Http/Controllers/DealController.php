@@ -66,6 +66,7 @@ use App\Services\PermissionService;
 use App\Services\PipelineScopeResolverService;
 use App\Services\Reminders\MeetingReminderSync;
 use App\Services\SallyMeetingInsightService;
+use App\Services\SallySuggestionLogService;
 use App\Support\FeatureFlags;
 use App\Support\UserTimezone;
 use App\Traits\DealAutomationTrait;
@@ -1121,9 +1122,9 @@ class DealController extends AccountBaseController
     }
 
     /**
-     * The Sally summary is a human-editable field: the bot's version is a
-     * starting point, and the team corrects it. The transcript stays
-     * read-only — it is the source recording, not CRM copy.
+     * The Sally summary and bullet points are human-editable fields: the
+     * bot's versions are starting points, and the team corrects them. The
+     * transcript stays read-only — it is the source recording, not CRM copy.
      */
     public function updateDealSallyInsight(Request $request, $dealId, $insight)
     {
@@ -1138,24 +1139,124 @@ class DealController extends AccountBaseController
         $access = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules);
         abort_403(! $access['canAccess']);
 
+        $model = SallyMeetingInsight::query()
+            ->where('deal_id', $deal->id)
+            ->findOrFail($insight);
+
         $data = $request->validate([
-            'summary' => ['present', 'nullable', 'string', 'max:50000'],
+            'summary' => ['nullable', 'string', 'max:50000'],
+            'bullet_points' => ['nullable', 'array', 'max:50'],
+            'bullet_points.*' => ['string', 'max:2000'],
         ]);
+
+        if (! array_key_exists('summary', $data) && ! array_key_exists('bullet_points', $data)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'summary' => ['Provide a summary or bullet points.'],
+            ]);
+        }
+
+        app(SallyMeetingInsightService::class)->applyAgentContentEdit(
+            $model,
+            array_key_exists('summary', $data) ? $data['summary'] : null,
+            array_key_exists('bullet_points', $data) ? $data['bullet_points'] : null,
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => __('messages.sallyInsightUpdated'),
+            'data' => app(SallyMeetingInsightService::class)->serialize($model->fresh(['meetingFollowUp', 'suggestionLogs'])),
+        ]);
+    }
+
+    /**
+     * Edit a suggested note's working text. Once the suggestion has been
+     * logged as a note its text is fixed — the note carries it.
+     */
+    public function updateDealSallySuggestion(Request $request, $dealId, $insight, $suggestionId)
+    {
+        $deal = Deal::findOrFail($dealId);
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
+        ];
+        $access = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules);
+        abort_403(! $access['canAccess']);
 
         $model = SallyMeetingInsight::query()
             ->where('deal_id', $deal->id)
             ->findOrFail($insight);
 
-        $model->summary = $data['summary'] === null
-            ? null
-            : SallyMeetingInsightService::sanitizeSummary($data['summary']);
-        $model->save();
+        $data = $request->validate([
+            'text' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $service = app(SallyMeetingInsightService::class);
+        $service->updateSuggestionText($model, (string) $suggestionId, $data['text']);
 
         return response()->json([
             'status' => 'success',
             'message' => __('messages.sallyInsightUpdated'),
-            'data' => app(SallyMeetingInsightService::class)->serialize($model->fresh(['meetingFollowUp'])),
+            'data' => $service->serialize($model->fresh(['meetingFollowUp', 'suggestionLogs'])),
         ]);
+    }
+
+    /**
+     * Log a suggested note as a normal CRM note on the deal. Logging uses the
+     * existing note permissions — no new permission is introduced for the
+     * Sally card.
+     */
+    public function logDealSallySuggestion(Request $request, $dealId, $insight, $suggestionId)
+    {
+        $deal = Deal::findOrFail($dealId);
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+        ];
+        $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
+        abort_403(! $access['canAccess']);
+
+        $model = SallyMeetingInsight::query()
+            ->where('deal_id', $deal->id)
+            ->findOrFail($insight);
+
+        $data = $request->validate([
+            'text' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        abort_403(! in_array(user()->permission('add_deal_note'), ['all', 'added', 'both']));
+        $this->abortForDealWatchers($deal);
+
+        app(SallySuggestionLogService::class)->log(
+            $model,
+            (string) $suggestionId,
+            $data['text'] ?? null,
+            user(),
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => __('messages.recordSaved'),
+            'data' => app(SallyMeetingInsightService::class)->serialize($model->fresh(['meetingFollowUp', 'suggestionLogs'])),
+        ]);
+    }
+
+    /**
+     * Watchers can see everything but never write — the same rule the note
+     * form applies (DealNoteController::store): watchers are blocked unless
+     * they are admins or hold unrestricted edit_deals.
+     */
+    private function abortForDealWatchers(Deal $deal): void
+    {
+        $isUnrestrictedWriter = in_array('admin', user_roles())
+            || user()->permission('edit_deals') === 'all';
+
+        if (! $isUnrestrictedWriter
+            && $deal->added_by != user()->id
+            && ! $deal->hasTeamMemberAccess(user()->id)
+            && $deal->dealWatchers()->where('user_id', user()->id)->exists()
+        ) {
+            abort_403(true);
+        }
     }
 
     private function prepareNotesTab(int $dealId): void

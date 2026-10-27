@@ -44,6 +44,7 @@ import useMeetingClockTick from "@/Pages/Deals/Redesign/hooks/useMeetingClockTic
 import { itineraryCount } from "./adapters/itineraryAdapter";
 import { formatMobileForDisplay } from "@/lib/utils";
 import type { Lead } from "@/Types/api/leads";
+import type { SallyMeetingInsight } from "@/Types/api/sally-meeting-insight";
 import type { QualificationLeadPatch } from "@/Types/qualification";
 import {
     LeadWorkspaceProvider,
@@ -191,13 +192,13 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             !sallyInsightsSettled ||
             sallyInsightsError);
 
-    // Summary edits patch the local list in place — no Inertia reload. Each
-    // card owns its own mutation (the update route is keyed by insight id).
-    const patchSallySummary = useCallback(
-        (insightId: number, summary: string | null) => {
+    // Sally edits patch the local list in place — no Inertia reload. Each
+    // card owns its own mutations (the routes are keyed by insight id).
+    const patchSallyInsight = useCallback(
+        (insightId: number, data: Partial<SallyMeetingInsight>) => {
             setSallyInsights((prev) =>
                 prev.map((insight) =>
-                    insight.id === insightId ? { ...insight, summary } : insight,
+                    insight.id === insightId ? { ...insight, ...data } : insight,
                 ),
             );
         },
@@ -251,6 +252,16 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const dealCreate = useLeadDealCreate(lead);
     const { createNote, isSaving: noteSaving, errors: noteErrors, clearErrors: clearNoteErrors } =
         useLeadNoteCreate(lead.id);
+    /** Turn a Sally insight's summary + bullet points into a CRM note on the lead. */
+    const addInsightToNote = useCallback(
+        (content: string) => {
+            createNote({
+                text: content,
+                title: td("Sally insight", { source: "en" }),
+            });
+        },
+        [createNote, td],
+    );
     const { createTask, isCreating: taskCreating, errors: taskErrors, clearErrors: clearTaskErrors } =
         useLeadTaskCreate(lead.id);
     const { createMeeting, isCreating: meetingCreating, errors: meetingErrors, clearErrors: clearMeetingErrors } =
@@ -687,7 +698,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         error={sallyInsightsError}
                         onRetry={refetchSallyInsights}
                         groupByDeal={deals}
-                        patchSummary={patchSallySummary}
+                        patchInsight={patchSallyInsight}
+                        onAddNote={addInsightToNote}
                         emptyTitle={t("pages.leads.sally.empty_title")}
                         emptyDescription={t(
                             "pages.leads.sally.empty_description",
