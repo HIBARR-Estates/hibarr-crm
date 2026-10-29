@@ -207,8 +207,10 @@ jobs:
         run: npm ci --no-audit --fund=false --prefer-offline
 
       # After `npm ci`, which deletes node_modules (and any cache inside it).
+      # The cache is ~600 MB compressed and GitHub keeps 10 GB per repository,
+      # so only pushes to develop save it; PRs restore develop's copy.
       - name: Restore webpack module cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: node_modules/.cache
           key: webpack-${{ runner.os }}-${{ hashFiles('package-lock.json', 'webpack.mix.js') }}-${{ github.sha }}
@@ -224,6 +226,13 @@ jobs:
 
       - name: Build
         run: npm run production
+
+      - name: Save webpack module cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        uses: actions/cache/save@v4
+        with:
+          path: node_modules/.cache
+          key: webpack-${{ runner.os }}-${{ hashFiles('package-lock.json', 'webpack.mix.js') }}-${{ github.sha }}
 
   docker:
     name: Docker image
