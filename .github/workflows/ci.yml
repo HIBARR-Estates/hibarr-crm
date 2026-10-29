@@ -1,0 +1,298 @@
+name: CI
+
+# Fast feedback on every PR, and a published Docker image for long-lived branches.
+#
+# Speed comes from: path filters (docs-only PRs run nothing), jobs that run in
+# parallel instead of one long pipeline, tests sharded across runners, and
+# caches for Composer, npm and the webpack module cache.
+#
+# Deploys are still done by the Jenkinsfile (bare-metal) or by pulling the image
+# this workflow publishes (docker compose). Neither is triggered from here.
+
+on:
+  pull_request:
+  push:
+    branches: [develop, staging, main, master]
+  workflow_dispatch:
+
+concurrency:
+  # A newer push to the same PR supersedes the older run. Never cancel a run on
+  # a long-lived branch: it may be midway through publishing an image.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  COMPOSER_NO_INTERACTION: 1
+  # Throwaway key so the app can boot in CI. Never used for real data.
+  APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      php: ${{ steps.filter.outputs.php }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      docker: ${{ steps.filter.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            php:
+              - '**/*.php'
+              - 'composer.json'
+              - 'composer.lock'
+              - 'phpunit.xml'
+              - 'phpstan.neon.dist'
+              - 'resources/views/**'
+              - 'resources/lang/**'
+              - 'scripts/ci/**'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'resources/js/**'
+              - 'resources/css/**'
+              - 'resources/scss/**'
+              - 'resources/views/**'
+              - 'public/vendor/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'webpack.mix.js'
+              - 'vite.config.mjs'
+              - 'tailwind.config.js'
+              - 'postcss.config.js'
+              - 'tsconfig.json'
+              - '.babelrc'
+              - '.github/workflows/ci.yml'
+            docker:
+              - 'docker/**'
+              - 'docker-compose.yml'
+              - '.dockerignore'
+              - 'composer.json'
+              - 'composer.lock'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'webpack.mix.js'
+              - '.github/workflows/ci.yml'
+
+  tests:
+    name: PHPUnit (shard ${{ matrix.shard }}/4)
+    needs: changes
+    if: needs.changes.outputs.php == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          # Everything composer.lock requires, plus the sqlite driver the suite uses.
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, gd, iconv, intl, json, libxml, mbstring, openssl, pdo_sqlite, phar, session, simplexml, sockets, sodium, sqlite3, tokenizer, xml, xmlreader, xmlwriter, xsl, zip, zlib
+          coverage: none
+          tools: composer:v2
+          ini-values: memory_limit=-1
+
+      - name: Restore Composer cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            vendor
+            ~/.cache/composer
+          key: composer-php8.3-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-php8.3-
+
+      # No-op when vendor/ was restored for this exact lock file.
+      - name: Install PHP dependencies
+        run: composer install --no-progress --prefer-dist --no-scripts
+
+      - name: Prepare app
+        run: cp .env.example .env
+
+      - name: Build this shard's phpunit config
+        run: python3 scripts/ci/phpunit-shard.py ${{ matrix.shard }} 4
+
+      - name: Run tests
+        run: vendor/bin/phpunit -c phpunit.shard.xml --colors=always
+
+  lint:
+    name: Pint + PHPStan (changed files)
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.php == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Non-blocking while the repo baseline is unknown: the checks report on the
+    # files a PR touches, but a red result does not fail CI yet. Flip this to
+    # `false` (or delete the line) once the baseline is clean.
+    continue-on-error: true
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, gd, iconv, intl, json, libxml, mbstring, openssl, pdo_sqlite, phar, session, simplexml, sockets, sodium, sqlite3, tokenizer, xml, xmlreader, xmlwriter, xsl, zip, zlib
+          coverage: none
+          tools: composer:v2
+          ini-values: memory_limit=-1
+
+      - name: Restore Composer cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            vendor
+            ~/.cache/composer
+          key: composer-php8.3-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-php8.3-
+
+      - name: Install PHP dependencies
+        run: composer install --no-progress --prefer-dist --no-scripts
+
+      - name: List changed PHP files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
+            --jq '.[] | select(.status != "removed") | .filename' \
+            | grep -E '\.php$' > changed-php.txt || true
+          echo "Changed PHP files: $(wc -l < changed-php.txt)"
+
+      - name: Pint
+        run: |
+          [ -s changed-php.txt ] || { echo "No PHP changes."; exit 0; }
+          xargs vendor/bin/pint --test < changed-php.txt
+
+      - name: PHPStan
+        run: |
+          grep -E '^(app|database)/' changed-php.txt > stan-files.txt || true
+          [ -s stan-files.txt ] || { echo "No analysable PHP changes."; exit 0; }
+          cp .env.example .env
+          xargs vendor/bin/phpstan analyse --no-progress --memory-limit=1G --error-format=github < stan-files.txt
+
+  frontend:
+    name: Frontend build (Mix)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      # Persist webpack's module cache (see webpack.mix.js) so unchanged files
+      # are not recompiled on the next run.
+      WEBPACK_FS_CACHE: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      # Match the Docker image (node:20) so CI builds what ships.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci --no-audit --fund=false --prefer-offline
+
+      # After `npm ci`, which deletes node_modules (and any cache inside it).
+      - name: Restore webpack module cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules/.cache
+          key: webpack-${{ runner.os }}-${{ hashFiles('package-lock.json', 'webpack.mix.js') }}-${{ github.sha }}
+          restore-keys: |
+            webpack-${{ runner.os }}-${{ hashFiles('package-lock.json', 'webpack.mix.js') }}-
+            webpack-${{ runner.os }}-
+
+      # The real file is generated by `php artisan ziggy:generate` (needs the PHP
+      # app). A bundling check only needs the module to exist.
+      - name: Stub Ziggy routes
+        run: |
+          printf 'const Ziggy = {url: "http://localhost", port: null, defaults: {}, routes: {}};\nexport { Ziggy };\nexport default Ziggy;\n' > resources/js/ziggy.js
+
+      - name: Build
+        run: npm run production
+
+  docker:
+    name: Docker image
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.docker == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-,format=short
+
+      - name: Build${{ github.event_name != 'pull_request' && ' and push' || '' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test image
+        run: |
+          IMAGE="$(echo "${{ steps.meta.outputs.tags }}" | head -n1)"
+          docker run --rm --entrypoint sh "$IMAGE" -c '
+            set -e
+            php -v | head -n1
+            for ext in pdo_mysql redis gd intl bcmath zip opcache pcntl exif; do php -m | grep -qix "$ext" || { echo "missing php ext: $ext"; exit 1; }; done
+            nginx -t
+            test -f public/mix-manifest.json
+            test -f resources/js/ziggy.js
+          '
+
+  # Single required check for branch protection: it is green when every job
+  # that ran passed, and when jobs were skipped by the path filters. `lint` is
+  # left out on purpose while it is non-blocking.
+  ci-ok:
+    name: CI passed
+    needs: [changes, tests, frontend, docker]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        run: |
+          echo '${{ toJSON(needs) }}'
+          if echo '${{ join(needs.*.result, ' ') }}' | grep -Eq 'failure|cancelled'; then
+            echo "A required job failed or was cancelled."
+            exit 1
+          fi

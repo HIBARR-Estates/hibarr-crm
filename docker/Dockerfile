@@ -9,7 +9,10 @@ FROM composer:2 AS vendor
 
 WORKDIR /app
 COPY composer.json composer.lock ./
-RUN composer install \
+# The cache mount keeps downloaded packages between builds on the same builder,
+# so a lock-file change only fetches the packages that actually changed.
+RUN --mount=type=cache,target=/tmp/cache \
+    composer install \
         --no-dev \
         --no-interaction \
         --prefer-dist \
@@ -34,7 +37,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY --from=vendor /app/vendor ./vendor
-COPY . .
+# Only what booting the app to list routes needs. Copying the whole repo here
+# made every frontend, test or docs change re-run this stage. The generated
+# ziggy.js is content-addressed when the assets stage copies it, so a change
+# that leaves the routes identical does not rebuild the frontend.
+COPY artisan composer.json ./
+COPY bootstrap ./bootstrap
+COPY config ./config
+COPY database ./database
+COPY routes ./routes
+COPY app ./app
+COPY resources/lang ./resources/lang
+COPY resources/views ./resources/views
 # bootstrap/cache is gitignored and empty, so COPY . . does not create it.
 # Artisan package discovery needs that directory to be present and writable.
 RUN mkdir -p \
@@ -62,11 +76,26 @@ FROM node:20-bookworm AS assets
 
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --fund=false
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --fund=false --prefer-offline
 
-COPY . .
+# Only what webpack reads. tailwind.config.js scans resources/** and app/**/*.php
+# for class names, so `app` stays in; everything else (tests, docs, database,
+# config, routes, lang) no longer invalidates the slow build below.
+COPY webpack.mix.js tailwind.config.js postcss.config.js tsconfig.json .babelrc ./
+COPY public/vendor ./public/vendor
+COPY app ./app
+COPY resources/css ./resources/css
+COPY resources/scss ./resources/scss
+COPY resources/views ./resources/views
+COPY resources/js ./resources/js
 COPY --from=ziggy /app/resources/js/ziggy.js ./resources/js/ziggy.js
-RUN npm run production
+# (.dockerignore already excludes public/js and public/css: Mix regenerates them.)
+#
+# WEBPACK_FS_CACHE + the cache mount keep webpack's module cache between builds
+# on the same builder, so a rebuild after a small change skips most compilation.
+RUN --mount=type=cache,target=/app/node_modules/.cache \
+    WEBPACK_FS_CACHE=1 npm run production
 
 # -----------------------------------------------------------------------------
 # Runtime: nginx + PHP-FPM (supervisord)

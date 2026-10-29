@@ -115,6 +115,27 @@ mix.js("resources/js/bootstrap.js", "public/js")
     })
     .webpackConfig({
         plugins: [new RemoveSvgStylingPlugin()],
+        // Opt-in persistent module cache (CI, Docker and Jenkins set
+        // WEBPACK_FS_CACHE=1 and keep the cache directory between runs).
+        // Unchanged modules are not re-parsed, so a rebuild after a small change
+        // skips most of the work. WEBPACK_CACHE_DIR points it somewhere that
+        // outlives the checkout (Jenkins builds every release in a new folder).
+        // Off by default: webpack's production default is no cache, and a stale
+        // cache directory is the first thing to rule out if a build misbehaves.
+        ...(process.env.WEBPACK_FS_CACHE
+            ? {
+                  cache: {
+                      type: "filesystem",
+                      cacheDirectory: process.env.WEBPACK_CACHE_DIR
+                          ? path.resolve(process.env.WEBPACK_CACHE_DIR)
+                          : path.resolve(
+                                __dirname,
+                                "node_modules/.cache/webpack"
+                            ),
+                      buildDependencies: { config: [__filename] },
+                  },
+              }
+            : {}),
         // Async chunks (one per Inertia page, plus posthog) carry a content
         // hash. With fixed names, a browser holding one release's runtime or
         // vendor bundle (open tab, or a cached copy — .htaccess caches .js for
