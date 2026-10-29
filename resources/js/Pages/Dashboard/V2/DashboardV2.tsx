@@ -39,6 +39,8 @@ import "./dashboard-v2.css";
  */
 type DashboardV2Props = {
     availableViews: ViewKey[];
+    /** Held but not yet openable — greyed in the switcher. */
+    comingSoonViews?: ViewKey[];
     activeView: ViewKey;
     /** The window, as the server resolved it — preset or custom. */
     range: DashboardRange;
@@ -61,8 +63,15 @@ type DashboardV2Props = {
  * compute panels nobody is looking at.
  */
 export default function DashboardV2(props: DashboardV2Props) {
-    const { availableViews, activeView, range, now, userName, personalDashboardEnabled } =
-        props;
+    const {
+        availableViews,
+        comingSoonViews,
+        activeView,
+        range,
+        now,
+        userName,
+        personalDashboardEnabled,
+    } = props;
     const { td } = useTd();
     const { t } = useTranslation();
     const { auth, featureFlags } = usePage<PageProps>().props;
@@ -92,10 +101,14 @@ export default function DashboardV2(props: DashboardV2Props) {
     const switcher = useMemo(
         () =>
             localizeSwitcherSegments(
-                buildSwitcher(availableViews, !!personalDashboardEnabled),
+                buildSwitcher(
+                    availableViews,
+                    !!personalDashboardEnabled,
+                    comingSoonViews,
+                ),
                 t,
             ),
-        [availableViews, personalDashboardEnabled, t],
+        [availableViews, comingSoonViews, personalDashboardEnabled, t],
     );
 
     return (
@@ -197,7 +210,9 @@ export default function DashboardV2(props: DashboardV2Props) {
                     {activeView === "team" && (
                         <TeamView {...props} period={range.days} />
                     )}
-                    {activeView === "leadership" && <LeadershipView {...props} />}
+                    {activeView === "leadership" && (
+                        <LeadershipView {...props} range={range} />
+                    )}
                     {activeView === "partner" && <PartnerView {...props} />}
                 </div>
             </PageLayout>

@@ -47,6 +47,8 @@ return [
         'crm.personal-dashboard',
         'crm.manager-dashboard',
         'crm.team-dashboard',
+        // Company-wide dashboard (?view=leadership) and its switcher tab (HIB-1330); cleanup HIB-1952.
+        'crm.company-dashboard',
         'crm.partner-flag-routing',
         'crm.partner.lead-stalled',
         'packages.online-payment',

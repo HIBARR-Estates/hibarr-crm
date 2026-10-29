@@ -33,17 +33,7 @@ export const VIEW_LABELS: Record<SwitcherKey, string> = {
 };
 
 /** Views whose panels are windowed, and so get the period picker. */
-export const WINDOWED: ViewKey[] = ["manager", "team"];
-
-/**
- * Views that appear in the switcher but can't be opened from it yet.
- *
- * Company is built and reachable by URL; it simply isn't part of the set the
- * dashboard leads with today. Shown greyed rather than omitted so the shape of
- * what's coming is visible — but still only to accounts that hold it, since a
- * tab for a view you'll never be granted is an advertisement, not a signpost.
- */
-const COMING_SOON: ViewKey[] = ["leadership"];
+export const WINDOWED: ViewKey[] = ["manager", "team", "leadership"];
 
 /** Hover text on those, so a greyed tab doesn't read as a broken one. */
 const COMING_SOON_TITLE = "Coming soon";
@@ -57,6 +47,12 @@ interface SwitcherSegment {
 
 /**
  * The switcher, identical on every v2 dashboard.
+ *
+ * `comingSoon` is DashboardV2Controller's comingSoonViews: held views whose
+ * flag is still off. They are shown greyed rather than omitted so the shape of
+ * what's coming is visible — but only to accounts that hold them, since a tab
+ * for a view you'll never be granted is an advertisement, not a signpost. The
+ * server decides, so a hand-typed ?view= can't open one either.
  *
  * Built here rather than per page because the whole point of the shared
  * header is that switching moves the content under it — a switcher that
@@ -73,6 +69,7 @@ interface SwitcherSegment {
 export function buildSwitcher(
     availableViews: ViewKey[],
     personalDashboardEnabled: boolean,
+    comingSoon: ViewKey[] = [],
 ): SwitcherSegment[] {
     return [
         ...(personalDashboardEnabled
@@ -81,7 +78,7 @@ export function buildSwitcher(
         ...availableViews.map((view) => ({
             value: view,
             label: VIEW_LABELS[view],
-            ...(COMING_SOON.includes(view)
+            ...(comingSoon.includes(view)
                 ? { disabled: true, title: COMING_SOON_TITLE }
                 : {}),
         })),
