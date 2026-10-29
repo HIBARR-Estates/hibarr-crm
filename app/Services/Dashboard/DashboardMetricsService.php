@@ -494,7 +494,9 @@ class DashboardMetricsService
     {
         if (! $this->defaultCurrencyResolved) {
             $this->defaultCurrencyResolved = true;
-            $this->defaultCurrency = company()?->currency?->currency_code;
+            // company() is false, not null, outside a request (queues, tests).
+            $company = company();
+            $this->defaultCurrency = is_object($company) ? $company->currency?->currency_code : null;
         }
 
         return $this->defaultCurrency;
