@@ -1460,8 +1460,13 @@ class DashboardMetricsService
             })
             ->count();
 
+        // System legs carry the deal agent's id but are the house's retained
+        // cut, never payable to them — a partner who also sold the deal would
+        // otherwise see the company's margin in their own ledger. Same rule as
+        // commissionSummary() and the forecast below.
         $commissions = MlmCommission::query()
             ->where('agent_id', $leadAgentId)
+            ->where('type', '!=', MlmCommissionType::System->value)
             ->groupBy('status')
             ->toBase()
             ->get(['status', DB::raw('SUM(amount) as total')])
@@ -1580,9 +1585,13 @@ class DashboardMetricsService
                 ->select('leads.id'))
             ->get();
 
+        // Only the legs distribute() would write *to this partner*: the System
+        // leg is addressed to the deal's own agent too, so a partner who sold
+        // the deal themselves would otherwise be forecast the house's cut.
         $amount = $deals->sum(
             fn (Deal $deal) => collect($commissions->preview($deal))
                 ->where('agent_id', $leadAgentId)
+                ->where('type', '!=', MlmCommissionType::System->value)
                 ->sum('amount')
         );
 
