@@ -180,6 +180,18 @@ return [
             'OL_TELEPHONY_CALLS_PATH',
             '/telephony/calls'
         ),
+        'keycloak' => [
+            // fake = in-memory (tests / local). http = OL Admin API wrapper.
+            'driver' => env('OL_KEYCLOAK_DRIVER', 'http'),
+            'paths' => [
+                'provision' => env('OL_KEYCLOAK_PROVISION_PATH', '/internal/keycloak/users'),
+                'actions_email' => env(
+                    'OL_KEYCLOAK_ACTIONS_EMAIL_PATH',
+                    '/internal/keycloak/users/{keycloakUserId}/actions-email'
+                ),
+                'update' => env('OL_KEYCLOAK_UPDATE_PATH', '/internal/keycloak/users/{keycloakUserId}'),
+            ],
+        ],
     ],
 
     'call_bridge' => [
