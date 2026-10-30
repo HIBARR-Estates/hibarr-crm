@@ -243,7 +243,6 @@ class CompanyDashboardTest extends TestCase
             $metrics->wonRevenue($range),
             $metrics->wonRevenueTrend($range),
             $metrics->companyCommission($range),
-            $metrics->companyCommissionTrend($range),
         ]);
 
         $this->assertStringNotContainsString('agent_id', $payload);

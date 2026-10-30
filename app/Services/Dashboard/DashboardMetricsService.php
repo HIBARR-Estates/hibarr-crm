@@ -1572,41 +1572,6 @@ class DashboardMetricsService
     }
 
     /**
-     * Commission paid out, month by month, in the company currency. Same
-     * exclusions as companyCommission(); a month with no payment is a zero,
-     * not a gap.
-     *
-     * @return array{currency: string|null, points: array<int, array{period: string, label: string, amount: float}>}
-     */
-    public function companyCommissionTrend(DashboardDateRange $range): array
-    {
-        $paid = fn () => MlmCommission::query()
-            ->where('type', '!=', MlmCommissionType::System->value)
-            ->where('status', MlmCommissionStatus::Paid->value);
-
-        $months = $this->trendMonths($range, $paid()->min('paid_at'));
-
-        $byMonth = $paid()
-            ->whereBetween('paid_at', [$months[0]['from'], end($months)['to']])
-            ->groupBy('period')
-            ->toBase()
-            ->get([
-                DB::raw($this->monthExpression('paid_at').' as period'),
-                DB::raw('SUM(amount) as total'),
-            ])
-            ->keyBy('period');
-
-        return [
-            'currency' => $this->defaultCurrencyCode(),
-            'points' => array_map(fn (array $month) => [
-                'period' => $month['period'],
-                'label' => $month['label'],
-                'amount' => round((float) ($byMonth->get($month['period'])->total ?? 0), 2),
-            ], $months),
-        ];
-    }
-
-    /**
      * What the company's open deals would pay out in commission if they
      * closed today, priced by MlmCommissionService::preview() — the arithmetic
      * distribute() later writes, so the forecast cannot drift from it.

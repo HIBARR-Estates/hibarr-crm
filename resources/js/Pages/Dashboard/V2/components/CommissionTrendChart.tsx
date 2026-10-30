@@ -24,21 +24,31 @@ import { labeledTooltip } from "./chartTooltip";
  * The network's paid commission, month by month — a filled area rather than
  * a bare line.
  *
- * Deliberately its own chart rather than the shared TrendLine: TrendLine
- * draws flat multi-series lines for the leadership view's company-wide
- * movement, where several series are compared against each other. This is
- * one series read for its shape — is the network's earning accelerating or
- * stalling — which is what a filled area communicates at a glance.
+ * One series read for its shape — is it accelerating or stalling — which is
+ * what a filled area communicates at a glance. The company view's revenue
+ * hero reads the same shape, so it reuses this with its own copy and no
+ * legend; the defaults are the team view's.
  */
 export default function CommissionTrendChart({
     data,
     height = 260,
+    seriesLabel,
+    ariaLabel,
+    emptyMessage,
+    legend = true,
 }: {
     data: TeamCommissionTrend;
     height?: number;
+    /** Already translated. Defaults to the team view's "commission paid". */
+    seriesLabel?: string;
+    ariaLabel?: string;
+    emptyMessage?: string;
+    /** Off where the panel's own label already names the one series. */
+    legend?: boolean;
 }) {
     const { t } = useTranslation();
-    const paidLabel = t("pages.dashboard.team.charts.commission_paid");
+    const paidLabel =
+        seriesLabel ?? t("pages.dashboard.team.charts.commission_paid");
     const currency = data.currency;
 
     const definition = useMemo(() => {
@@ -83,7 +93,7 @@ export default function CommissionTrendChart({
             color: {
                 domain: [paidLabel],
                 range: [T.GREEN],
-                legend: colorLegend({
+                legend: legend ? colorLegend({
                     placement: "bottom",
                     items: colorLegendItems({
                         justify: "center",
@@ -95,7 +105,7 @@ export default function CommissionTrendChart({
                         },
                         label: { fontSize: 12, fill: T.TEXT_MUTED },
                     }),
-                }),
+                }) : undefined,
             },
             theme: {
                 foreground: T.TEXT,
@@ -124,12 +134,15 @@ export default function CommissionTrendChart({
                 };
             }),
         });
-    }, [currency, data.points, paidLabel]);
+    }, [currency, data.points, paidLabel, legend]);
 
     if (!data.points.length || !data.points.some((point) => point.amount > 0)) {
         return (
             <Empty
-                description={t("pages.dashboard.team.charts.commission_empty")}
+                description={
+                    emptyMessage ??
+                    t("pages.dashboard.team.charts.commission_empty")
+                }
             />
         );
     }
@@ -138,7 +151,9 @@ export default function CommissionTrendChart({
         <Chart
             definition={definition}
             height={height}
-            ariaLabel={t("pages.dashboard.team.charts.commission_aria")}
+            ariaLabel={
+                ariaLabel ?? t("pages.dashboard.team.charts.commission_aria")
+            }
             style={{ width: "100%", color: T.TEXT }}
             renderTooltipBody={({ content }) => (
                 <ChartPopover content={content} />

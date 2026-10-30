@@ -85,12 +85,6 @@ export interface RevenueTrend {
     points: Array<MonthPoint & { total: number; count: number }>;
 }
 
-/** Commission paid by month, company currency. */
-export interface CommissionTrend {
-    currency: string | null;
-    points: Array<MonthPoint & { amount: number }>;
-}
-
 /**
  * Company-wide commission, in the company currency (null when none is
  * configured). Paid is windowed; pending is owed as of today.

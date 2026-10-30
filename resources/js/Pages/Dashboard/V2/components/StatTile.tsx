@@ -28,11 +28,6 @@ export interface StatTileProps {
     variant?: "default" | "team";
     /** When false, label/hint/note are already translated via t(). */
     localize?: boolean;
-    /**
-     * Renders a numeric value (e.g. as money) while keeping it numeric, so
-     * the delta against `previous` still works. Defaults to figure().
-     */
-    formatValue?: (value: number) => string;
 }
 
 /** Label row shared with MultiStatTile. */
@@ -104,7 +99,6 @@ export default function StatTile({
     tone = "blue",
     variant = "default",
     localize = true,
-    formatValue,
 }: StatTileProps) {
     const { td } = useTd();
     const isTeam = variant === "team";
@@ -135,11 +129,9 @@ export default function StatTile({
         value === null
             ? DASH
             : typeof value === "number"
-              ? formatValue
-                  ? formatValue(value)
-                  : figure(value, {
-                        maximumFractionDigits: unit === "%" ? 1 : 0,
-                    })
+              ? figure(value, {
+                    maximumFractionDigits: unit === "%" ? 1 : 0,
+                })
               : value;
 
     const improving = delta === null ? null : lowerIsBetter ? delta < 0 : delta > 0;

@@ -329,7 +329,7 @@ class DashboardV2Controller extends AccountBaseController
      *  - 'headline': demand, win rate, time to close, agents — counts only.
      *  - 'sources': won business by lead source.
      *  - 'commission': straight sums over mlm_commissions.
-     *  - 'trend': the two month-by-month series.
+     *  - 'trend': revenue won by month, behind the hero figure.
      *  - 'forecast': runs preview() per open deal — isolated so a slow
      *    commission engine fails alone, like the team view's forecast.
      *
@@ -351,7 +351,6 @@ class DashboardV2Controller extends AccountBaseController
             'pipelineValue' => Inertia::defer(fn () => $metrics->pipelineValueByCurrency(), 'revenue'),
             'companyCommission' => Inertia::defer(fn () => $metrics->companyCommission($range), 'commission'),
             'revenueTrend' => Inertia::defer(fn () => $metrics->wonRevenueTrend($range), 'trend'),
-            'commissionTrend' => Inertia::defer(fn () => $metrics->companyCommissionTrend($range), 'trend'),
             'companyForecast' => Inertia::defer(
                 function () use ($metrics) {
                     set_time_limit(60);

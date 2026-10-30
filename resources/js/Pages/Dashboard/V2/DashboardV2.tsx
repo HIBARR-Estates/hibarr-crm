@@ -210,9 +210,7 @@ export default function DashboardV2(props: DashboardV2Props) {
                     {activeView === "team" && (
                         <TeamView {...props} period={range.days} />
                     )}
-                    {activeView === "leadership" && (
-                        <LeadershipView {...props} range={range} />
-                    )}
+                    {activeView === "leadership" && <LeadershipView {...props} />}
                     {activeView === "partner" && <PartnerView {...props} />}
                 </div>
             </PageLayout>
