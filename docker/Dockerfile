@@ -76,6 +76,10 @@ FROM node:20-bookworm AS assets
 
 WORKDIR /app
 COPY package.json package-lock.json ./
+# `puppeteer` is a dependency (Expose PDFs), and its install step downloads
+# ~600 MB of Chrome. The bundler never launches a browser; the runtime image
+# gets Chrome from the pdf-tools stage below.
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --no-audit --fund=false --prefer-offline
 
@@ -96,6 +100,34 @@ COPY --from=ziggy /app/resources/js/ziggy.js ./resources/js/ziggy.js
 # on the same builder, so a rebuild after a small change skips most compilation.
 RUN --mount=type=cache,target=/app/node_modules/.cache \
     WEBPACK_FS_CACHE=1 npm run production
+
+# -----------------------------------------------------------------------------
+# PDF tooling for Expose (Spatie Laravel PDF -> Browsershot -> Node -> Puppeteer
+# -> Chrome). Browsershot runs `node vendor/spatie/browsershot/bin/browser.cjs`
+# with NODE_PATH=`npm root -g`, so puppeteer must be installed globally, and the
+# app never passes an executable path, so Puppeteer must find Chrome in its own
+# cache. Same arrangement as the Jenkins hosts (puppeteer + its managed Chrome).
+# -----------------------------------------------------------------------------
+# Only the pinned version leaves this stage, so the Chrome download below is
+# re-run when puppeteer changes, not whenever any dependency does.
+FROM node:20-bookworm-slim AS pdf-version
+WORKDIR /tmp/lock
+COPY package-lock.json ./
+RUN node -p "require('./package-lock.json').packages['node_modules/puppeteer'].version" > /puppeteer-version
+
+FROM node:20-bookworm-slim AS pdf-tools
+# Browsershot launches Chrome with `headless: 'shell'` unless the app calls
+# newHeadless() (it does not), and that mode needs puppeteer's separate
+# chrome-headless-shell build; full Chrome is not used. If the app ever switches,
+# build with --build-arg PUPPETEER_BROWSERS="chrome chrome-headless-shell".
+ARG PUPPETEER_BROWSERS=chrome-headless-shell
+ENV PUPPETEER_CACHE_DIR=/opt/puppeteer \
+    PUPPETEER_SKIP_DOWNLOAD=true
+COPY --from=pdf-version /puppeteer-version /tmp/puppeteer-version
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g --no-audit --fund=false "puppeteer@$(cat /tmp/puppeteer-version)" \
+    && for browser in ${PUPPETEER_BROWSERS}; do PUPPETEER_SKIP_DOWNLOAD= puppeteer browsers install "$browser"; done \
+    && chmod -R a+rX /opt/puppeteer
 
 # -----------------------------------------------------------------------------
 # Runtime: nginx + PHP-FPM (supervisord)
@@ -147,6 +179,49 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && infisical --version \
     && rm -rf /var/lib/apt/lists/* \
     && rm -f /etc/nginx/sites-enabled/default
+
+# PDF rendering for Expose. Kept after the PHP extension layer above so changing
+# it does not recompile PHP extensions. Libraries are Chrome's runtime needs;
+# fonts are the ones the Expose templates name (DejaVu Sans, Open Sans,
+# Helvetica/Arial via Liberation) plus emoji.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        fonts-dejavu-core \
+        fonts-liberation \
+        fonts-noto-color-emoji \
+        fonts-open-sans \
+        libasound2 \
+        libatk-bridge2.0-0 \
+        libatk1.0-0 \
+        libcairo2 \
+        libcups2 \
+        libdbus-1-3 \
+        libdrm2 \
+        libexpat1 \
+        libfontconfig1 \
+        libgbm1 \
+        libglib2.0-0 \
+        libnspr4 \
+        libnss3 \
+        libpango-1.0-0 \
+        libx11-6 \
+        libx11-xcb1 \
+        libxcb1 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxext6 \
+        libxfixes3 \
+        libxkbcommon0 \
+        libxrandr2 \
+        xdg-utils \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=pdf-tools /usr/local/bin/node /usr/local/bin/node
+COPY --from=pdf-tools /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+COPY --from=pdf-tools /opt/puppeteer /opt/puppeteer
+# php-fpm (clear_env = no) and the queue worker inherit this, so Puppeteer finds
+# the matching Chrome without the app configuring a path.
+ENV PUPPETEER_CACHE_DIR=/opt/puppeteer
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 

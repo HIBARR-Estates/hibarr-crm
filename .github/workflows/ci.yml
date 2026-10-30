@@ -10,6 +10,9 @@ name: CI
 # this workflow publishes (docker compose). Neither is triggered from here.
 
 on:
+  # Every pull request, whatever its base: PRs into develop, staging and main
+  # all run the checks, and so do stacked PRs into feature branches. Adding a
+  # `branches:` filter here would only ever remove coverage.
   pull_request:
   push:
     branches: [develop, staging, main, master]
@@ -74,6 +77,7 @@ jobs:
               - '.github/workflows/ci.yml'
             docker:
               - 'docker/**'
+              - 'scripts/ci/**'
               - 'docker-compose.yml'
               - '.dockerignore'
               - 'composer.json'
@@ -290,7 +294,16 @@ jobs:
             nginx -t
             test -f public/mix-manifest.json
             test -f resources/js/ziggy.js
+            test -f public/build-version.json
           '
+
+      # Renders a PDF through Browsershot's real node script, as root (queue
+      # worker) and www-data (PHP-FPM). Catches a wrong Debian package name, a
+      # missing Chrome library or font, or a puppeteer/Chrome version mismatch.
+      - name: Smoke test PDF rendering
+        run: |
+          IMAGE="$(echo "${{ steps.meta.outputs.tags }}" | head -n1)"
+          docker run --rm -v "$PWD/scripts/ci:/ci:ro" --entrypoint sh "$IMAGE" /ci/smoke-pdf.sh
 
   # Deploys the image built above by asking Dokploy to redeploy the Compose app,
   # then waits until the new release is the one answering. Off until the repo

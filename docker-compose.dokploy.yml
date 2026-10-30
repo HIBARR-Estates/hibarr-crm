@@ -92,6 +92,26 @@ services:
     # Let running jobs finish on redeploy (worker --timeout is 300s).
     stop_grace_period: 6m
 
+  # Expose PDF generation (headless Chrome, jobs can run for minutes). Kept off
+  # the default worker so a long render never delays other jobs. The default
+  # `queue` worker does not listen to `expose`; do not add it to its QUEUE_NAMES.
+  expose:
+    image: *image
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *env
+      CONTAINER_ROLE: queue
+      QUEUE_NAMES: expose
+    volumes: *volumes
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # GenerateExposeJob allows 420s.
+    stop_grace_period: 8m
+
   scheduler:
     image: *image
     pull_policy: always

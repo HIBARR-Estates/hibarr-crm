@@ -18,17 +18,27 @@ The image is HTTP-only. These production features are **not** in it yet, so keep
 
 | Gap | Why it matters | What is needed |
 | --- | --- | --- |
-| **Expose PDFs** | `PdfGenerator` uses Spatie Laravel PDF + Browsershot, which need Node, Puppeteer and Chrome. The image has none, so both the `expose` queue and synchronous PDF downloads in the web app would fail. | A PDF-capable image variant (Node + Chromium + fonts, `PUPPETEER_EXECUTABLE_PATH`), used by `app` and a dedicated `expose` worker. Until then the `expose` queue is deliberately **not** in the container worker's default list, so it does not claim jobs it cannot run. |
 | **gRPC server** | Production runs RoadRunner (`roadrunner-grpc` service) for the gRPC endpoints. The image sets `GRPC_ENABLED=false` and ships no RoadRunner or generated proto classes. | Decide whether gRPC moves into a container role or stays on the current host. If it stays, something still has to deploy it, because Jenkins restarts it on each release. |
 | **Faker at runtime** | The image installs `--no-dev`, but `TeamDashboardDemoDataService` uses Faker (a dev dependency). | Move `fakerphp/faker` to `require`, or stop using it at runtime. |
 
-Staging can move first if it does not use Expose PDFs or gRPC.
+Staging can move first if it does not use gRPC.
+
+## Expose PDFs
+
+Expose PDFs (`PdfGenerator` -> Spatie Laravel PDF -> Browsershot -> Node -> Puppeteer -> Chrome) work in the image, so web downloads and queued jobs both run in containers.
+
+- **What is in the image:** Node 20, `puppeteer` at the exact version `package-lock.json` pins (installed globally, because Browsershot resolves it through `npm root -g`), Chrome's system libraries, and the fonts the templates name (DejaVu Sans, Open Sans, Liberation for Helvetica/Arial, emoji). `PUPPETEER_CACHE_DIR=/opt/puppeteer` lets Puppeteer find its browser, since the app never passes a Chrome path.
+- **Only `chrome-headless-shell` is installed.** Browsershot launches `headless: 'shell'` unless the app calls `newHeadless()`, which it does not, and that mode needs Puppeteer's separate headless-shell build. Full Chrome would add about 360 MB. If the app ever switches, build with `--build-arg PUPPETEER_BROWSERS="chrome chrome-headless-shell"`.
+- **Image size:** the PDF layers add roughly 420 MB (Node 95 MB, modules 74 MB, headless shell 251 MB) plus Chrome's libraries and fonts.
+- **Own worker:** the `expose` service runs only the `expose` queue (jobs can run 7 minutes), so a long render never delays other jobs. The default `queue` worker deliberately does not listen to `expose`.
+- **Build time:** the bundler stage now skips Puppeteer's browser download (`PUPPETEER_SKIP_DOWNLOAD`), which used to fetch about 600 MB during `npm ci`. The Chrome download happens once, in its own stage keyed on the Puppeteer version, so it is cached until Puppeteer changes.
+- **CI check:** `scripts/ci/smoke-pdf.sh` runs inside the built image and renders a PDF through Browsershot's real node script as `root` and `www-data`, after checking Chrome's libraries and the font directories.
 
 ## Differences from the Jenkins deploy
 
 - **No atomic switch.** Jenkins flipped a symlink, so the old release served until the new one was ready. `docker compose up` recreates containers, so expect a short gap (until the new `app` passes its health check). A failed migration still leaves the old containers running, because `app`/`queue`/`scheduler` wait on the `migrate` service. For true rolling updates, run the web service as a separate Dokploy Application (Swarm) with a health check.
 - **Secrets** still come from Infisical, fetched when each container starts. Use a machine identity (`INFISICAL_CLIENT_ID` + `INFISICAL_CLIENT_SECRET`): the container logs in at every start. A static `INFISICAL_TOKEN` also works but fails on restart once it expires.
-- **Queue workers** run in the `queue` container (same queue list as production, minus `expose`; override with `QUEUE_NAMES`). The scheduler runs in the `scheduler` container, replacing the crontab entry from `scripts/ensure_laravel_scheduler_cron.sh`.
+- **Queue workers** run in the `queue` container (the production queue list minus `expose`; override with `QUEUE_NAMES`) and Expose renders in the `expose` container. The scheduler runs in the `scheduler` container, replacing the crontab entry from `scripts/ensure_laravel_scheduler_cron.sh`.
 - **Queue and scheduler containers run as root** (as in the existing image), so files they create in the shared `storage` volume can be root-owned and unwritable by PHP-FPM. The `migrate` step runs as `www-data` to avoid adding to this. Running all roles as `www-data` is a sensible follow-up.
 
 ## One-time setup
@@ -104,4 +114,5 @@ This was written without access to a Dokploy instance or a Docker registry, so t
 
 - The `compose.deploy` request shape (`POST /api/compose.deploy`, `x-api-key` header, `{"composeId": ...}`) follows community deploy actions and Dokploy's auto-deploy docs; confirm against the API reference of your Dokploy version.
 - That Dokploy attaches the Traefik network and labels to `app` from the Domains tab for a Git-source Compose app.
-- The image build, the workflows and `docker compose up` ordering have not been run end to end. The entrypoint's `migrate` role, the health endpoint (nginx + php-fpm) and the Compose file's resolution were tested locally with stubs.
+- The full image build, the workflows and `docker compose up` ordering have not been run end to end. The entrypoint's `migrate` role, the health endpoint (nginx + php-fpm) and the Compose file's resolution were tested locally with stubs.
+- **PDF layers:** the `pdf-tools` stage was built for real (it installed the pinned Puppeteer and downloaded the matching headless shell), and Browsershot 5.1.1's `browser.cjs` rendered a valid PDF from that Node, module layout and browser as both `root` and `www-data`. Not verified: the Debian package names in the runtime layer (the sandbox could not reach Debian's mirrors) and that the fonts render as intended. The first CI run's image build and `smoke-pdf.sh` are the check for both.

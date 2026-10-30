@@ -39,7 +39,7 @@ docker compose pull
 docker compose up -d --no-build
 ```
 
-To run it on Dokploy (health check, one-shot migrate step, CI-triggered deploy), see [dokploy.md](dokploy.md), including the features the image does not cover yet (Expose PDFs, gRPC).
+To run it on Dokploy (health check, one-shot migrate step, CI-triggered deploy), see [dokploy.md](dokploy.md), including the feature the image does not cover yet (gRPC).
 
 Tags published: `develop`, `staging`, `main` (branch heads) and `sha-<short>`. Pin `sha-...` in production so a rollback is a one-line change.
 
