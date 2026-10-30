@@ -1,6 +1,6 @@
 # Hibarr CRM on Dokploy (Docker Compose application).
 #
-# Runs the image CI publishes to GHCR; nothing is built on the Dokploy host.
+# Runs the image Woodpecker CI publishes to GHCR; nothing is built on the Dokploy host.
 # See docs/dokploy.md for setup, the data move from the Jenkins server, and rollback.
 #
 # Release order, enforced by depends_on: `migrate` runs first and must exit 0
@@ -11,7 +11,7 @@
 # domain to the `app` service (port 80) in Dokploy's Domains tab.
 #
 # Required environment (Dokploy -> Environment):
-#   IMAGE_TAG              develop (staging) | main (production) | sha-<short> (pin / rollback)
+#   IMAGE_TAG              latest (newest develop build) | develop-<short sha> (pin / rollback)
 #   APP_URL                public https URL, e.g. https://crm.example.com
 #   INFISICAL_API_URL      https://infisical.hibarr.org
 #   INFISICAL_PROJECT_ID   the project id from .infisical.json
@@ -21,7 +21,7 @@
 # Optional: RUN_MIGRATIONS is not used here (the migrate service replaces it),
 #   QUEUE_NAMES, OTEL_LOGS_ENABLED, REDIRECT_HTTPS (default true).
 
-x-image: &image ghcr.io/hibarr-estates/hibarr-crm:${IMAGE_TAG:?Set IMAGE_TAG (develop, main or sha-<short>)}
+x-image: &image ghcr.io/hibarr-estates/hibarr-crm:${IMAGE_TAG:?Set IMAGE_TAG (latest or develop-<short sha>)}
 
 x-env: &env
   INFISICAL_API_URL: ${INFISICAL_API_URL:?Set INFISICAL_API_URL}

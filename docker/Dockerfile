@@ -168,7 +168,7 @@ RUN mkdir -p /out /gen \
 # -----------------------------------------------------------------------------
 # Runtime: nginx + PHP-FPM (supervisord)
 # -----------------------------------------------------------------------------
-FROM php:8.3-fpm-bookworm
+FROM php:8.3-fpm-bookworm AS runtime
 
 ARG TARGETARCH
 ARG INFISICAL_CLI_VERSION=0.43.78
@@ -311,3 +311,25 @@ EXPOSE 80
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/hibarr.conf"]
+
+# -----------------------------------------------------------------------------
+# CI smoke test. `docker build --target smoke .` runs the checks below as build
+# steps, so building the target IS the test: no running Docker daemon is needed in
+# a later pipeline step, and the checks run inside the exact image that gets
+# published (which also proves the frontend bundle compiles). Nothing outside
+# CI builds this target, and BuildKit skips it when building `final`.
+# -----------------------------------------------------------------------------
+FROM runtime AS smoke
+COPY scripts/ci /ci
+RUN sh /ci/smoke-image.sh \
+    && sh /ci/smoke-pdf.sh \
+    && sh /ci/smoke-grpc.sh
+# Starts RoadRunner with the real worker.php. Informational until it has passed
+# once in CI (the workers boot Laravel without a database), so it never fails the build.
+RUN GRPC_BOOT=1 sh /ci/smoke-grpc.sh || echo "gRPC boot test failed (informational, see the log above)"
+
+# -----------------------------------------------------------------------------
+# The default (last) stage is what `docker build .` and the pipeline's publish
+# step produce: the runtime image, without the smoke test's /ci scripts.
+# -----------------------------------------------------------------------------
+FROM runtime AS final

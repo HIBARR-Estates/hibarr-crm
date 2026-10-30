@@ -1,0 +1,175 @@
+# HIBARR CI Infrastructure — laravel-app template
+#
+# Synced into consuming repos' .woodpecker/ci.yml by sync/sync.sh, except for the
+# develop placeholder below, which sync.sh substitutes with the `branch` value
+# from sync/repos.yaml for that repo. First consumer: hibarr-crm.
+#
+# This template assumes the consuming repo already provides:
+#   - composer.json / composer.lock, phpunit.xml with a <testsuites> block, and
+#     tests under tests/Unit and tests/Feature (override with PHPUNIT_SUITE_DIRS)
+#   - laravel/pint and larastan in require-dev (php-lint.sh; non-blocking, see below)
+#   - docker/Dockerfile with a `smoke` stage (build-time checks, see "Image smoke
+#     test") and a last stage that is the image to publish, accepting GIT_SHA and
+#     BUILD_ID build args
+#   - .woodpecker-scripts/ synced alongside this file (see shared/scripts/ here)
+#
+# Flow (steps without a depends_on edge between them run in parallel):
+#
+#   prepare ─┬─ php-install ─┬─ php-tests ─────────┐
+#            │               └─ php-lint (non-blocking)
+#            └─ image-smoke(-pr) ───────────────────┴─ prepare-tags ─ publish   (push only)
+#
+# Image smoke test: the Dockerfile's `smoke` target runs its checks as RUN steps, so
+# building it IS the test. That needs no running Docker daemon in a later step and
+# runs the checks inside the exact image that would be published. The same build also
+# proves the frontend bundle compiles, because the image build runs it.
+#
+# Caching: Woodpecker steps share only the workspace, so there is no equivalent of a
+# per-job dependency cache. Docker layers are cached in the registry instead
+# (cache_from / cache_to below, push events only). Pull requests build without
+# registry credentials, as in backend-service/ci.yml, so a PR image build starts cold.
+# To warm it, add a read-only GHCR secret scoped to pull_request events and give
+# image-smoke-pr the same username/password/cache_from settings.
+#
+# Secrets (Woodpecker repo secrets):
+#   GHCR_USERNAME, GHCR_TOKEN   publish + registry cache (push events)
+#   COMPOSER_AUTH               optional; JSON like {"github-oauth":{"github.com":"<token>"}}.
+#                               Composer downloads many packages from GitHub and is
+#                               rate limited without one. Enable it for pull_request
+#                               events as well as push, or PR installs run unauthenticated
+#                               (use a read-only token; it is never written to the image).
+#
+# Scope note: CI only (tests -> image build + smoke -> publish to GHCR). Deploys are
+# manual-only, as in backend-service: see deploy-prod.yml.
+
+variables:
+  - &phpImage "php:8.3-cli-bookworm"
+  - &composerImage "composer:2"
+  - &shellImage "alpine:3"
+  - &registry "ghcr.io"
+  - &imageName "ghcr.io/hibarr-estates/${CI_REPO_NAME}" # derived from Woodpecker's built-in var, no per-repo edits needed
+  - &buildArgs
+    - GIT_SHA=${CI_COMMIT_SHA}
+    - BUILD_ID=${CI_PIPELINE_NUMBER}
+
+when:
+  - event: [push, pull_request]
+    branch: develop
+
+steps:
+  # ─── Compute short SHA ────────────────────────────────────────────────────────
+  - name: prepare
+    image: *shellImage
+    commands:
+      - SHORT_SHA=$(echo $CI_COMMIT_SHA | cut -c1-7)
+      # `export` matters: an unexported var does not cross into child processes
+      # (see backend-service/ci.yml for the history).
+      - echo "export SHORT_SHA=$SHORT_SHA" > .woodpecker-env
+      - cat .woodpecker-env
+
+  # ─── PHP dependencies ─────────────────────────────────────────────────────────
+  # composer:2 has Composer but not the app's PHP extensions, so platform checks are
+  # skipped and scripts are not run; the steps below execute PHP on a real image.
+  - name: php-install
+    image: *composerImage
+    depends_on: [prepare]
+    environment:
+      COMPOSER_AUTH:
+        from_secret: COMPOSER_AUTH
+    commands:
+      - composer install --no-interaction --no-progress --prefer-dist --no-scripts --ignore-platform-reqs
+
+  # ─── Gate: unit/feature tests, sharded across parallel PHPUnit processes ──────
+  - name: php-tests
+    image: *phpImage
+    depends_on: [php-install]
+    environment:
+      APP_KEY: "base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" # throwaway, tests only
+      CI: "true"
+    commands:
+      - bash .woodpecker-scripts/php-extensions.sh
+      - '[ -f .env ] || cp .env.example .env'
+      - bash .woodpecker-scripts/php-tests.sh
+
+  # ─── Style + static analysis on changed files (not a gate yet) ───────────────
+  # failure: ignore keeps this informational while the repo's baseline is unknown.
+  # Delete that line to make it a gate once the files a PR touches are clean.
+  - name: php-lint
+    image: *phpImage
+    depends_on: [php-install]
+    failure: ignore
+    commands:
+      - bash .woodpecker-scripts/php-extensions.sh
+      - bash .woodpecker-scripts/php-lint.sh
+
+  # ─── Gate: image build + smoke test (pull requests: no push, no credentials) ─
+  - name: image-smoke-pr
+    image: woodpeckerci/plugin-docker-buildx
+    depends_on: [prepare]
+    privileged: true
+    when:
+      - event: pull_request
+    settings:
+      repo: *imageName
+      dockerfile: docker/Dockerfile
+      target: smoke
+      dry_run: true
+      build_args: *buildArgs
+      tags:
+        - smoke
+
+  # ─── Gate: image build + smoke test (push: registry layer cache) ─────────────
+  - name: image-smoke
+    image: woodpeckerci/plugin-docker-buildx
+    depends_on: [prepare]
+    privileged: true
+    when:
+      - event: push
+        branch: develop
+    settings:
+      registry: *registry
+      repo: *imageName
+      username:
+        from_secret: GHCR_USERNAME
+      password:
+        from_secret: GHCR_TOKEN
+      dockerfile: docker/Dockerfile
+      target: smoke
+      dry_run: true
+      build_args: *buildArgs
+      cache_from: "type=registry,ref=ghcr.io/hibarr-estates/${CI_REPO_NAME}:buildcache"
+      cache_to: "type=registry,ref=ghcr.io/hibarr-estates/${CI_REPO_NAME}:buildcache,mode=max"
+      tags:
+        - smoke
+
+  # ─── Build and push to GHCR ──────────────────────────────────────────────────
+  - name: prepare-tags
+    image: *shellImage
+    depends_on: [php-tests, image-smoke]
+    when:
+      - event: push
+        branch: develop
+    commands:
+      - . .woodpecker-env
+      - echo "develop-$SHORT_SHA" > .tags
+      - echo "latest" >> .tags
+      - cat .tags
+
+  - name: publish
+    image: woodpeckerci/plugin-docker-buildx
+    depends_on: [prepare-tags]
+    privileged: true
+    when:
+      - event: push
+        branch: develop
+    settings:
+      registry: *registry
+      repo: *imageName
+      username:
+        from_secret: GHCR_USERNAME
+      password:
+        from_secret: GHCR_TOKEN
+      dockerfile: docker/Dockerfile
+      build_args: *buildArgs
+      cache_from: "type=registry,ref=ghcr.io/hibarr-estates/${CI_REPO_NAME}:buildcache"
+      tags_file: .tags

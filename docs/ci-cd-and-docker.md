@@ -2,23 +2,34 @@
 
 What runs where, how to deploy with Docker, and what was measured.
 
-## What runs on a pull request
+## CI: Woodpecker
 
-`.github/workflows/ci.yml`. Jobs run in parallel and are skipped when the PR does not touch their inputs (path filters), so a docs-only PR runs nothing.
+CI runs on Woodpecker, like the other HIBARR repos. The pipelines are **not edited in this repository**: they are the `laravel-app` templates in [hibarr-ci-infrastructure](https://github.com/HIBARR-Estates/hibarr-ci-infrastructure), copied here as `.woodpecker/*.yml` and `.woodpecker-scripts/*.sh` by that repo's sync job (it opens a PR whenever a template changes; `sync/repos.yaml` lists this repo with `projectType: laravel-app`, `branch: develop`). To change CI, change the template there. Edits made directly to these files are overwritten by the next sync.
 
-| Job | Runs when | Notes |
+### What runs on a pull request into `develop` (and on every push to it)
+
+`.woodpecker/ci.yml`. Steps with no dependency between them run in parallel.
+
+| Step | Runs on | What it does |
 | --- | --- | --- |
-| PHPUnit (4 shards) | PHP, composer, views, lang or test changes | `scripts/ci/phpunit-shard.py` splits `tests/Unit` + `tests/Feature` by file size; no extra Composer dependency |
-| Pint + PHPStan | PHP changes, PRs only | Changed files only. **Non-blocking** until the repo baseline is known (`continue-on-error` in the workflow) |
-| Frontend build (Mix) | frontend, views or package changes | The build production ships. Webpack cache restored from `develop` |
-| Docker image | docker, composer, package or Mix changes; always on pushes | Builds, smoke-tests, and on `develop`/`staging`/`main` pushes to `ghcr.io/<org>/hibarr-crm` |
-| CI passed | always | One check to require in branch protection. Skipped jobs count as passing |
+| `php-install` | PR, push | `composer install` (with dev packages). Needs the `COMPOSER_AUTH` secret to avoid GitHub rate limits |
+| `php-tests` | PR, push | Installs the extra PHP extensions, then runs `tests/Unit` + `tests/Feature` as 4 PHPUnit shards in parallel (`.woodpecker-scripts/php-tests.sh`; split by file size, no extra Composer dependency) |
+| `php-lint` | PR, push | Pint and PHPStan on the files the run changed. **Non-blocking** (`failure: ignore`) until the repo baseline is known |
+| `image-smoke-pr` / `image-smoke` | PR / push | Builds the Dockerfile's `smoke` target without pushing. Its `RUN` steps are the checks: image basics, Expose PDF rendering as `root` and `www-data`, and the gRPC server (binary matches `composer.lock`, every class autoloads, protobuf round trip). The same build proves the frontend bundle compiles |
+| `prepare-tags`, `publish` | push to `develop` | After tests and the smoke build pass: pushes `ghcr.io/hibarr-estates/hibarr-crm:develop-<short sha>` and `:latest` |
 
-Run a shard locally:
+Manual pipelines (run from the Woodpecker UI, never automatic): `deploy-prod` and `deploy-staging`. See [dokploy.md](dokploy.md).
+
+Secrets (Woodpecker repo secrets): `GHCR_USERNAME`, `GHCR_TOKEN`, `COMPOSER_AUTH` (enable it for pull-request events too), `DOKPLOY_PROD_WEBHOOK`, `PROD_HEALTH_URL`, `DOKPLOY_STAGING_WEBHOOK`, `STAGING_HEALTH_URL`.
+
+Reproduce the checks locally:
 
 ```bash
-python3 scripts/ci/phpunit-shard.py 1 4
-vendor/bin/phpunit -c phpunit.shard.xml
+# the smoke target (needs Docker; builds the whole image, so it takes a while)
+docker build --target smoke -f docker/Dockerfile .
+
+# the sharded tests, after `composer install`
+bash .woodpecker-scripts/php-tests.sh
 ```
 
 ## Deploying with Docker
@@ -34,18 +45,18 @@ docker compose up -d --build
 Run an image CI already built (no build on the server):
 
 ```bash
-export HIBARR_IMAGE=ghcr.io/hibarr-estates/hibarr-crm:sha-<short-sha>
+export HIBARR_IMAGE=ghcr.io/hibarr-estates/hibarr-crm:develop-<short-sha>
 docker compose pull
 docker compose up -d --no-build
 ```
 
-To run it on Dokploy (health check, one-shot migrate step, CI-triggered deploy), see [dokploy.md](dokploy.md), including the gRPC server and Expose PDFs.
+To run it on Dokploy (health check, one-shot migrate step, manual deploy pipelines), see [dokploy.md](dokploy.md), including the gRPC server and Expose PDFs.
 
-Tags published: `develop`, `staging`, `main` (branch heads) and `sha-<short>`. Pin `sha-...` in production so a rollback is a one-line change.
+Tags published: `develop-<short sha>` for every successful push to `develop`, and `latest`, which always points at the newest one. Pin a `develop-<short sha>` tag in production so a rollback is a one-line change.
 
 ## What was measured
 
-Measured on a 4-core, 15 GB sandbox. **These are not Jenkins numbers**: your server's CPU and the rest of the pipeline (clone, migrations, restarts) are not included.
+Measured on a 4-core, 15 GB sandbox. **These are not Jenkins or Woodpecker numbers**: your servers' CPU and the rest of the pipeline (clone, migrations, restarts) are not included.
 
 | Step | Time |
 | --- | --- |
@@ -58,8 +69,9 @@ Measured on a 4-core, 15 GB sandbox. **These are not Jenkins numbers**: your ser
 
 Takeaways:
 
-- The Mix build dominates the frontend. A warm cache cuts it by 79% in the same directory (CI, Docker) and by about 46% when the checkout path changes (Jenkins).
-- The cache is about 2.8 GB on disk, about 630 MB compressed. CI saves it only on `develop` pushes so it does not evict other caches.
+- The Mix build dominates the frontend. A warm webpack cache cuts it by 79% in the same directory and by about 46% when the checkout path changes (Jenkins).
+- **Woodpecker does not get the warm-cache benefit today.** Its steps share only the workspace, there is no per-step dependency cache, and the image build runs in the buildx plugin's throwaway builder, so BuildKit cache mounts (including the webpack cache) are lost between runs. A pipeline that changes `app/` or `resources/` therefore runs the full Mix build (about 5 minutes on 4 cores). The registry layer cache (`:buildcache`, push events) still skips it when neither changed. To get the 62 s case, run the buildx step against a persistent builder on the agent host, or add an S3-backed cache plugin for `node_modules/.cache`.
+- Pull requests build without registry credentials (as in the other repos' templates), so a PR image build starts cold. A read-only GHCR token enabled for pull-request events, plus `cache_from` on `image-smoke-pr`, would warm it.
 - Vite is not a like-for-like comparison: it builds only the React entry, while Mix also bundles the jQuery scripts, SCSS and Tailwind CSS for Blade pages. Moving more screens to Vite is the largest remaining lever.
 
 ## Jenkins changes
@@ -70,12 +82,15 @@ Takeaways:
 
 ## Rollout checklist
 
-1. Merge, then watch the first `develop` run. The first run is cold (no caches); judge speed from the second.
-2. In repository settings, require the **CI passed** check on `develop`/`main`.
-3. Confirm the org allows `GITHUB_TOKEN` to publish packages (Settings → Actions → Workflow permissions), otherwise the Docker push step fails.
-4. Once Pint/PHPStan are clean on `develop`, remove `continue-on-error` from the `lint` job.
+1. Merge the infra change (adds the `laravel-app` template and this repo to `sync/repos.yaml`). This PR already contains the files that sync would generate, so the first sync PR should come out empty.
+2. In Woodpecker: activate `hibarr-crm`, add the secrets above, and make sure `woodpeckerci/plugin-docker-buildx` may run privileged (the other repos already rely on this).
+3. Require the Woodpecker status checks on `develop` in branch protection.
+4. Watch the first run. The first push is cold (no `:buildcache` image yet); judge speed from the second.
+5. Once Pint/PHPStan are clean, delete `failure: ignore` from `php-lint` in the template (in the infra repo).
 
 ## Known gaps
 
 - **Dev dependencies in the image.** The image installs with `composer install --no-dev`. `fakerphp/faker` is in `require` (not `require-dev`) because `App\Services\Dashboard\TeamDashboardDemoDataService`, reached from `DashboardV2Controller`, uses it at runtime. A scan of `app`, `config`, `routes`, `bootstrap`, `database`, `resources/views` and `Modules` for namespaces provided only by dev packages found one other reference: `AppServiceProvider` registers `Barryvdh\LaravelIdeHelper` when `APP_ENV=development`. That is fine for staging and production, but do not run this image with `APP_ENV=development`. If a runtime path later depends on another dev package, move it to `require` the same way.
-- **Not run end to end.** The workflows, the image build and the Jenkinsfile edits could not be executed in the environment they were written in.
+- **PHP extensions are compiled on every test run** (about two minutes), because each Woodpecker step starts from a bare `php` image. A CI image with them baked in would remove that.
+- **No path filtering.** A Woodpecker `when.path` filter skips a whole workflow, and all steps here share one workflow so `publish` can depend on the tests, so every push and PR runs everything.
+- **Not run end to end.** The pipelines, the image build and the Jenkinsfile edits could not be executed in the environment they were written in. See "Not verified" in [dokploy.md](dokploy.md).
