@@ -49,6 +49,7 @@ return [
         'crm.team-dashboard',
         'crm.partner-flag-routing',
         'crm.partner.lead-stalled',
+        'crm.partner-keycloak-provision',
         'packages.online-payment',
         'crm.deal-files-grouping',
         'crm.meetings-page-redesign',
