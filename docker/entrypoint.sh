@@ -22,10 +22,37 @@ upsert_env() {
   mv "$tmp" .env
 }
 
+# A machine identity's access token is short-lived, so one injected as
+# INFISICAL_TOKEN stops working after its TTL and a container restarted later
+# (crash, host reboot, redeploy) could no longer boot. When a client id/secret
+# is provided, log in at every start instead, as the Jenkins deploy does.
+mint_infisical_token() {
+  if [ -n "${INFISICAL_CLIENT_ID:-}" ] && [ -n "${INFISICAL_CLIENT_SECRET:-}" ]; then
+    if [ -z "${INFISICAL_API_URL:-}" ]; then
+      echo "ERROR: INFISICAL_API_URL must be set to log in with INFISICAL_CLIENT_ID/INFISICAL_CLIENT_SECRET."
+      exit 1
+    fi
+    echo "Logging in to Infisical with the machine identity..."
+    INFISICAL_TOKEN="$(infisical login \
+      --method=universal-auth \
+      --client-id="$INFISICAL_CLIENT_ID" \
+      --client-secret="$INFISICAL_CLIENT_SECRET" \
+      --domain="$INFISICAL_API_URL" \
+      --silent --plain)" || {
+      echo "ERROR: Infisical machine-identity login failed."
+      exit 1
+    }
+    export INFISICAL_TOKEN
+  fi
+}
+
 fetch_infisical_env() {
+  mint_infisical_token
+
   if [ -z "${INFISICAL_TOKEN:-}" ] || [ -z "${INFISICAL_API_URL:-}" ] || [ -z "${INFISICAL_PROJECT_ID:-}" ]; then
-    echo "ERROR: INFISICAL_TOKEN, INFISICAL_API_URL, and INFISICAL_PROJECT_ID must be set."
-    echo "Put them in the host .env next to docker-compose.yml; the container fetches secrets at startup."
+    echo "ERROR: INFISICAL_API_URL and INFISICAL_PROJECT_ID must be set, plus either INFISICAL_TOKEN"
+    echo "or INFISICAL_CLIENT_ID + INFISICAL_CLIENT_SECRET (preferred: the token is minted at each start)."
+    echo "Put them in the host .env next to docker-compose.yml, or in the Dokploy environment; the container fetches secrets at startup."
     exit 1
   fi
 
@@ -109,8 +136,9 @@ ensure_app_key() {
     return 0
   fi
 
-  # Workers wait for the web container to persist the key first.
-  if [ "${CONTAINER_ROLE:-app}" != "app" ]; then
+  # Workers wait for the web container to persist the key first. `migrate` runs
+  # before the web container starts, so it must not wait for it.
+  if [ "${CONTAINER_ROLE:-app}" != "app" ] && [ "${CONTAINER_ROLE:-app}" != "migrate" ]; then
     echo "Waiting for APP_KEY at ${key_file}..."
     for _ in $(seq 1 60); do
       if [ -f "$key_file" ]; then
@@ -133,7 +161,7 @@ fetch_infisical_env
 
 role="${CONTAINER_ROLE:-app}"
 
-if [ "$role" = "app" ] || [ "$role" = "queue" ] || [ "$role" = "scheduler" ]; then
+if [ "$role" = "app" ] || [ "$role" = "queue" ] || [ "$role" = "scheduler" ] || [ "$role" = "migrate" ]; then
   wait_for_db
   ensure_app_key
 fi
@@ -146,10 +174,25 @@ fi
 chown -R www-data:www-data storage bootstrap/cache public/user-uploads 2>/dev/null || true
 
 case "$role" in
+  migrate)
+    # One-shot release step, the container equivalent of `make finalize-deploy`.
+    # Compose starts the web/queue/scheduler containers only after this exits 0,
+    # so a failed migration stops the deploy while the previous release keeps
+    # serving. (The `app` role's RUN_MIGRATIONS path swallows failures.)
+    # Runs as www-data so files created in the shared storage volume stay
+    # writable by PHP-FPM.
+    echo "Running release tasks..."
+    runuser -u www-data -- php artisan migrate --force --no-interaction
+    runuser -u www-data -- php artisan reminders:seed-entity-defaults --no-interaction
+    runuser -u www-data -- php artisan translations:clear --no-interaction
+    runuser -u www-data -- php artisan cache:clear --no-interaction
+    echo "Release tasks finished."
+    exit 0
+    ;;
   queue)
     echo "Starting queue worker..."
     exec php artisan queue:work "${QUEUE_CONNECTION:-database}" \
-      --queue="${QUEUE_NAMES:-default,communication_activities,resolvers,PropertyImport,LeadImport,DealImport,reminders-prepare,reminders-send}" \
+      --queue="${QUEUE_NAMES:-default,communication_activities,resolvers,PropertyImport,LeadImport,DealImport,reminders-prepare,reminders-send,ol_webhooks}" \
       --sleep=3 \
       --tries=3 \
       --timeout=300

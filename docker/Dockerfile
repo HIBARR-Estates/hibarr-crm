@@ -183,6 +183,15 @@ RUN composer dump-autoload --optimize --no-interaction --no-scripts \
     && chown -R www-data:www-data storage bootstrap/cache public/user-uploads \
     && chmod -R ug+rwx storage bootstrap/cache public/user-uploads
 
+# Release identity for the "new version available" banner (app/Support/AppBuild.php,
+# resources/js/lib/staleBuildCheck.ts). Same shape the Jenkins build wrote with
+# `make write-build-version`. Last on purpose: it changes every build, and
+# nothing above should be invalidated by it. CI also polls this file after a
+# deploy to confirm the new release is the one answering.
+ARG BUILD_ID=docker
+ARG GIT_SHA=unknown
+RUN printf '{"id":"%s-%s"}\n' "$BUILD_ID" "$(printf '%s' "$GIT_SHA" | cut -c1-7)" > public/build-version.json
+
 EXPOSE 80
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

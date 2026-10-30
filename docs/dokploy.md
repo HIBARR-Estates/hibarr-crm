@@ -1,0 +1,107 @@
+# Deploying the CRM on Dokploy
+
+Replaces the Jenkins "build on the server, switch a symlink" deploy with: CI builds one image, Dokploy pulls and runs it.
+
+```
+push to develop/main
+  -> GitHub Actions builds + smoke-tests the image, pushes ghcr.io/hibarr-estates/hibarr-crm:<branch> and :sha-<short>
+  -> deploy job calls Dokploy's compose.deploy
+  -> Dokploy: docker compose up  (pull image -> migrate -> app, queue, scheduler)
+  -> deploy job polls /build-version.json until the new release answers
+```
+
+Nothing is built on the Dokploy host. The Compose file is `docker-compose.dokploy.yml`.
+
+## Blockers before retiring Jenkins
+
+The image is HTTP-only. These production features are **not** in it yet, so keep the Jenkins deploy for production until each is handled.
+
+| Gap | Why it matters | What is needed |
+| --- | --- | --- |
+| **Expose PDFs** | `PdfGenerator` uses Spatie Laravel PDF + Browsershot, which need Node, Puppeteer and Chrome. The image has none, so both the `expose` queue and synchronous PDF downloads in the web app would fail. | A PDF-capable image variant (Node + Chromium + fonts, `PUPPETEER_EXECUTABLE_PATH`), used by `app` and a dedicated `expose` worker. Until then the `expose` queue is deliberately **not** in the container worker's default list, so it does not claim jobs it cannot run. |
+| **gRPC server** | Production runs RoadRunner (`roadrunner-grpc` service) for the gRPC endpoints. The image sets `GRPC_ENABLED=false` and ships no RoadRunner or generated proto classes. | Decide whether gRPC moves into a container role or stays on the current host. If it stays, something still has to deploy it, because Jenkins restarts it on each release. |
+| **Faker at runtime** | The image installs `--no-dev`, but `TeamDashboardDemoDataService` uses Faker (a dev dependency). | Move `fakerphp/faker` to `require`, or stop using it at runtime. |
+
+Staging can move first if it does not use Expose PDFs or gRPC.
+
+## Differences from the Jenkins deploy
+
+- **No atomic switch.** Jenkins flipped a symlink, so the old release served until the new one was ready. `docker compose up` recreates containers, so expect a short gap (until the new `app` passes its health check). A failed migration still leaves the old containers running, because `app`/`queue`/`scheduler` wait on the `migrate` service. For true rolling updates, run the web service as a separate Dokploy Application (Swarm) with a health check.
+- **Secrets** still come from Infisical, fetched when each container starts. Use a machine identity (`INFISICAL_CLIENT_ID` + `INFISICAL_CLIENT_SECRET`): the container logs in at every start. A static `INFISICAL_TOKEN` also works but fails on restart once it expires.
+- **Queue workers** run in the `queue` container (same queue list as production, minus `expose`; override with `QUEUE_NAMES`). The scheduler runs in the `scheduler` container, replacing the crontab entry from `scripts/ensure_laravel_scheduler_cron.sh`.
+- **Queue and scheduler containers run as root** (as in the existing image), so files they create in the shared `storage` volume can be root-owned and unwritable by PHP-FPM. The `migrate` step runs as `www-data` to avoid adding to this. Running all roles as `www-data` is a sensible follow-up.
+
+## One-time setup
+
+### 1. GitHub
+
+Create two Environments, `staging` and `production` (add required reviewers to `production` for a manual approval gate). In each:
+
+| Kind | Name | Value |
+| --- | --- | --- |
+| Variable | `DOKPLOY_URL` | e.g. `https://dokploy.example.com` |
+| Variable | `DOKPLOY_COMPOSE_ID` | the Compose app's id (from `project.all`, or the app's URL) |
+| Variable | `APP_URL` | the public URL, used to confirm the release is live |
+| Secret | `DOKPLOY_API_KEY` | an API key from your Dokploy profile |
+
+Then set the repository variable `DOKPLOY_ENABLED=true`. Until it is set, the deploy job is skipped. `develop` deploys to `staging`, `main` to `production`. Pushes to `staging` build and publish an image but do not auto-deploy.
+
+Also allow package publishing: Settings → Actions → Workflow permissions → read and write.
+
+### 2. Dokploy host
+
+- Log the host in to GHCR so it can pull the private image: `docker login ghcr.io -u <user>` with a token that has `read:packages`. (Dokploy's Registry settings apply to Applications; for Compose, log in on the host.)
+- Create a **Compose** application. Source: Git, this repository, branch `develop` (or `main`), compose path `./docker-compose.dokploy.yml`. Leave Auto Deploy off: CI triggers the deploy after the image exists.
+- Environment tab:
+
+```
+IMAGE_TAG=develop            # main for production; sha-<short> pins a release
+APP_URL=https://crm.example.com
+INFISICAL_API_URL=https://infisical.hibarr.org
+INFISICAL_PROJECT_ID=<id from .infisical.json>
+INFISICAL_ENV=staging        # prod for production
+INFISICAL_CLIENT_ID=<machine identity>
+INFISICAL_CLIENT_SECRET=<machine identity secret>
+```
+
+- Domains tab: add the domain for service `app`, container port `80`, HTTPS on. The app trusts Docker's private ranges for forwarded headers, so Traefik in front works without extra settings. Dokploy adds the Traefik labels and network; no ports are published.
+- The database must be reachable from the Dokploy host (`DB_HOST` in Infisical). If MySQL runs on the old server, open it to the new host and keep `host.docker.internal` in mind for anything bound to localhost.
+
+### 3. Move the data
+
+The app keeps state outside the image. Copy it into the two named volumes before the first real deploy (find exact names with `docker volume ls | grep hibarr`):
+
+```bash
+# from the old server's shared directory
+rsync -a /home/<user>/shared/user-uploads/ <dokploy-host>:/tmp/uploads/
+rsync -a /home/<user>/shared/storage/      <dokploy-host>:/tmp/storage/
+```
+
+```bash
+# on the Dokploy host, after one deploy has created the volumes
+docker run --rm -v <project>_hibarr_uploads:/dest -v /tmp/uploads:/src alpine cp -a /src/. /dest/
+docker run --rm -v <project>_hibarr_storage:/dest -v /tmp/storage:/src alpine cp -a /src/. /dest/
+```
+
+Do a bulk copy first, then a final catch-up copy during the cutover window. Check that the `APP_KEY` in Infisical is the one the old server uses (encrypted data depends on it).
+
+## Cutover
+
+1. Deploy staging first and test it end to end (login, uploads, a queued job, a reminder, the stale-version banner).
+2. **Stop the old workers and cron before the new ones run.** Both sides read the same queue tables and both would run `schedule:run`, so reminders and imports would be processed twice. On the old host: `sudo supervisorctl stop 'hibarr_crm:*'` and remove the `schedule:run` crontab line.
+3. Switch DNS (or the proxy) to Dokploy. Keep the old release directory for a few days.
+4. Disable the Jenkins deploy for that environment once stable.
+
+## Rollback
+
+- **Bad release, same infrastructure:** set `IMAGE_TAG=sha-<previous short sha>` in Dokploy and redeploy. Images are immutable per sha.
+- **Bad migration:** migrations are forward-only. Restore the database from backup; rolling the image back does not undo schema changes.
+- **Whole move:** point DNS back at the old server and restart its workers and cron.
+
+## Not verified
+
+This was written without access to a Dokploy instance or a Docker registry, so these are unproven until the first staging deploy:
+
+- The `compose.deploy` request shape (`POST /api/compose.deploy`, `x-api-key` header, `{"composeId": ...}`) follows community deploy actions and Dokploy's auto-deploy docs; confirm against the API reference of your Dokploy version.
+- That Dokploy attaches the Traefik network and labels to `app` from the Domains tab for a Git-source Compose app.
+- The image build, the workflows and `docker compose up` ordering have not been run end to end. The entrypoint's `migrate` role, the health endpoint (nginx + php-fpm) and the Compose file's resolution were tested locally with stubs.

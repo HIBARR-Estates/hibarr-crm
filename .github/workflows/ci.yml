@@ -274,6 +274,9 @@ jobs:
           load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_ID=${{ github.run_number }}
+            GIT_SHA=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -288,6 +291,64 @@ jobs:
             test -f public/mix-manifest.json
             test -f resources/js/ziggy.js
           '
+
+  # Deploys the image built above by asking Dokploy to redeploy the Compose app,
+  # then waits until the new release is the one answering. Off until the repo
+  # variable DOKPLOY_ENABLED is 'true', so merging this changes nothing by itself.
+  # develop -> staging, main -> production (GitHub Environments of those names
+  # hold DOKPLOY_URL, DOKPLOY_COMPOSE_ID, APP_URL and the DOKPLOY_API_KEY secret;
+  # add required reviewers to `production` for a manual approval gate).
+  # See docs/dokploy.md.
+  deploy:
+    name: Deploy (${{ github.ref_name == 'main' && 'production' || 'staging' }})
+    needs: docker
+    if: >-
+      github.event_name == 'push' &&
+      vars.DOKPLOY_ENABLED == 'true' &&
+      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    concurrency:
+      group: deploy-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Trigger Dokploy deploy
+        env:
+          DOKPLOY_URL: ${{ vars.DOKPLOY_URL }}
+          DOKPLOY_COMPOSE_ID: ${{ vars.DOKPLOY_COMPOSE_ID }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+        run: |
+          : "${DOKPLOY_URL:?DOKPLOY_URL is not set for this environment}"
+          : "${DOKPLOY_COMPOSE_ID:?DOKPLOY_COMPOSE_ID is not set for this environment}"
+          : "${DOKPLOY_API_KEY:?DOKPLOY_API_KEY secret is not set for this environment}"
+          # The Compose app follows a branch tag (develop / main) with
+          # pull_policy: always, so a redeploy picks up the image just pushed.
+          curl --fail-with-body -sS -X POST "${DOKPLOY_URL%/}/api/compose.deploy" \
+            -H "x-api-key: ${DOKPLOY_API_KEY}" \
+            -H 'Content-Type: application/json' \
+            -d "{\"composeId\": \"${DOKPLOY_COMPOSE_ID}\"}"
+          echo
+
+      - name: Wait for this release to go live
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          : "${APP_URL:?APP_URL is not set for this environment}"
+          expected="$(printf '%s' "$GITHUB_SHA" | cut -c1-7)"
+          for i in $(seq 1 60); do
+            body="$(curl -fsS --max-time 10 "${APP_URL%/}/build-version.json" 2>/dev/null || true)"
+            case "$body" in
+              *"-${expected}"*)
+                echo "Release ${expected} is live."
+                curl -fsS --max-time 10 "${APP_URL%/}/healthz" && echo
+                exit 0 ;;
+            esac
+            echo "Waiting for release ${expected} (attempt ${i}/60)..."
+            sleep 10
+          done
+          echo "::error::Release ${expected} was not live after 10 minutes. Check the deployment log in Dokploy."
+          exit 1
 
   # Single required check for branch protection: it is green when every job
   # that ran passed, and when jobs were skipped by the path filters. `lint` is
