@@ -83,7 +83,7 @@ Takeaways:
 ## Rollout checklist
 
 1. Merge the infra change (adds the `laravel-app` template and this repo to `sync/repos.yaml`). This PR already contains the files that sync would generate, so the first sync PR should come out empty.
-2. In Woodpecker: activate `hibarr-crm`, add the secrets above, and make sure `woodpeckerci/plugin-docker-buildx` may run privileged (the other repos already rely on this).
+2. In Woodpecker: activate `hibarr-crm`, mark it **Trusted** (repo settings; the image build steps run `privileged: true`, as in the other repos, and a repo that is not trusted cannot run them), and add the secrets above.
 3. Require the Woodpecker status checks on `develop` in branch protection.
 4. Watch the first run. The first push is cold (no `:buildcache` image yet); judge speed from the second.
 5. Once Pint/PHPStan are clean, delete `failure: ignore` from `php-lint` in the template (in the infra repo).

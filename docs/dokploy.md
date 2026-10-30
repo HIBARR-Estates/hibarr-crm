@@ -51,7 +51,7 @@ The image can run the RoadRunner gRPC server that Jenkins hosts run today (`work
 
 ### 1. Woodpecker
 
-The pipelines are the `laravel-app` templates from hibarr-ci-infrastructure, synced into `.woodpecker/` (see [ci-cd-and-docker.md](ci-cd-and-docker.md)). Activate `hibarr-crm` in Woodpecker and add these repo secrets:
+The pipelines are the `laravel-app` templates from hibarr-ci-infrastructure, synced into `.woodpecker/` (see [ci-cd-and-docker.md](ci-cd-and-docker.md)). Activate `hibarr-crm` in Woodpecker, mark it **Trusted** (the image build steps run `privileged: true`), and add these repo secrets:
 
 | Secret | Value | Used by |
 | --- | --- | --- |
