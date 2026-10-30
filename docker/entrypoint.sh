@@ -161,7 +161,7 @@ fetch_infisical_env
 
 role="${CONTAINER_ROLE:-app}"
 
-if [ "$role" = "app" ] || [ "$role" = "queue" ] || [ "$role" = "scheduler" ] || [ "$role" = "migrate" ]; then
+if [ "$role" = "app" ] || [ "$role" = "queue" ] || [ "$role" = "scheduler" ] || [ "$role" = "migrate" ] || [ "$role" = "grpc" ]; then
   wait_for_db
   ensure_app_key
 fi
@@ -188,6 +188,19 @@ case "$role" in
     runuser -u www-data -- php artisan cache:clear --no-interaction
     echo "Release tasks finished."
     exit 0
+    ;;
+  grpc)
+    # RoadRunner gRPC server (worker.php, config in .rr.staging.yaml, which the
+    # Jenkins hosts also use). Listen addresses are forced here so the container
+    # does not depend on the host-oriented "Phase 2: bind to 127.0.0.1" edit
+    # that file anticipates. The status plugin is on :2114 for monitoring.
+    # setpriv execs in place (unlike runuser, which forks), so rr stays PID 1
+    # and receives the SIGTERM from `docker stop`; RoadRunner drains on it.
+    echo "Starting RoadRunner gRPC server..."
+    exec setpriv --reuid=www-data --regid=www-data --init-groups -- \
+      rr serve -c "${RR_CONFIG:-.rr.staging.yaml}" \
+      -o "grpc.listen=tcp://0.0.0.0:${GRPC_PORT:-9001}" \
+      -o "status.address=0.0.0.0:2114"
     ;;
   queue)
     echo "Starting queue worker..."

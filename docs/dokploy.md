@@ -14,14 +14,13 @@ Nothing is built on the Dokploy host. The Compose file is `docker-compose.dokplo
 
 ## Blockers before retiring Jenkins
 
-The image is HTTP-only. These production features are **not** in it yet, so keep the Jenkins deploy for production until each is handled.
+One thing is left that would break in a container, so keep the Jenkins deploy for production until it is handled.
 
 | Gap | Why it matters | What is needed |
 | --- | --- | --- |
-| **gRPC server** | Production runs RoadRunner (`roadrunner-grpc` service) for the gRPC endpoints. The image sets `GRPC_ENABLED=false` and ships no RoadRunner or generated proto classes. | Decide whether gRPC moves into a container role or stays on the current host. If it stays, something still has to deploy it, because Jenkins restarts it on each release. |
-| **Faker at runtime** | The image installs `--no-dev`, but `TeamDashboardDemoDataService` uses Faker (a dev dependency). | Move `fakerphp/faker` to `require`, or stop using it at runtime. |
+| **Faker at runtime** | The image installs `--no-dev`, but `TeamDashboardDemoDataService` uses Faker (a dev dependency). | Move `fakerphp/faker` to `require` (needs a lock-file update), or stop using it at runtime. |
 
-Staging can move first if it does not use gRPC.
+Expose PDFs and the gRPC server are covered below. Also see "Not verified" before the first production cutover.
 
 ## Expose PDFs
 
@@ -33,6 +32,18 @@ Expose PDFs (`PdfGenerator` -> Spatie Laravel PDF -> Browsershot -> Node -> Pupp
 - **Own worker:** the `expose` service runs only the `expose` queue (jobs can run 7 minutes), so a long render never delays other jobs. The default `queue` worker deliberately does not listen to `expose`.
 - **Build time:** the bundler stage now skips Puppeteer's browser download (`PUPPETEER_SKIP_DOWNLOAD`), which used to fetch about 600 MB during `npm ci`. The Chrome download happens once, in its own stage keyed on the Puppeteer version, so it is cached until Puppeteer changes.
 - **CI check:** `scripts/ci/smoke-pdf.sh` runs inside the built image and renders a PDF through Browsershot's real node script as `root` and `www-data`, after checking Chrome's libraries and the font directories.
+
+## gRPC server
+
+The image can run the RoadRunner gRPC server that Jenkins hosts run today (`worker.php`, `.rr.staging.yaml`, same services and API-token auth). It is the `grpc` service in `docker-compose.dokploy.yml`, behind the Compose profile `grpc`, so an environment only runs it when `COMPOSE_PROFILES=grpc` is set in Dokploy's Environment tab.
+
+- **What is in the image:** the RoadRunner binary at the release `composer.lock` pins for `spiral/roadrunner` (the Dockerfile reads the version from the lock, so server and PHP library cannot drift; CI also compares `rr --version` with the lock), and the protobuf classes, which a build stage generates with `protoc` from `proto/` (the container equivalent of `make proto`; `app/Grpc/Generated` is not committed).
+- **How it starts:** `CONTAINER_ROLE=grpc` runs `rr serve -c .rr.staging.yaml` as `www-data`, with the gRPC listener (`:9001`) and status endpoint (`:2114`) forced to `0.0.0.0` so the container does not depend on the "Phase 2: bind to 127.0.0.1" edit that file anticipates. RoadRunner stays PID 1, so `docker stop` drains it.
+- **Reaching it:** Traefik terminates TLS at `GRPC_DOMAIN` and talks cleartext HTTP/2 (`h2c`) to RoadRunner, which is what gRPC needs; the labels are in the Compose file, not the Domains tab. Set `GRPC_ROUTER_NAME` to something unique if staging and production share a Dokploy. Clients keep sending `x-api-token` and `x-company-id`, so they only need the new host name. To skip Traefik and keep the staging "Phase 1" style (`host:9001`, plaintext), drop the labels and publish `9001:9001`.
+- **Health:** the container health check is a TCP connect to `:9001`. Monitoring can use the status plugin on `:2114` (RoadRunner expects a `plugin` query parameter on `/health`; check the exact form against your RoadRunner version).
+- **Not carried over:** the nginx gRPC proxy (`scripts/nginx-grpc-staging.conf`), the systemd unit and `scripts/grpc-setup/` are replaced by Traefik and the container.
+- **Performance:** the protobuf runtime is the pure-PHP `google/protobuf` package. If the Jenkins hosts have the `protobuf` PHP extension installed, they will be faster per request; compare before moving a busy production workload.
+- **New `.proto` files:** the image generates from every file in `proto/`, while `.rr.staging.yaml` serves only the files it lists, as before. `crm_event.proto` is currently in `proto/` but not in the RoadRunner config, so it is generated but not served.
 
 ## Differences from the Jenkins deploy
 
@@ -115,4 +126,5 @@ This was written without access to a Dokploy instance or a Docker registry, so t
 - The `compose.deploy` request shape (`POST /api/compose.deploy`, `x-api-key` header, `{"composeId": ...}`) follows community deploy actions and Dokploy's auto-deploy docs; confirm against the API reference of your Dokploy version.
 - That Dokploy attaches the Traefik network and labels to `app` from the Domains tab for a Git-source Compose app.
 - The full image build, the workflows and `docker compose up` ordering have not been run end to end. The entrypoint's `migrate` role, the health endpoint (nginx + php-fpm) and the Compose file's resolution were tested locally with stubs.
+- **gRPC layers:** `protoc` 3.21 (the Debian version) generated 266 classes that load under `google/protobuf` 4.33.5, the version `composer.lock` pins, and a message round-trips through its real descriptor parser; the entrypoint's `grpc` role was tested with a stub `rr` (runs as `www-data`, correct arguments, keeps its PID, receives SIGTERM); the version-drift and class checks were tested against the real lock file. Not verified, because the RoadRunner binary could not be downloaded or run in the sandbox: the release tarball's internal layout and `rr --version` output format (the build runs it, so CI will show), that the workers boot Laravel with no database (the informational "gRPC boot test" step covers it), and that Dokploy's Traefik honours the `h2c` service labels for gRPC (its docs were not reachable). Test with a real gRPC client against staging before moving production.
 - **PDF layers:** the `pdf-tools` stage was built for real (it installed the pinned Puppeteer and downloaded the matching headless shell), and Browsershot 5.1.1's `browser.cjs` rendered a valid PDF from that Node, module layout and browser as both `root` and `www-data`. Not verified: the Debian package names in the runtime layer (the sandbox could not reach Debian's mirrors) and that the fonts render as intended. The first CI run's image build and `smoke-pdf.sh` are the check for both.

@@ -23,7 +23,7 @@ vendor/bin/phpunit -c phpunit.shard.xml
 
 ## Deploying with Docker
 
-The image (`docker/Dockerfile`) is nginx + PHP-FPM, HTTP only (no gRPC), with secrets pulled from Infisical at start-up. Compose runs three roles from one image: `app`, `queue`, `scheduler`.
+The image (`docker/Dockerfile`) is nginx + PHP-FPM for the web app (the same image also runs the queue, scheduler, migrate and gRPC roles), with secrets pulled from Infisical at start-up. Compose runs three roles from one image: `app`, `queue`, `scheduler`.
 
 Build and run locally:
 
@@ -39,7 +39,7 @@ docker compose pull
 docker compose up -d --no-build
 ```
 
-To run it on Dokploy (health check, one-shot migrate step, CI-triggered deploy), see [dokploy.md](dokploy.md), including the feature the image does not cover yet (gRPC).
+To run it on Dokploy (health check, one-shot migrate step, CI-triggered deploy), see [dokploy.md](dokploy.md), including the gRPC server and the one remaining blocker.
 
 Tags published: `develop`, `staging`, `main` (branch heads) and `sha-<short>`. Pin `sha-...` in production so a rollback is a one-line change.
 

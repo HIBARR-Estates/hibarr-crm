@@ -78,6 +78,10 @@ jobs:
             docker:
               - 'docker/**'
               - 'scripts/ci/**'
+              - 'proto/**'
+              - 'worker.php'
+              - '.rr*.yaml'
+              - 'app/Grpc/**'
               - 'docker-compose.yml'
               - '.dockerignore'
               - 'composer.json'
@@ -304,6 +308,22 @@ jobs:
         run: |
           IMAGE="$(echo "${{ steps.meta.outputs.tags }}" | head -n1)"
           docker run --rm -v "$PWD/scripts/ci:/ci:ro" --entrypoint sh "$IMAGE" /ci/smoke-pdf.sh
+
+      # RoadRunner matches composer.lock, worker.php and every generated protobuf
+      # class autoload, and a message round-trips through the installed runtime.
+      - name: Smoke test gRPC server
+        run: |
+          IMAGE="$(echo "${{ steps.meta.outputs.tags }}" | head -n1)"
+          docker run --rm -v "$PWD/scripts/ci:/ci:ro" --entrypoint sh "$IMAGE" /ci/smoke-grpc.sh
+
+      # Starts RoadRunner with the real worker.php and waits for the listener.
+      # Informational until it has passed once on a runner: the workers boot
+      # Laravel without a database, which has not been exercised yet.
+      - name: gRPC boot test (informational)
+        continue-on-error: true
+        run: |
+          IMAGE="$(echo "${{ steps.meta.outputs.tags }}" | head -n1)"
+          docker run --rm -v "$PWD/scripts/ci:/ci:ro" -e GRPC_BOOT=1 --entrypoint sh "$IMAGE" /ci/smoke-grpc.sh
 
   # Deploys the image built above by asking Dokploy to redeploy the Compose app,
   # then waits until the new release is the one answering. Off until the repo

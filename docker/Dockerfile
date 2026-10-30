@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
 #
-# HTTP-only Hibarr CRM image (nginx + PHP-FPM). No RoadRunner / gRPC.
+# Hibarr CRM image: nginx + PHP-FPM for the web app, plus the same code run as a
+# queue worker, scheduler, one-shot migrator or RoadRunner gRPC server,
+# depending on CONTAINER_ROLE (see entrypoint.sh).
 
 # -----------------------------------------------------------------------------
 # Composer dependencies
@@ -130,6 +132,40 @@ RUN --mount=type=cache,target=/root/.npm \
     && chmod -R a+rX /opt/puppeteer
 
 # -----------------------------------------------------------------------------
+# gRPC server: RoadRunner binary + protobuf-generated PHP classes.
+# -----------------------------------------------------------------------------
+# Same release as the spiral/roadrunner package pinned in composer.lock, so the
+# server and the PHP worker library stay in step. The asset layout is not
+# assumed beyond "a file named rr", and `rr --version` runs at build time, so a
+# wrong URL or architecture fails the build instead of the container.
+FROM php:8.3-cli-bookworm AS rr-bin
+ARG TARGETARCH
+WORKDIR /tmp/rr
+COPY composer.lock ./
+RUN set -eux; \
+    version="$(php -r '$l = json_decode(file_get_contents("composer.lock"), true); foreach ($l["packages"] as $p) { if ($p["name"] === "spiral/roadrunner") { echo ltrim($p["version"], "v"); } }')"; \
+    test -n "$version"; \
+    curl -fsSL -o rr.tgz "https://github.com/roadrunner-server/roadrunner/releases/download/v${version}/roadrunner-${version}-linux-${TARGETARCH:-amd64}.tar.gz"; \
+    mkdir out; \
+    tar -xzf rr.tgz -C out; \
+    install -m 0755 "$(find out -type f -name rr | head -n 1)" /usr/local/bin/rr; \
+    rr --version
+
+# `make proto` equivalent. protoc nests its output under the PHP namespace path
+# (App/Grpc/Generated/...); the app autoloads App\Grpc\Generated\ from
+# app/Grpc/Generated, so the nested directory is lifted out. Debian's protoc
+# (3.21) matches what the Ubuntu hosts generated with. Only `proto/` is copied,
+# so this layer rebuilds when a .proto changes and not otherwise.
+FROM debian:bookworm-slim AS proto-gen
+RUN apt-get update && apt-get install -y --no-install-recommends protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /work
+COPY proto ./proto
+RUN mkdir -p /out /gen \
+    && protoc --proto_path=proto --php_out=/out proto/*.proto \
+    && cp -r /out/App/Grpc/Generated/. /gen/
+
+# -----------------------------------------------------------------------------
 # Runtime: nginx + PHP-FPM (supervisord)
 # -----------------------------------------------------------------------------
 FROM php:8.3-fpm-bookworm
@@ -243,6 +279,10 @@ COPY --from=assets /app/public/js ./public/js
 COPY --from=assets /app/public/css ./public/css
 COPY --from=assets /app/public/mix-manifest.json ./public/mix-manifest.json
 COPY --from=ziggy /app/resources/js/ziggy.js ./resources/js/ziggy.js
+# gRPC: generated classes must be in place before the autoload dump below so
+# they land in the optimized classmap.
+COPY --from=proto-gen /gen/ ./app/Grpc/Generated/
+COPY --from=rr-bin /usr/local/bin/rr /usr/local/bin/rr
 
 RUN composer dump-autoload --optimize --no-interaction --no-scripts \
     && mkdir -p \

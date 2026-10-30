@@ -112,6 +112,53 @@ services:
     # GenerateExposeJob allows 420s.
     stop_grace_period: 8m
 
+  # gRPC API for the other backend (RoadRunner serving worker.php; services,
+  # auth and proto list are the ones the Jenkins hosts run). Opt in per
+  # environment with COMPOSE_PROFILES=grpc in Dokploy's Environment tab.
+  #
+  # Reached through Traefik over TLS at GRPC_DOMAIN: Traefik terminates TLS and
+  # talks cleartext HTTP/2 (h2c) to RoadRunner, which is what gRPC needs. Set
+  # GRPC_ROUTER_NAME to something unique if staging and production share one
+  # Dokploy. To skip Traefik and let clients connect to host:9001 directly (as
+  # the staging "Phase 1" setup did), remove the labels and add `ports: ["9001:9001"]`.
+  grpc:
+    profiles: ["grpc"]
+    image: *image
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *env
+      CONTAINER_ROLE: grpc
+    volumes: *volumes
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - dokploy-network
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.${GRPC_ROUTER_NAME:-hibarr-grpc}.rule=Host(`${GRPC_DOMAIN:-grpc.invalid}`)
+      - traefik.http.routers.${GRPC_ROUTER_NAME:-hibarr-grpc}.entrypoints=websecure
+      - traefik.http.routers.${GRPC_ROUTER_NAME:-hibarr-grpc}.tls.certresolver=letsencrypt
+      - traefik.http.services.${GRPC_ROUTER_NAME:-hibarr-grpc}.loadbalancer.server.port=9001
+      - traefik.http.services.${GRPC_ROUTER_NAME:-hibarr-grpc}.loadbalancer.server.scheme=h2c
+    healthcheck:
+      # A TCP connect proves the gRPC listener is up (RoadRunner binds it once
+      # the worker pool is allocated). The status endpoint on :2114 is there for
+      # monitoring. bash is in the image; /dev/tcp is a bash feature.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9001"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # Four Laravel workers boot before the listener opens.
+      start_period: 120s
+    # RoadRunner's destroy_timeout is 60s.
+    stop_grace_period: 75s
+
   scheduler:
     image: *image
     pull_policy: always
@@ -129,3 +176,9 @@ services:
 volumes:
   hibarr_storage:
   hibarr_uploads:
+
+networks:
+  # Created by Dokploy; Traefik joins it. Only the grpc service uses it here
+  # (the web service is attached by the Domains tab).
+  dokploy-network:
+    external: true
