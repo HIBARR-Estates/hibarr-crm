@@ -44,6 +44,7 @@ import useMeetingClockTick from "@/Pages/Deals/Redesign/hooks/useMeetingClockTic
 import { itineraryCount } from "./adapters/itineraryAdapter";
 import { formatMobileForDisplay } from "@/lib/utils";
 import type { Lead } from "@/Types/api/leads";
+import type { SallyMeetingInsight } from "@/Types/api/sally-meeting-insight";
 import type { QualificationLeadPatch } from "@/Types/qualification";
 import {
     LeadWorkspaceProvider,
@@ -86,6 +87,7 @@ import NotesTab from "./components/workspace/tabs/NotesTab";
 import TasksTab from "./components/workspace/tabs/TasksTab";
 import MeetingsTab from "./components/workspace/tabs/MeetingsTab";
 import DealsTab from "./components/workspace/tabs/DealsTab";
+import SallyInsightsPanel from "@/Components/Redesign/sally/SallyInsightsPanel";
 import LeadInfoTab from "./components/workspace/tabs/LeadInfoTab";
 import ItineraryTab from "./components/workspace/tabs/ItineraryTab";
 import TimelineTab from "./components/workspace/tabs/TimelineTab";
@@ -110,6 +112,9 @@ import "@/Pages/Deals/Redesign/deal-redesign.css";
 import "./lead-redesign.css";
 
 export default function LeadViewRedesign(props: LeadRedesignProps) {
+    const { props: pageProps } = usePage<PageProps>();
+    const featureFlags = props.featureFlags ?? pageProps.featureFlags;
+
     return (
         <LeadWorkspaceProvider
             lead={props.lead}
@@ -117,6 +122,9 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
             tasks={props.tasks}
             leadFollowUps={props.leadFollowUps}
             deals={props.deals}
+            sallyInsightsEnabled={
+                featureFlags?.["crm.sally-insights-tab"] === true
+            }
         >
             <LeadViewRedesignInner {...props} />
         </LeadWorkspaceProvider>
@@ -136,6 +144,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const showQualification =
         featureFlags?.["crm.lead-qualification-tab"] === true;
     const showProductTour = featureFlags?.["crm.leads-product-tour"] === true;
+    const sallyInsightsEnabled =
+        featureFlags?.["crm.sally-insights-tab"] === true;
     // Fail closed: flag off or missing server gate → no Email Quick action.
     const emailQuickAction: EmailQuickAction | null =
         featureFlags?.["crm.email"] === true && props.emailQuickAction != null
@@ -164,9 +174,36 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         notes,
         files,
         filesLoading,
+        sallyInsights,
+        setSallyInsights,
+        sallyInsightsLoading,
+        sallyInsightsSettled,
+        sallyInsightsError,
+        refetchSallyInsights,
         addTask,
         setTasks,
     } = useLeadWorkspace();
+    // Unlike the other gated tabs, Sally visibility depends on an async client
+    // fetch, so it must stay in play until the query settles — otherwise a
+    // ?tab=sally deep link is reset to overview before the data arrives.
+    const showSally =
+        sallyInsightsEnabled &&
+        (sallyInsights.length > 0 ||
+            !sallyInsightsSettled ||
+            sallyInsightsError);
+
+    // Sally edits patch the local list in place — no Inertia reload. Each
+    // card owns its own mutations (the routes are keyed by insight id).
+    const patchSallyInsight = useCallback(
+        (insightId: number, data: Partial<SallyMeetingInsight>) => {
+            setSallyInsights((prev) =>
+                prev.map((insight) =>
+                    insight.id === insightId ? { ...insight, ...data } : insight,
+                ),
+            );
+        },
+        [setSallyInsights],
+    );
 
     const overviewPending =
         (notesLoading && notes.length === 0) ||
@@ -183,7 +220,10 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         if (!showExposes && nav.tab === "exposes") {
             nav.setTab("overview");
         }
-    }, [nav.setTab, nav.tab, showQualification, showExposes]);
+        if (!showSally && nav.tab === "sally") {
+            nav.setTab("overview");
+        }
+    }, [nav.setTab, nav.tab, showQualification, showExposes, showSally]);
 
     const leadTourSteps = useMemo(
         () => buildLeadTourSteps(nav.setTab),
@@ -212,6 +252,16 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const dealCreate = useLeadDealCreate(lead);
     const { createNote, isSaving: noteSaving, errors: noteErrors, clearErrors: clearNoteErrors } =
         useLeadNoteCreate(lead.id);
+    /** Turn a Sally insight's summary + bullet points into a CRM note on the lead. */
+    const addInsightToNote = useCallback(
+        (content: string) => {
+            createNote({
+                text: content,
+                title: td("Sally insight", { source: "en" }),
+            });
+        },
+        [createNote, td],
+    );
     const { createTask, isCreating: taskCreating, errors: taskErrors, clearErrors: clearTaskErrors } =
         useLeadTaskCreate(lead.id);
     const { createMeeting, isCreating: meetingCreating, errors: meetingErrors, clearErrors: clearMeetingErrors } =
@@ -370,6 +420,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             deals: deals.length,
             exposes: showExposes ? exposesCount : undefined,
             itinerary: itineraryCount(itineraryLegs),
+            sally: sallyInsights.length > 0 ? sallyInsights.length : undefined,
             files: filesLoading
                 ? undefined
                 : files.length + documentsUploaded,
@@ -391,6 +442,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         qualification.history.length,
         showQualification,
         showExposes,
+        sallyInsights.length,
         exposesCount,
         tasks,
         tasksLoading,
@@ -638,6 +690,22 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 );
             case "itinerary":
                 return <ItineraryTab />;
+            case "sally":
+                return (
+                    <SallyInsightsPanel
+                        insights={sallyInsights}
+                        loading={sallyInsightsLoading}
+                        error={sallyInsightsError}
+                        onRetry={refetchSallyInsights}
+                        groupByDeal={deals}
+                        patchInsight={patchSallyInsight}
+                        onAddNote={addInsightToNote}
+                        emptyTitle={t("pages.leads.sally.empty_title")}
+                        emptyDescription={t(
+                            "pages.leads.sally.empty_description",
+                        )}
+                    />
+                );
             case "timeline":
                 return (
                     <TimelineTab
@@ -874,6 +942,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                 tabCounts={tabCounts}
                                 showQualification={showQualification}
                                 showExposes={showExposes}
+                                showSally={showSally}
                             >
                                 {renderTabBody()}
                             </WorkspaceCard>

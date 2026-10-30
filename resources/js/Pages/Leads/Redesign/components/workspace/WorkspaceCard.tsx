@@ -8,6 +8,7 @@ interface WorkspaceCardProps {
     tabCounts?: LeadTabCount;
     showQualification?: boolean;
     showExposes?: boolean;
+    showSally?: boolean;
     children: ReactNode;
 }
 
@@ -17,6 +18,7 @@ export default function WorkspaceCard({
     tabCounts,
     showQualification = true,
     showExposes = false,
+    showSally = false,
     children,
 }: WorkspaceCardProps) {
     return (
@@ -35,6 +37,7 @@ export default function WorkspaceCard({
                 counts={tabCounts}
                 showQualification={showQualification}
                 showExposes={showExposes}
+                showSally={showSally}
             />
             <div className="dr-workspace-tab-body" style={{ padding: 16 }}>
                 {children}

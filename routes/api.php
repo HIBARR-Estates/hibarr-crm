@@ -50,13 +50,12 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::get('meeting-summary/{summaryId}', ['as' => 'api.meeting-summary.show', 'uses' => 'MeetingSummaryController@show']);
         ApiRoute::post('meeting-summary', ['as' => 'api.meeting-summary.store', 'uses' => 'MeetingSummaryApiController@getMeetingSummary']);
 
-        //Import routes
+        // Import routes
         ApiRoute::post('bitrix/import', ['as' => 'api.bitrix.import', 'uses' => 'Api\BitrixImportController@store']);
         ApiRoute::post('bitrix/contact/import', ['as' => 'api.bitrix.contact.import', 'uses' => 'Api\BitrixImportController@contactStore']);
         ApiRoute::post('bitrix/comments/import', ['as' => 'api.bitrix.comments.import', 'uses' => 'Api\BitrixImportController@commentStore']);
         ApiRoute::post('bitrix/tasks/import', ['as' => 'api.bitrix.tasks.import', 'uses' => 'Api\BitrixImportController@taskImport']);
 
-        
         // External Events Routes
         ApiRoute::post('external-events', ['as' => 'api.external-events.store', 'uses' => 'ExternalEventController@store']);
         ApiRoute::get('external-events', ['as' => 'api.external-events.index', 'uses' => 'ExternalEventController@index']);
@@ -64,10 +63,10 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
 
         // Deal API Routes
         ApiRoute::post('deal/create', ['as' => 'api.deals.create', 'uses' => 'Api\DealContactApiController@createDeal']);
-        
+
         // Contact API Routes
         ApiRoute::post('contact/create', ['as' => 'api.contacts.createOrUpdate', 'uses' => 'Api\DealContactApiController@createOrUpdateContact']);
-        
+
         // Lead API Routes (paginated: first_name, last_name, email)
         ApiRoute::get('leads', ['as' => 'api.leads.index', 'uses' => 'Api\LeadApiController@index']);
 
@@ -145,6 +144,11 @@ Route::middleware(['api.token'])->prefix('v2')->group(function () {
         Route::post('payments', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@upsertPayment', 'as' => 'api.v2.payments.upsert']);
         Route::get('payments/{paymentId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@getPayment', 'as' => 'api.v2.payments.show'])
             ->whereNumber('paymentId');
+
+        Route::get('sally-meetings', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@listSallyMeetings', 'as' => 'api.v2.sally-meetings.index']);
+        Route::post('sally-meetings', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@upsertSallyMeeting', 'as' => 'api.v2.sally-meetings.upsert']);
+        Route::get('sally-meetings/{meetingId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@getSallyMeeting', 'as' => 'api.v2.sally-meetings.show'])
+            ->whereNumber('meetingId');
     });
 
     Route::post('employees', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@createEmployee', 'as' => 'api.v2.employees.create.compat']);

@@ -17,6 +17,7 @@ export type LeadRecordTab =
     | "deals"
     | "exposes"
     | "itinerary"
+    | "sally"
     | "marketing"
     | "qualification";
 
@@ -63,5 +64,6 @@ export interface LeadTabCount {
     deals?: number;
     exposes?: number;
     itinerary?: number;
+    sally?: number;
     qualification?: number;
 }
