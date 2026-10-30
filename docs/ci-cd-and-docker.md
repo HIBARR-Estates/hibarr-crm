@@ -39,7 +39,7 @@ docker compose pull
 docker compose up -d --no-build
 ```
 
-To run it on Dokploy (health check, one-shot migrate step, CI-triggered deploy), see [dokploy.md](dokploy.md), including the gRPC server and the one remaining blocker.
+To run it on Dokploy (health check, one-shot migrate step, CI-triggered deploy), see [dokploy.md](dokploy.md), including the gRPC server and Expose PDFs.
 
 Tags published: `develop`, `staging`, `main` (branch heads) and `sha-<short>`. Pin `sha-...` in production so a rollback is a one-line change.
 
@@ -77,5 +77,5 @@ Takeaways:
 
 ## Known gaps
 
-- **Dev dependencies in the image.** The image installs with `composer install --no-dev`, but `App\Services\Dashboard\TeamDashboardDemoDataService` (reached from `DashboardV2Controller`) uses Faker, a dev dependency. That path would fail in a container. Either move `fakerphp/faker` to `require` (needs a lock update) or stop using it at runtime.
+- **Dev dependencies in the image.** The image installs with `composer install --no-dev`. `fakerphp/faker` is in `require` (not `require-dev`) because `App\Services\Dashboard\TeamDashboardDemoDataService`, reached from `DashboardV2Controller`, uses it at runtime. A scan of `app`, `config`, `routes`, `bootstrap`, `database`, `resources/views` and `Modules` for namespaces provided only by dev packages found one other reference: `AppServiceProvider` registers `Barryvdh\LaravelIdeHelper` when `APP_ENV=development`. That is fine for staging and production, but do not run this image with `APP_ENV=development`. If a runtime path later depends on another dev package, move it to `require` the same way.
 - **Not run end to end.** The workflows, the image build and the Jenkinsfile edits could not be executed in the environment they were written in.

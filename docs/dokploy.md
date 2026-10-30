@@ -12,15 +12,9 @@ push to develop/main
 
 Nothing is built on the Dokploy host. The Compose file is `docker-compose.dokploy.yml`.
 
-## Blockers before retiring Jenkins
+## Before retiring Jenkins
 
-One thing is left that would break in a container, so keep the Jenkins deploy for production until it is handled.
-
-| Gap | Why it matters | What is needed |
-| --- | --- | --- |
-| **Faker at runtime** | The image installs `--no-dev`, but `TeamDashboardDemoDataService` uses Faker (a dev dependency). | Move `fakerphp/faker` to `require` (needs a lock-file update), or stop using it at runtime. |
-
-Expose PDFs and the gRPC server are covered below. Also see "Not verified" before the first production cutover.
+Nothing known to break in a container is left: Expose PDFs and the gRPC server are covered below, and `fakerphp/faker` (used at runtime by `TeamDashboardDemoDataService`) is now a regular dependency, so the image's `--no-dev` install includes it. What remains is proving it on real infrastructure: see "Not verified" at the end, deploy staging first, and keep the Jenkins deploy for production until staging has run a full release cycle.
 
 ## Expose PDFs
 
