@@ -55,7 +55,7 @@ export default function PartnerTrendChart({
                     ))}
                 </div>
 
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="dv2-trend-plot" style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ position: "relative", height: HEIGHT }}>
                         {[0, 25, 50, 75].map((offset) => (
                             <div
@@ -88,8 +88,8 @@ export default function PartnerTrendChart({
                                 position: "absolute",
                                 inset: 0,
                                 display: "grid",
-                                gridTemplateColumns: `repeat(${data.length}, 1fr)`,
-                                columnGap: 10,
+                                gridTemplateColumns: `repeat(${data.length}, minmax(0, 1fr))`,
+                                columnGap: "var(--dv2-trend-gap, 10px)",
                                 alignItems: "end",
                             }}
                         >
@@ -100,6 +100,11 @@ export default function PartnerTrendChart({
                                         display: "flex",
                                         gap: 3,
                                         alignItems: "flex-end",
+                                        // The bars size as a % of this cell,
+                                        // so it has to span the plot height —
+                                        // auto height collapsed every bar to
+                                        // its 2px floor.
+                                        height: "100%",
                                     }}
                                     title={`${point.label}: ${point.submitted} ${td("submitted", { source: "en" })}, ${point.completed} ${td("completed", { source: "en" })}`}
                                 >
@@ -110,7 +115,7 @@ export default function PartnerTrendChart({
                                         // lighter so it doesn't read as a drop.
                                         color={
                                             index === data.length - 1
-                                                ? "#7fb0dd"
+                                                ? T.BLUE_MID
                                                 : T.BLUE
                                         }
                                     />
@@ -125,10 +130,11 @@ export default function PartnerTrendChart({
                     </div>
 
                     <div
+                        className="dv2-trend-labels"
                         style={{
                             display: "grid",
-                            gridTemplateColumns: `repeat(${data.length}, 1fr)`,
-                            columnGap: 10,
+                            gridTemplateColumns: `repeat(${data.length}, minmax(0, 1fr))`,
+                            columnGap: "var(--dv2-trend-gap, 10px)",
                             marginTop: 8,
                         }}
                     >
@@ -171,7 +177,7 @@ function Bar({
                 flex: 1,
                 height: `${(value / ceiling) * 100}%`,
                 minHeight: 2,
-                background: value > 0 ? color : "#e7eaf0",
+                background: value > 0 ? color : T.GRAY_MID,
                 borderRadius: 2,
             }}
         />

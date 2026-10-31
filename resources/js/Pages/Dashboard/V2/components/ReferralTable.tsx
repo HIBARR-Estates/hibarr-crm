@@ -34,18 +34,24 @@ export default function ReferralTable({ rows }: { rows: PartnerReferral[] }) {
         safePage * pageSize,
     );
 
+    // Every referral has completed (the view drops the whole book when there
+    // are none at all): keep the card's title so it doesn't read as a gap.
     if (!rows.length) {
         return (
-            <p
-                style={{
-                    margin: 0,
-                    padding: 18,
-                    fontSize: 14,
-                    color: T.TEXT_MUTED,
-                }}
-            >
-                {td("You have no referrals in progress.", { source: "en" })}
-            </p>
+            <div style={{ padding: "14px 18px" }}>
+                <div style={{ fontSize: 16, fontWeight: 600, color: T.NAVY }}>
+                    {td("Your active referrals", { source: "en" })}
+                </div>
+                <p
+                    style={{
+                        margin: "6px 0 0",
+                        fontSize: 14,
+                        color: T.TEXT_MUTED,
+                    }}
+                >
+                    {td("You have no referrals in progress.", { source: "en" })}
+                </p>
+            </div>
         );
     }
 
