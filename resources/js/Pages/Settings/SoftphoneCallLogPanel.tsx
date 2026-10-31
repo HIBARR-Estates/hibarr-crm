@@ -247,7 +247,7 @@ export default function SoftphoneCallLogPanel() {
                                         <span className="cb-ctx--empty">—</span>
                                     )}
                                 </span>
-                                <span className="cb-num">
+                                <span className="cb-num cb-col-number">
                                     {row.direction && (
                                         <span className="cb-chip">
                                             {row.direction === "inbound"

@@ -309,7 +309,11 @@
 }
 
 .cb-spec-page .cb-calls {
-    --cols: 150px minmax(0, 1.2fr) minmax(0, 1.1fr) minmax(0, 0.9fr) minmax(0, 1.2fr) 80px;
+    --cols: 150px minmax(0, 1.1fr) minmax(170px, 1.3fr) minmax(0, 0.9fr) minmax(0, 1.2fr) 80px;
+}
+
+.cb-spec-page .cb-col-number {
+    white-space: nowrap;
 }
 
 .cb-spec-page .cb-input {
