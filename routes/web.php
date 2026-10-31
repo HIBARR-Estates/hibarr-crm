@@ -1441,6 +1441,7 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('payment-requests', [App\Http\Controllers\PaymentRequestController::class, 'index'])->name('payment-requests.index');
 
     Route::post('telephony/calls', [TelephonyCallController::class, 'store'])->name('telephony.calls.store');
+    Route::get('telephony/calls/log', [\App\Http\Controllers\TelephonyCallLogController::class, 'index'])->name('telephony.calls.log');
     Route::post('telephony/softphone/events', [\App\Http\Controllers\TelephonySoftphoneEventController::class, 'store'])->name('telephony.softphone.events.store');
     Route::get('telephony/softphone/lead-match', [\App\Http\Controllers\TelephonySoftphoneEventController::class, 'leadByPhone'])->name('telephony.softphone.lead-match');
     Route::get('telephony/softphone/devices', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'index'])->name('telephony.softphone.devices.index');

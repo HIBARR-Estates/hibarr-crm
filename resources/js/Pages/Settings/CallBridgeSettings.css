@@ -308,6 +308,51 @@
     --cols: minmax(0, 1.3fr) minmax(0, 0.7fr) 72px minmax(0, 1.7fr);
 }
 
+.cb-spec-page .cb-calls {
+    --cols: 150px minmax(0, 1.2fr) minmax(0, 1.1fr) minmax(0, 0.9fr) minmax(0, 1.2fr) 80px;
+}
+
+.cb-spec-page .cb-input {
+    height: 34px;
+    padding: 0 10px;
+    border-radius: var(--cb-radius-sm);
+    border: 1px solid var(--dr-border);
+    background: var(--dr-surface);
+    color: var(--dr-text);
+    font-size: 13px;
+}
+
+.cb-spec-page .cb-outcome {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--dr-surface-2);
+    color: var(--dr-text-muted);
+    border: 1px solid var(--dr-border);
+}
+
+.cb-spec-page .cb-outcome--ended {
+    background: var(--dr-green-light);
+    color: var(--dr-green);
+    border-color: var(--dr-green-mid);
+}
+
+.cb-spec-page .cb-outcome--missed,
+.cb-spec-page .cb-outcome--busy,
+.cb-spec-page .cb-outcome--declined {
+    background: var(--dr-amber-soft);
+    color: var(--dr-amber);
+    border-color: var(--dr-amber-mid);
+}
+
+.cb-spec-page .cb-outcome--failed {
+    background: var(--dr-red-soft);
+    color: var(--dr-red);
+    border-color: var(--dr-red-mid, var(--dr-red-soft));
+}
+
 .cb-spec-page .cb-num {
     font-variant-numeric: tabular-nums;
 }
@@ -550,6 +595,12 @@
     .cb-spec-page .cb-pool .cb-grid-row {
         grid-template-columns: minmax(0, 1fr) auto 44px;
         gap: 12px;
+    }
+
+    .cb-spec-page .cb-calls.cb-grid-row {
+        grid-template-columns: 1fr auto;
+        row-gap: 8px;
+        column-gap: 12px;
     }
 
     .cb-spec-page .cb-recs .cb-grid-row {

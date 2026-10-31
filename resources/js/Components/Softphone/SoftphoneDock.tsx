@@ -808,6 +808,46 @@ useEffect(() => {
         return () => window.clearTimeout(timer);
     }, [callFailure, clearCallFailure]);
 
+    // Every outbound attempt that never connected (busy, declined, no answer,
+    // not registered, ...) goes on the lead's timeline. The failure object is
+    // replaced per attempt, so keying on identity logs each one exactly once.
+    const loggedFailureRef = useRef<typeof callFailure>(null);
+    useEffect(() => {
+        if (
+            !callFailure ||
+            callFailure.direction !== "outbound" ||
+            loggedFailureRef.current === callFailure
+        ) {
+            return;
+        }
+        loggedFailureRef.current = callFailure;
+        const leadId = callFailure.context?.leadId;
+        if (!leadId) {
+            return;
+        }
+        const event =
+            callFailure.code === "busy"
+                ? { event: "call.busy", status: "busy" }
+                : callFailure.code === "declined"
+                  ? { event: "call.declined", status: "declined" }
+                  : callFailure.code === "no-answer"
+                    ? { event: "call.missed", status: "missed" }
+                    : { event: "call.failed", status: "failed" };
+        void axios
+            .post(route("telephony.softphone.events.store"), {
+                phone: callFailure.peer,
+                entity_type: "lead",
+                entity_id: leadId,
+                direction: "outbound",
+                failure_reason: callFailure.code,
+                failure_message: callFailure.reason.slice(0, 255),
+                ...event,
+            })
+            .catch(() => {
+                // Timeline logging is best-effort only.
+            });
+    }, [callFailure]);
+
     const retryFailedCall = () => {
         const failure = callFailure;
         clearCallFailure();
