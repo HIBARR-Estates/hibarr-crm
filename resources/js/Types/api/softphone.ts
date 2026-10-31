@@ -20,6 +20,15 @@ export interface SoftphoneDevicesResponse {
     data?: { devices: SoftphoneDeviceSummary[] };
 }
 
+/** Connection settings for the admin edit form (never includes the password). */
+export interface SoftphoneDeviceDetails extends SoftphoneDeviceSummary {
+    wss_url: string;
+    uri: string;
+    authorization_username: string | null;
+    display_name: string | null;
+    has_password: boolean;
+}
+
 /** Full credentials for one device so the browser can register it. */
 export interface SoftphoneDeviceCredentials extends SoftphoneConfig {
     id: number;

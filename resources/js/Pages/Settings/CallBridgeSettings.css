@@ -312,6 +312,11 @@
     --cols: 150px minmax(0, 1.1fr) minmax(170px, 1.3fr) minmax(0, 0.9fr) minmax(0, 1.2fr) 80px;
 }
 
+.cb-spec-page .cb-calls-lede {
+    margin: 0 0 12px;
+    color: var(--dr-text-muted);
+}
+
 .cb-spec-page .cb-col-number {
     white-space: nowrap;
 }

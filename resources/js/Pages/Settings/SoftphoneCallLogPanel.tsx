@@ -139,13 +139,14 @@ export default function SoftphoneCallLogPanel() {
 
     return (
         <>
+            <p className="cb-calls-lede">
+                {td("Every call made or received through the CRM, including attempts that did not connect.", {
+                    source: "en",
+                })}
+                {meta ? ` (${meta.total})` : ""}
+            </p>
+
             <div className="cb-toolbar">
-                <span className="cb-toolbar__grow">
-                    {td("Every call made or received through the CRM, including attempts that did not connect.", {
-                        source: "en",
-                    })}
-                    {meta ? ` (${meta.total})` : ""}
-                </span>
                 <input
                     type="search"
                     className="cb-input"
