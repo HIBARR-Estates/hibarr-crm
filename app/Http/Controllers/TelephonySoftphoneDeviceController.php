@@ -36,6 +36,36 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
         ]);
     }
 
+    /**
+     * Connection settings for ONE line so the settings edit form can prefill.
+     *
+     * Admin-only and deliberately without `authorization_password`: the form
+     * treats a blank password as "keep the stored one", so the secret never
+     * needs to leave the server (unlike credentials(), which the dock uses).
+     */
+    public function show(int $id): JsonResponse
+    {
+        $this->assertSoftphoneEnabled();
+        $this->assertCanManage();
+
+        $device = SoftphoneDevice::findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'id' => $device->id,
+                'label' => $device->label,
+                'wss_url' => $device->wss_url,
+                'uri' => $device->uri,
+                'authorization_username' => $device->authorization_username,
+                'display_name' => $device->display_name,
+                'is_default' => $device->is_default,
+                'has_password' => $device->authorization_password !== null
+                    && $device->authorization_password !== '',
+            ],
+        ]);
+    }
+
     /** Full credentials for ONE line so the browser can register it. */
     public function credentials(Request $request, int $id): JsonResponse
     {

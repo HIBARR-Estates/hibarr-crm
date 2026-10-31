@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 /**
@@ -136,6 +137,103 @@ class CallBridgeServiceTest extends TestCase
             && $request['items'][0]['scope'] === 'transactional');
 
         Http::assertNotSent(fn ($request) => str_contains($request->url(), 'start_call'));
+    }
+
+    public function test_suppressed_call_attempt_is_logged_as_failed_on_the_timeline(): void
+    {
+        Config::set('services.ol.base_url', 'https://ol.test/v1');
+        Config::set('services.ol.api_key', 'test-key');
+
+        Http::fake([
+            'https://ol.test/v1/suppression/check' => Http::response([
+                'success' => true,
+                'data' => [
+                    'items' => [[
+                        'phone' => '+35799123456',
+                        'scope' => 'transactional',
+                        'blocked' => true,
+                        'wouldBlock' => true,
+                        'unavailable' => false,
+                    ]],
+                    'unavailable' => false,
+                    'enforced' => true,
+                ],
+            ], 200),
+            '*' => Http::response([], 200),
+        ]);
+
+        $this->service()->startCall([
+            'phone_number' => '+35799123456',
+            'entity_type' => 'lead',
+            'entity_id' => $this->leadId,
+            'user_id' => self::USER_ID,
+            'company_id' => self::COMPANY_ID,
+        ]);
+
+        $event = CrmEvent::withoutGlobalScopes()
+            ->whereHas('eventType', fn ($q) => $q->where('slug', 'call_failed'))
+            ->firstOrFail();
+
+        $this->assertSame($this->leadId, (int) $event->model_id);
+        $this->assertSame(self::USER_ID, (int) $event->user_id);
+        $this->assertSame('suppressed', $event->metadata['failure_reason']);
+        $this->assertSame('+35799123456', $event->metadata['phone_number']);
+        $this->assertSame('outbound', $event->direction->value);
+        $this->assertSame(0, $this->countEvents('call_started'));
+    }
+
+    public function test_bridge_failure_logs_a_failed_attempt_and_rethrows(): void
+    {
+        Config::set('services.ol.base_url', 'https://ol.test/v1');
+        Config::set('services.ol.api_key', 'test-key');
+        Config::set('services.call_bridge.base_url', 'https://bridge.test/v1');
+        Config::set('services.call_bridge.api_key', 'bridge-key');
+        Config::set('services.call_bridge.paths.start_call', '/call-bridge/calls/start');
+
+        Http::fake([
+            'https://ol.test/v1/suppression/check' => Http::response(['success' => true, 'data' => ['items' => [], 'unavailable' => false, 'enforced' => true]], 200),
+            'https://bridge.test/v1/call-bridge/calls/start' => Http::response([
+                'message' => 'No 3CX extension is bound to this user.',
+            ], 422),
+        ]);
+
+        try {
+            $this->service()->startCall([
+                'phone_number' => '+491701234567',
+                'entity_type' => 'lead',
+                'entity_id' => $this->leadId,
+                'user_id' => self::USER_ID,
+                'company_id' => self::COMPANY_ID,
+            ]);
+            $this->fail('Expected the bridge error to be rethrown.');
+        } catch (HttpException $e) {
+            $this->assertSame(422, $e->getStatusCode());
+            $this->assertSame('No 3CX extension is bound to this user.', $e->getMessage());
+        }
+
+        $event = CrmEvent::withoutGlobalScopes()
+            ->whereHas('eventType', fn ($q) => $q->where('slug', 'call_failed'))
+            ->firstOrFail();
+
+        $this->assertSame('rejected', $event->metadata['failure_reason']);
+        $this->assertSame('No 3CX extension is bound to this user.', $event->metadata['failure_message']);
+        $this->assertSame(0, $this->countEvents('call_started'));
+    }
+
+    public function test_two_failed_attempts_to_the_same_number_are_both_logged(): void
+    {
+        $payload = [
+            'phone_number' => '+491701234567',
+            'entity_type' => 'lead',
+            'entity_id' => $this->leadId,
+            'user_id' => self::USER_ID,
+            'company_id' => self::COMPANY_ID,
+        ];
+
+        $this->service()->logFailedAttempt($payload, 'bridge_unreachable', 'down');
+        $this->service()->logFailedAttempt($payload, 'bridge_unreachable', 'down');
+
+        $this->assertSame(2, $this->countEvents('call_failed', Lead::class, $this->leadId));
     }
 
     public function test_replayed_ol_event_is_not_logged_twice(): void
