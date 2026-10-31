@@ -1,0 +1,35 @@
+# HIBARR CI Infrastructure — laravel-app feature template (opt-in)
+#
+# Synced to .woodpecker/deploy-staging.yml only for repos that list `deploy-staging`
+# under `features:` in sync/repos.yaml. Same as deploy-prod.yml, pointed at the
+# staging Dokploy app. Manually triggered only.
+#
+# Secret requirements per consuming repo (Woodpecker repo secrets):
+#   - DOKPLOY_STAGING_WEBHOOK
+#   - STAGING_HEALTH_URL     e.g. https://crm.staging.example.com/healthz
+
+when:
+  - event: manual
+
+steps:
+  - name: prepare
+    image: node:20-alpine
+    commands:
+      - SHORT_SHA=$(echo $CI_COMMIT_SHA | cut -c1-7)
+      - echo "export SHORT_SHA=$SHORT_SHA" > .woodpecker-env
+      - echo "Deploying image tagged develop-$SHORT_SHA to staging"
+
+  - name: deploy-staging
+    image: alpine/curl
+    depends_on: [prepare]
+    environment:
+      IMAGE_NAME: "ghcr.io/hibarr-estates/${CI_REPO_NAME}"
+      CI_BRANCH_TAG: "develop"
+      DOKPLOY_WEBHOOK:
+        from_secret: DOKPLOY_STAGING_WEBHOOK
+      HEALTH_URL:
+        from_secret: STAGING_HEALTH_URL
+    commands:
+      - apk add --no-cache bash
+      - . .woodpecker-env
+      - bash .woodpecker-scripts/deploy-release-check.sh
