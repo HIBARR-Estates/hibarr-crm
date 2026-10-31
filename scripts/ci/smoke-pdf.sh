@@ -15,8 +15,20 @@ cd /var/www/html
 echo "node $(node --version), npm root -g: $(npm root -g)"
 [ -f vendor/spatie/browsershot/bin/browser.cjs ] || { echo "browsershot's browser.cjs is missing from the image"; exit 1; }
 
+# Every browser binary Puppeteer installed must actually run on this CPU. Puppeteer
+# has no Chrome for Testing build for Linux ARM and downloads the x86-64 one there
+# without complaint, which then cannot execute (and `ldd`, below, only greps for
+# "not found", so it would not notice either).
+for browser in $(find -H /opt/puppeteer -type f \( -name chrome -o -name chrome-headless-shell \)); do
+    "$browser" --version > /dev/null 2>&1 || {
+        echo "Cannot run $browser on this machine (uname -m: $(uname -m))."
+        echo "Most likely the browser was built for another CPU architecture: Puppeteer installs the x86-64 Chrome for Testing on Linux ARM hosts."
+        exit 1
+    }
+done
+
 # Every browser binary Puppeteer installed must have all its libraries.
-missing="$(find /opt/puppeteer -type f \( -name chrome -o -name chrome-headless-shell \) -exec ldd {} \; 2>/dev/null | grep 'not found' || true)"
+missing="$(find -H /opt/puppeteer -type f \( -name chrome -o -name chrome-headless-shell \) -exec ldd {} \; 2>/dev/null | grep 'not found' || true)"
 if [ -n "$missing" ]; then
     echo "Chrome is missing shared libraries:"
     echo "$missing"

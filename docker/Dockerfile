@@ -88,7 +88,11 @@ RUN --mount=type=cache,target=/root/.npm \
 # Only what webpack reads. tailwind.config.js scans resources/** and app/**/*.php
 # for class names, so `app` stays in; everything else (tests, docs, database,
 # config, routes, lang) no longer invalidates the slow build below.
-COPY webpack.mix.js tailwind.config.js postcss.config.js tsconfig.json .babelrc ./
+# `artisan` looks unrelated, but Laravel Mix detects a Laravel project by that file
+# existing and only then sets its public directory to `public`. Without it the build
+# compiles, then fails while versioning with "ENOENT ... open '/js/antd.js'" (it
+# looks for the output at the filesystem root).
+COPY artisan webpack.mix.js tailwind.config.js postcss.config.js tsconfig.json .babelrc ./
 COPY public/vendor ./public/vendor
 COPY app ./app
 COPY resources/css ./resources/css
