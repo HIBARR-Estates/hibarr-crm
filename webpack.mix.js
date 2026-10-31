@@ -94,7 +94,23 @@ mix.js("resources/js/bootstrap.js", "public/js")
         require("@tailwindcss/postcss"),
         require("autoprefixer"),
     ])
-    .options({ processCssUrls: false })
+    .options({
+        processCssUrls: false,
+        // Mix minifies with one terser worker per CPU, each holding its own copy of
+        // the chunk it is working on, outside the --max-old-space-size heap cap. On a
+        // many-core, modest-RAM builder (CI, Docker) that is what gets the build
+        // OOM-killed (exit 137). MIX_TERSER_WORKERS caps it; unset keeps Mix's default.
+        ...(process.env.MIX_TERSER_WORKERS
+            ? {
+                  terser: {
+                      parallel: Number(process.env.MIX_TERSER_WORKERS),
+                      // options() replaces Mix's whole terser object, so restate its
+                      // defaults to keep the minified output unchanged.
+                      terserOptions: { compress: true, output: { comments: false } },
+                  },
+              }
+            : {}),
+    })
     // A4: keep source maps in development; omit large .map files from production builds
     .sourceMaps(false, "source-map")
     // mix.js() and each mix.ts() register an identical babel-loader rule, and
