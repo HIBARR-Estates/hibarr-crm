@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Deferred } from "@inertiajs/react";
-import { Button, REDESIGN_TOKENS as T } from "@/Components/Redesign";
+import { Button, EmptyState, REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import DashboardPanel, {
     CardSkeleton,
@@ -39,6 +39,13 @@ const COMMISSION_TONE: Record<string, string> = {
 };
 
 /**
+ * Ledger order: what has been paid, what is owed, then what was clawed back.
+ * Fixed rather than whatever order the GROUP BY returned, so the rows don't
+ * swap places between visits.
+ */
+const COMMISSION_ORDER = ["paid", "pending", "reverted"];
+
+/**
  * The whole referral book, and nothing else.
  *
  * External partners sit outside the trust boundary: no deal values, no client
@@ -71,7 +78,13 @@ export default function PartnerView({
         return (partnerReferrals ?? []).filter((row) => !openLeadIds.has(row.id));
     }, [partnerFlags, partnerReferrals]);
 
-    const commissions = Object.entries(partnerStats?.commissionsByStatus ?? {});
+    const commissions = Object.entries(
+        partnerStats?.commissionsByStatus ?? {},
+    ).sort(([a], [b]) => ledgerRank(a) - ledgerRank(b));
+
+    // Known only once the stats land. While they load, the panels below show
+    // their own skeletons rather than guessing which state to draw.
+    const noReferrals = partnerStats?.referredLeads === 0;
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -146,47 +159,71 @@ export default function PartnerView({
             </Deferred>
 
             <div className="dv2-partner-insights">
-                <DashboardPanel
-                    title="Referrals over time"
-                    note="Submitted against completed, last 12 months"
-                    extra={<Legend />}
-                    style={{ height: "100%" }}
-                >
-                    <Deferred
-                        data="partnerTrend"
-                        fallback={<PanelSkeleton rows={5} />}
+                {noReferrals ? (
+                    <DashboardPanel
+                        title="Your referrals"
+                        className="dv2-partner-span-2"
+                        style={{ height: "100%" }}
                     >
-                        <PartnerTrendChart data={partnerTrend ?? []} />
-                    </Deferred>
-                </DashboardPanel>
-
-                <DashboardPanel
-                    title="Where your referrals stand"
-                    note="Stage only — no client detail"
-                    style={{ height: "100%" }}
-                >
-                    <Deferred
-                        data="partnerFunnel"
-                        fallback={<PanelSkeleton rows={5} />}
-                    >
-                        <StageFunnel
-                            labelWidth={96}
-                            emptyMessage="No referrals to place yet."
-                            data={(partnerFunnel ?? []).map((step, index) => ({
-                                key: step.label,
-                                label: step.label,
-                                count: step.count,
-                                tone:
-                                    index === 0
-                                        ? "navy"
-                                        : index ===
-                                            (partnerFunnel?.length ?? 0) - 1
-                                          ? "green"
-                                          : "blue",
-                            }))}
+                        <EmptyState
+                            icon="users"
+                            title={td("No referrals yet", { source: "en" })}
+                            description={td(
+                                "Clients you introduce appear here once the team logs them — how they progress, and what they pay out.",
+                                { source: "en" },
+                            )}
                         />
-                    </Deferred>
-                </DashboardPanel>
+                    </DashboardPanel>
+                ) : (
+                    <>
+                        <DashboardPanel
+                            title="Referrals over time"
+                            note="Submitted against completed, last 12 months"
+                            extra={<Legend />}
+                            style={{ height: "100%" }}
+                        >
+                            <Deferred
+                                data="partnerTrend"
+                                fallback={<PanelSkeleton rows={5} />}
+                            >
+                                <PartnerTrendChart data={partnerTrend ?? []} />
+                            </Deferred>
+                        </DashboardPanel>
+
+                        <DashboardPanel
+                            title="Where your referrals stand"
+                            note="Stage only — no client detail"
+                            style={{ height: "100%" }}
+                        >
+                            <Deferred
+                                data="partnerFunnel"
+                                fallback={<PanelSkeleton rows={5} />}
+                            >
+                                <StageFunnel
+                                    labelWidth={96}
+                                    emptyMessage="No referrals to place yet."
+                                    // A row of zero bars reads as a broken
+                                    // chart, not as "nothing referred".
+                                    data={(partnerFunnel?.[0]?.count
+                                        ? partnerFunnel
+                                        : []
+                                    ).map((step, index) => ({
+                                        key: step.label,
+                                        label: step.label,
+                                        count: step.count,
+                                        tone:
+                                            index === 0
+                                                ? "navy"
+                                                : index ===
+                                                    (partnerFunnel?.length ?? 0) - 1
+                                                  ? "green"
+                                                  : "blue",
+                                    }))}
+                                />
+                            </Deferred>
+                        </DashboardPanel>
+                    </>
+                )}
 
                 <DashboardPanel
                     title="Commission ledger"
@@ -205,7 +242,12 @@ export default function PartnerView({
                     >
                         {commissions.length ? (
                             <div>
-                                {commissions.map(([status, total], index) => (
+                                {commissions.map(([status, total], index) => {
+                                    // Clawed back: shown so the partner can see
+                                    // it happened, never styled as money owed.
+                                    const reverted = status === "reverted";
+
+                                    return (
                                     <div
                                         key={status}
                                         style={{
@@ -243,16 +285,34 @@ export default function PartnerView({
                                                     fontSize: 14,
                                                     fontWeight: 600,
                                                     textTransform: "capitalize",
+                                                    color: reverted
+                                                        ? T.TEXT_MUTED
+                                                        : T.TEXT,
                                                 }}
                                             >
                                                 {td(status, { source: "en" })}
                                             </span>
+                                            {reverted && (
+                                                <span
+                                                    style={{
+                                                        fontSize: 12,
+                                                        color: T.TEXT_MUTED,
+                                                    }}
+                                                >
+                                                    {td("not payable", { source: "en" })}
+                                                </span>
+                                            )}
                                         </div>
                                         <span
                                             style={{
                                                 fontSize: 16,
-                                                fontWeight: 700,
-                                                color: T.NAVY,
+                                                fontWeight: reverted ? 500 : 700,
+                                                color: reverted
+                                                    ? T.TEXT_MUTED
+                                                    : T.NAVY,
+                                                textDecoration: reverted
+                                                    ? "line-through"
+                                                    : undefined,
                                             }}
                                         >
                                             {currencyAmount(
@@ -261,7 +321,8 @@ export default function PartnerView({
                                             )}
                                         </span>
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         ) : (
                             <p
@@ -278,21 +339,34 @@ export default function PartnerView({
                 </DashboardPanel>
             </div>
 
+            {/* Nothing referred means nothing to list and nothing to raise a
+                flag on — the empty state above already says so. Flag history
+                still shows, though: a referral removed after the team replied
+                drops the count to zero, and the reply must stay readable. */}
             <Deferred
                 data={["partnerReferrals", "partnerFlags"]}
                 fallback={
-                    <div className="dv2-partner-book">
-                        <div style={{ padding: 18 }}>
-                            <PanelSkeleton rows={5} />
+                    noReferrals ? (
+                        <span />
+                    ) : (
+                        <div className="dv2-partner-book">
+                            <div style={{ padding: 18 }}>
+                                <PanelSkeleton rows={5} />
+                            </div>
+                            <PanelSkeleton rows={4} />
                         </div>
-                        <PanelSkeleton rows={4} />
-                    </div>
+                    )
                 }
             >
-                <div className="dv2-partner-book">
-                    <DashboardPanel flush fill style={{ height: "100%" }}>
-                        <ReferralTable rows={partnerReferrals ?? []} />
-                    </DashboardPanel>
+                {noReferrals && !partnerFlags?.length ? (
+                    <span />
+                ) : (
+                <div className={noReferrals ? undefined : "dv2-partner-book"}>
+                    {!noReferrals && (
+                        <DashboardPanel flush fill style={{ height: "100%" }}>
+                            <ReferralTable rows={partnerReferrals ?? []} />
+                        </DashboardPanel>
+                    )}
                     <DashboardPanel
                         flush
                         fill
@@ -318,16 +392,25 @@ export default function PartnerView({
                         />
                     </DashboardPanel>
                 </div>
+                )}
             </Deferred>
         </div>
     );
 }
 
+// 200px floor so the three-figure Referrals tile keeps its labels whole; min()
+// lets a phone drop to one column instead of overflowing.
 const tileGrid = {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))",
     gap: 12,
 } as const;
+
+const ledgerRank = (status: string) => {
+    const rank = COMMISSION_ORDER.indexOf(status);
+
+    return rank === -1 ? COMMISSION_ORDER.length : rank;
+};
 
 /**
  * Says why the forecast is blank, because there are three different reasons
@@ -350,7 +433,7 @@ function forecastNote(forecast?: PartnerForecast | null): string | null {
         return "Awaiting commission setup";
     }
 
-    return `Across ${forecast.deal_count} open deals, unconverted`;
+    return `If all ${forecast.deal_count} open referred deals close`;
 }
 
 function Legend() {
@@ -393,11 +476,13 @@ function NoPartnerRecord() {
     const { td } = useTd();
 
     return (
-        <DashboardPanel title="No partner record linked to this account">
-            <p style={{ margin: 0, fontSize: 14, color: T.TEXT_MUTED }}>
-                {td(
-                    "Referred leads are attributed through the agent record on your profile.", { source: "en" })}
-            </p>
-        </DashboardPanel>
+        <EmptyState
+            icon="user"
+            title={td("No partner record linked to this account", { source: "en" })}
+            description={td(
+                "Referred leads are attributed through the agent record on your profile.",
+                { source: "en" },
+            )}
+        />
     );
 }
