@@ -207,6 +207,14 @@ ENV COMPOSER_ALLOW_SUPERUSER=1 \
     GRPC_ENABLED=false \
     INFISICAL_DISABLE_UPDATE_CHECK=true
 
+# Extensions are compiled position-independent (-fPIC) whatever libtool decides.
+# libtool normally adds -fPIC after probing the compiler, but the probe treats any
+# stray text on stderr as "flag unsupported", and under CPU emulation (this image is
+# cross-built for x86-64 on an ARM agent) it can answer "no". The extension is then
+# compiled with the image's default -fpie, which cannot be linked into a shared
+# object ("relocation R_X86_64_PC32 against undefined symbol module_registry can not
+# be used when making a shared object; recompile with -fPIC"). PECL does not use
+# PHP_CFLAGS, so redis gets the flag through CFLAGS.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
@@ -223,6 +231,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libonig-dev \
         libxml2-dev \
         default-mysql-client \
+    && export PHP_CFLAGS="$PHP_CFLAGS -fPIC" \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
         bcmath \
@@ -234,7 +243,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         pcntl \
         pdo_mysql \
         zip \
-    && pecl install redis \
+    && CFLAGS="-g -O2 -fPIC" pecl install redis \
     && docker-php-ext-enable redis \
     && ARCH="${TARGETARCH:-amd64}" \
     && curl -fsSL -o /tmp/infisical-cli.tar.gz \
