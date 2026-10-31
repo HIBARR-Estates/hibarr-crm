@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import axios from "axios";
 import {
     DeleteOutlined,
@@ -9,6 +9,7 @@ import {
     ThunderboltOutlined,
 } from "@ant-design/icons";
 import { App } from "antd";
+import { Tooltip } from "antd";
 import Badge from "@/Components/Redesign/primitives/Badge";
 import Button from "@/Components/Redesign/primitives/Button";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
@@ -37,6 +38,8 @@ interface DeviceDevicesResponse {
 
 interface DevicePayload {
     label: string;
+    /** SIP platform the line belongs to (e.g. sipgate). */
+    provider?: string;
     /** Required on create. Omitted on update to keep the stored value. */
     wss_url?: string;
     /** Required on create. Omitted on update to keep the stored value. */
@@ -45,6 +48,31 @@ interface DevicePayload {
     authorization_password: string;
     display_name?: string | null;
     is_default?: boolean;
+}
+
+interface ProviderOption {
+    value: string;
+    label: string;
+}
+
+interface ProvidersResponse {
+    status: "success" | "fail";
+    message?: string | null;
+    data?: {
+        providers: string[];
+    };
+}
+
+/** SIP connection defaults for one provider platform. */
+interface PlatformDefaults {
+    wss: string;
+    sipUriFormat: string;
+}
+
+interface PlatformResponse {
+    status: "success" | "fail";
+    message?: string | null;
+    data?: PlatformDefaults;
 }
 
 const ROW_GRID =
@@ -71,6 +99,13 @@ export default function SoftphoneDeviceManager() {
     const [deletingId, setDeletingId] = useState<number | null>(null);
 
     const [label, setLabel] = useState("");
+    const [provider, setProvider] = useState<string | undefined>(undefined);
+    const [providerOptions, setProviderOptions] = useState<ProviderOption[]>([]);
+    const [providerLoading, setProviderLoading] = useState(false);
+    // Connection defaults for the selected provider platform. Selecting a
+    // platform is what decides the WSS endpoint + SIP URI the line will use.
+    const [platformDefaults, setPlatformDefaults] = useState<PlatformDefaults | null>(null);
+    const [platformLoading, setPlatformLoading] = useState(false);
     const [wssUrl, setWssUrl] = useState("");
     const [uri, setUri] = useState("");
     const [username, setUsername] = useState("");
@@ -94,9 +129,103 @@ export default function SoftphoneDeviceManager() {
 
     const devices = data?.data?.devices ?? [];
 
+    // Fetch the supported SIP providers from the CallBridge integrations API.
+    // Authentication is the normal browser session (the route is in the
+    // `api.token.or.session` group), so no key belongs in client code.
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadProviders = async () => {
+            setProviderLoading(true);
+            try {
+                const response = await axios.get<ProvidersResponse>(
+                    route("api.call-bridge.integrations.providers.v1"),
+                    { headers: { Accept: "application/json" } },
+                );
+                if (cancelled) return;
+
+                const providers =
+                    response.data?.status === "success"
+                        ? (response.data.data?.providers ?? [])
+                        : [];
+
+                setProviderOptions(
+                    providers.map((name) => ({ value: name, label: name })),
+                );
+            } catch {
+                // Endpoint unavailable / flag off: keep the field empty
+                // rather than blocking the rest of the form.
+                if (!cancelled) setProviderOptions([]);
+            } finally {
+                if (!cancelled) setProviderLoading(false);
+            }
+        };
+
+        loadProviders();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    // Selecting a platform pulls its connection defaults
+    // (`wss` + `sipUriFormat`) from the integrations API and fills the
+    // connection fields, so the platform decides them.
+    useEffect(() => {
+        if (!provider) {
+            setPlatformDefaults(null);
+            setPlatformLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+        setPlatformLoading(true);
+
+        axios
+            .get<PlatformResponse>(
+                route("api.call-bridge.integrations.platform.v1", provider),
+                { headers: { Accept: "application/json" } },
+            )
+            .then((response) => {
+                if (cancelled) return;
+                if (response.data?.status !== "success" || !response.data.data) {
+                    setPlatformDefaults(null);
+                    return;
+                }
+                setPlatformDefaults(response.data.data);
+            })
+            .catch(() => {
+                if (!cancelled) setPlatformDefaults(null);
+            })
+            .finally(() => {
+                if (!cancelled) setPlatformLoading(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [provider]);
+
+    // Keep the connection fields in step with the selected platform and the
+    // channel username. The platform owns the endpoint; the URI format carries
+    // a `{username}` placeholder. Both stay editable for other providers.
+    useEffect(() => {
+        if (!platformDefaults) return;
+
+        setWssUrl(platformDefaults.wss);
+
+        const trimmed = username.trim();
+        if (trimmed) {
+            setUri(platformDefaults.sipUriFormat.replace("{username}", trimmed));
+        }
+    }, [platformDefaults, username]);
+
     const resetForm = () => {
         setEditing(null);
         setLabel("");
+        setProvider(undefined);
+        setPlatformDefaults(null);
+        setPlatformLoading(false);
         setWssUrl("");
         setUri("");
         setUsername("");
@@ -205,6 +334,7 @@ export default function SoftphoneDeviceManager() {
                 if (detailsRequest.current !== requestId) return;
                 const details = response.data.data;
                 setLabel(details.label);
+                setProvider(details.provider ?? undefined);
                 setWssUrl(details.wss_url ?? "");
                 setUri(details.uri ?? "");
                 setUsername(details.authorization_username ?? "");
@@ -234,6 +364,10 @@ export default function SoftphoneDeviceManager() {
             authorization_password: password,
             is_default: isDefault,
         };
+
+        if (provider) {
+            payload.provider = provider;
+        }
 
         if (editing) {
             payload.authorization_username = username.trim() || null;
@@ -388,14 +522,40 @@ export default function SoftphoneDeviceManager() {
                             className="cb-dialog-btn"
                             onClick={handleSubmit}
                             loading={saving}
-                            disabled={!canSubmit}
+                            disabled={!canSubmit || platformLoading}
                         >
                             Save
                         </Button>
                     </>
                 }
             >
-                <label htmlFor="sp-label" style={fieldLabel}>
+                <label htmlFor="sp-provider" style={fieldLabel}>
+                    Provider
+                    <Tooltip title="SIP platform for this line. Selecting it fills the connection settings below.">
+                        <i
+                            className="antd-icon antd-icon_question_circle"
+                            style={{ fontSize: 12, marginLeft: 2, color: T.TEXT_HINT }}
+                        />
+                    </Tooltip>
+                </label>
+                <select
+                    id="sp-provider"
+                    className="dr-input"
+                    value={provider ?? ""}
+                    onChange={(e) => setProvider(e.target.value || undefined)}
+                    disabled={detailsLoading || providerLoading}
+                >
+                    <option value="">
+                        {providerLoading ? "Loading…" : "-- Select provider --"}
+                    </option>
+                    {providerOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                            {option.label}
+                        </option>
+                    ))}
+                </select>
+
+                <label htmlFor="sp-label" style={{ ...fieldLabel, marginTop: 16 }}>
                     Label (e.g. German, Swedish)
                 </label>
                 <input
@@ -412,7 +572,7 @@ export default function SoftphoneDeviceManager() {
                 </label>
                 <input
                     id="sp-wss"
-                    disabled={detailsLoading}
+                    disabled={detailsLoading || platformLoading}
                     className="dr-input"
                     value={wssUrl}
                     onChange={(e) => setWssUrl(e.target.value)}
@@ -424,7 +584,7 @@ export default function SoftphoneDeviceManager() {
                 </label>
                 <input
                     id="sp-uri"
-                    disabled={detailsLoading}
+                    disabled={detailsLoading || platformLoading}
                     className="dr-input"
                     value={uri}
                     onChange={(e) => setUri(e.target.value)}

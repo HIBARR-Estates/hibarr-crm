@@ -23,7 +23,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
 
     public function leadByPhone(Request $request): JsonResponse
     {
-        if (! in_array(user()->permission('make_softphone_calls'), ['all'])) {
+        if (! in_array(user()->permission('make_softphone_calls'), ['all', 'added'])) {
             // Incoming matching is still available to anyone who can view leads;
             // callers without softphone permission get an explicit 403.
             abort_403(true);

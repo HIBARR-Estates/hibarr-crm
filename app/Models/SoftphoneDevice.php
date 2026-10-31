@@ -18,6 +18,7 @@ class SoftphoneDevice extends BaseModel
     protected $fillable = [
         'company_id',
         'label',
+        'provider',
         'wss_url',
         'uri',
         'authorization_username',

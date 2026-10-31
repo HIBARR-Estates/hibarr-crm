@@ -57,6 +57,7 @@ return [
         'crm.deal-value-commission',
         'shared.3cx-calling',
         'crm.softphone',
+        'callbridge.integrations',
         'crm.mobile-responsive-layout',
         'crm.property-completeness-score',
         'crm.email',
@@ -74,5 +75,6 @@ return [
         'crm.meeting-attendance-confirmation' => true,
         'crm.mobile-responsive-layout' => true,
         'crm.email' => true,
+        'callbridge.integrations' => true,
     ],
 ];
