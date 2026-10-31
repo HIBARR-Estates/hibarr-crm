@@ -13,6 +13,7 @@ use App\Services\Dashboard\TeamDownlineService;
 use App\Services\MlmCommissionService;
 use App\Support\DashboardDateRange;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -249,6 +250,33 @@ class CompanyDashboardTest extends TestCase
         $this->assertStringNotContainsString('"name"', $payload);
     }
 
+    // ── Sources ──────────────────────────────────────────────────
+
+    public function test_sources_respect_a_custom_range_that_ended_in_the_past(): void
+    {
+        $source = DB::table('lead_sources')->insertGetId(['company_id' => $this->companyId, 'type' => 'Website']);
+        $from = now()->subDays(60)->startOfDay();
+
+        foreach ([now()->subDays(50), now()->subDays(40), now()->subDays(5)] as $createdAt) {
+            Lead::insert([
+                'company_id' => $this->companyId,
+                'client_name' => 'Lead',
+                'source_id' => $source,
+                'created_at' => $createdAt,
+                'updated_at' => $createdAt,
+            ]);
+        }
+
+        $range = DashboardDateRange::fromRequest(Request::create('/', 'GET', [
+            'from' => $from->toDateString(),
+            'to' => now()->subDays(30)->toDateString(),
+        ]));
+
+        $rows = collect($this->metrics()->sourceQuality([], $range->days(), $range));
+
+        $this->assertSame(2, $rows->firstWhere('id', $source)['count'], 'A lead created after the range ended was counted');
+    }
+
     // ── Gate ─────────────────────────────────────────────────────
 
     public function test_with_the_flag_off_the_company_tab_is_coming_soon(): void
@@ -351,6 +379,7 @@ class CompanyDashboardTest extends TestCase
         Schema::dropIfExists('deals');
         Schema::dropIfExists('lead_agents');
         Schema::dropIfExists('leads');
+        Schema::dropIfExists('lead_sources');
         Schema::dropIfExists('users');
         Schema::dropIfExists('companies');
     }
@@ -371,10 +400,19 @@ class CompanyDashboardTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('lead_sources', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('type');
+            $table->timestamps();
+        });
+
         Schema::create('leads', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('company_id')->nullable();
             $table->string('client_name');
+            $table->unsignedInteger('source_id')->nullable();
+            $table->timestamp('first_contacted_at')->nullable();
             $table->softDeletes();
             $table->timestamps();
         });

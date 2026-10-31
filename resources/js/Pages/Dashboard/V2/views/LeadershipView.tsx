@@ -1,6 +1,7 @@
 import { Deferred } from "@inertiajs/react";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import DashboardPanel, {
     CardSkeleton,
     PanelSkeleton,
@@ -422,6 +423,8 @@ function GrowthStrip({
  */
 function TopSources({ rows }: { rows: SourceBreakdownRow[] }) {
     const { t } = useTranslation();
+    // Source names are data in English, not lang-file copy.
+    const { td } = useTd();
 
     const ranked = rows
         .filter((row) => row.count > 0)
@@ -462,7 +465,7 @@ function TopSources({ rows }: { rows: SourceBreakdownRow[] }) {
                                 color: T.TEXT,
                             }}
                         >
-                            {row.name}
+                            {td(row.name, { source: "en" })}
                         </span>
                         <span style={{ fontWeight: 700, color: T.NAVY }}>
                             {row.share}%

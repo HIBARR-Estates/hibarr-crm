@@ -1031,16 +1031,24 @@ class DashboardMetricsService
      * Still no cost column: no spend data reaches the CRM for any channel, so
      * cost-per-lead here would imply a parity between sources that isn't real.
      */
-    public function sourceQuality(array $agentIds = [], int $days = 90): array
+    public function sourceQuality(array $agentIds = [], int $days = 90, ?DashboardDateRange $range = null): array
     {
         $ownerIds = $this->ownerIdsFor($agentIds);
-        $since = now()->subDays($days)->startOfDay();
+        // With a range, its own bounds: a custom window that ended in the past
+        // (or YTD) must not reach up to today. Without one, the rolling
+        // $days-back reading the manager view has always used.
+        $since = $range?->from ?? now()->subDays($days)->startOfDay();
+        $until = $range?->to;
 
         return LeadSource::query()
-            ->leftJoin('leads', function ($join) use ($ownerIds, $since, $agentIds) {
+            ->leftJoin('leads', function ($join) use ($ownerIds, $since, $until, $agentIds) {
                 $join->on('leads.source_id', '=', 'lead_sources.id')
                     ->whereNull('leads.deleted_at')
                     ->where('leads.created_at', '>=', $since);
+
+                if ($until) {
+                    $join->where('leads.created_at', '<=', $until);
+                }
 
                 if (! empty($agentIds)) {
                     $join->whereIn('leads.lead_owner', $ownerIds ?: [0]);

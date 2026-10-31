@@ -343,7 +343,7 @@ class DashboardV2Controller extends AccountBaseController
             // Company wide (no agent scope): which channels the won business
             // came from. Counts only — there is no spend data to set them against.
             'sourceBreakdown' => Inertia::defer(
-                fn () => $metrics->sourceQuality([], $range->days()),
+                fn () => $metrics->sourceQuality([], $range->days(), $range),
                 'sources'
             ),
             // A standing balance, not a windowed event, and per currency —
