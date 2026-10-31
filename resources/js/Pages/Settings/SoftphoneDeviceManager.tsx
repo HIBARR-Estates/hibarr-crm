@@ -366,6 +366,7 @@ export default function SoftphoneDeviceManager() {
                     <>
                         <Button
                             variant="ghost"
+                            className="cb-dialog-btn"
                             icon={<ThunderboltOutlined />}
                             loading={draftTest?.status === "testing"}
                             disabled={!canTestDraft || saving}
@@ -374,11 +375,17 @@ export default function SoftphoneDeviceManager() {
                         >
                             Test connection
                         </Button>
-                        <Button variant="ghost" onClick={closeModal} disabled={saving}>
+                        <Button
+                            variant="ghost"
+                            className="cb-dialog-btn"
+                            onClick={closeModal}
+                            disabled={saving}
+                        >
                             Cancel
                         </Button>
                         <Button
                             variant="primary"
+                            className="cb-dialog-btn"
                             onClick={handleSubmit}
                             loading={saving}
                             disabled={!canSubmit}

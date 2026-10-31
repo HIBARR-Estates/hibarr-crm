@@ -33,7 +33,12 @@
     box-sizing: border-box;
 }
 
-.cb-spec-page button {
+/* Page-level reset for the bespoke `.cb-*` controls. Shared `.dr-btn` buttons
+   (Add phone line, Save, ...) are excluded: this rule is more specific than
+   `.dr-btn-primary`, so without the exclusion it replaced their white label
+   with the page's muted grey on blue and reset their 13px/600 font.
+   `:where()` keeps the specificity unchanged for every other button. */
+.cb-spec-page button:where(:not(.dr-btn)) {
     font: inherit;
     color: inherit;
     cursor: pointer;
@@ -634,4 +639,23 @@
     .cb-spec-page .cb-recs .cb-player {
         grid-column: 1 / -1;
     }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Dialog buttons                                                     */
+/* ------------------------------------------------------------------ */
+
+/* Modals are portaled to <body>, outside `.cb-spec-page`, so this is the one
+   deliberately unscoped block. The shared `.dr-btn:disabled` dims the whole
+   button to 45% opacity, which leaves a disabled Save as near-white text on
+   pale blue. Keep the label legible with a solid neutral fill instead. */
+.dr-btn.cb-dialog-btn:disabled {
+    opacity: 1;
+    background: var(--dr-border);
+    border-color: var(--dr-border);
+    color: var(--dr-text-muted);
+}
+
+.dr-btn-ghost.cb-dialog-btn:disabled {
+    background: var(--dr-gray);
 }
