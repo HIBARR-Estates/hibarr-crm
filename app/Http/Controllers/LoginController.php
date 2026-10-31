@@ -6,6 +6,7 @@ use Exception;
 use App\Models\User;
 use App\Helper\Reply;
 use App\Models\Social;
+use App\Services\PartnerInviteService;
 use App\Support\KeycloakBackchannelLogout;
 use App\Support\KeycloakLogout;
 use App\Support\SilentSso;
@@ -211,6 +212,11 @@ class LoginController extends Controller
                     'social_id' => $data->id,
                     'social_service' => $provider,
                 ]);
+
+                if ($user->partner_invite_status === PartnerInviteService::STATUS_INVITED) {
+                    $user->partner_invite_status = PartnerInviteService::STATUS_ACCEPTED;
+                    $user->save();
+                }
 
                 DB::commit();
             } catch (Exception $e) {

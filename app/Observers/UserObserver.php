@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Events\NewUserEvent;
 use App\Models\TicketAgentGroups;
 use App\Models\User;
+use App\Services\PartnerInviteService;
 use App\Traits\StoreHeaders;
 
 class UserObserver
@@ -19,6 +20,10 @@ class UserObserver
                 // Remove as ticket agent
                 TicketAgentGroups::whereAgentId($user->id)->delete();
             }
+        }
+
+        if ($user->exists && ($user->isDirty('status') || $user->isDirty('email'))) {
+            app(PartnerInviteService::class)->syncLifecycle($user);
         }
 
         session()->forget('user');

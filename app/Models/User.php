@@ -307,6 +307,7 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'last_login' => 'datetime',
+        'partner_invited_at' => 'datetime',
         'two_factor_expires_at	' => 'array',
         'salutation' => Salutation::class,
         'timezone_locked' => 'boolean',
