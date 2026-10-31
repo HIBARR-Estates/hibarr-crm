@@ -28,9 +28,20 @@
 /* Segmented view switcher. */
 .dashboard-v2 .dv2-tabs {
     display: inline-flex;
-    background: #e7eaf0;
+    background: var(--dr-gray-mid);
     border-radius: 9px;
     padding: 3px;
+    /* Five views do not fit a phone; the track scrolls rather than pushing
+       the whole page wider than the screen. */
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    /* Offset parent for the active-tab scroll in SegmentedControl. */
+    position: relative;
+}
+
+.dashboard-v2 .dv2-tabs::-webkit-scrollbar {
+    display: none;
 }
 
 .dashboard-v2 .dv2-tab {
@@ -42,31 +53,33 @@
     font: inherit;
     font-size: 14px;
     font-weight: 500;
-    color: #5b6472;
+    color: var(--dr-text-muted);
     display: flex;
+    flex-shrink: 0;
+    white-space: nowrap;
     align-items: center;
     cursor: pointer;
     white-space: nowrap;
 }
 
 .dashboard-v2 .dv2-tab:hover {
-    color: #1a1f2e;
+    color: var(--dr-text);
 }
 
 .dashboard-v2 .dv2-tab:disabled {
-    color: #b0b6c0;
+    color: var(--dr-text-hint);
     cursor: not-allowed;
 }
 
 .dashboard-v2 .dv2-tab:disabled:hover {
-    color: #b0b6c0;
+    color: var(--dr-text-hint);
 }
 
 .dashboard-v2 .dv2-tab[aria-current="page"] {
-    background: #ffffff;
+    background: var(--dr-surface);
     box-shadow: 0 1px 2px rgba(22, 41, 77, 0.1);
     font-weight: 600;
-    color: #16294d;
+    color: var(--dr-navy);
 }
 
 /* Section label: "YOUR WEEK", "OVERDUE TASKS", column headers. */
@@ -222,9 +235,32 @@
     align-items: stretch;
 }
 
+/* A partner with no referrals gets one empty state where the trend and the
+   funnel would be, beside the ledger. */
+.dashboard-v2 .dv2-partner-insights .dv2-partner-span-2 {
+    grid-column: span 2;
+}
+
 @media (max-width: 1100px) {
     .dashboard-v2 .dv2-partner-insights {
         grid-template-columns: 1fr;
+    }
+
+    .dashboard-v2 .dv2-partner-insights .dv2-partner-span-2 {
+        grid-column: auto;
+    }
+}
+
+/* Twelve monthly columns on a phone leave ~20px each: tighten the gutter and
+   label every other month (the current one always), so labels stop
+   overrunning their column. */
+@media (max-width: 600px) {
+    .dashboard-v2 .dv2-trend-plot {
+        --dv2-trend-gap: 4px;
+    }
+
+    .dashboard-v2 .dv2-trend-labels > :nth-child(even):not(:last-child) {
+        visibility: hidden;
     }
 }
 
