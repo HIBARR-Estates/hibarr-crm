@@ -14,7 +14,6 @@
  *    parses its descriptor with the installed google/protobuf runtime
  *    (catches generated-code / runtime version incompatibility).
  */
-
 $root = getenv('APP_DIR') ?: '/var/www/html';
 chdir($root);
 require $root.'/vendor/autoload.php';
@@ -48,9 +47,9 @@ if ($generated === 0) {
 
 $message = 'App\\Grpc\\Generated\\Deal\\Deal';
 try {
-    $a = new $message();
+    $a = new $message;
     $a->setId(42);
-    $b = new $message();
+    $b = new $message;
     $b->mergeFromString($a->serializeToString());
     if ($b->getId() !== 42) {
         $failures[] = "{$message} did not round-trip (got ".var_export($b->getId(), true).')';
