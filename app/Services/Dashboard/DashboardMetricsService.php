@@ -18,8 +18,10 @@ use App\Models\Task;
 use App\Models\TaskboardColumn;
 use App\Services\CrmEventService;
 use App\Services\MlmCommissionService;
+use App\Support\DashboardDateRange;
 use App\Support\FeatureFlags;
 use App\Support\TaskPresenter;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -1029,16 +1031,24 @@ class DashboardMetricsService
      * Still no cost column: no spend data reaches the CRM for any channel, so
      * cost-per-lead here would imply a parity between sources that isn't real.
      */
-    public function sourceQuality(array $agentIds = [], int $days = 90): array
+    public function sourceQuality(array $agentIds = [], int $days = 90, ?DashboardDateRange $range = null): array
     {
         $ownerIds = $this->ownerIdsFor($agentIds);
-        $since = now()->subDays($days)->startOfDay();
+        // With a range, its own bounds: a custom window that ended in the past
+        // (or YTD) must not reach up to today. Without one, the rolling
+        // $days-back reading the manager view has always used.
+        $since = $range?->from ?? now()->subDays($days)->startOfDay();
+        $until = $range?->to;
 
         return LeadSource::query()
-            ->leftJoin('leads', function ($join) use ($ownerIds, $since, $agentIds) {
+            ->leftJoin('leads', function ($join) use ($ownerIds, $since, $until, $agentIds) {
                 $join->on('leads.source_id', '=', 'lead_sources.id')
                     ->whereNull('leads.deleted_at')
                     ->where('leads.created_at', '>=', $since);
+
+                if ($until) {
+                    $join->where('leads.created_at', '<=', $until);
+                }
 
                 if (! empty($agentIds)) {
                     $join->whereIn('leads.lead_owner', $ownerIds ?: [0]);
@@ -1311,72 +1321,181 @@ class DashboardMetricsService
             ->all();
     }
 
-    // ── Leadership view ──────────────────────────────────────────
+    // ── Company view ─────────────────────────────────────────────
+    //
+    // The big picture: revenue, growth, efficiency. Company wide and
+    // aggregate — no agent scope, no agent names. Revenue and commission are
+    // read in the company currency, converted per deal by its snapshotted
+    // exchange rate (MlmCommissionService's convention); the open pipeline
+    // stays per currency (see pipelineValueByCurrency).
+
+    /** When a won deal was won. updated_at only where won_at was never stamped. */
+    private const WON_AT = 'COALESCE(deals.won_at, deals.updated_at)';
 
     /**
-     * Company-wide month-over-month movement. Team-level only — no agent names
-     * reach this view.
+     * A deal's value in the company currency: its own snapshotted rate, 1
+     * where none was stored — MlmCommissionService::preview()'s conversion.
      */
-    public function trend(int $months = 12): array
+    private const COMPANY_VALUE = 'COALESCE(deals.value, 0) * COALESCE(deals.exchange_rate, 1)';
+
+    /**
+     * Value of deals won inside the window, in the company currency, against
+     * the window of the same length just before it.
+     *
+     * Each deal is converted with its own snapshotted deals.exchange_rate —
+     * the conversion MlmCommissionService applies before it writes a leg — so
+     * revenue and the commission paid on it are read in the same money. A
+     * deal with no rate is taken at 1 (same-currency), as the engine does.
+     *
+     * Counted by the date the deal was won — reading updated_at alone moved
+     * any old won deal into the current period the moment someone edited it.
+     * `previous` is null for "all time", which has no window before it.
+     *
+     * @return array{currency: string|null, total: float, deal_count: int, previous: float|null, previous_count: int|null}
+     */
+    public function wonRevenue(DashboardDateRange $range): array
     {
-        $since = now()->subMonths($months - 1)->startOfMonth();
+        [$prevFrom] = $this->previousWindow($range);
+        $wonAt = self::WON_AT;
+        $value = self::COMPANY_VALUE;
 
-        $leads = Lead::query()
-            ->where('created_at', '>=', $since)
-            ->groupBy('period')
+        $row = Deal::query()
+            ->where('deals.outcome_status', 'won')
+            ->whereRaw("{$wonAt} BETWEEN ? AND ?", [$prevFrom ?? $range->from, $range->to])
             ->toBase()
-            ->get([
-                DB::raw("DATE_FORMAT(created_at, '%Y-%m') as period"),
-                DB::raw('COUNT(*) as total'),
-            ])
-            ->keyBy('period');
+            ->selectRaw("SUM(CASE WHEN {$wonAt} >= ? THEN {$value} ELSE 0 END) as total", [$range->from])
+            ->selectRaw("SUM(CASE WHEN {$wonAt} >= ? THEN 1 ELSE 0 END) as deal_count", [$range->from])
+            ->selectRaw("SUM(CASE WHEN {$wonAt} < ? THEN {$value} ELSE 0 END) as previous", [$range->from])
+            ->selectRaw("SUM(CASE WHEN {$wonAt} < ? THEN 1 ELSE 0 END) as previous_count", [$range->from])
+            ->first();
 
-        $won = Deal::query()
-            ->where('outcome_status', 'won')
-            ->where('updated_at', '>=', $since)
-            ->groupBy('period')
-            ->toBase()
-            ->get([
-                DB::raw("DATE_FORMAT(updated_at, '%Y-%m') as period"),
-                DB::raw('COUNT(*) as total'),
-            ])
-            ->keyBy('period');
-
-        return collect(range(0, $months - 1))
-            ->map(function (int $offset) use ($months, $leads, $won) {
-                $period = now()->subMonths($months - 1 - $offset)->format('Y-m');
-
-                return [
-                    'period' => $period,
-                    'leads' => (int) ($leads->get($period)->total ?? 0),
-                    'won' => (int) ($won->get($period)->total ?? 0),
-                ];
-            })
-            ->all();
+        return [
+            'currency' => $this->defaultCurrencyCode(),
+            'total' => round((float) ($row->total ?? 0), 2),
+            'deal_count' => (int) ($row->deal_count ?? 0),
+            'previous' => $prevFrom ? round((float) ($row->previous ?? 0), 2) : null,
+            'previous_count' => $prevFrom ? (int) ($row->previous_count ?? 0) : null,
+        ];
     }
 
     /**
-     * Market segmentation by the lead's primary language.
+     * The non-money headline: demand, conversion, speed, and the sales force.
+     * Counts only, company wide, each against the window before it (null for
+     * "all time"). Cheap aggregates, so they share one deferred group.
      *
-     * primary_language is sparsely populated (backfilled from the first entry of
-     * the multi-value languages array), so "unknown" is surfaced as its own
-     * segment rather than hidden — an honest gap beats a confident wrong split.
+     *  - new_leads: leads created.
+     *  - win_rate: of deals decided in the window, the share won. Won deals
+     *    are dated by won_at; lost deals carry no outcome timestamp, so they
+     *    are dated by their last update — the closest record of when the
+     *    deal was given up.
+     *  - days_to_win: median days from a won deal's lead being created (the
+     *    deal's own creation when it has no lead) to the win.
+     *  - agents: enabled agents with an active account today, and how many
+     *    lead_agent records were created in the window.
+     *
+     * @return array{new_leads: array, win_rate: array, days_to_win: array, agents: array}
      */
-    public function marketSegments(): array
+    public function companyHeadline(DashboardDateRange $range): array
     {
-        return Lead::query()
-            ->groupBy('segment')
-            ->orderByDesc('total')
+        [$prevFrom, $prevTo] = $this->previousWindow($range);
+        $wonAt = self::WON_AT;
+
+        $leads = fn ($from, $to) => Lead::query()->whereBetween('leads.created_at', [$from, $to])->count();
+
+        $decided = fn ($from, $to) => Deal::query()
+            ->toBase()
+            ->selectRaw(
+                "SUM(CASE WHEN deals.outcome_status = 'won' AND {$wonAt} BETWEEN ? AND ? THEN 1 ELSE 0 END) as won",
+                [$from, $to]
+            )
+            ->selectRaw(
+                "SUM(CASE WHEN deals.outcome_status = 'lost' AND deals.updated_at BETWEEN ? AND ? THEN 1 ELSE 0 END) as lost",
+                [$from, $to]
+            )
+            ->first();
+
+        $rate = function ($row): ?float {
+            $won = (int) ($row->won ?? 0);
+            $total = $won + (int) ($row->lost ?? 0);
+
+            return $total > 0 ? round($won / $total * 100, 1) : null;
+        };
+
+        $cycle = fn ($from, $to) => Deal::query()
+            ->leftJoin('leads', 'leads.id', '=', 'deals.lead_id')
+            ->where('deals.outcome_status', 'won')
+            ->whereRaw("{$wonAt} BETWEEN ? AND ?", [$from, $to])
+            ->toBase()
+            ->get([DB::raw("{$wonAt} as won_at"), DB::raw('COALESCE(leads.created_at, deals.created_at) as started_at')])
+            ->filter(fn ($row) => $row->started_at !== null)
+            ->map(fn ($row) => max(0, Carbon::parse($row->started_at)->diffInHours(Carbon::parse($row->won_at)) / 24))
+            ->all();
+
+        $current = $decided($range->from, $range->to);
+        $previous = $prevFrom ? $decided($prevFrom, $prevTo) : null;
+        $days = $this->median($cycle($range->from, $range->to));
+        $prevDays = $prevFrom ? $this->median($cycle($prevFrom, $prevTo)) : null;
+
+        $joined = fn ($from, $to) => LeadAgent::query()->whereBetween('lead_agents.created_at', [$from, $to])->count();
+
+        return [
+            'new_leads' => [
+                'value' => $leads($range->from, $range->to),
+                'previous' => $prevFrom ? $leads($prevFrom, $prevTo) : null,
+            ],
+            'win_rate' => [
+                'value' => $rate($current),
+                'previous' => $previous ? $rate($previous) : null,
+                'won' => (int) ($current->won ?? 0),
+                'lost' => (int) ($current->lost ?? 0),
+            ],
+            'days_to_win' => [
+                'value' => $days === null ? null : (int) round($days),
+                'previous' => $prevDays === null ? null : (int) round($prevDays),
+            ],
+            'agents' => [
+                'active' => count($this->activeAgentIds()),
+                'joined' => $joined($range->from, $range->to),
+                'previous_joined' => $prevFrom ? $joined($prevFrom, $prevTo) : null,
+            ],
+        ];
+    }
+
+    /**
+     * Won deal value by month, in the company currency — converted per deal
+     * exactly as wonRevenue() does, so the months add up to its total.
+     *
+     * @return array{currency: string|null, points: array<int, array{period: string, label: string, total: float, count: int}>}
+     */
+    public function wonRevenueTrend(DashboardDateRange $range): array
+    {
+        $wonAt = self::WON_AT;
+        $months = $this->trendMonths(
+            $range,
+            Deal::query()->where('deals.outcome_status', 'won')->min(DB::raw($wonAt))
+        );
+
+        $byMonth = Deal::query()
+            ->where('deals.outcome_status', 'won')
+            ->whereRaw("{$wonAt} BETWEEN ? AND ?", [$months[0]['from'], end($months)['to']])
+            ->groupBy('period')
             ->toBase()
             ->get([
-                DB::raw("COALESCE(NULLIF(primary_language, ''), 'unknown') as segment"),
-                DB::raw('COUNT(*) as total'),
+                DB::raw($this->monthExpression($wonAt).' as period'),
+                DB::raw('SUM('.self::COMPANY_VALUE.') as total'),
+                DB::raw('COUNT(*) as total_count'),
             ])
-            ->map(fn ($row) => [
-                'segment' => $row->segment,
-                'count' => (int) $row->total,
-            ])
-            ->all();
+            ->keyBy('period');
+
+        return [
+            'currency' => $this->defaultCurrencyCode(),
+            'points' => array_map(fn (array $month) => [
+                'period' => $month['period'],
+                'label' => $month['label'],
+                'total' => round((float) ($byMonth->get($month['period'])->total ?? 0), 2),
+                'count' => (int) ($byMonth->get($month['period'])->total_count ?? 0),
+            ], $months),
+        ];
     }
 
     /**
@@ -1409,34 +1528,156 @@ class DashboardMetricsService
             ->all();
     }
 
-    public function sourceBreakdown(array $agentIds = []): array
+    /**
+     * Company-wide commission: paid inside the window (against the window
+     * before it), and what is still pending today.
+     *
+     * Straight sums over mlm_commissions — no calculation of its own, so the
+     * figures reconcile with the rows. Same reading as the team view's
+     * earnings tile: paid is windowed on paid_at; pending is a standing
+     * balance with no date of its own, so it is what is owed now. Reverted
+     * legs are neither (a clawback is not owed and was not earned) and are
+     * reported beside the totals; System legs are the house's retained cut,
+     * not a payout.
+     *
+     * Null currency when the company has none configured — the UI then shows
+     * the figure bare rather than wearing a guessed symbol.
+     *
+     * @return array{currency: string|null, paid: float, previous_paid: float|null, pending: float, reverted: float}
+     */
+    public function companyCommission(DashboardDateRange $range): array
     {
-        return LeadSource::query()
-            ->leftJoin('leads', function ($join) use ($agentIds) {
-                $join->on('leads.source_id', '=', 'lead_sources.id')
-                    ->whereNull('leads.deleted_at');
+        [$prevFrom, $prevTo] = $this->previousWindow($range);
 
-                if (! empty($agentIds)) {
-                    $ownerIds = LeadAgent::whereIn('id', $agentIds)->pluck('user_id')->filter()->all();
-                    $join->whereIn('leads.lead_owner', $ownerIds ?: [0]);
-                }
-            })
-            ->groupBy('lead_sources.id', 'lead_sources.type')
-            ->orderByDesc('total')
+        $totals = MlmCommission::query()
+            ->where('type', '!=', MlmCommissionType::System->value)
             ->toBase()
-            ->get([
-                'lead_sources.id',
-                'lead_sources.type as name',
-                DB::raw('COUNT(leads.id) as total'),
-                DB::raw('SUM(leads.lead_lifecycle_status_id IS NOT NULL AND leads.first_contacted_at IS NOT NULL) as contacted'),
-            ])
-            ->map(fn ($row) => [
-                'id' => $row->id,
-                'name' => $row->name,
-                'count' => (int) $row->total,
-                'contacted' => (int) $row->contacted,
-            ])
-            ->all();
+            ->selectRaw(
+                'SUM(CASE WHEN status = ? AND paid_at BETWEEN ? AND ? THEN amount ELSE 0 END) as paid',
+                [MlmCommissionStatus::Paid->value, $range->from, $range->to]
+            )
+            ->selectRaw(
+                'SUM(CASE WHEN status = ? AND paid_at BETWEEN ? AND ? THEN amount ELSE 0 END) as previous_paid',
+                [MlmCommissionStatus::Paid->value, $prevFrom ?? $range->from, $prevTo ?? $range->from]
+            )
+            ->selectRaw(
+                'SUM(CASE WHEN status = ? THEN amount ELSE 0 END) as pending',
+                [MlmCommissionStatus::Pending->value]
+            )
+            ->selectRaw(
+                'SUM(CASE WHEN status = ? AND reverted_at BETWEEN ? AND ? THEN amount ELSE 0 END) as reverted',
+                [MlmCommissionStatus::Reverted->value, $range->from, $range->to]
+            )
+            ->first();
+
+        return [
+            'currency' => $this->defaultCurrencyCode(),
+            'paid' => round((float) ($totals->paid ?? 0), 2),
+            'previous_paid' => $prevFrom ? round((float) ($totals->previous_paid ?? 0), 2) : null,
+            'pending' => round((float) ($totals->pending ?? 0), 2),
+            'reverted' => round((float) ($totals->reverted ?? 0), 2),
+        ];
+    }
+
+    /**
+     * What the company's open deals would pay out in commission if they
+     * closed today, priced by MlmCommissionService::preview() — the arithmetic
+     * distribute() later writes, so the forecast cannot drift from it.
+     *
+     * Not windowed: a forecast prices deals as they stand now. Capped at the
+     * team view's TeamDownlineService::FORECAST_MAX_DEALS (most recently
+     * touched first) so it costs the same deferred-load budget; past the cap
+     * the result says `truncated` rather than passing a sample off as the
+     * whole book. System legs are excluded, as everywhere else.
+     *
+     * @return array{amount: float, deal_count: int, open_deals: int, truncated: bool, currency: string|null}
+     */
+    public function companyForecast(MlmCommissionService $commissions): array
+    {
+        $open = Deal::query()->whereNull('deals.outcome_status');
+        $openDeals = (clone $open)->count();
+
+        $deals = $open
+            ->orderByDesc('deals.updated_at')
+            ->limit(TeamDownlineService::FORECAST_MAX_DEALS)
+            ->get();
+
+        $amount = $deals->sum(
+            fn (Deal $deal) => collect($commissions->preview($deal))
+                ->where('type', '!=', MlmCommissionType::System->value)
+                ->sum('amount')
+        );
+
+        return [
+            'amount' => round((float) $amount, 2),
+            'deal_count' => $deals->count(),
+            'open_deals' => $openDeals,
+            'truncated' => $openDeals > $deals->count(),
+            'currency' => $this->defaultCurrencyCode(),
+        ];
+    }
+
+    /**
+     * The window of the same length immediately before this one, or nulls for
+     * "all time", which has nothing before it to compare against.
+     *
+     * @return array{0: CarbonInterface|null, 1: CarbonInterface|null}
+     */
+    private function previousWindow(DashboardDateRange $range): array
+    {
+        if ($range->preset === 'all') {
+            return [null, null];
+        }
+
+        $prevTo = $range->from->copy()->subSecond();
+
+        return [$prevTo->copy()->subDays($range->days() - 1)->startOfDay(), $prevTo];
+    }
+
+    /**
+     * The months a company trend spans: the window itself, but never fewer
+     * than twelve — a 30-day window still reads movement over a year — and,
+     * for a long window, never reaching back before the first record, so
+     * "all time" starts where the data does rather than at the 2000 floor.
+     *
+     * @return array<int, array{period: string, label: string, from: CarbonInterface, to: CarbonInterface}>
+     */
+    private function trendMonths(DashboardDateRange $range, ?string $earliest): array
+    {
+        $last = $range->to->copy()->startOfMonth();
+        $first = $last->copy()->subMonths(11);
+
+        if ($range->from->lessThan($first)) {
+            $floor = $earliest ? Carbon::parse($earliest) : $first;
+            $start = $range->from->greaterThan($floor) ? $range->from : $floor;
+            $first = $start->lessThan($first) ? $start->copy()->startOfMonth() : $first;
+        }
+
+        $months = [];
+
+        for ($cursor = $first->copy(); $cursor->lessThanOrEqualTo($last); $cursor->addMonth()) {
+            $months[] = [
+                'period' => $cursor->format('Y-m'),
+                'label' => $cursor->format('M y'),
+                'from' => $cursor->copy()->startOfMonth(),
+                'to' => $cursor->copy()->endOfMonth(),
+            ];
+        }
+
+        return $months;
+    }
+
+    /**
+     * Y-m bucket for a date expression. sqlite has no DATE_FORMAT, and the
+     * dashboard tests run on it — same split as TeamDownlineService.
+     *
+     * $column is interpolated, so it must stay a literal from this file.
+     */
+    private function monthExpression(string $column): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "strftime('%Y-%m', {$column})"
+            : "DATE_FORMAT({$column}, '%Y-%m')";
     }
 
     // ── Partner view ─────────────────────────────────────────────
