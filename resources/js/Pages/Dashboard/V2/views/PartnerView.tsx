@@ -296,7 +296,7 @@ export default function PartnerView({
                                                 <span
                                                     style={{
                                                         fontSize: 12,
-                                                        color: T.TEXT_HINT,
+                                                        color: T.TEXT_MUTED,
                                                     }}
                                                 >
                                                     {td("not payable", { source: "en" })}
@@ -308,7 +308,7 @@ export default function PartnerView({
                                                 fontSize: 16,
                                                 fontWeight: reverted ? 500 : 700,
                                                 color: reverted
-                                                    ? T.TEXT_HINT
+                                                    ? T.TEXT_MUTED
                                                     : T.NAVY,
                                                 textDecoration: reverted
                                                     ? "line-through"
@@ -339,24 +339,34 @@ export default function PartnerView({
                 </DashboardPanel>
             </div>
 
-            {/* Nothing referred means nothing to list and nothing a flag can
-                be raised on — the empty state above already says so. */}
-            {!noReferrals && (
+            {/* Nothing referred means nothing to list and nothing to raise a
+                flag on — the empty state above already says so. Flag history
+                still shows, though: a referral removed after the team replied
+                drops the count to zero, and the reply must stay readable. */}
             <Deferred
                 data={["partnerReferrals", "partnerFlags"]}
                 fallback={
-                    <div className="dv2-partner-book">
-                        <div style={{ padding: 18 }}>
-                            <PanelSkeleton rows={5} />
+                    noReferrals ? (
+                        <span />
+                    ) : (
+                        <div className="dv2-partner-book">
+                            <div style={{ padding: 18 }}>
+                                <PanelSkeleton rows={5} />
+                            </div>
+                            <PanelSkeleton rows={4} />
                         </div>
-                        <PanelSkeleton rows={4} />
-                    </div>
+                    )
                 }
             >
-                <div className="dv2-partner-book">
-                    <DashboardPanel flush fill style={{ height: "100%" }}>
-                        <ReferralTable rows={partnerReferrals ?? []} />
-                    </DashboardPanel>
+                {noReferrals && !partnerFlags?.length ? (
+                    <span />
+                ) : (
+                <div className={noReferrals ? undefined : "dv2-partner-book"}>
+                    {!noReferrals && (
+                        <DashboardPanel flush fill style={{ height: "100%" }}>
+                            <ReferralTable rows={partnerReferrals ?? []} />
+                        </DashboardPanel>
+                    )}
                     <DashboardPanel
                         flush
                         fill
@@ -382,8 +392,8 @@ export default function PartnerView({
                         />
                     </DashboardPanel>
                 </div>
+                )}
             </Deferred>
-            )}
         </div>
     );
 }
