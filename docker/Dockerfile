@@ -118,8 +118,13 @@ COPY --from=ziggy /app/resources/js/ziggy.js ./resources/js/ziggy.js
 # per CPU, and on a many-core builder with modest RAM the build is OOM-killed
 # ("Killed", exit code 137). Raise it only on a builder with plenty of memory.
 ARG MIX_TERSER_WORKERS=2
+# The webpack filesystem cache is off by default: in a throwaway builder (Woodpecker's
+# buildx plugin) it never gets reused, and it keeps the whole module graph in memory to
+# serialize it, which is exactly what an OOM-prone builder cannot spare. Pass
+# --build-arg WEBPACK_FS_CACHE=1 on a persistent builder to get the warm-cache speedup.
+ARG WEBPACK_FS_CACHE=
 RUN --mount=type=cache,target=/app/node_modules/.cache \
-    MIX_TERSER_WORKERS="${MIX_TERSER_WORKERS}" WEBPACK_FS_CACHE=1 npm run production
+    MIX_TERSER_WORKERS="${MIX_TERSER_WORKERS}" WEBPACK_FS_CACHE="${WEBPACK_FS_CACHE}" npm run production
 
 # -----------------------------------------------------------------------------
 # PDF tooling for Expose (Spatie Laravel PDF -> Browsershot -> Node -> Puppeteer
