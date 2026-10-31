@@ -47,18 +47,20 @@ variables:
   - &composerImage "composer:2"
   - &shellImage "alpine:3"
   - &registry "ghcr.io"
-  # The image must match the CPU of the host that RUNS it (the Dokploy host), not of the
-  # agent that builds it. Today that is x86-64 on an ARM agent (a Mac mini), so this is
-  # a cross-build: the consuming Dockerfile pins CPU-independent stages (dependencies,
-  # frontend bundle) to the builder so they run natively, and only the runtime layers
-  # run under emulation. Needs amd64 emulation (QEMU or Rosetta binfmt) on the agent's
-  # Docker. If an x86-64 agent is added, either keep this line (a native build, no
-  # emulation) or route the workflow to it with `labels: platform: linux/amd64`.
+  # The image must match the CPU of the host that RUNS it (the Dokploy host, x86-64).
+  # The workflow is routed to an amd64 agent via `labels` below, so this is a native
+  # build. On an ARM agent it would be a cross-build needing QEMU/Rosetta.
   - &imagePlatform "linux/amd64"
   - &imageName "ghcr.io/hibarr-estates/${CI_REPO_NAME}" # derived from Woodpecker's built-in var, no per-repo edits needed
   - &buildArgs
     - GIT_SHA=${CI_COMMIT_SHA}
     - BUILD_ID=${CI_PIPELINE_NUMBER}
+
+# Route to an x86-64 agent (the Dokploy host is x86-64, so the image builds natively).
+# Woodpecker has no soft preference: a label is a hard requirement, so this workflow
+# waits if no linux/amd64 agent is online.
+labels:
+  platform: linux/amd64
 
 when:
   - event: [push, pull_request]
