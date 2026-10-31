@@ -146,7 +146,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
 
     public function store(Request $request): JsonResponse
     {
-        abort_403(! in_array(user()->permission('make_softphone_calls'), ['all']));
+        abort_403(! in_array(user()->permission('make_softphone_calls'), ['all', 'added'], true));
 
         $validated = $request->validate([
             'phone' => 'required|string|max:50',

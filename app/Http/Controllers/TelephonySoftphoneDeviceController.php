@@ -135,7 +135,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
         $this->assertSoftphoneEnabled();
         $this->assertCanManage();
 
-        $device = SoftphoneDevice::findOrFail($id);
+        $device = $this->findManageableDevice($id);
         $validated = $this->validateDevice($request, $device);
 
         $device->last_updated_by = (int) user()->id;
@@ -159,7 +159,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
         $this->assertSoftphoneEnabled();
         $this->assertCanManage();
 
-        $device = SoftphoneDevice::findOrFail($id);
+        $device = $this->findManageableDevice($id);
         $wasDefault = (bool) $device->is_default;
         $device->delete();
 
@@ -306,24 +306,33 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
     private function assertCanManage(): void
     {
         // Writing a device row provisions SIP credentials for a company line.
-        // This is gated on the make_softphone_calls permission rather than
-        // admin-only so that employees with the permission can manage their
-        // own device lines. Admin bypass via hasRole check below.
-        abort_unless(user() !== null && user()->permission('make_softphone_calls') !== 'none', 403);
+        // Gated on the same permission values as credentials(): admins bypass,
+        // everyone else needs make_softphone_calls set to `all` or `added`
+        // (`owned`/`both`/`none`, or an unset permission, are refused).
+        abort_if(user() === null, 403);
 
-        // Admin bypass: users with the 'admin' role always have full access.
-        if (user()->hasRole('admin')) {
-            return;
+        abort_unless(
+            user()->hasRole('admin')
+            || in_array(user()->permission('make_softphone_calls'), ['all', 'added'], true),
+            403
+        );
+    }
+
+    /**
+     * Load a line the current user is allowed to change: admins and users with
+     * the company-wide `all` permission may edit any line, while `added` users
+     * may only touch the lines they created themselves.
+     */
+    private function findManageableDevice(int $id): SoftphoneDevice
+    {
+        $device = SoftphoneDevice::findOrFail($id);
+
+        if (user()->hasRole('admin') || user()->permission('make_softphone_calls') === 'all') {
+            return $device;
         }
 
-        // Optional: limit how many devices non-admin users can create
-        // (uncomment and configure if needed):
-        // $maxDevices = config('softphone.non_admin_device_limit', 0);
-        // if ($maxDevices > 0) {
-        //     $count = SoftphoneDevice::where('company_id', company()->id)
-        //         ->where('added_by', user()->id)
-        //         ->where('is_default', false)
-        //         ->count();
-        //     abort($count >= $maxDevices, 403);
+        abort_unless((int) $device->added_by === (int) user()->id, 403);
+
+        return $device;
     }
 }
