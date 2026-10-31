@@ -47,6 +47,14 @@ variables:
   - &composerImage "composer:2"
   - &shellImage "alpine:3"
   - &registry "ghcr.io"
+  # The image must match the CPU of the host that RUNS it (the Dokploy host), not of the
+  # agent that builds it. Today that is x86-64 on an ARM agent (a Mac mini), so this is
+  # a cross-build: the consuming Dockerfile pins CPU-independent stages (dependencies,
+  # frontend bundle) to the builder so they run natively, and only the runtime layers
+  # run under emulation. Needs amd64 emulation (QEMU or Rosetta binfmt) on the agent's
+  # Docker. If an x86-64 agent is added, either keep this line (a native build, no
+  # emulation) or route the workflow to it with `labels: platform: linux/amd64`.
+  - &imagePlatform "linux/amd64"
   - &imageName "ghcr.io/hibarr-estates/${CI_REPO_NAME}" # derived from Woodpecker's built-in var, no per-repo edits needed
   - &buildArgs
     - GIT_SHA=${CI_COMMIT_SHA}
@@ -113,6 +121,7 @@ steps:
       repo: *imageName
       dockerfile: docker/Dockerfile
       target: smoke
+      platforms: *imagePlatform
       dry_run: true
       build_args: *buildArgs
       tags:
@@ -135,6 +144,7 @@ steps:
         from_secret: GHCR_TOKEN
       dockerfile: docker/Dockerfile
       target: smoke
+      platforms: *imagePlatform
       dry_run: true
       build_args: *buildArgs
       cache_from: "type=registry,ref=ghcr.io/hibarr-estates/${CI_REPO_NAME}:buildcache"
@@ -170,6 +180,7 @@ steps:
       password:
         from_secret: GHCR_TOKEN
       dockerfile: docker/Dockerfile
+      platforms: *imagePlatform
       build_args: *buildArgs
       cache_from: "type=registry,ref=ghcr.io/hibarr-estates/${CI_REPO_NAME}:buildcache"
       tags_file: .tags

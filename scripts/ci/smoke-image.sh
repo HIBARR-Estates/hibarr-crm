@@ -9,9 +9,16 @@ cd "${APP_DIR:-/var/www/html}"
 
 php -v | head -n 1
 
-for ext in pdo_mysql redis gd intl bcmath zip opcache pcntl exif; do
-    php -m | grep -qix "$ext" || { echo "missing php ext: $ext"; exit 1; }
-done
+# extension_loaded(), not `php -m | grep`: OPcache is a Zend extension and `php -m`
+# names it "Zend OPcache" (under "[Zend Modules]"), so grepping for "opcache" never matches.
+php -r '
+$missing = [];
+foreach (["pdo_mysql", "redis", "gd", "intl", "bcmath", "zip", "Zend OPcache", "pcntl", "exif"] as $ext) {
+    if (!extension_loaded($ext)) { $missing[] = $ext; }
+}
+if ($missing) { fwrite(STDERR, "missing php ext: " . implode(", ", $missing) . "\n"); exit(1); }
+echo "php extensions ok\n";
+'
 
 nginx -t
 grep -q 'location = /healthz' /etc/nginx/conf.d/default.conf || { echo "nginx config has no /healthz location"; exit 1; }

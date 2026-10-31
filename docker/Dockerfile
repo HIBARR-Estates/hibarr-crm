@@ -3,11 +3,20 @@
 # Hibarr CRM image: nginx + PHP-FPM for the web app, plus the same code run as a
 # queue worker, scheduler, one-shot migrator or RoadRunner gRPC server,
 # depending on CONTAINER_ROLE (see entrypoint.sh).
+#
+# Cross-building: the image must match the CPU of the host that runs it, which can
+# differ from the CPU of the CI agent (the agent is an ARM Mac mini, the Dokploy
+# host is x86-64: build with `--platform linux/amd64`). Stages whose OUTPUT does not
+# depend on the CPU (composer packages, route list, the frontend bundle, protobuf
+# classes, the Puppeteer JavaScript and its downloaded browser) are pinned to
+# $BUILDPLATFORM so they run natively and fast. Only `runtime` (apt, PHP extension
+# compilation) and the `smoke` checks run for the target CPU, and under emulation
+# when it differs. With matching CPUs, every `--platform` below is a no-op.
 
 # -----------------------------------------------------------------------------
 # Composer dependencies
 # -----------------------------------------------------------------------------
-FROM composer:2 AS vendor
+FROM --platform=$BUILDPLATFORM composer:2 AS vendor
 
 WORKDIR /app
 COPY composer.json composer.lock ./
@@ -25,7 +34,7 @@ RUN --mount=type=cache,target=/tmp/cache \
 # -----------------------------------------------------------------------------
 # Ziggy route file (needed by Mix / frontend)
 # -----------------------------------------------------------------------------
-FROM php:8.3-cli-bookworm AS ziggy
+FROM --platform=$BUILDPLATFORM php:8.3-cli-bookworm AS ziggy
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libzip-dev \
@@ -74,7 +83,7 @@ RUN mkdir -p \
 # -----------------------------------------------------------------------------
 # Frontend assets (Laravel Mix production build)
 # -----------------------------------------------------------------------------
-FROM node:20-bookworm AS assets
+FROM --platform=$BUILDPLATFORM node:20-bookworm AS assets
 
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -116,23 +125,37 @@ RUN --mount=type=cache,target=/app/node_modules/.cache \
 # -----------------------------------------------------------------------------
 # Only the pinned version leaves this stage, so the Chrome download below is
 # re-run when puppeteer changes, not whenever any dependency does.
-FROM node:20-bookworm-slim AS pdf-version
+FROM --platform=$BUILDPLATFORM node:20-bookworm-slim AS pdf-version
 WORKDIR /tmp/lock
 COPY package-lock.json ./
 RUN node -p "require('./package-lock.json').packages['node_modules/puppeteer'].version" > /puppeteer-version
 
-FROM node:20-bookworm-slim AS pdf-tools
+# node + npm for the runtime image. This stage has no --platform pin, so it is the
+# TARGET CPU's image (the default). It is only copied from, never executed at build
+# time, so no emulation is needed even when the target CPU differs from the builder's.
+FROM node:20-bookworm-slim AS node-runtime
+
+FROM --platform=$BUILDPLATFORM node:20-bookworm-slim AS pdf-tools
 # Browsershot launches Chrome with `headless: 'shell'` unless the app calls
 # newHeadless() (it does not), and that mode needs puppeteer's separate
 # chrome-headless-shell build; full Chrome is not used. If the app ever switches,
 # build with --build-arg PUPPETEER_BROWSERS="chrome chrome-headless-shell".
 ARG PUPPETEER_BROWSERS=chrome-headless-shell
+ARG TARGETARCH
 ENV PUPPETEER_CACHE_DIR=/opt/puppeteer \
     PUPPETEER_SKIP_DOWNLOAD=true
 COPY --from=pdf-version /puppeteer-version /tmp/puppeteer-version
 RUN --mount=type=cache,target=/root/.npm \
     npm install -g --no-audit --fund=false "puppeteer@$(cat /tmp/puppeteer-version)" \
-    && for browser in ${PUPPETEER_BROWSERS}; do PUPPETEER_SKIP_DOWNLOAD= puppeteer browsers install "$browser"; done \
+    && mkdir -p /opt/puppeteer \
+    && case "${TARGETARCH:-amd64}" in \
+         amd64) \
+           for browser in ${PUPPETEER_BROWSERS}; do \
+             PUPPETEER_SKIP_DOWNLOAD= puppeteer browsers install "$browser" --platform linux; \
+           done ;; \
+         *) \
+           echo "WARNING: Chrome for Testing has no Linux ${TARGETARCH} build, so this image has no browser and Expose PDFs will not work. Build for linux/amd64 for a working image." >&2 ;; \
+       esac \
     && chmod -R a+rX /opt/puppeteer
 
 # -----------------------------------------------------------------------------
@@ -140,9 +163,11 @@ RUN --mount=type=cache,target=/root/.npm \
 # -----------------------------------------------------------------------------
 # Same release as the spiral/roadrunner package pinned in composer.lock, so the
 # server and the PHP worker library stay in step. The asset layout is not
-# assumed beyond "a file named rr", and `rr --version` runs at build time, so a
-# wrong URL or architecture fails the build instead of the container.
-FROM php:8.3-cli-bookworm AS rr-bin
+# assumed beyond "a file named rr". `rr --version` runs at build time when the
+# builder can execute it (same CPU), so a wrong URL fails the build instead of the
+# container; when cross-building, the smoke stage runs the same check on the target.
+FROM --platform=$BUILDPLATFORM php:8.3-cli-bookworm AS rr-bin
+ARG BUILDARCH
 ARG TARGETARCH
 WORKDIR /tmp/rr
 COPY composer.lock ./
@@ -153,14 +178,15 @@ RUN set -eux; \
     mkdir out; \
     tar -xzf rr.tgz -C out; \
     install -m 0755 "$(find out -type f -name rr | head -n 1)" /usr/local/bin/rr; \
-    rr --version
+    test -s /usr/local/bin/rr; \
+    if [ "${BUILDARCH}" = "${TARGETARCH:-amd64}" ]; then rr --version; fi
 
 # `make proto` equivalent. protoc nests its output under the PHP namespace path
 # (App/Grpc/Generated/...); the app autoloads App\Grpc\Generated\ from
 # app/Grpc/Generated, so the nested directory is lifted out. Debian's protoc
 # (3.21) matches what the Ubuntu hosts generated with. Only `proto/` is copied,
 # so this layer rebuilds when a .proto changes and not otherwise.
-FROM debian:bookworm-slim AS proto-gen
+FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS proto-gen
 RUN apt-get update && apt-get install -y --no-install-recommends protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /work
@@ -254,8 +280,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libxrandr2 \
         xdg-utils \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=pdf-tools /usr/local/bin/node /usr/local/bin/node
-COPY --from=pdf-tools /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
+COPY --from=node-runtime /usr/local/lib/node_modules /usr/local/lib/node_modules
+# The puppeteer package is plain JavaScript (no native modules), so the copy built on
+# the builder's CPU is valid for any target.
+COPY --from=pdf-tools /usr/local/lib/node_modules/puppeteer /usr/local/lib/node_modules/puppeteer
 RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 COPY --from=pdf-tools /opt/puppeteer /opt/puppeteer
