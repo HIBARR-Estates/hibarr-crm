@@ -2363,7 +2363,7 @@ return [
         'description' => 'Telefonleitungen, Anrufpool und Aufnahmen für den Browser-Softphone.',
         'softphone_device' => [
             'provider' => 'Anbieter',
-            'provider_tooltip' => 'Die SIP-Plattform, zu der diese Leitung gehört (z. B. sipgate). Die Auswahl füllt die WebSocket-Adresse und die SIP-URI unten automatisch aus. Ein Anbieter ist erforderlich.',
+            'provider_tooltip' => 'Die SIP-Plattform, zu der diese Leitung gehört (z. B. sipgate). Das CRM leitet daraus die WebSocket-Adresse und die SIP-URI ab. Ein Anbieter ist erforderlich.',
             'provider_placeholder' => '-- Anbieter wählen --',
             'provider_loading' => 'Wird geladen…',
             'label' => 'Bezeichnung (z. B. Deutsch, Schwedisch)',

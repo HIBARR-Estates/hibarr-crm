@@ -17,7 +17,11 @@ export interface SoftphoneDeviceSummary {
 export interface SoftphoneDevicesResponse {
     status: "success" | "fail";
     message?: string | null;
-    data?: { devices: SoftphoneDeviceSummary[] };
+    data?: {
+        devices: SoftphoneDeviceSummary[];
+        /** Platforms this CRM can create lines for (local fallback list). */
+        providers?: string[];
+    };
 }
 
 /** Connection settings for the admin edit form (never includes the password). */

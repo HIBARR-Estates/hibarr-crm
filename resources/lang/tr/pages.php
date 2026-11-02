@@ -2341,7 +2341,7 @@ return [
         'description' => 'Tarayıcı yazılım telefonu için hatlar, çağrı havuzu ve kayıtlar.',
         'softphone_device' => [
             'provider' => 'Sağlayıcı',
-            'provider_tooltip' => 'Bu hattın kaydolduğu SIP platformu (ör. sipgate). Bir sağlayıcı seçildiğinde aşağıdaki WebSocket adresi ve SIP URI otomatik doldurulur. Sağlayıcı zorunludur.',
+            'provider_tooltip' => 'Bu hattın kaydolduğu SIP platformu (ör. sipgate). CRM, WebSocket adresini ve SIP URI\'yi bundan türetir. Sağlayıcı zorunludur.',
             'provider_placeholder' => '-- Sağlayıcı seçin --',
             'provider_loading' => 'Yükleniyor…',
             'label' => 'Etiket (ör. Almanca, İsveççe)',

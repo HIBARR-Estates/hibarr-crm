@@ -117,7 +117,16 @@ class CallBridgeIntegrationsController extends Controller
                 $providers = $client->fetchSipProviders();
 
                 if ($providers !== []) {
-                    return $providers;
+                    // Only advertise platforms this CRM can actually store a
+                    // line for: validateDevice() accepts registry names and
+                    // resolves the connection defaults from there, so an OL
+                    // platform this build does not know would be offered by
+                    // the form and then refused on save.
+                    $supported = array_values(array_intersect($providers, SipProviderRegistry::names()));
+
+                    if ($supported !== []) {
+                        return $supported;
+                    }
                 }
             } catch (\Throwable $e) {
                 Log::warning('CallBridgeIntegrations: OL provider list unavailable; serving the local registry.', [

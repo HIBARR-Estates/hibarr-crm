@@ -2521,7 +2521,7 @@ return [
         'description' => 'Phone lines, call pool and recordings for the browser softphone.',
         'softphone_device' => [
             'provider' => 'Provider',
-            'provider_tooltip' => 'The SIP platform this line registers with (e.g. sipgate). Choosing one fills the WebSocket endpoint and SIP URI below automatically. A provider is required.',
+            'provider_tooltip' => 'The SIP platform this line registers with (e.g. sipgate). The CRM derives the WebSocket endpoint and SIP URI from it. A provider is required.',
             'provider_placeholder' => '-- Select provider --',
             'provider_loading' => 'Loading…',
             'label' => 'Label (e.g. German, Swedish)',

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\SoftphoneDevice;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
@@ -117,6 +118,105 @@ class TelephonySoftphoneDeviceValidationTest extends TestCase
             ->assertJsonValidationErrors('authorization_username');
 
         $this->assertSame(0, DB::table('softphone_devices')->count());
+    }
+
+    public function test_the_device_list_carries_the_locally_supported_providers(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsAdmin();
+
+        $this->getJson(route('telephony.softphone.devices.index'))
+            ->assertOk()
+            ->assertJsonPath('data.providers', ['sipgate']);
+    }
+
+    public function test_updating_only_the_label_keeps_the_stored_connection(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsAdmin();
+
+        $this->postJson(route('telephony.softphone.devices.store'), [
+            'label' => 'German',
+            'provider' => 'sipgate',
+            'wss_url' => 'wss://custom.example/de',
+            'uri' => 'sip:4711@custom.example',
+            'authorization_username' => '4711',
+            'authorization_password' => 'secret',
+        ])->assertOk();
+
+        $id = (int) DB::table('softphone_devices')->value('id');
+
+        // A label-only edit sends neither wss_url nor uri; the stored values
+        // must survive untouched.
+        $this->putJson(route('telephony.softphone.devices.update', $id), [
+            'label' => 'German 2',
+        ])->assertOk();
+
+        $device = DB::table('softphone_devices')->find($id);
+
+        $this->assertSame('German 2', $device->label);
+        $this->assertSame('sipgate', $device->provider);
+        $this->assertSame('wss://custom.example/de', $device->wss_url);
+        $this->assertSame('sip:4711@custom.example', $device->uri);
+    }
+
+    public function test_changing_the_username_rebuilds_the_sip_uri_and_keeps_the_endpoint(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsAdmin();
+
+        $this->postJson(route('telephony.softphone.devices.store'), [
+            'label' => 'German',
+            'provider' => 'sipgate',
+            'wss_url' => 'wss://custom.example/de',
+            'authorization_username' => '4711',
+            'authorization_password' => 'secret',
+        ])->assertOk();
+
+        $id = (int) DB::table('softphone_devices')->value('id');
+
+        // The form no longer builds the URI; the server must notice the new
+        // username on its own.
+        $this->putJson(route('telephony.softphone.devices.update', $id), [
+            'label' => 'German',
+            'provider' => 'sipgate',
+            'authorization_username' => '4712',
+        ])->assertOk();
+
+        $device = DB::table('softphone_devices')->find($id);
+
+        $this->assertSame('sip:4712@sipgate.de', $device->uri);
+        // Only the platform decides the endpoint; a username change is not a
+        // reason to replace a custom one.
+        $this->assertSame('wss://custom.example/de', $device->wss_url);
+    }
+
+    public function test_switching_the_provider_re_resolves_the_connection(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsAdmin();
+
+        // A line stored before providers existed (provider = null).
+        $legacy = new SoftphoneDevice();
+        $legacy->company_id = self::COMPANY_ID;
+        $legacy->label = 'Legacy';
+        $legacy->wss_url = 'wss://legacy.example';
+        $legacy->uri = 'sip:old@legacy.example';
+        $legacy->authorization_username = 'old';
+        $legacy->authorization_password = 'secret';
+        $legacy->save();
+
+        $this->putJson(route('telephony.softphone.devices.update', $legacy->id), [
+            'label' => 'Legacy',
+            'provider' => 'sipgate',
+            'authorization_username' => '4711',
+        ])->assertOk();
+
+        $device = DB::table('softphone_devices')->find($legacy->id);
+
+        $this->assertSame('sipgate', $device->provider);
+        $this->assertSame('wss://sip.sipgate.de', $device->wss_url);
+        $this->assertSame('sip:4711@sipgate.de', $device->uri);
     }
 
     // ─── Helpers ────────────────────────────────────────────────────────

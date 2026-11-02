@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import axios from "axios";
 import {
     DeleteOutlined,
@@ -22,6 +22,7 @@ import useSoftphoneLineTest, { type LineTestState } from "@/Hooks/useSoftphoneLi
 import useTranslation from "@/Hooks/useTranslation";
 import { ApiSuccessResponse } from "@/lib/api/types";
 import type {
+    SoftphoneConfig,
     SoftphoneDeviceDetails,
     SoftphoneDeviceSummary,
 } from "@/Types/api/softphone";
@@ -34,6 +35,8 @@ interface DeviceDevicesResponse {
     status: string;
     data: {
         devices: SoftphoneDeviceSummary[];
+        /** Platforms this CRM can create lines for (local fallback list). */
+        providers?: string[];
     };
 }
 
@@ -41,10 +44,6 @@ interface DevicePayload {
     label: string;
     /** SIP platform the line belongs to (e.g. sipgate). Required on create. */
     provider: string;
-    /** Required on create. Omitted on update to keep the stored value. */
-    wss_url?: string;
-    /** Required on create. Omitted on update to keep the stored value. */
-    uri?: string;
     authorization_username?: string | null;
     authorization_password: string;
     display_name?: string | null;
@@ -102,14 +101,15 @@ export default function SoftphoneDeviceManager() {
 
     const [label, setLabel] = useState("");
     const [provider, setProvider] = useState<string | undefined>(undefined);
-    const [providerOptions, setProviderOptions] = useState<ProviderOption[]>([]);
+    // Providers returned by the OL-backed integrations API. Null until that
+    // request succeeds; the device list's local list is the fallback.
+    const [integrationProviders, setIntegrationProviders] = useState<string[] | null>(null);
     const [providerLoading, setProviderLoading] = useState(false);
-    // Connection defaults for the selected provider platform. Selecting a
-    // platform is what decides the WSS endpoint + SIP URI the line will use.
+    // Connection defaults for the selected provider platform. The platform
+    // owns the WSS endpoint + SIP URI; the form only submits the platform and
+    // credentials, and these defaults are used to build the draft test config.
     const [platformDefaults, setPlatformDefaults] = useState<PlatformDefaults | null>(null);
     const [platformLoading, setPlatformLoading] = useState(false);
-    const [wssUrl, setWssUrl] = useState("");
-    const [uri, setUri] = useState("");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [displayName, setDisplayName] = useState("");
@@ -131,6 +131,24 @@ export default function SoftphoneDeviceManager() {
 
     const devices = data?.data?.devices ?? [];
 
+    // Provider options: OL's list when the integrations API answers, the
+    // locally supported list otherwise (the settings form's own endpoint is
+    // gated by crm.softphone, not callbridge.integrations), always including
+    // the selected/stored platform so an edit can show it.
+    const providerOptions = useMemo<ProviderOption[]>(() => {
+        const names =
+            integrationProviders && integrationProviders.length > 0
+                ? integrationProviders
+                : (data?.data?.providers ?? []);
+        const unique = new Set(names);
+
+        if (provider) {
+            unique.add(provider);
+        }
+
+        return Array.from(unique).map((name) => ({ value: name, label: name }));
+    }, [integrationProviders, data, provider]);
+
     // Fetch the supported SIP providers from the CallBridge integrations API.
     // Authentication is the normal browser session (the route is in the
     // `api.token.or.session` group), so no key belongs in client code.
@@ -151,13 +169,12 @@ export default function SoftphoneDeviceManager() {
                         ? (response.data.data?.providers ?? [])
                         : [];
 
-                setProviderOptions(
-                    providers.map((name) => ({ value: name, label: name })),
-                );
+                setIntegrationProviders(providers);
             } catch {
-                // Endpoint unavailable / flag off: keep the field empty
-                // rather than blocking the rest of the form.
-                if (!cancelled) setProviderOptions([]);
+                // Endpoint unavailable / flag off: fall back to the locally
+                // supported providers from the device list rather than
+                // leaving the required field empty.
+                if (!cancelled) setIntegrationProviders(null);
             } finally {
                 if (!cancelled) setProviderLoading(false);
             }
@@ -170,9 +187,10 @@ export default function SoftphoneDeviceManager() {
         };
     }, []);
 
-    // Selecting a platform pulls its connection defaults
-    // (`wss` + `sipUriFormat`) from the integrations API and fills the
-    // connection fields, so the platform decides them.
+    // Selecting a platform pulls its connection defaults (`wss` +
+    // `sipUriFormat`) from the integrations API. The endpoint and SIP URI are
+    // never part of the form: the server resolves them from the platform, and
+    // here they let the admin test the draft before saving.
     useEffect(() => {
         if (!provider) {
             setPlatformDefaults(null);
@@ -190,11 +208,13 @@ export default function SoftphoneDeviceManager() {
             )
             .then((response) => {
                 if (cancelled) return;
-                if (response.data?.status !== "success" || !response.data.data) {
-                    setPlatformDefaults(null);
-                    return;
-                }
-                setPlatformDefaults(response.data.data);
+
+                const defaults =
+                    response.data?.status === "success"
+                        ? (response.data.data ?? null)
+                        : null;
+
+                setPlatformDefaults(defaults);
             })
             .catch(() => {
                 if (!cancelled) setPlatformDefaults(null);
@@ -208,32 +228,12 @@ export default function SoftphoneDeviceManager() {
         };
     }, [provider]);
 
-    // Keep the connection fields in step with the selected platform and the
-    // channel username. The platform owns the endpoint; the URI format carries
-    // a `{username}` placeholder. Both stay editable for other providers.
-    // Apply the WSS default only when the platform changes.
-    useEffect(() => {
-        if (!platformDefaults) return;
-        setWssUrl(platformDefaults.wss);
-    }, [platformDefaults]);
-
-    // Rebuild the URI only when the username changes.
-    useEffect(() => {
-        if (!platformDefaults) return;
-        const trimmed = username.trim();
-        if (trimmed) {
-            setUri(platformDefaults.sipUriFormat.replace("{username}", trimmed));
-        }
-    }, [username]);
-
     const resetForm = () => {
         setEditing(null);
         setLabel("");
         setProvider(undefined);
         setPlatformDefaults(null);
         setPlatformLoading(false);
-        setWssUrl("");
-        setUri("");
         setUsername("");
         setPassword("");
         setDisplayName("");
@@ -255,8 +255,8 @@ export default function SoftphoneDeviceManager() {
         (response) => {
             refetch();
             closeModal();
-            // Health check on the new line so a typo in the WSS URL, SIP URI
-            // or password shows up now rather than on the first call.
+            // Health check on the new line's resolved connection so a bad
+            // username or password shows up now rather than on the first call.
             const newId = (response as unknown as { data?: { id?: number } }).data?.id;
             if (newId) {
                 void lineTest.testSaved(newId).then((result) => {
@@ -296,21 +296,31 @@ export default function SoftphoneDeviceManager() {
         }
     };
 
-    const draftConfig = () => ({
-        wss_url: wssUrl.trim(),
-        uri: uri.trim(),
-        authorization_username: username.trim() || null,
-        authorization_password: password,
-        display_name: displayName.trim() || null,
-    });
+    // The draft's connection comes from the selected platform, never from
+    // form fields — the same thing the server resolves on save. Null while the
+    // defaults are missing or the platform still needs a username to build
+    // its SIP URI, so a half-configured line cannot be "tested".
+    const draftConfig = useMemo<SoftphoneConfig | null>(() => {
+        if (!platformDefaults) return null;
+
+        const trimmedUsername = username.trim();
+        if (platformDefaults.sipUriFormat.includes("{username}") && !trimmedUsername) {
+            return null;
+        }
+
+        return {
+            wss_url: platformDefaults.wss,
+            uri: platformDefaults.sipUriFormat.replace("{username}", trimmedUsername),
+            authorization_username: trimmedUsername || null,
+            authorization_password: password,
+            display_name: displayName.trim() || null,
+        };
+    }, [platformDefaults, username, password, displayName]);
 
     const draftTestKey = editing ? String(editing.id) : "draft";
     const draftTest = lineTest.states[draftTestKey];
     const canTestDraft =
-        !detailsLoading &&
-        !!wssUrl.trim() &&
-        !!uri.trim() &&
-        (!!password.trim() || !!editing);
+        !detailsLoading && !!draftConfig && (!!password.trim() || !!editing);
 
     const openCreate = () => {
         resetForm();
@@ -341,17 +351,6 @@ export default function SoftphoneDeviceManager() {
                 const details = response.data.data;
                 setLabel(details.label);
                 setProvider(details.provider ?? undefined);
-                // A stored provider must always be selectable, even when the
-                // provider list could not be loaded (flag off / OL down).
-                if (details.provider) {
-                    setProviderOptions((current) =>
-                        current.some((option) => option.value === details.provider)
-                            ? current
-                            : [...current, { value: details.provider as string, label: details.provider as string }],
-                    );
-                }
-                setWssUrl(details.wss_url ?? "");
-                setUri(details.uri ?? "");
                 setUsername(details.authorization_username ?? "");
                 setDisplayName(details.display_name ?? "");
                 setIsDefault(details.is_default);
@@ -367,8 +366,9 @@ export default function SoftphoneDeviceManager() {
 
     const handleSubmit = () => {
         // A provider is required: it is what decides the WebSocket endpoint
-        // and SIP URI the line registers with.
-        if (!label.trim() || !provider || !wssUrl.trim() || !uri.trim()) return;
+        // and SIP URI the line registers with. The form never sends those two;
+        // the server resolves them from the provider.
+        if (!label.trim() || !provider) return;
         if (editing ? detailsLoading : !password.trim()) return;
 
         // The edit form is prefilled with the stored values, so it sends them
@@ -377,8 +377,6 @@ export default function SoftphoneDeviceManager() {
         const payload: DevicePayload = {
             label: label.trim(),
             provider,
-            wss_url: wssUrl.trim(),
-            uri: uri.trim(),
             authorization_password: password,
             is_default: isDefault,
         };
@@ -399,18 +397,18 @@ export default function SoftphoneDeviceManager() {
     };
 
     const saving = createMutation.isPending || updateMutation.isPending;
-    // The platform's SIP URI format carries a `{username}` placeholder
-    // (sipgate), so the username cannot be left out while the URI is still
-    // empty — on edit the stored URI already exists, so only a missing one
-    // applies. The field then shows as required with a hint.
+    // A platform whose SIP URI format carries a `{username}` placeholder
+    // (sipgate) cannot register without one. On create the username is
+    // mandatory; on edit the stored line already has a URI, so clearing the
+    // field keeps it. The label then shows as required with a hint.
     const usernameNeeded =
-        !!platformDefaults?.sipUriFormat.includes("{username}") && !uri.trim();
+        !!platformDefaults?.sipUriFormat.includes("{username}") &&
+        !username.trim() &&
+        !editing;
     const canSubmit =
         !detailsLoading &&
         !!label.trim() &&
         !!provider &&
-        !!wssUrl.trim() &&
-        !!uri.trim() &&
         (editing ? true : !!password.trim());
 
     return (
@@ -525,7 +523,11 @@ export default function SoftphoneDeviceManager() {
                             icon={<ThunderboltOutlined />}
                             loading={draftTest?.status === "testing"}
                             disabled={!canTestDraft || saving}
-                            onClick={() => void lineTest.testDraft(draftConfig(), editing?.id ?? null)}
+                            onClick={() => {
+                                if (draftConfig) {
+                                    void lineTest.testDraft(draftConfig, editing?.id ?? null);
+                                }
+                            }}
                             style={{ marginRight: "auto" }}
                         >
                             Test connection

@@ -77,8 +77,11 @@ class CallBridgeIntegrationsControllerTest extends TestCase
         $response = (new CallBridgeIntegrationsController())->providers(new Request());
 
         $this->assertSame(200, $response->getStatusCode());
+        // Only platforms this CRM can store a line for are advertised —
+        // twilio is dropped because the local registry (which supplies the
+        // connection defaults and validates the save) does not know it.
         $this->assertSame(
-            ['status' => 'success', 'data' => ['providers' => ['sipgate', 'twilio']]],
+            ['status' => 'success', 'data' => ['providers' => ['sipgate']]],
             $response->getData(true),
         );
 
