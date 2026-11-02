@@ -47,6 +47,8 @@ return [
         'crm.personal-dashboard',
         'crm.manager-dashboard',
         'crm.team-dashboard',
+        // Company-wide dashboard (?view=leadership) and its switcher tab (HIB-1330); cleanup HIB-1952.
+        'crm.company-dashboard',
         'crm.partner-flag-routing',
         'crm.partner.lead-stalled',
         'packages.online-payment',
@@ -55,6 +57,7 @@ return [
         'crm.deal-value-commission',
         'shared.3cx-calling',
         'crm.softphone',
+        'callbridge.integrations',
         'crm.mobile-responsive-layout',
         'crm.property-completeness-score',
         'crm.email',
@@ -72,5 +75,6 @@ return [
         'crm.meeting-attendance-confirmation' => true,
         'crm.mobile-responsive-layout' => true,
         'crm.email' => true,
+        'callbridge.integrations' => true,
     ],
 ];

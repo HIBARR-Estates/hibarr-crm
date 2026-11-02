@@ -22,6 +22,8 @@ export interface SoftphoneDevicesResponse {
 
 /** Connection settings for the admin edit form (never includes the password). */
 export interface SoftphoneDeviceDetails extends SoftphoneDeviceSummary {
+    /** SIP platform the line belongs to (e.g. sipgate), when known. */
+    provider: string | null;
     wss_url: string;
     uri: string;
     authorization_username: string | null;
@@ -33,6 +35,8 @@ export interface SoftphoneDeviceDetails extends SoftphoneDeviceSummary {
 export interface SoftphoneDeviceCredentials extends SoftphoneConfig {
     id: number;
     label: string;
+    /** SIP platform the line belongs to (e.g. sipgate), when known. */
+    provider: string | null;
 }
 
 export interface SoftphoneDeviceCredentialsResponse {

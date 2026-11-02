@@ -30,7 +30,7 @@ class CallRecordingController extends AccountBaseController
     public function index(Request $request)
     {
         $permission = user()->permission('make_softphone_calls');
-        abort_403(! in_array($permission, ['all']));
+        abort_403(! in_array($permission, ['all', 'added']));
 
         $scope = $request->input('scope', 'mine');
         $companyId = (int) company()->id;
@@ -88,7 +88,7 @@ class CallRecordingController extends AccountBaseController
     public function store(Request $request)
     {
         $permission = user()->permission('make_softphone_calls');
-        abort_403(! in_array($permission, ['all']));
+        abort_403(! in_array($permission, ['all', 'added']));
 
         // Recordings are tenant data and every read path filters on company_id,
         // so an unowned row would be invisible rather than harmless. Resolve the
@@ -436,7 +436,7 @@ class CallRecordingController extends AccountBaseController
     private function authorizeRecordingAccess(CallRecording $recording): void
     {
         $permission = user()->permission('make_softphone_calls');
-        abort_403(! in_array($permission, ['all']));
+        abort_403(! in_array($permission, ['all', 'added']));
 
         // The owner id can come back from the model as a string while the
         // session user carries an int, so both sides are normalised before the
