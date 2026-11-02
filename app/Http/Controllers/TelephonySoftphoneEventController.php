@@ -23,7 +23,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
 
     public function leadByPhone(Request $request): JsonResponse
     {
-        if (! in_array(user()->permission('make_softphone_calls'), ['all'])) {
+        if (! in_array(user()->permission('make_softphone_calls'), ['all', 'added'])) {
             // Incoming matching is still available to anyone who can view leads;
             // callers without softphone permission get an explicit 403.
             abort_403(true);
@@ -86,8 +86,8 @@ class TelephonySoftphoneEventController extends AccountBaseController
             return response()->json([
                 'status' => 'success',
                 'data' => [
-                    'id' => $lead->id,
-                    'lead_id' => $lead->id,
+                    'id' => null,
+                    'lead_id' => null,
                     'name' => null,
                     'url' => null,
                     'matched' => false,
@@ -146,7 +146,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
 
     public function store(Request $request): JsonResponse
     {
-        abort_403(! in_array(user()->permission('make_softphone_calls'), ['all']));
+        abort_403(! in_array(user()->permission('make_softphone_calls'), ['all', 'added'], true));
 
         $validated = $request->validate([
             'phone' => 'required|string|max:50',
@@ -157,6 +157,10 @@ class TelephonySoftphoneEventController extends AccountBaseController
             'status' => 'nullable|string|max:40',
             'duration' => 'nullable|integer|min:0',
             'call_ref' => 'nullable|string|max:64',
+            // Why a dial attempt never connected (softphone failure code) and
+            // the agent-facing sentence, so the timeline can explain it.
+            'failure_reason' => 'nullable|string|max:80',
+            'failure_message' => 'nullable|string|max:255',
         ]);
 
         $entityType = $validated['entity_type'];
@@ -187,6 +191,8 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 'status' => $validated['status'] ?? null,
                 'duration' => $validated['duration'] ?? null,
                 'call_ref' => $validated['call_ref'] ?? null,
+                'failure_reason' => $validated['failure_reason'] ?? null,
+                'failure_message' => $validated['failure_message'] ?? null,
                 'phone_number' => $validated['phone'],
                 'entity_type' => $entityType,
                 'entity_id' => $entityId,
@@ -201,7 +207,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
             try {
                 $emitDirection = $validated['direction'] ?? 'outbound';
                 $emitEvent = $validated['event'] ?? 'call.started';
-                if (! in_array($emitEvent, ['call.started', 'call.ended', 'call.missed', 'call_declined', 'call_voicemail', 'call_busy', 'call_failed'], true)) {
+                if (! in_array($emitEvent, ['call.started', 'call.ended', 'call.missed', 'call.declined', 'call.busy', 'call.failed', 'call_declined', 'call_voicemail', 'call_busy', 'call_failed'], true)) {
                     $emitEvent = 'call.started';
                 }
                 $this->callBridge->emitCallEvent([

@@ -31,6 +31,18 @@ import { useCurrencies } from "@/Hooks/useFormData";
 
 const DEFAULT_CURRENCY_CODE = "USD";
 
+/** Field types whose stored value is itself the text worth copying. Option,
+ * date, currency and structured types store IDs/keys or shapes, not what the
+ * user reads, so they get no copy button. */
+const COPYABLE_FIELD_TYPES = new Set([
+    "text",
+    "textarea",
+    "email",
+    "phone",
+    "number",
+    "url",
+]);
+
 function hasMultiSelectOptions(field: {
     type?: string;
     values?: unknown;
@@ -595,6 +607,9 @@ interface Props {
     /** Forwarded to the underlying EditableField — v2.2's single-click-to-edit
      * pattern, opt-in so other CustomFieldDisplay consumers keep double-click. */
     activateOnSingleClick?: boolean;
+    /** Forwarded to EditableField: adds a copy-to-clipboard button to
+     * plain-text field types (see COPYABLE_FIELD_TYPES). Opt-in. */
+    copyable?: boolean;
     /** When set, only custom fields allowed by pipeline scope are shown. null = show all. */
     visibleFieldKeys?: string[] | null;
     /** The record (Deal/Lead/...) these fields belong to — backs a `record`-source visibility rule ("restrict to specific record(s)"). */
@@ -631,6 +646,7 @@ export default function CustomFieldDisplay({
     isOpen = false,
     onToggle,
     activateOnSingleClick = false,
+    copyable = false,
     visibleFieldKeys,
     useContainerQuery = false,
     bare = false,
@@ -1455,6 +1471,16 @@ export default function CustomFieldDisplay({
             normalizedValue = formatMobileForDisplay(value);
         }
 
+        // The display here is a ReactNode (formatFieldValue), so hand the
+        // copy button the plain stored value instead.
+        const copyValue =
+            copyable &&
+            COPYABLE_FIELD_TYPES.has(field.type) &&
+            (typeof normalizedValue === "string" ||
+                typeof normalizedValue === "number")
+                ? String(normalizedValue)
+                : undefined;
+
         return (
             <EditableField
                 value={normalizedValue}
@@ -1468,6 +1494,8 @@ export default function CustomFieldDisplay({
                 onChange={handleFieldChange}
                 disabled={disabled}
                 activateOnSingleClick={activateOnSingleClick}
+                copyable={copyValue !== undefined}
+                copyValue={copyValue}
             />
         );
     };

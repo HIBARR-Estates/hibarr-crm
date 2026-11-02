@@ -9,13 +9,14 @@ import type { SoftphoneDeviceSummary } from "@/Types/api/softphone";
 import SoftphoneDeviceManager from "./SoftphoneDeviceManager";
 import SoftphoneCallPoolManager from "./SoftphoneCallPoolManager";
 import SoftphoneRecordingsPanel from "./SoftphoneRecordingsPanel";
+import SoftphoneCallLogPanel from "./SoftphoneCallLogPanel";
 
 import "@/Components/Redesign/redesign.css";
 import "@/Components/CallRecordingPlayer.css";
 import "./CallBridgeSettings.css";
 
-type TabKey = "lines" | "pool" | "recordings";
-export const CALL_BRIDGE_TABS = ["lines", "pool", "recordings"] as const;
+type TabKey = "lines" | "pool" | "calls" | "recordings";
+export const CALL_BRIDGE_TABS = ["lines", "pool", "calls", "recordings"] as const;
 export type CallBridgeTab = (typeof CALL_BRIDGE_TABS)[number];
 
 interface DevicesResponse {
@@ -58,6 +59,15 @@ export default function CallBridge({ pageTitle }: { pageTitle?: string }) {
                   },
               ]
             : []),
+        ...(isAdmin
+            ? [
+                  {
+                      key: "calls" as const,
+                      label: td("Calls", { source: "en" }),
+                      count: null as number | null,
+                  },
+              ]
+            : []),
         {
             key: "recordings" as const,
             label: td("Recordings", { source: "en" }),
@@ -80,7 +90,7 @@ export default function CallBridge({ pageTitle }: { pageTitle?: string }) {
                     <h1 className="cb-title">{pageTitle ?? td("Call Bridge", { source: "en" })}</h1>
                     <p className="cb-lede">
                         {td(
-                            "Phone lines, call routing and recordings for the browser softphone. Each group of settings lives on its own tab.",
+                            "Phone lines, call routing, the call log and recordings for the browser softphone. Each group of settings lives on its own tab.",
                             { source: "en" },
                         )}
                     </p>
@@ -112,6 +122,9 @@ export default function CallBridge({ pageTitle }: { pageTitle?: string }) {
                         </div>
                         <div className="cb-panel" id="pool" hidden={activeTab !== "pool"}>
                             {isAdmin && <SoftphoneCallPoolManager devices={devices} />}
+                        </div>
+                        <div className="cb-panel" id="calls" hidden={activeTab !== "calls"}>
+                            {isAdmin && activeTab === "calls" && <SoftphoneCallLogPanel />}
                         </div>
                         <div
                             className="cb-panel"

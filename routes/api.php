@@ -19,8 +19,16 @@ use Illuminate\Support\Facades\Route;
 
 ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
     // Used by the CRM frontend (session cookie) and by services (API token).
-    ApiRoute::middleware(['api.token.or.session'])->group(function () {
+    // The `api` group is required here: Froiden's ApiRoute creates routes
+    // directly on the router, so it does not inherit the `api` middleware
+    // group from RouteServiceProvider. Without it there is no session
+    // middleware and `$request->user()` is always null for browser calls.
+    ApiRoute::middleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class, 'api.token.or.session'])->group(function () {
         ApiRoute::get('purchased-module', ['as' => 'api.purchasedModule', 'uses' => 'HomeController@installedModule']);
+
+        // CallBridge SIP Provider Integrations API
+        ApiRoute::get('call-bridge/integrations/providers', ['as' => 'api.call-bridge.integrations.providers', 'uses' => 'App\Http\Controllers\Api\CallBridgeIntegrationsController@providers']);
+        ApiRoute::get('call-bridge/integrations/providers/{platform}', ['as' => 'api.call-bridge.integrations.platform', 'uses' => 'App\Http\Controllers\Api\CallBridgeIntegrationsController@platform']);
 
         ApiRoute::post('internal/communication-activities', ['as' => 'api.communication-activities.store.internal', 'uses' => 'CommunicationActivityController@store']);
         ApiRoute::get('internal/deals/{dealId}/communication-activities', ['as' => 'api.deals.communication-activities.internal', 'uses' => 'CommunicationActivityController@getDealActivities']);

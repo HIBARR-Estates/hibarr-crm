@@ -15,10 +15,7 @@ import type {
 /** How often to re-check the caller's number for a lead while ringing. */
 const LEAD_MATCH_POLL_MS = 8000;
 
-/**
- * How long a failed-call notice stays on screen when the agent ignores it.
- * Long enough to read and react, short enough that it never becomes clutter.
- */
+/** How long a failed-call notice stays on screen when the agent ignores it. */
 const FAILURE_NOTICE_MS = 30_000;
 
 type MatchedLead = {
@@ -156,11 +153,7 @@ function CallStateBadge({ stage }: { stage: SoftphoneCallStage }) {
     );
 }
 
-/**
- * Why a call never connected. Stays on screen until the agent closes it (or
- * FAILURE_NOTICE_MS passes) — a failed call used to make the dock vanish with
- * no explanation at all, which read as the app crashing.
- */
+/** Why a call never connected. Stays on screen until the agent closes it (or FAILURE_NOTICE_MS passes) */
 function CallFailedNotice({
     failure,
     onRetry,
@@ -181,11 +174,9 @@ function CallFailedNotice({
                     <PhoneOff size={30} strokeWidth={1.7} />
                 </div>
                 <h2 className="sp__name">Call failed</h2>
-                {/* Who it was about, not just the digits — otherwise a failed
-                    call is just "a number" with no owner. */}
+                {/* Who it was about, not just the digits — otherwise a failed call is just "a number" with no owner. */}
                 <p className="sp__number">
-                    {failure.direction === "outbound" ? "To" : "From"}{" "}
-                    {failure.context?.leadName || failure.peer}
+                    {failure.direction === "outbound" ? "To" : "From"} {" "}{failure.context?.leadName || failure.peer}
                 </p>
                 {failure.context?.leadName && (
                     <p className="sp__number sp__number--peer">{failure.peer}</p>
@@ -220,43 +211,28 @@ function CallFailedNotice({
  */
 export default function SoftphoneDock() {
     const { props } = usePage();
-    const canRecord = props.auth?.permissions?.make_softphone_calls === "all";
-    const {
-        isEnabled,
-        state,
-        devices,
-        activeDeviceId,
-        setActiveDevice,
-        attachRemoteAudio,
-        answer,
-        reject,
-        hangup,
-        setMuted,
-        setHold,
-        isActiveTab,
-        clearCallFailure,
-    } = useSoftphone();
+    const canRecord = ["all", "added"].includes(props.auth?.permissions?.make_softphone_calls);
+    const { isEnabled, state, devices, activeDeviceId, setActiveDevice, attachRemoteAudio, answer, reject, hangup, setMuted, setHold, isActiveTab, clearCallFailure } = useSoftphone();
 
     const [pinnedOpen, setPinnedOpen] = useState(false);
-const [position, setPosition] = useState(() => {
-    try {
-        const raw = window.localStorage.getItem("softphone.dock.position");
-        if (raw) {
-            const v = JSON.parse(raw) as { right: number; bottom: number };
-            if (v && Number.isFinite(v.right) && Number.isFinite(v.bottom)) {
-                return v;
+    const [position, setPosition] = useState(() => {
+        try {
+            const raw = window.localStorage.getItem("softphone.dock.position");
+            if (raw) {
+                const v = JSON.parse(raw) as { right: number; bottom: number };
+                if (v && Number.isFinite(v.right) && Number.isFinite(v.bottom)) {
+                    return v;
+                }
             }
+        } catch {
+            // ignore
         }
-    } catch {
-        // ignore
-    }
-    return { right: 20, bottom: 20 };
-});
-const dragRef = useRef<{ x: number; y: number; position: { right: number; bottom: number } } | null>(null);
+        return { right: 20, bottom: 20 };
+    });
+    const dragRef = useRef<{ x: number; y: number; position: { right: number; bottom: number } } | null>(null);
     const activeCall = state.call;
     const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
-    // Stable ref callback: an inline arrow would be re-run on every render,
-    // detaching/reattaching the audio element (and resetting playback).
+    // Stable ref callback: an inline arrow would be re-run on every render, detaching/reattaching the audio element (and resetting playback).
     const remoteAudioCallback = useCallback(
         (node: HTMLAudioElement | null) => {
             remoteAudioRef.current = node;
@@ -278,16 +254,14 @@ const dragRef = useRef<{ x: number; y: number; position: { right: number; bottom
     const [unmatchedPromptPhone, setUnmatchedPromptPhone] = useState<string | null>(null);
     const [lastInboundPhone, setLastInboundPhone] = useState<string | null>(null);
     const fallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    // Guards against double-logging when Answer is clicked in the dock while the
-    // island alert for the same call is also on screen.
+    // Guards against double-logging when Answer is clicked in the dock while the island alert for the same call is also on screen.
     const inboundLoggedRef = useRef<string | null>(null);
 
     const elapsed = useElapsed(
         activeCall?.connectedAt ?? activeCall?.answeredAt ?? null,
     );
 
-    /** The lead this call is about: the caller's entry point knew one (outbound),
-     * or it was matched from the caller's number (inbound). */
+    /** The lead this call is about: the caller's entry point knew one (outbound), or it was matched from the caller's number (inbound). */
     const callLead = useMemo<MatchedLead | null>(() => {
         const context = activeCall?.context;
         if (context?.leadId) {
@@ -300,11 +274,7 @@ const dragRef = useRef<{ x: number; y: number; position: { right: number; bottom
         return matchedLead;
     }, [activeCall?.context, matchedLead]);
 
-    /**
-    /**
-     * Stable reference for the current call. Shared by the hang-up timeline
-     * event and the recording upload so the two can be linked afterwards.
-     */
+    /** Stable reference for the current call. Shared by the hang-up timeline event and the recording upload so the two can be linked afterwards. */
     const callRefRef = useRef<string | null>(null);
     const callRef = useMemo(() => {
         if (activeCall === null) {
@@ -320,10 +290,7 @@ const dragRef = useRef<{ x: number; y: number; position: { right: number; bottom
         return callRefRef.current;
     }, [activeCall?.id]);
 
-    /**
-     * Why this call reached this agent. Shown in the ringing popup and stored
-     * on the recording so the audio can be traced back to its cause.
-     */
+    /** Why this call reached this agent. Shown in the ringing popup and stored on the recording so the audio can be traced back to its cause. */
     const callRoutingReason = useMemo(() => {
         if (activeCall?.direction !== "inbound") {
             return "outbound";
@@ -337,82 +304,81 @@ const dragRef = useRef<{ x: number; y: number; position: { right: number; bottom
         return "pool_fallback";
     }, [activeCall?.direction, inboundRoute?.matched, routingMode]);
 
-useEffect(() => {
-    try {
-        window.localStorage.setItem(
-            "softphone.dock.position",
-            JSON.stringify(position),
-        );
-    } catch {
-        // ignore storage errors
-    }
-}, [position]);
-
-const handleDragStart = (e: React.PointerEvent) => {
-    dragRef.current = {
-        x: e.clientX,
-        y: e.clientY,
-        position: { ...position },
-    };
-    const onMove = (ev: PointerEvent) => {
-        if (!dragRef.current) return;
-        const dx = ev.clientX - dragRef.current.x;
-        const dy = ev.clientY - dragRef.current.y;
-        setPosition({
-            right: Math.max(0, dragRef.current.position.right - dx),
-            bottom: Math.max(0, dragRef.current.position.bottom - dy),
-        });
-    };
-    const onUp = () => {
-        dragRef.current = null;
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    e.preventDefault();
-};
-
-const [connectionQuality, setConnectionQuality] = useState<"good" | "unstable" | "poor">("good");
-useEffect(() => {
-    if (!activeCall || activeCall.phase !== "active") {
-        setConnectionQuality("good");
-        return;
-    }
-    let cancelled = false;
-    const id = window.setInterval(async () => {
+    useEffect(() => {
         try {
-            const report = await softphone.getStats();
-            if (cancelled || !report) return;
-            let lost = 0;
-            let received = 0;
-            let jitter = 0;
-            let found = false;
-            report.forEach((r: Record<string, unknown>) => {
-                if (r.type === "inbound-rtp" && r.kind === "audio") {
-                    lost += Number(r.packetsLost || 0);
-                    received += Number(r.packetsReceived || 0);
-                    if (typeof r.jitter === "number") jitter = Number(r.jitter);
-                    found = true;
-                }
-            });
-            if (!found || cancelled) return;
-            const lossRate = lost / Math.max(1, lost + received);
-            if (lossRate > 0.1 || jitter > 0.08) setConnectionQuality("poor");
-            else if (lossRate > 0.02 || jitter > 0.03) setConnectionQuality("unstable");
-            else setConnectionQuality("good");
+            window.localStorage.setItem(
+                "softphone.dock.position",
+                JSON.stringify(position),
+            );
         } catch {
-            // quality is cosmetic only
+            // ignore storage errors
         }
-    }, 4000);
-    return () => {
-        cancelled = true;
-        window.clearInterval(id);
-    };
-}, [activeCall?.id, activeCall?.phase]);
+    }, [position]);
 
-    // Ring/state sounds come from real MP3s in public/audio/softphone rather
-    // than a synthesised oscillator tone.
+    const handleDragStart = (e: React.PointerEvent) => {
+        dragRef.current = {
+            x: e.clientX,
+            y: e.clientY,
+            position: { ...position },
+        };
+        const onMove = (ev: PointerEvent) => {
+            if (!dragRef.current) return;
+            const dx = ev.clientX - dragRef.current.x;
+            const dy = ev.clientY - dragRef.current.y;
+            setPosition({
+                right: Math.max(0, dragRef.current.position.right - dx),
+                bottom: Math.max(0, dragRef.current.position.bottom - dy),
+            });
+        };
+        const onUp = () => {
+            dragRef.current = null;
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+        };
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+        e.preventDefault();
+    };
+
+    const [connectionQuality, setConnectionQuality] = useState<"good" | "unstable" | "poor">("good");
+    useEffect(() => {
+        if (!activeCall || activeCall.phase !== "active") {
+            setConnectionQuality("good");
+            return;
+        }
+        let cancelled = false;
+        const id = window.setInterval(async () => {
+            try {
+                const report = await softphone.getStats();
+                if (cancelled || !report) return;
+                let lost = 0;
+                let received = 0;
+                let jitter = 0;
+                let found = false;
+                report.forEach((r: Record<string, unknown>) => {
+                    if (r.type === "inbound-rtp" && r.kind === "audio") {
+                        lost += Number(r.packetsLost || 0);
+                        received += Number(r.packetsReceived || 0);
+                        if (typeof r.jitter === "number") jitter = Number(r.jitter);
+                        found = true;
+                    }
+                });
+                if (!found || cancelled) return;
+                const lossRate = lost / Math.max(1, lost + received);
+                if (lossRate > 0.1 || jitter > 0.08) setConnectionQuality("poor");
+                else if (lossRate > 0.02 || jitter > 0.03) setConnectionQuality("unstable");
+                else setConnectionQuality("good");
+            } catch {
+                // quality is cosmetic only
+            }
+        }, 4000);
+        return () => {
+            cancelled = true;
+            window.clearInterval(id);
+        };
+    }, [activeCall?.id, activeCall?.phase]);
+
+    // Ring/state sounds come from real MP3s in public/audio/softphone rather than a synthesised oscillator tone.
     const {
         playIncoming,
         startRinging,
@@ -478,12 +444,7 @@ useEffect(() => {
         }
     }, [activeCall, stopRinging, stopAll, playEnded]);
 
-    // Lead matching, inbound only. An outbound call carries whatever lead its
-    // entry point already had (a task's quick-action, a phone next to a lead) —
-    // we never go looking one up, because the dialer only knows a number.
-    // Inbound still matches: the caller is unknown, and the match can land late
-    // (the call bridge resolves on its own schedule), so keep checking while
-    // the call rings.
+    // Lead matching, inbound only. An outbound call carries whatever lead its entry point already had (a task's quick-action, a phone next to a lead) — we never go looking one up, because the dialer only knows a number. Inbound still matches: the caller is unknown, and the match can land late (the call bridge resolves on its own schedule), so keep checking while the call rings.
     const matchedLeadRef = useRef<MatchedLead | null>(null);
     useEffect(() => {
         matchedLeadRef.current = matchedLead;
@@ -518,19 +479,15 @@ useEffect(() => {
                     setInboundRoute(data);
                     setRoutingMode(data?.route === "owner" ? "owner" : "all");
                 }
-                const lead =
-                    data?.matched && data.lead_id
-                        ? {
-                              id: data.lead_id,
-                              name: data.name ?? "Lead",
-                              url: data.url ?? "",
-                          }
-                        : null;
+                const lead = data?.matched && data.lead_id ? {
+                    id: data.lead_id,
+                    name: data.name ?? "Lead",
+                    url: data.url ?? "",
+                } : null;
                 matchedLeadRef.current = lead;
                 setMatchedLead(lead);
                 if (lead) {
-                    // Tell the client who this call is about: it copies this
-                    // onto the call (and onto a failure notice if the call dies).
+                    // Tell the client who this call is about: it copies this onto the call (and onto a failure notice if the call dies).
                     softphone.setCallContext({ leadId: lead.id, leadName: lead.name });
                 }
             } catch {
@@ -553,14 +510,12 @@ useEffect(() => {
             cancelled = true;
             window.clearInterval(poll);
         };
-        // Keyed on the call id only: the phase changes as the call progresses,
-        // and re-running then would wipe a match we already have.
+        // Keyed on the call id only: the phase changes as the call progresses, and re-running then would wipe a match we already have.
     }, [activeCall?.id, activeDeviceId]);
 
     useEffect(() => {
         if (!activeCall || activeCall.phase !== "inbound" || !inboundRoute) return;
-        // Owner ring first only; non-owners and non-eligible poll agents stay
-        // locally hidden instead of terminating the underlying SIP invitation.
+        // Owner-first / non-eligible sessions are hidden locally only when we actually know they shouldn't ring. While the lead-match request is in flight (or failed) inboundRoute is null and the call must still be answerable, otherwise the user gets a ring with no controls at all.
         if (routingMode === "owner" && Number(inboundRoute.owner_id ?? -1) !== Number(props.auth?.user?.id ?? -1)) {
             // hidden locally; keep the SIP session so routingMode can fall back
         }
@@ -584,11 +539,7 @@ useEffect(() => {
         };
     }, [activeCall?.id, activeCall?.phase, inboundRoute, routingMode, props.auth?.user?.id]);
 
-    /**
-     * Single place inbound calls are written to the timeline. Shared by the
-     * dock Answer button and the notification island Answer action, and keyed on
-     * the call id so one answered call can only ever log once.
-     */
+    /** One-shot "call finished" cue when a live call drops. Shared by the dock Answer button and the notification island Answer action, and keyed on the call id so one answered call can only ever log once. */
     const logInboundCallStarted = useCallback(
         async (callId: string, peer: string | null) => {
             if (!inboundRoute?.matched || !inboundRoute.lead_id) {
@@ -614,8 +565,7 @@ useEffect(() => {
         [inboundRoute],
     );
 
-    // Incoming calls are surfaced in the softphone dock only. The dock
-    // auto-opens while a call is ringing or live and owns Answer/Decline/Hang up.
+    // Incoming calls are surfaced in the softphone dock only. The dock auto-opens while a call is ringing or live and owns Answer/Decline/Hang up.
 
     useEffect(() => {
         if (activeCall === null && inboundRoute && !inboundRoute.matched) {
@@ -644,9 +594,7 @@ useEffect(() => {
         const started = async () => {
             if (recordRecorderRef.current) return;
             const audioEl = remoteAudioRef.current;
-            const remoteStream = audioEl?.srcObject instanceof MediaStream
-                ? audioEl.srcObject
-                : null;
+            const remoteStream = audioEl?.srcObject instanceof MediaStream ? audioEl.srcObject : null;
             let micStream: MediaStream | null = null;
             try {
                 micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -663,10 +611,7 @@ useEffect(() => {
                 ctx.createMediaStreamSource(micStream).connect(destination);
             }
 
-            // MediaRecorder cannot encode MP3 — it only emits Opus/WebM (or
-            // MP4/AAC on Safari). Pick the best *audio-only* type so we never
-            // end up with a video/webm container, and let the server transcode
-            // to MP3 on upload.
+            // MediaRecorder cannot encode MP3 — it only emits Opus/WebM (or MP4/AAC on Safari). Pick the best *audio-only* type so we never end up with a video/webm container, and let the server transcode to MP3 on upload.
             const AUDIO_MIME_CANDIDATES = [
                 "audio/webm;codecs=opus",
                 "audio/ogg;codecs=opus",
@@ -674,15 +619,11 @@ useEffect(() => {
                 "audio/ogg",
                 "audio/mp4",
             ];
-            const mimeType = AUDIO_MIME_CANDIDATES.find((type) =>
-                MediaRecorder.isTypeSupported(type),
-            );
+            const mimeType = AUDIO_MIME_CANDIDATES.find((type) => MediaRecorder.isTypeSupported(type));
 
             const recorder = new MediaRecorder(
                 destination.stream,
-                mimeType
-                    ? { mimeType, audioBitsPerSecond: 48000 }
-                    : { audioBitsPerSecond: 48000 },
+                mimeType ? { mimeType, audioBitsPerSecond: 48000 } : { audioBitsPerSecond: 48000 },
             );
             recordChunksRef.current = [];
             recorder.ondataavailable = (event) => {
@@ -691,32 +632,25 @@ useEffect(() => {
                 }
             };
             recorder.onstop = async () => {
-                const blob = new Blob(recordChunksRef.current, {
-                    type: recorder.mimeType || mimeType || "audio/webm",
-                });
+                const blob = new Blob(recordChunksRef.current, { type: recorder.mimeType || mimeType || "audio/webm" });
                 recordChunksRef.current = [];
-                const duration = recordStartedAtRef.current
-                    ? Math.max(1, Math.round((Date.now() - recordStartedAtRef.current) / 1000))
-                    : 1;
+                const duration = recordStartedAtRef.current ? Math.max(1, Math.round((Date.now() - recordStartedAtRef.current) / 1000)) : 1;
                 recordStartedAtRef.current = null;
                 setRecordingUploading(true);
                 try {
                     const form = new FormData();
-                    // Upload with a container-appropriate extension; the server
-                    // transcodes to MP3 before storing.
-                    const extension =
-                        (recorder.mimeType || mimeType || "").includes("mp4")
-                            ? "m4a"
-                            : (recorder.mimeType || mimeType || "").includes("ogg")
-                              ? "ogg"
-                              : "webm";
+                    // Upload with a container-appropriate extension; the server transcodes to MP3 before storing.
+                    const fallback = recorder.mimeType || mimeType || "";
+                    const extension = fallback.includes("mp4")
+                        ? "m4a"
+                        : fallback.includes("ogg")
+                            ? "ogg"
+                            : "webm";
                     form.append("recording", blob, `call-${Date.now()}.${extension}`);
                     form.append("duration", String(duration));
-                    // Which channel/line this recording was captured on, so the
-                    // recordings view can group by line.
+                    // Which channel/line this recording was captured on, so the recordings view can group by line.
                     form.append("device_id", String(activeDeviceId ?? ""));
-                    // Why this call reached this agent: the matched lead (or the
-                    // fact it was unmatched) and the routing decision.
+                    // Why this call reached this agent: the matched lead (or the fact it was unmatched) and the routing decision.
                     if (callLead) {
                         form.append("entity_type", "lead");
                         form.append("entity_id", String(callLead.id));
@@ -724,41 +658,24 @@ useEffect(() => {
                     if (callLead?.name) {
                         form.append("lead_name", callLead.name);
                     }
-                    form.append(
-                        "phone_number",
-                        activeCall?.peer ?? lastInboundPhone ?? "",
-                    );
-                    form.append(
-                        "direction",
-                        activeCall?.direction === "inbound" ? "inbound" : "outbound",
-                    );
+                    form.append("phone_number", activeCall?.peer ?? lastInboundPhone ?? "");
+                    form.append("direction", activeCall?.direction === "inbound" ? "inbound" : "outbound");
                     form.append("routing_reason", callRoutingReason);
                     if (callRef) {
                         form.append("call_ref", callRef);
                     }
-                    const response = await axios.post(
-                        route("call-recordings.store"),
-                        form,
-                        {
-                            headers: {
-                                "X-CSRF-TOKEN":
-                                    document
-                                        .querySelector('meta[name="csrf-token"]')
-                                        ?.getAttribute("content") || "",
-                            },
+                    const response = await axios.post(route("call-recordings.store"), form, {
+                        headers: {
+                            "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "",
                         },
-                    );
-                    const playUrl =
-                        response.data?.data?.play_url ||
-                        response.data?.play_url;
+                    });
+                    const playUrl = response.data?.data?.play_url || response.data?.play_url;
                     if (playUrl) {
                         setLastRecordingUrl(playUrl);
                     }
                     void loadRecordings();
                 } catch {
                     console.warn("[softphone] Recording upload failed");
-                } finally {
-                    setRecordingUploading(false);
                 }
                 micStream?.getTracks().forEach((track) => track.stop());
                 try {
@@ -790,10 +707,7 @@ useEffect(() => {
 
     const hasCall = activeCall !== null;
 
-    // Auto-open while a call rings or is live; collapse once it ends.
-    // A FAILED call keeps the dock open with the reason — closing silently
-    // left agents thinking the app had hung. It self-dismisses after
-    // FAILURE_NOTICE_MS so it cannot sit on screen forever.
+    // Auto-open while a call rings or is live; collapse once it ends. A FAILED call keeps the dock open with the reason — closing silently left agents thinking the app had hung. It self-dismisses after FAILURE_NOTICE_MS so it cannot sit on screen forever.
     const callFailure = state.callFailure;
     const open = pinnedOpen || hasCall || callFailure !== null;
 
@@ -801,12 +715,49 @@ useEffect(() => {
         if (!callFailure) {
             return;
         }
-        const timer = window.setTimeout(
-            () => clearCallFailure(),
-            FAILURE_NOTICE_MS,
-        );
+        const timer = window.setTimeout(() => clearCallFailure(), FAILURE_NOTICE_MS);
         return () => window.clearTimeout(timer);
     }, [callFailure, clearCallFailure]);
+
+    // Every outbound attempt that never connected (busy, declined, no answer,
+    // not registered, ...) goes on the lead's timeline. The failure object is
+    // replaced per attempt, so keying on identity logs each one exactly once.
+    const loggedFailureRef = useRef<typeof callFailure>(null);
+    useEffect(() => {
+        if (
+            !callFailure ||
+            callFailure.direction !== "outbound" ||
+            loggedFailureRef.current === callFailure
+        ) {
+            return;
+        }
+        loggedFailureRef.current = callFailure;
+        const leadId = callFailure.context?.leadId;
+        if (!leadId) {
+            return;
+        }
+        const event =
+            callFailure.code === "busy"
+                ? { event: "call.busy", status: "busy" }
+                : callFailure.code === "declined"
+                  ? { event: "call.declined", status: "declined" }
+                  : callFailure.code === "no-answer"
+                    ? { event: "call.missed", status: "missed" }
+                    : { event: "call.failed", status: "failed" };
+        void axios
+            .post(route("telephony.softphone.events.store"), {
+                phone: callFailure.peer,
+                entity_type: "lead",
+                entity_id: leadId,
+                direction: "outbound",
+                failure_reason: callFailure.code,
+                failure_message: callFailure.reason.slice(0, 255),
+                ...event,
+            })
+            .catch(() => {
+                // Timeline logging is best-effort only.
+            });
+    }, [callFailure]);
 
     const retryFailedCall = () => {
         const failure = callFailure;
@@ -820,10 +771,7 @@ useEffect(() => {
         return null;
     }
 
-    // Owner-first / non-eligible sessions are hidden locally only when we
-    // actually know they shouldn't ring. While the lead-match request is in
-    // flight (or failed) inboundRoute is null and the call must still be
-    // answerable, otherwise the user gets a ring with no controls at all.
+    // Owner-first / non-eligible sessions are hidden locally only when we know they shouldn't ring. While the lead-match request is in flight (or failed) inboundRoute is null and the call must still be answerable, otherwise the user gets a ring with no controls at all.
     const isOwnerSession =
         inboundRoute === null ||
         routingMode !== "owner" ||
@@ -841,24 +789,22 @@ useEffect(() => {
         connectionQuality === "poor"
             ? "poor"
             : connectionQuality === "unstable"
-              ? "fair"
-              : "good";
+                ? "fair"
+                : "good";
 
     const statusDotClass =
         state.registration === "registered"
             ? "sp__dot sp__dot--registered"
             : state.registration === "registering"
-              ? "sp__dot sp__dot--registering"
-              : "sp__dot sp__dot--unregistered";
+                ? "sp__dot sp__dot--registering"
+                : "sp__dot sp__dot--unregistered";
 
-    // Keep the matched lead's name visible even after the call is answered
-    // (the design's title is the identity block, shared across both states).
+    // Keep the matched lead's name visible even after the call is answered (the design's title is the identity block, shared across both states).
     const titleName =
         callLead?.name ??
         (inboundRoute?.matched ? (inboundRoute?.name ?? activeCall?.peer ?? "") : (activeCall?.peer ?? ""));
 
-    // No floating FAB is shipped — the dock opens on its own when a call
-    // arrives, and stays pinned in development for testing.
+    // No floating FAB is shipped — the dock opens on its own when a call arrives, and stays pinned in development for testing.
 
     return (
         <>
@@ -866,44 +812,25 @@ useEffect(() => {
 
             {/* Failed call — the reason sticks around until closed. */}
             {callFailure && !hasCall && (
-                <CallFailedNotice
-                    failure={callFailure}
-                    onRetry={retryFailedCall}
-                    onClose={clearCallFailure}
-                />
+                <CallFailedNotice failure={callFailure} onRetry={retryFailedCall} onClose={clearCallFailure} />
             )}
 
             {/* Inbound call was not matched to a lead — prompt to create one. */}
             {unmatchedPromptPhone && (
                 <div className="sp__unmatched-notice">
-                    <p>
-                        This call was not matched to an existing lead. Would you like to create a new lead from this call?
-                    </p>
+                    <p>This call was not matched to an existing lead. Would you like to create a new lead from this call?</p>
                     <div className="sp__unmatched-actions">
-                        <button
-                            type="button"
-                            className="act act--ok"
-                            onClick={() => {
-                                window.location.href = route("lead.create", {
-                                    phone_number: unmatchedPromptPhone,
-                                });
-                            }}
-                        >
+                        <button type="button" className="act act--ok" onClick={() => {
+                            window.location.href = route("lead.create", { phone_number: unmatchedPromptPhone });
+                        }}>
                             Create lead
                         </button>
-                        <button
-                            type="button"
-                            className="act act--danger"
-                            onClick={() => setUnmatchedPromptPhone(null)}
-                        >
-                            Close
-                        </button>
+                        <button type="button" className="act act--danger" onClick={() => setUnmatchedPromptPhone(null)}>Close</button>
                     </div>
                 </div>
             )}
 
-            {/* Idle state — line picker + status. Only when no call is live and no failed
-                call is being reported (otherwise both panels render at once). */}
+            {/* Idle state — line picker + status. Only when no call is live and no failed call is being reported (otherwise both panels render at once). */}
             {!hasCall && !callFailure && open && (
                 <section className="sp" aria-label="Softphone status">
                     <header className="sp__head">
@@ -928,18 +855,14 @@ useEffect(() => {
                             <p className="sp__note">Connecting to sipgate…</p>
                         )}
                         {devices.length === 0 && (
-                            <p className="sp__note">
-                                No phone lines configured — add one in Settings.
-                            </p>
+                            <p className="sp__note">No phone lines configured — add one in Settings.</p>
                         )}
                         {devices.length > 0 && (
                             <div className="sp__field">
                                 <span>Active line</span>
                                 <select
                                     value={activeDeviceId ?? ""}
-                                    onChange={(e) =>
-                                        setActiveDevice(Number(e.target.value))
-                                    }
+                                    onChange={(e) => setActiveDevice(Number(e.target.value))}
                                     className="sp__select"
                                 >
                                     {devices.map((d) => (
@@ -959,31 +882,18 @@ useEffect(() => {
                             <p className="sp__note">Not registered.</p>
                         )}
                         {!isActiveTab && (
-                            <p className="sp__note">
-                                Another browser tab is handling calls.
-                            </p>
+                            <p className="sp__note">Another browser tab is handling calls.</p>
                         )}
                         {lastRecordingUrl ? (
                             <div className="sp__card">
-                                <p className="sp__note" style={{ marginBottom: 6 }}>
-                                    Latest recording
-                                </p>
-                                <audio
-                                    controls
-                                    preload="none"
-                                    src={lastRecordingUrl}
-                                    style={{ width: "100%" }}
-                                />
+                                <p className="sp__note" style={{ marginBottom: 6 }}>Latest recording</p>
+                                <audio controls preload="none" src={lastRecordingUrl} style={{ width: "100%" }} />
                             </div>
                         ) : null}
                         {recordingUploading ? (
                             <p className="sp__note">Uploading recording…</p>
                         ) : null}
-                        <button
-                            type="button"
-                            className="sp__close"
-                            onClick={() => setPinnedOpen(false)}
-                        >
+                        <button type="button" className="sp__close" onClick={() => setPinnedOpen(false)}>
                             Hide
                         </button>
                     </div>
@@ -992,44 +902,27 @@ useEffect(() => {
 
             {/* Inbound ringing */}
             {ringingInbound && activeCall && (
-                <section
-                    className="sp sp--incoming"
-                    aria-label="Softphone, incoming call"
-                >
+                <section className="sp sp--incoming" aria-label="Softphone, incoming call">
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         Softphone
-                        <span
-                            className="sp__signal"
-                            data-quality={quality}
-                            title={`Connection: ${connectionQuality}`}
-                        >
+                        <span className="sp__signal" data-quality={quality} title={`Connection: ${connectionQuality}`}>
                             <i />
                             <i />
                             <i />
                         </span>
                     </header>
                     <div className="sp__body">
-                        <CallIdentity
-                            name={titleName}
-                            peer={activeCall.peer}
-                            leadUrl={callLead?.url}
-                        >
+                        <CallIdentity name={titleName} peer={activeCall.peer} leadUrl={callLead?.url}>
                             {inboundRoute?.matched && (
                                 <span className="sp__lead">
-                                    {callRoutingReason === "lead_owner"
-                                        ? "Lead owner"
-                                        : "Call pool"}
+                                    {callRoutingReason === "lead_owner" ? "Lead owner" : "Call pool"}
                                 </span>
                             )}
                         </CallIdentity>
                         <CallStateBadge stage={activeCall.stage} />
                         <div className="sp__actions">
-                            <button
-                                type="button"
-                                className="act act--danger"
-                                onClick={() => void reject()}
-                            >
+                            <button type="button" className="act act--danger" onClick={() => void reject()}>
                                 <span className="act__btn">
                                     <svg viewBox="0 0 24 24">
                                         <path d="M10.7 13.3a16 16 0 0 1-2.4-3.1l1.6-1.4a1.5 1.5 0 0 0 .4-1.6L9.6 4.8A1.5 1.5 0 0 0 8.1 4H5.5A1.5 1.5 0 0 0 4 5.6 17 17 0 0 0 18.4 20a1.5 1.5 0 0 0 1.6-1.5v-2.6a1.5 1.5 0 0 0-.8-1.4l-3-1.1a1.5 1.5 0 0 0-1.6.4l-1.4 1.6" />
@@ -1038,17 +931,11 @@ useEffect(() => {
                                 </span>
                                 Decline
                             </button>
-                            <button
-                                type="button"
-                                className="act act--ok"
-                                onClick={() => {
-                                    const callId = activeCall.id;
-                                    const peer = activeCall.peer;
-                                    void answer().then(() =>
-                                        logInboundCallStarted(callId, peer),
-                                    );
-                                }}
-                            >
+                            <button type="button" className="act act--ok" onClick={() => {
+                                const callId = activeCall.id;
+                                const peer = activeCall.peer;
+                                void answer().then(() => logInboundCallStarted(callId, peer));
+                            }}>
                                 <span className="act__btn">
                                     <svg viewBox="0 0 24 24">
                                         <path d="M5.5 4h2.6a1.5 1.5 0 0 1 1.5.8l1 3a1.5 1.5 0 0 1-.4 1.6l-1.6 1.4a16 16 0 0 0 5.6 5.6l1.4-1.6a1.5 1.5 0 0 1 1.6-.4l3 1.1a1.5 1.5 0 0 1 .8 1.4v2.6A1.5 1.5 0 0 1 18.4 20 17 17 0 0 1 4 5.6 1.5 1.5 0 0 1 5.5 4z" />
@@ -1063,116 +950,62 @@ useEffect(() => {
 
             {/* Live / outbound call */}
             {inCall && activeCall && (
-                <section
-                    className="sp sp--active"
-                    aria-label="Softphone, in call"
-                >
+                <section className="sp sp--active" aria-label="Softphone, in call">
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         Softphone
-                        <span
-                            className="sp__signal"
-                            data-quality={quality}
-                            title={`Connection: ${connectionQuality}`}
-                        >
+                        <span className="sp__signal" data-quality={quality} title={`Connection: ${connectionQuality}`}>
                             <i />
                             <i />
                             <i />
                         </span>
                     </header>
                     <div className="sp__body">
-                        <CallIdentity
-                            name={titleName}
-                            peer={activeCall.peer}
-                            leadUrl={callLead?.url}
-                        >
-                            {/* Only for a lead we MATCHED from the caller's number. On an
-                            outbound call the lead came from the entry point
-                            that placed it — there was nothing to match, so no
-                            pill; the name is still a link to it. */}
+                        <CallIdentity name={titleName} peer={activeCall.peer} leadUrl={callLead?.url}>
                             {matchedLead && titleName !== activeCall.peer && (
                                 <span className="sp__lead">Matching lead</span>
                             )}
                         </CallIdentity>
                         <CallStateBadge stage={activeCall.stage} />
-                        {/* Only once media actually flows — a running timer over
-                            "Calling…" was the confusing part this replaces. */}
+                        {/* Only once media actually flows — a running timer over "Calling…" was the confusing part this replaces. */}
                         {activeCall.stage === "connected" && elapsed !== null && (
-                            <p className="sp__timer" role="timer">
-                                {elapsed}
-                            </p>
+                            <p className="sp__timer" role="timer">{elapsed}</p>
                         )}
                         {activeCall.stage === "connecting" && state.lastCallError && (
-                            <p className="sp__note sp__note--danger">
-                                {state.lastCallError}
-                            </p>
+                            <p className="sp__note sp__note--danger">{state.lastCallError}</p>
                         )}
                         <div className="sp__actions">
-                            <button
-                                type="button"
-                                className="act"
-                                aria-pressed={activeCall.muted}
-                                onClick={() => setMuted(!activeCall.muted)}
-                            >
+                            <button type="button" className="act" aria-pressed={activeCall.muted} onClick={() => setMuted(!activeCall.muted)}>
                                 <span className="act__btn">
                                     <svg viewBox="0 0 24 24">
-                                        <rect
-                                            x="9"
-                                            y="3"
-                                            width="6"
-                                            height="11"
-                                            rx="3"
-                                        />
+                                        <rect x="9" y="3" width="6" height="11" rx="3" />
                                         <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
                                     </svg>
                                 </span>
                                 {activeCall.muted ? "Unmute" : "Mute"}
                             </button>
-                            <button
-                                type="button"
-                                className="act act--danger"
-                                onClick={() => {
-                                    const direction =
-                                        activeCall.direction === "inbound"
-                                            ? "inbound"
-                                            : "outbound";
-                                    const duration = activeCall.answeredAt
-                                        ? Math.max(
-                                              1,
-                                              Math.round(
-                                                  (Date.now() - activeCall.answeredAt) / 1000,
-                                              ),
-                                          )
-                                        : 0;
-                                    if (
-                                        activeCall.phase === "active" &&
-                                        callLead
-                                    ) {
-                                        void axios
-                                            .post(
-                                                route("telephony.softphone.events.store"),
-                                                {
-                                                    phone: activeCall.peer,
-                                                    entity_type: "lead",
-                                                    entity_id: callLead.id,
-                                                    event: "call.ended",
-                                                    direction,
-                                                    status: "completed",
-                                                    duration,
-                                                    ...(callRef ? { call_ref: callRef } : {}),
-                                                },
-                                            )
-                                            .catch(() => undefined);
-                                    }
-                                    void hangup();
-                                }}
-                            >
+                            <button type="button" className="act act--danger" onClick={() => {
+                                const direction = activeCall.direction === "inbound" ? "inbound" : "outbound";
+                                const duration = activeCall.answeredAt ? Math.max(1, Math.round((Date.now() - activeCall.answeredAt) / 1000)) : 0;
+                                if (activeCall.phase === "active" && callLead) {
+                                    void axios.post(route("telephony.softphone.events.store"), {
+                                        phone: activeCall.peer,
+                                        entity_type: "lead",
+                                        entity_id: callLead.id,
+                                        event: "call.ended",
+                                        direction,
+                                        status: "completed",
+                                        duration,
+                                        ...(callRef ? { call_ref: callRef } : {}),
+                                    }).catch(() => undefined);
+                                }
+                                void hangup();
+                            }}>
                                 <span className="act__btn">
                                     <svg viewBox="0 0 24 24">
                                         <path d="M10.7 13.3a16 16 0 0 1-2.4-3.1l1.6-1.4a1.5 1.5 0 0 0 .4-1.6L9.6 4.8A1.5 1.5 0 0 0 8.1 4H5.5A1.5 1.5 0 0 0 4 5.6 17 17 0 0 0 18.4 20a1.5 1.5 0 0 0 1.6-1.5v-2.6a1.5 1.5 0 0 0-.8-1.4l-3-1.1a1.5 1.5 0 0 0-1.6.4l-1.4 1.6" />
                                         <path d="M3 3l18 18" />
                                     </svg>
-                                    <span className="sr-only">End call</span>
                                 </span>
                                 End
                             </button>

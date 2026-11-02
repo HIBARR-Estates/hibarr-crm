@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\SoftphoneDevice;
 use App\Support\FeatureFlags;
+use App\Support\SipProviderRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * CRUD for the browser softphone's device lines (one per sipgate Neo channel,
@@ -32,7 +35,44 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
 
         return response()->json([
             'status' => 'success',
-            'data' => ['devices' => $devices],
+            'data' => [
+                'devices' => $devices,
+                // Locally supported platforms, so the settings form can still
+                // offer the (required) provider field when the
+                // callbridge.integrations endpoint is unavailable or off.
+                'providers' => SipProviderRegistry::names(),
+            ],
+        ]);
+    }
+
+    /**
+     * Connection settings for ONE line so the settings edit form can prefill.
+     *
+     * Admin-only and deliberately without `authorization_password`: the form
+     * treats a blank password as "keep the stored one", so the secret never
+     * needs to leave the server (unlike credentials(), which the dock uses).
+     */
+    public function show(int $id): JsonResponse
+    {
+        $this->assertSoftphoneEnabled();
+        $this->assertCanManage();
+
+        $device = SoftphoneDevice::findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'id' => $device->id,
+                'label' => $device->label,
+                'provider' => $device->provider,
+                'wss_url' => $device->wss_url,
+                'uri' => $device->uri,
+                'authorization_username' => $device->authorization_username,
+                'display_name' => $device->display_name,
+                'is_default' => $device->is_default,
+                'has_password' => $device->authorization_password !== null
+                    && $device->authorization_password !== '',
+            ],
         ]);
     }
 
@@ -43,7 +83,11 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
 
         // This returns the SIP authorization_password in cleartext, so it is
         // gated on the softphone permission rather than the feature flag alone.
-        abort_403(user()->permission('make_softphone_calls') !== 'all');
+        // Admins bypass the permission check, matching assertCanManage().
+        abort_403(
+            ! user()->hasRole('admin')
+            && ! in_array(user()->permission('make_softphone_calls'), ['all', 'added'])
+        );
 
         $device = SoftphoneDevice::findOrFail($id);
 
@@ -52,6 +96,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
             'data' => [
                 'id' => $device->id,
                 'label' => $device->label,
+                'provider' => $device->provider,
                 'wss_url' => $device->wss_url,
                 'uri' => $device->uri,
                 'authorization_username' => $device->authorization_username,
@@ -96,7 +141,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
         $this->assertSoftphoneEnabled();
         $this->assertCanManage();
 
-        $device = SoftphoneDevice::findOrFail($id);
+        $device = $this->findManageableDevice($id);
         $validated = $this->validateDevice($request, $device);
 
         $device->last_updated_by = (int) user()->id;
@@ -120,7 +165,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
         $this->assertSoftphoneEnabled();
         $this->assertCanManage();
 
-        $device = SoftphoneDevice::findOrFail($id);
+        $device = $this->findManageableDevice($id);
         $wasDefault = (bool) $device->is_default;
         $device->delete();
 
@@ -145,23 +190,41 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
             ? 'required|string|max:255'
             : 'nullable|string|max:255';
 
-        // On create every connection field is required. On update they are
+        // On create the platform is required: it decides the connection
+        // (wss_url + uri), which is resolved from the registry below when the
+        // form leaves them blank. On update every connection field is
         // `sometimes` so an omitted field keeps its stored value — the settings
-        // UI only ever has the summary (label + is_default), never the
-        // connection settings, so a full update payload would blank them.
+        // UI only ever has the summary, and an admin may edit only the label.
         $connectionRule = $device === null
-            ? 'required|string|max:255'
-            : 'sometimes|string|max:255';
+            ? 'nullable|string|max:255'
+            : 'sometimes|nullable|string|max:255';
 
         $validated = $request->validate([
             'label' => 'required|string|max:60',
+            // The registry validates what the connection defaults can be
+            // resolved for, so a platform OL lists but the CRM cannot yet
+            // serve defaults for is refused here rather than stored without a
+            // WSS endpoint / SIP URI.
+            'provider' => [
+                $device === null ? 'required' : 'sometimes',
+                'nullable',
+                'string',
+                Rule::in(SipProviderRegistry::names()),
+            ],
             'wss_url' => $connectionRule,
             'uri' => $connectionRule,
             'authorization_username' => 'sometimes|nullable|string|max:255',
             'authorization_password' => $passwordRule,
             'display_name' => 'sometimes|nullable|string|max:120',
             'is_default' => 'sometimes|boolean',
+        ], [
+            // OL may already list a platform this CRM build has no defaults
+            // for; the registry is what the line's connection is resolved
+            // from, so say so plainly instead of the generic rule message.
+            'provider.in' => 'This CRM does not support the ":input" provider yet.',
         ]);
+
+        $this->applyProviderDefaults($validated, $device);
 
         // On update an empty password means "keep the stored one".
         if ($device !== null && ($validated['authorization_password'] ?? null) === null) {
@@ -171,14 +234,79 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
         return $validated;
     }
 
+    /**
+     * Resolve the connection details from the selected platform.
+     *
+     * The form only sends the platform + credentials; the registry owns the
+     * endpoint and the URI format (`sipgate` serves German and Swedish lines
+     * from the same endpoint and derives the URI from the channel username).
+     * On create the connection always comes from the platform; on update it is
+     * kept as stored unless the admin switched the platform or changed the
+     * username the URI is built from.
+     */
+    private function applyProviderDefaults(array &$validated, ?SoftphoneDevice $device): void
+    {
+        $provider = array_key_exists('provider', $validated)
+            ? $validated['provider']
+            : $device?->provider;
+
+        // No platform (legacy line, or the admin cleared it): keep whatever
+        // the device already stores.
+        if (! SipProviderRegistry::supports($provider)) {
+            return;
+        }
+
+        $switched = $device === null
+            || (array_key_exists('provider', $validated) && $validated['provider'] !== $device->provider);
+
+        // Resolve the endpoint when the platform is new/switched or the caller
+        // explicitly cleared it. An explicit value (custom endpoint) and an
+        // untouched stored one are both kept.
+        if (($switched || array_key_exists('wss_url', $validated)) && empty($validated['wss_url'])) {
+            $validated['wss_url'] = SipProviderRegistry::wssUrl($provider);
+        }
+
+        $username = array_key_exists('authorization_username', $validated)
+            ? $validated['authorization_username']
+            : $device?->authorization_username;
+
+        // A new channel username changes the SIP URI on platforms that embed
+        // it (`sipgate`). Clearing the field keeps the stored URI instead.
+        $usernameChanged = $device !== null
+            && array_key_exists('authorization_username', $validated)
+            && $validated['authorization_username'] !== $device->authorization_username
+            && $username !== null
+            && $username !== '';
+
+        // Nothing to build: the stored URI stays when the platform and the
+        // username did not change and no URI was sent.
+        if (! $switched && ! $usernameChanged && ! array_key_exists('uri', $validated)) {
+            return;
+        }
+
+        $uri = $validated['uri'] ?? null;
+
+        if (empty($uri)) {
+            $uri = SipProviderRegistry::sipUri($provider, $username);
+
+            if ($uri === null) {
+                throw ValidationException::withMessages([
+                    'authorization_username' => "A username is required to build the SIP URI for {$provider}.",
+                ]);
+            }
+
+            $validated['uri'] = $uri;
+        }
+    }
+
     private function fill(SoftphoneDevice $device, array $validated): void
     {
         $device->label = $validated['label'];
 
         // Only overwrite connection fields that were actually sent. On create
-        // they are all required, so this is a straight assignment; on update an
-        // absent key means "unchanged" rather than "clear it".
-        foreach (['wss_url', 'uri', 'authorization_username', 'display_name'] as $field) {
+        // they are all present (explicitly or resolved from the platform); on
+        // update an absent key means "unchanged" rather than "clear it".
+        foreach (['provider', 'wss_url', 'uri', 'authorization_username', 'display_name'] as $field) {
             if (array_key_exists($field, $validated)) {
                 $device->{$field} = $validated[$field];
             }
@@ -213,10 +341,34 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
 
     private function assertCanManage(): void
     {
-        // Writing a device row provisions SIP credentials for a company line, so
-        // this is admin-only. The previous check only asserted the user was
-        // logged in, which left store/update/destroy open to any agent. Reads
-        // (list) and credentials() have their own, deliberately looser gates.
-        abort_unless(user() !== null && user()->hasRole('admin'), 403);
+        // Writing a device row provisions SIP credentials for a company line.
+        // Gated on the same permission values as credentials(): admins bypass,
+        // everyone else needs make_softphone_calls set to `all` or `added`
+        // (`owned`/`both`/`none`, or an unset permission, are refused).
+        abort_if(user() === null, 403);
+
+        abort_unless(
+            user()->hasRole('admin')
+            || in_array(user()->permission('make_softphone_calls'), ['all', 'added'], true),
+            403
+        );
+    }
+
+    /**
+     * Load a line the current user is allowed to change: admins and users with
+     * the company-wide `all` permission may edit any line, while `added` users
+     * may only touch the lines they created themselves.
+     */
+    private function findManageableDevice(int $id): SoftphoneDevice
+    {
+        $device = SoftphoneDevice::findOrFail($id);
+
+        if (user()->hasRole('admin') || user()->permission('make_softphone_calls') === 'all') {
+            return $device;
+        }
+
+        abort_unless((int) $device->added_by === (int) user()->id, 403);
+
+        return $device;
     }
 }

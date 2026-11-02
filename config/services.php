@@ -194,6 +194,11 @@ return [
             'events' => env('OL_CALL_BRIDGE_EVENTS_PATH', '/call-bridge/events'),
             'active_calls' => env('OL_CALL_BRIDGE_ACTIVE_CALLS_PATH', '/call-bridge/calls/active'),
             'emit_event' => env('OL_CALL_BRIDGE_EMIT_EVENT_PATH', '/call-bridge/calls/emit'),
+            // SIP provider integrations: which platforms OL supports and the
+            // connection defaults for one of them. `platform` keeps a
+            // `{platform}` placeholder the client substitutes.
+            'providers' => env('OL_CALL_BRIDGE_PROVIDERS_PATH', '/call-bridge/integrations/providers'),
+            'platform' => env('OL_CALL_BRIDGE_PLATFORM_PATH', '/call-bridge/integrations/providers/{platform}'),
         ],
         // Task categories (task_category.category_name) the bridge links call
         // events to. Compared after normalising to lowercase alphanumerics, so

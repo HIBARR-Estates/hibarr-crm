@@ -17,13 +17,30 @@ export interface SoftphoneDeviceSummary {
 export interface SoftphoneDevicesResponse {
     status: "success" | "fail";
     message?: string | null;
-    data?: { devices: SoftphoneDeviceSummary[] };
+    data?: {
+        devices: SoftphoneDeviceSummary[];
+        /** Platforms this CRM can create lines for (local fallback list). */
+        providers?: string[];
+    };
+}
+
+/** Connection settings for the admin edit form (never includes the password). */
+export interface SoftphoneDeviceDetails extends SoftphoneDeviceSummary {
+    /** SIP platform the line belongs to (e.g. sipgate), when known. */
+    provider: string | null;
+    wss_url: string;
+    uri: string;
+    authorization_username: string | null;
+    display_name: string | null;
+    has_password: boolean;
 }
 
 /** Full credentials for one device so the browser can register it. */
 export interface SoftphoneDeviceCredentials extends SoftphoneConfig {
     id: number;
     label: string;
+    /** SIP platform the line belongs to (e.g. sipgate), when known. */
+    provider: string | null;
 }
 
 export interface SoftphoneDeviceCredentialsResponse {

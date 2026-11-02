@@ -34,6 +34,9 @@ use Inertia\Inertia;
  * Team is gated twice as well: on view_team_dashboard, and on the
  * crm.team-dashboard flag — it is the first surface to show commission across a
  * whole hierarchy, so it rolls out per manager rather than all at once.
+ * Company (?view=leadership) is gated on view_leadership_dashboard and
+ * crm.company-dashboard. With the flag off its tab is still listed — greyed as
+ * coming soon — but the view itself cannot be opened, not even by URL.
  *
  * Every panel is deferred. The synchronous payload is just enough to draw the
  * shell and the switcher, matching the pattern in DealController@show.
@@ -83,12 +86,14 @@ class DashboardV2Controller extends AccountBaseController
         $user = user();
         $userId = (int) $user->id;
         $availableViews = $this->availableViews();
+        $comingSoonViews = $this->comingSoonViews($availableViews);
+        $openableViews = array_values(array_diff($availableViews, $comingSoonViews));
         $requestedView = $request->query('view');
         $personalDashboardEnabled = FeatureFlags::enabled('crm.personal-dashboard');
 
         // A partner account has no tasks or queue for the personal dashboard to
         // show; the referral book is their home.
-        if ($requestedView === null && PartnerRole::isPartnerOnly($user) && in_array('partner', $availableViews, true)) {
+        if ($requestedView === null && PartnerRole::isPartnerOnly($user) && in_array('partner', $openableViews, true)) {
             $requestedView = 'partner';
         }
 
@@ -97,25 +102,29 @@ class DashboardV2Controller extends AccountBaseController
         // holding one only adds role-scoped views to the switcher, it doesn't
         // gate this one. A request for a role view falls through below.
         if ($personalDashboardEnabled && ($requestedView === null || $requestedView === 'personal')) {
-            return $this->personalDashboard($user, $metrics, $availableViews);
+            return $this->personalDashboard($user, $metrics, $availableViews, $comingSoonViews);
         }
 
         // Holding no v2 permission is the normal state for most accounts, not an
         // error. With the flag off (or a stale ?view= link), that's where a
-        // plain employee bounces to instead.
-        if (empty($availableViews)) {
+        // plain employee bounces to instead — as does someone whose only view
+        // is one that is still coming soon.
+        if (empty($openableViews)) {
             return redirect()->route('dashboard');
         }
 
-        $activeView = in_array($requestedView, $availableViews, true)
+        // A coming-soon view is never rendered, whatever the URL says: it
+        // falls through to the first view the user can actually open.
+        $activeView = in_array($requestedView, $openableViews, true)
             ? $requestedView
-            : $availableViews[0];
+            : $openableViews[0];
 
         $pipelineId = $request->integer('pipeline') ?: null;
         $range = DashboardDateRange::fromRequest($request);
 
         return Inertia::render('Dashboard/V2/DashboardV2', [
             'availableViews' => $availableViews,
+            'comingSoonViews' => $comingSoonViews,
             'activeView' => $activeView,
             'personalDashboardEnabled' => $personalDashboardEnabled,
             // The resolved window, not the raw query string: a custom range
@@ -148,7 +157,8 @@ class DashboardV2Controller extends AccountBaseController
     private function personalDashboard(
         $user,
         DashboardMetricsService $metrics,
-        array $availableViews
+        array $availableViews,
+        array $comingSoonViews = []
     ) {
         $userId = (int) $user->id;
 
@@ -161,6 +171,9 @@ class DashboardV2Controller extends AccountBaseController
             // would make the personal dashboard's switcher disagree with the
             // one on the view it switches to.
             'availableViews' => $availableViews,
+            // Which of those are shown greyed rather than openable — decided
+            // here, from the flags, so both pages grey the same tabs.
+            'comingSoonViews' => $comingSoonViews,
             // Ships so the page's copy and the queries can't drift apart.
             'windowDays' => DashboardMetricsService::PERSONAL_WINDOW_DAYS,
             'userName' => $user->name,
@@ -267,12 +280,7 @@ class DashboardV2Controller extends AccountBaseController
 
             'team' => $this->teamPanels($userId, $range),
 
-            'leadership' => [
-                'trend' => Inertia::defer(fn () => $metrics->trend(), 'trend'),
-                'marketSegments' => Inertia::defer(fn () => $metrics->marketSegments(), 'segments'),
-                'pipelineValue' => Inertia::defer(fn () => $metrics->pipelineValueByCurrency(), 'segments'),
-                'sourceBreakdown' => Inertia::defer(fn () => $metrics->sourceBreakdown(), 'segments'),
-            ],
+            'leadership' => $this->companyPanels($metrics, $range),
 
             'partner' => [
                 'partnerStats' => Inertia::defer(
@@ -306,6 +314,52 @@ class DashboardV2Controller extends AccountBaseController
 
             default => [],
         };
+    }
+
+    /**
+     * The company view's panels: the big picture a leadership team reads —
+     * money first (revenue won, the open book, commission), then the engine
+     * behind it (demand, win rate, time to close, the sales network, where
+     * won business comes from). Aggregate only: no agent name or per-agent
+     * row is computed for any of them. Activity detail (meetings, response
+     * times, per-agent load) belongs to the manager and team views.
+     *
+     * Groups, so the slow pieces cannot hold up the headline:
+     *  - 'revenue': won value per currency, and the open pipeline.
+     *  - 'headline': demand, win rate, time to close, agents — counts only.
+     *  - 'sources': won business by lead source.
+     *  - 'commission': straight sums over mlm_commissions.
+     *  - 'trend': revenue won by month, behind the hero figure.
+     *  - 'forecast': runs preview() per open deal — isolated so a slow
+     *    commission engine fails alone, like the team view's forecast.
+     *
+     * @return array<string, mixed>
+     */
+    private function companyPanels(DashboardMetricsService $metrics, DashboardDateRange $range): array
+    {
+        return [
+            'wonRevenue' => Inertia::defer(fn () => $metrics->wonRevenue($range), 'revenue'),
+            'companyHeadline' => Inertia::defer(fn () => $metrics->companyHeadline($range), 'headline'),
+            // Company wide (no agent scope): which channels the won business
+            // came from. Counts only — there is no spend data to set them against.
+            'sourceBreakdown' => Inertia::defer(
+                fn () => $metrics->sourceQuality([], $range->days(), $range),
+                'sources'
+            ),
+            // A standing balance, not a windowed event, and per currency —
+            // never summed across them.
+            'pipelineValue' => Inertia::defer(fn () => $metrics->pipelineValueByCurrency(), 'revenue'),
+            'companyCommission' => Inertia::defer(fn () => $metrics->companyCommission($range), 'commission'),
+            'revenueTrend' => Inertia::defer(fn () => $metrics->wonRevenueTrend($range), 'trend'),
+            'companyForecast' => Inertia::defer(
+                function () use ($metrics) {
+                    set_time_limit(60);
+
+                    return $metrics->companyForecast(app(MlmCommissionService::class));
+                },
+                'forecast'
+            ),
+        ];
     }
 
     /**
@@ -393,6 +447,22 @@ class DashboardV2Controller extends AccountBaseController
             ->reject(fn ($view) => $view === 'team' && ! FeatureFlags::enabled('crm.team-dashboard'))
             ->values()
             ->all();
+    }
+
+    /**
+     * Held views that are listed but not yet openable: shown greyed in the
+     * switcher, never rendered. Unlike the flags above, this one keeps the tab
+     * visible while off — the Company tab has always been shown as coming soon
+     * to the accounts that hold it.
+     *
+     * @param  array<int, string>  $availableViews
+     * @return array<int, string>
+     */
+    private function comingSoonViews(array $availableViews): array
+    {
+        return in_array('leadership', $availableViews, true) && ! FeatureFlags::enabled('crm.company-dashboard')
+            ? ['leadership']
+            : [];
     }
 
     /**

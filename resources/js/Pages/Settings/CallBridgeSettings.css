@@ -33,7 +33,12 @@
     box-sizing: border-box;
 }
 
-.cb-spec-page button {
+/* Page-level reset for the bespoke `.cb-*` controls. Shared `.dr-btn` buttons
+   (Add phone line, Save, ...) are excluded: this rule is more specific than
+   `.dr-btn-primary`, so without the exclusion it replaced their white label
+   with the page's muted grey on blue and reset their 13px/600 font.
+   `:where()` keeps the specificity unchanged for every other button. */
+.cb-spec-page button:where(:not(.dr-btn)) {
     font: inherit;
     color: inherit;
     cursor: pointer;
@@ -308,6 +313,60 @@
     --cols: minmax(0, 1.3fr) minmax(0, 0.7fr) 72px minmax(0, 1.7fr);
 }
 
+.cb-spec-page .cb-calls {
+    --cols: 150px minmax(0, 1.1fr) minmax(170px, 1.3fr) minmax(0, 0.9fr) minmax(0, 1.2fr) 80px;
+}
+
+.cb-spec-page .cb-calls-lede {
+    margin: 0 0 12px;
+    color: var(--dr-text-muted);
+}
+
+.cb-spec-page .cb-col-number {
+    white-space: nowrap;
+}
+
+.cb-spec-page .cb-input {
+    height: 34px;
+    padding: 0 10px;
+    border-radius: var(--cb-radius-sm);
+    border: 1px solid var(--dr-border);
+    background: var(--dr-surface);
+    color: var(--dr-text);
+    font-size: 13px;
+}
+
+.cb-spec-page .cb-outcome {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--dr-surface-2);
+    color: var(--dr-text-muted);
+    border: 1px solid var(--dr-border);
+}
+
+.cb-spec-page .cb-outcome--ended {
+    background: var(--dr-green-light);
+    color: var(--dr-green);
+    border-color: var(--dr-green-mid);
+}
+
+.cb-spec-page .cb-outcome--missed,
+.cb-spec-page .cb-outcome--busy,
+.cb-spec-page .cb-outcome--declined {
+    background: var(--dr-amber-soft);
+    color: var(--dr-amber);
+    border-color: var(--dr-amber-mid);
+}
+
+.cb-spec-page .cb-outcome--failed {
+    background: var(--dr-red-soft);
+    color: var(--dr-red);
+    border-color: var(--dr-red-mid, var(--dr-red-soft));
+}
+
 .cb-spec-page .cb-num {
     font-variant-numeric: tabular-nums;
 }
@@ -552,6 +611,12 @@
         gap: 12px;
     }
 
+    .cb-spec-page .cb-calls.cb-grid-row {
+        grid-template-columns: 1fr auto;
+        row-gap: 8px;
+        column-gap: 12px;
+    }
+
     .cb-spec-page .cb-recs .cb-grid-row {
         grid-template-columns: 1fr auto;
         row-gap: 8px;
@@ -574,4 +639,23 @@
     .cb-spec-page .cb-recs .cb-player {
         grid-column: 1 / -1;
     }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Dialog buttons                                                     */
+/* ------------------------------------------------------------------ */
+
+/* Modals are portaled to <body>, outside `.cb-spec-page`, so this is the one
+   deliberately unscoped block. The shared `.dr-btn:disabled` dims the whole
+   button to 45% opacity, which leaves a disabled Save as near-white text on
+   pale blue. Keep the label legible with a solid neutral fill instead. */
+.dr-btn.cb-dialog-btn:disabled {
+    opacity: 1;
+    background: var(--dr-border);
+    border-color: var(--dr-border);
+    color: var(--dr-text-muted);
+}
+
+.dr-btn-ghost.cb-dialog-btn:disabled {
+    background: var(--dr-gray);
 }

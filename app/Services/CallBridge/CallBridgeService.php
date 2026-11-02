@@ -18,6 +18,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Integration layer between the CRM and OL's call bridge.
@@ -62,10 +63,23 @@ class CallBridgeService
         $blocked = $this->checkCallSuppression($payload);
 
         if ($blocked !== null) {
+            // The agent tried to call and was refused — that attempt belongs on
+            // the lead/deal timeline, not just in the server log.
+            $this->logFailedAttempt($payload, 'suppressed', (string) ($blocked['message'] ?? ''));
+
             return $blocked;
         }
 
-        $response = $this->client->startCall($payload);
+        try {
+            $response = $this->client->startCall($payload);
+        } catch (HttpException $e) {
+            // The call never left the CRM (bridge down, no extension bound,
+            // not configured, ...). Record the attempt, then let the caller
+            // surface the original error unchanged.
+            $this->logFailedAttempt($payload, $this->failureReasonForStatus($e->getStatusCode()), $e->getMessage());
+
+            throw $e;
+        }
 
         // Best-effort: the call is already live; a timeline failure must not
         // fail the request that started it.
@@ -111,6 +125,54 @@ class CallBridgeService
         }
 
         return $response;
+    }
+
+    /**
+     * Record an outbound call attempt that never connected on the entity
+     * timeline as a `call_failed` event.
+     *
+     * Best-effort: the caller is already reporting the failure to the agent,
+     * so a timeline write error must not replace or mask it.
+     *
+     * @param  array<string, mixed>  $payload  The startCall() payload.
+     */
+    public function logFailedAttempt(array $payload, string $reason, ?string $message = null): ?CrmEvent
+    {
+        try {
+            return $this->logCallEvent([
+                // A fresh id per attempt: there is no bridge call id, and the
+                // dedupe key must not collapse two attempts to the same number.
+                'call_id' => 'attempt-' . Str::uuid()->toString(),
+                'event' => 'call.failed',
+                'status' => 'failed',
+                'direction' => $payload['direction'] ?? 'outbound',
+                'phone_number' => $payload['phone_number'] ?? null,
+                'entity_type' => $payload['entity_type'] ?? null,
+                'entity_id' => $payload['entity_id'] ?? null,
+                'user_id' => $payload['user_id'] ?? null,
+                'company_id' => $payload['company_id'] ?? null,
+                'failure_reason' => $reason,
+                'failure_message' => $message,
+                'occurred_at' => now(),
+            ], CrmEventGenerationType::USER_GENERATED);
+        } catch (\Throwable $e) {
+            Log::warning('CallBridgeService: failed to log failed call attempt', [
+                'reason' => $reason,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    private function failureReasonForStatus(int $status): string
+    {
+        return match (true) {
+            $status === 422 => 'rejected',
+            $status === 503 => 'not_configured',
+            $status >= 500 => 'bridge_unreachable',
+            default => 'bridge_error',
+        };
     }
 
     /**
@@ -863,6 +925,10 @@ class CallBridgeService
             'entity_type' => $olEvent['entity_type'] ?? null,
             'entity_id' => $olEvent['entity_id'] ?? null,
             'comment' => $olEvent['comment'] ?? null,
+            'failure_reason' => $olEvent['failure_reason'] ?? null,
+            'failure_message' => isset($olEvent['failure_message'])
+                ? mb_substr((string) $olEvent['failure_message'], 0, 255)
+                : null,
             'dedupe_key' => $dedupeKey,
         ], fn ($v) => $v !== null && $v !== '');
 
