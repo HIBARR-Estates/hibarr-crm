@@ -269,21 +269,6 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
 
             $validated['uri'] = $uri;
         }
-            $username = array_key_exists('authorization_username', $validated)
-                ? $validated['authorization_username']
-                : $device?->authorization_username;
-
-            $uri = SipProviderRegistry::sipUri($provider, $username);
-
-            if ($uri === null) {
-                // The SIP URI format cannot be resolved without a username.
-                throw ValidationException::withMessages([
-                    'authorization_username' => "A username is required to build the SIP URI for {$provider}.",
-                ]);
-            }
-
-            $validated['uri'] = $uri;
-        }
     }
 
     private function fill(SoftphoneDevice $device, array $validated): void
