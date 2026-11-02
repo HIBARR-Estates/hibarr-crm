@@ -242,7 +242,7 @@ return [
         ],
         'company' => [
             'revenue_title' => 'Revenue won',
-            'revenue_hint' => 'Value of deals won in this period, by the date they were won, in the company currency. Each deal is converted at the exchange rate stored on it — the same conversion commission is paid on.',
+            'revenue_hint' => 'What deals won in this period are worth to the company, by the date they were won, in the company currency. Package deals count at their full value; property deals count at the deal\'s maximum commission, not the property price. Each deal is converted at the exchange rate stored on it — the same conversion commission uses.',
             'revenue_note' => '{{previous}} the period before · {{count}} deals won',
             'revenue_note_all' => '{{count}} deals won',
             'revenue_none' => 'No deals won in this period',

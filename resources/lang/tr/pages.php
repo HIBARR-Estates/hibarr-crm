@@ -210,7 +210,7 @@ return [
         ],
         'company' => [
             'revenue_title' => 'Kazanılan gelir',
-            'revenue_hint' => 'Bu dönemde kazanılan anlaşmaların değeri, kazanıldıkları tarihe göre, şirket para biriminde. Her anlaşma üzerinde kayıtlı döviz kuruyla çevrilir — komisyonun hesaplandığı çevrimle aynı.',
+            'revenue_hint' => 'Bu dönemde kazanılan anlaşmaların şirkete değeri, kazanıldıkları tarihe göre, şirket para biriminde. Paket anlaşmaları tam değeriyle, mülk anlaşmaları mülk fiyatıyla değil anlaşmanın azami komisyonuyla sayılır. Her anlaşma üzerinde kayıtlı döviz kuruyla çevrilir — komisyonla aynı çevrim.',
             'revenue_note' => 'Önceki dönemde {{previous}} · {{count}} anlaşma kazanıldı',
             'revenue_note_all' => '{{count}} anlaşma kazanıldı',
             'revenue_none' => 'Bu dönemde kazanılan anlaşma yok',

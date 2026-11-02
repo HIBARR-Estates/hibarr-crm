@@ -229,7 +229,7 @@ return [
         ],
         'company' => [
             'revenue_title' => 'Gewonnener Umsatz',
-            'revenue_hint' => 'Wert der in diesem Zeitraum gewonnenen Deals, nach Abschlussdatum, in Unternehmenswährung. Jeder Deal wird zu seinem gespeicherten Wechselkurs umgerechnet — derselben Umrechnung, auf der die Provision beruht.',
+            'revenue_hint' => 'Was die in diesem Zeitraum gewonnenen Deals dem Unternehmen wert sind, nach Abschlussdatum, in Unternehmenswährung. Paketdeals zählen mit ihrem vollen Wert; Immobiliendeals zählen mit der maximalen Provision des Deals, nicht mit dem Immobilienpreis. Jeder Deal wird zu seinem gespeicherten Wechselkurs umgerechnet — derselben Umrechnung wie bei der Provision.',
             'revenue_note' => '{{previous}} im Zeitraum davor · {{count}} Deals gewonnen',
             'revenue_note_all' => '{{count}} Deals gewonnen',
             'revenue_none' => 'In diesem Zeitraum keine Deals gewonnen',

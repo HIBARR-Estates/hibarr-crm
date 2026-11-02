@@ -145,6 +145,73 @@ class CompanyDashboardTest extends TestCase
         $this->assertSame(140000.0, (float) collect($trend['points'])->sum('total'));
     }
 
+    // ── What a deal is worth to the company ──────────────────────
+
+    public function test_a_package_deal_counts_at_its_full_value(): void
+    {
+        // Commission rows on it don't change that: the client pays the company
+        // the whole package price.
+        $deal = $this->deal(value: 120000, wonAt: now()->subDay(), agentId: $this->agent(), package: true);
+        $this->commission($this->agent(), 12000, 'pending', MlmCommissionType::Agent, dealId: $deal);
+
+        $revenue = $this->metrics()->wonRevenue(DashboardDateRange::preset(30));
+
+        $this->assertSame(120000.0, $revenue['total']);
+    }
+
+    public function test_a_property_deal_counts_at_its_max_commission_not_its_price(): void
+    {
+        $agent = $this->agent();
+        $deal = $this->deal(value: 1000000, wonAt: now()->subDay(), agentId: $agent, package: false, maxCommissionPct: 5);
+
+        // The engine splits the max commission (5% of 1,000,000) between the
+        // agent, their upline and the house; together the legs are all of it.
+        $this->commission($agent, 30000, 'pending', MlmCommissionType::Agent, dealId: $deal);
+        $this->commission($agent, 15000, 'pending', MlmCommissionType::Upline, dealId: $deal);
+        $this->commission($agent, 5000, 'pending', MlmCommissionType::System, dealId: $deal);
+
+        $revenue = $this->metrics()->wonRevenue(DashboardDateRange::preset(30));
+
+        $this->assertSame(50000.0, $revenue['total'], 'Property revenue must be the max commission, never the price');
+        $this->assertSame(1, $revenue['deal_count']);
+    }
+
+    public function test_reverted_legs_are_not_part_of_a_property_deals_revenue(): void
+    {
+        $agent = $this->agent();
+        $deal = $this->deal(value: 1000000, wonAt: now()->subDay(), agentId: $agent, package: false);
+
+        $this->commission($agent, 60000, 'pending', MlmCommissionType::Agent, dealId: $deal);
+        $this->commission($agent, 40000, 'reverted', MlmCommissionType::Upline, dealId: $deal);
+
+        $this->assertSame(60000.0, $this->metrics()->wonRevenue(DashboardDateRange::preset(30))['total']);
+    }
+
+    public function test_a_won_property_deal_with_no_commission_rows_uses_its_own_max_percentage_then_the_default(): void
+    {
+        config(['mlm.max_commission_percentage' => 10]);
+
+        // Own override: 4% of 500,000, converted at 0.5 → 10,000.
+        $this->deal(value: 500000, wonAt: now()->subDay(), exchangeRate: 0.5, package: false, maxCommissionPct: 4);
+        // No override: the company-wide 10% of 200,000 → 20,000.
+        $this->deal(value: 200000, wonAt: now()->subDay(), package: false);
+
+        $this->assertSame(30000.0, $this->metrics()->wonRevenue(DashboardDateRange::preset(30))['total']);
+    }
+
+    public function test_the_monthly_line_and_the_total_use_the_same_revenue_per_deal(): void
+    {
+        $agent = $this->agent();
+        $this->deal(value: 90000, wonAt: now()->subDays(2), package: true);
+        $property = $this->deal(value: 2000000, wonAt: now()->subDays(2), agentId: $agent, package: false);
+        $this->commission($agent, 100000, 'pending', MlmCommissionType::Agent, dealId: $property);
+
+        $range = DashboardDateRange::preset(30);
+
+        $this->assertSame(190000.0, $this->metrics()->wonRevenue($range)['total']);
+        $this->assertSame(190000.0, (float) collect($this->metrics()->wonRevenueTrend($range)['points'])->sum('total'));
+    }
+
     // ── Pipeline ─────────────────────────────────────────────────
 
     public function test_the_pipeline_is_one_company_currency_figure_with_no_unknown_bucket(): void
@@ -358,8 +425,13 @@ class CompanyDashboardTest extends TestCase
         ?int $agentId = null,
         ?int $leadId = null,
         $createdAt = null,
+        // Revenue tests about dating, windows and conversion don't care which
+        // kind of deal it is, so deals default to package deals (full value
+        // counts). The property-deal tests pass package: false.
+        bool $package = true,
+        ?float $maxCommissionPct = null,
     ): int {
-        return Deal::insertGetId([
+        $id = Deal::insertGetId([
             'company_id' => $this->companyId,
             'agent_id' => $agentId,
             'lead_id' => $leadId,
@@ -367,9 +439,17 @@ class CompanyDashboardTest extends TestCase
             'exchange_rate' => $exchangeRate,
             'outcome_status' => $outcome,
             'won_at' => $wonAt,
+            'max_commission_percentage' => $maxCommissionPct,
             'created_at' => $createdAt ?? now()->subYear(),
             'updated_at' => $updatedAt ?? $wonAt ?? now(),
         ]);
+
+        if ($package) {
+            $packageId = DB::table('packages')->insertGetId(['name' => 'Package', 'commission_type' => 'percentage']);
+            DB::table('deal_package')->insert(['deal_id' => $id, 'package_id' => $packageId]);
+        }
+
+        return $id;
     }
 
     private function commission(
@@ -380,9 +460,11 @@ class CompanyDashboardTest extends TestCase
         $paidAt = null,
         $revertedAt = null,
         $createdAt = null,
+        ?int $dealId = null,
     ): void {
         MlmCommission::insert([
             'company_id' => $this->companyId,
+            'deal_id' => $dealId,
             'agent_id' => $agentId,
             'amount' => $amount,
             'status' => $status,
@@ -397,6 +479,8 @@ class CompanyDashboardTest extends TestCase
     private function resetSchema(): void
     {
         Schema::dropIfExists('mlm_commissions');
+        Schema::dropIfExists('deal_package');
+        Schema::dropIfExists('packages');
         Schema::dropIfExists('deals');
         Schema::dropIfExists('lead_agents');
         Schema::dropIfExists('leads');
@@ -447,8 +531,20 @@ class CompanyDashboardTest extends TestCase
             $table->double('exchange_rate')->nullable();
             $table->string('outcome_status')->nullable();
             $table->timestamp('won_at')->nullable();
+            $table->decimal('max_commission_percentage', 5, 2)->nullable();
             $table->softDeletes();
             $table->timestamps();
+        });
+
+        Schema::create('packages', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('name')->nullable();
+            $table->string('commission_type', 12)->nullable();
+        });
+
+        Schema::create('deal_package', function (Blueprint $table) {
+            $table->unsignedInteger('deal_id');
+            $table->unsignedInteger('package_id');
         });
 
         Schema::create('lead_agents', function (Blueprint $table) {
@@ -462,6 +558,7 @@ class CompanyDashboardTest extends TestCase
         Schema::create('mlm_commissions', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('company_id')->nullable();
+            $table->unsignedInteger('deal_id')->nullable();
             $table->unsignedInteger('agent_id')->nullable();
             $table->decimal('amount', 15, 2)->default(0);
             $table->string('status')->nullable();

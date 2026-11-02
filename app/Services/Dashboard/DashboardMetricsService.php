@@ -1339,13 +1339,54 @@ class DashboardMetricsService
     private const COMPANY_VALUE = 'COALESCE(deals.value, 0) * COALESCE(deals.exchange_rate, 1)';
 
     /**
-     * Value of deals won inside the window, in the company currency, against
-     * the window of the same length just before it.
+     * What a deal is worth to the company, as a SQL expression in the company
+     * currency. The same figure feeds revenue won, its monthly line and the
+     * average deal, so the three can't drift apart.
      *
-     * Each deal is converted with its own snapshotted deals.exchange_rate —
-     * the conversion MlmCommissionService applies before it writes a leg — so
-     * revenue and the commission paid on it are read in the same money. A
-     * deal with no rate is taken at 1 (same-currency), as the engine does.
+     *  - Package deal (an attached package configures a commission): the whole
+     *    deal value — the client pays the company that amount.
+     *  - Property deal: the deal's max commission — the company's revenue is
+     *    its commission on the sale, not the property price. The engine splits
+     *    exactly that amount between the agent, their upline and the house, so
+     *    the persisted, non-reverted commission legs sum to it and the figure
+     *    reconciles with mlm_commissions. A won deal with no legs yet (not
+     *    distributed, or from before commissions existed) falls back to its
+     *    own max-commission override, else the company-wide default.
+     *
+     * Built from a config value and column names only — never request input.
+     */
+    private function companyRevenueSql(): string
+    {
+        $fallbackPct = (float) config('mlm.max_commission_percentage', 10);
+        $reverted = MlmCommissionStatus::Reverted->value;
+
+        return "CASE
+            WHEN EXISTS (
+                SELECT 1 FROM deal_package dp
+                JOIN packages pk ON pk.id = dp.package_id
+                WHERE dp.deal_id = deals.id AND pk.commission_type IS NOT NULL
+            ) THEN ".self::COMPANY_VALUE."
+            WHEN EXISTS (
+                SELECT 1 FROM mlm_commissions mc
+                WHERE mc.deal_id = deals.id AND mc.status <> '{$reverted}'
+            ) THEN (
+                SELECT SUM(mc.amount) FROM mlm_commissions mc
+                WHERE mc.deal_id = deals.id AND mc.status <> '{$reverted}'
+            )
+            ELSE ".self::COMPANY_VALUE." * COALESCE(NULLIF(deals.max_commission_percentage, 0), {$fallbackPct}) / 100
+        END";
+    }
+
+    /**
+     * Revenue from deals won inside the window, in the company currency,
+     * against the window of the same length just before it.
+     *
+     * Revenue is what a deal is worth to the company — the full value of a
+     * package deal, the max commission of a property deal — see
+     * companyRevenueSql(). Each deal is converted with its own snapshotted
+     * deals.exchange_rate, the conversion MlmCommissionService applies before
+     * it writes a leg, so revenue and the commission paid on it are in the
+     * same money. A deal with no rate is taken at 1, as the engine does.
      *
      * Counted by the date the deal was won — reading updated_at alone moved
      * any old won deal into the current period the moment someone edited it.
@@ -1357,7 +1398,7 @@ class DashboardMetricsService
     {
         [$prevFrom] = $this->previousWindow($range);
         $wonAt = self::WON_AT;
-        $value = self::COMPANY_VALUE;
+        $value = $this->companyRevenueSql();
 
         $row = Deal::query()
             ->where('deals.outcome_status', 'won')
@@ -1462,7 +1503,7 @@ class DashboardMetricsService
     }
 
     /**
-     * Won deal value by month, in the company currency — converted per deal
+     * Revenue won by month, in the company currency — worked out per deal
      * exactly as wonRevenue() does, so the months add up to its total.
      *
      * @return array{currency: string|null, points: array<int, array{period: string, label: string, total: float, count: int}>}
@@ -1482,7 +1523,7 @@ class DashboardMetricsService
             ->toBase()
             ->get([
                 DB::raw($this->monthExpression($wonAt).' as period'),
-                DB::raw('SUM('.self::COMPANY_VALUE.') as total'),
+                DB::raw('SUM('.$this->companyRevenueSql().') as total'),
                 DB::raw('COUNT(*) as total_count'),
             ])
             ->keyBy('period');
