@@ -23,7 +23,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
 
     public function leadByPhone(Request $request): JsonResponse
     {
-        if (! in_array(user()->permission('make_softphone_calls'), ['all'])) {
+        if (! in_array(user()->permission('make_softphone_calls'), ['all', 'added'])) {
             // Incoming matching is still available to anyone who can view leads;
             // callers without softphone permission get an explicit 403.
             abort_403(true);
@@ -86,8 +86,8 @@ class TelephonySoftphoneEventController extends AccountBaseController
             return response()->json([
                 'status' => 'success',
                 'data' => [
-                    'id' => $lead->id,
-                    'lead_id' => $lead->id,
+                    'id' => null,
+                    'lead_id' => null,
                     'name' => null,
                     'url' => null,
                     'matched' => false,
@@ -146,7 +146,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
 
     public function store(Request $request): JsonResponse
     {
-        abort_403(! in_array(user()->permission('make_softphone_calls'), ['all']));
+        abort_403(! in_array(user()->permission('make_softphone_calls'), ['all', 'added'], true));
 
         $validated = $request->validate([
             'phone' => 'required|string|max:50',

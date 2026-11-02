@@ -69,6 +69,8 @@ export interface PersonalDashboardProps {
      * view you land on.
      */
     availableViews?: ViewKey[];
+    /** Held but not yet openable — greyed in the switcher. */
+    comingSoonViews?: ViewKey[];
     queue?: PersonalQueue;
     stats?: PersonalStats;
     commission?: CommissionSummary | null;
@@ -104,6 +106,7 @@ export default function PersonalDashboard({
     userId,
     windowDays,
     availableViews,
+    comingSoonViews,
     queue,
     stats,
     commission,
@@ -229,10 +232,10 @@ export default function PersonalDashboard({
     const switcher = useMemo(
         () =>
             localizeSwitcherSegments(
-                buildSwitcher(availableViews ?? [], true),
+                buildSwitcher(availableViews ?? [], true, comingSoonViews),
                 t,
             ),
-        [availableViews, t],
+        [availableViews, comingSoonViews, t],
     );
 
     const visitRecord = useCallback(

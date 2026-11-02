@@ -669,3 +669,48 @@
             minmax(300px, 1.75fr);
     }
 }
+
+/* Company view: the revenue hero — the figure, then its year beside it.
+   Stacks once the chart would be squeezed narrower than the figure. */
+.dashboard-v2 .dv2-company-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+    gap: 28px;
+    align-items: center;
+    padding: 8px 6px;
+}
+
+/* Company view: four small figures on one line, divided by hairlines. */
+.dashboard-v2 .dv2-company-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dashboard-v2 .dv2-company-strip > * {
+    padding: 2px 18px;
+}
+
+.dashboard-v2 .dv2-company-strip > :first-child {
+    padding-left: 0;
+}
+
+.dashboard-v2 .dv2-company-strip > * + * {
+    border-left: 1px solid var(--dr-border-soft);
+}
+
+@media (max-width: 900px) {
+    .dashboard-v2 .dv2-company-hero {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .dashboard-v2 .dv2-company-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        row-gap: 16px;
+    }
+
+    .dashboard-v2 .dv2-company-strip > * {
+        padding: 0;
+        border-left: none !important;
+    }
+}

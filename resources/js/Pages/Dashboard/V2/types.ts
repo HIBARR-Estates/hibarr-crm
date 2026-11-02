@@ -45,6 +45,71 @@ export interface CurrencyTotal {
     deal_count: number;
 }
 
+// ── Company view ─────────────────────────────────────────────────
+
+/** Deals won in the window, in the company currency. */
+export interface WonRevenue {
+    /** Company currency; null when none is configured. */
+    currency: string | null;
+    total: number;
+    deal_count: number;
+    /** The window of the same length before this one; null for all time. */
+    previous: number | null;
+    previous_count: number | null;
+}
+
+/** One month on a company trend. `label` is "Oct 26". */
+export interface MonthPoint {
+    period: string;
+    label: string;
+}
+
+/** A count against the window before it; previous is null for all time. */
+export interface PeriodCount {
+    value: number | null;
+    previous: number | null;
+}
+
+/** The non-money headline on the company view — counts only. */
+export interface CompanyHeadline {
+    new_leads: PeriodCount;
+    win_rate: PeriodCount & { won: number; lost: number };
+    /** Median days from lead to won deal. */
+    days_to_win: PeriodCount;
+    agents: { active: number; joined: number; previous_joined: number | null };
+}
+
+/** Won deal value by month, company currency. */
+export interface RevenueTrend {
+    currency: string | null;
+    points: Array<MonthPoint & { total: number; count: number }>;
+}
+
+/**
+ * Company-wide commission, in the company currency (null when none is
+ * configured). Paid is windowed; pending is owed as of today.
+ */
+export interface CompanyCommission {
+    currency: string | null;
+    paid: number;
+    /** Paid in the window before; null for all time. */
+    previous_paid: number | null;
+    pending: number;
+    /** Clawed back inside the window — shown beside the totals, never in them. */
+    reverted: number;
+}
+
+/** Open deals priced by the commission engine, capped like the team forecast. */
+export interface CompanyForecast {
+    amount: number;
+    /** Deals actually priced. */
+    deal_count: number;
+    /** Every open deal, priced or not. */
+    open_deals: number;
+    truncated: boolean;
+    currency: string | null;
+}
+
 export interface Kpi {
     value: number | null;
     previous: number | null;
