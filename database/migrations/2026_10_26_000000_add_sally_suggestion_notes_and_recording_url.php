@@ -48,7 +48,7 @@ return new class extends Migration
             Schema::create('sally_suggestion_logs', function (Blueprint $table) {
                 $table->id();
                 $table->unsignedInteger('company_id');
-                $table->unsignedInteger('sally_meeting_insight_id');
+                $table->unsignedBigInteger('sally_meeting_insight_id');
                 // The OL-stable suggestion id from the insight's suggested_notes list.
                 $table->string('suggestion_id', 64);
                 $table->unsignedInteger('lead_id')->nullable();

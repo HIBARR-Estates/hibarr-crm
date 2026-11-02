@@ -158,6 +158,34 @@ class SallyInsightRetentionTest extends TestCase
         );
     }
 
+    public function test_deal_observer_hook_purges_after_the_deal_row_is_gone(): void
+    {
+        $leadId = $this->makeLead();
+        $dealId = $this->makeDeal($leadId);
+        $ownedInsightId = $this->makeInsight($leadId, $dealId);
+        $dealOnlyInsightId = $this->makeInsight(null, $dealId);
+
+        // Eloquent fires deleted() after the row is removed, so the cleanup
+        // must not depend on loading the deal again.
+        DB::table('deals')->where('id', $dealId)->delete();
+
+        $deal = new Deal;
+        $deal->id = $dealId;
+
+        app(DealObserver::class)->deleted($deal);
+
+        $this->assertFalse(
+            DB::table('sally_meeting_insights')->where('id', $dealOnlyInsightId)->exists(),
+            'the deal was the only reference, so its transcript must go',
+        );
+
+        $row = DB::table('sally_meeting_insights')->where('id', $ownedInsightId)->first();
+
+        $this->assertNotNull($row, 'the live lead still owns this transcript');
+        $this->assertSame($leadId, (int) $row->lead_id);
+        $this->assertNull($row->deal_id, 'the deleted deal reference must be released');
+    }
+
     public function test_both_observers_are_registered(): void
     {
         // The service is only reachable in production through these hooks, so a

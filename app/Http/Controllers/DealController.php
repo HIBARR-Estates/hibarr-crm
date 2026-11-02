@@ -1219,8 +1219,21 @@ class DealController extends AccountBaseController
             'text' => ['nullable', 'string', 'max:5000'],
         ]);
 
-        abort_403(! in_array(user()->permission('add_deal_note'), ['all', 'added', 'both']));
-        $this->abortForDealWatchers($deal);
+        // The note this creates follows the insight's owner: a lead-linked
+        // insight becomes a LeadNote even on the deal route, so the gate must
+        // be the lead's note permission, not the deal's.
+        if ($model->lead_id) {
+            $lead = Lead::find($model->lead_id);
+            $leadRules = ['added' => 'added_by', 'owned' => 'lead_owner'];
+            abort_403(
+                $lead === null
+                || ! PermissionService::checkAccess(user(), 'view_lead', $lead, $leadRules)['canAccess']
+            );
+            abort_403(! in_array(user()->permission('add_lead_note'), ['all', 'added', 'both']));
+        } else {
+            abort_403(! in_array(user()->permission('add_deal_note'), ['all', 'added', 'both']));
+            $this->abortForDealWatchers($deal);
+        }
 
         app(SallySuggestionLogService::class)->log(
             $model,

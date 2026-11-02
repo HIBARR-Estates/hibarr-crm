@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\DealController;
 use App\Http\Controllers\LeadContactController;
 use App\Models\Company;
 use App\Models\User;
@@ -208,6 +209,91 @@ class SallySuggestionLogTest extends TestCase
         }
 
         $this->assertSame(0, DB::table('deal_notes')->count());
+    }
+
+    public function test_deal_route_with_a_lead_insight_requires_the_lead_note_permission(): void
+    {
+        // The deal's own note permission must not stand in for the lead's:
+        // this insight creates a LeadNote because it carries a lead_id.
+        $this->grant(self::ACTOR_ID, 'view_deals', 'all');
+        $this->grant(self::ACTOR_ID, 'view_lead', 'all');
+        $this->grant(self::ACTOR_ID, 'add_deal_note', 'all');
+
+        $insightId = $this->makeInsight(1, 1, [
+            ['id' => 'obj-1', 'type' => 'objection', 'text' => 'Deposit is too high', 'edited' => false],
+        ]);
+
+        $this->actingAsUser(self::ACTOR_ID);
+
+        try {
+            $this->logViaDeal(1, $insightId, 'obj-1');
+            $this->fail('add_lead_note must gate a lead-linked insight on the deal route.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $this->assertSame(403, $e->getStatusCode());
+        }
+
+        $this->assertSame(0, DB::table('lead_notes')->count());
+    }
+
+    public function test_deal_route_with_a_lead_insight_requires_lead_view_access(): void
+    {
+        $this->grant(self::ACTOR_ID, 'view_deals', 'all');
+        $this->grant(self::ACTOR_ID, 'add_lead_note', 'all');
+
+        $insightId = $this->makeInsight(1, 1, [
+            ['id' => 'obj-1', 'type' => 'objection', 'text' => 'Deposit is too high', 'edited' => false],
+        ]);
+
+        $this->actingAsUser(self::ACTOR_ID);
+
+        try {
+            $this->logViaDeal(1, $insightId, 'obj-1');
+            $this->fail('view_lead must gate a lead-linked insight on the deal route.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $this->assertSame(403, $e->getStatusCode());
+        }
+
+        $this->assertSame(0, DB::table('lead_notes')->count());
+    }
+
+    public function test_deal_route_with_a_lead_insight_logs_a_lead_note(): void
+    {
+        $this->grant(self::ACTOR_ID, 'view_deals', 'all');
+        $this->grant(self::ACTOR_ID, 'view_lead', 'all');
+        $this->grant(self::ACTOR_ID, 'add_lead_note', 'all');
+
+        $insightId = $this->makeInsight(1, 1, [
+            ['id' => 'obj-1', 'type' => 'objection', 'text' => 'Deposit is too high', 'edited' => false],
+        ]);
+
+        $this->actingAsUser(self::ACTOR_ID);
+
+        $response = $this->logViaDeal(1, $insightId, 'obj-1');
+
+        $this->assertSame('success', $response['status']);
+
+        $note = DB::table('lead_notes')->first();
+        $this->assertNotNull($note, 'a lead-linked insight must log a lead note');
+        $this->assertSame(1, (int) $note->lead_id);
+        $this->assertSame(0, DB::table('deal_notes')->count());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function logViaDeal(int $dealId, int $insightId, string $suggestionId, ?string $text = null): array
+    {
+        $payload = $text === null ? [] : ['text' => $text];
+        $request = Request::create(
+            "/account/deals/{$dealId}/sally-insights/{$insightId}/suggestions/{$suggestionId}/log",
+            'POST',
+            $payload,
+        );
+
+        return json_decode(
+            app(DealController::class)->logDealSallySuggestion($request, $dealId, $insightId, $suggestionId)->getContent(),
+            true,
+        );
     }
 
     /**

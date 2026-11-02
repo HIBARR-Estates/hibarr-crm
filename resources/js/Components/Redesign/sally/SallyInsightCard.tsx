@@ -396,7 +396,12 @@ export default function SallyInsightCard({
             .replace(/<\/?(p|div|h[1-6]|li|tr|blockquote|section|article|pre|hr|br)[^>]*>/gi, "\n")
             .replace(/<[^>]*>/g, " ")
             .replace(/&nbsp;/g, " ")
-            .replace(/\s+/g, " ")
+            .replace(/\r\n?/g, "\n")
+            // Collapse horizontal whitespace only, then tidy the spaces the
+            // tag stripping leaves around the breaks we just inserted.
+            .replace(/[^\S\n]+/g, " ")
+            .replace(/ ?\n ?/g, "\n")
+            .replace(/\n{3,}/g, "\n\n")
             .trim();
 
     const startEditing = () => {

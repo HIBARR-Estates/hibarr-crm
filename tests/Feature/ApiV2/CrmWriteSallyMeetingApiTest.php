@@ -633,7 +633,25 @@ class CrmWriteSallyMeetingApiTest extends TestCase
             'recording_url' => 'javascript:alert(1)//sally.example',
         ], $fixture['headers']);
 
-        $response->assertCreated()->assertJsonPath('data.recording_url', null);
+        // The API refuses non-http(s) schemes rather than storing a link the
+        // card would render as an href.
+        $response->assertStatus(422);
+        $this->assertSame(0, DB::table('sally_meeting_insights')->count());
+    }
+
+    public function test_recording_url_must_be_a_string(): void
+    {
+        $fixture = $this->makeMeetingFixture();
+
+        $response = $this->postJson('/api/v2/sally-meetings', [
+            'meeting_id' => $fixture['meeting'],
+            'lead_id' => $fixture['lead'],
+            'recording_url' => ['https://sally.example/recordings/abc'],
+        ], $fixture['headers']);
+
+        // A non-string must fail the string rule, not blow up in the
+        // http(s)-scheme check that runs in the after() callback.
+        $response->assertStatus(422);
     }
 
     public function test_upsert_rejects_unknown_suggestion_type(): void

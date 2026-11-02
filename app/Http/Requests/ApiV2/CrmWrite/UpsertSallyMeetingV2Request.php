@@ -123,7 +123,7 @@ class UpsertSallyMeetingV2Request extends CoreRequest
             // schemes that could introduce XSS or open-redirect risks.
             foreach (['recording_url', 'payload.recording_url'] as $key) {
                 $url = $this->input($key);
-                if ($url !== null && $url !== '' && ! preg_match('#^https?://#i', $url)) {
+                if (is_string($url) && $url !== '' && ! preg_match('#^https?://#i', $url)) {
                     $validator->errors()->add($key, 'Recording URL must use http:// or https://.');
                 }
             }

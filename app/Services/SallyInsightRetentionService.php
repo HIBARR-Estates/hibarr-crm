@@ -54,17 +54,14 @@ class SallyInsightRetentionService
         return $deleted;
     }
 
-    /** Called when a deal is deleted: detach, and purge only unowned rows. */
+    /**
+     * Called when a deal is deleted: detach, and purge only unowned rows.
+     *
+     * The deal row is already gone by the time the observer runs, so this must
+     * not try to load it again — the queries key off the id alone.
+     */
     public function purgeForDeal(int $dealId): void
     {
-        $deal = Deal::withoutGlobalScope(CompanyScope::class)->find($dealId);
-
-        if ($deal === null) {
-            return;
-        }
-
-        $lead = $deal->lead;
-
         // Insights whose deal was their last reference and have no lead link
         // are unreferenced — purge outright.
         SallyMeetingInsight::query()
