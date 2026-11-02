@@ -9,12 +9,12 @@ import DashboardPanel, {
 import HeadlineFigure from "../components/HeadlineFigure";
 import CommissionTrendChart from "../components/CommissionTrendChart";
 import type { SourceBreakdownRow } from "../components/SourceBreakdown";
-import { amount, figure, money } from "../format";
+import { amount, figure } from "../format";
 import type {
     CompanyCommission,
     CompanyForecast,
     CompanyHeadline,
-    CurrencyTotal,
+    CompanyPipeline,
     RevenueTrend,
     WonRevenue,
 } from "../types";
@@ -22,7 +22,7 @@ import type {
 export interface LeadershipViewProps {
     wonRevenue?: WonRevenue;
     revenueTrend?: RevenueTrend;
-    pipelineValue?: CurrencyTotal[];
+    pipelineValue?: CompanyPipeline;
     companyCommission?: CompanyCommission;
     companyForecast?: CompanyForecast;
     companyHeadline?: CompanyHeadline;
@@ -90,7 +90,11 @@ export default function LeadershipView({
                     fallback={<CardSkeleton height={112} />}
                 >
                     <DashboardPanel style={{ height: "100%" }}>
-                        <PipelineFigure rows={pipelineValue ?? []} />
+                        {pipelineValue ? (
+                            <PipelineFigure pipeline={pipelineValue} />
+                        ) : (
+                            <span />
+                        )}
                     </DashboardPanel>
                 </Deferred>
 
@@ -234,43 +238,32 @@ function RevenueLine({ trend }: { trend: RevenueTrend }) {
     );
 }
 
-/** Busiest currency first; the others named, never added to it. */
-function PipelineFigure({ rows }: { rows: CurrencyTotal[] }) {
+/** Every open deal, in the company currency — one figure, like the rest. */
+function PipelineFigure({ pipeline }: { pipeline: CompanyPipeline }) {
     const { t } = useTranslation();
-    const [lead, ...others] = [...rows].sort(
-        (a, b) => b.deal_count - a.deal_count,
-    );
-    const dealCount = rows.reduce((sum, row) => sum + row.deal_count, 0);
+    const { currency, total, deal_count } = pipeline;
 
     return (
         <HeadlineFigure
             label={t("pages.dashboard.company.pipeline_title")}
             hint={t("pages.dashboard.company.pipeline_hint")}
-            value={lead ? money(lead.total, lead.currency.toUpperCase()) : null}
+            value={deal_count ? amount(total, currency) : null}
             chip={
-                lead ? (
+                deal_count ? (
                     <span
                         className="dr-pill dr-pill-amber"
                         style={{ fontSize: 12 }}
                     >
                         {t("pages.dashboard.company.pipeline_deals", {
-                            count: figure(dealCount),
+                            count: figure(deal_count),
                         })}
                     </span>
                 ) : null
             }
             note={
-                !lead
-                    ? t("pages.dashboard.company.pipeline_none")
-                    : others.length
-                      ? t("pages.dashboard.company.pipeline_other", {
-                            amounts: others
-                                .map((row) =>
-                                    money(row.total, row.currency.toUpperCase()),
-                                )
-                                .join(", "),
-                        })
-                      : t("pages.dashboard.company.pipeline_note")
+                deal_count
+                    ? t("pages.dashboard.company.pipeline_note")
+                    : t("pages.dashboard.company.pipeline_none")
             }
         />
     );
