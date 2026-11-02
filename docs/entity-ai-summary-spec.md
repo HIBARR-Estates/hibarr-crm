@@ -16,7 +16,7 @@ Reusable `EntityAiSummaryCard` for lead and deal record views. Renders structure
 ├─────────────────────────────────────────────────────────────────────┤
 │ Status line (1–2 sentences, risk-aware styling)                    │
 │ ┌──────────┐ ┌──────────┐ ┌──────────┐                             │
-│ │ Chip 1   │ │ Chip 2   │ │ Chip 3   │  (2–4 chips, tone-colored)   │
+│ │ Chip 1   │ │ Chip 2   │ │ Chip 3   │  (key facts, tone-colored)   │
 │ └──────────┘ └──────────┘ └──────────┘                             │
 │ • Bullet 1                                                          │
 │ • Bullet 2                                                          │
@@ -38,6 +38,18 @@ Reusable `EntityAiSummaryCard` for lead and deal record views. Renders structure
 ## JSON contract
 
 See `lead-summary-agent-prompt.md` OUTPUT block. TypeScript types in `resources/js/Types/entity-summary.ts`.
+
+For leads (prompt v2) the keys are unchanged but the content changed: **chips are key facts about the lead** (looking for, budget, timeline, motivation, last touch, linked deals — up to 6, fewer for a thin lead) rather than record-health scores, and **bullets are what the lead told us / what has happened / caveats / deal watch**, ending with a `Not yet recorded:` bullet when there are gaps. Lead summaries do not produce contactability, profile-completeness or qualification-status chips.
+
+## Lead summary input (prompt v2)
+
+`LeadSummaryInputBuilder` builds the payload; `lead-summary-agent-prompt.md` documents it ("INPUT YOU WILL RECEIVE"). The two are a contract — `LeadSummaryInputBuilderTest::test_every_payload_key_is_documented_in_the_prompt` fails if a key is added to one and not the other. Bump `PROMPT_VERSION` in `LeadSummaryService` when the prompt changes; changing the payload also changes `inputHash`, which marks existing stored summaries stale.
+
+What the model receives: lead type/source/category/temperature, day counts (precomputed — the model does no date arithmetic), a PII-free profile (nationality, country, city, languages, occupation, age range, preferred contact time, and *which* contact channels exist), the lead's initial message, the latest qualification call(s) as question + answer, custom fields on the lead, up to 10 notes (600 characters each), meetings, tasks, campaign and engagement data, and linked deals (the Deal Summary agent's own risk conclusion plus the buying intent captured on the deal).
+
+**Privacy.** The payload never contains the lead's name, email, phone numbers, date of birth, street address, company, tracking identifiers (IP, user agent, ad-click ids) or deal names (deals are routinely named after the person). Free text — notes, qualification answers, custom fields, the deal agent's prose — passes through `LeadSummaryRedactor`, which masks emails, phone numbers and the lead's own name/company (`[email]`, `[phone]`, `[name]`) because people type contact details into notes. Custom fields whose label looks like an identifier (passport, ID, tax, bank, address, phone, email, …) and file fields are dropped. City, country and nationality are passed deliberately — they are coarse and decide what a salesperson says next — remove them from `buildProfile()` if that is not acceptable.
+
+**Qualification answers need a snapshot.** The qualification script (question and option text) lives in OL and is only loaded in the browser; the CRM used to store only `segment_key` and an option key. `lead_qualification_answers` now also stores `question_label` and `answer_labels`, written by `useQualificationFlow` on every save. Answers saved before this change have no snapshot: they reach the model only if they carry typed text, and otherwise are skipped.
 
 ## Action routing
 
@@ -73,5 +85,5 @@ See `lead-summary-agent-prompt.md` OUTPUT block. TypeScript types in `resources/
 ## v1 deferrals
 
 - Regenerate dropdown chevron: button only
-- `last_engagement_at`: best-effort from marketing data
-- `partner_information`: omitted unless in custom fields
+- Lead summary has no `last_engagement_at` any more (it was `created_at` in disguise); marketing engagement is the real flags plus `last_webinar_days_ago`
+- `partner_information`: omitted unless in custom fields (which are sent as `lead_details`)

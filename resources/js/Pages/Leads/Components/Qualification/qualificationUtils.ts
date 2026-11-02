@@ -524,6 +524,40 @@ export const formatAnswerDisplay = (
         .join(", ");
 };
 
+/**
+ * Human-readable text of a question and its chosen options, saved alongside the
+ * answer. The script lives in OL and is only loaded in the browser, so without
+ * this snapshot server-side consumers (the lead AI summary) only ever see opaque
+ * option keys.
+ */
+export const buildAnswerLabelSnapshot = (
+    segment: Segment | undefined,
+    values: string[],
+): { question_label: string | null; answer_labels: string[] } => {
+    const questionLabel = stripHtmlTags(segment?.label ?? "");
+
+    let answerLabels: string[] = [];
+
+    if (segment?.answerType === "boolean") {
+        const raw = values[0];
+        if (raw === "true" || raw === "yes") answerLabels = ["Yes"];
+        else if (raw === "false" || raw === "no") answerLabels = ["No"];
+    } else if (segment?.answerType !== "text") {
+        answerLabels = (segment?.options ?? [])
+            .filter(
+                (option) =>
+                    values.includes(option.id) || values.includes(option.key),
+            )
+            .map((option) => stripHtmlTags(option.label))
+            .filter(Boolean);
+    }
+
+    return {
+        question_label: questionLabel || null,
+        answer_labels: answerLabels,
+    };
+};
+
 export const validateSegmentAnswer = (
     segment: Segment,
     answer?: SegmentAnswerState,
