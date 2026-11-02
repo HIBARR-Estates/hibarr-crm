@@ -39,7 +39,14 @@ Reusable `EntityAiSummaryCard` for lead and deal record views. Renders structure
 
 See `lead-summary-agent-prompt.md` OUTPUT block. TypeScript types in `resources/js/Types/entity-summary.ts`.
 
-For leads (prompt v2) the summary is **written prose, not a form**: `status_line` is a one-sentence takeaway (≤ 20 words, shown alone when the card is collapsed) and a new `summary` key holds a 3–4 sentence paragraph (≤ 80 words) — who they are and what they want, where things stand, what is open, what we don't know — with up to five key facts wrapped in `**…**`. `EntityAiSummaryProse` renders it, turning `**…**` into `<strong>` without injecting HTML. `chips` and `bullets` come back empty for new lead summaries; the card still renders them for older stored lead summaries and for all deal summaries. `EntitySummaryValidator::validateLeadSummary` requires `summary` and no longer requires a chip. `LeadSummaryServiceTest` holds the prompt's example to these limits.
+For leads (prompt v2) the summary is **written prose, not a form** (layout "C1" in the design canvas):
+
+- `status_line` — a one-sentence takeaway (≤ 20 words). In the redesign card it is shown large at the top of the body, and in the header only while the card is collapsed.
+- `summary` — a 3–4 sentence paragraph (≤ 80 words): who they are and what they want, where things stand, what is open, what we don't know. `**…**` marks up to four key facts (blue highlight) and `==…==` the one open item or risk (amber). `EntityAiSummaryProse` renders the markers as `<mark>` elements — never as injected HTML.
+- `facts` — 3–6 `{kind, value}` items shown by `EntityAiSummaryFacts` as icon + value with no visible label (the kind is announced to screen readers). Kinds: `property`, `location`, `budget`, `timeline`, `purpose`, `decision_makers`, `languages`, `based_in` (`EntitySummaryValidator::LEAD_FACT_KINDS`).
+- `chips` and `bullets` come back empty. The card still renders them for older stored lead summaries and for all deal summaries.
+
+In the lead layout Regenerate sits in the header row (beside, not inside, the collapse toggle) instead of at the bottom of the body. `EntitySummaryValidator::validateLeadSummary` requires `summary`, checks `facts`, and no longer requires a chip. `LeadSummaryServiceTest` holds the prompt's example to all of these limits.
 
 ## Lead summary input (prompt v2)
 

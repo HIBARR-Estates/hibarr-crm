@@ -318,18 +318,82 @@
     margin-bottom: 10px;
 }
 
-/* Lead summary (prompt v2): one written paragraph, key facts in bold. */
+/* Lead summary (prompt v2): takeaway, one written paragraph with marked
+   facts, then an icon row of facts. */
+.entity-ai-summary-takeaway {
+    margin: 4px 0 10px;
+    max-width: 640px;
+    font-size: 19px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--dr-navy, #16294d);
+}
+
 .entity-ai-summary-prose {
-    margin: 12px 0 14px;
+    margin: 0 0 14px;
     max-width: 68ch;
-    font-size: 14px;
-    line-height: 1.6;
+    font-size: 15px;
+    line-height: 1.75;
     color: var(--dr-text, #1a1f2e);
 }
 
-.entity-ai-summary-prose strong {
+.entity-ai-summary-prose__mark {
     font-weight: 600;
-    color: var(--dr-navy, #16294d);
+    border-radius: 4px;
+    padding: 1px 4px;
+}
+
+.entity-ai-summary-prose__mark--fact {
+    background: var(--dr-blue-light, #e8f1fb);
+    color: var(--dr-blue-dark, #14538c);
+}
+
+.entity-ai-summary-prose__mark--open {
+    background: var(--dr-amber-banner, #fef3c7);
+    color: var(--dr-amber, #92400e);
+}
+
+.entity-ai-summary-facts {
+    list-style: none;
+    margin: 0 0 14px;
+    padding: 12px 0 0;
+    border-top: 1px solid var(--dr-border-soft, #eef0f3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+}
+
+.entity-ai-summary-facts__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--dr-gray-darker, #374151);
+}
+
+.entity-ai-summary-facts__icon {
+    flex: none;
+    color: var(--dr-text-muted, #5b6472);
+}
+
+/* Header row when Regenerate sits beside the collapse toggle (lead brief). */
+.entity-ai-summary-header-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    border-radius: 12px 12px 0 0;
+    background: #ffffff;
+}
+
+.entity-ai-summary-header-row .entity-ai-summary-header--redesign {
+    flex: 1;
+    min-width: 0;
+}
+
+.entity-ai-summary-header-row__regenerate {
+    flex: none;
+    min-height: 36px;
+    margin: 10px 14px 0 0;
 }
 
 .entity-ai-summary-regenerate-btn {

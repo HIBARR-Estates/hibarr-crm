@@ -119,7 +119,19 @@ class LeadSummaryServiceTest extends TestCase
         $this->assertLessThanOrEqual(4, $sentences, 'summary sentences');
         $highlights = preg_match_all('/\*\*[^*]+\*\*/u', $summary);
         $this->assertGreaterThanOrEqual(1, $highlights);
-        $this->assertLessThanOrEqual(5, $highlights);
+        $this->assertLessThanOrEqual(4, $highlights);
+        $this->assertLessThanOrEqual(1, preg_match_all('/==[^=]+==/u', $summary), 'at most one open item');
+
+        // Facts row: icon + value, no labels — the value has to stand alone.
+        $facts = $example['facts'];
+        $this->assertGreaterThanOrEqual(3, count($facts));
+        $this->assertLessThanOrEqual(6, count($facts));
+        $kinds = array_column($facts, 'kind');
+        $this->assertSame($kinds, array_values(array_unique($kinds)), 'one fact per kind');
+        foreach ($facts as $fact) {
+            $this->assertContains($fact['kind'], EntitySummaryValidator::LEAD_FACT_KINDS);
+            $this->assertLessThanOrEqual(5, $this->words($fact['value']), "fact: {$fact['value']}");
+        }
         $this->assertStringNotContainsString("\n", $summary, 'summary must be one paragraph, not a list');
 
         // Prose only: no labels, chips or bullet lists.

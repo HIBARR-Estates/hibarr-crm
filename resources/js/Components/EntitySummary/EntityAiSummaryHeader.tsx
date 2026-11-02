@@ -1,6 +1,6 @@
 import { ReloadOutlined, RobotOutlined } from "@ant-design/icons";
 import { Button } from "antd";
-import { Sparkles } from "lucide-react";
+import { RotateCw, Sparkles } from "lucide-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -45,6 +45,9 @@ interface EntityAiSummaryHeaderProps {
     hasSummary?: boolean;
     isStale?: boolean;
     isHeuristic?: boolean;
+    /** Redesign only: show Regenerate as its own button beside the toggle
+     * (the lead summary layout) instead of at the bottom of the body. */
+    showRegenerate?: boolean;
 }
 
 export default function EntityAiSummaryHeader({
@@ -63,6 +66,7 @@ export default function EntityAiSummaryHeader({
     hasSummary = false,
     isStale = false,
     isHeuristic = false,
+    showRegenerate = false,
 }: EntityAiSummaryHeaderProps) {
     const { t } = useTranslation();
     const { td } = useTd();
@@ -135,7 +139,7 @@ export default function EntityAiSummaryHeader({
         }
 
         const expanded = !collapsed;
-        return (
+        const toggle = (
             <div
                 role="button"
                 tabIndex={0}
@@ -212,6 +216,29 @@ export default function EntityAiSummaryHeader({
                 <span className="entity-ai-summary-header__chevron" aria-hidden="true">
                     {expanded ? "▴" : "▾"}
                 </span>
+            </div>
+        );
+
+        if (!showRegenerate) {
+            return toggle;
+        }
+
+        // A sibling, not a child: a button nested in the role="button" toggle
+        // would be an interactive element inside another.
+        return (
+            <div className="entity-ai-summary-header-row">
+                {toggle}
+                <button
+                    type="button"
+                    className="entity-ai-summary-regenerate-btn entity-ai-summary-header-row__regenerate"
+                    disabled={loading}
+                    onClick={onRegenerate}
+                >
+                    <RotateCw width={14} height={14} strokeWidth={2} aria-hidden="true" />
+                    {isStale
+                        ? t("pages.entity_summary.refresh")
+                        : t("pages.entity_summary.regenerate")}
+                </button>
             </div>
         );
     }

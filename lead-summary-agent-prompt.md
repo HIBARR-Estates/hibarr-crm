@@ -11,7 +11,7 @@ v1 summarised the lead's *record health*: contactability, profile completeness, 
 - **Input now carries substance** — qualification-call answers (question + answer), lead details (custom fields), full notes, the lead's initial message, and the buying intent captured on linked deals. v1 sent 200-character note excerpts and none of the qualification answers.
 - **Input carries no PII.** No name, email, phone, date of birth, address or company. Contact channels are reduced to a list of which exist. Free text is redacted (`LeadSummaryRedactor`) because people type contact details into notes. Deal names are dropped because deals are routinely named after the person.
 - **Day counts are precomputed** (`days_ago`, `days_from_now`) so the model never does date arithmetic.
-- **The output is a written summary, not a form.** A one-sentence takeaway (`status_line`, shown on its own when the card is collapsed) and a 3–4 sentence paragraph (`summary`, at most 80 words) with up to five key facts in `**bold**`. No labels, chips or bullet lists — `chips` and `bullets` come back empty and are kept only so older stored summaries still render. The card renders `summary` with `EntityAiSummaryProse`.
+- **The output is a written summary, not a form.** A one-sentence takeaway (`status_line`, shown on its own when the card is collapsed) and a 3–4 sentence paragraph (`summary`, at most 80 words) with up to four key facts marked `**…**` and at most one open item marked `==…==`, followed by a row of 3–6 `facts` shown as icon + value with no labels. No labels, chips or bullet lists — `chips` and `bullets` come back empty and are kept only so older stored summaries still render. The card renders `summary` with `EntityAiSummaryProse`.
 - **Deal risk is still owned by the Deal Summary agent** and consumed here as ground truth — two AI features contradicting each other about the same deal is the failure mode this avoids — but it is now one clause in the summary rather than its headline.
 
 ## System Prompt
@@ -209,8 +209,10 @@ summary — 3 to 4 sentences, at most 80 words, in this order:
      matters, or an at-risk linked deal (the deal agent's conclusion, in a clause).
   4. What we still don't know that matters, if anything, folded into the prose
      ("We don't yet know whether …") — never a list.
-Wrap the facts the reader must not miss in **double asterisks** — at most 5: figures,
-places, deadlines, the open item. Never a whole sentence.
+Highlight what the reader must not miss, never a whole sentence:
+  **double asterisks** around up to 4 key facts — figures, places, deadlines.
+  ==double equals== around the ONE open item or risk, if there is one — the unmet
+  commitment, the contradiction, the reason a deal is at risk. Never more than one.
 Do not repeat the status_line. Do not attribute every fact ("on the call they
 said …"); name a source only when it matters — the fact is old, or two sources
 disagree. Never speculate about feelings or intent.
@@ -219,6 +221,16 @@ and what is missing. Never pad.
 Never write about contactability, profile completeness, qualification status,
 contact score or marketing engagement — the page already shows those, and they say
 nothing about the person.
+
+facts — 3 to 6 short facts shown as a row of icons under the summary, so the reader
+can scan them without re-reading. Each is { "kind": "...", "value": "..." }:
+  kind   one of: property, location, budget, timeline, purpose, decision_makers,
+         languages, based_in. The kind picks the icon; no label is shown, so the
+         value must make sense on its own.
+  value  at most 5 words: "2-bed, sea view", "Antalya", "€200–250K cash",
+         "3–6 months", "Investment", "Decides with partner", "German, English".
+Only facts actually on file — a thin lead may have one, or none ([]). At most one
+fact per kind. Never contact details or anything from PRIVACY.
 
 chips and bullets — return both as empty arrays []. They exist for older summaries.
 
@@ -274,7 +286,8 @@ OUTPUT — return exactly this JSON shape, nothing else
 
 {
   "status_line": "<one-sentence takeaway, at most 20 words>",
-  "summary": "<3-4 sentences, at most 80 words, up to 5 **highlighted** facts>",
+  "summary": "<3-4 sentences, at most 80 words, up to 4 **key facts** and at most one ==open item==>",
+  "facts": [ { "kind": "property|location|budget|timeline|purpose|decision_makers|languages|based_in", "value": "<at most 5 words>" } ],
   "risk_level": "none|low|medium|high",
   "primary_risk_source": "linked_deal|lead|none",
   "chips": [],
@@ -351,7 +364,15 @@ EXAMPLE INPUT:
 EXAMPLE OUTPUT:
 {
   "status_line": "German investor ready to buy in Antalya, waiting on yield figures their partner asked for.",
-  "summary": "A German investor wants a **2-bed sea-view apartment in Antalya** to rent out, paying **€200–250K cash**, and plans to buy within 3–6 months. The call 12 days ago ended with a webinar invite, but their partner shares the decision and is waiting on **rental yield figures we haven't sent**. That silence is why the linked €225K deal is at medium risk. We don't yet know when the partner can talk or whether a viewing trip is planned.",
+  "summary": "A German investor wants a **2-bed sea-view apartment in Antalya** to rent out, paying **€200–250K cash**, within 3–6 months. The call 12 days ago ended with a webinar invite, but their partner shares the decision and is waiting on ==rental yield figures we haven't sent==, so the linked €225K deal is at medium risk. We don't yet know when the partner can talk or whether a viewing trip is planned.",
+  "facts": [
+    { "kind": "property", "value": "2-bed, sea view" },
+    { "kind": "location", "value": "Antalya" },
+    { "kind": "budget", "value": "€200–250K cash" },
+    { "kind": "timeline", "value": "3–6 months" },
+    { "kind": "decision_makers", "value": "Decides with partner" },
+    { "kind": "languages", "value": "German, English" }
+  ],
   "risk_level": "medium",
   "primary_risk_source": "linked_deal",
   "chips": [],
@@ -390,6 +411,11 @@ OUTPUT (abridged):
 {
   "status_line": "New enquiry from the UAE about villas; nothing else on file yet.",
   "summary": "A buyer based in the **UAE** enquired yesterday via Facebook about **villas in Dubai or Turkey**. That one message is all we have: no budget, timeline or purpose yet, and no one is assigned.",
+  "facts": [
+    { "kind": "property", "value": "Villa" },
+    { "kind": "location", "value": "Dubai or Turkey" },
+    { "kind": "based_in", "value": "United Arab Emirates" }
+  ],
   "risk_level": "low",
   "primary_risk_source": "lead",
   "chips": [],

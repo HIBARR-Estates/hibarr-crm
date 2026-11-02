@@ -2,13 +2,18 @@ import { Fragment } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface EntityAiSummaryProseProps {
-    /** Plain prose; `**…**` marks the few facts the model chose to highlight. */
+    /**
+     * Plain prose from the model. `**…**` marks a key fact, `==…==` the one
+     * open item or risk.
+     */
     text: string;
 }
 
+const MARKER = /(\*\*[^*]+\*\*|==[^=]+==)/g;
+
 /**
- * Renders the lead summary paragraph. Highlights are parsed into <strong>
- * elements — never injected as HTML, since the text is model output.
+ * Renders the lead summary paragraph. Markers are parsed into <mark> elements —
+ * never injected as HTML, since the text is model output.
  */
 export default function EntityAiSummaryProse({
     text,
@@ -18,13 +23,36 @@ export default function EntityAiSummaryProse({
 
     return (
         <p className="entity-ai-summary-prose">
-            {translated.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
-                part.startsWith("**") && part.endsWith("**") && part.length > 4 ? (
-                    <strong key={index}>{part.slice(2, -2)}</strong>
-                ) : (
-                    <Fragment key={index}>{part.replace(/\*\*/g, "")}</Fragment>
-                ),
-            )}
+            {translated.split(MARKER).map((part, index) => {
+                if (part.length > 4 && part.startsWith("**") && part.endsWith("**")) {
+                    return (
+                        <mark
+                            key={index}
+                            className="entity-ai-summary-prose__mark entity-ai-summary-prose__mark--fact"
+                        >
+                            {part.slice(2, -2)}
+                        </mark>
+                    );
+                }
+
+                if (part.length > 4 && part.startsWith("==") && part.endsWith("==")) {
+                    return (
+                        <mark
+                            key={index}
+                            className="entity-ai-summary-prose__mark entity-ai-summary-prose__mark--open"
+                        >
+                            {part.slice(2, -2)}
+                        </mark>
+                    );
+                }
+
+                // A stray, unmatched marker is dropped rather than shown.
+                return (
+                    <Fragment key={index}>
+                        {part.replace(/\*\*|==/g, "")}
+                    </Fragment>
+                );
+            })}
         </p>
     );
 }

@@ -7,6 +7,7 @@ import { isLeadSummaryPayload } from "@/Types/entity-summary";
 import AiThinkingIndicator from "./AiThinkingIndicator";
 import EntityAiSummaryChipGrid from "./EntityAiSummaryChipGrid";
 import EntityAiSummaryProse from "./EntityAiSummaryProse";
+import EntityAiSummaryFacts from "./EntityAiSummaryFacts";
 import EntityAiSummaryHeader from "./EntityAiSummaryHeader";
 import EntityAiSummaryNextStep from "./EntityAiSummaryNextStep";
 import { executeSummaryAction, isExecutableAction } from "./summaryActions";
@@ -76,15 +77,27 @@ export default function EntityAiSummaryCard({
 
     // Lead summaries from prompt v2 are a written paragraph; older stored lead
     // summaries and all deal summaries still render as chips + bullets.
-    const prose =
+    const leadBrief =
         summary && isLeadSummaryPayload(summary) && summary.summary
-            ? summary.summary
+            ? summary
             : null;
+
+    // Redesign lead brief: the takeaway sits large in the body, so the header
+    // only shows it while collapsed; Regenerate moves up into the header row.
+    const showLeadBriefLayout = isRedesign && Boolean(leadBrief);
 
     const renderBody = () =>
         summary ? (
-            prose ? (
-                <EntityAiSummaryProse text={prose} />
+            leadBrief?.summary ? (
+                <>
+                    {isRedesign && (
+                        <p className="entity-ai-summary-takeaway">
+                            {td(leadBrief.status_line, { source: "en" })}
+                        </p>
+                    )}
+                    <EntityAiSummaryProse text={leadBrief.summary} />
+                    <EntityAiSummaryFacts facts={leadBrief.facts ?? []} />
+                </>
             ) : (
                 <>
                     <EntityAiSummaryChipGrid chips={summary.chips} />
@@ -159,12 +172,17 @@ export default function EntityAiSummaryCard({
                         ? () => setCollapsed((value) => !value)
                         : undefined
                 }
-                statusLine={isRedesign ? summary?.status_line : undefined}
+                statusLine={
+                    isRedesign && (!showLeadBriefLayout || collapsed)
+                        ? summary?.status_line
+                        : undefined
+                }
                 riskLevel={isRedesign ? summary?.risk_level : undefined}
                 chips={isRedesign ? summary?.chips : undefined}
                 hasSummary={Boolean(summary)}
                 isStale={isStale}
                 isHeuristic={isHeuristic}
+                showRegenerate={showLeadBriefLayout}
             />
 
             {showDetailBody && (
@@ -269,7 +287,7 @@ export default function EntityAiSummaryCard({
                                     </p>
                                 )}
                                 {renderBody()}
-                                {isRedesign && (
+                                {isRedesign && !showLeadBriefLayout && (
                                     <button
                                         type="button"
                                         className="entity-ai-summary-regenerate-btn"

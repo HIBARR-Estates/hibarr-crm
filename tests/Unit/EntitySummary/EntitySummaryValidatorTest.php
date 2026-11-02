@@ -50,6 +50,24 @@ class EntitySummaryValidatorTest extends TestCase
         ]);
     }
 
+    public function test_rejects_lead_fact_with_unknown_kind(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('fact 0');
+
+        (new EntitySummaryValidator())->validateLeadSummary([
+            'status_line' => 'Investor buying in Antalya.',
+            'summary' => 'Wants a **2-bed in Antalya**.',
+            'facts' => [['kind' => 'phone', 'value' => '+90 533 000 0000']],
+            'risk_level' => 'low',
+            'primary_risk_source' => 'lead',
+            'chips' => [],
+            'bullets' => [],
+            'next_step' => ['action_type' => 'CONTACT_LEAD', 'label' => 'Call them'],
+            'meta' => ['generated_at' => '2026-07-01T14:04:00Z'],
+        ]);
+    }
+
     public function test_validates_deal_summary_shape(): void
     {
         (new EntitySummaryValidator())->validateDealSummary([

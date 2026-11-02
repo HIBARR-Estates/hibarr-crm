@@ -31,6 +31,18 @@ class EntitySummaryValidator
 
     private const CHIP_TONES = ['green', 'amber', 'red', 'neutral'];
 
+    /** Lead summary `facts[].kind` — each maps to an icon in EntityAiSummaryFacts. */
+    public const LEAD_FACT_KINDS = [
+        'property',
+        'location',
+        'budget',
+        'timeline',
+        'purpose',
+        'decision_makers',
+        'languages',
+        'based_in',
+    ];
+
     private const URGENCIES = ['immediate', 'this_week', 'routine'];
 
     private const CONFIDENCE = ['high', 'medium', 'low'];
@@ -47,6 +59,8 @@ class EntitySummaryValidator
             throw new \InvalidArgumentException('Lead summary missing required key: summary');
         }
 
+        $this->validateLeadFacts($payload['facts'] ?? []);
+
         if (! array_key_exists('primary_risk_source', $payload)) {
             throw new \InvalidArgumentException('Lead summary missing required key: primary_risk_source');
         }
@@ -56,6 +70,26 @@ class EntitySummaryValidator
         }
 
         $this->validateNextStep($payload['next_step'], self::LEAD_ACTIONS, 'Lead');
+    }
+
+    /**
+     * Optional on a lead summary; when present each fact must name a known kind
+     * (the UI picks the icon from it) and carry a non-empty value.
+     */
+    private function validateLeadFacts(mixed $facts): void
+    {
+        if (! is_array($facts)) {
+            throw new \InvalidArgumentException('Lead summary facts must be an array');
+        }
+
+        foreach ($facts as $index => $fact) {
+            if (! is_array($fact)
+                || ! in_array($fact['kind'] ?? null, self::LEAD_FACT_KINDS, true)
+                || ! is_string($fact['value'] ?? null)
+                || trim($fact['value']) === '') {
+                throw new \InvalidArgumentException("Lead summary fact {$index} is invalid");
+            }
+        }
     }
 
     /**
