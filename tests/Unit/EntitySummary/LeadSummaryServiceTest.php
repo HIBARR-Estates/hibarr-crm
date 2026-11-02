@@ -107,10 +107,31 @@ class LeadSummaryServiceTest extends TestCase
 
         (new EntitySummaryValidator())->validateLeadSummary($example);
 
-        $this->assertLessThanOrEqual(6, count($example['chips']));
-        $this->assertLessThanOrEqual(5, count($example['bullets']));
+        // The example must obey the prompt's own hard length limits — it is what the
+        // model imitates, so a wordy example produces a wordy summary.
+        $this->assertLessThanOrEqual(25, $this->words($example['status_line']), 'status_line');
+        $this->assertLessThanOrEqual(4, count($example['chips']));
+        foreach ($example['chips'] as $chip) {
+            $this->assertLessThanOrEqual(5, $this->words($chip['value']), "chip value: {$chip['value']}");
+            $this->assertLessThanOrEqual(4, $this->words($chip['sublabel']), "chip sublabel: {$chip['sublabel']}");
+        }
+        $this->assertLessThanOrEqual(2, count($example['bullets']));
+        foreach ($example['bullets'] as $bullet) {
+            $this->assertLessThanOrEqual(15, $this->words($bullet), "bullet: {$bullet}");
+        }
         $this->assertStringStartsWith('Not yet recorded:', end($example['bullets']));
+        $this->assertLessThanOrEqual(6, $this->words($example['next_step']['label']));
+        $this->assertLessThanOrEqual(10, $this->words($example['next_step']['rationale']));
         $this->assertNotContains('contactability', array_column($example['chips'], 'id'));
+    }
+
+    private function words(string $text): int
+    {
+        // Separators such as "·" are not words.
+        return count(array_filter(
+            preg_split('/\s+/u', trim($text), -1, PREG_SPLIT_NO_EMPTY) ?: [],
+            fn (string $token) => preg_match('/[\p{L}\p{N}]/u', $token) === 1
+        ));
     }
 
     /**

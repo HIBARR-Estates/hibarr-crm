@@ -39,7 +39,7 @@ Reusable `EntityAiSummaryCard` for lead and deal record views. Renders structure
 
 See `lead-summary-agent-prompt.md` OUTPUT block. TypeScript types in `resources/js/Types/entity-summary.ts`.
 
-For leads (prompt v2) the keys are unchanged but the content changed: **chips are key facts about the lead** (looking for, budget, timeline, motivation, last touch, linked deals — up to 6, fewer for a thin lead) rather than record-health scores, and **bullets are what the lead told us / what has happened / caveats / deal watch**, ending with a `Not yet recorded:` bullet when there are gaps. Lead summaries do not produce contactability, profile-completeness or qualification-status chips.
+For leads (prompt v2) the keys are unchanged but the content changed: **chips are key facts about the lead** (looking for, budget, timeline, then an at-risk linked deal or the next most useful fact — at most 4, fewer for a thin lead) rather than record-health scores, and **bullets are at most two lines**: `Open: …` (the one thing outstanding) and `Not yet recorded: …`. It is a summary, not a report: the prompt sets hard length limits (status line ≤ 25 words, chip value ≤ 5, sublabel = source and age, bullets ≤ 15 words, next step ≤ 6 words) and `LeadSummaryServiceTest` holds the prompt's example to them. Lead summaries do not produce contactability, profile-completeness or qualification-status chips.
 
 ## Lead summary input (prompt v2)
 
