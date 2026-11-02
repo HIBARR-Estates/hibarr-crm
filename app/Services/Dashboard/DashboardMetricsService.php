@@ -1326,8 +1326,8 @@ class DashboardMetricsService
     // The big picture: revenue, growth, efficiency. Company wide and
     // aggregate — no agent scope, no agent names. Revenue and commission are
     // read in the company currency, converted per deal by its snapshotted
-    // exchange rate (MlmCommissionService's convention); the open pipeline
-    // stays per currency (see pipelineValueByCurrency).
+    // exchange rate (MlmCommissionService's convention) — as is the open
+    // pipeline. Nothing on this view is split by deal currency.
 
     /** When a won deal was won. updated_at only where won_at was never stamped. */
     private const WON_AT = 'COALESCE(deals.won_at, deals.updated_at)';
@@ -1495,6 +1495,33 @@ class DashboardMetricsService
                 'total' => round((float) ($byMonth->get($month['period'])->total ?? 0), 2),
                 'count' => (int) ($byMonth->get($month['period'])->total_count ?? 0),
             ], $months),
+        ];
+    }
+
+    /**
+     * Value of every open deal today, in the company currency — each deal
+     * converted by its own snapshotted exchange rate, exactly as revenue and
+     * commission are, so the three figures on the company view are in the
+     * same money. A deal with no rate is taken at 1.
+     *
+     * A single figure, never a currency split and never an "unknown" bucket:
+     * a deal without a currency of its own is simply a company-currency deal.
+     *
+     * @return array{currency: string|null, total: float, deal_count: int}
+     */
+    public function companyPipeline(): array
+    {
+        $row = Deal::query()
+            ->whereNull('deals.outcome_status')
+            ->toBase()
+            ->selectRaw('SUM('.self::COMPANY_VALUE.') as total')
+            ->selectRaw('COUNT(*) as deal_count')
+            ->first();
+
+        return [
+            'currency' => $this->defaultCurrencyCode(),
+            'total' => round((float) ($row->total ?? 0), 2),
+            'deal_count' => (int) ($row->deal_count ?? 0),
         ];
     }
 
