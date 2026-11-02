@@ -184,19 +184,23 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
             ? 'required|string|max:255'
             : 'nullable|string|max:255';
 
-        // On create the connection is described either explicitly (wss_url +
-        // uri) or by a platform, whose defaults are resolved below. On update
-        // every connection field is `sometimes` so an omitted field keeps its
-        // stored value — the settings UI only ever has the summary, and an
-        // admin may edit only the label.
+        // On create the platform is required: it decides the connection
+        // (wss_url + uri), which is resolved from the registry below when the
+        // form leaves them blank. On update every connection field is
+        // `sometimes` so an omitted field keeps its stored value — the settings
+        // UI only ever has the summary, and an admin may edit only the label.
         $connectionRule = $device === null
-            ? 'required_without:provider|nullable|string|max:255'
+            ? 'nullable|string|max:255'
             : 'sometimes|nullable|string|max:255';
 
         $validated = $request->validate([
             'label' => 'required|string|max:60',
+            // The registry validates what the connection defaults can be
+            // resolved for, so a platform OL lists but the CRM cannot yet
+            // serve defaults for is refused here rather than stored without a
+            // WSS endpoint / SIP URI.
             'provider' => [
-                'sometimes',
+                $device === null ? 'required' : 'sometimes',
                 'nullable',
                 'string',
                 Rule::in(SipProviderRegistry::names()),
@@ -207,6 +211,11 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
             'authorization_password' => $passwordRule,
             'display_name' => 'sometimes|nullable|string|max:120',
             'is_default' => 'sometimes|boolean',
+        ], [
+            // OL may already list a platform this CRM build has no defaults
+            // for; the registry is what the line's connection is resolved
+            // from, so say so plainly instead of the generic rule message.
+            'provider.in' => 'This CRM does not support the ":input" provider yet.',
         ]);
 
         $this->applyProviderDefaults($validated, $device);

@@ -19,6 +19,7 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import useSoftphoneLineTest, { type LineTestState } from "@/Hooks/useSoftphoneLineTest";
+import useTranslation from "@/Hooks/useTranslation";
 import { ApiSuccessResponse } from "@/lib/api/types";
 import type {
     SoftphoneDeviceDetails,
@@ -38,8 +39,8 @@ interface DeviceDevicesResponse {
 
 interface DevicePayload {
     label: string;
-    /** SIP platform the line belongs to (e.g. sipgate). */
-    provider?: string;
+    /** SIP platform the line belongs to (e.g. sipgate). Required on create. */
+    provider: string;
     /** Required on create. Omitted on update to keep the stored value. */
     wss_url?: string;
     /** Required on create. Omitted on update to keep the stored value. */
@@ -93,6 +94,7 @@ const fieldLabel: React.CSSProperties = {
  */
 export default function SoftphoneDeviceManager() {
     const { message } = App.useApp();
+    const { t } = useTranslation();
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<SoftphoneDeviceSummary | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<SoftphoneDeviceSummary | null>(null);
@@ -339,6 +341,15 @@ export default function SoftphoneDeviceManager() {
                 const details = response.data.data;
                 setLabel(details.label);
                 setProvider(details.provider ?? undefined);
+                // A stored provider must always be selectable, even when the
+                // provider list could not be loaded (flag off / OL down).
+                if (details.provider) {
+                    setProviderOptions((current) =>
+                        current.some((option) => option.value === details.provider)
+                            ? current
+                            : [...current, { value: details.provider as string, label: details.provider as string }],
+                    );
+                }
                 setWssUrl(details.wss_url ?? "");
                 setUri(details.uri ?? "");
                 setUsername(details.authorization_username ?? "");
@@ -355,7 +366,9 @@ export default function SoftphoneDeviceManager() {
     };
 
     const handleSubmit = () => {
-        if (!label.trim() || !wssUrl.trim() || !uri.trim()) return;
+        // A provider is required: it is what decides the WebSocket endpoint
+        // and SIP URI the line registers with.
+        if (!label.trim() || !provider || !wssUrl.trim() || !uri.trim()) return;
         if (editing ? detailsLoading : !password.trim()) return;
 
         // The edit form is prefilled with the stored values, so it sends them
@@ -363,15 +376,12 @@ export default function SoftphoneDeviceManager() {
         // blank password means "keep the stored one" server-side.
         const payload: DevicePayload = {
             label: label.trim(),
+            provider,
             wss_url: wssUrl.trim(),
             uri: uri.trim(),
             authorization_password: password,
             is_default: isDefault,
         };
-
-        if (provider) {
-            payload.provider = provider;
-        }
 
         if (editing) {
             payload.authorization_username = username.trim() || null;
@@ -389,12 +399,19 @@ export default function SoftphoneDeviceManager() {
     };
 
     const saving = createMutation.isPending || updateMutation.isPending;
-    const canSubmit = editing
-        ? !detailsLoading && !!label.trim() && !!wssUrl.trim() && !!uri.trim()
-        : !!label.trim() &&
-          !!wssUrl.trim() &&
-          !!uri.trim() &&
-          !!password.trim();
+    // The platform's SIP URI format carries a `{username}` placeholder
+    // (sipgate), so the username cannot be left out while the URI is still
+    // empty — on edit the stored URI already exists, so only a missing one
+    // applies. The field then shows as required with a hint.
+    const usernameNeeded =
+        !!platformDefaults?.sipUriFormat.includes("{username}") && !uri.trim();
+    const canSubmit =
+        !detailsLoading &&
+        !!label.trim() &&
+        !!provider &&
+        !!wssUrl.trim() &&
+        !!uri.trim() &&
+        (editing ? true : !!password.trim());
 
     return (
         <div className="flex flex-col gap-4">
@@ -533,15 +550,13 @@ export default function SoftphoneDeviceManager() {
                     </>
                 }
             >
-                <label htmlFor="sp-provider" style={fieldLabel}>
-                    Provider
-                    <Tooltip title="SIP platform for this line. Selecting it fills the connection settings below.">
-                        <i
-                            className="antd-icon antd-icon_question_circle"
-                            style={{ fontSize: 12, marginLeft: 2, color: T.TEXT_HINT }}
-                        />
-                    </Tooltip>
-                </label>
+                <FieldLabel
+                    first
+                    htmlFor="sp-provider"
+                    text={t("pages.call_bridge.softphone_device.provider")}
+                    tooltip={t("pages.call_bridge.softphone_device.provider_tooltip")}
+                    required
+                />
                 <select
                     id="sp-provider"
                     className="dr-input"
@@ -550,7 +565,9 @@ export default function SoftphoneDeviceManager() {
                     disabled={detailsLoading || providerLoading}
                 >
                     <option value="">
-                        {providerLoading ? "Loading…" : "-- Select provider --"}
+                        {providerLoading
+                            ? t("pages.call_bridge.softphone_device.provider_loading")
+                            : t("pages.call_bridge.softphone_device.provider_placeholder")}
                     </option>
                     {providerOptions.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -559,9 +576,12 @@ export default function SoftphoneDeviceManager() {
                     ))}
                 </select>
 
-                <label htmlFor="sp-label" style={{ ...fieldLabel, marginTop: 16 }}>
-                    Label (e.g. German, Swedish)
-                </label>
+                <FieldLabel
+                    htmlFor="sp-label"
+                    text={t("pages.call_bridge.softphone_device.label")}
+                    tooltip={t("pages.call_bridge.softphone_device.label_tooltip")}
+                    required
+                />
                 <input
                     id="sp-label"
                     disabled={detailsLoading}
@@ -571,44 +591,40 @@ export default function SoftphoneDeviceManager() {
                     autoFocus
                 />
 
-                <label htmlFor="sp-wss" style={{ ...fieldLabel, marginTop: 16 }}>
-                    WSS URL
-                </label>
-                <input
-                    id="sp-wss"
-                    disabled={detailsLoading || platformLoading}
-                    className="dr-input"
-                    value={wssUrl}
-                    onChange={(e) => setWssUrl(e.target.value)}
-                    placeholder="wss://…"
+                <FieldLabel
+                    htmlFor="sp-user"
+                    text={t("pages.call_bridge.softphone_device.username")}
+                    tooltip={t("pages.call_bridge.softphone_device.username_tooltip")}
+                    required={usernameNeeded}
                 />
-
-                <label htmlFor="sp-uri" style={{ ...fieldLabel, marginTop: 16 }}>
-                    SIP URI
-                </label>
-                <input
-                    id="sp-uri"
-                    disabled={detailsLoading || platformLoading}
-                    className="dr-input"
-                    value={uri}
-                    onChange={(e) => setUri(e.target.value)}
-                    placeholder="sip:12345@sipgate.de"
-                />
-
-                <label htmlFor="sp-user" style={{ ...fieldLabel, marginTop: 16 }}>
-                    Username (optional)
-                </label>
                 <input
                     id="sp-user"
                     disabled={detailsLoading}
                     className="dr-input"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    aria-describedby={usernameNeeded ? "sp-user-hint" : undefined}
                 />
+                {usernameNeeded && (
+                    <p
+                        id="sp-user-hint"
+                        className="text-xs"
+                        style={{ marginTop: 4, color: T.TEXT_MUTED }}
+                    >
+                        {t("pages.call_bridge.softphone_device.username_required")}
+                    </p>
+                )}
 
-                <label htmlFor="sp-pass" style={{ ...fieldLabel, marginTop: 16 }}>
-                    Password{editing ? " (leave blank to keep)" : ""}
-                </label>
+                <FieldLabel
+                    htmlFor="sp-pass"
+                    text={
+                        editing
+                            ? t("pages.call_bridge.softphone_device.password_keep")
+                            : t("pages.call_bridge.softphone_device.password")
+                    }
+                    tooltip={t("pages.call_bridge.softphone_device.password_tooltip")}
+                    required={!editing}
+                />
                 <input
                     id="sp-pass"
                     disabled={detailsLoading}
@@ -620,9 +636,11 @@ export default function SoftphoneDeviceManager() {
                     placeholder={editing && hasPassword ? "•••••••• (saved)" : undefined}
                 />
 
-                <label htmlFor="sp-display" style={{ ...fieldLabel, marginTop: 16 }}>
-                    Display name (optional)
-                </label>
+                <FieldLabel
+                    htmlFor="sp-display"
+                    text={t("pages.call_bridge.softphone_device.display_name")}
+                    tooltip={t("pages.call_bridge.softphone_device.display_name_tooltip")}
+                />
                 <input
                     id="sp-display"
                     disabled={detailsLoading}
@@ -660,7 +678,14 @@ export default function SoftphoneDeviceManager() {
                         disabled={detailsLoading}
                         onChange={(e) => setIsDefault(e.target.checked)}
                     />
-                    Default line
+                    {t("pages.call_bridge.softphone_device.default_line")}
+                    <Tooltip title={t("pages.call_bridge.softphone_device.default_line_tooltip")}>
+                        <i
+                            className="antd-icon antd-icon_question_circle"
+                            style={{ fontSize: 12, color: T.TEXT_HINT }}
+                            aria-hidden="true"
+                        />
+                    </Tooltip>
                 </label>
             </Modal>
 
@@ -677,6 +702,43 @@ export default function SoftphoneDeviceManager() {
                 onCancel={() => setDeleteTarget(null)}
             />
         </div>
+    );
+}
+
+
+/**
+ * Form label with a help tooltip, an optional required marker ("*") and,
+ * through `first`, no top margin for the modal's first field.
+ */
+function FieldLabel({
+    htmlFor,
+    text,
+    tooltip,
+    required = false,
+    first = false,
+}: {
+    htmlFor: string;
+    text: string;
+    tooltip: string;
+    required?: boolean;
+    first?: boolean;
+}) {
+    return (
+        <label htmlFor={htmlFor} style={first ? fieldLabel : { ...fieldLabel, marginTop: 16 }}>
+            {text}
+            {required && (
+                <span style={{ color: T.RED, marginLeft: 3 }} aria-hidden="true">
+                    *
+                </span>
+            )}
+            <Tooltip title={tooltip}>
+                <i
+                    className="antd-icon antd-icon_question_circle"
+                    style={{ fontSize: 12, marginLeft: 2, color: T.TEXT_HINT }}
+                    aria-hidden="true"
+                />
+            </Tooltip>
+        </label>
     );
 }
 
