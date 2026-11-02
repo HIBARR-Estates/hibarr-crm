@@ -6,6 +6,7 @@ import type { EntityAiSummaryCardProps } from "@/Types/entity-summary";
 import { isLeadSummaryPayload } from "@/Types/entity-summary";
 import AiThinkingIndicator from "./AiThinkingIndicator";
 import EntityAiSummaryChipGrid from "./EntityAiSummaryChipGrid";
+import EntityAiSummaryProse from "./EntityAiSummaryProse";
 import EntityAiSummaryHeader from "./EntityAiSummaryHeader";
 import EntityAiSummaryNextStep from "./EntityAiSummaryNextStep";
 import { executeSummaryAction, isExecutableAction } from "./summaryActions";
@@ -72,6 +73,33 @@ export default function EntityAiSummaryCard({
                 summary.primary_risk_source === "linked_deal"));
 
     const isHeuristic = summary?.meta?.source === "heuristic";
+
+    // Lead summaries from prompt v2 are a written paragraph; older stored lead
+    // summaries and all deal summaries still render as chips + bullets.
+    const prose =
+        summary && isLeadSummaryPayload(summary) && summary.summary
+            ? summary.summary
+            : null;
+
+    const renderBody = () =>
+        summary ? (
+            prose ? (
+                <EntityAiSummaryProse text={prose} />
+            ) : (
+                <>
+                    <EntityAiSummaryChipGrid chips={summary.chips} />
+                    {summary.bullets.length > 0 && (
+                        <ul className="entity-ai-summary-bullets">
+                            {summary.bullets.map((bullet) => (
+                                <li key={bullet}>
+                                    {td(bullet, { source: "en" })}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </>
+            )
+        ) : null;
 
     const handleAction = () => {
         if (!summary) return;
@@ -240,18 +268,7 @@ export default function EntityAiSummaryCard({
                                         {summary.status_line}
                                     </p>
                                 )}
-                                <EntityAiSummaryChipGrid
-                                    chips={summary.chips}
-                                />
-                                {summary.bullets.length > 0 && (
-                                    <ul className="entity-ai-summary-bullets">
-                                        {summary.bullets.map((bullet) => (
-                                            <li key={bullet}>
-                                                {td(bullet, { source: "en" })}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
+                                {renderBody()}
                                 {isRedesign && (
                                     <button
                                         type="button"
@@ -287,18 +304,7 @@ export default function EntityAiSummaryCard({
                     {summary && loading && (
                         <div className="entity-ai-summary-result entity-ai-summary-result--pending">
                             <div className="entity-ai-summary-body">
-                                <EntityAiSummaryChipGrid
-                                    chips={summary.chips}
-                                />
-                                {summary.bullets.length > 0 && (
-                                    <ul className="entity-ai-summary-bullets">
-                                        {summary.bullets.map((bullet) => (
-                                            <li key={bullet}>
-                                                {td(bullet, { source: "en" })}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
+                                {renderBody()}
                             </div>
                         </div>
                     )}

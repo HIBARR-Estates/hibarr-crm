@@ -306,8 +306,24 @@ class LeadSummaryService
             'urgency' => $riskLevel === 'high' ? 'immediate' : 'this_week',
         ];
 
+        $sentences = [$statusLine];
+
+        if (! empty($sections['qualification_calls'])) {
+            $answered = array_sum(array_map(fn ($call) => count($call['answers'] ?? []), $sections['qualification_calls']));
+            $sentences[] = "The latest qualification call captured {$answered} answers.";
+        }
+
+        if (! empty($sections['notes'])) {
+            $lastNote = $sections['notes'][0]['days_ago'] ?? null;
+            $sentences[] = count($sections['notes']).' notes are logged'
+                .($lastNote !== null ? ", the latest {$lastNote} days ago." : '.');
+        }
+
+        $sentences[] = 'Open the notes and qualification answers for the detail.';
+
         return [
             'status_line' => $statusLine,
+            'summary' => implode(' ', $sentences),
             'risk_level' => $riskLevel,
             'primary_risk_source' => count($atRisk) > 0 ? 'linked_deal' : 'lead',
             'chips' => $chips,

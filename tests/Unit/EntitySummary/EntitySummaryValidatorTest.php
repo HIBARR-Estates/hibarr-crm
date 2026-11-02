@@ -12,19 +12,12 @@ class EntitySummaryValidatorTest extends TestCase
     public function test_validates_lead_summary_shape(): void
     {
         (new EntitySummaryValidator())->validateLeadSummary([
-            'status_line' => 'Lead is healthy.',
+            'status_line' => 'Investor buying in Antalya.',
+            'summary' => 'Wants a **2-bed in Antalya** for **€200–250K** cash.',
             'risk_level' => 'low',
             'primary_risk_source' => 'lead',
-            'chips' => [
-                [
-                    'id' => 'contactability',
-                    'label' => 'Contactability',
-                    'value' => 'Reachable',
-                    'tone' => 'green',
-                    'sublabel' => 'Email on file',
-                ],
-            ],
-            'bullets' => ['One bullet'],
+            'chips' => [],
+            'bullets' => [],
             'next_step' => [
                 'action_type' => 'CONTACT_LEAD',
                 'target_deal_id' => null,
@@ -39,6 +32,22 @@ class EntitySummaryValidatorTest extends TestCase
         ]);
 
         $this->assertTrue(true);
+    }
+
+    public function test_rejects_lead_summary_without_prose(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('summary');
+
+        (new EntitySummaryValidator())->validateLeadSummary([
+            'status_line' => 'Investor buying in Antalya.',
+            'risk_level' => 'low',
+            'primary_risk_source' => 'lead',
+            'chips' => [],
+            'bullets' => [],
+            'next_step' => ['action_type' => 'CONTACT_LEAD', 'label' => 'Call them'],
+            'meta' => ['generated_at' => '2026-07-01T14:04:00Z'],
+        ]);
     }
 
     public function test_validates_deal_summary_shape(): void

@@ -40,7 +40,12 @@ class EntitySummaryValidator
      */
     public function validateLeadSummary(array $payload): void
     {
-        $this->validateCommon($payload, 'Lead');
+        // Lead summaries are written prose (`summary`); chips are optional there.
+        $this->validateCommon($payload, 'Lead', requireChips: false);
+
+        if (! is_string($payload['summary'] ?? null) || trim($payload['summary']) === '') {
+            throw new \InvalidArgumentException('Lead summary missing required key: summary');
+        }
 
         if (! array_key_exists('primary_risk_source', $payload)) {
             throw new \InvalidArgumentException('Lead summary missing required key: primary_risk_source');
@@ -97,7 +102,7 @@ class EntitySummaryValidator
     /**
      * @param  array<string, mixed>  $payload
      */
-    private function validateCommon(array $payload, string $label): void
+    private function validateCommon(array $payload, string $label, bool $requireChips = true): void
     {
         $required = ['status_line', 'risk_level', 'chips', 'bullets', 'next_step', 'meta'];
 
@@ -111,7 +116,7 @@ class EntitySummaryValidator
             throw new \InvalidArgumentException("Invalid {$label} summary risk_level");
         }
 
-        if (! is_array($payload['chips']) || count($payload['chips']) < 1) {
+        if (! is_array($payload['chips']) || ($requireChips && count($payload['chips']) < 1)) {
             throw new \InvalidArgumentException("{$label} summary must include at least one chip");
         }
 

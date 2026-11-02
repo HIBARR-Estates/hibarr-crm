@@ -23,6 +23,7 @@ class LeadSummaryServiceTest extends TestCase
         $this->assertSame('lead', $summary['primary_risk_source']);
         $this->assertSame('low', $summary['meta']['data_confidence']);
         $this->assertSame('heuristic', $summary['meta']['source']);
+        $this->assertStringContainsString('Facebook', $summary['summary']);
         $this->assertStringContainsString('Facebook', $summary['status_line']);
         $this->assertSame('CONTACT_LEAD', $summary['next_step']['action_type']);
         $this->assertSame(['source'], array_column($summary['chips'], 'id'));
@@ -107,22 +108,26 @@ class LeadSummaryServiceTest extends TestCase
 
         (new EntitySummaryValidator())->validateLeadSummary($example);
 
-        // The example must obey the prompt's own hard length limits — it is what the
-        // model imitates, so a wordy example produces a wordy summary.
-        $this->assertLessThanOrEqual(25, $this->words($example['status_line']), 'status_line');
-        $this->assertLessThanOrEqual(4, count($example['chips']));
-        foreach ($example['chips'] as $chip) {
-            $this->assertLessThanOrEqual(5, $this->words($chip['value']), "chip value: {$chip['value']}");
-            $this->assertLessThanOrEqual(4, $this->words($chip['sublabel']), "chip sublabel: {$chip['sublabel']}");
-        }
-        $this->assertLessThanOrEqual(2, count($example['bullets']));
-        foreach ($example['bullets'] as $bullet) {
-            $this->assertLessThanOrEqual(15, $this->words($bullet), "bullet: {$bullet}");
-        }
-        $this->assertStringStartsWith('Not yet recorded:', end($example['bullets']));
+        // The example must obey the prompt's own rules — it is what the model
+        // imitates, so a wordy or list-shaped example produces the same.
+        $this->assertLessThanOrEqual(20, $this->words($example['status_line']), 'status_line');
+
+        $summary = $example['summary'];
+        $this->assertLessThanOrEqual(80, $this->words($summary), 'summary words');
+        $sentences = preg_match_all('/[.!?](\s|$)/u', $summary);
+        $this->assertGreaterThanOrEqual(3, $sentences, 'summary sentences');
+        $this->assertLessThanOrEqual(4, $sentences, 'summary sentences');
+        $highlights = preg_match_all('/\*\*[^*]+\*\*/u', $summary);
+        $this->assertGreaterThanOrEqual(1, $highlights);
+        $this->assertLessThanOrEqual(5, $highlights);
+        $this->assertStringNotContainsString("\n", $summary, 'summary must be one paragraph, not a list');
+
+        // Prose only: no labels, chips or bullet lists.
+        $this->assertSame([], $example['chips']);
+        $this->assertSame([], $example['bullets']);
+
         $this->assertLessThanOrEqual(6, $this->words($example['next_step']['label']));
         $this->assertLessThanOrEqual(10, $this->words($example['next_step']['rationale']));
-        $this->assertNotContains('contactability', array_column($example['chips'], 'id'));
     }
 
     private function words(string $text): int

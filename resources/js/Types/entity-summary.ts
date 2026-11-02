@@ -55,6 +55,12 @@ export interface EntitySummaryMeta {
 
 export interface LeadSummaryPayload {
     status_line: string;
+    /**
+     * The written summary (prompt v2+): a short paragraph, with `**…**` around
+     * the few facts to highlight. Absent on summaries stored before v2, which
+     * still carry chips and bullets instead.
+     */
+    summary?: string;
     risk_level: EntitySummaryRiskLevel;
     primary_risk_source: EntitySummaryPrimaryRiskSource;
     chips: EntitySummaryChip[];

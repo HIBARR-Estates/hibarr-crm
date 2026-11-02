@@ -318,6 +318,20 @@
     margin-bottom: 10px;
 }
 
+/* Lead summary (prompt v2): one written paragraph, key facts in bold. */
+.entity-ai-summary-prose {
+    margin: 12px 0 14px;
+    max-width: 68ch;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--dr-text, #1a1f2e);
+}
+
+.entity-ai-summary-prose strong {
+    font-weight: 600;
+    color: var(--dr-navy, #16294d);
+}
+
 .entity-ai-summary-regenerate-btn {
     display: inline-flex;
     align-items: center;
