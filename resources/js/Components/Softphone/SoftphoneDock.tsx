@@ -211,7 +211,7 @@ function CallFailedNotice({
  */
 export default function SoftphoneDock() {
     const { props } = usePage();
-    const canRecord = props.auth?.permissions?.make_softphone_calls === "all";
+    const canRecord = ["all", "added"].includes(props.auth?.permissions?.make_softphone_calls);
     const { isEnabled, state, devices, activeDeviceId, setActiveDevice, attachRemoteAudio, answer, reject, hangup, setMuted, setHold, isActiveTab, clearCallFailure } = useSoftphone();
 
     const [pinnedOpen, setPinnedOpen] = useState(false);
@@ -640,10 +640,10 @@ export default function SoftphoneDock() {
                 try {
                     const form = new FormData();
                     // Upload with a container-appropriate extension; the server transcodes to MP3 before storing.
-                    const extension = recorder.mimeType || mimeType || ""
-                        .includes("mp4")
+                    const fallback = recorder.mimeType || mimeType || "";
+                    const extension = fallback.includes("mp4")
                         ? "m4a"
-                        : (recorder.mimeType || mimeType || "").includes("ogg")
+                        : fallback.includes("ogg")
                             ? "ogg"
                             : "webm";
                     form.append("recording", blob, `call-${Date.now()}.${extension}`);
@@ -995,6 +995,7 @@ export default function SoftphoneDock() {
                                         event: "call.ended",
                                         direction,
                                         status: "completed",
+                                        duration,
                                         ...(callRef ? { call_ref: callRef } : {}),
                                     }).catch(() => undefined);
                                 }

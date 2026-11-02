@@ -209,16 +209,20 @@ export default function SoftphoneDeviceManager() {
     // Keep the connection fields in step with the selected platform and the
     // channel username. The platform owns the endpoint; the URI format carries
     // a `{username}` placeholder. Both stay editable for other providers.
+    // Apply the WSS default only when the platform changes.
     useEffect(() => {
         if (!platformDefaults) return;
-
         setWssUrl(platformDefaults.wss);
+    }, [platformDefaults]);
 
+    // Rebuild the URI only when the username changes.
+    useEffect(() => {
+        if (!platformDefaults) return;
         const trimmed = username.trim();
         if (trimmed) {
             setUri(platformDefaults.sipUriFormat.replace("{username}", trimmed));
         }
-    }, [platformDefaults, username]);
+    }, [username]);
 
     const resetForm = () => {
         setEditing(null);

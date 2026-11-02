@@ -7,8 +7,17 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
+use Tests\Concerns\SetsFeatureFlags;
+
 class CallBridgeIntegrationsControllerTest extends TestCase
 {
+    use SetsFeatureFlags;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->setFeatureFlag('callbridge.integrations', true);
+    }
     public function test_providers_returns_the_registry_platforms(): void
     {
         $response = (new CallBridgeIntegrationsController())->providers(new Request());
@@ -39,8 +48,11 @@ class CallBridgeIntegrationsControllerTest extends TestCase
 
     public function test_platform_rejects_an_unknown_platform(): void
     {
-        $this->expectException(HttpException::class);
-
-        (new CallBridgeIntegrationsController())->platform(new Request(), 'twilio');
+        try {
+            (new CallBridgeIntegrationsController())->platform(new Request(), 'twilio');
+            $this->fail('Expected HttpException');
+        } catch (HttpException $e) {
+            $this->assertSame(400, $e->getStatusCode());
+        }
     }
 }

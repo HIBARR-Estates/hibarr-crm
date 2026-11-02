@@ -86,8 +86,8 @@ class TelephonySoftphoneEventController extends AccountBaseController
             return response()->json([
                 'status' => 'success',
                 'data' => [
-                    'id' => $lead->id,
-                    'lead_id' => $lead->id,
+                    'id' => null,
+                    'lead_id' => null,
                     'name' => null,
                     'url' => null,
                     'matched' => false,

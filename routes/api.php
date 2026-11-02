@@ -23,7 +23,7 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
     // directly on the router, so it does not inherit the `api` middleware
     // group from RouteServiceProvider. Without it there is no session
     // middleware and `$request->user()` is always null for browser calls.
-    ApiRoute::middleware(['api', 'api.token.or.session'])->group(function () {
+    ApiRoute::middleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class, 'api.token.or.session'])->group(function () {
         ApiRoute::get('purchased-module', ['as' => 'api.purchasedModule', 'uses' => 'HomeController@installedModule']);
 
         // CallBridge SIP Provider Integrations API

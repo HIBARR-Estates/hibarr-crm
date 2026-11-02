@@ -239,28 +239,31 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
             return;
         }
 
-        if (empty($validated['wss_url'])) {
+        if (array_key_exists('wss_url', $validated) && empty($validated['wss_url'])) {
             $validated['wss_url'] = SipProviderRegistry::wssUrl($provider);
         }
 
-        if (! empty($validated['uri'])) {
+        // Skip URI generation when uri was omitted on update.
+        if (! array_key_exists('uri', $validated)) {
             return;
         }
 
-        $username = array_key_exists('authorization_username', $validated)
-            ? $validated['authorization_username']
-            : $device?->authorization_username;
+        if (empty($validated['uri'])) {
+            $username = array_key_exists('authorization_username', $validated)
+                ? $validated['authorization_username']
+                : $device?->authorization_username;
 
-        $uri = SipProviderRegistry::sipUri($provider, $username);
+            $uri = SipProviderRegistry::sipUri($provider, $username);
 
-        if ($uri === null) {
-            // The SIP URI format cannot be resolved without a username.
-            throw ValidationException::withMessages([
-                'authorization_username' => "A username is required to build the SIP URI for {$provider}.",
-            ]);
+            if ($uri === null) {
+                // The SIP URI format cannot be resolved without a username.
+                throw ValidationException::withMessages([
+                    'authorization_username' => "A username is required to build the SIP URI for {$provider}.",
+                ]);
+            }
+
+            $validated['uri'] = $uri;
         }
-
-        $validated['uri'] = $uri;
     }
 
     private function fill(SoftphoneDevice $device, array $validated): void
