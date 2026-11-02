@@ -1343,7 +1343,7 @@ class DashboardMetricsService
      * currency. The same figure feeds revenue won, its monthly line and the
      * average deal, so the three can't drift apart.
      *
-     *  - Package deal (an attached package configures a commission): the whole
+     *  - Package deal (an attached, non-deleted package configures a commission): the whole
      *    deal value — the client pays the company that amount.
      *  - Property deal: the deal's max commission — the company's revenue is
      *    its commission on the sale, not the property price. The engine splits
@@ -1364,7 +1364,7 @@ class DashboardMetricsService
             WHEN EXISTS (
                 SELECT 1 FROM deal_package dp
                 JOIN packages pk ON pk.id = dp.package_id
-                WHERE dp.deal_id = deals.id AND pk.commission_type IS NOT NULL
+                WHERE dp.deal_id = deals.id AND pk.commission_type IS NOT NULL AND pk.deleted_at IS NULL
             ) THEN '.self::COMPANY_VALUE."
             WHEN EXISTS (
                 SELECT 1 FROM mlm_commissions mc

@@ -159,6 +159,24 @@ class CompanyDashboardTest extends TestCase
         $this->assertSame(120000.0, $revenue['total']);
     }
 
+    public function test_a_deleted_package_does_not_make_a_property_deal_a_package_deal(): void
+    {
+        $agent = $this->agent();
+        $deal = $this->deal(value: 1000000, wonAt: now()->subDay(), agentId: $agent, package: false);
+        $this->commission($agent, 50000, 'pending', MlmCommissionType::Agent, dealId: $deal);
+
+        // The package was attached once, then deleted: the engine no longer
+        // reads the deal as package-priced, and neither may the dashboard.
+        $packageId = DB::table('packages')->insertGetId([
+            'name' => 'Old package',
+            'commission_type' => 'percentage',
+            'deleted_at' => now(),
+        ]);
+        DB::table('deal_package')->insert(['deal_id' => $deal, 'package_id' => $packageId]);
+
+        $this->assertSame(50000.0, $this->metrics()->wonRevenue(DashboardDateRange::preset(30))['total']);
+    }
+
     public function test_a_property_deal_counts_at_its_max_commission_not_its_price(): void
     {
         $agent = $this->agent();
@@ -540,6 +558,7 @@ class CompanyDashboardTest extends TestCase
             $table->increments('id');
             $table->string('name')->nullable();
             $table->string('commission_type', 12)->nullable();
+            $table->softDeletes();
         });
 
         Schema::create('deal_package', function (Blueprint $table) {
