@@ -1360,12 +1360,12 @@ class DashboardMetricsService
         $fallbackPct = (float) config('mlm.max_commission_percentage', 10);
         $reverted = MlmCommissionStatus::Reverted->value;
 
-        return "CASE
+        return 'CASE
             WHEN EXISTS (
                 SELECT 1 FROM deal_package dp
                 JOIN packages pk ON pk.id = dp.package_id
                 WHERE dp.deal_id = deals.id AND pk.commission_type IS NOT NULL
-            ) THEN ".self::COMPANY_VALUE."
+            ) THEN '.self::COMPANY_VALUE."
             WHEN EXISTS (
                 SELECT 1 FROM mlm_commissions mc
                 WHERE mc.deal_id = deals.id AND mc.status <> '{$reverted}'
