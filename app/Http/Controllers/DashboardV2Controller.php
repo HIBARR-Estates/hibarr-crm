@@ -346,9 +346,9 @@ class DashboardV2Controller extends AccountBaseController
                 fn () => $metrics->sourceQuality([], $range->days(), $range),
                 'sources'
             ),
-            // A standing balance, not a windowed event, and per currency —
-            // never summed across them.
-            'pipelineValue' => Inertia::defer(fn () => $metrics->pipelineValueByCurrency(), 'revenue'),
+            // A standing balance, not a windowed event — in the company currency
+            // like everything else on this view.
+            'pipelineValue' => Inertia::defer(fn () => $metrics->companyPipeline(), 'revenue'),
             'companyCommission' => Inertia::defer(fn () => $metrics->companyCommission($range), 'commission'),
             'revenueTrend' => Inertia::defer(fn () => $metrics->wonRevenueTrend($range), 'trend'),
             'companyForecast' => Inertia::defer(

@@ -145,6 +145,27 @@ class CompanyDashboardTest extends TestCase
         $this->assertSame(140000.0, (float) collect($trend['points'])->sum('total'));
     }
 
+    // ── Pipeline ─────────────────────────────────────────────────
+
+    public function test_the_pipeline_is_one_company_currency_figure_with_no_unknown_bucket(): void
+    {
+        $this->deal(value: 100000, wonAt: null, outcome: null, exchangeRate: 1.0);
+        // Foreign-currency deal snapshotted at 0.5 to the company currency.
+        $this->deal(value: 1000000, wonAt: null, outcome: null, exchangeRate: 0.5);
+        // No currency and no stored rate: a company-currency deal, not "unknown".
+        $this->deal(value: 20000, wonAt: null, outcome: null, exchangeRate: null);
+        // Won and lost deals are not pipeline.
+        $this->deal(value: 777777, wonAt: now(), outcome: 'won');
+        $this->deal(value: 888888, wonAt: null, outcome: 'lost');
+
+        $pipeline = $this->metrics()->companyPipeline();
+
+        $this->assertSame(620000.0, $pipeline['total']);
+        $this->assertSame(3, $pipeline['deal_count']);
+        $this->assertArrayNotHasKey('rows', $pipeline);
+        $this->assertStringNotContainsStringIgnoringCase('unknown', json_encode($pipeline));
+    }
+
     // ── Commission ───────────────────────────────────────────────
 
     public function test_commission_totals_reconcile_with_the_payable_rows(): void
