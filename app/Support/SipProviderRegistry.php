@@ -5,9 +5,11 @@ namespace App\Support;
 /**
  * Single source of truth for the SIP providers CallBridge can integrate with.
  *
- * The integrations API (`/api/v1/call-bridge/integrations/providers`) and the
- * softphone device form both read from here, so the platform a line is created
- * with is what decides its WebSocket endpoint and SIP URI.
+ * The integrations API (`/api/v1/call-bridge/integrations/providers`) serves
+ * OL's list when the call bridge is configured and falls back to this
+ * registry when it is not; the softphone device form reads that API, so the
+ * platform a line is created with is what decides its WebSocket endpoint and
+ * SIP URI.
  */
 class SipProviderRegistry
 {

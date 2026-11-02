@@ -35,7 +35,13 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
 
         return response()->json([
             'status' => 'success',
-            'data' => ['devices' => $devices],
+            'data' => [
+                'devices' => $devices,
+                // Locally supported platforms, so the settings form can still
+                // offer the (required) provider field when the
+                // callbridge.integrations endpoint is unavailable or off.
+                'providers' => SipProviderRegistry::names(),
+            ],
         ]);
     }
 
@@ -184,19 +190,23 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
             ? 'required|string|max:255'
             : 'nullable|string|max:255';
 
-        // On create the connection is described either explicitly (wss_url +
-        // uri) or by a platform, whose defaults are resolved below. On update
-        // every connection field is `sometimes` so an omitted field keeps its
-        // stored value — the settings UI only ever has the summary, and an
-        // admin may edit only the label.
+        // On create the platform is required: it decides the connection
+        // (wss_url + uri), which is resolved from the registry below when the
+        // form leaves them blank. On update every connection field is
+        // `sometimes` so an omitted field keeps its stored value — the settings
+        // UI only ever has the summary, and an admin may edit only the label.
         $connectionRule = $device === null
-            ? 'required_without:provider|nullable|string|max:255'
+            ? 'nullable|string|max:255'
             : 'sometimes|nullable|string|max:255';
 
         $validated = $request->validate([
             'label' => 'required|string|max:60',
+            // The registry validates what the connection defaults can be
+            // resolved for, so a platform OL lists but the CRM cannot yet
+            // serve defaults for is refused here rather than stored without a
+            // WSS endpoint / SIP URI.
             'provider' => [
-                'sometimes',
+                $device === null ? 'required' : 'sometimes',
                 'nullable',
                 'string',
                 Rule::in(SipProviderRegistry::names()),
@@ -207,6 +217,11 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
             'authorization_password' => $passwordRule,
             'display_name' => 'sometimes|nullable|string|max:120',
             'is_default' => 'sometimes|boolean',
+        ], [
+            // OL may already list a platform this CRM build has no defaults
+            // for; the registry is what the line's connection is resolved
+            // from, so say so plainly instead of the generic rule message.
+            'provider.in' => 'This CRM does not support the ":input" provider yet.',
         ]);
 
         $this->applyProviderDefaults($validated, $device);
@@ -220,12 +235,14 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
     }
 
     /**
-     * Fill missing connection details from the selected platform.
+     * Resolve the connection details from the selected platform.
      *
-     * `sipgate` serves German and Swedish lines from the same endpoint and
-     * derives the URI from the channel username, so a line created from a
-     * platform never needs the admin to look these up. Values the form did
-     * send (e.g. a custom URI) are kept as-is.
+     * The form only sends the platform + credentials; the registry owns the
+     * endpoint and the URI format (`sipgate` serves German and Swedish lines
+     * from the same endpoint and derives the URI from the channel username).
+     * On create the connection always comes from the platform; on update it is
+     * kept as stored unless the admin switched the platform or changed the
+     * username the URI is built from.
      */
     private function applyProviderDefaults(array &$validated, ?SoftphoneDevice $device): void
     {
@@ -239,26 +256,37 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
             return;
         }
 
-        if ($device === null && ! array_key_exists('wss_url', $validated)) {
-            $validated['wss_url'] = SipProviderRegistry::wssUrl($provider);
-        } elseif (array_key_exists('wss_url', $validated) && empty($validated['wss_url'])) {
+        $switched = $device === null
+            || (array_key_exists('provider', $validated) && $validated['provider'] !== $device->provider);
+
+        // Resolve the endpoint when the platform is new/switched or the caller
+        // explicitly cleared it. An explicit value (custom endpoint) and an
+        // untouched stored one are both kept.
+        if (($switched || array_key_exists('wss_url', $validated)) && empty($validated['wss_url'])) {
             $validated['wss_url'] = SipProviderRegistry::wssUrl($provider);
         }
 
-        // Skip URI generation when uri was omitted on update.
-        if ($device !== null && ! array_key_exists('uri', $validated)) {
+        $username = array_key_exists('authorization_username', $validated)
+            ? $validated['authorization_username']
+            : $device?->authorization_username;
+
+        // A new channel username changes the SIP URI on platforms that embed
+        // it (`sipgate`). Clearing the field keeps the stored URI instead.
+        $usernameChanged = $device !== null
+            && array_key_exists('authorization_username', $validated)
+            && $validated['authorization_username'] !== $device->authorization_username
+            && $username !== null
+            && $username !== '';
+
+        // Nothing to build: the stored URI stays when the platform and the
+        // username did not change and no URI was sent.
+        if (! $switched && ! $usernameChanged && ! array_key_exists('uri', $validated)) {
             return;
         }
 
-        if ($device === null && ! array_key_exists('uri', $validated)) {
-            $validated['uri'] = null;
-        }
+        $uri = $validated['uri'] ?? null;
 
-        if (array_key_exists('uri', $validated) && empty($validated['uri'])) {
-            $username = array_key_exists('authorization_username', $validated)
-                ? $validated['authorization_username']
-                : $device?->authorization_username;
-
+        if (empty($uri)) {
             $uri = SipProviderRegistry::sipUri($provider, $username);
 
             if ($uri === null) {
