@@ -17,6 +17,8 @@ class CallBridgeSettingsController extends AccountBaseController
     {
         abort_unless(FeatureFlags::enabled('crm.softphone'), 404);
 
+        abort_403(! user()->hasRole('admin') && ! in_array(user()->permission('make_softphone_calls'), ['all', 'added']));
+
         return Inertia::render('Settings/CallBridge', [
             'pageTitle' => 'Call Bridge',
         ]);
