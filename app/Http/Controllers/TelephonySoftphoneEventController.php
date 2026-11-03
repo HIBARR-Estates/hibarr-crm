@@ -401,6 +401,23 @@ class TelephonySoftphoneEventController extends AccountBaseController
         }
 
         $isForwarded = (bool) ($validated['is_forwarded'] ?? false);
+        $forwardedUserId = null;
+        $forwardedUserName = null;
+
+        if ($isForwarded && ! empty($validated['forwarded_from_user_id'])) {
+            $forwardedUser = User::query()
+                ->where('company_id', company()->id)
+                ->find((int) $validated['forwarded_from_user_id']);
+
+            if ($forwardedUser) {
+                $forwardedUserId = (int) $forwardedUser->id;
+                $forwardedUserName = (string) $forwardedUser->name;
+            } else {
+                $isForwarded = false;
+            }
+        } else {
+            $isForwarded = false;
+        }
 
         try {
             $this->callBridge->logCallEvent([
@@ -413,8 +430,8 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 'failure_message' => $validated['failure_message'] ?? null,
                 'routing_reason' => $validated['routing_reason'] ?? null,
                 'is_forwarded' => $isForwarded ?: null,
-                'forwarded_from_user_id' => $isForwarded ? ($validated['forwarded_from_user_id'] ?? null) : null,
-                'forwarded_from_user_name' => $isForwarded ? ($validated['forwarded_from_user_name'] ?? null) : null,
+                'forwarded_from_user_id' => $forwardedUserId,
+                'forwarded_from_user_name' => $forwardedUserName,
                 'phone_number' => $validated['phone'],
                 'entity_type' => $entityType,
                 'entity_id' => $entityId,

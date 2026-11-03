@@ -94,6 +94,10 @@ export default function useCallSounds() {
         if (!ringingRef.current) {
             ringingRef.current = create(SOUNDS.ringing);
         }
+        const el = ringingRef.current;
+        if (el && !el.paused && el.loop) {
+            return;
+        }
         safePlay(ringingRef.current, true);
     }, [safePlay]);
 

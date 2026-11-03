@@ -116,6 +116,33 @@ class SoftphoneCallPoolAgent extends Model
             ->where('company_id', $companyId)
             ->where('status', 'active')
             ->where('login', '!=', 'disable')
+            ->where(function ($query): void {
+                $query->whereExists(function ($adminQuery): void {
+                    $adminQuery->select(DB::raw(1))
+                        ->from('role_user')
+                        ->join('roles', 'roles.id', '=', 'role_user.role_id')
+                        ->whereColumn('role_user.user_id', 'users.id')
+                        ->where('roles.name', 'admin');
+                })->orWhere(function ($staffQuery): void {
+                    $staffQuery->whereNotExists(function ($clientQuery): void {
+                        $clientQuery->select(DB::raw(1))
+                            ->from('role_user')
+                            ->join('roles', 'roles.id', '=', 'role_user.role_id')
+                            ->whereColumn('role_user.user_id', 'users.id')
+                            ->where('roles.name', 'client');
+                    })->whereExists(function ($permQuery): void {
+                        $permQuery->select(DB::raw(1))
+                            ->from('user_permissions')
+                            ->join('permissions', 'permissions.id', '=', 'user_permissions.permission_id')
+                            ->whereColumn('user_permissions.user_id', 'users.id')
+                            ->where('permissions.name', 'make_softphone_calls')
+                            ->whereIn('user_permissions.permission_type_id', [
+                                PermissionType::ALL,
+                                PermissionType::ADDED,
+                            ]);
+                    });
+                });
+            })
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
     }

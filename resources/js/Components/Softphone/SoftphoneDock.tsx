@@ -8,6 +8,7 @@ import { softphone } from "@/lib/softphone/SoftphoneClient";
 import "./SoftphoneDock.css";
 import type {
     SoftphoneCallFailure,
+    SoftphoneCallPhase,
     SoftphoneCallStage,
     SoftphoneDeviceSummary,
     SoftphoneRegistrationState,
@@ -15,9 +16,6 @@ import type {
 
 /** How often to re-check the caller's number and rotation state while ringing. */
 const LEAD_MATCH_POLL_MS = 3000;
-
-/** How long a failed-call notice stays on screen when the agent ignores it. */
-const FAILURE_NOTICE_MS = 30_000;
 
 type MatchedLead = {
     id: number;
@@ -167,7 +165,7 @@ function CallStateBadge({ stage }: { stage: SoftphoneCallStage }) {
     );
 }
 
-/** Why a call never connected. Stays on screen until the agent closes it (or FAILURE_NOTICE_MS passes) */
+/** Why a call never connected. Stays on screen until the agent closes it (or the company fallback duration passes) */
 function CallFailedNotice({
     failure,
     devices,
@@ -561,48 +559,49 @@ export default function SoftphoneDock() {
         };
     }, [unlock]);
 
+    const isOutboundRinging =
+        activeCall !== null &&
+        (activeCall.phase === "outbound" ||
+            activeCall.stage === "calling" ||
+            activeCall.stage === "ringing");
+    const isRinging =
+        activeCall?.phase === "inbound"
+            ? ringingInbound
+            : isOutboundRinging;
+
     // Drive the sounds from the call state. Only the owning tab should ring, and for inbound calls only when this user's session is currently ringing.
     useEffect(() => {
-        if (!isActiveTab) {
+        if (!isActiveTab || !isRinging) {
             stopRinging();
-            stopAll();
-            return;
-        }
-        const phase = activeCall?.phase;
-
-        if (phase === "inbound") {
-            if (ringingInbound) {
-                playIncoming();
-                startRinging();
-                return () => stopRinging();
+            if (!isActiveTab) {
+                stopAll();
             }
-            stopRinging();
             return;
         }
 
-        if (phase === "outbound") {
-            startRinging();
-            return () => stopRinging();
+        if (activeCall?.phase === "inbound") {
+            playIncoming();
         }
-
-        // No live call — silence everything.
-        stopRinging();
+        startRinging();
 
         return () => stopRinging();
-    }, [activeCall?.id, activeCall?.phase, ringingInbound, playIncoming, startRinging, stopRinging, isActiveTab, stopAll]);
+    }, [activeCall?.id, activeCall?.phase === "inbound", isRinging, isActiveTab, playIncoming, startRinging, stopRinging, stopAll]);
 
     // One-shot "call finished" cue when a live call drops.
     const wasInCallRef = useRef(false);
     useEffect(() => {
-        const inCall = activeCall !== null && activeCall.phase !== "inbound";
-        const ringing = ringingInbound;
+        const isConnected =
+            activeCall !== null &&
+            (activeCall.phase === "active" ||
+                activeCall.stage === "connecting" ||
+                activeCall.stage === "connected");
 
-        if (ringing) {
+        if (isRinging) {
             wasInCallRef.current = true;
             return;
         }
 
-        if (inCall) {
+        if (isConnected) {
             wasInCallRef.current = true;
             stopRinging();
             return;
@@ -613,13 +612,16 @@ export default function SoftphoneDock() {
             stopAll();
             playEnded();
         }
-    }, [activeCall, ringingInbound, stopRinging, stopAll, playEnded]);
+    }, [activeCall, isRinging, stopRinging, stopAll, playEnded]);
 
     // Lead matching by phone number. When a single lead matches the peer's number we display its name and link; when zero or multiple leads match we report the number of matches instead of rendering a blank title.
     const matchedLeadRef = useRef<MatchedLead | null>(null);
     useEffect(() => {
         matchedLeadRef.current = matchedLead;
     }, [matchedLead]);
+
+    const callPhaseRef = useRef<SoftphoneCallPhase | null>(null);
+    callPhaseRef.current = activeCall?.phase ?? null;
 
     useEffect(() => {
         const call = activeCall;
@@ -697,7 +699,9 @@ export default function SoftphoneDock() {
 
         void lookup();
         const poll = window.setInterval(() => {
-            if (call.direction === "inbound" || !matchedLeadRef.current) {
+            const isInboundRinging = call.direction === "inbound" && callPhaseRef.current === "inbound";
+            const isUnresolvedOutbound = call.direction !== "inbound" && !matchedLeadRef.current;
+            if (isInboundRinging || isUnresolvedOutbound) {
                 void lookup();
             }
         }, LEAD_MATCH_POLL_MS);
@@ -996,17 +1000,25 @@ export default function SoftphoneDock() {
 
     const hasCall = activeCall !== null;
 
-    // Auto-open while a call rings or is live; collapse once it ends. A FAILED call keeps the dock open with the reason — closing silently left agents thinking the app had hung. It self-dismisses after FAILURE_NOTICE_MS so it cannot sit on screen forever.
+    // Auto-open while a call rings or is live; collapse once it ends. A FAILED call keeps the dock open with the reason — closing silently left agents thinking the app had hung. It self-dismisses after company fallback seconds so it cannot sit on screen forever.
     const callFailure = state.callFailure;
     const open = pinnedOpen || hasCall || callFailure !== null;
+    const failureNoticeMs =
+        Math.max(
+            1,
+            Number(
+                (props.company as { incoming_call_fallback_seconds?: number } | null | undefined)
+                    ?.incoming_call_fallback_seconds ?? 30,
+            ),
+        ) * 1000;
 
     useEffect(() => {
         if (!callFailure) {
             return;
         }
-        const timer = window.setTimeout(() => clearCallFailure(), FAILURE_NOTICE_MS);
+        const timer = window.setTimeout(() => clearCallFailure(), failureNoticeMs);
         return () => window.clearTimeout(timer);
-    }, [callFailure, clearCallFailure]);
+    }, [callFailure, clearCallFailure, failureNoticeMs]);
 
     // Every outbound attempt that never connected (busy, declined, no answer,
     // not registered, ...) goes on the lead's timeline. The failure object is
@@ -1084,20 +1096,26 @@ export default function SoftphoneDock() {
 
     // When a single lead is matched, show its name and link. When number matching cannot find a single lead (0 or 2+ matches), tell the user how many matches were found instead of leaving the name blank.
     const contextLeadName = activeCall?.context?.leadName?.trim() || "";
+    const isOutbound = activeCall?.direction !== "inbound";
+    const hasContextLead = Boolean(contextLeadName && activeCall?.context?.leadId);
     const matchSummaryLabel =
-        matchCount !== null && matchCount !== 1
+        !hasContextLead && matchCount !== null && matchCount !== 1
             ? `There ${matchCount === 1 ? "is 1 match" : `are ${matchCount} matches`}`
             : null;
     const titleName = matchedLead?.name
         ? matchedLead.name
-        : matchCount !== null && matchCount !== 1
-          ? `${matchCount} ${matchCount === 1 ? "match" : "matches"}`
-          : contextLeadName || (activeCall?.peer ?? "");
+        : isOutbound && hasContextLead
+          ? contextLeadName
+          : !hasContextLead && matchCount !== null && matchCount !== 1
+            ? `${matchCount} ${matchCount === 1 ? "match" : "matches"}`
+            : contextLeadName || (activeCall?.peer ?? "");
     const displayLeadUrl = matchedLead?.url
         ? matchedLead.url
-        : matchCount === null && contextLeadName && activeCall?.context?.leadId
+        : isOutbound && hasContextLead && activeCall?.context?.leadId
           ? route("lead-contact.show", activeCall.context.leadId)
-          : null;
+          : matchCount === null && contextLeadName && activeCall?.context?.leadId
+            ? route("lead-contact.show", activeCall.context.leadId)
+            : null;
 
     const headerTitle = activeDevice
         ? `Softphone · ${activeDevice.label}`

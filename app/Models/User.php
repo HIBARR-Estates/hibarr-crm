@@ -1187,22 +1187,28 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
                 // from the user's assigned roles, preferring non-employee roles first.
                 if (! array_key_exists('make_softphone_calls', $map)) {
                     try {
-                        $roleRows = PermissionRole::join('permissions', 'permission_role.permission_id', '=', 'permissions.id')
+                        $rolePermission = PermissionRole::join('permissions', 'permission_role.permission_id', '=', 'permissions.id')
                             ->join('permission_types', 'permission_role.permission_type_id', '=', 'permission_types.id')
                             ->join('role_user', 'role_user.role_id', '=', 'permission_role.role_id')
                             ->join('roles', 'roles.id', '=', 'role_user.role_id')
-                            ->select('permissions.name as permission_name', 'permission_types.name as permission_type')
                             ->where('role_user.user_id', $userId)
+                            ->where('permissions.name', 'make_softphone_calls')
                             ->orderByRaw("CASE WHEN roles.name = 'employee' THEN 1 ELSE 0 END")
-                            ->get();
+                            ->orderBy('roles.id', 'asc')
+                            ->value('permission_types.name');
 
-                        foreach ($roleRows as $roleRow) {
-                            if (! array_key_exists($roleRow->permission_name, $map)) {
-                                $map[$roleRow->permission_name] = $roleRow->permission_type;
-                            }
+                        if ($rolePermission !== null) {
+                            $map['make_softphone_calls'] = $rolePermission;
                         }
-                    } catch (\Throwable) {
-                        // Ignore in minimal test schemas where role tables are absent.
+                    } catch (\Illuminate\Database\QueryException $e) {
+                        $message = $e->getMessage();
+                        $isMissingTable = $e->getCode() === '42S02'
+                            || str_contains($message, 'no such table')
+                            || str_contains($message, "doesn't exist");
+
+                        if (! $isMissingTable) {
+                            throw $e;
+                        }
                     }
                 }
 

@@ -174,15 +174,6 @@ class SoftphoneClient {
             this.startCancels.forEach((cancel) => cancel());
             this.startCancels.clear();
 
-            // Device switch: tear down any current registration/call first.
-            if (this.userAgent) {
-                this.session = null;
-                await this.teardown();
-                this.setState(EMPTY_STATE);
-            }
-            this.config = config;
-            this.setState({ ...EMPTY_STATE, registration: "registering" });
-
             // Cancellation flag: if stop() or another start() is called while
             // start() is in flight, this prevents the locally created
             // UserAgent/Registerer from taking over after cancellation.
@@ -193,6 +184,22 @@ class SoftphoneClient {
             this.startCancels.add(cancel);
 
             try {
+                // Device switch: tear down any current registration/call first.
+                if (this.userAgent) {
+                    this.session = null;
+                    await this.teardown();
+                    if (cancelled) {
+                        return;
+                    }
+                    this.setState(EMPTY_STATE);
+                }
+
+                if (cancelled) {
+                    return;
+                }
+
+                this.config = config;
+                this.setState({ ...EMPTY_STATE, registration: "registering" });
                 const uri = UserAgent.makeURI(config.uri);
                 if (!uri) {
                     throw new Error(`Invalid SIP URI: ${config.uri}`);

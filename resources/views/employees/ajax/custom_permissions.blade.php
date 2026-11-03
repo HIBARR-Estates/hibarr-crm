@@ -8,7 +8,7 @@
                         <h6 class="heading-h6">@lang('permissions.'.$permission->name)</h6>
                     </td>
                     @php
-                        if ($employee->customised_permissions === 1) {
+                        if ((int) $employee->customised_permissions === 1) {
                             $permissionType = $employee->permissionTypeId($permission->name);
                         } else {
                             $permissionType = $employee->permissionTypeId($permission->name) ?: $role->permissionType($permission->id);

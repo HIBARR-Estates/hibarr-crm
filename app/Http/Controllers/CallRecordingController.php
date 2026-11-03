@@ -401,6 +401,27 @@ class CallRecordingController extends AccountBaseController
                 })
                 ->get();
 
+            $isForwarded = request()->boolean('is_forwarded');
+            $forwardedUserId = null;
+            $forwardedUserName = null;
+
+            if ($isForwarded && request()->filled('forwarded_from_user_id')) {
+                $candidateId = (int) request()->input('forwarded_from_user_id');
+                $targetCompanyId = $companyId ?? company()?->id;
+                $forwardedUser = User::query()
+                    ->when($targetCompanyId, fn ($q) => $q->where('company_id', $targetCompanyId))
+                    ->find($candidateId);
+
+                if ($forwardedUser) {
+                    $forwardedUserId = (int) $forwardedUser->id;
+                    $forwardedUserName = (string) $forwardedUser->name;
+                } else {
+                    $isForwarded = false;
+                }
+            } else {
+                $isForwarded = false;
+            }
+
             foreach ($events as $event) {
                 $metadata = is_array($event->metadata) ? $event->metadata : [];
                 if (isset($metadata['recording_id'])) {
@@ -408,14 +429,10 @@ class CallRecordingController extends AccountBaseController
                 }
                 $metadata['recording_id'] = $recordingId;
                 $metadata['has_recording'] = true;
-                if (request()->boolean('is_forwarded')) {
+                if ($isForwarded && $forwardedUserId !== null) {
                     $metadata['is_forwarded'] = true;
-                    if (request()->filled('forwarded_from_user_id')) {
-                        $metadata['forwarded_from_user_id'] = (int) request()->input('forwarded_from_user_id');
-                    }
-                    if (request()->filled('forwarded_from_user_name')) {
-                        $metadata['forwarded_from_user_name'] = (string) request()->input('forwarded_from_user_name');
-                    }
+                    $metadata['forwarded_from_user_id'] = $forwardedUserId;
+                    $metadata['forwarded_from_user_name'] = $forwardedUserName;
                 }
                 $metadata['has_recording'] = true;
                 $event->forceFill(['metadata' => $metadata])->save();
