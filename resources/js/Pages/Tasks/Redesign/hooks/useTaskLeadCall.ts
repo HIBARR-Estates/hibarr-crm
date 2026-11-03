@@ -4,7 +4,10 @@ import axios from "axios";
 import { usePage } from "@inertiajs/react";
 import { softphone } from "@/lib/softphone/SoftphoneClient";
 import useClickToCall from "@/Hooks/useClickToCall";
+import useTranslation from "@/Hooks/useTranslation";
+import useSoftphone, { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
+import type { SoftphoneDeviceSummary } from "@/Types/api/softphone";
 import type { Task } from "@/Types/Task";
 
 /** The lead shape the quick-action needs, from either link path. */
@@ -28,8 +31,14 @@ export interface TaskLeadCall {
     softphoneEnabled: boolean;
     /** The user holds make_softphone_calls, so the softphone path is usable. */
     canCall: boolean;
-    /** Place the call. Falls back to the device dialler without the softphone. */
-    startCall: () => Promise<void>;
+    /** Available softphone lines when multiple lines are configured. */
+    devices: SoftphoneDeviceSummary[];
+    /** False when the user has no assigned line, so the action falls back to tel:. */
+    hasLine: boolean;
+    /** Currently active softphone line id. */
+    activeDeviceId: number | null;
+    /** Place the call (optionally selecting a specific line). Falls back to the device dialler without the softphone. */
+    startCall: (deviceId?: number) => Promise<void>;
 }
 
 /**
@@ -41,8 +50,15 @@ export interface TaskLeadCall {
  */
 export default function useTaskLeadCall(task: Task): TaskLeadCall {
     const { props } = usePage();
+    const { t } = useTranslation();
     const softphoneEnabled = props.featureFlags?.["crm.softphone"] === true;
     const clickToCall = useClickToCall();
+    const {
+        devices,
+        hasLine,
+        activeDeviceId,
+        call: softphoneCall,
+    } = useSoftphone();
     const [calling, setCalling] = useState(false);
 
     // A task can be attached to the lead itself or to a deal. A directly linked
@@ -62,73 +78,106 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
 
     // Mirrors ClickToCallButton: the softphone needs make_softphone_calls;
     // without it the button falls back to the device dialler.
-    const canCall = props.auth?.permissions?.make_softphone_calls === "all";
+    const canCall = canMakeSoftphoneCalls(
+        props.auth?.user,
+        props.auth?.permissions,
+    );
 
-    const startCall = useCallback(async () => {
-        if (!lead) return;
+    const startCall = useCallback(
+        async (deviceId?: number) => {
+            if (!lead) return;
 
-        // Require both the softphone feature and the canCall permission
-        // for the softphone path. Without canCall, fall back to the device dialler.
-        if (!softphoneEnabled || !canCall) {
-            // No SIP registration in this browser — fall back to the dialler.
-            if (phone) {
-                await clickToCall.initiateCall(phone, {
-                    type: "lead",
-                    id: lead.id,
-                });
+            // No assigned line (Call routing): use the device dialler via tel:.
+            if (softphoneEnabled && canCall && !hasLine) {
+                if (phone) {
+                    window.location.href = `tel:${phone.replace(/[^\d+]/g, "")}`;
+                }
+                return;
             }
-            return;
-        }
 
-        if (!phone || calling) return;
+            // Require both the softphone feature and the canCall permission
+            // for the softphone path. Without canCall, fall back to the device dialler.
+            if (!softphoneEnabled || !canCall) {
+                if (!phone) return;
+                if (clickToCall.isEnabled) {
+                    await clickToCall.initiateCall(phone, {
+                        type: "lead",
+                        id: lead.id,
+                    });
+                } else {
+                    window.location.href = `tel:${phone.replace(/[^\d+]/g, "")}`;
+                }
+                return;
+            }
 
-        // Same preconditions as ClickToCallButton: getUserMedia needs a secure
-        // context, and calling before the line has registered fails silently.
-        if (
-            typeof navigator === "undefined" ||
-            !navigator.mediaDevices ||
-            !window.isSecureContext
-        ) {
-            message.error("Calling needs a secure connection.");
-            return;
-        }
-        if (softphone.getState().registration !== "registered") {
-            message.warning(
-                "Softphone is not registered — pick a line in the dock.",
-            );
-            return;
-        }
+            if (!phone || calling) return;
 
-        setCalling(true);
-        try {
-            // Strip formatting spaces for the dialing target — softphone.call
-            // expects a raw E.164 number, not a human-formatted one.
-            const dialingPhone = phone.replace(/\s/g, "");
-            await softphone.call(dialingPhone, {
-                leadId: lead.id,
-                leadName: lead.client_name ?? null,
-            });
-            message.info(`Calling ${phone}…`);
-            void axios
-                .post(route("telephony.softphone.events.store"), {
-                    phone,
-                    entity_type: "lead",
-                    entity_id: lead.id,
-                    event: "call.started",
-                })
-                .catch(() => {
-                    // Timeline logging is best-effort only.
-                });
-        } catch (error: unknown) {
-            message.error(
-                error instanceof Error
-                    ? error.message
-                    : "Unable to initiate the call.",
-            );
-        } finally {
-            setCalling(false);
-        }
-    }, [calling, clickToCall, lead, phone, softphoneEnabled, canCall]);
+            // Same preconditions as ClickToCallButton: getUserMedia needs a secure
+            // context, and calling before the line has registered fails silently.
+            if (
+                typeof navigator === "undefined" ||
+                !navigator.mediaDevices ||
+                !window.isSecureContext
+            ) {
+                message.error(t("pages.telephony.insecure_context"));
+                return;
+            }
+            if (
+                devices.length === 0 &&
+                typeof deviceId !== "number" &&
+                softphone.getState().registration !== "registered"
+            ) {
+                message.warning(t("pages.telephony.softphone_not_registered"));
+                return;
+            }
+
+            setCalling(true);
+            try {
+                // Strip formatting spaces for the dialing target — softphone.call
+                // expects a raw E.164 number, not a human-formatted one.
+                const dialingPhone = phone.replace(/\s/g, "");
+                await softphoneCall(
+                    dialingPhone,
+                    {
+                        leadId: lead.id,
+                        leadName: lead.client_name ?? null,
+                    },
+                    deviceId,
+                );
+                message.info(t("pages.telephony.calling_number", { phone }));
+                void axios
+                    .post(route("telephony.softphone.events.store"), {
+                        phone,
+                        entity_type: "lead",
+                        entity_id: lead.id,
+                        event: "call.started",
+                    })
+                    .catch(() => {
+                        // Timeline logging is best-effort only.
+                    });
+            } catch (error: unknown) {
+                message.error(
+                    error instanceof Error
+                        ? error.message
+                        : t("pages.telephony.generic_error"),
+                );
+            } finally {
+                setCalling(false);
+            }
+        },
+        [
+            calling,
+            clickToCall,
+            devices.length,
+            hasLine,
+            lead,
+            phone,
+            softphoneCall,
+            softphoneEnabled,
+            canCall,
+            t,
+        ],
+    );
 
     return {
         lead,
@@ -139,6 +188,9 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
         calling,
         softphoneEnabled,
         canCall,
+        devices,
+        hasLine,
+        activeDeviceId,
         startCall,
     };
 }

@@ -10,6 +10,11 @@
 return [
 
     'telephony' => [
+        'call' => 'Anrufen',
+        'select_line' => 'Leitung für den Anruf wählen',
+        'active_line_badge' => 'Aktiv',
+        'calling_number' => 'Rufe {{phone}} an…',
+        'softphone_not_registered' => 'Softphone ist nicht registriert — wählen Sie eine Leitung im Dock.',
         'insecure_context' => 'Mikrofonzugriff erfordert eine sichere Verbindung (HTTPS). Öffnen Sie das CRM über HTTPS und versuchen Sie es erneut.',
     ],
 
@@ -730,6 +735,9 @@ return [
         ],
         'quick_actions' => [
             'title' => 'Schnellaktionen',
+            'call' => 'Anrufen',
+            'call_title' => 'Einen Anruf tätigen',
+            'no_phone' => 'Keine Telefonnummer für diesen Lead verfügbar.',
             'log' => 'Aktion protokollieren',
             'log_title' => 'Eine Aktion protokollieren',
             'note' => 'Notiz hinzufügen',

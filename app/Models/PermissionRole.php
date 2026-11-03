@@ -104,7 +104,6 @@ class PermissionRole extends BaseModel
             'view_leave' => PermissionType::BOTH,
             'view_leaves_taken' => PermissionType::ALL,
             'make_softphone_calls' => PermissionType::ADDED,
-            'make_softphone_calls' => PermissionType::ADDED,
 
             'add_lead' => PermissionType::ADDED,
             'view_lead' => PermissionType::ALL,

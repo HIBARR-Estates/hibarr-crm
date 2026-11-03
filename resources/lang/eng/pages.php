@@ -19,6 +19,10 @@ return [
 
     'telephony' => [
         'call' => 'Call',
+        'select_line' => 'Select line to call',
+        'active_line_badge' => 'Active',
+        'calling_number' => 'Calling {{phone}}…',
+        'softphone_not_registered' => 'Softphone is not registered — pick a line in the dock.',
         'success' => 'Your line is ringing. Answer to connect the call.',
         'no_extension' => 'No 3CX extension is bound to your account. Contact your administrator.',
         'permission_denied' => 'You do not have permission to place calls.',
@@ -748,6 +752,9 @@ return [
         ],
         'quick_actions' => [
             'title' => 'Quick actions',
+            'call' => 'Call',
+            'call_title' => 'Place a call',
+            'no_phone' => 'No phone number available for this lead.',
             'log' => 'Log Action',
             'log_title' => 'Log an action',
             'note' => 'Add Note',

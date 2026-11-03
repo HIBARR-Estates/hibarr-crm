@@ -1452,6 +1452,7 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('telephony/calls/log', [\App\Http\Controllers\TelephonyCallLogController::class, 'index'])->name('telephony.calls.log');
     Route::post('telephony/softphone/events', [\App\Http\Controllers\TelephonySoftphoneEventController::class, 'store'])->name('telephony.softphone.events.store');
     Route::get('telephony/softphone/lead-match', [\App\Http\Controllers\TelephonySoftphoneEventController::class, 'leadByPhone'])->name('telephony.softphone.lead-match');
+    Route::post('telephony/softphone/pass', [\App\Http\Controllers\TelephonySoftphoneEventController::class, 'passCall'])->name('telephony.softphone.pass');
     Route::get('telephony/softphone/devices', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'index'])->name('telephony.softphone.devices.index');
     Route::post('telephony/softphone/devices', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'store'])->name('telephony.softphone.devices.store');
     Route::get('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'show'])->name('telephony.softphone.devices.show')->whereNumber('id');

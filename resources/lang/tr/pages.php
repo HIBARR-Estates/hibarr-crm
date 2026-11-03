@@ -10,6 +10,11 @@
 return [
 
     'telephony' => [
+        'call' => 'Ara',
+        'select_line' => 'Arama için hat seçin',
+        'active_line_badge' => 'Aktif',
+        'calling_number' => '{{phone}} aranıyor…',
+        'softphone_not_registered' => 'Softphone kayıtlı değil — dock üzerinden bir hat seçin.',
         'insecure_context' => 'Mikrofon erişimi güvenli bir bağlantı (HTTPS) gerektirir. CRM\'i HTTPS üzerinden açın ve tekrar deneyin.',
     ],
 
@@ -711,6 +716,9 @@ return [
         ],
         'quick_actions' => [
             'title' => 'Hızlı eylemler',
+            'call' => 'Ara',
+            'call_title' => 'Arama yap',
+            'no_phone' => 'Bu aday için telefon numarası mevcut değil.',
             'log' => 'Eylem kaydet',
             'log_title' => 'Bir eylem kaydedin',
             'note' => 'Not ekle',

@@ -103,21 +103,38 @@ class RolePermissionController extends AccountBaseController
 
         }
 
+        $permissionModel = Permission::find($permissionId);
+        $isSoftphonePermission = $permissionModel && $permissionModel->name === 'make_softphone_calls';
+
         // Prepare user permissions for bulk insert
         $userPermissions = [];
+        $affectedUsers = [];
         foreach ($role->users as $roleuser) {
-            if (($role->name == 'employee' && count($roleuser->role) == 1) || $role->name != 'employee') {
-                if ($roleuser->customised_permissions == 0) {
+            $isTargetRoleForUser = ($role->name == 'employee' && count($roleuser->role) == 1)
+                || $role->name != 'employee';
+
+
+            if ($isTargetRoleForUser) {
+                $hasExistingRow = $roleuser->customised_permissions == 1
+                    ? UserPermission::where('user_id', $roleuser->id)->where('permission_id', $permissionId)->exists()
+                    : true;
+
+                if ($roleuser->customised_permissions == 0 || ! $hasExistingRow) {
                     $userPermissions[] = [
                         'permission_id' => $permissionId,
                         'user_id' => $roleuser->id,
                         'permission_type_id' => $permissionType
                     ];
+                    $affectedUsers[] = $roleuser;
                 }
-
             }
 
             cache()->forget('sidebar_user_perms_' . $roleuser->id);
+            if ($permissionModel) {
+                cache()->forget('permission-id-' . $permissionModel->name . '-' . $roleuser->id);
+                cache()->forget('permission-' . $permissionModel->name . '-' . $roleuser->id);
+            }
+            app()->forgetInstance('user.permission-map.' . $roleuser->id);
         }
 
         // Perform bulk insert or update for user permissions
@@ -129,6 +146,38 @@ class RolePermissionController extends AccountBaseController
             );
         }
 
+        if ($isSoftphonePermission && !empty($affectedUsers)) {
+            $granted = in_array((int) $permissionType, [PermissionType::ALL, PermissionType::ADDED], true);
+            foreach ($affectedUsers as $affectedUser) {
+                if ($granted && ! empty($affectedUser->company_id) && ! $affectedUser->hasRole('admin')) {
+                    $defaultDeviceId = \App\Models\SoftphoneDevice::query()
+                        ->where('company_id', $affectedUser->company_id)
+                        ->orderByDesc('is_default')
+                        ->value('id');
+
+                    if ($defaultDeviceId === null) {
+                        continue;
+                    }
+
+                    \App\Models\SoftphoneCallPoolAgent::firstOrCreate(
+                        [
+                            'device_id' => $defaultDeviceId,
+                            'user_id' => $affectedUser->id,
+                        ],
+                        [
+                            'company_id' => $affectedUser->company_id,
+                            'priority' => 100,
+                            'active' => true,
+                            'added_by' => user()?->id ?? $affectedUser->id,
+                        ]
+                    );
+                } elseif (! $granted) {
+                    \App\Models\SoftphoneCallPoolAgent::where('user_id', $affectedUser->id)->delete();
+                }
+            }
+        }
+
+        cache()->forget('all_permissions_list');
         \Illuminate\Support\Facades\Artisan::call('cache:clear');
 
         return Reply::success(__('messages.updateSuccess'));
@@ -388,7 +437,7 @@ class RolePermissionController extends AccountBaseController
 
             $userRole = $user->roles->pluck('name')->toArray();
 
-            if (!in_array('admin', $userRole)) {
+            if (!in_array('admin', $userRole) && (($role->name == 'employee' && count($userRole) == 1) || $role->name != 'employee')) {
                 $user->assignUserRolePermission($roleId);
             }
         }

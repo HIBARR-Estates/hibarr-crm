@@ -6,6 +6,7 @@ import {
     PlayCircleOutlined,
 } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import QualifyLaunchModal from "@/Pages/Leads/Redesign/components/qualification/QualifyLaunchModal";
 import type { Lead } from "@/Types/api/leads";
 import type { Task } from "@/Types/Task";
@@ -44,8 +45,18 @@ export default function TaskCategoryAction({
     variant = "icon",
 }: TaskCategoryActionProps) {
     const { td } = useTd();
-    const { lead, phone, email, calling, softphoneEnabled, startCall } =
-        useTaskLeadCall(task);
+    const { t } = useTranslation();
+    const {
+        lead,
+        phone,
+        email,
+        calling,
+        softphoneEnabled,
+        canCall,
+        devices,
+        activeDeviceId,
+        startCall,
+    } = useTaskLeadCall(task);
     const [qualifyLead, setQualifyLead] = useState<Lead | null>(null);
 
     const action = task.category?.action ?? "";
@@ -83,28 +94,77 @@ export default function TaskCategoryAction({
 
     if (action !== "call") return null;
 
+    const hasLineChoice =
+        Boolean(phone) &&
+        softphoneEnabled &&
+        canCall &&
+        devices.length > 1;
+
+    const buildLineChildren = (
+        keyPrefix: string,
+        onSelectLine: (deviceId: number) => void,
+    ): MenuProps["items"] =>
+        devices.map((d) => ({
+            key: `${keyPrefix}-line-${d.id}`,
+            disabled: calling,
+            label: (
+                <span className="flex items-center justify-between gap-3">
+                    <span>{d.label}</span>
+                    {activeDeviceId === d.id && (
+                        <span className="text-[11px] text-emerald-600">
+                            {t("pages.telephony.active_line_badge")}
+                        </span>
+                    )}
+                </span>
+            ),
+            onClick: () => onSelectLine(d.id),
+        }));
+
     const items: MenuProps["items"] = [];
 
     if (phone) {
-        items.push({
-            key: "call",
-            icon: <PhoneOutlined />,
-            label: td(ACTION_LABEL.call, { source: "en" }),
-            onClick: () => void startCall(),
-        });
+        if (hasLineChoice) {
+            items.push({
+                key: "call",
+                icon: <PhoneOutlined />,
+                label: td(ACTION_LABEL.call, { source: "en" }),
+                children: buildLineChildren("call", (deviceId) => {
+                    void startCall(deviceId);
+                }),
+            });
+        } else {
+            items.push({
+                key: "call",
+                icon: <PhoneOutlined />,
+                label: td(ACTION_LABEL.call, { source: "en" }),
+                onClick: () => void startCall(),
+            });
+        }
     }
 
-    items.push({
-        key: "qualify",
-        icon: <PlayCircleOutlined />,
-        label: td("Begin qualification", { source: "en" }),
-        onClick: () => {
-            // Open the script where the agent already is, and ring the lead —
-            // navigating to the lead would drop both the task list and the call.
-            setQualifyLead(leadForQualification);
-            void startCall();
-        },
-    });
+    if (hasLineChoice) {
+        items.push({
+            key: "qualify",
+            icon: <PlayCircleOutlined />,
+            label: td("Begin qualification", { source: "en" }),
+            children: buildLineChildren("qualify", (deviceId) => {
+                setQualifyLead(leadForQualification);
+                void startCall(deviceId);
+            }),
+        });
+    } else {
+        items.push({
+            key: "qualify",
+            icon: <PlayCircleOutlined />,
+            label: td("Begin qualification", { source: "en" }),
+            onClick: () => {
+                // Open the script where the agent already is, and ring the lead —
+                // navigating to the lead would drop both the task list and the call.
+                setQualifyLead(leadForQualification);
+                void startCall();
+            },
+        });
+    }
 
     if (items.length === 0) return null;
 
