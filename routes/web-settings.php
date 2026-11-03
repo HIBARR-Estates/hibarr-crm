@@ -199,7 +199,6 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
     // Call Bridge — channels, per-line call pool and call recordings.
     Route::get('call-bridge', [\App\Http\Controllers\CallBridgeSettingsController::class, 'page'])->name('call-bridge.index');
-    Route::put('call-bridge/settings', [\App\Http\Controllers\CallBridgeSettingsController::class, 'updateSettings'])->name('call-bridge.settings.update');
 
     // Currency Settings routes
     Route::get('currency-settings/update/exchange-rates', [CurrencySettingController::class, 'updateExchangeRate'])->name('currency_settings.update_exchange_rates');

@@ -14,14 +14,11 @@ class UserPermissionObserver
         \Illuminate\Support\Facades\Cache::forget('permission-id-' . $permission->permission->name . '-' . $permission->user_id);
     }
 
-    public function created(UserPermission $permission): void
-    {
-        $this->syncSoftphoneCallPool($permission);
-    }
-
     public function saved(UserPermission $permission): void
     {
-        $this->syncSoftphoneCallPool($permission);
+        if ($permission->wasRecentlyCreated || $permission->wasChanged('permission_type_id')) {
+            $this->syncSoftphoneCallPool($permission);
+        }
     }
 
     private function syncSoftphoneCallPool(UserPermission $permission): void

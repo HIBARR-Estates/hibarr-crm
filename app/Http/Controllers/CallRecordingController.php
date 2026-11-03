@@ -76,33 +76,6 @@ class CallRecordingController extends AccountBaseController
                     'expires_at' => $recording->expires_at?->toIso8601String(),
                     'is_expired' => $recording->expires_at?->isPast() ?? false,
                     'play_url' => route('call-recordings.play', $recording->id),
-                    'download_url' => route('call-recordings.download', $recording->id),
-                ];
-            });
-        if (false) {
-        $recordings = $query
-            ->with(['user:id,name', 'device:id,label'])
-            ->orderByDesc('id')
-            ->limit($limit)
-            ->get()
-            ->map(function (CallRecording $recording) {
-                return [
-                    'id' => $recording->id,
-                    'filename' => $recording->filename,
-                    'user_id' => $recording->user_id,
-                    'user_name' => $recording->user?->name,
-                    'device_id' => $recording->device_id,
-                    'device_label' => $recording->device?->label,
-                    'entity_type' => $recording->entity_type,
-                    'entity_id' => $recording->entity_id,
-                    'lead_name' => $recording->lead_name,
-                    'phone_number' => $recording->phone_number,
-                    'direction' => $recording->direction,
-                    'routing_reason' => $recording->routing_reason,
-                    'duration_seconds' => $recording->duration_seconds,
-                    'expires_at' => $recording->expires_at?->toIso8601String(),
-                    'is_expired' => $recording->expires_at?->isPast() ?? false,
-                    'play_url' => route('call-recordings.play', $recording->id),
                     // An authorised app endpoint — never the raw object-storage
                     // link. The storage URL is a durable bearer credential:
                     // handing it to the browser would let anyone who copies it
@@ -112,7 +85,6 @@ class CallRecordingController extends AccountBaseController
                 ];
             });
 
-        }
         return Reply::successWithData('Recordings', ['data' => $recordings]);
     }
 
@@ -585,7 +557,10 @@ class CallRecordingController extends AccountBaseController
         }
 
         if (! empty($callRecording->object_path)) {
-            $path = storage_path('app/' . ltrim($callRecording->object_path, '/'));
+            $disk = Storage::disk('local');
+            $path = $disk->exists($callRecording->object_path)
+                ? $disk->path($callRecording->object_path)
+                : storage_path('app/' . ltrim($callRecording->object_path, '/'));
             if (is_file($path)) {
                 return response()->file($path, [
                     'Content-Type' => $callRecording->mime_type ?: 'audio/mpeg',
@@ -622,7 +597,10 @@ class CallRecordingController extends AccountBaseController
         }
 
         if (! empty($callRecording->object_path)) {
-            $path = storage_path('app/' . ltrim($callRecording->object_path, '/'));
+            $disk = Storage::disk('local');
+            $path = $disk->exists($callRecording->object_path)
+                ? $disk->path($callRecording->object_path)
+                : storage_path('app/' . ltrim($callRecording->object_path, '/'));
             if (is_file($path)) {
                 return response()->file($path, [
                     'Content-Type' => $callRecording->mime_type ?: 'audio/mpeg',

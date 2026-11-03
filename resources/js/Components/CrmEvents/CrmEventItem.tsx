@@ -27,7 +27,8 @@ import type {
 import getEventIcon from "./crmEvent";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
-import { describeCallEvent } from "@/lib/crmEvents/callSummary";
+import { describeCallEvent, isCallStartedEvent } from "@/lib/crmEvents/callSummary";
+import RecordingPlayer from "@/Components/CallRecordingPlayer";
 
 dayjs.extend(relativeTime);
 
@@ -183,12 +184,28 @@ export default function CrmEventItem({ event, compact = false }: Props) {
     const directionCfg = event.direction
         ? DIRECTION_CONFIG[event.direction]
         : null;
+    const meta = (event.metadata ?? {}) as Record<string, unknown>;
+    const recordingId =
+        typeof meta.recording_id === "number" ? meta.recording_id : null;
+    const recordingPlayUrl =
+        recordingId !== null
+            ? route("call-recordings.play", recordingId)
+            : null;
+    const recordingDownloadUrl =
+        recordingId !== null
+            ? route("call-recordings.download", recordingId)
+            : null;
+    const recordingDuration =
+        typeof meta.duration === "number" ? meta.duration : null;
+    const recordingFilename =
+        typeof meta.filename === "string" ? meta.filename : undefined;
+
     const message = event.metadata?.comment as string | undefined;
     const callSummary = buildCallSummary(event, t);
     // `call_started` is mapped to a "completed" status by the call bridge even
     // though it only marks the beginning of a call — the summary carries that
     // nuance, so the bare "Completed" chip would just be misleading.
-    const hideStatusChip = event.event_type?.slug === "call_started";
+    const hideStatusChip = isCallStartedEvent(event);
 
     const { td } = useTd();
 
@@ -224,7 +241,9 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                             strong
                             className="text-[14px] text-gray-900 tracking-tight truncate leading-none"
                         >
-                            {td(event.event_type?.name ?? "Unknown Event", { source: "en" })}
+                            {td(event.event_type?.name ?? "Unknown Event", {
+                                source: "en",
+                            })}
                         </Text>
                         {callSummary && (
                             <span className="text-[12px] font-normal text-gray-500 truncate">
@@ -304,6 +323,18 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                     <div className="border-l-4 border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-600 whitespace-pre-wrap break-words rounded-r-md">
                         {td(message)}
                     </div>
+                </div>
+            )}
+
+            {/* Call recording playback */}
+            {recordingPlayUrl && (
+                <div className="cb-timeline-player-card">
+                    <RecordingPlayer
+                        playUrl={recordingPlayUrl}
+                        downloadUrl={recordingDownloadUrl}
+                        durationSeconds={recordingDuration}
+                        filename={recordingFilename}
+                    />
                 </div>
             )}
 

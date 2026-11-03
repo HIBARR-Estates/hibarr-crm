@@ -95,30 +95,12 @@
     gap: 4px;
     padding: 0 20px;
     border-bottom: 1px solid var(--dr-border);
-    overflow: visible;
+    overflow-x: auto;
     scrollbar-width: none;
 }
 
 .cb-spec-page .cb-tabs::-webkit-scrollbar {
     display: none;
-}
-
-.cb-spec-page .cb-tabs-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--dr-border);
-    padding-right: 20px;
-    overflow: visible;
-}
-
-.cb-spec-page .cb-tabs-extra {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-    font-size: 13px;
-    padding: 6px 0;
 }
 
 .cb-spec-page .cb-tab {
@@ -659,7 +641,8 @@
         color: var(--dr-text-hint);
     }
 
-    .cb-spec-page .cb-recs .cb-player {
+    .cb-spec-page .cb-recs .cb-player,
+    .cb-spec-page .cb-recs .cb-player-wrapper {
         grid-column: 1 / -1;
     }
 }

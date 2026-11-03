@@ -5,9 +5,9 @@ import type {
     CrmEventDirection,
     CrmEventStatus,
 } from "@/Types/api/crm-event";
-import { describeCallEvent } from "@/lib/crmEvents/callSummary";
+import { describeCallEvent, isCallStartedEvent } from "@/lib/crmEvents/callSummary";
 
-export { describeCallEvent };
+export { describeCallEvent, isCallStartedEvent };
 
 dayjs.extend(relativeTime);
 
@@ -33,6 +33,8 @@ export interface TimelineEventViewModel {
     comment?: string;
     categoryName?: string;
     status: CrmEventStatus;
+    /** Hide the "Completed" status pill on newly started calls. */
+    hideStatusChip?: boolean;
     direction?: CrmEventDirection | null;
     /**
      * Call-specific detail for the `call_*` events: whether a recording exists
@@ -43,6 +45,7 @@ export interface TimelineEventViewModel {
         durationSeconds: number | null;
         /** Present when audio was captured for this call. */
         recordingId: number | null;
+        filename?: string | null;
         /** Stream URL for inline playback. */
         playUrl: string | null;
         /**
@@ -87,6 +90,7 @@ function buildCallDetails(event: CrmEvent): TimelineEventViewModel["call"] {
                 : null,
         durationSeconds: typeof meta.duration === "number" ? meta.duration : null,
         recordingId,
+        filename: typeof meta.filename === "string" ? meta.filename : null,
         // Streams the bytes back with a decodable Content-Type; the object
         // storage link only works as a download.
         playUrl: recordingId !== null ? route("call-recordings.play", recordingId) : null,
@@ -195,6 +199,7 @@ export function crmEventToTimelineViewModel(
 
     const call = buildCallDetails(event);
     const meta = `${actor} · ${dayjs(event.occurred_at).fromNow()}`;
+    const hideStatusChip = isCallStartedEvent(event);
 
     const metadata = event.metadata ?? {};
     const changes = metadata?.changes;
@@ -256,6 +261,7 @@ export function crmEventToTimelineViewModel(
             typeof metadata?.comment === "string" ? metadata.comment : undefined,
         categoryName: event.event_type?.category?.name,
         status: event.status,
+        hideStatusChip,
         direction: event.direction,
         call,
         // Mirrors CrmEventController::isAgentLoggedEvent — a custom (non

@@ -780,11 +780,14 @@ export default function SoftphoneDock() {
             setPassedCallId(activeCall.id);
             stopRinging();
             try {
+                await axios.post(route("telephony.softphone.pass"), {
+                    phone: activeCall.peer,
+                    device_id: activeDeviceId,
+                });
                 const res = await axios.get(route("telephony.softphone.lead-match"), {
                     params: {
                         phone: activeCall.peer,
                         device_id: activeDeviceId,
-                        pass: 1,
                     },
                 });
                 const updated = res.data?.data as CallRouting | null;

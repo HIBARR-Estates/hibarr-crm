@@ -65,7 +65,7 @@ export default function QuickActions2({ deal, permissions }: Props) {
 
     const placeCall = (deviceId?: number) => {
         if (!contactPhone) {
-            messageApi.warning("Contact has no phone number");
+            messageApi.warning(t("pages.deals.quick_actions.no_phone"));
             return;
         }
         if (useSoftphonePath) {
@@ -129,7 +129,7 @@ export default function QuickActions2({ deal, permissions }: Props) {
                     setSelectedChannelType("whatsapp");
                     setConversationModalOpen(true);
                 } else {
-                    messageApi.warning("Contact has no phone number");
+                    messageApi.warning(t("pages.deals.quick_actions.no_phone"));
                 }
                 break;
             case "phone":

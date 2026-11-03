@@ -36,7 +36,6 @@ class TelephonySoftphoneEventController extends AccountBaseController
         $request->validate([
             'phone' => 'required|string|max:100',
             'device_id' => 'nullable|integer|min:1',
-            'pass' => 'nullable|boolean',
         ]);
         $incoming = preg_replace('/[^0-9]/', '', $request->input('phone') ?? '');
 
@@ -46,10 +45,6 @@ class TelephonySoftphoneEventController extends AccountBaseController
 
         $companyId = (int) company()->id;
         $deviceId = $this->ringingDeviceId();
-
-        if ($request->boolean('pass')) {
-            $this->recordPassedUser($companyId, $deviceId, $incoming, (int) user()->id);
-        }
 
         $passedUserIds = $this->passedUserIdsForCall($companyId, $deviceId, $incoming);
 

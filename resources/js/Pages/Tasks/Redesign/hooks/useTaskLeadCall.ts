@@ -4,6 +4,7 @@ import axios from "axios";
 import { usePage } from "@inertiajs/react";
 import { softphone } from "@/lib/softphone/SoftphoneClient";
 import useClickToCall from "@/Hooks/useClickToCall";
+import useTranslation from "@/Hooks/useTranslation";
 import useSoftphone from "@/Hooks/useSoftphone";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
 import type { SoftphoneDeviceSummary } from "@/Types/api/softphone";
@@ -49,6 +50,7 @@ export interface TaskLeadCall {
  */
 export default function useTaskLeadCall(task: Task): TaskLeadCall {
     const { props } = usePage();
+    const { t } = useTranslation();
     const softphoneEnabled = props.featureFlags?.["crm.softphone"] === true;
     const clickToCall = useClickToCall();
     const {
@@ -94,12 +96,14 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
             // Require both the softphone feature and the canCall permission
             // for the softphone path. Without canCall, fall back to the device dialler.
             if (!softphoneEnabled || !canCall) {
-                // No SIP registration in this browser — fall back to the dialler.
-                if (phone) {
+                if (!phone) return;
+                if (clickToCall.isEnabled) {
                     await clickToCall.initiateCall(phone, {
                         type: "lead",
                         id: lead.id,
                     });
+                } else {
+                    window.location.href = `tel:${phone.replace(/[^\d+]/g, "")}`;
                 }
                 return;
             }
@@ -113,7 +117,7 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
                 !navigator.mediaDevices ||
                 !window.isSecureContext
             ) {
-                message.error("Calling needs a secure connection.");
+                message.error(t("pages.telephony.insecure_context"));
                 return;
             }
             if (
@@ -121,9 +125,7 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
                 typeof deviceId !== "number" &&
                 softphone.getState().registration !== "registered"
             ) {
-                message.warning(
-                    "Softphone is not registered — pick a line in the dock.",
-                );
+                message.warning(t("pages.telephony.softphone_not_registered"));
                 return;
             }
 
@@ -140,7 +142,7 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
                     },
                     deviceId,
                 );
-                message.info(`Calling ${phone}…`);
+                message.info(t("pages.telephony.calling_number", { phone }));
                 void axios
                     .post(route("telephony.softphone.events.store"), {
                         phone,
@@ -155,7 +157,7 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
                 message.error(
                     error instanceof Error
                         ? error.message
-                        : "Unable to initiate the call.",
+                        : t("pages.telephony.generic_error"),
                 );
             } finally {
                 setCalling(false);
@@ -171,6 +173,7 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
             softphoneCall,
             softphoneEnabled,
             canCall,
+            t,
         ],
     );
 

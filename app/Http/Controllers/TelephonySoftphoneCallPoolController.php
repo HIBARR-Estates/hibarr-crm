@@ -145,8 +145,7 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
 
         $companyId = (int) company()->id;
         $isFallback = $request->input('scope') === 'fallback'
-            || ! $request->filled('device_id')
-            || (int) $request->input('device_id') === 0;
+            || $request->input('device_id') === 'fallback';
 
         if ($isFallback) {
             $validated = $request->validate([
@@ -158,6 +157,11 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
             $userId = (int) $validated['user_id'];
             $user = \App\Models\User::find($userId);
             abort_unless($user !== null && (int) $user->company_id === $companyId, 404);
+            abort_unless(
+                SoftphoneCallPoolAgent::eligibleFallbackUsersForCompany($companyId)->contains('id', $userId),
+                422,
+                'User is not eligible for the fallback list.'
+            );
 
             $agent = SoftphoneCallPoolAgent::updateOrCreate(
                 [

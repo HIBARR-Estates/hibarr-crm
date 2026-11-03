@@ -121,11 +121,13 @@ export default function DealTimelineEventRow({
                             {td(getTimelineDirectionLabel(event.direction), { source: "en" })}
                         </span>
                     )}
-                    <span
-                        className={`dr-pill ${getTimelineStatusTone(event.status)}`}
-                    >
-                        {td(getTimelineStatusLabel(event.status), { source: "en" })}
-                    </span>
+                    {!event.hideStatusChip && (
+                        <span
+                            className={`dr-pill ${getTimelineStatusTone(event.status)}`}
+                        >
+                            {td(getTimelineStatusLabel(event.status), { source: "en" })}
+                        </span>
+                    )}
 
                     {showManage && (
                         <span
@@ -316,39 +318,30 @@ export default function DealTimelineEventRow({
 
                 {/* Call events: show the recording inline with its metadata. */}
                 {event.call?.playUrl && (
-                    <div
-                        style={{
-                            marginTop: 8,
-                            padding: "10px 12px",
-                            border: `1px solid ${T.BORDER}`,
-                            borderRadius: 8,
-                            background: T.SURFACE_2,
-                            maxWidth: 520,
-                        }}
-                    >
-                        <div
-                            style={{
-                                display: "flex",
-                                flexWrap: "wrap",
-                                gap: "4px 10px",
-                                fontSize: 12,
-                                color: T.TEXT_MUTED,
-                                marginBottom: 8,
-                            }}
-                        >
+                    <div className="cb-timeline-player-card">
+                        <div className="cb-timeline-player-header">
                             {event.call.phone && (
-                                <span>
-                                    {event.direction === "inbound"
-                                        ? `${t("pages.call_summary.from")}: `
-                                        : event.direction === "outbound"
-                                          ? `${t("pages.call_summary.to")}: `
-                                          : null}
-                                    {event.call.phone}
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                    <span className="cb-timeline-chip">
+                                        {event.direction === "inbound"
+                                            ? "Inbound"
+                                            : event.direction === "outbound"
+                                              ? "Outbound"
+                                              : "Call"}
+                                    </span>
+                                    <span>
+                                        {event.direction === "inbound"
+                                            ? `${t("pages.call_summary.from")}: `
+                                            : event.direction === "outbound"
+                                              ? `${t("pages.call_summary.to")}: `
+                                              : null}
+                                        <strong style={{ fontWeight: 600 }}>{event.call.phone}</strong>
+                                    </span>
                                 </span>
                             )}
                             {event.call.durationSeconds != null &&
                                 event.call.durationSeconds > 0 && (
-                                    <span>
+                                    <span className="cb-num">
                                         {t("pages.call_summary.duration")}: {formatCallDurationShort(event.call.durationSeconds)}
                                     </span>
                                 )}
@@ -357,6 +350,7 @@ export default function DealTimelineEventRow({
                             playUrl={event.call.playUrl}
                             downloadUrl={event.call.downloadUrl}
                             durationSeconds={event.call.durationSeconds}
+                            filename={event.call.filename ?? undefined}
                             expired={event.call.expired}
                         />
                     </div>

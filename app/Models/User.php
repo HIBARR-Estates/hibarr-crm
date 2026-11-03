@@ -1182,36 +1182,6 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
                     }
                 }
 
-                // Backfill any permission not yet present in user_permissions
-                // (e.g. newly introduced custom permissions like make_softphone_calls)
-                // from the user's assigned roles, preferring non-employee roles first.
-                if (! array_key_exists('make_softphone_calls', $map)) {
-                    try {
-                        $rolePermission = PermissionRole::join('permissions', 'permission_role.permission_id', '=', 'permissions.id')
-                            ->join('permission_types', 'permission_role.permission_type_id', '=', 'permission_types.id')
-                            ->join('role_user', 'role_user.role_id', '=', 'permission_role.role_id')
-                            ->join('roles', 'roles.id', '=', 'role_user.role_id')
-                            ->where('role_user.user_id', $userId)
-                            ->where('permissions.name', 'make_softphone_calls')
-                            ->orderByRaw("CASE WHEN roles.name = 'employee' THEN 1 ELSE 0 END")
-                            ->orderBy('roles.id', 'asc')
-                            ->value('permission_types.name');
-
-                        if ($rolePermission !== null) {
-                            $map['make_softphone_calls'] = $rolePermission;
-                        }
-                    } catch (\Illuminate\Database\QueryException $e) {
-                        $message = $e->getMessage();
-                        $isMissingTable = $e->getCode() === '42S02'
-                            || str_contains($message, 'no such table')
-                            || str_contains($message, "doesn't exist");
-
-                        if (! $isMissingTable) {
-                            throw $e;
-                        }
-                    }
-                }
-
                 return $map;
             });
         }

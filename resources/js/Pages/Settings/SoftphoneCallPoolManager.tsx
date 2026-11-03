@@ -475,6 +475,7 @@ export default function SoftphoneCallPoolManager({
     const { message } = App.useApp();
     const [savedSeconds, setSavedSeconds] = useState<number>(initialFallbackSeconds);
     const [secondsInput, setSecondsInput] = useState<string>(String(initialFallbackSeconds));
+    const [secondsError, setSecondsError] = useState<string | null>(null);
     const [savingSettings, setSavingSettings] = useState<boolean>(false);
 
     const parsedSeconds = Number.parseInt(secondsInput, 10);
@@ -482,8 +483,11 @@ export default function SoftphoneCallPoolManager({
     const isDirtySeconds = isValidSeconds && parsedSeconds !== savedSeconds;
 
     const saveFallbackSeconds = async () => {
+        setSecondsError(null);
         if (!isValidSeconds) {
-            void message.error("Enter a valid time between calls (1–600 seconds).");
+            const msg = "Enter a valid time between calls (1–600 seconds).";
+            setSecondsError(msg);
+            void message.error(msg);
             return;
         }
         setSavingSettings(true);
@@ -497,8 +501,12 @@ export default function SoftphoneCallPoolManager({
             setSavedSeconds(nextVal);
             setSecondsInput(String(nextVal));
             void message.success("Time between calls updated.");
-        } catch {
-            void message.error("Could not update time between calls.");
+        } catch (err: unknown) {
+            const serverMsg =
+                (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+                "Could not update time between calls.";
+            setSecondsError(serverMsg);
+            void message.error(serverMsg);
         } finally {
             setSavingSettings(false);
         }
@@ -537,38 +545,48 @@ export default function SoftphoneCallPoolManager({
                         How many seconds an incoming call rings each user before advancing to the next in rotation.
                     </p>
                 </div>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}>
-                    <label
-                        htmlFor="cb-fallback-seconds"
-                        style={{ fontSize: "13px", fontWeight: 500, color: "var(--dr-text)" }}
-                    >
-                        Time between calls:
-                    </label>
-                    <input
-                        id="cb-fallback-seconds"
-                        type="number"
-                        min={1}
-                        max={600}
-                        className="cb-input cb-num"
-                        style={{ width: "80px" }}
-                        value={secondsInput}
-                        onChange={(e) => setSecondsInput(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter" && isDirtySeconds && !savingSettings) {
-                                e.preventDefault();
-                                void saveFallbackSeconds();
-                            }
-                        }}
-                    />
-                    <span style={{ fontSize: "13px", color: "var(--dr-text-muted)" }}>seconds</span>
-                    <button
-                        type="button"
-                        className="cb-btn cb-btn--primary"
-                        disabled={!isDirtySeconds || savingSettings}
-                        onClick={() => void saveFallbackSeconds()}
-                    >
-                        {savingSettings ? "Saving…" : "Save"}
-                    </button>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}>
+                        <label
+                            htmlFor="cb-fallback-seconds"
+                            style={{ fontSize: "13px", fontWeight: 500, color: "var(--dr-text)" }}
+                        >
+                            Time between calls:
+                        </label>
+                        <input
+                            id="cb-fallback-seconds"
+                            type="number"
+                            min={1}
+                            max={600}
+                            className="cb-input cb-num"
+                            style={{ width: "80px" }}
+                            value={secondsInput}
+                            onChange={(e) => {
+                                setSecondsInput(e.target.value);
+                                setSecondsError(null);
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && isDirtySeconds && !savingSettings) {
+                                    e.preventDefault();
+                                    void saveFallbackSeconds();
+                                }
+                            }}
+                        />
+                        <span style={{ fontSize: "13px", color: "var(--dr-text-muted)" }}>seconds</span>
+                        <button
+                            type="button"
+                            className="cb-btn cb-btn--primary"
+                            disabled={!isDirtySeconds || savingSettings}
+                            onClick={() => void saveFallbackSeconds()}
+                        >
+                            {savingSettings ? "Saving…" : "Save"}
+                        </button>
+                    </div>
+                    {(secondsError || (secondsInput !== "" && !isValidSeconds)) && (
+                        <span role="alert" style={{ fontSize: "12px", color: "var(--dr-red, #dc2626)" }}>
+                            {secondsError || "Enter a valid time between calls (1–600 seconds)."}
+                        </span>
+                    )}
                 </div>
             </div>
 

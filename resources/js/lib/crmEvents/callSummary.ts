@@ -59,7 +59,13 @@ export function describeCallEvent(
     event: CrmEvent,
     t: Translate,
 ): string | null {
-    const slug = event.event_type?.slug ?? "";
+    const rawSlug =
+        event.event_type?.slug ??
+        (event as any).eventType?.slug ??
+        (event as any).event_type_slug ??
+        (typeof (event as any).event_type === "string" ? (event as any).event_type : "") ??
+        (typeof (event.metadata as any)?.event === "string" ? (event.metadata as any).event : "");
+    const slug = typeof rawSlug === "string" ? rawSlug.toLowerCase().replace(/[.-]/g, "_") : "";
     if (!slug.startsWith("call_")) {
         return null;
     }
@@ -87,6 +93,7 @@ export function describeCallEvent(
     const outcome = (() => {
         switch (slug) {
             case "call_started":
+            case "call_initiated":
                 return t("pages.call_summary.started");
             case "call_ended":
                 return t("pages.call_summary.completed");
@@ -120,4 +127,67 @@ export function describeCallEvent(
     }
 
     return joinParts(parts, t);
+}
+
+
+/**
+ * Detects whether a CRM event or timeline item represents a "call started" event.
+ *
+ * Call bridge maps `call_started` to `completed` in backend event status since
+ * the event recording itself succeeded, but showing a "Completed" chip on a
+ * newly-started call is misleading.
+ */
+export function isCallStartedEvent(
+    event: CrmEvent | { [key: string]: any } | null | undefined,
+): boolean {
+    if (!event) return false;
+
+    const rawSlug =
+        (event as any).event_type?.slug ??
+        (event as any).eventType?.slug ??
+        (event as any).event_type_slug ??
+        (event as any).slug ??
+        (typeof (event as any).event_type === "string" ? (event as any).event_type : null) ??
+        (typeof (event as any).type === "string" ? (event as any).type : null);
+
+    const slug = typeof rawSlug === "string" ? rawSlug.toLowerCase().replace(/[.-]/g, "_") : "";
+
+    if (
+        slug === "call_started" ||
+        slug === "call_initiated" ||
+        slug === "started" ||
+        slug.startsWith("call_start")
+    ) {
+        return true;
+    }
+
+    const metaEvent =
+        typeof (event as any).metadata?.event === "string"
+            ? (event as any).metadata.event.toLowerCase().replace(/[.-]/g, "_")
+            : "";
+
+    if (
+        metaEvent === "call_started" ||
+        metaEvent === "call_initiated" ||
+        metaEvent === "started" ||
+        metaEvent.startsWith("call_start")
+    ) {
+        return true;
+    }
+
+    const titleOrName =
+        (typeof (event as any).event_type?.name === "string" ? (event as any).event_type.name : "") ||
+        (typeof (event as any).title === "string" ? (event as any).title : "");
+
+    const lowerName = titleOrName.toLowerCase();
+    if (
+        lowerName === "call started" ||
+        lowerName === "call initiated" ||
+        lowerName.includes("· started") ||
+        lowerName.includes("— started")
+    ) {
+        return true;
+    }
+
+    return false;
 }
