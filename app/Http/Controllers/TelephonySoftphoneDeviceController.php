@@ -29,6 +29,17 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
         $this->assertSoftphoneEnabled();
 
         $devices = SoftphoneDevice::query()
+            ->when(! user()->hasRole('admin'), function ($query): void {
+                // Non-admins only see the lines they are assigned to under
+                // Call routing (or every line when on the admin fallback list).
+                $allowed = \App\Models\SoftphoneCallPoolAgent::allowedDeviceIdsForUser(
+                    (int) company()->id,
+                    (int) user()->id
+                );
+                if ($allowed !== null) {
+                    $query->whereIn('id', $allowed);
+                }
+            })
             ->orderByDesc('is_default')
             ->orderBy('label')
             ->get(['id', 'label', 'is_default']);
@@ -84,6 +95,15 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
         // This returns the SIP authorization_password in cleartext, so it is
         // gated on the softphone permission rather than the feature flag alone.
         // Admins bypass the permission check, matching assertCanManage().
+        // Non-admins may only fetch credentials for lines they are assigned
+        // to under Call routing (fallback-list users may use any line).
+        if (! user()->hasRole('admin')) {
+            $allowedLines = \App\Models\SoftphoneCallPoolAgent::allowedDeviceIdsForUser(
+                (int) company()->id,
+                (int) user()->id
+            );
+            abort_if($allowedLines !== null && ! in_array($id, $allowedLines, true), 403);
+        }
         abort_403(
             ! user()->hasRole('admin')
             && ! in_array(user()->permission('make_softphone_calls'), ['all', 'added'])

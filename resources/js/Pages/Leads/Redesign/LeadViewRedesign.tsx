@@ -800,6 +800,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             {quickActionsInMainColumn && (
                                 <div className="mb-4">
                                     <DossierQuickActions
+                                        leadId={lead.id}
+                                        phone={getDossierFieldValue(
+                                            lead,
+                                            "mobile",
+                                        )}
                                         onLogAction={() =>
                                             setLogActionOpen(true)
                                         }
@@ -882,6 +887,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         <div className="v2-dossier-column">
                             {!quickActionsInMainColumn && (
                                 <DossierQuickActions
+                                    leadId={lead.id}
+                                    phone={getDossierFieldValue(lead, "mobile")}
                                     onLogAction={() =>
                                         setLogActionOpen(true)
                                     }

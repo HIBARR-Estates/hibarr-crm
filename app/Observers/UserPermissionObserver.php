@@ -16,12 +16,17 @@ class UserPermissionObserver
 
     public function created(UserPermission $permission): void
     {
-        if ($permission->permission?->name !== 'make_softphone_calls') {
-            return;
-        }
+        $this->syncSoftphoneCallPool($permission);
+    }
 
-        $companyId = $permission->user?->company_id;
-        if (empty($companyId)) {
+    public function saved(UserPermission $permission): void
+    {
+        $this->syncSoftphoneCallPool($permission);
+    }
+
+    private function syncSoftphoneCallPool(UserPermission $permission): void
+    {
+        if ($permission->permission?->name !== 'make_softphone_calls') {
             return;
         }
 
@@ -29,6 +34,22 @@ class UserPermissionObserver
         // write. During a fresh migrate the table is already present but not
         // yet altered, so writing the column would abort the migration.
         if (! Schema::hasColumn('softphone_call_agents', 'device_id')) {
+            return;
+        }
+
+        $granted = in_array((int) $permission->permission_type_id, [
+            \App\Models\PermissionType::ALL,
+            \App\Models\PermissionType::ADDED,
+        ], true);
+
+        if (! $granted) {
+            SoftphoneCallPoolAgent::where('user_id', $permission->user_id)->delete();
+
+            return;
+        }
+
+        $companyId = $permission->user?->company_id;
+        if (empty($companyId)) {
             return;
         }
 
@@ -44,6 +65,12 @@ class UserPermissionObserver
             ->where('company_id', $companyId)
             ->orderByDesc('is_default')
             ->value('id');
+
+        // No line yet: a row without a line would be read as an admin
+        // fallback entry, so only seed once a line exists.
+        if ($defaultDeviceId === null) {
+            return;
+        }
 
         SoftphoneCallPoolAgent::firstOrCreate(
             [

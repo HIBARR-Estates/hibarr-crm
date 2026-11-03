@@ -169,109 +169,180 @@ class SoftphoneClient {
     }
 
     async start(config: SoftphoneConfig): Promise<void> {
-        // Device switch: tear down any current registration/call first.
-        if (this.userAgent) {
-            this.session = null;
-            await this.teardown();
-            this.setState(EMPTY_STATE);
-        }
-        this.config = config;
-        this.setState({ ...EMPTY_STATE, registration: "registering" });
+        const run = async (): Promise<void> => {
+            // Cancel any previous in-flight start before tearing down.
+            this.startCancels.forEach((cancel) => cancel());
+            this.startCancels.clear();
 
-        // Cancellation flag: if stop() is called while start() is in flight,
-        // this prevents the locally created UserAgent/Registerer from being
-        // assigned to this.userAgent/this.registerer after stop() has run.
-        let cancelled = false;
-        const cancel = () => { cancelled = true; };
-        // Track all in-flight start attempts so stop() can cancel them all
-        this.startCancels.add(cancel);
-
-        try {
-            const uri = UserAgent.makeURI(config.uri);
-            if (!uri) {
-                throw new Error(`Invalid SIP URI: ${config.uri}`);
+            // Device switch: tear down any current registration/call first.
+            if (this.userAgent) {
+                this.session = null;
+                await this.teardown();
+                this.setState(EMPTY_STATE);
             }
+            this.config = config;
+            this.setState({ ...EMPTY_STATE, registration: "registering" });
 
-            const userAgent = new UserAgent({
-                uri,
-                transportOptions: { server: config.wss_url },
-                authorizationUsername: config.authorization_username || undefined,
-                authorizationPassword: config.authorization_password || undefined,
-                displayName: config.display_name || undefined,
-                sessionDescriptionHandlerFactoryOptions: {
-                    peerConnectionConfiguration: {
-                        iceServers: [
-                            { urls: "stun:stun.l.google.com:19302" },
-                            { urls: "stun:stun.sipgate.de:3478" },
-                        ],
-                    },
-                },
-                logLevel: "error",
-            });
-
-            userAgent.delegate = {
-                onInvite: (invitation) => this.onIncoming(invitation),
+            // Cancellation flag: if stop() or another start() is called while
+            // start() is in flight, this prevents the locally created
+            // UserAgent/Registerer from taking over after cancellation.
+            let cancelled = false;
+            const cancel = () => {
+                cancelled = true;
             };
+            this.startCancels.add(cancel);
 
-            await userAgent.start();
-
-            // Check for cancellation after async operations
-            if (cancelled) {
-                await userAgent.stop();
-                return;
-            }
-
-            const registerer = new Registerer(userAgent);
-            registerer.stateChange.addListener((state) => {
-                // Check cancellation before applying state changes
-                if (cancelled) return;
-                if (state === RegistererState.Registered) {
-                    this.setState({
-                        registration: "registered",
-                        registrationError: null,
-                    });
-                } else if (state === RegistererState.Unregistered) {
-                    // Only meaningful if we didn't intentionally stop.
-                    if (this.userAgent) {
-                        this.setState({ registration: "unregistered" });
-                    }
+            try {
+                const uri = UserAgent.makeURI(config.uri);
+                if (!uri) {
+                    throw new Error(`Invalid SIP URI: ${config.uri}`);
                 }
-            });
-            await registerer.register();
 
-            // Check for cancellation again before assigning
-            if (cancelled) {
-                await registerer.unregister();
-                await userAgent.stop();
-                return;
-            }
+                const userAgent = new UserAgent({
+                    uri,
+                    transportOptions: { server: config.wss_url },
+                    authorizationUsername:
+                        config.authorization_username || undefined,
+                    authorizationPassword:
+                        config.authorization_password || undefined,
+                    displayName: config.display_name || undefined,
+                    sessionDescriptionHandlerFactoryOptions: {
+                        peerConnectionConfiguration: {
+                            iceServers: [
+                                { urls: "stun:stun.l.google.com:19302" },
+                                { urls: "stun:stun.sipgate.de:3478" },
+                            ],
+                        },
+                    },
+                    logLevel: "error",
+                });
 
-            this.userAgent = userAgent;
-            this.registerer = registerer;
-        } catch (error: unknown) {
-            // A cancelled start is not a failure: a newer attempt owns the
-            // resources now, so don't tear them down and don't report a
-            // failure state for a start nobody is waiting for.
-            if (cancelled) {
-                return;
+                userAgent.delegate = {
+                    onInvite: (invitation) => this.onIncoming(invitation),
+                };
+
+                await userAgent.start();
+
+                if (cancelled) {
+                    await userAgent.stop();
+                    return;
+                }
+
+                const registerer = new Registerer(userAgent);
+                this.userAgent = userAgent;
+                this.registerer = registerer;
+
+                await new Promise<void>((resolve, reject) => {
+                    const timer = window.setTimeout(() => {
+                        cleanup();
+                        reject(
+                            new Error(
+                                "The line did not answer the registration in time.",
+                            ),
+                        );
+                    }, 10_000);
+
+                    const cancelWait = () => {
+                        cleanup();
+                        resolve();
+                    };
+                    this.startCancels.add(cancelWait);
+
+                    const cleanup = () => {
+                        window.clearTimeout(timer);
+                        this.startCancels.delete(cancelWait);
+                    };
+
+                    registerer.stateChange.addListener((state) => {
+                        if (cancelled) {
+                            cleanup();
+                            resolve();
+                            return;
+                        }
+                        if (state === RegistererState.Registered) {
+                            this.setState({
+                                registration: "registered",
+                                registrationError: null,
+                            });
+                            cleanup();
+                            resolve();
+                        } else if (state === RegistererState.Unregistered) {
+                            // Only meaningful if we didn't intentionally stop.
+                            if (this.userAgent === userAgent) {
+                                this.setState({ registration: "unregistered" });
+                            }
+                        }
+                    });
+
+                    registerer
+                        .register({
+                            requestDelegate: {
+                                onReject: (response) => {
+                                    const status = response?.message?.statusCode;
+                                    cleanup();
+                                    reject(
+                                        new Error(
+                                            status === 401 || status === 403
+                                                ? "The line rejected the username or password."
+                                                : `The line rejected the registration (${status ?? "unknown"}).`,
+                                        ),
+                                    );
+                                },
+                            },
+                        })
+                        .catch((err) => {
+                            cleanup();
+                            reject(err);
+                        });
+                });
+
+                if (cancelled) {
+                    await registerer.unregister().catch(() => undefined);
+                    await userAgent.stop().catch(() => undefined);
+                    if (this.userAgent === userAgent) {
+                        this.userAgent = null;
+                        this.registerer = null;
+                    }
+                    return;
+                }
+            } catch (error: unknown) {
+                // A cancelled start is not a failure: a newer attempt owns the
+                // resources now, so don't tear them down and don't report a
+                // failure state for a start nobody is waiting for.
+                if (cancelled) {
+                    return;
+                }
+                await this.teardown();
+                this.setState({
+                    registration: "failed",
+                    registrationError:
+                        error instanceof Error
+                            ? error.message
+                            : "Registration failed",
+                });
+            } finally {
+                this.startCancels.delete(cancel);
             }
-            await this.teardown();
-            this.setState({
-                registration: "failed",
-                registrationError:
-                    error instanceof Error ? error.message : "Registration failed",
-            });
+        };
+
+        const promise = run();
+        this.startPromise = promise;
+        try {
+            await promise;
         } finally {
-            this.startCancels.delete(cancel);
+            if (this.startPromise === promise) {
+                this.startPromise = null;
+            }
         }
     }
 
-    private startCancel: (() => void) | null = null;
+    private startPromise: Promise<void> | null = null;
 
     async stop(): Promise<void> {
         // Cancel all in-flight start attempts before tearing down
         this.startCancels.forEach((cancel) => cancel());
         this.startCancels.clear();
+        this.startPromise = null;
         await this.hangup();
         await this.teardown();
         this.config = null;
@@ -294,6 +365,10 @@ class SoftphoneClient {
             return;
         }
 
+        if (this.startPromise) {
+            await this.startPromise;
+        }
+
         // Every reason a call cannot be placed has to reach the agent. These
         // paths used to return quietly, leaving the dock closed with nothing to
         // explain the miss.
@@ -305,13 +380,15 @@ class SoftphoneClient {
             );
             throw new Error("No phone line is registered for this browser.");
         }
-        if (!this.userAgent) {
-            this.reportSetupFailure(
-                target,
-                "The softphone is not registered with sipgate. Pick a line in the softphone, then retry.",
-                context,
+        if (!this.userAgent || this.state.registration !== "registered") {
+            const reason =
+                this.state.registrationError ||
+                "The softphone is not registered with sipgate. Pick a line in the softphone, then retry.";
+            this.reportSetupFailure(target, reason, context);
+            throw new Error(
+                this.state.registrationError ||
+                    "The softphone is not registered.",
             );
-            throw new Error("The softphone is not registered.");
         }
         if (this.session) {
             // One call at a time in v1 — a second dial replaces nothing; say so.

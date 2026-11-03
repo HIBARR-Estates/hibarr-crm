@@ -18,6 +18,7 @@ import { Modal } from "@/Components/Redesign/primitives/Modal";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { refreshSoftphoneDevices } from "@/Hooks/useSoftphone";
 import useSoftphoneLineTest, { type LineTestState } from "@/Hooks/useSoftphoneLineTest";
 import useTranslation from "@/Hooks/useTranslation";
 import { ApiSuccessResponse } from "@/lib/api/types";
@@ -254,6 +255,7 @@ export default function SoftphoneDeviceManager() {
         "POST",
         (response) => {
             refetch();
+            void refreshSoftphoneDevices();
             closeModal();
             // Health check on the new line's resolved connection so a bad
             // username or password shows up now rather than on the first call.
@@ -275,6 +277,7 @@ export default function SoftphoneDeviceManager() {
         "PUT",
         () => {
             refetch();
+            void refreshSoftphoneDevices();
             closeModal();
         },
     );
@@ -288,6 +291,7 @@ export default function SoftphoneDeviceManager() {
                 { headers: { Accept: "application/json" } },
             );
             await refetch();
+            void refreshSoftphoneDevices();
             setDeleteTarget(null);
         } catch {
             message.error("Could not remove the device.");

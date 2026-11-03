@@ -50,6 +50,36 @@ class CallRecordingController extends AccountBaseController
             $query->where('user_id', user()->id);
         }
 
+        $rows = $query->with(['user:id,name', 'device:id,label'])->orderByDesc('id')->limit($limit)->get();
+        $forwardedByCallRef = $this->resolveForwardedByCallRef($rows, $companyId);
+        $recordings = $rows->map(function (CallRecording $recording) use ($forwardedByCallRef) {
+                $forwarded = ($recording->call_ref && isset($forwardedByCallRef[$recording->call_ref]))
+                    ? $forwardedByCallRef[$recording->call_ref]
+                    : null;
+                return [
+                    'id' => $recording->id,
+                    'filename' => $recording->filename,
+                    'user_id' => $recording->user_id,
+                    'user_name' => $recording->user?->name,
+                    'device_id' => $recording->device_id,
+                    'device_label' => $recording->device?->label,
+                    'entity_type' => $recording->entity_type,
+                    'entity_id' => $recording->entity_id,
+                    'lead_name' => $recording->lead_name,
+                    'phone_number' => $recording->phone_number,
+                    'direction' => $recording->direction,
+                    'routing_reason' => $recording->routing_reason,
+                    'is_forwarded' => (bool) ($forwarded['is_forwarded'] ?? false),
+                    'forwarded_from_user_id' => $forwarded['forwarded_from_user_id'] ?? null,
+                    'forwarded_from_user_name' => $forwarded['forwarded_from_user_name'] ?? null,
+                    'duration_seconds' => $recording->duration_seconds,
+                    'expires_at' => $recording->expires_at?->toIso8601String(),
+                    'is_expired' => $recording->expires_at?->isPast() ?? false,
+                    'play_url' => route('call-recordings.play', $recording->id),
+                    'download_url' => route('call-recordings.download', $recording->id),
+                ];
+            });
+        if (false) {
         $recordings = $query
             ->with(['user:id,name', 'device:id,label'])
             ->orderByDesc('id')
@@ -82,6 +112,7 @@ class CallRecordingController extends AccountBaseController
                 ];
             });
 
+        }
         return Reply::successWithData('Recordings', ['data' => $recordings]);
     }
 
@@ -112,6 +143,9 @@ class CallRecordingController extends AccountBaseController
             'phone_number' => 'nullable|string|max:50',
             'direction' => 'nullable|string|in:inbound,outbound',
             'routing_reason' => 'nullable|string|max:40',
+            'is_forwarded' => 'nullable|boolean',
+            'forwarded_from_user_id' => 'nullable|integer|min:1',
+            'forwarded_from_user_name' => 'nullable|string|max:180',
             // Matches the crm_events.metadata.call_ref column width — this value
             // is what links the recording back to the call's timeline rows.
             'call_ref' => 'nullable|string|max:64',
@@ -245,6 +279,55 @@ class CallRecordingController extends AccountBaseController
      * recording could be labelled with (and link to) a lead or deal the
      * uploader is not allowed to see.
      */
+    /**
+     * Resolve forwarded metadata for recordings from linked call timeline events.
+     *
+     * @param  \Illuminate\Support\Collection<int, CallRecording>  $rows
+     * @return array<string, array{is_forwarded: bool, forwarded_from_user_id: int|null, forwarded_from_user_name: string|null}>
+     */
+    private function resolveForwardedByCallRef($rows, int $companyId): array
+    {
+        if (! user()->hasRole('admin')) {
+            return [];
+        }
+
+        $callRefs = $rows
+            ->pluck('call_ref')
+            ->filter(fn ($ref) => is_string($ref) && $ref !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($callRefs === []) {
+            return [];
+        }
+
+        $out = [];
+        try {
+            \App\Models\CrmEvent::withoutGlobalScopes()
+                ->where('company_id', $companyId)
+                ->whereIn('metadata->call_ref', $callRefs)
+                ->get(['metadata'])
+                ->each(function ($event) use (&$out): void {
+                    $meta = is_array($event->metadata) ? $event->metadata : [];
+                    $ref = $meta['call_ref'] ?? null;
+                    if (is_string($ref) && $ref !== '' && ! empty($meta['is_forwarded'])) {
+                        $out[$ref] = [
+                            'is_forwarded' => true,
+                            'forwarded_from_user_id' => isset($meta['forwarded_from_user_id'])
+                                ? (int) $meta['forwarded_from_user_id']
+                                : null,
+                            'forwarded_from_user_name' => $meta['forwarded_from_user_name'] ?? null,
+                        ];
+                    }
+                });
+        } catch (\Throwable) {
+            // Metadata lookup is best-effort.
+        }
+
+        return $out;
+    }
+
     private function assertEntityIsAccessible(string $entityType, int $entityId): void
     {
         if ($entityType === 'lead') {
@@ -324,6 +407,16 @@ class CallRecordingController extends AccountBaseController
                     continue;
                 }
                 $metadata['recording_id'] = $recordingId;
+                $metadata['has_recording'] = true;
+                if (request()->boolean('is_forwarded')) {
+                    $metadata['is_forwarded'] = true;
+                    if (request()->filled('forwarded_from_user_id')) {
+                        $metadata['forwarded_from_user_id'] = (int) request()->input('forwarded_from_user_id');
+                    }
+                    if (request()->filled('forwarded_from_user_name')) {
+                        $metadata['forwarded_from_user_name'] = (string) request()->input('forwarded_from_user_name');
+                    }
+                }
                 $metadata['has_recording'] = true;
                 $event->forceFill(['metadata' => $metadata])->save();
             }

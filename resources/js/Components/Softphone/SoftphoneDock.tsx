@@ -9,11 +9,12 @@ import "./SoftphoneDock.css";
 import type {
     SoftphoneCallFailure,
     SoftphoneCallStage,
+    SoftphoneDeviceSummary,
     SoftphoneRegistrationState,
 } from "@/Types/api/softphone";
 
-/** How often to re-check the caller's number for a lead while ringing. */
-const LEAD_MATCH_POLL_MS = 8000;
+/** How often to re-check the caller's number and rotation state while ringing. */
+const LEAD_MATCH_POLL_MS = 3000;
 
 /** How long a failed-call notice stays on screen when the agent ignores it. */
 const FAILURE_NOTICE_MS = 30_000;
@@ -24,15 +25,26 @@ type MatchedLead = {
     url: string;
 };
 
+type RotationUser = {
+    id: number;
+    name: string;
+    role: "owner" | "pool";
+    priority?: number;
+};
+
 type CallRouting = {
     matched: boolean;
+    match_count?: number;
     lead_id: number | null;
     owner_id: number | null;
+    owner_name?: string | null;
     name: string | null;
     url: string | null;
     route: "owner" | "pool" | "all" | null;
     can_ring: boolean;
     pool_user_ids: number[];
+    rotation_users?: RotationUser[];
+    passed_user_ids?: number[];
     fallback_seconds: number;
     current_user_id: number | null;
 };
@@ -90,8 +102,9 @@ function useElapsed(connectedAt: number | null): string | null {
 
 /** Up to two initials for the avatar bubble. */
 function initialsOf(name: string | null | undefined, fallback: string): string {
+    const source = name?.trim() ? name.trim() : (fallback ?? "");
     return (
-        (name ?? fallback ?? "")
+        source
             .split(/\s+/)
             .map((part) => part[0])
             .join("")
@@ -119,13 +132,14 @@ function CallIdentity({
     leadUrl?: string | null;
     children?: React.ReactNode;
 }) {
+    const hasLink = Boolean(leadUrl && name.trim());
     return (
         <>
             <div className="sp__avatar" aria-hidden="true">
                 {initialsOf(name, peer)}
             </div>
             <h2 className="sp__name">
-                {leadUrl ? (
+                {hasLink && leadUrl ? (
                     <Link
                         href={leadUrl}
                         className="sp__name-link"
@@ -156,18 +170,25 @@ function CallStateBadge({ stage }: { stage: SoftphoneCallStage }) {
 /** Why a call never connected. Stays on screen until the agent closes it (or FAILURE_NOTICE_MS passes) */
 function CallFailedNotice({
     failure,
+    devices,
+    activeDeviceId,
+    onSelectDevice,
     onRetry,
     onClose,
 }: {
     failure: SoftphoneCallFailure;
+    devices: SoftphoneDeviceSummary[];
+    activeDeviceId: number | null;
+    onSelectDevice: (deviceId: number) => void;
     onRetry: () => void;
     onClose: () => void;
 }) {
+    const activeLabel = devices.find((d) => d.id === activeDeviceId)?.label;
     return (
         <section className="sp sp--failed" role="alertdialog" aria-label="Call failed">
             <header className="sp__head">
                 <span className="sp__dot sp__dot--failed" />
-                Softphone
+                {activeLabel ? `Softphone · ${activeLabel}` : "Softphone"}
             </header>
             <div className="sp__body">
                 <div className="sp__avatar sp__avatar--failed" aria-hidden="true">
@@ -182,6 +203,23 @@ function CallFailedNotice({
                     <p className="sp__number sp__number--peer">{failure.peer}</p>
                 )}
                 <p className="sp__reason">{failure.reason}</p>
+
+                {devices.length > 1 && (
+                    <div className="sp__field" style={{ width: "100%", marginTop: 8 }}>
+                        <span>Active line</span>
+                        <select
+                            value={activeDeviceId ?? ""}
+                            onChange={(e) => onSelectDevice(Number(e.target.value))}
+                            className="sp__select"
+                        >
+                            {devices.map((d) => (
+                                <option key={d.id} value={d.id}>
+                                    {d.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
 
                 <div className="sp__actions">
                     <button type="button" className="act" onClick={onRetry}>
@@ -211,8 +249,31 @@ function CallFailedNotice({
  */
 export default function SoftphoneDock() {
     const { props } = usePage();
-    const canRecord = ["all", "added"].includes(props.auth?.permissions?.make_softphone_calls);
-    const { isEnabled, state, devices, activeDeviceId, setActiveDevice, attachRemoteAudio, answer, reject, hangup, setMuted, setHold, isActiveTab, clearCallFailure } = useSoftphone();
+    const isAdmin = (props.auth?.user?.roles ?? []).some(
+        (role: { name?: string }) => role?.name === "admin",
+    );
+    const canRecord =
+        isAdmin ||
+        ["all", "added"].includes(
+            props.auth?.permissions?.make_softphone_calls as string,
+        );
+    const {
+        isEnabled,
+        state,
+        devices,
+        activeDevice,
+        activeDeviceId,
+        setActiveDevice,
+        attachRemoteAudio,
+        call,
+        answer,
+        reject,
+        hangup,
+        setMuted,
+        setHold,
+        isActiveTab,
+        clearCallFailure,
+    } = useSoftphone();
 
     const [pinnedOpen, setPinnedOpen] = useState(false);
     const [position, setPosition] = useState(() => {
@@ -249,20 +310,79 @@ export default function SoftphoneDock() {
     const [lastRecordingUrl, setLastRecordingUrl] = useState<string | null>(null);
     const [recordings, setRecordings] = useState<CallRecordingItem[]>([]);
     const [matchedLead, setMatchedLead] = useState<MatchedLead | null>(null);
+    const [matchCount, setMatchCount] = useState<number | null>(null);
     const [inboundRoute, setInboundRoute] = useState<CallRouting | null>(null);
     const [routingMode, setRoutingMode] = useState<"owner" | "pool" | "all">("all");
+    const [rotationIndex, setRotationIndex] = useState(0);
+    const [passedCallId, setPassedCallId] = useState<string | null>(null);
     const [unmatchedPromptPhone, setUnmatchedPromptPhone] = useState<string | null>(null);
     const [lastInboundPhone, setLastInboundPhone] = useState<string | null>(null);
     const fallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const routeInitializedCallIdRef = useRef<string | null>(null);
     // Guards against double-logging when Answer is clicked in the dock while the island alert for the same call is also on screen.
     const inboundLoggedRef = useRef<string | null>(null);
+
+    const currentUserId = Number(
+        props.auth?.user?.id ?? inboundRoute?.current_user_id ?? -1,
+    );
+
+    /** Ordered rotation sequence of active users (lead owner first if present, then pool agents by priority). */
+    const rotationUsers = useMemo<RotationUser[]>(() => {
+        if (!inboundRoute) return [];
+        if (Array.isArray(inboundRoute.rotation_users)) {
+            return inboundRoute.rotation_users;
+        }
+        const list: RotationUser[] = [];
+        if (inboundRoute.owner_id != null) {
+            list.push({
+                id: Number(inboundRoute.owner_id),
+                name: inboundRoute.owner_name || `User #${inboundRoute.owner_id}`,
+                role: "owner",
+            });
+        }
+        for (const uid of inboundRoute.pool_user_ids ?? []) {
+            if (Number(uid) !== Number(inboundRoute.owner_id ?? -1)) {
+                list.push({
+                    id: Number(uid),
+                    name: `User #${uid}`,
+                    role: "pool",
+                });
+            }
+        }
+        return list;
+    }, [inboundRoute]);
+
+    const passedUserIds = inboundRoute?.passed_user_ids ?? [];
+
+    /** True only when the call has actually rotated past at least one earlier user in the sequence. */
+    const isForwarded =
+        activeCall?.direction === "inbound" &&
+        rotationIndex > 0 &&
+        rotationUsers.length > 0;
+
+    /** The user who most recently had the call before it was forwarded. Null when not forwarded. */
+    const lastForwardedUser = useMemo<RotationUser | null>(() => {
+        if (!isForwarded || rotationUsers.length === 0) {
+            return null;
+        }
+        const lastIdx = Math.min(rotationIndex - 1, rotationUsers.length - 1);
+        return rotationUsers[lastIdx] ?? null;
+    }, [isForwarded, rotationIndex, rotationUsers]);
+
+    const currentRotationTarget =
+        rotationIndex < rotationUsers.length
+            ? rotationUsers[rotationIndex]
+            : null;
 
     const elapsed = useElapsed(
         activeCall?.connectedAt ?? activeCall?.answeredAt ?? null,
     );
 
-    /** The lead this call is about: the caller's entry point knew one (outbound), or it was matched from the caller's number (inbound). */
+    /** The lead this call is about: matched from the number or supplied by the caller's entry point. */
     const callLead = useMemo<MatchedLead | null>(() => {
+        if (matchedLead) {
+            return matchedLead;
+        }
         const context = activeCall?.context;
         if (context?.leadId) {
             return {
@@ -271,7 +391,7 @@ export default function SoftphoneDock() {
                 url: route("lead-contact.show", context.leadId),
             };
         }
-        return matchedLead;
+        return null;
     }, [activeCall?.context, matchedLead]);
 
     /** Stable reference for the current call. Shared by the hang-up timeline event and the recording upload so the two can be linked afterwards. */
@@ -298,11 +418,53 @@ export default function SoftphoneDock() {
         if (!inboundRoute?.matched) {
             return "unmatched";
         }
-        if (routingMode === "owner") {
+        if (routingMode === "owner" && !isForwarded) {
             return "lead_owner";
         }
         return "pool_fallback";
-    }, [activeCall?.direction, inboundRoute?.matched, routingMode]);
+    }, [activeCall?.direction, inboundRoute?.matched, routingMode, isForwarded]);
+
+    const forwardedInfoRef = useRef<{
+        isForwarded: boolean;
+        lastForwardedUser: RotationUser | null;
+        callRoutingReason: string;
+    }>({
+        isForwarded: false,
+        lastForwardedUser: null,
+        callRoutingReason: "outbound",
+    });
+    useEffect(() => {
+        forwardedInfoRef.current = {
+            isForwarded,
+            lastForwardedUser,
+            callRoutingReason,
+        };
+    }, [isForwarded, lastForwardedUser, callRoutingReason]);
+
+    const hasPassedCurrentCall =
+        (activeCall !== null && passedCallId === activeCall.id) ||
+        passedUserIds.includes(currentUserId);
+
+    // Owner-first / step-by-step rotation: while a specific user in rotationUsers is active, only that user rings (plus admins once the call has been forwarded). Once all individual rotation steps have timed out, all eligible pool agents and admins ring.
+    const isCurrentRotationSession =
+        inboundRoute === null ||
+        rotationUsers.length === 0 ||
+        (currentRotationTarget !== null
+            ? Number(currentRotationTarget.id) === currentUserId
+            : true);
+
+    const isEligibleSession =
+        inboundRoute === null ||
+        (currentRotationTarget !== null &&
+            Number(currentRotationTarget.id) === currentUserId) ||
+        inboundRoute.can_ring ||
+        isAdmin;
+
+    const ringingInbound =
+        activeCall?.phase === "inbound" &&
+        !hasPassedCurrentCall &&
+        isCurrentRotationSession &&
+        isEligibleSession;
 
     useEffect(() => {
         try {
@@ -399,32 +561,41 @@ export default function SoftphoneDock() {
         };
     }, [unlock]);
 
-    // Drive the sounds from the call state.
+    // Drive the sounds from the call state. Only the owning tab should ring, and for inbound calls only when this user's session is currently ringing.
     useEffect(() => {
+        if (!isActiveTab) {
+            stopRinging();
+            stopAll();
+            return;
+        }
         const phase = activeCall?.phase;
 
         if (phase === "inbound") {
-            playIncoming();
-            startRinging();
+            if (ringingInbound) {
+                playIncoming();
+                startRinging();
+                return () => stopRinging();
+            }
+            stopRinging();
             return;
         }
 
         if (phase === "outbound") {
             startRinging();
-            return;
+            return () => stopRinging();
         }
 
         // No live call — silence everything.
         stopRinging();
 
         return () => stopRinging();
-    }, [activeCall?.id, activeCall?.phase, playIncoming, startRinging, stopRinging]);
+    }, [activeCall?.id, activeCall?.phase, ringingInbound, playIncoming, startRinging, stopRinging, isActiveTab, stopAll]);
 
     // One-shot "call finished" cue when a live call drops.
     const wasInCallRef = useRef(false);
     useEffect(() => {
         const inCall = activeCall !== null && activeCall.phase !== "inbound";
-        const ringing = activeCall?.phase === "inbound";
+        const ringing = ringingInbound;
 
         if (ringing) {
             wasInCallRef.current = true;
@@ -442,9 +613,9 @@ export default function SoftphoneDock() {
             stopAll();
             playEnded();
         }
-    }, [activeCall, stopRinging, stopAll, playEnded]);
+    }, [activeCall, ringingInbound, stopRinging, stopAll, playEnded]);
 
-    // Lead matching, inbound only. An outbound call carries whatever lead its entry point already had (a task's quick-action, a phone next to a lead) — we never go looking one up, because the dialer only knows a number. Inbound still matches: the caller is unknown, and the match can land late (the call bridge resolves on its own schedule), so keep checking while the call rings.
+    // Lead matching by phone number. When a single lead matches the peer's number we display its name and link; when zero or multiple leads match we report the number of matches instead of rendering a blank title.
     const matchedLeadRef = useRef<MatchedLead | null>(null);
     useEffect(() => {
         matchedLeadRef.current = matchedLead;
@@ -454,17 +625,28 @@ export default function SoftphoneDock() {
         const call = activeCall;
         if (call === null) {
             matchedLeadRef.current = null;
+            routeInitializedCallIdRef.current = null;
             setMatchedLead(null);
+            setMatchCount(null);
             setInboundRoute(null);
             setRoutingMode("all");
+            setRotationIndex(0);
+            setPassedCallId(null);
             return;
         }
 
         const phone = call.peer;
-        if (!phone || call.direction !== "inbound") {
+        if (!phone) {
             return;
         }
-        setLastInboundPhone(phone);
+        if (call.direction === "inbound") {
+            setLastInboundPhone(phone);
+            if (routeInitializedCallIdRef.current !== call.id) {
+                routeInitializedCallIdRef.current = call.id;
+                setRotationIndex(0);
+                setPassedCallId(null);
+            }
+        }
 
         let cancelled = false;
         const lookup = async () => {
@@ -474,14 +656,25 @@ export default function SoftphoneDock() {
                 });
                 if (cancelled) return;
                 const data = response.data?.data as CallRouting | null;
+                const count =
+                    typeof data?.match_count === "number"
+                        ? data.match_count
+                        : data?.matched
+                          ? 1
+                          : 0;
+                setMatchCount(count);
                 if (call.direction === "inbound") {
                     // Routing only applies to inbound calls.
-                    setInboundRoute(data);
-                    setRoutingMode(data?.route === "owner" ? "owner" : "all");
+                    setInboundRoute((prev) => {
+                        if (prev === null) {
+                            setRoutingMode(data?.route === "owner" ? "owner" : "all");
+                        }
+                        return data;
+                    });
                 }
                 const lead = data?.matched && data.lead_id ? {
                     id: data.lead_id,
-                    name: data.name ?? "Lead",
+                    name: data.name || `Lead #${data.lead_id}`,
                     url: data.url ?? "",
                 } : null;
                 matchedLeadRef.current = lead;
@@ -491,17 +684,20 @@ export default function SoftphoneDock() {
                     softphone.setCallContext({ leadId: lead.id, leadName: lead.name });
                 }
             } catch {
-                if (!cancelled && call.direction === "inbound") {
-                    setInboundRoute(null);
+                if (!cancelled) {
                     setMatchedLead(null);
-                    setRoutingMode("all");
+                    setMatchCount(0);
+                    if (call.direction === "inbound") {
+                        setInboundRoute(null);
+                        setRoutingMode("all");
+                    }
                 }
             }
         };
 
         void lookup();
         const poll = window.setInterval(() => {
-            if (!matchedLeadRef.current) {
+            if (call.direction === "inbound" || !matchedLeadRef.current) {
                 void lookup();
             }
         }, LEAD_MATCH_POLL_MS);
@@ -513,23 +709,42 @@ export default function SoftphoneDock() {
         // Keyed on the call id only: the phase changes as the call progresses, and re-running then would wipe a match we already have.
     }, [activeCall?.id, activeDeviceId]);
 
+    // Advance rotationIndex immediately past any users who explicitly declined/passed this call.
     useEffect(() => {
-        if (!activeCall || activeCall.phase !== "inbound" || !inboundRoute) return;
-        // Owner-first / non-eligible sessions are hidden locally only when we actually know they shouldn't ring. While the lead-match request is in flight (or failed) inboundRoute is null and the call must still be answerable, otherwise the user gets a ring with no controls at all.
-        if (routingMode === "owner" && Number(inboundRoute.owner_id ?? -1) !== Number(props.auth?.user?.id ?? -1)) {
-            // hidden locally; keep the SIP session so routingMode can fall back
-        }
-        if (routingMode === "all" || routingMode === "pool") {
-            if (!inboundRoute.can_ring) {
-                // Non-eligible sessions stay silent and do not present the call.
+        if (rotationUsers.length === 0 || passedUserIds.length === 0) return;
+        setRotationIndex((prev) => {
+            let next = prev;
+            while (
+                next < rotationUsers.length &&
+                passedUserIds.includes(Number(rotationUsers[next].id))
+            ) {
+                next += 1;
             }
+            return next;
+        });
+    }, [rotationUsers, passedUserIds]);
+
+    // Step through rotationUsers one active user at a time using fallback_seconds.
+    // Keyed on stable primitives (not the inboundRoute / rotationUsers objects) so a lead-match poll that returns equivalent data does not restart the timeout.
+    const hasInboundRoute = inboundRoute !== null;
+    const routeFallbackSeconds = inboundRoute?.fallback_seconds ?? null;
+    const rotationUsersKey = rotationUsers
+        .map((u) => `${u.id}:${u.role ?? ""}`)
+        .join("|");
+    useEffect(() => {
+        if (!activeCall || activeCall.phase !== "inbound" || !hasInboundRoute) return;
+
+        if (rotationIndex >= rotationUsers.length) {
+            setRoutingMode("pool");
+            return;
         }
 
-        if (routingMode === "owner" && (fallbackRef.current == null)) {
-            fallbackRef.current = setTimeout(() => {
-                setRoutingMode("pool");
-            }, Math.max(1, inboundRoute.fallback_seconds) * 1000);
-        }
+        const currentTarget = rotationUsers[rotationIndex];
+        setRoutingMode(currentTarget?.role === "owner" ? "owner" : "pool");
+
+        fallbackRef.current = setTimeout(() => {
+            setRotationIndex((prev) => Math.min(rotationUsers.length, prev + 1));
+        }, Math.max(1, routeFallbackSeconds ?? 20) * 1000);
 
         return () => {
             if (fallbackRef.current) {
@@ -537,7 +752,59 @@ export default function SoftphoneDock() {
                 fallbackRef.current = null;
             }
         };
-    }, [activeCall?.id, activeCall?.phase, inboundRoute, routingMode, props.auth?.user?.id]);
+    }, [
+        activeCall?.id,
+        activeCall?.phase,
+        hasInboundRoute,
+        rotationIndex,
+        rotationUsersKey,
+        routeFallbackSeconds,
+    ]);
+
+    const handleDeclineInbound = useCallback(async () => {
+        if (!activeCall) return;
+
+        const hasRemainingRotation =
+            rotationUsers.some(
+                (u, idx) =>
+                    idx > rotationIndex &&
+                    Number(u.id) !== currentUserId &&
+                    !passedUserIds.includes(Number(u.id)),
+            ) || !isAdmin;
+
+        if (hasRemainingRotation && activeCall.peer) {
+            setPassedCallId(activeCall.id);
+            stopRinging();
+            try {
+                const res = await axios.get(route("telephony.softphone.lead-match"), {
+                    params: {
+                        phone: activeCall.peer,
+                        device_id: activeDeviceId,
+                        pass: 1,
+                    },
+                });
+                const updated = res.data?.data as CallRouting | null;
+                if (updated) {
+                    setInboundRoute(updated);
+                }
+            } catch {
+                // Local pass already hid the call on this browser.
+            }
+            return;
+        }
+
+        await reject();
+    }, [
+        activeCall,
+        rotationUsers,
+        rotationIndex,
+        currentUserId,
+        passedUserIds,
+        isAdmin,
+        stopRinging,
+        activeDeviceId,
+        reject,
+    ]);
 
     /** One-shot "call finished" cue when a live call drops. Shared by the dock Answer button and the notification island Answer action, and keyed on the call id so one answered call can only ever log once. */
     const logInboundCallStarted = useCallback(
@@ -549,26 +816,42 @@ export default function SoftphoneDock() {
                 return;
             }
             inboundLoggedRef.current = callId;
+            const fwd = forwardedInfoRef.current;
             await axios
                 .post(route("telephony.softphone.events.store"), {
                     phone: peer,
+                    device_id: activeDeviceId,
                     entity_type: "lead",
                     entity_id: inboundRoute.lead_id,
                     event: "call.started",
                     direction: "inbound",
+                    routing_reason: fwd.callRoutingReason,
+                    ...(callRef ? { call_ref: callRef } : {}),
+                    ...(fwd.isForwarded && fwd.lastForwardedUser
+                        ? {
+                              is_forwarded: true,
+                              forwarded_from_user_id: fwd.lastForwardedUser.id,
+                              forwarded_from_user_name: fwd.lastForwardedUser.name,
+                          }
+                        : {}),
                 })
                 .catch(() => {
                     // Timeline logging is best-effort only.
                     inboundLoggedRef.current = null;
                 });
         },
-        [inboundRoute],
+        [inboundRoute, activeDeviceId, callRef],
     );
 
     // Incoming calls are surfaced in the softphone dock only. The dock auto-opens while a call is ringing or live and owns Answer/Decline/Hang up.
 
     useEffect(() => {
-        if (activeCall === null && inboundRoute && !inboundRoute.matched) {
+        if (
+            activeCall === null &&
+            inboundRoute &&
+            !inboundRoute.matched &&
+            (inboundRoute.match_count ?? 0) === 0
+        ) {
             setUnmatchedPromptPhone(lastInboundPhone ?? null);
         }
     }, [activeCall, inboundRoute]);
@@ -660,7 +943,13 @@ export default function SoftphoneDock() {
                     }
                     form.append("phone_number", activeCall?.peer ?? lastInboundPhone ?? "");
                     form.append("direction", activeCall?.direction === "inbound" ? "inbound" : "outbound");
-                    form.append("routing_reason", callRoutingReason);
+                    const fwd = forwardedInfoRef.current;
+                    form.append("routing_reason", fwd.callRoutingReason);
+                    if (fwd.isForwarded && fwd.lastForwardedUser) {
+                        form.append("is_forwarded", "1");
+                        form.append("forwarded_from_user_id", String(fwd.lastForwardedUser.id));
+                        form.append("forwarded_from_user_name", fwd.lastForwardedUser.name);
+                    }
                     if (callRef) {
                         form.append("call_ref", callRef);
                     }
@@ -763,7 +1052,11 @@ export default function SoftphoneDock() {
         const failure = callFailure;
         clearCallFailure();
         if (failure?.peer) {
-            void softphone.call(failure.peer, failure.context);
+            void call(
+                failure.peer,
+                failure.context,
+                activeDeviceId ?? undefined,
+            );
         }
     };
 
@@ -771,16 +1064,6 @@ export default function SoftphoneDock() {
         return null;
     }
 
-    // Owner-first / non-eligible sessions are hidden locally only when we know they shouldn't ring. While the lead-match request is in flight (or failed) inboundRoute is null and the call must still be answerable, otherwise the user gets a ring with no controls at all.
-    const isOwnerSession =
-        inboundRoute === null ||
-        routingMode !== "owner" ||
-        Number(inboundRoute.owner_id ?? -1) === Number(props.auth?.user?.id ?? -1);
-    const isEligibleSession =
-        inboundRoute === null || routingMode === "owner" || inboundRoute.can_ring;
-
-    const ringingInbound =
-        activeCall?.phase === "inbound" && isOwnerSession && isEligibleSession;
     const inCall =
         activeCall !== null &&
         (activeCall.phase === "active" || activeCall.phase === "outbound");
@@ -799,10 +1082,26 @@ export default function SoftphoneDock() {
                 ? "sp__dot sp__dot--registering"
                 : "sp__dot sp__dot--unregistered";
 
-    // Keep the matched lead's name visible even after the call is answered (the design's title is the identity block, shared across both states).
-    const titleName =
-        callLead?.name ??
-        (inboundRoute?.matched ? (inboundRoute?.name ?? activeCall?.peer ?? "") : (activeCall?.peer ?? ""));
+    // When a single lead is matched, show its name and link. When number matching cannot find a single lead (0 or 2+ matches), tell the user how many matches were found instead of leaving the name blank.
+    const contextLeadName = activeCall?.context?.leadName?.trim() || "";
+    const matchSummaryLabel =
+        matchCount !== null && matchCount !== 1
+            ? `There ${matchCount === 1 ? "is 1 match" : `are ${matchCount} matches`}`
+            : null;
+    const titleName = matchedLead?.name
+        ? matchedLead.name
+        : matchCount !== null && matchCount !== 1
+          ? `${matchCount} ${matchCount === 1 ? "match" : "matches"}`
+          : contextLeadName || (activeCall?.peer ?? "");
+    const displayLeadUrl = matchedLead?.url
+        ? matchedLead.url
+        : matchCount === null && contextLeadName && activeCall?.context?.leadId
+          ? route("lead-contact.show", activeCall.context.leadId)
+          : null;
+
+    const headerTitle = activeDevice
+        ? `Softphone · ${activeDevice.label}`
+        : "Softphone";
 
     // No floating FAB is shipped — the dock opens on its own when a call arrives, and stays pinned in development for testing.
 
@@ -812,7 +1111,14 @@ export default function SoftphoneDock() {
 
             {/* Failed call — the reason sticks around until closed. */}
             {callFailure && !hasCall && (
-                <CallFailedNotice failure={callFailure} onRetry={retryFailedCall} onClose={clearCallFailure} />
+                <CallFailedNotice
+                    failure={callFailure}
+                    devices={devices}
+                    activeDeviceId={activeDeviceId}
+                    onSelectDevice={setActiveDevice}
+                    onRetry={retryFailedCall}
+                    onClose={clearCallFailure}
+                />
             )}
 
             {/* Inbound call was not matched to a lead — prompt to create one. */}
@@ -835,7 +1141,7 @@ export default function SoftphoneDock() {
                 <section className="sp" aria-label="Softphone status">
                     <header className="sp__head">
                         <span className={statusDotClass} />
-                        Softphone
+                        {headerTitle}
                         <span className="sp__signal" data-quality={quality} title={`Connection: ${quality}`}>
                             <i />
                             <i />
@@ -905,7 +1211,7 @@ export default function SoftphoneDock() {
                 <section className="sp sp--incoming" aria-label="Softphone, incoming call">
                     <header className="sp__head">
                         <span className={statusDotClass} />
-                        Softphone
+                        {headerTitle}
                         <span className="sp__signal" data-quality={quality} title={`Connection: ${connectionQuality}`}>
                             <i />
                             <i />
@@ -913,20 +1219,25 @@ export default function SoftphoneDock() {
                         </span>
                     </header>
                     <div className="sp__body">
-                        <CallIdentity name={titleName} peer={activeCall.peer} leadUrl={callLead?.url}>
-                            {inboundRoute?.matched && (
+                        <CallIdentity name={titleName} peer={activeCall.peer} leadUrl={displayLeadUrl}>
+                            {isAdmin && isForwarded && lastForwardedUser ? (
+                                <span className="sp__lead" data-forwarded="true">
+                                    Forwarded · Last user: {lastForwardedUser.name}
+                                </span>
+                            ) : inboundRoute?.matched ? (
                                 <span className="sp__lead">
                                     {callRoutingReason === "lead_owner" ? "Lead owner" : "Call pool"}
                                 </span>
-                            )}
+                            ) : matchSummaryLabel ? (
+                                <span className="sp__lead">{matchSummaryLabel}</span>
+                            ) : null}
                         </CallIdentity>
                         <CallStateBadge stage={activeCall.stage} />
                         <div className="sp__actions">
-                            <button type="button" className="act act--danger" onClick={() => void reject()}>
+                            <button type="button" className="act act--danger" onClick={() => void handleDeclineInbound()}>
                                 <span className="act__btn">
-                                    <svg viewBox="0 0 24 24">
-                                        <path d="M10.7 13.3a16 16 0 0 1-2.4-3.1l1.6-1.4a1.5 1.5 0 0 0 .4-1.6L9.6 4.8A1.5 1.5 0 0 0 8.1 4H5.5A1.5 1.5 0 0 0 4 5.6 17 17 0 0 0 18.4 20a1.5 1.5 0 0 0 1.6-1.5v-2.6a1.5 1.5 0 0 0-.8-1.4l-3-1.1a1.5 1.5 0 0 0-1.6.4l-1.4 1.6" />
-                                        <path d="M3 3l18 18" />
+                                    <svg viewBox="0 0 24 24" style={{ transform: "rotate(135deg)" }}>
+                                        <path d="M5.5 4h2.6a1.5 1.5 0 0 1 1.5.8l1 3a1.5 1.5 0 0 1-.4 1.6l-1.6 1.4a16 16 0 0 0 5.6 5.6l1.4-1.6a1.5 1.5 0 0 1 1.6-.4l3 1.1a1.5 1.5 0 0 1 .8 1.4v2.6A1.5 1.5 0 0 1 18.4 20 17 17 0 0 1 4 5.6 1.5 1.5 0 0 1 5.5 4z" />
                                     </svg>
                                 </span>
                                 Decline
@@ -953,7 +1264,7 @@ export default function SoftphoneDock() {
                 <section className="sp sp--active" aria-label="Softphone, in call">
                     <header className="sp__head">
                         <span className={statusDotClass} />
-                        Softphone
+                        {headerTitle}
                         <span className="sp__signal" data-quality={quality} title={`Connection: ${connectionQuality}`}>
                             <i />
                             <i />
@@ -961,10 +1272,16 @@ export default function SoftphoneDock() {
                         </span>
                     </header>
                     <div className="sp__body">
-                        <CallIdentity name={titleName} peer={activeCall.peer} leadUrl={callLead?.url}>
-                            {matchedLead && titleName !== activeCall.peer && (
+                        <CallIdentity name={titleName} peer={activeCall.peer} leadUrl={displayLeadUrl}>
+                            {isAdmin && isForwarded && lastForwardedUser ? (
+                                <span className="sp__lead" data-forwarded="true">
+                                    Forwarded · Last user: {lastForwardedUser.name}
+                                </span>
+                            ) : matchedLead ? (
                                 <span className="sp__lead">Matching lead</span>
-                            )}
+                            ) : matchSummaryLabel ? (
+                                <span className="sp__lead">{matchSummaryLabel}</span>
+                            ) : null}
                         </CallIdentity>
                         <CallStateBadge stage={activeCall.stage} />
                         {/* Only once media actually flows — a running timer over "Calling…" was the confusing part this replaces. */}
@@ -980,6 +1297,7 @@ export default function SoftphoneDock() {
                                     <svg viewBox="0 0 24 24">
                                         <rect x="9" y="3" width="6" height="11" rx="3" />
                                         <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+                                        {!activeCall.muted && <path d="M3 3l18 18" />}
                                     </svg>
                                 </span>
                                 {activeCall.muted ? "Unmute" : "Mute"}
@@ -988,23 +1306,32 @@ export default function SoftphoneDock() {
                                 const direction = activeCall.direction === "inbound" ? "inbound" : "outbound";
                                 const duration = activeCall.answeredAt ? Math.max(1, Math.round((Date.now() - activeCall.answeredAt) / 1000)) : 0;
                                 if (activeCall.phase === "active" && callLead) {
+                                    const fwd = forwardedInfoRef.current;
                                     void axios.post(route("telephony.softphone.events.store"), {
                                         phone: activeCall.peer,
+                                        device_id: activeDeviceId,
                                         entity_type: "lead",
                                         entity_id: callLead.id,
                                         event: "call.ended",
                                         direction,
                                         status: "completed",
                                         duration,
+                                        routing_reason: fwd.callRoutingReason,
                                         ...(callRef ? { call_ref: callRef } : {}),
+                                        ...(fwd.isForwarded && fwd.lastForwardedUser
+                                            ? {
+                                                  is_forwarded: true,
+                                                  forwarded_from_user_id: fwd.lastForwardedUser.id,
+                                                  forwarded_from_user_name: fwd.lastForwardedUser.name,
+                                              }
+                                            : {}),
                                     }).catch(() => undefined);
                                 }
                                 void hangup();
                             }}>
                                 <span className="act__btn">
-                                    <svg viewBox="0 0 24 24">
-                                        <path d="M10.7 13.3a16 16 0 0 1-2.4-3.1l1.6-1.4a1.5 1.5 0 0 0 .4-1.6L9.6 4.8A1.5 1.5 0 0 0 8.1 4H5.5A1.5 1.5 0 0 0 4 5.6 17 17 0 0 0 18.4 20a1.5 1.5 0 0 0 1.6-1.5v-2.6a1.5 1.5 0 0 0-.8-1.4l-3-1.1a1.5 1.5 0 0 0-1.6.4l-1.4 1.6" />
-                                        <path d="M3 3l18 18" />
+                                    <svg viewBox="0 0 24 24" style={{ transform: "rotate(135deg)" }}>
+                                        <path d="M5.5 4h2.6a1.5 1.5 0 0 1 1.5.8l1 3a1.5 1.5 0 0 1-.4 1.6l-1.6 1.4a16 16 0 0 0 5.6 5.6l1.4-1.6a1.5 1.5 0 0 1 1.6-.4l3 1.1a1.5 1.5 0 0 1 .8 1.4v2.6A1.5 1.5 0 0 1 18.4 20 17 17 0 0 1 4 5.6 1.5 1.5 0 0 1 5.5 4z" />
                                     </svg>
                                 </span>
                                 End

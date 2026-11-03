@@ -1752,6 +1752,11 @@ class Module extends BaseModel
                     'is_custom' => 1,
                     'name' => 'manage_partner_flags',
                 ],
+                [
+                    'allowed_permissions' => Permission::ALL_ADDED_NONE,
+                    'is_custom' => 1,
+                    'name' => 'make_softphone_calls',
+                ],
             ]
         ],
         [

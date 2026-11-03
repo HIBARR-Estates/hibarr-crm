@@ -51,7 +51,11 @@ class SoftphoneCallPoolAgent extends Model
                     ->from('user_permissions')
                     ->join('permissions', 'permissions.id', '=', 'user_permissions.permission_id')
                     ->whereColumn('user_permissions.user_id', 'users.id')
-                    ->where('permissions.name', 'make_softphone_calls');
+                    ->where('permissions.name', 'make_softphone_calls')
+                    ->whereIn('user_permissions.permission_type_id', [
+                        PermissionType::ALL,
+                        PermissionType::ADDED,
+                    ]);
             })
             ->whereNotExists(function ($query): void {
                 $query->select(DB::raw(1))
@@ -79,5 +83,40 @@ class SoftphoneCallPoolAgent extends Model
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
+    }
+
+    /**
+     * Line ids a non-admin user may use (receive and dial on). Admins are not
+     * restricted — callers must check that separately.
+     *
+     * Returns null when the user is on the admin fallback list (a row with no
+     * line): fallback users must be able to register on any line to be rung.
+     *
+     * @return array<int, int>|null
+     */
+    public static function allowedDeviceIdsForUser(int $companyId, int $userId): ?array
+    {
+        $rows = static::query()
+            ->where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->where('active', true)
+            ->get(['device_id']);
+
+        if ($rows->contains(fn ($row) => $row->device_id === null)) {
+            return null;
+        }
+
+        return $rows->pluck('device_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
+    }
+
+    /** Active company users (admins and staff) who can be added to the fallback list. */
+    public static function eligibleFallbackUsersForCompany(int $companyId)
+    {
+        return User::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->where('login', '!=', 'disable')
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
     }
 }

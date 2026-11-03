@@ -1182,6 +1182,30 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
                     }
                 }
 
+                // Backfill any permission not yet present in user_permissions
+                // (e.g. newly introduced custom permissions like make_softphone_calls)
+                // from the user's assigned roles, preferring non-employee roles first.
+                if (! array_key_exists('make_softphone_calls', $map)) {
+                    try {
+                        $roleRows = PermissionRole::join('permissions', 'permission_role.permission_id', '=', 'permissions.id')
+                            ->join('permission_types', 'permission_role.permission_type_id', '=', 'permission_types.id')
+                            ->join('role_user', 'role_user.role_id', '=', 'permission_role.role_id')
+                            ->join('roles', 'roles.id', '=', 'role_user.role_id')
+                            ->select('permissions.name as permission_name', 'permission_types.name as permission_type')
+                            ->where('role_user.user_id', $userId)
+                            ->orderByRaw("CASE WHEN roles.name = 'employee' THEN 1 ELSE 0 END")
+                            ->get();
+
+                        foreach ($roleRows as $roleRow) {
+                            if (! array_key_exists($roleRow->permission_name, $map)) {
+                                $map[$roleRow->permission_name] = $roleRow->permission_type;
+                            }
+                        }
+                    } catch (\Throwable) {
+                        // Ignore in minimal test schemas where role tables are absent.
+                    }
+                }
+
                 return $map;
             });
         }
@@ -1191,25 +1215,7 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
 
     public function permissionTypeId($permission)
     {
-        $cacheKey = 'permission-id-' . $permission . '-' . $this->id;
-
-        if (cache()->has($cacheKey)) {
-            return cache($cacheKey);
-        }
-
-        $permissionType = UserPermission::join('permissions', 'user_permissions.permission_id', '=', 'permissions.id')
-            ->join('permission_types', 'user_permissions.permission_type_id', '=', 'permission_types.id')
-            ->select('permission_types.name', 'permission_types.id')
-            ->where('permissions.name', $permission)
-            ->where('user_permissions.user_id', $this->id)
-            ->first();
-
-        $permissionName = $permissionType ? $permissionType->name : false;
-
-        cache([$cacheKey => $permissionName]);
-
-        return $permissionName;
-
+        return $this->permission($permission);
     }
 
     /**
@@ -1254,6 +1260,8 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
         foreach (array_chunk($data, 100) as $item) {
             UserPermission::insert($item);
         }
+
+        app()->forgetInstance('user.permission-map.' . $this->id);
     }
 
     public function assignModuleRolePermission($module)

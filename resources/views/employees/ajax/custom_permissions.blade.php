@@ -8,14 +8,21 @@
                         <h6 class="heading-h6">@lang('permissions.'.$permission->name)</h6>
                     </td>
                     @php
-                        $permissionType = $employee->permissionTypeId($permission->name);
+                        if ($employee->customised_permissions === 1) {
+                            $permissionType = $employee->permissionTypeId($permission->name);
+                        } else {
+                            $permissionType = $employee->permissionTypeId($permission->name) ?: $role->permissionType($permission->id);
+                        }
                         $allowedPermissions = json_decode($permission->allowed_permissions);
+                        if (($permissionType === 'added' || $permissionType === 1) && !isset($allowedPermissions->added) && isset($allowedPermissions->all)) {
+                            $permissionType = 'all';
+                        }
                     @endphp
                     <td>
                         <select class="role-permission-select border-0" data-permission-id="{{ $permission->id }}">
                             @if (!is_null($allowedPermissions))
                                 @foreach ($allowedPermissions as $key => $item)
-                                    <option @if ($permissionType == $key) selected @endif value="{{ $item }}">@lang('app.'.$key)</option>
+                                    <option @if ($permissionType == $key || $permissionType == $item) selected @endif @if ((!$permissionType || $permissionType === 'none') && $item == 5) selected @endif value="{{ $item }}">@lang('app.'.$key)</option>
                                 @endforeach
                             @endif
                         </select>

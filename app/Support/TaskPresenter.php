@@ -79,7 +79,7 @@ class TaskPresenter
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
-                    'image' => $user->image,
+                    'image' => $user->image_url ?? $user->image,
                 ];
             })->toArray(),
             'labels' => $task->labels->map(function ($label) {

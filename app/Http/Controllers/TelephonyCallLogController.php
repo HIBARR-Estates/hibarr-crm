@@ -125,6 +125,10 @@ class TelephonyCallLogController extends AccountBaseController
                 'entity_url' => $entity['url'] ?? null,
                 'failure_reason' => $meta['failure_reason'] ?? null,
                 'failure_message' => $meta['failure_message'] ?? null,
+                'routing_reason' => $meta['routing_reason'] ?? null,
+                'is_forwarded' => ($meta['is_forwarded'] ?? false) === true,
+                'forwarded_from_user_id' => isset($meta['forwarded_from_user_id']) ? (int) $meta['forwarded_from_user_id'] : null,
+                'forwarded_from_user_name' => $meta['forwarded_from_user_name'] ?? null,
                 'has_recording' => ($meta['has_recording'] ?? false) === true || isset($meta['recording_id']),
             ];
         })->values();

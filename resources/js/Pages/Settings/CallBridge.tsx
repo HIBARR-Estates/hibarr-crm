@@ -15,8 +15,8 @@ import "@/Components/Redesign/redesign.css";
 import "@/Components/CallRecordingPlayer.css";
 import "./CallBridgeSettings.css";
 
-type TabKey = "lines" | "pool" | "calls" | "recordings";
-export const CALL_BRIDGE_TABS = ["lines", "pool", "calls", "recordings"] as const;
+type TabKey = "lines" | "routing" | "calls" | "recordings";
+export const CALL_BRIDGE_TABS = ["lines", "routing", "calls", "recordings"] as const;
 export type CallBridgeTab = (typeof CALL_BRIDGE_TABS)[number];
 
 interface DevicesResponse {
@@ -29,7 +29,13 @@ interface DevicesResponse {
  * per settings group. Styling lives in CallBridgeSettings.css (`cb-*` classes,
  * scoped to `.cb-spec-page`) and resolves to the CRM design tokens.
  */
-export default function CallBridge({ pageTitle }: { pageTitle?: string }) {
+export default function CallBridge({
+    pageTitle,
+    fallbackSeconds,
+}: {
+    pageTitle?: string;
+    fallbackSeconds?: number;
+}) {
     const { t } = useTranslation();
     const { td } = useTd();
     const { props } = usePage();
@@ -53,8 +59,8 @@ export default function CallBridge({ pageTitle }: { pageTitle?: string }) {
         ...(isAdmin
             ? [
                   {
-                      key: "pool" as const,
-                      label: td("Call pool", { source: "en" }),
+                      key: "routing" as const,
+                      label: td("Call routing", { source: "en" }),
                       count: null as number | null,
                   },
               ]
@@ -73,7 +79,7 @@ export default function CallBridge({ pageTitle }: { pageTitle?: string }) {
             label: td("Recordings", { source: "en" }),
             count: null as number | null,
         },
-    ].filter((t) => t.key !== "pool" || isAdmin);
+    ].filter((t) => t.key !== "routing" || isAdmin);
 
     const activeTab = tabs.some((t) => t.key === tab) ? tab : "lines";
 
@@ -120,8 +126,13 @@ export default function CallBridge({ pageTitle }: { pageTitle?: string }) {
                         <div className="cb-panel" id="lines" hidden={activeTab !== "lines"}>
                             <SoftphoneDeviceManager />
                         </div>
-                        <div className="cb-panel" id="pool" hidden={activeTab !== "pool"}>
-                            {isAdmin && <SoftphoneCallPoolManager devices={devices} />}
+                        <div className="cb-panel" id="routing" hidden={activeTab !== "routing"}>
+                            {isAdmin && (
+                                <SoftphoneCallPoolManager
+                                    devices={devices}
+                                    initialFallbackSeconds={fallbackSeconds ?? 20}
+                                />
+                            )}
                         </div>
                         <div className="cb-panel" id="calls" hidden={activeTab !== "calls"}>
                             {isAdmin && activeTab === "calls" && <SoftphoneCallLogPanel />}
