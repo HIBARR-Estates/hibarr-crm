@@ -179,11 +179,6 @@ class TelephonySoftphoneEventController extends AccountBaseController
 
         if ($matchCount !== 1) {
             $rotationUsers = $buildRotation(null, null, $poolUsers, $fallbackUsers);
-            $rotationUserIds = array_map(fn (array $u): int => (int) $u['id'], $rotationUsers);
-            if ($rotationUserIds !== [] && empty(array_diff($rotationUserIds, $passedUserIds))) {
-                $this->clearPassedUsers($companyId, $deviceId, $incoming, $callId);
-                $passedUserIds = [];
-            }
             $canRing = in_array((int) user()->id, array_column($rotationUsers, 'id'), true)
                 || ($rotationUsers === [] && user()->hasRole('admin'));
 
@@ -230,11 +225,6 @@ class TelephonySoftphoneEventController extends AccountBaseController
             : null;
 
         $rotationUsers = $buildRotation($ownerId, $ownerName, $poolUsers, $fallbackUsers);
-        $rotationUserIds = array_map(fn (array $u): int => (int) $u['id'], $rotationUsers);
-        if ($rotationUserIds !== [] && empty(array_diff($rotationUserIds, $passedUserIds))) {
-            $this->clearPassedUsers($companyId, $deviceId, $incoming, $callId);
-            $passedUserIds = [];
-        }
         $leadName = trim((string) ($lead->client_name ?? $lead->client_name_salutation ?? ''));
         $canRing = in_array((int) user()->id, array_column($rotationUsers, 'id'), true)
             || ($rotationUsers === [] && user()->hasRole('admin'));
@@ -279,18 +269,57 @@ class TelephonySoftphoneEventController extends AccountBaseController
             'phone' => 'required|string|max:100',
             'device_id' => 'nullable|integer|min:1',
             'call_id' => 'nullable|string|max:100',
+            'call_ref' => 'nullable|string|max:100',
         ]);
 
         $incoming = preg_replace('/[^0-9]/', '', $request->input('phone') ?? '');
         $callId = $request->input('call_id');
+        $callRef = $request->input('call_ref');
+        $companyId = (int) company()->id;
+        $passingUserId = (int) user()->id;
+        $passingUserName = (string) user()->name;
+
         if ($incoming !== '' || ($callId !== null && trim($callId) !== '')) {
             $this->recordPassedUser(
-                (int) company()->id,
+                $companyId,
                 $this->ringingDeviceId(),
                 $incoming,
-                (int) user()->id,
+                $passingUserId,
                 $callId
             );
+        }
+
+        // Persist a durable, trusted server-side forwarding transition keyed to the call
+        $declinedTypeId = CrmEventType::withoutGlobalScopes()
+            ->where(fn ($q) => $q->whereNull('company_id')->orWhere('company_id', $companyId))
+            ->where('slug', 'call_declined')
+            ->value('id');
+
+        if ($declinedTypeId) {
+            try {
+                CrmEvent::withoutGlobalScopes()->create([
+                    'uuid' => (string) \Illuminate\Support\Str::uuid(),
+                    'company_id' => $companyId,
+                    'event_type_id' => $declinedTypeId,
+                    'generation_type' => \App\Enums\CrmEventGenerationType::SYSTEM_GENERATED,
+                    'source' => \App\Enums\CrmEventSource::API,
+                    'direction' => \App\Enums\CrmEventDirection::INBOUND,
+                    'status' => \App\Enums\CrmEventStatus::COMPLETED,
+                    'user_id' => $passingUserId,
+                    'metadata' => array_filter([
+                        'call_id' => $callId,
+                        'call_ref' => $callRef,
+                        'phone_number' => $request->input('phone'),
+                        'is_forwarded' => true,
+                        'forwarded_from_user_id' => $passingUserId,
+                        'forwarded_from_user_name' => $passingUserName,
+                        'action' => 'pass',
+                    ], fn ($v) => $v !== null && $v !== ''),
+                    'occurred_at' => now(),
+                ]);
+            } catch (\Throwable) {
+                // Best-effort transition persistence
+            }
         }
 
         return response()->json(['status' => 'success']);
@@ -316,6 +345,8 @@ class TelephonySoftphoneEventController extends AccountBaseController
             if (is_array($cached)) {
                 return array_values(array_unique(array_map('intval', $cached)));
             }
+
+            return [];
         }
 
         $cached = Cache::get($this->passCacheKey($companyId, $deviceId, $incoming));
@@ -336,6 +367,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 $current[] = $userId;
             }
             Cache::put($key, $current, now()->addSeconds(90));
+            return;
         }
 
         if ($incoming !== '') {
@@ -439,23 +471,42 @@ class TelephonySoftphoneEventController extends AccountBaseController
             $this->clearPassedUsers((int) company()->id, $this->ringingDeviceId(), $incomingDigits, $callId);
         }
 
-        $isForwarded = (bool) ($validated['is_forwarded'] ?? false);
+        $callRef = $validated['call_ref'] ?? null;
+        $isForwarded = false;
         $forwardedUserId = null;
         $forwardedUserName = null;
 
-        if ($isForwarded && ! empty($validated['forwarded_from_user_id'])) {
-            $forwardedUser = User::query()
-                ->where('company_id', company()->id)
-                ->find((int) $validated['forwarded_from_user_id']);
+        // Derive forwarding attribution only from a durable, trusted server-side forwarding transition
+        // keyed to this call, never from untrusted request body data.
+        if ($callId || $callRef) {
+            $transition = CrmEvent::withoutGlobalScopes()
+                ->where('company_id', (int) company()->id)
+                ->where(function ($q) use ($callId, $callRef) {
+                    if ($callId) {
+                        $q->where('metadata->call_id', $callId);
+                    }
+                    if ($callRef) {
+                        $callId ? $q->orWhere('metadata->call_ref', $callRef) : $q->where('metadata->call_ref', $callRef);
+                    }
+                })
+                ->where('metadata->is_forwarded', true)
+                ->whereNotNull('metadata->forwarded_from_user_id')
+                ->latest('id')
+                ->first();
 
-            if ($forwardedUser) {
-                $forwardedUserId = (int) $forwardedUser->id;
-                $forwardedUserName = (string) $forwardedUser->name;
-            } else {
-                $isForwarded = false;
+            if ($transition) {
+                $meta = is_array($transition->metadata) ? $transition->metadata : [];
+                $candidateId = (int) ($meta['forwarded_from_user_id'] ?? 0);
+                $forwardedUser = User::query()
+                    ->where('company_id', (int) company()->id)
+                    ->find($candidateId);
+
+                if ($forwardedUser) {
+                    $isForwarded = true;
+                    $forwardedUserId = (int) $forwardedUser->id;
+                    $forwardedUserName = (string) $forwardedUser->name;
+                }
             }
-        } else {
-            $isForwarded = false;
         }
 
         try {

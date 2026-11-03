@@ -163,11 +163,7 @@ export async function refreshSoftphoneDevices(): Promise<
             }
             return list;
         })
-        .catch(() => {
-            devicesLoadedOnce = true;
-            updateStore({ devices: [], devicesLoaded: true });
-            return [];
-        })
+        .catch(() => storeState.devices)
         .finally(() => {
             devicesFetchPromise = null;
         });

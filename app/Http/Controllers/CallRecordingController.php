@@ -30,7 +30,7 @@ class CallRecordingController extends AccountBaseController
     public function index(Request $request)
     {
         $permission = user()->permission('make_softphone_calls');
-        abort_403(! in_array($permission, ['all', 'added']));
+        abort_403(! user()->hasRole('admin') && ! in_array($permission, ['all', 'added']));
 
         $scope = $request->input('scope', 'mine');
         $companyId = (int) company()->id;
@@ -91,7 +91,7 @@ class CallRecordingController extends AccountBaseController
     public function store(Request $request)
     {
         $permission = user()->permission('make_softphone_calls');
-        abort_403(! in_array($permission, ['all', 'added']));
+        abort_403(! user()->hasRole('admin') && ! in_array($permission, ['all', 'added']));
 
         // Recordings are tenant data and every read path filters on company_id,
         // so an unowned row would be invisible rather than harmless. Resolve the
@@ -362,7 +362,7 @@ class CallRecordingController extends AccountBaseController
         try {
             $events = \App\Models\CrmEvent::withoutGlobalScopes()
                 ->where('company_id', $companyId)
-                ->whereHas('eventType', fn ($q) => $q->whereIn('slug', ['call_started', 'call_ended']))
+                ->whereHas('eventType', fn ($q) => $q->whereIn('slug', ['call_started', 'call_ended', 'call_declined']))
                 ->where('metadata->call_ref', $callRef)
                 ->where(function ($q) use ($ownerUserId) {
                     $q->whereNull('user_id');
@@ -521,7 +521,7 @@ class CallRecordingController extends AccountBaseController
     private function authorizeRecordingAccess(CallRecording $recording): void
     {
         $permission = user()->permission('make_softphone_calls');
-        abort_403(! in_array($permission, ['all', 'added']));
+        abort_403(! user()->hasRole('admin') && ! in_array($permission, ['all', 'added']));
 
         // The owner id can come back from the model as a string while the
         // session user carries an int, so both sides are normalised before the

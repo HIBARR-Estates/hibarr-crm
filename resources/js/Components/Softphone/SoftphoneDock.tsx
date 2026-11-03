@@ -787,6 +787,7 @@ export default function SoftphoneDock() {
                     phone: activeCall.peer,
                     device_id: activeDeviceId,
                     call_id: activeCall.id,
+                    ...(callRef ? { call_ref: callRef } : {}),
                 });
                 const res = await axios.get(route("telephony.softphone.lead-match"), {
                     params: {
