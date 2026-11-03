@@ -55,7 +55,9 @@ export interface TimelineEventViewModel {
          */
         downloadUrl: string | null;
         expired: boolean;
+        userId?: number | null;
     };
+    userId?: number | null;
     /**
      * Recorded by hand via Log Action (custom event type) rather than written
      * by the system as an audit trail. Only these may be edited/deleted.
@@ -103,6 +105,7 @@ function buildCallDetails(event: CrmEvent): TimelineEventViewModel["call"] {
         // Expiry is not carried in the event metadata; the play endpoint
         // answers 410 for an expired recording and the player surfaces that.
         expired: false,
+        userId: event.user_id ?? event.user?.id ?? null,
     };
 }
 
@@ -264,6 +267,7 @@ export function crmEventToTimelineViewModel(
         hideStatusChip,
         direction: event.direction,
         call,
+        userId: event.user_id ?? event.user?.id ?? null,
         // Mirrors CrmEventController::isAgentLoggedEvent — a custom (non
         // system-seeded) event type means a person logged this by hand.
         isAgentLogged: event.event_type?.is_system === false,

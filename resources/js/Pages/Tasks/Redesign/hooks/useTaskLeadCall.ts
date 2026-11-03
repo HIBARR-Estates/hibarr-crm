@@ -5,7 +5,7 @@ import { usePage } from "@inertiajs/react";
 import { softphone } from "@/lib/softphone/SoftphoneClient";
 import useClickToCall from "@/Hooks/useClickToCall";
 import useTranslation from "@/Hooks/useTranslation";
-import useSoftphone from "@/Hooks/useSoftphone";
+import useSoftphone, { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
 import type { SoftphoneDeviceSummary } from "@/Types/api/softphone";
 import type { Task } from "@/Types/Task";
@@ -78,8 +78,10 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
 
     // Mirrors ClickToCallButton: the softphone needs make_softphone_calls;
     // without it the button falls back to the device dialler.
-    const permissionValue = props.auth?.permissions?.make_softphone_calls;
-    const canCall = permissionValue === "all" || permissionValue === "added";
+    const canCall = canMakeSoftphoneCalls(
+        props.auth?.user,
+        props.auth?.permissions,
+    );
 
     const startCall = useCallback(
         async (deviceId?: number) => {

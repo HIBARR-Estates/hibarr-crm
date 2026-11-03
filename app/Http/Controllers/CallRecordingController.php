@@ -373,25 +373,28 @@ class CallRecordingController extends AccountBaseController
                 })
                 ->get();
 
-            $isForwarded = request()->boolean('is_forwarded');
+            $isForwarded = false;
             $forwardedUserId = null;
             $forwardedUserName = null;
 
-            if ($isForwarded && request()->filled('forwarded_from_user_id')) {
-                $candidateId = (int) request()->input('forwarded_from_user_id');
-                $targetCompanyId = $companyId ?? company()?->id;
-                $forwardedUser = User::query()
-                    ->when($targetCompanyId, fn ($q) => $q->where('company_id', $targetCompanyId))
-                    ->find($candidateId);
+            // Derive forwarding attribution from trusted call events matching this call_ref,
+            // rather than trusting client upload fields.
+            foreach ($events as $event) {
+                $meta = is_array($event->metadata) ? $event->metadata : [];
+                if (! empty($meta['is_forwarded']) && ! empty($meta['forwarded_from_user_id'])) {
+                    $candidateId = (int) $meta['forwarded_from_user_id'];
+                    $targetCompanyId = $companyId ?? company()?->id;
+                    $forwardedUser = User::query()
+                        ->when($targetCompanyId, fn ($q) => $q->where('company_id', $targetCompanyId))
+                        ->find($candidateId);
 
-                if ($forwardedUser) {
-                    $forwardedUserId = (int) $forwardedUser->id;
-                    $forwardedUserName = (string) $forwardedUser->name;
-                } else {
-                    $isForwarded = false;
+                    if ($forwardedUser) {
+                        $isForwarded = true;
+                        $forwardedUserId = (int) $forwardedUser->id;
+                        $forwardedUserName = (string) $forwardedUser->name;
+                        break;
+                    }
                 }
-            } else {
-                $isForwarded = false;
             }
 
             foreach ($events as $event) {

@@ -36,8 +36,10 @@ class TelephonySoftphoneEventController extends AccountBaseController
         $request->validate([
             'phone' => 'required|string|max:100',
             'device_id' => 'nullable|integer|min:1',
+            'call_id' => 'nullable|string|max:100',
         ]);
         $incoming = preg_replace('/[^0-9]/', '', $request->input('phone') ?? '');
+        $callId = $request->input('call_id');
 
         if ($incoming === '') {
             return response()->json(['status' => 'success', 'data' => null]);
@@ -46,7 +48,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
         $companyId = (int) company()->id;
         $deviceId = $this->ringingDeviceId();
 
-        $passedUserIds = $this->passedUserIdsForCall($companyId, $deviceId, $incoming);
+        $passedUserIds = $this->passedUserIdsForCall($companyId, $deviceId, $incoming, $callId);
 
         // Routing (match count, owner, rotation) is derived from every matching
         // lead so it is identical for all viewers; the viewer's own access only
@@ -177,6 +179,11 @@ class TelephonySoftphoneEventController extends AccountBaseController
 
         if ($matchCount !== 1) {
             $rotationUsers = $buildRotation(null, null, $poolUsers, $fallbackUsers);
+            $rotationUserIds = array_map(fn (array $u): int => (int) $u['id'], $rotationUsers);
+            if ($rotationUserIds !== [] && empty(array_diff($rotationUserIds, $passedUserIds))) {
+                $this->clearPassedUsers($companyId, $deviceId, $incoming, $callId);
+                $passedUserIds = [];
+            }
             $canRing = in_array((int) user()->id, array_column($rotationUsers, 'id'), true)
                 || ($rotationUsers === [] && user()->hasRole('admin'));
 
@@ -223,6 +230,11 @@ class TelephonySoftphoneEventController extends AccountBaseController
             : null;
 
         $rotationUsers = $buildRotation($ownerId, $ownerName, $poolUsers, $fallbackUsers);
+        $rotationUserIds = array_map(fn (array $u): int => (int) $u['id'], $rotationUsers);
+        if ($rotationUserIds !== [] && empty(array_diff($rotationUserIds, $passedUserIds))) {
+            $this->clearPassedUsers($companyId, $deviceId, $incoming, $callId);
+            $passedUserIds = [];
+        }
         $leadName = trim((string) ($lead->client_name ?? $lead->client_name_salutation ?? ''));
         $canRing = in_array((int) user()->id, array_column($rotationUsers, 'id'), true)
             || ($rotationUsers === [] && user()->hasRole('admin'));
@@ -266,19 +278,27 @@ class TelephonySoftphoneEventController extends AccountBaseController
         $request->validate([
             'phone' => 'required|string|max:100',
             'device_id' => 'nullable|integer|min:1',
+            'call_id' => 'nullable|string|max:100',
         ]);
 
         $incoming = preg_replace('/[^0-9]/', '', $request->input('phone') ?? '');
-        if ($incoming !== '') {
+        $callId = $request->input('call_id');
+        if ($incoming !== '' || ($callId !== null && trim($callId) !== '')) {
             $this->recordPassedUser(
                 (int) company()->id,
                 $this->ringingDeviceId(),
                 $incoming,
-                (int) user()->id
+                (int) user()->id,
+                $callId
             );
         }
 
         return response()->json(['status' => 'success']);
+    }
+
+    private function passCallIdCacheKey(int $companyId, string $callId): string
+    {
+        return sprintf('softphone:call_pass:id:%d:%s', $companyId, trim($callId));
     }
 
     private function passCacheKey(int $companyId, ?int $deviceId, string $incoming): string
@@ -289,8 +309,15 @@ class TelephonySoftphoneEventController extends AccountBaseController
     /**
      * @return array<int, int>
      */
-    private function passedUserIdsForCall(int $companyId, ?int $deviceId, string $incoming): array
+    private function passedUserIdsForCall(int $companyId, ?int $deviceId, string $incoming, ?string $callId = null): array
     {
+        if ($callId !== null && trim($callId) !== '') {
+            $cached = Cache::get($this->passCallIdCacheKey($companyId, trim($callId)));
+            if (is_array($cached)) {
+                return array_values(array_unique(array_map('intval', $cached)));
+            }
+        }
+
         $cached = Cache::get($this->passCacheKey($companyId, $deviceId, $incoming));
         if (! is_array($cached)) {
             return [];
@@ -299,24 +326,39 @@ class TelephonySoftphoneEventController extends AccountBaseController
         return array_values(array_unique(array_map('intval', $cached)));
     }
 
-    private function recordPassedUser(int $companyId, ?int $deviceId, string $incoming, int $userId): void
+    private function recordPassedUser(int $companyId, ?int $deviceId, string $incoming, int $userId, ?string $callId = null): void
     {
-        $key = $this->passCacheKey($companyId, $deviceId, $incoming);
-        $current = $this->passedUserIdsForCall($companyId, $deviceId, $incoming);
-        if (! in_array($userId, $current, true)) {
-            $current[] = $userId;
+        if ($callId !== null && trim($callId) !== '') {
+            $key = $this->passCallIdCacheKey($companyId, trim($callId));
+            $current = Cache::get($key);
+            $current = is_array($current) ? array_values(array_unique(array_map('intval', $current))) : [];
+            if (! in_array($userId, $current, true)) {
+                $current[] = $userId;
+            }
+            Cache::put($key, $current, now()->addSeconds(90));
         }
-        Cache::put($key, $current, now()->addSeconds(90));
+
+        if ($incoming !== '') {
+            $key = $this->passCacheKey($companyId, $deviceId, $incoming);
+            $current = Cache::get($key);
+            $current = is_array($current) ? array_values(array_unique(array_map('intval', $current))) : [];
+            if (! in_array($userId, $current, true)) {
+                $current[] = $userId;
+            }
+            Cache::put($key, $current, now()->addSeconds(90));
+        }
     }
 
-    private function clearPassedUsers(int $companyId, ?int $deviceId, string $incoming): void
+    private function clearPassedUsers(int $companyId, ?int $deviceId, string $incoming, ?string $callId = null): void
     {
-        if ($incoming === '') {
-            return;
+        if ($callId !== null && trim($callId) !== '') {
+            Cache::forget($this->passCallIdCacheKey($companyId, trim($callId)));
         }
-        Cache::forget($this->passCacheKey($companyId, $deviceId, $incoming));
-        if ($deviceId !== null) {
-            Cache::forget($this->passCacheKey($companyId, null, $incoming));
+        if ($incoming !== '') {
+            Cache::forget($this->passCacheKey($companyId, $deviceId, $incoming));
+            if ($deviceId !== null) {
+                Cache::forget($this->passCacheKey($companyId, null, $incoming));
+            }
         }
     }
 
@@ -350,6 +392,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
 
         $validated = $request->validate([
             'phone' => 'required|string|max:50',
+            'call_id' => 'nullable|string|max:100',
             'entity_type' => 'required|string|in:lead,deal',
             'entity_id' => 'required|integer|min:1',
             'device_id' => 'nullable|integer|min:1',
@@ -391,8 +434,9 @@ class TelephonySoftphoneEventController extends AccountBaseController
         }
 
         $incomingDigits = preg_replace('/[^0-9]/', '', $validated['phone']) ?? '';
+        $callId = $validated['call_id'] ?? null;
         if (in_array($validated['direction'] ?? null, ['inbound', 'incoming'], true)) {
-            $this->clearPassedUsers((int) company()->id, $this->ringingDeviceId(), $incomingDigits);
+            $this->clearPassedUsers((int) company()->id, $this->ringingDeviceId(), $incomingDigits, $callId);
         }
 
         $isForwarded = (bool) ($validated['is_forwarded'] ?? false);

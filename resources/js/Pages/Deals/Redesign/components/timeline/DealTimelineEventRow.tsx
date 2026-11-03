@@ -1,4 +1,6 @@
 import { Tooltip } from "antd";
+import { usePage } from "@inertiajs/react";
+import { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import useTranslation from "@/Hooks/useTranslation";
@@ -40,6 +42,20 @@ export default function DealTimelineEventRow({
     const { td } = useTd();
     const { t } = useTranslation();
     const { formatDateTime } = useUserDateTime();
+
+    const { props } = usePage<any>();
+    const authUser = props.auth?.user;
+    const isAdmin = (authUser?.roles ?? []).some(
+        (r: { name?: string }) => r.name === "admin"
+    );
+    const hasCallPermission = canMakeSoftphoneCalls(
+        authUser,
+        props.auth?.permissions,
+    );
+    const callOwnerId = event.call?.userId ?? event.userId;
+    const canPlayRecording =
+        hasCallPermission &&
+        (isAdmin || (authUser?.id != null && callOwnerId != null && Number(authUser.id) === Number(callOwnerId)));
 
     const hasDetails = Boolean(event.details && event.details.length > 0);
     // Only events an agent logged by hand (custom event type) are editable or
@@ -317,7 +333,7 @@ export default function DealTimelineEventRow({
                 )}
 
                 {/* Call events: show the recording inline with its metadata. */}
-                {event.call?.playUrl && (
+                {event.call?.playUrl && canPlayRecording && (
                     <div className="cb-timeline-player-card">
                         <div className="cb-timeline-player-header">
                             {event.call.phone && (

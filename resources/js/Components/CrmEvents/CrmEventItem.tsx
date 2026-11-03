@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { usePage } from "@inertiajs/react";
+import { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
 import { Tooltip, Typography } from "antd";
 import {
     UserOutlined,
@@ -174,6 +176,19 @@ interface Props {
 export default function CrmEventItem({ event, compact = false }: Props) {
     const [expanded, setExpanded] = useState(false);
     const { t } = useTranslation();
+    const { props } = usePage<any>();
+    const authUser = props.auth?.user;
+    const isAdmin = (authUser?.roles ?? []).some(
+        (r: { name?: string }) => r.name === "admin"
+    );
+    const hasCallPermission = canMakeSoftphoneCalls(
+        authUser,
+        props.auth?.permissions,
+    );
+    const eventOwnerId = event.user_id ?? event.user?.id;
+    const canPlayRecording =
+        hasCallPermission &&
+        (isAdmin || (authUser?.id != null && eventOwnerId != null && Number(authUser.id) === Number(eventOwnerId)));
 
     const catSlug = event.event_type?.category?.slug ?? "";
     const colors = CATEGORY_COLORS[catSlug] || DEFAULT_CAT;
@@ -327,7 +342,7 @@ export default function CrmEventItem({ event, compact = false }: Props) {
             )}
 
             {/* Call recording playback */}
-            {recordingPlayUrl && (
+            {recordingPlayUrl && canPlayRecording && (
                 <div className="cb-timeline-player-card">
                     <RecordingPlayer
                         playUrl={recordingPlayUrl}

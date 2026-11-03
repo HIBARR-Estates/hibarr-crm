@@ -94,6 +94,7 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
     public function eligibleAgents(Request $request): JsonResponse
     {
         $this->assertSoftphoneEnabled();
+        $this->assertCanManage();
 
         $companyId = (int) company()->id;
         $isFallback = $request->input('scope') === 'fallback' || $request->input('fallback') == '1';

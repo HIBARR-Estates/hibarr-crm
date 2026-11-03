@@ -65,7 +65,7 @@ return new class extends Migration
             : [];
         $poolUserLookup = array_flip($poolUserIds);
 
-        User::with('roles')->chunkById(200, function ($users) use ($permission, $poolUserLookup): void {
+        User::withoutGlobalScope(\App\Scopes\ActiveScope::class)->with('roles')->chunkById(200, function ($users) use ($permission, $poolUserLookup): void {
             foreach ($users as $user) {
                 $existing = UserPermission::where('user_id', $user->id)
                     ->where('permission_id', $permission->id)

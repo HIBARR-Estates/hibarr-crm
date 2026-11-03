@@ -63,8 +63,9 @@ export function describeCallEvent(
         event.event_type?.slug ??
         (event as any).eventType?.slug ??
         (event as any).event_type_slug ??
-        (typeof (event as any).event_type === "string" ? (event as any).event_type : "") ??
-        (typeof (event.metadata as any)?.event === "string" ? (event.metadata as any).event : "");
+        (typeof (event as any).event_type === "string" ? (event as any).event_type : null) ??
+        (typeof (event.metadata as any)?.event === "string" ? (event.metadata as any).event : null) ??
+        "";
     const slug = typeof rawSlug === "string" ? rawSlug.toLowerCase().replace(/[.-]/g, "_") : "";
     if (!slug.startsWith("call_")) {
         return null;

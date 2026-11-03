@@ -654,7 +654,7 @@ export default function SoftphoneDock() {
         const lookup = async () => {
             try {
                 const response = await axios.get(route("telephony.softphone.lead-match"), {
-                    params: { phone, device_id: activeDeviceId },
+                    params: { phone, device_id: activeDeviceId, call_id: call.id },
                 });
                 if (cancelled) return;
                 const data = response.data?.data as CallRouting | null;
@@ -700,7 +700,10 @@ export default function SoftphoneDock() {
         void lookup();
         const poll = window.setInterval(() => {
             const isInboundRinging = call.direction === "inbound" && callPhaseRef.current === "inbound";
-            const isUnresolvedOutbound = call.direction !== "inbound" && !matchedLeadRef.current;
+            const isUnresolvedOutbound =
+                call.direction !== "inbound" &&
+                callPhaseRef.current === "outbound" &&
+                !matchedLeadRef.current;
             if (isInboundRinging || isUnresolvedOutbound) {
                 void lookup();
             }
@@ -783,11 +786,13 @@ export default function SoftphoneDock() {
                 await axios.post(route("telephony.softphone.pass"), {
                     phone: activeCall.peer,
                     device_id: activeDeviceId,
+                    call_id: activeCall.id,
                 });
                 const res = await axios.get(route("telephony.softphone.lead-match"), {
                     params: {
                         phone: activeCall.peer,
                         device_id: activeDeviceId,
+                        call_id: activeCall.id,
                     },
                 });
                 const updated = res.data?.data as CallRouting | null;
@@ -828,6 +833,7 @@ export default function SoftphoneDock() {
                 .post(route("telephony.softphone.events.store"), {
                     phone: peer,
                     device_id: activeDeviceId,
+                    call_id: callId,
                     entity_type: "lead",
                     entity_id: inboundRoute.lead_id,
                     event: "call.started",

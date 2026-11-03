@@ -18,7 +18,7 @@ import StartConversationDrawer from "./modals/StartConversationDrawer";
 import AddFollowup from "../Tabs/followups/AddFollowup";
 import useTranslation from "@/Hooks/useTranslation";
 import useClickToCall from "@/Hooks/useClickToCall";
-import useSoftphone from "@/Hooks/useSoftphone";
+import useSoftphone, { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
 
 interface Props {
@@ -38,17 +38,20 @@ export default function QuickActions({ deal, permissions }: Props) {
         activeDeviceId,
         call: softphoneCall,
     } = useSoftphone();
-    const softphonePermission = props.auth?.permissions?.make_softphone_calls;
+    const hasSoftphonePermission = canMakeSoftphoneCalls(
+        props.auth?.user,
+        props.auth?.permissions,
+    );
     const useSoftphonePath =
         softphoneFeatureEnabled &&
         props.featureFlags?.["crm.softphone"] === true &&
-        (softphonePermission === "all" || softphonePermission === "added") &&
+        hasSoftphonePermission &&
         hasLine;
     // No assigned line (Call routing): skip softphone/OL and use a tel: link.
     const noLineFallback =
         softphoneFeatureEnabled &&
         props.featureFlags?.["crm.softphone"] === true &&
-        (softphonePermission === "all" || softphonePermission === "added") &&
+        hasSoftphonePermission &&
         !hasLine;
 
     const [conversationModalOpen, setConversationModalOpen] = useState(false);

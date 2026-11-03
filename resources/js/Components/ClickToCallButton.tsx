@@ -5,7 +5,7 @@ import { usePage } from "@inertiajs/react";
 import { softphone } from "@/lib/softphone/SoftphoneClient";
 import useClickToCall from "@/Hooks/useClickToCall";
 import useTranslation from "@/Hooks/useTranslation";
-import useSoftphone from "@/Hooks/useSoftphone";
+import useSoftphone, { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
 import axios from "axios";
 import type { TelephonyCallEntity } from "@/Types/api/telephony";
 
@@ -54,9 +54,10 @@ export default function ClickToCallButton({
     const softphoneEnabled =
         softphoneFeatureEnabled &&
         props.featureFlags?.["crm.softphone"] === true;
-    const permissionValue = props.auth?.permissions?.make_softphone_calls;
-    const hasCallPermission =
-        permissionValue === "all" || permissionValue === "added";
+    const hasCallPermission = canMakeSoftphoneCalls(
+        props.auth?.user,
+        props.auth?.permissions,
+    );
     const [dialing, setDialing] = useState(false);
     const [cooling, setCooling] = useState(false);
     const [coolingRemaining, setCoolingRemaining] = useState(0);
@@ -133,21 +134,24 @@ export default function ClickToCallButton({
                 );
                 return;
             }
+            const normalizedPhone = trimmedPhone
+                .replace(/[^\d+]/g, "")
+                .replace(/(?!^)\+/g, "");
             setDialing(true);
             void softphoneCall(
-                trimmedPhone,
+                normalizedPhone,
                 entity.type === "lead" ? { leadId: entity.id } : null,
                 deviceId,
             )
                 .then(() => {
                     message.info(
                         t("pages.telephony.calling_number", {
-                            phone: trimmedPhone,
+                            phone: normalizedPhone,
                         }),
                     );
                     void axios
                         .post(route("telephony.softphone.events.store"), {
-                            phone: trimmedPhone,
+                            phone: normalizedPhone,
                             entity_type: entity.type,
                             entity_id: entity.id,
                             event: "call.started",

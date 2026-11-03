@@ -39,6 +39,25 @@ interface SoftphoneStoreState {
     devicesLoaded: boolean;
     isActiveTab: boolean;
     mirroredCall: SoftphoneState["call"] | null;
+    canMakeCalls: boolean;
+}
+
+/**
+ * Shared predicate: only admins and users whose make_softphone_calls permission
+ * is 'all' or 'added' may place calls or register softphone lines.
+ */
+export function canMakeSoftphoneCalls(
+    user?: { roles?: Array<{ name?: string }> } | null,
+    permissions?: Record<string, unknown> | null,
+): boolean {
+    const isAdmin = (user?.roles ?? []).some(
+        (role: { name?: string }) => role?.name === "admin",
+    );
+    if (isAdmin) {
+        return true;
+    }
+    const perm = permissions?.make_softphone_calls;
+    return perm === "all" || perm === "added";
 }
 
 let storeState: SoftphoneStoreState = {
@@ -48,6 +67,7 @@ let storeState: SoftphoneStoreState = {
     devicesLoaded: false,
     isActiveTab: true,
     mirroredCall: null,
+    canMakeCalls: false,
 };
 
 const storeListeners = new Set<() => void>();
@@ -102,6 +122,9 @@ function pickInitialDeviceId(
 export async function refreshSoftphoneDevices(): Promise<
     SoftphoneDeviceSummary[]
 > {
+    if (storeState.canMakeCalls === false) {
+        return [];
+    }
     if (devicesFetchPromise) {
         return devicesFetchPromise;
     }
@@ -132,6 +155,7 @@ export async function refreshSoftphoneDevices(): Promise<
             });
             if (
                 storeState.isActiveTab &&
+                storeState.canMakeCalls &&
                 nextActiveId !== null &&
                 registeredDeviceId !== nextActiveId
             ) {
@@ -171,6 +195,10 @@ function wouldInterruptLiveCall(deviceId: number): boolean {
 }
 
 async function activateDeviceInternal(deviceId: number): Promise<boolean> {
+    if (storeState.canMakeCalls === false) {
+        return false;
+    }
+
     // Never change the active line (or re-register) while a call is live:
     // softphone.start() on another line would drop the call.
     if (wouldInterruptLiveCall(deviceId)) {
@@ -263,7 +291,7 @@ function retainSoftphoneRuntime(): () => void {
             if (!owner) {
                 registeredDeviceId = null;
                 void softphone.stop();
-            } else if (!wasOwner && storeState.activeDeviceId !== null) {
+            } else if (!wasOwner && storeState.activeDeviceId !== null && storeState.canMakeCalls) {
                 void activateDeviceInternal(storeState.activeDeviceId);
             }
         });
@@ -291,7 +319,8 @@ function retainSoftphoneRuntime(): () => void {
                 if (
                     sharedLease === lease &&
                     storeState.isActiveTab &&
-                    storeState.activeDeviceId !== null
+                    storeState.activeDeviceId !== null &&
+                    storeState.canMakeCalls
                 ) {
                     void activateDeviceInternal(storeState.activeDeviceId);
                 }
@@ -332,15 +361,14 @@ function retainSoftphoneRuntime(): () => void {
 export default function useSoftphone() {
     const { props } = usePage();
     const isEnabled = props.featureFlags?.[FEATURE_FLAG] === true;
-    const isAdmin = (props.auth?.user?.roles ?? []).some(
-        (role: { name?: string }) => role?.name === "admin",
+    const canMakeCalls = canMakeSoftphoneCalls(
+        props.auth?.user,
+        props.auth?.permissions,
     );
-    const softphonePermission = props.auth?.permissions?.make_softphone_calls;
-    const canMakeCalls =
-        isAdmin ||
-        ["all", "added", "owned", "both", 1, 4].includes(
-            softphonePermission as string | number,
-        );
+
+    if (storeState.canMakeCalls !== canMakeCalls) {
+        storeState.canMakeCalls = canMakeCalls;
+    }
 
     const shared = useSyncExternalStore(
         subscribeStore,
@@ -355,11 +383,11 @@ export default function useSoftphone() {
     );
 
     useEffect(() => {
-        if (!isEnabled) {
+        if (!isEnabled || !canMakeCalls) {
             return;
         }
         return retainSoftphoneRuntime();
-    }, [isEnabled]);
+    }, [isEnabled, canMakeCalls]);
 
     useEffect(() => {
         if (
