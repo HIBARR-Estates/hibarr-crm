@@ -47,6 +47,9 @@ return [
         'refresh_summary' => 'Zusammenfassung aktualisieren',
         'regenerate_summary' => 'Zusammenfassung neu erstellen',
         'regenerate' => 'Neu erstellen',
+        'confidence_badge' => 'Vertrauen: {{level}}',
+        'expand_summary' => 'Zusammenfassung einblenden',
+        'collapse_summary' => 'Zusammenfassung ausblenden',
         'facts_label' => 'Wichtige Fakten',
         'fact_kind' => [
             'property' => 'Immobilie',
