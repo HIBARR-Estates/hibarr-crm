@@ -43,10 +43,34 @@ class LeadSummaryService
     }
 
     /**
+     * Whether a stored summary still has to be generated: there is none, or it was marked stale
+     * (the lead changed since it was written). A summary that is current is never regenerated
+     * automatically, however old; a person can still ask for a fresh one.
+     *
+     * @param  array<string, mixed>|null  $cached  As returned by getCached()
+     */
+    public function needsGeneration(?array $cached): bool
+    {
+        return $cached === null || (bool) ($cached['meta']['is_stale'] ?? false);
+    }
+
+    /**
+     * Generate a summary. With $onlyIfNeeded (the page-load auto-generation) this is a no-op that
+     * returns what is stored unless there is none or it is stale. The check is repeated once the
+     * generation lock is held, so two tabs opening the same lead produce one generation, not two.
+     *
      * @return array<string, mixed>
      */
-    public function regenerate(Lead $lead): array
+    public function regenerate(Lead $lead, bool $onlyIfNeeded = false): array
     {
+        if ($onlyIfNeeded) {
+            $cached = $this->getCached($lead);
+
+            if (! $this->needsGeneration($cached)) {
+                return $cached;
+            }
+        }
+
         $rateLimitKey = $this->rateLimitKey($lead);
 
         if (RateLimiter::tooManyAttempts($rateLimitKey, self::REGEN_MAX_ATTEMPTS)) {
@@ -67,9 +91,18 @@ class LeadSummaryService
             );
         }
 
-        RateLimiter::hit($rateLimitKey, self::REGEN_DECAY_SECONDS);
-
         try {
+            if ($onlyIfNeeded) {
+                // Someone else may have finished while we waited for the lock.
+                $cached = $this->getCached($lead);
+
+                if (! $this->needsGeneration($cached)) {
+                    return $cached;
+                }
+            }
+
+            RateLimiter::hit($rateLimitKey, self::REGEN_DECAY_SECONDS);
+
             return $this->generateAndPersist($lead);
         } finally {
             $lock->release();
@@ -79,7 +112,7 @@ class LeadSummaryService
     /**
      * @return array<string, mixed>
      */
-    private function generateAndPersist(Lead $lead): array
+    protected function generateAndPersist(Lead $lead): array
     {
         $existing = $this->findRecord($lead);
         $input = $this->inputBuilder->build($lead);
