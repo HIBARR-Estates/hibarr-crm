@@ -66,7 +66,7 @@ return [
             'budget' => 'Budget',
             'timeline' => 'Timeline',
             'purpose' => 'Purpose',
-            'decision_makers' => 'Decides with',
+            'decision_makers' => 'Decision-makers',
             'languages' => 'Languages',
             'based_in' => 'Based in',
         ],

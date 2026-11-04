@@ -382,7 +382,9 @@ class LeadSummaryInputBuilder
     {
         return $lead->tasks()
             ->with(['boardColumn:id,column_name'])
-            ->orderByDesc('created_at')
+            // Qualified: tasks() is a morphToMany, so the taskables pivot (which also
+            // has created_at) is joined and a bare column name is ambiguous.
+            ->orderByDesc('tasks.created_at')
             ->limit(10)
             ->get()
             ->map(fn ($task) => array_filter([

@@ -54,7 +54,7 @@ return [
             'budget' => 'Budget',
             'timeline' => 'Zeitrahmen',
             'purpose' => 'Zweck',
-            'decision_makers' => 'Entscheidet mit',
+            'decision_makers' => 'Entscheider',
             'languages' => 'Sprachen',
             'based_in' => 'Wohnhaft in',
         ],

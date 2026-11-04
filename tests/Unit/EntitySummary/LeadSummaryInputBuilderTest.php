@@ -651,7 +651,9 @@ class LeadSummaryInputBuilderTest extends TestCase
 
         $taskQuery = Mockery::mock();
         $taskQuery->shouldReceive('with')->andReturnSelf();
-        $taskQuery->shouldReceive('orderByDesc')->andReturnSelf();
+        // Must be qualified: the real relation joins the taskables pivot, which also
+        // has created_at. Mockery rejects any other argument.
+        $taskQuery->shouldReceive('orderByDesc')->with('tasks.created_at')->andReturnSelf();
         $taskQuery->shouldReceive('limit')->andReturnSelf();
         $taskQuery->shouldReceive('get')->andReturn(collect($tasks));
         $taskQuery->shouldReceive('count')->andReturn(count($tasks));

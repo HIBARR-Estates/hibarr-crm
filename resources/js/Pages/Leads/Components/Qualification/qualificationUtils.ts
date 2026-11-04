@@ -524,6 +524,15 @@ export const formatAnswerDisplay = (
         .join(", ");
 };
 
+/** Server limits for the snapshot (LeadQualificationController::upsertAnswer). */
+const MAX_QUESTION_LABEL_CHARS = 1000;
+const MAX_ANSWER_LABELS = 50;
+const MAX_ANSWER_LABEL_CHARS = 500;
+
+/** Cut to at most `max` characters without splitting a surrogate pair. */
+const truncateChars = (text: string, max: number): string =>
+    Array.from(text).slice(0, max).join("");
+
 /**
  * Human-readable text of a question and its chosen options, saved alongside the
  * answer. The script lives in OL and is only loaded in the browser, so without
@@ -552,9 +561,15 @@ export const buildAnswerLabelSnapshot = (
             .filter(Boolean);
     }
 
+    // The snapshot is optional, but the server validates it: an over-long value
+    // would 422 and lose the answer itself, so bound it here.
     return {
-        question_label: questionLabel || null,
-        answer_labels: answerLabels,
+        question_label: questionLabel
+            ? truncateChars(questionLabel, MAX_QUESTION_LABEL_CHARS)
+            : null,
+        answer_labels: answerLabels
+            .slice(0, MAX_ANSWER_LABELS)
+            .map((label) => truncateChars(label, MAX_ANSWER_LABEL_CHARS)),
     };
 };
 

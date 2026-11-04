@@ -45,7 +45,7 @@ return [
             'budget' => 'Бюджет',
             'timeline' => 'Сроки',
             'purpose' => 'Цель',
-            'decision_makers' => 'Решает вместе с',
+            'decision_makers' => 'Принимающие решение',
             'languages' => 'Языки',
             'based_in' => 'Проживает в',
         ],

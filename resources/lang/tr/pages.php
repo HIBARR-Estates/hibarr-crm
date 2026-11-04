@@ -45,7 +45,7 @@ return [
             'budget' => 'Bütçe',
             'timeline' => 'Zaman planı',
             'purpose' => 'Amaç',
-            'decision_makers' => 'Birlikte karar veren',
+            'decision_makers' => 'Karar vericiler',
             'languages' => 'Diller',
             'based_in' => 'Yaşadığı yer',
         ],
