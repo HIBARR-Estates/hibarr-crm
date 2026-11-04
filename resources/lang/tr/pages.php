@@ -10,6 +10,11 @@
 return [
 
     'telephony' => [
+        'call' => 'Ara',
+        'select_line' => 'Arama için hat seçin',
+        'active_line_badge' => 'Aktif',
+        'calling_number' => '{{phone}} aranıyor…',
+        'softphone_not_registered' => 'Softphone kayıtlı değil — dock üzerinden bir hat seçin.',
         'insecure_context' => 'Mikrofon erişimi güvenli bir bağlantı (HTTPS) gerektirir. CRM\'i HTTPS üzerinden açın ve tekrar deneyin.',
     ],
 
@@ -222,16 +227,15 @@ return [
         ],
         'company' => [
             'revenue_title' => 'Kazanılan gelir',
-            'revenue_hint' => 'Bu dönemde kazanılan anlaşmaların değeri, kazanıldıkları tarihe göre, şirket para biriminde. Her anlaşma üzerinde kayıtlı döviz kuruyla çevrilir — komisyonun hesaplandığı çevrimle aynı.',
+            'revenue_hint' => 'Bu dönemde kazanılan anlaşmaların şirkete değeri, kazanıldıkları tarihe göre, şirket para biriminde. Paket anlaşmaları tam değeriyle, mülk anlaşmaları mülk fiyatıyla değil anlaşmanın azami komisyonuyla sayılır. Her anlaşma üzerinde kayıtlı döviz kuruyla çevrilir — komisyonla aynı çevrim.',
             'revenue_note' => 'Önceki dönemde {{previous}} · {{count}} anlaşma kazanıldı',
             'revenue_note_all' => '{{count}} anlaşma kazanıldı',
             'revenue_none' => 'Bu dönemde kazanılan anlaşma yok',
             'revenue_trend_caption' => 'Aylara göre kazanılan gelir, şirket para birimi',
             'pipeline_title' => 'Açık pipeline',
-            'pipeline_hint' => 'Bugün açık olan tüm anlaşmaların değeri, anlaşma para birimine göre — para birimleri arasında asla toplanmaz.',
+            'pipeline_hint' => 'Bugün açık olan tüm anlaşmaların değeri, şirket para biriminde. Her anlaşma üzerinde kayıtlı döviz kuruyla çevrilir — gelir ve komisyonun kullandığı çevrimle aynı.',
             'pipeline_deals' => '{{count}} anlaşma',
             'pipeline_note' => 'Sırada kapanabilecekler',
-            'pipeline_other' => '+ diğer para birimlerinde {{amounts}}',
             'pipeline_none' => 'Açık anlaşma yok',
             'win_rate_title' => 'Kazanma oranı',
             'win_rate_hint' => 'Bu dönemde sonuçlanan anlaşmalardan kazanılanların payı. Kaybedilen anlaşmaların sonuç tarihi olmadığı için son güncellemelerine göre tarihlenir.',
@@ -724,6 +728,9 @@ return [
         ],
         'quick_actions' => [
             'title' => 'Hızlı eylemler',
+            'call' => 'Ara',
+            'call_title' => 'Arama yap',
+            'no_phone' => 'Bu aday için telefon numarası mevcut değil.',
             'log' => 'Eylem kaydet',
             'log_title' => 'Bir eylem kaydedin',
             'note' => 'Not ekle',

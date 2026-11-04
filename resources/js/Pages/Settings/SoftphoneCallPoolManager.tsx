@@ -27,7 +27,7 @@ interface EligibleUser {
 
 interface PoolResponse {
     status: string;
-    data: { agents: PoolAgent[] };
+    data: { agents: PoolAgent[]; fallback_seconds?: number };
 }
 
 interface EligibleResponse {
@@ -91,7 +91,7 @@ function LinePool({
             setPicking(false);
             setSelectedUserId(null);
             await poolQuery.refetch();
-            void message.success("Agent added to the pool.");
+            void message.success("Agent added to the line pool.");
         } catch {
             void message.error("Could not add agent.");
         } finally {
@@ -108,7 +108,7 @@ function LinePool({
             });
             await poolQuery.refetch();
             setDeleteTarget(null);
-            void message.success("Agent removed from the pool.");
+            void message.success("Agent removed from line pool.");
         } catch {
             void message.error("Could not remove agent.");
         } finally {
@@ -126,7 +126,7 @@ function LinePool({
             <summary className="cb-summary">
                 <RightOutlined className="cb-chev" aria-hidden="true" />
                 <span className="cb-group__name">{device.label}</span>
-                {device.is_default && <span className="cb-chip cb-chip--default">Default</span>}
+                {device.is_default && <span className="cb-chip cb-chip--default">Default Line</span>}
                 <span className="cb-group__count">
                     {agents.length} agent{agents.length === 1 ? "" : "s"}
                 </span>
@@ -142,7 +142,7 @@ function LinePool({
                 {poolQuery.isLoading ? (
                     <div className="cb-empty">Loading…</div>
                 ) : agents.length === 0 ? (
-                    <div className="cb-empty">No agents on this line yet.</div>
+                    <div className="cb-empty">No agents assigned to this line yet.</div>
                 ) : (
                     agents.map((agent) => (
                         <div
@@ -200,7 +200,7 @@ function LinePool({
                                 style={{ width: "100%" }}
                                 loading={eligibleQuery.isLoading}
                                 optionFilterProp="label"
-                                placeholder="Search agents with call permission"
+                                placeholder="Search agents with softphone permission"
                                 options={options}
                                 notFoundContent="Every eligible agent is already on this line."
                             />
@@ -222,7 +222,7 @@ function LinePool({
 
             <ConfirmDialog
                 open={deleteTarget !== null}
-                title="Remove agent from pool?"
+                title="Remove agent from line pool?"
                 message={
                     deleteTarget
                         ? `${deleteTarget.name ?? "This agent"} will no longer receive inbound calls on ${device.label}.`
@@ -243,15 +243,275 @@ function LinePool({
 }
 
 /**
- * Call pool for every phone line. Each line is its own collapsible group with
- * its own agent table and its own "Add agent" button — default line first, then
- * the rest alphabetically.
+ * Admin Fallback List: The users/admins who receive the call when the lead owner
+ * and line pool agents are unavailable or pass.
+ */
+function AdminFallbackPool() {
+    const { message } = App.useApp();
+    const [picking, setPicking] = useState(false);
+    const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<PoolAgent | null>(null);
+    const [removingId, setRemovingId] = useState<number | null>(null);
+    const [saving, setSaving] = useState(false);
+
+    const poolQuery = useApiQuery<PoolResponse>({
+        path: route("telephony.softphone.call-pool.index", { scope: "fallback" }),
+    });
+    const eligibleQuery = useApiQuery<EligibleResponse>({
+        path: route("telephony.softphone.call-pool.eligible", { scope: "fallback" }),
+        options: { enabled: picking },
+    });
+
+    const agents = poolQuery.data?.data?.agents ?? [];
+    const eligible = eligibleQuery.data?.data?.users ?? [];
+    const alreadyInPool = new Set(agents.map((a) => a.user_id));
+    const options = eligible
+        .filter((u) => !alreadyInPool.has(u.id))
+        .map((u) => ({
+            value: u.id,
+            label: u.email ? `${u.name} — ${u.email}` : u.name,
+        }));
+
+    const submitAdd = async () => {
+        if (!selectedUserId) return;
+        setSaving(true);
+        try {
+            await axios.post(
+                route("telephony.softphone.call-pool.store"),
+                { scope: "fallback", user_id: selectedUserId },
+                { headers: { Accept: "application/json" } },
+            );
+            setPicking(false);
+            setSelectedUserId(null);
+            await poolQuery.refetch();
+            void message.success("User added to admin fallback list.");
+        } catch {
+            void message.error("Could not add user.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleRemove = async () => {
+        if (!deleteTarget) return;
+        setRemovingId(deleteTarget.id);
+        try {
+            await axios.delete(route("telephony.softphone.call-pool.destroy", deleteTarget.id), {
+                headers: { Accept: "application/json" },
+            });
+            await poolQuery.refetch();
+            setDeleteTarget(null);
+            void message.success("User removed from admin fallback list.");
+        } catch {
+            void message.error("Could not remove user.");
+        } finally {
+            setRemovingId(null);
+        }
+    };
+
+    const cancelAdd = () => {
+        setPicking(false);
+        setSelectedUserId(null);
+    };
+
+    return (
+        <details className="cb-group" open style={{ marginTop: "24px" }}>
+            <summary className="cb-summary">
+                <RightOutlined className="cb-chev" aria-hidden="true" />
+                <span className="cb-group__name">Admin Fallback List</span>
+                <span
+                    className="cb-chip"
+                    style={{
+                        background: "var(--rd-brand-50, #eff8ff)",
+                        color: "var(--rd-brand-700, #175cd3)",
+                        border: "1px solid var(--rd-brand-200, #b2ddff)",
+                    }}
+                >
+                    Fallback Tier
+                </span>
+                <span className="cb-group__count">
+                    {agents.length > 0
+                        ? `${agents.length} user${agents.length === 1 ? "" : "s"}`
+                        : "Default (all active admins)"}
+                </span>
+            </summary>
+
+            <div
+                style={{
+                    padding: "8px 20px 12px",
+                    fontSize: "13px",
+                    color: "var(--dr-text-muted)",
+                    background: "var(--dr-surface)",
+                }}
+            >
+                Users on this list receive the call if the lead owner and line agents are unavailable or pass.
+            </div>
+
+            <div className="cb-table cb-pool" role="table" aria-label="Admin fallback users">
+                <div className="cb-grid-row cb-grid-row--head cb-pool" role="row">
+                    <span>Fallback User</span>
+                    <span>Priority</span>
+                    <span aria-hidden="true" />
+                </div>
+
+                {poolQuery.isLoading ? (
+                    <div className="cb-empty">Loading…</div>
+                ) : agents.length === 0 ? (
+                    <div className="cb-empty">
+                        No specific users assigned. All active administrators will receive the call as the default fallback.
+                    </div>
+                ) : (
+                    agents.map((agent) => (
+                        <div
+                            key={agent.id}
+                            className="cb-grid-row cb-pool"
+                            role="row"
+                        >
+                            <div className="cb-who">
+                                <span className="cb-avatar" aria-hidden="true">
+                                    {initials(agent.name, agent.user_id)}
+                                </span>
+                                <span className="cb-who-text">
+                                    <span className="cb-name" title={agent.name ?? undefined}>
+                                        {agent.name ?? `User #${agent.user_id}`}
+                                    </span>
+                                    {agent.email && <span className="cb-sub">{agent.email}</span>}
+                                </span>
+                            </div>
+                            <span>
+                                <span className="cb-prio cb-num">{agent.priority}</span>
+                            </span>
+                            <button
+                                type="button"
+                                className="cb-icon-btn"
+                                aria-label={`Remove ${agent.name ?? "user"} from fallback list`}
+                                disabled={removingId === agent.id}
+                                onClick={() => setDeleteTarget(agent)}
+                            >
+                                <DeleteOutlined aria-hidden="true" />
+                            </button>
+                        </div>
+                    ))
+                )}
+            </div>
+
+            <div className="cb-group__foot">
+                {!picking ? (
+                    <button
+                        type="button"
+                        className="cb-btn cb-btn--ghost"
+                        onClick={() => setPicking(true)}
+                    >
+                        <PlusOutlined aria-hidden="true" />
+                        Add user to fallback list
+                    </button>
+                ) : (
+                    <div className="cb-add-row">
+                        <div className="cb-field">
+                            <label htmlFor="cb-add-fallback-user">User</label>
+                            <Select
+                                id="cb-add-fallback-user"
+                                showSearch
+                                value={selectedUserId ?? undefined}
+                                onChange={setSelectedUserId}
+                                style={{ width: "100%" }}
+                                loading={eligibleQuery.isLoading}
+                                optionFilterProp="label"
+                                placeholder="Search active users and admins"
+                                options={options}
+                                notFoundContent="All eligible users are already on the fallback list."
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            className="cb-btn cb-btn--primary"
+                            disabled={!selectedUserId || saving}
+                            onClick={() => void submitAdd()}
+                        >
+                            Add
+                        </button>
+                        <button type="button" className="cb-btn" onClick={cancelAdd}>
+                            Cancel
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            <ConfirmDialog
+                open={deleteTarget !== null}
+                title="Remove user from fallback list?"
+                message={
+                    deleteTarget
+                        ? `${deleteTarget.name ?? "This user"} will no longer receive fallback calls.`
+                        : ""
+                }
+                confirmLabel="Remove"
+                cancelLabel="Cancel"
+                danger
+                confirmLoading={removingId !== null}
+                onConfirm={() => void handleRemove()}
+                onCancel={() => {
+                    setDeleteTarget(null);
+                    setRemovingId(null);
+                }}
+            />
+        </details>
+    );
+}
+
+/**
+ * Call Routing Manager:
+ * 1. Rotation Timing: Configure time between calls (seconds).
+ * 2. Line Routing: Who gets the call based on the line (ordered agents per line).
+ * 3. Admin Fallback List: Who is on the fallback tier list.
  */
 export default function SoftphoneCallPoolManager({
     devices,
+    initialFallbackSeconds = 20,
 }: {
     devices: SoftphoneDeviceSummary[];
+    initialFallbackSeconds?: number;
 }) {
+    const { message } = App.useApp();
+    const [savedSeconds, setSavedSeconds] = useState<number>(initialFallbackSeconds);
+    const [secondsInput, setSecondsInput] = useState<string>(String(initialFallbackSeconds));
+    const [secondsError, setSecondsError] = useState<string | null>(null);
+    const [savingSettings, setSavingSettings] = useState<boolean>(false);
+
+    const parsedSeconds = Number.parseInt(secondsInput, 10);
+    const isValidSeconds = Number.isFinite(parsedSeconds) && parsedSeconds >= 1 && parsedSeconds <= 600;
+    const isDirtySeconds = isValidSeconds && parsedSeconds !== savedSeconds;
+
+    const saveFallbackSeconds = async () => {
+        setSecondsError(null);
+        if (!isValidSeconds) {
+            const msg = "Enter a valid time between calls (1–600 seconds).";
+            setSecondsError(msg);
+            void message.error(msg);
+            return;
+        }
+        setSavingSettings(true);
+        try {
+            const res = await axios.post<{ status?: string; data?: { fallback_seconds?: number } }>(
+                route("telephony.softphone.call-pool.store"),
+                { incoming_call_fallback_seconds: parsedSeconds },
+                { headers: { Accept: "application/json" } },
+            );
+            const nextVal = res.data?.data?.fallback_seconds ?? parsedSeconds;
+            setSavedSeconds(nextVal);
+            setSecondsInput(String(nextVal));
+            void message.success("Time between calls updated.");
+        } catch (err: unknown) {
+            const serverMsg =
+                (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+                "Could not update time between calls.";
+            setSecondsError(serverMsg);
+            void message.error(serverMsg);
+        } finally {
+            setSavingSettings(false);
+        }
+    };
+
     const sorted = useMemo(() => {
         return [...devices].sort((a, b) => {
             if (a.is_default !== b.is_default) {
@@ -261,22 +521,97 @@ export default function SoftphoneCallPoolManager({
         });
     }, [devices]);
 
-    if (sorted.length === 0) {
-        return (
-            <EmptyState title="No phone lines" description="Add a line under the Lines tab first." />
-        );
-    }
-
     return (
-        <>
-            <div className="cb-toolbar">
-                <span className="cb-toolbar__grow">
-                    Agents who receive calls, grouped by line.
-                </span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+            {/* Section 1: Call Rotation Timing */}
+            <div
+                style={{
+                    padding: "16px 20px",
+                    background: "var(--dr-surface)",
+                    border: "1px solid var(--dr-border)",
+                    borderRadius: "var(--cb-radius)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: "16px",
+                }}
+            >
+                <div>
+                    <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: "var(--dr-text)" }}>
+                        Call Rotation Timing
+                    </h3>
+                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--dr-text-muted)" }}>
+                        How many seconds an incoming call rings each user before advancing to the next in rotation.
+                    </p>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}>
+                        <label
+                            htmlFor="cb-fallback-seconds"
+                            style={{ fontSize: "13px", fontWeight: 500, color: "var(--dr-text)" }}
+                        >
+                            Time between calls:
+                        </label>
+                        <input
+                            id="cb-fallback-seconds"
+                            type="number"
+                            min={1}
+                            max={600}
+                            className="cb-input cb-num"
+                            style={{ width: "80px" }}
+                            value={secondsInput}
+                            onChange={(e) => {
+                                setSecondsInput(e.target.value);
+                                setSecondsError(null);
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && isDirtySeconds && !savingSettings) {
+                                    e.preventDefault();
+                                    void saveFallbackSeconds();
+                                }
+                            }}
+                        />
+                        <span style={{ fontSize: "13px", color: "var(--dr-text-muted)" }}>seconds</span>
+                        <button
+                            type="button"
+                            className="cb-btn cb-btn--primary"
+                            disabled={!isDirtySeconds || savingSettings}
+                            onClick={() => void saveFallbackSeconds()}
+                        >
+                            {savingSettings ? "Saving…" : "Save"}
+                        </button>
+                    </div>
+                    {(secondsError || (secondsInput !== "" && !isValidSeconds)) && (
+                        <span role="alert" style={{ fontSize: "12px", color: "var(--dr-red, #dc2626)" }}>
+                            {secondsError || "Enter a valid time between calls (1–600 seconds)."}
+                        </span>
+                    )}
+                </div>
             </div>
-            {sorted.map((device) => (
-                <LinePool key={device.id} device={device} />
-            ))}
-        </>
+
+            {/* Section 2: Line Routing (Who gets the call based on line) */}
+            <div>
+                <div style={{ marginBottom: "12px" }}>
+                    <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: "var(--dr-text)" }}>
+                        Line Routing
+                    </h3>
+                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--dr-text-muted)" }}>
+                        Configure who gets incoming calls for each phone line, in order of priority.
+                    </p>
+                </div>
+
+                {sorted.length === 0 ? (
+                    <EmptyState title="No phone lines" description="Add a line under the Lines tab first." />
+                ) : (
+                    sorted.map((device) => (
+                        <LinePool key={device.id} device={device} />
+                    ))
+                )}
+            </div>
+
+            {/* Section 3: Admin Fallback List */}
+            <AdminFallbackPool />
+        </div>
     );
 }

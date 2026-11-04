@@ -58,6 +58,8 @@ export default function useCallSounds() {
             if (result && typeof result.catch === "function") {
                 result.catch(() => {
                     // Blocked by autoplay policy until the first user gesture.
+                    // Try again on next user interaction by attempting to play
+                    // will be handled by unlock mechanism
                 });
             }
         } catch {
@@ -92,6 +94,10 @@ export default function useCallSounds() {
         if (!ringingRef.current) {
             ringingRef.current = create(SOUNDS.ringing);
         }
+        const el = ringingRef.current;
+        if (el && !el.paused && el.loop) {
+            return;
+        }
         safePlay(ringingRef.current, true);
     }, [safePlay]);
 
@@ -125,6 +131,32 @@ export default function useCallSounds() {
             return;
         }
         unlockedRef.current = true;
+
+        // Attempt to unlock audio by playing and immediately pausing a silent
+        // sound during the user gesture (some browsers require this).
+        try {
+            const el = new Audio();
+            el.muted = true;
+            el.volume = 0;
+            const result = el.play();
+            if (result && typeof result.then === "function") {
+                result
+                    .then(() => {
+                        try {
+                            el.pause();
+                            el.currentTime = 0;
+                        } catch {
+                            // ignore
+                        }
+                    })
+                    .catch(() => {
+                        // ignore
+                    });
+            }
+        } catch {
+            // ignore
+        }
+
         ["pointerdown", "keydown", "touchstart"].forEach((evt) => {
             window.addEventListener(evt, () => { unlockedRef.current = true; }, { once: true });
         });

@@ -10,6 +10,11 @@
 return [
 
     'telephony' => [
+        'call' => 'Anrufen',
+        'select_line' => 'Leitung für den Anruf wählen',
+        'active_line_badge' => 'Aktiv',
+        'calling_number' => 'Rufe {{phone}} an…',
+        'softphone_not_registered' => 'Softphone ist nicht registriert — wählen Sie eine Leitung im Dock.',
         'insecure_context' => 'Mikrofonzugriff erfordert eine sichere Verbindung (HTTPS). Öffnen Sie das CRM über HTTPS und versuchen Sie es erneut.',
     ],
 
@@ -241,16 +246,15 @@ return [
         ],
         'company' => [
             'revenue_title' => 'Gewonnener Umsatz',
-            'revenue_hint' => 'Wert der in diesem Zeitraum gewonnenen Deals, nach Abschlussdatum, in Unternehmenswährung. Jeder Deal wird zu seinem gespeicherten Wechselkurs umgerechnet — derselben Umrechnung, auf der die Provision beruht.',
+            'revenue_hint' => 'Was die in diesem Zeitraum gewonnenen Deals dem Unternehmen wert sind, nach Abschlussdatum, in Unternehmenswährung. Paketdeals zählen mit ihrem vollen Wert; Immobiliendeals zählen mit der maximalen Provision des Deals, nicht mit dem Immobilienpreis. Jeder Deal wird zu seinem gespeicherten Wechselkurs umgerechnet — derselben Umrechnung wie bei der Provision.',
             'revenue_note' => '{{previous}} im Zeitraum davor · {{count}} Deals gewonnen',
             'revenue_note_all' => '{{count}} Deals gewonnen',
             'revenue_none' => 'In diesem Zeitraum keine Deals gewonnen',
             'revenue_trend_caption' => 'Gewonnener Umsatz pro Monat, Unternehmenswährung',
             'pipeline_title' => 'Offene Pipeline',
-            'pipeline_hint' => 'Wert aller heute offenen Deals, pro Deal-Währung — nie über Währungen summiert.',
+            'pipeline_hint' => 'Wert aller heute offenen Deals, in Unternehmenswährung. Jeder Deal wird zu seinem gespeicherten Wechselkurs umgerechnet — derselben Umrechnung wie bei Umsatz und Provision.',
             'pipeline_deals' => '{{count}} Deals',
             'pipeline_note' => 'Was als Nächstes abschließen könnte',
-            'pipeline_other' => '+ {{amounts}} in anderen Währungen',
             'pipeline_none' => 'Keine offenen Deals',
             'win_rate_title' => 'Abschlussquote',
             'win_rate_hint' => 'Anteil der gewonnenen Deals an allen in diesem Zeitraum entschiedenen Deals. Verlorene Deals haben kein Ergebnisdatum und werden daher nach ihrer letzten Aktualisierung datiert.',
@@ -743,6 +747,9 @@ return [
         ],
         'quick_actions' => [
             'title' => 'Schnellaktionen',
+            'call' => 'Anrufen',
+            'call_title' => 'Einen Anruf tätigen',
+            'no_phone' => 'Keine Telefonnummer für diesen Lead verfügbar.',
             'log' => 'Aktion protokollieren',
             'log_title' => 'Eine Aktion protokollieren',
             'note' => 'Notiz hinzufügen',

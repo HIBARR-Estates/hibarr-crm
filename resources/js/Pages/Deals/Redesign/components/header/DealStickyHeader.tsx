@@ -22,6 +22,8 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import Avatar from "@/Components/Redesign/primitives/Avatar";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
+import ClickToCallButton from "@/Components/ClickToCallButton";
+import { resolveLeadPhoneDisplay } from "@/lib/utils";
 import type { EmailQuickAction } from "@/Email/types";
 import useEmailUnreadCount from "@/Email/hooks/useEmailUnreadCount";
 import DealValueBlock from "../primitives/DealValueBlock";
@@ -100,6 +102,13 @@ export default function DealStickyHeader({
         deal.id,
         leavingWon,
     );
+    const contactPhone =
+        resolveLeadPhoneDisplay(
+            deal.contact?.mobile,
+            deal.contact?.mobile_with_phonecode,
+        ) ||
+        resolveLeadPhoneDisplay(deal.contact?.cell) ||
+        "";
     const createdRel = deal.created_at ? dayjs(deal.created_at).fromNow() : "--";
     const updatedRel = deal.updated_at ? dayjs(deal.updated_at).fromNow() : "--";
 
@@ -203,6 +212,20 @@ export default function DealStickyHeader({
                                 <span className="dr-pill dr-pill-amber">
                                     {t("pages.deals.header.locked")}
                                 </span>
+                            )}
+                            {contactPhone && (
+                                <ClickToCallButton
+                                    phone={contactPhone}
+                                    entity={{ type: "deal", id: deal.id }}
+                                    variant="link"
+                                    className="dr-btn dr-btn-sm dr-btn-ghost"
+                                    title={t("pages.telephony.call")}
+                                    ariaLabel={t("pages.telephony.call")}
+                                    dataAction="call"
+                                >
+                                    <Icon name="phone" size={14} />
+                                    {t("pages.telephony.call")}
+                                </ClickToCallButton>
                             )}
                             {emailQuickAction != null && onEmail && (
                                 <Button
