@@ -11,6 +11,9 @@ return [
         'crm.deal-view-redesign',
         'crm.lead-view-redesign',
         'crm.lead-ai-summary',
+        // Next meeting / open tasks / deals strip above the lead workspace tabs. It repeats what the
+        // tabs and dossier already show, so it is hidden unless this flag is on.
+        'crm.lead-quick-stats',
         'crm.lead-merge',
         'crm.lead-automation-engine',
         'crm.notification-service-routing',
