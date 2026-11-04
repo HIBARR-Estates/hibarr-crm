@@ -901,7 +901,9 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             )}
 
                             {showAiSummary && (
-                                <div data-tour="lead-ai-summary">
+                                // Owns the gap below it (like DuplicateLeadsCard), so the
+                                // workspace never touches the summary, strip or no strip.
+                                <div data-tour="lead-ai-summary" className="mb-4">
                                     <AiSummaryCard
                                         leadId={lead.id}
                                         leadName={lead.client_name}
