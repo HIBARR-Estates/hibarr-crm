@@ -12,6 +12,12 @@ interface UseEntityAiSummaryOptions {
     entityType: EntitySummaryEntityType;
     entityId: number;
     initialSummary?: EntitySummaryPayload | null;
+    /**
+     * Generate on load, but only when there is no summary or the stored one is marked
+     * stale. A current summary is never regenerated automatically, however old, and a
+     * failed automatic attempt is not retried until the page is opened again.
+     */
+    autoGenerate?: boolean;
 }
 
 interface UseEntityAiSummaryResult {
@@ -56,6 +62,7 @@ export default function useEntityAiSummary({
     entityType,
     entityId,
     initialSummary = null,
+    autoGenerate = false,
 }: UseEntityAiSummaryOptions): UseEntityAiSummaryResult {
     const { t } = useTranslation();
     const [summary, setSummary] = useState<EntitySummaryPayload | null>(
@@ -67,7 +74,12 @@ export default function useEntityAiSummary({
     const [isStale, setIsStale] = useState<boolean>(
         Boolean(initialSummary?.meta?.is_stale),
     );
+    // True once we know what is stored: it came with the page, or the lookup succeeded.
+    // Automatic generation waits for this, so it can never run over a summary we have
+    // not seen yet, and a failed lookup (stored state unknown) never triggers it.
+    const [stored, setStored] = useState<boolean>(Boolean(initialSummary));
     const inFlightRef = useRef(false);
+    const autoAttemptedRef = useRef<string | null>(null);
     // Tracks the newest summary we've accepted locally (generated or fetched)
     // so a stale Inertia prop can't wipe a just-finished generation.
     const localGeneratedAtRef = useRef(generatedAtMs(initialSummary));
@@ -87,6 +99,7 @@ export default function useEntityAiSummary({
         localGeneratedAtRef.current = generatedAtMs(initialSummary);
         setSummary(initialSummary ?? null);
         setIsStale(Boolean(initialSummary?.meta?.is_stale));
+        setStored(Boolean(initialSummary));
         setError(null);
         setErrorFromApi(false);
         setLoading(false);
@@ -126,6 +139,7 @@ export default function useEntityAiSummary({
                 if (typeof response.data.is_stale === "boolean") {
                     setIsStale(response.data.is_stale);
                 }
+                setStored(true);
             } catch {
                 // Keep empty state; user can still generate.
             }
@@ -136,7 +150,7 @@ export default function useEntityAiSummary({
         };
     }, [applySummary, entityId, entityType, initialSummary]);
 
-    const regenerate = useCallback(async () => {
+    const run = useCallback(async (auto: boolean) => {
         if (inFlightRef.current) return;
         inFlightRef.current = true;
         setLoading(true);
@@ -145,17 +159,21 @@ export default function useEntityAiSummary({
 
         try {
             const endpoints = summaryEndpoints(entityType, entityId);
+            // `if_needed` makes the server enforce the rule too: it answers with what is
+            // stored unless there is none or it is stale (e.g. another tab just generated).
             const response = await axios.post<{
                 summary: LeadSummaryPayload | DealSummaryPayload;
                 is_stale?: boolean;
                 message?: string;
-            }>(endpoints.regenerate, {}, { timeout: 60000 });
+            }>(endpoints.regenerate, auto ? { if_needed: true } : {}, {
+                timeout: 60000,
+            });
 
             // Apply result and clear loading in one turn so the UI never
             // flashes an empty/"done loading" gap before content mounts.
             localGeneratedAtRef.current = generatedAtMs(response.data.summary);
             setSummary(response.data.summary);
-            setIsStale(false);
+            setIsStale(Boolean(response.data.is_stale));
             setLoading(false);
         } catch (err) {
             if (axios.isAxiosError(err)) {
@@ -170,7 +188,10 @@ export default function useEntityAiSummary({
                     applySummary(payload.summary);
                 }
 
-                if (payload?.message) {
+                if (auto && err.response?.status === 429) {
+                    // Another tab or person is already generating it, or we hit the rate
+                    // limit: nobody asked for this run, so there is nothing to report.
+                } else if (payload?.message) {
                     setError(payload.message);
                     setErrorFromApi(true);
                 } else {
@@ -190,6 +211,22 @@ export default function useEntityAiSummary({
             inFlightRef.current = false;
         }
     }, [applySummary, entityId, entityType, t]);
+
+    const regenerate = useCallback(() => run(false), [run]);
+
+    // Automatic generation: once per entity per page load, and only when what is stored
+    // is missing or stale. `stored` is false until we know, so this never races a summary
+    // that exists; after a failed automatic attempt the Retry button is the way forward.
+    useEffect(() => {
+        if (!autoGenerate || !stored || loading || inFlightRef.current) return;
+        if (summary && !isStale) return;
+
+        const key = `${entityType}:${entityId}`;
+        if (autoAttemptedRef.current === key) return;
+        autoAttemptedRef.current = key;
+
+        void run(true);
+    }, [autoGenerate, stored, loading, summary, isStale, entityType, entityId, run]);
 
     const generate = regenerate;
 

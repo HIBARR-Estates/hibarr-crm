@@ -50,6 +50,9 @@ export default function EntityAiSummaryCard({
             entityType,
             entityId,
             initialSummary,
+            // Lead summaries write themselves on load when missing or stale (never over a
+            // current one); deal summaries stay manual.
+            autoGenerate: entityType === "lead",
         });
 
     const wasLoadingRef = useRef(false);
