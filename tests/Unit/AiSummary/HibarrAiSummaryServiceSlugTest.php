@@ -10,9 +10,9 @@ use Tests\TestCase;
 
 class HibarrAiSummaryServiceSlugTest extends TestCase
 {
-    private const SLUG = 'lead-summary-v1';
+    private const SLUG = 'lead-summary';
 
-    private const URL = 'https://ai.test/v1/ai/execute/lead-summary-v1';
+    private const URL = 'https://ai.test/v1/ai/execute/lead-summary';
 
     protected function setUp(): void
     {
@@ -95,7 +95,7 @@ class HibarrAiSummaryServiceSlugTest extends TestCase
         Http::fake([self::URL => Http::response(['success' => false, 'message' => 'Not found'], 404)]);
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('AI config "lead-summary-v1" was not found or is inactive.');
+        $this->expectExceptionMessage('AI config "lead-summary" was not found or is inactive.');
 
         (new HibarrAiSummaryService())->executeAgentBySlug(self::SLUG, ['lead' => []]);
     }

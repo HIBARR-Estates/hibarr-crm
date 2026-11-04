@@ -18,18 +18,18 @@ class LeadSummaryServiceAgentSlugTest extends TestCase
         return $method->invoke($service);
     }
 
-    public function test_the_slug_defaults_to_lead_summary_v1(): void
+    public function test_the_slug_defaults_to_lead_summary(): void
     {
-        config(['services.ai.lead_summary_slug' => 'lead-summary-v1']);
+        config(['services.ai.lead_summary_slug' => 'lead-summary']);
 
-        $this->assertSame('lead-summary-v1', $this->slug());
+        $this->assertSame('lead-summary', $this->slug());
     }
 
     public function test_the_slug_can_be_overridden_by_config(): void
     {
-        config(['services.ai.lead_summary_slug' => 'lead-summary-v2']);
+        config(['services.ai.lead_summary_slug' => 'lead-summary-trial']);
 
-        $this->assertSame('lead-summary-v2', $this->slug());
+        $this->assertSame('lead-summary-trial', $this->slug());
     }
 
     /**
@@ -38,7 +38,7 @@ class LeadSummaryServiceAgentSlugTest extends TestCase
      */
     public function test_the_mock_agent_returns_a_valid_lead_summary(): void
     {
-        $summary = (new MockAiSummaryService())->executeAgentBySlug('lead-summary-v1', [
+        $summary = (new MockAiSummaryService())->executeAgentBySlug('lead-summary', [
             'lead' => ['type' => 'buyer'],
             'sections' => [],
         ]);

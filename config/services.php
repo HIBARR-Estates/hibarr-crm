@@ -131,7 +131,7 @@ return [
         // Saved AI config the lead summary runs (POST {base_url}/ai/execute/{slug}).
         // Its prompt, provider, model and token budget live on that config in the
         // AI service, not in this app. Seeded by hibarr-backend.
-        'lead_summary_slug' => env('AI_LEAD_SUMMARY_SLUG', 'lead-summary-v1'),
+        'lead_summary_slug' => env('AI_LEAD_SUMMARY_SLUG', 'lead-summary'),
     ],
 
     'ol_webhook' => [

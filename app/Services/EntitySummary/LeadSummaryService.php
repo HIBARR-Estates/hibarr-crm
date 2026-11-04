@@ -150,7 +150,7 @@ class LeadSummaryService
 
     private function agentSlug(): string
     {
-        return (string) config('services.ai.lead_summary_slug', 'lead-summary-v1');
+        return (string) config('services.ai.lead_summary_slug', 'lead-summary');
     }
 
     protected function findRecord(Lead $lead): ?EntityAiSummary

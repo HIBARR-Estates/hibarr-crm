@@ -6,7 +6,7 @@ class EntitySummaryPromptLoader
 {
     /**
      * The repo's copy of the lead summary prompt. Production does not send this:
-     * the prompt lives on the `lead-summary-v1` AI config in hibarr-backend. It is
+     * the prompt lives on the `lead-summary` AI config in hibarr-backend. It is
      * read here so tests can hold the prompt's example and documented payload keys
      * to what the code builds and validates.
      */
