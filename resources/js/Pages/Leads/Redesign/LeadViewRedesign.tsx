@@ -141,6 +141,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const page = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? page.props.featureFlags;
     const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
+    // Fail closed: the strip repeats the tabs and dossier, so it stays hidden unless the flag is on.
+    const showQuickStats = featureFlags?.["crm.lead-quick-stats"] === true;
     const showQualification =
         featureFlags?.["crm.lead-qualification-tab"] === true;
     const showProductTour = featureFlags?.["crm.leads-product-tour"] === true;
@@ -919,28 +921,30 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                 </div>
                             )}
 
-                            <QuickStats
-                                nextMeeting={nextMeeting}
-                                nextTask={nextTask}
-                                openTasksCount={openTasks.length}
-                                primaryDeal={primaryDeal}
-                                dealsCount={deals.length}
-                                taskBoardColumns={props.taskBoardColumns ?? []}
-                                meetingLoading={leadFollowUpsLoading}
-                                tasksLoading={tasksLoading}
-                                // Deals are shell props (not deferred) — keep
-                                // the slot in sync visually with the other two
-                                // while workspace deferred data is resolving.
-                                dealsLoading={
-                                    leadFollowUpsLoading || tasksLoading
-                                }
-                                onSchedule={() => setAddMeetingOpen(true)}
-                                onCreateTask={() => setAddTaskOpen(true)}
-                                onCreateDeal={() => setCreateDealOpen(true)}
-                                onOpenMeeting={setDetailMeeting}
-                                onOpenTask={setDetailTask}
-                                onViewAllDeals={() => nav.setTab("deals")}
-                            />
+                            {showQuickStats && (
+                                <QuickStats
+                                    nextMeeting={nextMeeting}
+                                    nextTask={nextTask}
+                                    openTasksCount={openTasks.length}
+                                    primaryDeal={primaryDeal}
+                                    dealsCount={deals.length}
+                                    taskBoardColumns={props.taskBoardColumns ?? []}
+                                    meetingLoading={leadFollowUpsLoading}
+                                    tasksLoading={tasksLoading}
+                                    // Deals are shell props (not deferred) — keep
+                                    // the slot in sync visually with the other two
+                                    // while workspace deferred data is resolving.
+                                    dealsLoading={
+                                        leadFollowUpsLoading || tasksLoading
+                                    }
+                                    onSchedule={() => setAddMeetingOpen(true)}
+                                    onCreateTask={() => setAddTaskOpen(true)}
+                                    onCreateDeal={() => setCreateDealOpen(true)}
+                                    onOpenMeeting={setDetailMeeting}
+                                    onOpenTask={setDetailTask}
+                                    onViewAllDeals={() => nav.setTab("deals")}
+                                />
+                            )}
 
                             <WorkspaceCard
                                 activeTab={nav.tab}
