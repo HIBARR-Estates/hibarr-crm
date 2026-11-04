@@ -59,6 +59,9 @@ return [
         'refresh_summary' => 'Refresh summary',
         'regenerate_summary' => 'Regenerate summary',
         'regenerate' => 'Regenerate',
+        'confidence_badge' => 'Confidence: {{level}}',
+        'expand_summary' => 'Expand summary',
+        'collapse_summary' => 'Collapse summary',
         'facts_label' => 'Key facts',
         'fact_kind' => [
             'property' => 'Property',

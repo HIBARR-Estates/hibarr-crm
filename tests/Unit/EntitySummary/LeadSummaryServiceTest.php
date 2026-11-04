@@ -6,7 +6,7 @@ use App\Models\Lead;
 use App\Services\EntitySummary\EntitySummaryPromptLoader;
 use App\Services\EntitySummary\EntitySummaryValidator;
 use App\Services\EntitySummary\LeadSummaryService;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class LeadSummaryServiceTest extends TestCase
 {
@@ -133,6 +133,18 @@ class LeadSummaryServiceTest extends TestCase
             $this->assertLessThanOrEqual(5, $this->words($fact['value']), "fact: {$fact['value']}");
         }
         $this->assertStringNotContainsString("\n", $summary, 'summary must be one paragraph, not a list');
+
+        // The lead is named with a replacement token (the model never sees the real name),
+        // only ever one the card can fill in, and never a leaked redaction placeholder.
+        $text = json_encode($example, JSON_UNESCAPED_UNICODE);
+        preg_match_all('/\{\{(\w+)\}\}/', $text, $used);
+        $this->assertNotEmpty($used[1], 'the example must show the model using a token');
+        $this->assertSame([], array_diff($used[1], \App\Services\EntitySummary\LeadSummaryTokens::NAMES));
+        $this->assertStringContainsString('{{lead_first_name}}', $example['status_line']);
+        $this->assertStringContainsString('{{lead_first_name}}', $example['summary']);
+        foreach (['[name]', '[email]', '[phone]'] as $placeholder) {
+            $this->assertStringNotContainsString($placeholder, $text);
+        }
 
         // Prose only: no labels, chips or bullet lists.
         $this->assertSame([], $example['chips']);

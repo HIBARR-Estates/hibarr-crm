@@ -108,6 +108,11 @@ export interface EntityAiSummaryCardProps {
     variant?: "legacy" | "redesign";
     className?: string;
     leadPhone?: string | null;
+    /**
+     * The lead's name as it is on the record. The AI summary never contains it (it is
+     * withheld from the model); the card fills it in where the summary uses a name token.
+     */
+    leadName?: string | null;
     onQualifyLead?: () => void;
     onCreateTask?: () => void;
     onScheduleCall?: () => void;
