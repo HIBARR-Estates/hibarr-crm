@@ -109,7 +109,7 @@ What the model receives: lead type/source/category/temperature, day counts (prec
 
 ### Lead
 - `GET /account/lead-contact/{lead}/ai-summary`
-- `POST /account/lead-contact/{lead}/ai-summary/regenerate`
+- `POST /account/lead-contact/{lead}/ai-summary/regenerate` — always regenerates; with `if_needed=1` (what the page sends on load) it generates only when no summary is stored or the stored one is stale, and otherwise returns the stored one. A current summary is never regenerated automatically, however old.
 
 ### Deal
 - `GET /account/deals/{deal}/ai-summary`
