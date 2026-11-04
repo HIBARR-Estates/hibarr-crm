@@ -68,6 +68,10 @@ class LeadQualificationController extends AccountBaseController
             'segment_key' => ['required', 'string', 'max:255'],
             'answer_values' => ['nullable', 'array'],
             'answer_text' => ['nullable', 'string'],
+            // Readable snapshot of the OL script text, used by the lead AI summary.
+            'question_label' => ['nullable', 'string', 'max:1000'],
+            'answer_labels' => ['nullable', 'array', 'max:50'],
+            'answer_labels.*' => ['string', 'max:500'],
         ]);
 
         $answer = $this->qualificationService->upsertAnswer($qualification, $validated);
