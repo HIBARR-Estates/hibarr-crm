@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use App\Support\FeatureFlags;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,8 +20,12 @@ class CallBridgeSettingsController extends AccountBaseController
 
         abort_403(! user()->hasRole('admin') && ! in_array(user()->permission('make_softphone_calls'), ['all', 'added']));
 
+        $companyId = (int) company()->id;
+        $fallbackSeconds = (int) (Company::query()->whereKey($companyId)->value('incoming_call_fallback_seconds') ?? company()->incoming_call_fallback_seconds ?? 20);
+
         return Inertia::render('Settings/CallBridge', [
             'pageTitle' => 'Call Bridge',
+            'fallbackSeconds' => $fallbackSeconds,
         ]);
     }
 }

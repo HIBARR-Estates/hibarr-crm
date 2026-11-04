@@ -13,6 +13,9 @@
                             $permissionType = 5;
                         }
                         $allowedPermissions = json_decode($permission->allowed_permissions);
+                        if ($permissionType == 1 && !isset($allowedPermissions->added) && isset($allowedPermissions->all)) {
+                            $permissionType = $allowedPermissions->all;
+                        }
                     @endphp
                     <td>
                         <select class="select-picker role-permission-select border-0"

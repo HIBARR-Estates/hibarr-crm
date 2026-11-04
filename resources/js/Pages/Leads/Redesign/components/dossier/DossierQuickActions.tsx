@@ -1,9 +1,16 @@
+import { message } from "antd";
+import { usePage } from "@inertiajs/react";
 import { Icon } from "@/Components/Redesign";
+import ClickToCallButton from "@/Components/ClickToCallButton";
+import useClickToCall from "@/Hooks/useClickToCall";
 import useTranslation from "@/Hooks/useTranslation";
 import type { EmailQuickAction } from "@/Email/types";
 import useEmailUnreadCount from "@/Email/hooks/useEmailUnreadCount";
+import { isMeaningfulDossierValue } from "../../adapters/dossierAdapter";
 
 interface DossierQuickActionsProps {
+    leadId?: number;
+    phone?: string | null;
     onLogAction: () => void;
     onAddNote: () => void;
     onScheduleMeeting: () => void;
@@ -23,6 +30,8 @@ type ActionDef = {
 };
 
 export default function DossierQuickActions({
+    leadId,
+    phone,
     onLogAction,
     onAddNote,
     onScheduleMeeting,
@@ -30,11 +39,24 @@ export default function DossierQuickActions({
     onEmail,
 }: DossierQuickActionsProps) {
     const { t } = useTranslation();
+    const { props } = usePage();
+    const { isEnabled: olEnabled } = useClickToCall();
     const { unread: emailUnread, available: emailUnreadAvailable } =
         useEmailUnreadCount({
             enabled: emailQuickAction != null,
             pollingInterval: 60_000,
         });
+
+    const trimmedPhone =
+        phone && isMeaningfulDossierValue(phone) ? phone.trim() : "";
+    const softphonePermission = props.auth?.permissions?.make_softphone_calls;
+    const softphoneEnabled =
+        (softphonePermission === "all" || softphonePermission === "added") &&
+        props.featureFlags?.["crm.softphone"] === true;
+    const useTelephonyButton =
+        (softphoneEnabled || olEnabled) &&
+        Boolean(trimmedPhone) &&
+        typeof leadId === "number";
 
     const actions: ActionDef[] = [
         {
@@ -70,6 +92,21 @@ export default function DossierQuickActions({
         });
     }
 
+    const callButtonChildren = (
+        <>
+            <span className="relative inline-flex">
+                <Icon name="phone" size={18} />
+            </span>
+            <span className="v2-quick-actions__label">
+                {t("pages.leads.quick_actions.call")}
+            </span>
+        </>
+    );
+
+    const callTitle = trimmedPhone
+        ? t("pages.leads.quick_actions.call_title")
+        : t("pages.leads.quick_actions.no_phone");
+
     return (
         <section
             className="v2-quick-actions"
@@ -80,6 +117,42 @@ export default function DossierQuickActions({
                 {t("pages.leads.quick_actions.title")}
             </h2>
             <div className="v2-quick-actions__list">
+                {useTelephonyButton ? (
+                    <ClickToCallButton
+                        phone={trimmedPhone}
+                        entity={{ type: "lead", id: leadId! }}
+                        variant="link"
+                        className="v2-quick-actions__btn"
+                        title={callTitle}
+                        ariaLabel={callTitle}
+                        dataAction="call"
+                    >
+                        {callButtonChildren}
+                    </ClickToCallButton>
+                ) : (
+                    <button
+                        type="button"
+                        className="v2-quick-actions__btn"
+                        onClick={() => {
+                            if (!trimmedPhone) {
+                                message.warning(
+                                    t("pages.leads.quick_actions.no_phone"),
+                                );
+                                return;
+                            }
+                            window.open(
+                                `tel:${trimmedPhone.replace(/[^\d+]/g, "")}`,
+                                "_self",
+                            );
+                        }}
+                        title={callTitle}
+                        aria-label={callTitle}
+                        data-action="call"
+                    >
+                        {callButtonChildren}
+                    </button>
+                )}
+
                 {actions.map((action) => {
                     const showUnreadDot =
                         action.id === "email" &&

@@ -28,6 +28,9 @@ interface RecordingRow {
     phone_number: string | null;
     direction: string | null;
     routing_reason: string | null;
+    is_forwarded?: boolean;
+    forwarded_from_user_id?: number | null;
+    forwarded_from_user_name?: string | null;
     duration_seconds: number;
     expires_at: string | null;
     is_expired: boolean;
@@ -53,13 +56,15 @@ function formatDuration(seconds: number): string {
 }
 
 /** "Inbound" chip + "Lead owner · Junior Prtu", or a muted "No context". */
-function describeRecording(rec: RecordingRow): { chip: string | null; text: string } {
+function describeRecording(rec: RecordingRow, isAdmin: boolean): { chip: string | null; text: string } {
     const parts: string[] = [];
     let chip: string | null = null;
     if (rec.direction === "inbound") chip = "Inbound";
     else if (rec.direction === "outbound") chip = "Outbound";
 
-    if (rec.routing_reason && ROUTING_REASON_LABELS[rec.routing_reason]) {
+    if (isAdmin && rec.is_forwarded && rec.forwarded_from_user_name) {
+        parts.push(`Forwarded · Last user: ${rec.forwarded_from_user_name}`);
+    } else if (rec.routing_reason && rec.routing_reason !== "pool_fallback" && ROUTING_REASON_LABELS[rec.routing_reason]) {
         parts.push(ROUTING_REASON_LABELS[rec.routing_reason]);
     }
     if (rec.lead_name) parts.push(rec.lead_name);
@@ -197,7 +202,7 @@ export default function SoftphoneRecordingsPanel({ devices }: Props) {
                         </div>
 
                         {group.rows.map((rec) => {
-                            const ctx = describeRecording(rec);
+                            const ctx = describeRecording(rec, isAdmin);
                             return (
                                 <div
                                     key={rec.id}

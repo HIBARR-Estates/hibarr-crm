@@ -183,19 +183,84 @@ PROMPT;
                 throw new \RuntimeException('AI summary API returned an empty completion.');
             }
 
-            $completion = trim((string) $data['data']['completion']);
-            $completion = $this->stripMarkdownCodeFence($completion);
-
-            $decoded = json_decode($completion, true);
-
-            if (! is_array($decoded)) {
-                throw new \RuntimeException('AI summary completion was not valid JSON.');
-            }
-
-            return $decoded;
+            return $this->decodeJsonCompletion((string) $data['data']['completion']);
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
             throw new \RuntimeException('The AI summary request timed out.', 0, $e);
         }
+    }
+
+    /**
+     * Run a saved AI config through `POST {base}/ai/execute/{slug}`. The prompt,
+     * provider, model and max tokens come from the config row; the request is just
+     * the data as `userPrompt`, and the reply carries the text in `data.output`.
+     *
+     * @param  array<string, mixed>  $inputPayload
+     * @return array<string, mixed>
+     */
+    public function executeAgentBySlug(string $slug, array $inputPayload): array
+    {
+        $userPrompt = json_encode($inputPayload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+
+        Log::info('HibarrAiSummaryService::executeAgentBySlug', [
+            'slug' => $slug,
+            'input_length' => mb_strlen($userPrompt),
+        ]);
+
+        try {
+            $request = Http::timeout($this->timeout);
+
+            if (! empty($this->apiKey)) {
+                $request = $request->withHeaders([
+                    'x-api-key' => $this->apiKey,
+                ]);
+            }
+
+            $response = $request->post(
+                "{$this->baseUrl}/ai/execute/".rawurlencode($slug),
+                ['userPrompt' => $userPrompt],
+            );
+
+            if ($response->failed()) {
+                Log::error('Entity summary AI API error', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                    'slug' => $slug,
+                ]);
+
+                // 404 = no active config with this slug: the backend seeder has not run.
+                throw new \RuntimeException(
+                    $response->status() === 404
+                        ? "AI config \"{$slug}\" was not found or is inactive."
+                        : 'AI summary API request failed.'
+                );
+            }
+
+            $data = $response->json();
+
+            if (! ($data['success'] ?? false) || empty($data['data']['output'])) {
+                throw new \RuntimeException('AI summary API returned an empty output.');
+            }
+
+            return $this->decodeJsonCompletion((string) $data['data']['output']);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            throw new \RuntimeException('The AI summary request timed out.', 0, $e);
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeJsonCompletion(string $completion): array
+    {
+        $completion = $this->stripMarkdownCodeFence(trim($completion));
+
+        $decoded = json_decode($completion, true);
+
+        if (! is_array($decoded)) {
+            throw new \RuntimeException('AI summary completion was not valid JSON.');
+        }
+
+        return $decoded;
     }
 
     private function stripMarkdownCodeFence(string $content): string

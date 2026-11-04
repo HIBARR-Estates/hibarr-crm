@@ -53,8 +53,33 @@ export interface EntitySummaryMeta {
     source?: "ai" | "heuristic";
 }
 
+/** Each kind picks the icon for a fact in the lead summary's facts row. */
+export type LeadSummaryFactKind =
+    | "property"
+    | "location"
+    | "budget"
+    | "timeline"
+    | "purpose"
+    | "decision_makers"
+    | "languages"
+    | "based_in";
+
+export interface LeadSummaryFact {
+    kind: LeadSummaryFactKind;
+    /** Shown without a label, so it reads on its own: "€200–250K cash". */
+    value: string;
+}
+
 export interface LeadSummaryPayload {
     status_line: string;
+    /**
+     * The written summary (prompt v2+): a short paragraph, with `**…**` around
+     * key facts and `==…==` around the one open item. Absent on summaries stored
+     * before v2, which still carry chips and bullets instead.
+     */
+    summary?: string;
+    /** Icon + value row under the summary (prompt v2+). */
+    facts?: LeadSummaryFact[];
     risk_level: EntitySummaryRiskLevel;
     primary_risk_source: EntitySummaryPrimaryRiskSource;
     chips: EntitySummaryChip[];

@@ -90,6 +90,10 @@ class LeadQualificationService
             [
                 'answer_values' => $data['answer_values'] ?? [],
                 'answer_text' => $data['answer_text'] ?? null,
+                // Only overwrite the snapshot when the client sent one, so a caller
+                // that predates it can't wipe labels an earlier save recorded.
+                ...(array_key_exists('question_label', $data) ? ['question_label' => $data['question_label']] : []),
+                ...(array_key_exists('answer_labels', $data) ? ['answer_labels' => $data['answer_labels']] : []),
             ]
         );
     }

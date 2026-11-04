@@ -30,6 +30,9 @@ interface CallLogRow {
     entity_url: string | null;
     failure_reason: string | null;
     failure_message: string | null;
+    is_forwarded?: boolean;
+    forwarded_from_user_id?: number | null;
+    forwarded_from_user_name?: string | null;
     has_recording: boolean;
 }
 
@@ -260,6 +263,11 @@ export default function SoftphoneCallLogPanel() {
                                 </span>
                                 <span className="cb-col-agent" title={row.user_name ?? undefined}>
                                     {row.user_name ?? "—"}
+                                    {row.is_forwarded && row.forwarded_from_user_name && (
+                                        <div className="cb-ctx cb-ctx--empty">
+                                            {td("Forwarded", { source: "en" })} · {td("Last user", { source: "en" })}: {row.forwarded_from_user_name}
+                                        </div>
+                                    )}
                                 </span>
                                 <span className="cb-col-outcome">
                                     <span

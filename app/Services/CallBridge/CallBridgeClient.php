@@ -100,6 +100,49 @@ class CallBridgeClient
     }
 
     /**
+     * The SIP platforms OL supports for call-bridge integrations
+     * (GET /call-bridge/integrations/providers).
+     *
+     * @return array<int, string>
+     */
+    public function fetchSipProviders(): array
+    {
+        $data = $this->request('GET', 'providers');
+
+        $providers = [];
+        foreach ((array) ($data['providers'] ?? []) as $provider) {
+            if (is_string($provider) && $provider !== '') {
+                $providers[] = $provider;
+            }
+        }
+
+        return array_values(array_unique($providers));
+    }
+
+    /**
+     * The SIP connection defaults OL associates with one platform
+     * (GET /call-bridge/integrations/providers/{platform}).
+     *
+     * Null when OL answers but the payload does not carry both fields — the
+     * caller then decides whether to fall back to the local registry.
+     *
+     * @return array{wss: string, sipUriFormat: string}|null
+     */
+    public function fetchSipPlatformDefaults(string $platform): ?array
+    {
+        $data = $this->request('GET', 'platform', [], [], ['platform' => $platform]);
+
+        $wss = $data['wss'] ?? null;
+        $sipUriFormat = $data['sipUriFormat'] ?? null;
+
+        if (! is_string($wss) || $wss === '' || ! is_string($sipUriFormat) || $sipUriFormat === '') {
+            return null;
+        }
+
+        return ['wss' => $wss, 'sipUriFormat' => $sipUriFormat];
+    }
+
+    /**
      * Whether the bridge is configured enough to be called at all.
      */
     public function configured(): bool
@@ -110,9 +153,11 @@ class CallBridgeClient
     /**
      * @param  array<string, mixed>  $payload
      * @param  array<string, scalar>  $query
+     * @param  array<string, string>  $pathParams  Values substituted into the
+     *   configured path's `{placeholder}` segments (e.g. the platform name).
      * @return array<string, mixed>
      */
-    private function request(string $method, string $pathKey, array $payload = [], array $query = []): array
+    private function request(string $method, string $pathKey, array $payload = [], array $query = [], array $pathParams = []): array
     {
         $baseUrl = $this->baseUrl();
         $apiKey = $this->apiKey();
@@ -130,6 +175,10 @@ class CallBridgeClient
         $path = (string) config("services.call_bridge.paths.{$pathKey}", '');
         if ($path === '') {
             throw new HttpException(503, "Call bridge path [{$pathKey}] is not configured.");
+        }
+
+        foreach ($pathParams as $name => $value) {
+            $path = str_replace('{'.$name.'}', rawurlencode($value), $path);
         }
 
         $url = rtrim($baseUrl, '/') . '/' . ltrim($path, '/');

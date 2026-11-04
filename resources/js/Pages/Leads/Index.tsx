@@ -103,16 +103,25 @@ export interface IndexProps extends Omit<PageProps, "filters"> {
     preferredContactTimes?: Array<{ value: string; label: string }>;
 }
 
+const EMPTY_LIFECYCLE_STATUSES: NonNullable<
+    IndexProps["leadLifecycleStatuses"]
+> = [];
+const EMPTY_MEETING_TYPES: NonNullable<IndexProps["meetingTypes"]> = [];
+const EMPTY_TASK_BOARD_COLUMNS: TaskboardColumn[] = [];
+const EMPTY_PREFERRED_CONTACT_TIMES: NonNullable<
+    IndexProps["preferredContactTimes"]
+> = [];
+
 const Index = ({
     pageTitle,
     leads,
-    leadLifecycleStatuses = [],
-    meetingTypes = [],
+    leadLifecycleStatuses = EMPTY_LIFECYCLE_STATUSES,
+    meetingTypes = EMPTY_MEETING_TYPES,
     nextActionDueThisWeekCount,
     nextActionOverdueCount,
     hotLeadsCount,
-    taskBoardColumns = [],
-    preferredContactTimes = [],
+    taskBoardColumns = EMPTY_TASK_BOARD_COLUMNS,
+    preferredContactTimes = EMPTY_PREFERRED_CONTACT_TIMES,
 }: IndexProps) => {
     const { t } = useTranslation();
     const { td } = useTd();

@@ -96,6 +96,11 @@
     padding: 0 20px;
     border-bottom: 1px solid var(--dr-border);
     overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.cb-spec-page .cb-tabs::-webkit-scrollbar {
+    display: none;
 }
 
 .cb-spec-page .cb-tab {
@@ -636,7 +641,8 @@
         color: var(--dr-text-hint);
     }
 
-    .cb-spec-page .cb-recs .cb-player {
+    .cb-spec-page .cb-recs .cb-player,
+    .cb-spec-page .cb-recs .cb-player-wrapper {
         grid-column: 1 / -1;
     }
 }

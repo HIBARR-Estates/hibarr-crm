@@ -74,4 +74,5 @@ return array(
     'manage_properties' => 'Immobilien verwalten',
     'manage_property_publish_requests' => 'Veröffentlichungsanfragen verwalten',
     'manage_property_configuration' => 'Immobilien-Konfiguration verwalten',
+    'make_softphone_calls' => 'Softphone-Anrufe tätigen',
 );

@@ -3,6 +3,7 @@ import usePageRefresh from "@/Hooks/usePageRefresh";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
+import type { SallyMeetingInsight } from "@/Types/api/sally-meeting-insight";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import useIsAdminRole from "@/Hooks/useIsAdminRole";
 import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
@@ -28,6 +29,7 @@ import WorkspaceOffersTab from "./components/workspace/WorkspaceOffersTab";
 import WorkspaceExposesTab from "./components/workspace/WorkspaceExposesTab";
 import WorkspaceRecommendationsTab from "./components/workspace/WorkspaceRecommendationsTab";
 import WorkspaceItineraryTab from "./components/workspace/WorkspaceItineraryTab";
+import WorkspaceSallyTab from "./components/workspace/WorkspaceSallyTab";
 import WorkspacePaymentsTab from "./components/workspace/WorkspacePaymentsTab";
 import {
     OverviewDeferredSkeleton,
@@ -82,22 +84,29 @@ export default function DealViewRedesign(props: DealShowProps) {
     const featureFlags = props.featureFlags ?? pageProps.featureFlags;
     const showOnlinePayment =
         featureFlags?.["packages.online-payment"] === true;
+    const sallyInsightsEnabled =
+        featureFlags?.["crm.sally-insights-tab"] === true;
 
     return (
         <DealWorkspaceProvider
             deal={props.deal}
             paymentEnabled={showOnlinePayment}
+            sallyInsightsEnabled={sallyInsightsEnabled}
         >
             <DealViewRedesignInner
                 {...props}
                 showOnlinePayment={showOnlinePayment}
+                sallyInsightsEnabled={sallyInsightsEnabled}
             />
         </DealWorkspaceProvider>
     );
 }
 
 function DealViewRedesignInner(
-    props: DealShowProps & { showOnlinePayment?: boolean },
+    props: DealShowProps & {
+        showOnlinePayment?: boolean;
+        sallyInsightsEnabled?: boolean;
+    },
 ) {
     const [isDealEditMode] = useState(false);
     const [addTaskOpen, setAddTaskOpen] = useState(false);
@@ -208,12 +217,19 @@ function DealViewRedesignInner(
         tasksLoading,
         dealFollowUps,
         dealFollowUpsLoading,
+        sallyInsights,
+        setSallyInsights,
+        sallyInsightsLoading,
+        sallyInsightsSettled,
+        sallyInsightsError,
+        refetchSallyInsights,
         files,
         filesLoading,
         paymentRequests,
         paymentRequestLoading,
     } = useDealWorkspace();
     const pageTitle = props?.pageTitle || deal?.name;
+    const sallyInsightsEnabled = props.sallyInsightsEnabled === true;
     const { t, locale } = useTranslation();
     // Adapters are plain functions with no hook access, so publish the active
     // locale once here; every date/time in the redesign reads it.
@@ -390,6 +406,18 @@ function DealViewRedesignInner(
         if (!pipelineHasPackages) {
             tabs.push("recommendations");
         }
+        // Insights come from an async client fetch, so keep the tab in play
+        // until the query settles — otherwise a ?tab=sally deep link is reset
+        // to overview before the data arrives. With the flag off, the query
+        // never runs, so the tab is absent outright.
+        if (
+            sallyInsightsEnabled &&
+            (sallyInsights.length > 0 ||
+                !sallyInsightsSettled ||
+                sallyInsightsError)
+        ) {
+            tabs.push("sally");
+        }
         // itinerary / dealinfo / timeline have no matching permission in this
         // system, so they follow deal visibility itself.
         // Note `view_events` is the calendar module, not the CRM timeline.
@@ -400,8 +428,25 @@ function DealViewRedesignInner(
         pipelineHasPackages,
         showExposes,
         showOffersTab,
+        sallyInsightsEnabled,
+        sallyInsights.length,
+        sallyInsightsSettled,
+        sallyInsightsError,
         props.showOnlinePayment,
     ]);
+
+    // Sally edits patch the local list in place — no Inertia reload. Each
+    // card owns its own mutations (the routes are keyed by insight id).
+    const patchSallyInsight = useCallback(
+        (insightId: number, data: Partial<SallyMeetingInsight>) => {
+            setSallyInsights((prev) =>
+                prev.map((insight) =>
+                    insight.id === insightId ? { ...insight, ...data } : insight,
+                ),
+            );
+        },
+        [setSallyInsights],
+    );
 
     const activeTab = visibleTabs.includes(nav.tab) ? nav.tab : "overview";
 
@@ -499,11 +544,14 @@ function DealViewRedesignInner(
                     : undefined,
             recommendations: recommendationsCount,
             itinerary: deal.lead_flight_itineraries?.length ?? 0,
+            sally:
+                sallyInsights.length > 0 ? sallyInsights.length : undefined,
         }),
         [
             notesLoading,
             tasksLoading,
             dealFollowUpsLoading,
+            sallyInsights.length,
             filesLoading,
             notes.length,
             fileDocuments,
@@ -877,6 +925,19 @@ function DealViewRedesignInner(
                                                 }
                                                 onCountChange={
                                                     setRecommendationsCount
+                                                }
+                                            />
+                                        )}
+                                        {activeTab === "sally" && (
+                                            <WorkspaceSallyTab
+                                                insights={sallyInsights}
+                                                loading={sallyInsightsLoading}
+                                                error={sallyInsightsError}
+                                                onRetry={
+                                                    refetchSallyInsights
+                                                }
+                                                patchInsight={
+                                                    patchSallyInsight
                                                 }
                                             />
                                         )}

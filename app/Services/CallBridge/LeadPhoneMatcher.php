@@ -3,6 +3,7 @@
 namespace App\Services\CallBridge;
 
 use App\Models\Lead;
+use Illuminate\Support\Collection;
 
 /**
  * Matches an inbound caller number to a lead's mobile.
@@ -86,17 +87,19 @@ class LeadPhoneMatcher
     }
 
     /**
-     * Find the lead a caller number belongs to within a company.
+     * Find all leads a caller number matches within a company.
      *
      * The SQL pre-filter on the trailing digits keeps the candidate set small;
      * {@see matches()} then makes the final decision so the JSON-encoded
      * mobiles are compared correctly.
+     *
+     * @return Collection<int, Lead>
      */
-    public function findLead(int $companyId, string $incomingNumber): ?Lead
+    public function findLeads(int $companyId, string $incomingNumber): Collection
     {
         $incoming = $this->normalizeIncoming($incomingNumber);
         if ($incoming === '') {
-            return null;
+            return collect();
         }
 
         $suffix = strlen($incoming) >= self::MIN_SUFFIX
@@ -119,7 +122,20 @@ class LeadPhoneMatcher
                 });
             })
             ->get()
-            ->first(fn (Lead $lead) => $this->matches($incoming, (string) $lead->mobile));
+            ->filter(fn (Lead $lead) => $this->matches($incoming, (string) $lead->mobile))
+            ->values();
+    }
+
+    /**
+     * Find the single lead a caller number uniquely belongs to within a company.
+     *
+     * Returns null when zero leads match or when multiple leads share the number.
+     */
+    public function findLead(int $companyId, string $incomingNumber): ?Lead
+    {
+        $matches = $this->findLeads($companyId, $incomingNumber);
+
+        return $matches->count() === 1 ? $matches->first() : null;
     }
 
     private function digits(string $value): string
