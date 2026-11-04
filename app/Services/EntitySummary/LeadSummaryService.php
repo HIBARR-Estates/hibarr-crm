@@ -15,15 +15,12 @@ use Illuminate\Support\Facades\RateLimiter;
 
 class LeadSummaryService
 {
-    private const PROMPT_VERSION = 'v2';
-
     private const REGEN_MAX_ATTEMPTS = 5;
 
     private const REGEN_DECAY_SECONDS = 60;
 
     public function __construct(
         private EntitySummaryAgentInterface $agent,
-        private EntitySummaryPromptLoader $promptLoader,
         private LeadSummaryInputBuilder $inputBuilder,
         private EntitySummaryValidator $validator,
         private DealSummarySnapshotService $dealSnapshotService,
@@ -103,12 +100,7 @@ class LeadSummaryService
         }
 
         try {
-            $systemPrompt = $this->promptLoader->loadLeadSummaryPrompt();
-            $summary = $this->agent->executeStructuredAgent(
-                'lead_summary',
-                $systemPrompt,
-                $input,
-            );
+            $summary = $this->agent->executeAgentBySlug($this->agentSlug(), $input);
             $this->validator->validateLeadSummary($summary);
             $source = 'ai';
         } catch (\Throwable $e) {
@@ -145,13 +137,20 @@ class LeadSummaryService
             [
                 'summary_json' => $summary,
                 'input_hash' => $inputHash,
-                'prompt_version' => self::PROMPT_VERSION,
+                // The prompt lives on the saved AI config now, so the slug is the
+                // closest thing to a version; the prompt itself can change under it.
+                'prompt_version' => mb_substr($this->agentSlug(), 0, 32), // column is varchar(32)
                 'generated_at' => Carbon::parse($summary['meta']['generated_at'] ?? now()),
                 'generated_by' => Auth::id(),
             ],
         );
 
         return $summary;
+    }
+
+    private function agentSlug(): string
+    {
+        return (string) config('services.ai.lead_summary_slug', 'lead-summary-v1');
     }
 
     protected function findRecord(Lead $lead): ?EntityAiSummary

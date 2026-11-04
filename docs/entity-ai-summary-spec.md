@@ -48,9 +48,19 @@ For leads (prompt v2) the summary is **written prose, not a form** (layout "C1" 
 
 In the lead layout Regenerate sits in the header row (beside, not inside, the collapse toggle) instead of at the bottom of the body. `EntitySummaryValidator::validateLeadSummary` requires `summary`, checks `facts`, and no longer requires a chip. `LeadSummaryServiceTest` holds the prompt's example to all of these limits.
 
+## How the lead summary calls the AI service
+
+`LeadSummaryService` → `EntitySummaryAgentInterface::executeAgentBySlug($slug, $input)` → `HibarrAiSummaryService` → `POST {AI_BASE_URL}/ai/execute/{slug}` with header `x-api-key` and body `{"userPrompt": "<the lead JSON>"}`. The reply is `{success, message, data: {slug, provider, model, output, usage}}`; `data.output` is the model's JSON text (a markdown fence is tolerated), which the validator then checks.
+
+The slug is `services.ai.lead_summary_slug` (`AI_LEAD_SUMMARY_SLUG`, default `lead-summary-v1`). **The CRM sends no prompt, provider, model, feature context or token limit** — they are columns on the `ai_configs` row, created by hibarr-backend seeder `20261104000001-seed-lead-summary-ai-config` (openai / `gpt-4o`, `featureContext` `lead_summary`, 2048 tokens) and changed with `PATCH /v1/ai/configs/lead-summary-v1`, no CRM deploy. `lead-summary-agent-prompt.md` is the readable source of the wording and the JSON contract; keep it in step with the row. The summary stores the slug as `prompt_version`.
+
+Deal summaries and the Reports notes summary are unchanged and still use the generic `POST /ai/execute` with a prompt sent from the CRM.
+
+Failure modes: a 404 means no active config with that slug (the seeder has not run in that environment — deploy the backend seeder first); any failure keeps the previous AI summary if there is one, otherwise shows the fallback summary. Because the slug route carries no `userId`, the AI service records these calls with a null user in its usage events; the `lead_summary` feature key still groups them.
+
 ## Lead summary input (prompt v2)
 
-`LeadSummaryInputBuilder` builds the payload; `lead-summary-agent-prompt.md` documents it ("INPUT YOU WILL RECEIVE"). The two are a contract — `LeadSummaryInputBuilderTest::test_every_payload_key_is_documented_in_the_prompt` fails if a key is added to one and not the other. Bump `PROMPT_VERSION` in `LeadSummaryService` when the prompt changes; changing the payload also changes `inputHash`, which marks existing stored summaries stale.
+`LeadSummaryInputBuilder` builds the payload; `lead-summary-agent-prompt.md` documents it ("INPUT YOU WILL RECEIVE"). The two are a contract — `LeadSummaryInputBuilderTest::test_every_payload_key_is_documented_in_the_prompt` fails if a key is added to one and not the other. Changing the payload also changes `inputHash`, which marks existing stored summaries stale.
 
 What the model receives: lead type/source/category/temperature, day counts (precomputed — the model does no date arithmetic), a PII-free profile (nationality, country, city, languages, occupation, age range, preferred contact time, and *which* contact channels exist), the lead's initial message, the latest qualification call(s) as question + answer, custom fields on the lead, up to 10 notes (600 characters each), meetings, tasks, campaign and engagement data, and linked deals (the Deal Summary agent's own risk conclusion plus the buying intent captured on the deal).
 
