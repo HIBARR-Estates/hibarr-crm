@@ -38,6 +38,9 @@ return [
         'refresh_summary' => 'Обновить сводку',
         'regenerate_summary' => 'Пересоздать сводку',
         'regenerate' => 'Пересоздать',
+        'confidence_badge' => 'Достоверность: {{level}}',
+        'expand_summary' => 'Развернуть сводку',
+        'collapse_summary' => 'Свернуть сводку',
         'facts_label' => 'Ключевые факты',
         'fact_kind' => [
             'property' => 'Недвижимость',

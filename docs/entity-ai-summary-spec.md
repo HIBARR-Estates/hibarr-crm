@@ -46,7 +46,23 @@ For leads (prompt v2) the summary is **written prose, not a form** (layout "C1" 
 - `facts` — 3–6 `{kind, value}` items shown by `EntityAiSummaryFacts` as icon + value with no visible label (the kind is announced to screen readers). Kinds: `property`, `location`, `budget`, `timeline`, `purpose`, `decision_makers`, `languages`, `based_in` (`EntitySummaryValidator::LEAD_FACT_KINDS`).
 - `chips` and `bullets` come back empty. The card still renders them for older stored lead summaries and for all deal summaries.
 
-In the lead layout Regenerate sits in the header row (beside, not inside, the collapse toggle) instead of at the bottom of the body. `EntitySummaryValidator::validateLeadSummary` requires `summary`, checks `facts`, and no longer requires a chip. `LeadSummaryServiceTest` holds the prompt's example to all of these limits.
+**Header (redesign lead card).** `[spark  AI LEAD SUMMARY · 2 minutes ago] ........ [Confidence: high] [Regenerate] [arrow]`. The generated time is part of the label; the confidence badge (green / amber / neutral for high / medium / low, hidden while the summary is out of date) replaces the risk badge, which this layout does not show; Regenerate follows it, and the accordion arrow is furthest right. The arrow is the keyboard- and screen-reader-accessible toggle (`aria-expanded`); clicking the label area also toggles, as a pointer convenience. The takeaway and paragraph use the full width of the card. `EntitySummaryValidator::validateLeadSummary` requires `summary`, checks `facts`, and no longer requires a chip. `LeadSummaryServiceTest` holds the prompt's example to all of these limits.
+
+## Naming the lead: replacement tokens
+
+The model is never told who the lead is (see Privacy below), yet a summary that says "the lead" everywhere reads as impersonal. So the model writes a **token** where it would name the lead, and the card fills in the real name when it renders:
+
+| Token | Becomes |
+|-------|---------|
+| `{{lead_first_name}}` | the first word of the lead's `client_name` (the default; `{{lead_first_name}} wants …`) |
+| `{{lead_full_name}}` | the whole `client_name` (sparingly) |
+
+- **Substitution happens in the card, after translation.** Every part that shows AI text does `personalize(td(text))`. `td()` sends text to the dynamic-translation service (which already protects `{{…}}` tokens), so a name substituted before `td()` would be sent to it. `EntityAiSummaryCard` takes the name as `leadName` (both lead pages pass `lead.client_name`) and provides it through `SummaryPersonalizationProvider`; `usePersonalize()` is what the prose, facts, next step and header call.
+- **The stored summary holds tokens, never the name**, so renaming a lead needs no regeneration, and the name is not in `entity_ai_summaries`.
+- **A missing name never shows raw braces.** The token becomes "the lead" ("The lead" at the start of a sentence); a made-up `{{…}}` token is dropped. Names are stripped of `**`, `==` and `{{`/`}}` before use, so a name cannot add a highlight or a token.
+- **Server side**, `LeadSummaryTokens::sanitize()` runs after validation: known tokens are normalised (`{{ Lead_First_Name }}` → `{{lead_first_name}}`) and anything else is deleted before the summary is stored.
+- **One list in three places** — the prompt, `LeadSummaryTokens::NAMES` and `SUMMARY_TOKEN_NAMES` in `summaryTokens.ts` — and `LeadSummaryTokensTest` fails if they differ. To add a token, change all three and the prompt's examples.
+- Not covered: other people named in notes (a partner, a colleague) are not tokens; the model calls them "their partner". Older summaries have no tokens and render as before.
 
 ## How the lead summary calls the AI service
 

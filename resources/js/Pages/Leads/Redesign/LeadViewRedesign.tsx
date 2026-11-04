@@ -902,6 +902,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                 <div data-tour="lead-ai-summary">
                                     <AiSummaryCard
                                         leadId={lead.id}
+                                        leadName={lead.client_name}
                                         summary={props.leadAiSummary}
                                         leadPhone={
                                             getDossierFieldValue(lead, "mobile") ||

@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { usePersonalize } from "./SummaryPersonalization";
 
 interface EntityAiSummaryProseProps {
     /**
@@ -19,7 +20,11 @@ export default function EntityAiSummaryProse({
     text,
 }: EntityAiSummaryProseProps) {
     const { td } = useTd();
-    const translated = td(text, { source: "en" });
+    const personalize = usePersonalize();
+    // Translate first, then fill in the lead's name: the name never reaches the
+    // translation service, and it is substituted before the highlight markers are
+    // parsed (names are stripped of marker characters, so they cannot add one).
+    const translated = personalize(td(text, { source: "en" }));
 
     return (
         <p className="entity-ai-summary-prose">

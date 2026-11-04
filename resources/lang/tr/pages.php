@@ -38,6 +38,9 @@ return [
         'refresh_summary' => 'Özeti yenile',
         'regenerate_summary' => 'Özeti yeniden oluştur',
         'regenerate' => 'Yeniden oluştur',
+        'confidence_badge' => 'Güven: {{level}}',
+        'expand_summary' => 'Özeti genişlet',
+        'collapse_summary' => 'Özeti daralt',
         'facts_label' => 'Önemli bilgiler',
         'fact_kind' => [
             'property' => 'Mülk',

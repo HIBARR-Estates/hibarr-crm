@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
+import { usePersonalize } from "./SummaryPersonalization";
 import type {
     LeadSummaryFact,
     LeadSummaryFactKind,
@@ -40,6 +41,7 @@ export default function EntityAiSummaryFacts({
 }: EntityAiSummaryFactsProps) {
     const { t } = useTranslation();
     const { td } = useTd();
+    const personalize = usePersonalize();
 
     const known = facts.filter((fact) => fact.kind in FACT_ICONS && fact.value);
 
@@ -67,7 +69,7 @@ export default function EntityAiSummaryFacts({
                         <span className="sr-only">
                             {t(`pages.entity_summary.fact_kind.${fact.kind}`)}:{" "}
                         </span>
-                        {td(fact.value, { source: "en" })}
+                        {personalize(td(fact.value, { source: "en" }))}
                     </li>
                 );
             })}
