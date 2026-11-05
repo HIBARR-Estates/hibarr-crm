@@ -104,8 +104,10 @@ class CallLogService
         $deals = Deal::withoutGlobalScopes()
             ->where('company_id', $lead->company_id)
             ->where('lead_id', $lead->id)
-            // Whole rows: isVisibleToUser() reads agent_id (assigned agent)
-            // and relations a narrowed select would leave null.
+            // Whole rows: isVisibleToUser() reads agent_id (assigned agent).
+            // leadAgent is eager-loaded so the per-deal check does not lazy-load
+            // it; participant/watcher lookups only run when the agent check fails.
+            ->with('leadAgent')
             ->get();
 
         $visible = $deals->filter(function (Deal $deal) use ($viewer) {
