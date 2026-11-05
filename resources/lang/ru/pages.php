@@ -2459,6 +2459,8 @@ return [
         'from' => 'От',
         'to' => 'Кому',
         'duration' => 'Длительность',
+        'chip_inbound' => 'Входящий',
+        'chip_outbound' => 'Исходящий',
     ],
 
 ];

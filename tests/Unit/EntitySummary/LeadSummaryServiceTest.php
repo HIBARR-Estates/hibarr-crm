@@ -6,6 +6,7 @@ use App\Models\Lead;
 use App\Services\EntitySummary\EntitySummaryPromptLoader;
 use App\Services\EntitySummary\EntitySummaryValidator;
 use App\Services\EntitySummary\LeadSummaryService;
+use App\Services\EntitySummary\LeadSummaryTokens;
 use Tests\TestCase;
 
 class LeadSummaryServiceTest extends TestCase
@@ -89,6 +90,25 @@ class LeadSummaryServiceTest extends TestCase
         $this->assertSame('2 logged', $chips['notes']['value']);
         $this->assertSame('Latest 4 days ago', $chips['notes']['sublabel']);
         $this->assertArrayNotHasKey('contactability', $chips);
+    }
+
+    /**
+     * The service sanitizes tokens before validating: a fact whose value is only a
+     * made-up token is valid as the model wrote it, but empty once the token is
+     * stripped, and must be rejected rather than stored as an empty fact.
+     */
+    public function test_a_fact_emptied_by_token_sanitizing_fails_validation(): void
+    {
+        $prompt = (new EntitySummaryPromptLoader())->loadLeadSummaryPrompt();
+        preg_match('/EXAMPLE OUTPUT:\s*(\{.*\})\s*$/s', $prompt, $match);
+        $example = json_decode($match[1], true);
+        $example['facts'][0]['value'] = '{{lead_nickname}}';
+
+        $validator = new EntitySummaryValidator();
+        $validator->validateLeadSummary($example);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $validator->validateLeadSummary(LeadSummaryTokens::sanitize($example));
     }
 
     /**

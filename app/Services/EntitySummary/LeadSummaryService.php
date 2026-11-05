@@ -134,9 +134,11 @@ class LeadSummaryService
 
         try {
             $summary = $this->agent->executeAgentBySlug($this->agentSlug(), $input);
-            $this->validator->validateLeadSummary($summary);
             // The model writes name tokens, never the name; keep only the ones the card fills in.
+            // Sanitize before validating: stripping a made-up token can empty a required
+            // value, and that must fail validation rather than be stored.
             $summary = LeadSummaryTokens::sanitize($summary);
+            $this->validator->validateLeadSummary($summary);
             $source = 'ai';
         } catch (\Throwable $e) {
             Log::warning('LeadSummaryService: AI generation failed', [

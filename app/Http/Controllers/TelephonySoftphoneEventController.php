@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CrmEvent;
+use App\Models\CrmEventType;
 use App\Models\Deal;
 use App\Models\SoftphoneCallPoolAgent;
 use App\Models\Lead;
