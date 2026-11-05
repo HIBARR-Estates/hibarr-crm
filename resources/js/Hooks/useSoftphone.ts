@@ -495,7 +495,7 @@ export default function useSoftphone() {
                 if (!ready && softphone.getState().registration !== "registered") {
                     throw new Error(
                         softphone.getState().registrationError ||
-                            "Softphone is not registered — pick a line in the dock.",
+                            "Your phone line isn't connected — pick a line in the phone panel.",
                     );
                 }
             }

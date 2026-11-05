@@ -14,7 +14,7 @@ return [
         'select_line' => 'Arama için hat seçin',
         'active_line_badge' => 'Aktif',
         'calling_number' => '{{phone}} aranıyor…',
-        'softphone_not_registered' => 'Softphone kayıtlı değil — dock üzerinden bir hat seçin.',
+        'softphone_not_registered' => 'Telefon hattınız bağlı değil — telefon panelinden bir hat seçin.',
         'insecure_context' => 'Mikrofon erişimi güvenli bir bağlantı (HTTPS) gerektirir. CRM\'i HTTPS üzerinden açın ve tekrar deneyin.',
     ],
 
@@ -2429,7 +2429,7 @@ return [
             'username_required' => 'Bu platform için SIP URI\'yi oluşturmak üzere gereklidir.',
             'password' => 'Parola',
             'password_keep' => 'Parola (saklamak için boş bırakın)',
-            'password_tooltip' => 'Kanalın SIP kimlik doğrulama parolası. Şifrelenerek saklanır ve yalnızca softphone kaydı için kullanılır. Düzenlerken kayıtlı parolayı korumak için boş bırakın.',
+            'password_tooltip' => 'Kanalın SIP kimlik doğrulama parolası. Şifrelenerek saklanır ve yalnızca hattı Telefon\'a bağlamak için kullanılır. Düzenlerken kayıtlı parolayı korumak için boş bırakın.',
             'display_name' => 'Görünen ad',
             'display_name_tooltip' => 'Bu hattan arandığında karşı tarafın telefonunda görünen ad.',
             'default_line' => 'Varsayılan hat',

@@ -390,11 +390,11 @@ class SoftphoneClient {
         if (!this.userAgent || this.state.registration !== "registered") {
             const reason =
                 this.state.registrationError ||
-                "The softphone is not registered with sipgate. Pick a line in the softphone, then retry.";
+                "Your phone line isn't connected to sipgate. Pick a line in the phone panel, then retry.";
             this.reportSetupFailure(target, reason, context);
             throw new Error(
                 this.state.registrationError ||
-                    "The softphone is not registered.",
+                    "Your phone line isn't connected.",
             );
         }
         if (this.session) {

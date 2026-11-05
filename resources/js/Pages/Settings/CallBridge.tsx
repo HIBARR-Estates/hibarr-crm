@@ -99,7 +99,7 @@ export default function CallBridge({
                     <h1 className="cb-title">{pageTitle ?? td("Call Bridge", { source: "en" })}</h1>
                     <p className="cb-lede">
                         {td(
-                            "Phone lines, call routing, the call log and recordings for the browser softphone. Each group of settings lives on its own tab.",
+                            "Phone lines, call routing, the call log and recordings for Phone. Each group of settings lives on its own tab.",
                             { source: "en" },
                         )}
                     </p>

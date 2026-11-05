@@ -14,7 +14,7 @@ return [
         'select_line' => 'Leitung für den Anruf wählen',
         'active_line_badge' => 'Aktiv',
         'calling_number' => 'Rufe {{phone}} an…',
-        'softphone_not_registered' => 'Softphone ist nicht registriert — wählen Sie eine Leitung im Dock.',
+        'softphone_not_registered' => 'Ihre Telefonleitung ist nicht verbunden — wählen Sie eine Leitung im Telefonbereich.',
         'insecure_context' => 'Mikrofonzugriff erfordert eine sichere Verbindung (HTTPS). Öffnen Sie das CRM über HTTPS und versuchen Sie es erneut.',
     ],
 
@@ -2438,20 +2438,20 @@ return [
 
     'call_bridge' => [
         'title' => 'Call Bridge',
-        'description' => 'Telefonleitungen, Anrufpool und Aufnahmen für den Browser-Softphone.',
+        'description' => 'Telefonleitungen, Anrufpool und Aufnahmen für Telefon.',
         'softphone_device' => [
             'provider' => 'Anbieter',
             'provider_tooltip' => 'Die SIP-Plattform, zu der diese Leitung gehört (z. B. sipgate). Das CRM leitet daraus die WebSocket-Adresse und die SIP-URI ab. Ein Anbieter ist erforderlich.',
             'provider_placeholder' => '-- Anbieter wählen --',
             'provider_loading' => 'Wird geladen…',
             'label' => 'Bezeichnung (z. B. Deutsch, Schwedisch)',
-            'label_tooltip' => 'Interner Name der Leitung, damit sie im Softphone-Dock unterschieden werden kann, z. B. das angerufene Land.',
+            'label_tooltip' => 'Interner Name der Leitung, damit sie im Telefonbereich unterschieden werden kann, z. B. das angerufene Land.',
             'username' => 'Benutzername',
             'username_tooltip' => 'SIP-Benutzername des Kanals (z. B. der sipgate-Neo-Kanal-Benutzer). Die Plattform erstellt daraus die SIP-URI der Leitung.',
             'username_required' => 'Erforderlich, um die SIP-URI für diese Plattform zu erstellen.',
             'password' => 'Passwort',
             'password_keep' => 'Passwort (leer lassen zum Behalten)',
-            'password_tooltip' => 'SIP-Anmeldepasswort des Kanals. Wird verschlüsselt gespeichert und nur zur Registrierung des Softphones verwendet. Beim Bearbeiten leer lassen, um das gespeicherte Passwort zu behalten.',
+            'password_tooltip' => 'SIP-Anmeldepasswort des Kanals. Wird verschlüsselt gespeichert und nur zum Verbinden der Leitung mit Telefon verwendet. Beim Bearbeiten leer lassen, um das gespeicherte Passwort zu behalten.',
             'display_name' => 'Anzeigename',
             'display_name_tooltip' => 'Name, den der Angerufene auf seinem Telefon sieht, wenn diese Leitung anruft.',
             'default_line' => 'Standardleitung',

@@ -186,7 +186,7 @@ function CallFailedNotice({
         <section className="sp sp--failed" role="alertdialog" aria-label="Call failed">
             <header className="sp__head">
                 <span className="sp__dot sp__dot--failed" />
-                {activeLabel ? `Softphone · ${activeLabel}` : "Softphone"}
+                {activeLabel ? `Phone · ${activeLabel}` : "Phone"}
             </header>
             <div className="sp__body">
                 <div className="sp__avatar sp__avatar--failed" aria-hidden="true">
@@ -1199,8 +1199,8 @@ export default function SoftphoneDock() {
             : null;
 
     const headerTitle = activeDevice
-        ? `Softphone · ${activeDevice.label}`
-        : "Softphone";
+        ? `Phone · ${activeDevice.label}`
+        : "Phone";
 
     // No floating FAB is shipped — the dock opens on its own when a call arrives, and stays pinned in development for testing.
 
@@ -1237,7 +1237,7 @@ export default function SoftphoneDock() {
 
             {/* Idle state — line picker + status. Only when no call is live and no failed call is being reported (otherwise both panels render at once). */}
             {!hasCall && !callFailure && open && (
-                <section className="sp" aria-label="Softphone status">
+                <section className="sp" aria-label="Phone status">
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         {headerTitle}
@@ -1307,7 +1307,7 @@ export default function SoftphoneDock() {
 
             {/* Inbound ringing */}
             {ringingInbound && activeCall && (
-                <section className="sp sp--incoming" aria-label="Softphone, incoming call">
+                <section className="sp sp--incoming" aria-label="Phone, incoming call">
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         {headerTitle}
@@ -1360,7 +1360,7 @@ export default function SoftphoneDock() {
 
             {/* Live / outbound call */}
             {inCall && activeCall && (
-                <section className="sp sp--active" aria-label="Softphone, in call">
+                <section className="sp sp--active" aria-label="Phone, in call">
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         {headerTitle}
