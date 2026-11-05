@@ -1155,8 +1155,11 @@ class DealController extends AccountBaseController
 
         app(SallyMeetingInsightService::class)->applyAgentContentEdit(
             $model,
-            array_key_exists('summary', $data) ? $data['summary'] : null,
-            array_key_exists('bullet_points', $data) ? $data['bullet_points'] : null,
+            // A key that is present but null means "clear it" (the card sends
+            // summary:null, and ConvertEmptyStringsToNull turns "" into null);
+            // the service treats null as "not provided", so map it to empty.
+            array_key_exists('summary', $data) ? ($data['summary'] ?? '') : null,
+            array_key_exists('bullet_points', $data) ? ($data['bullet_points'] ?? []) : null,
         );
 
         return response()->json([

@@ -340,10 +340,10 @@ export default function DealTimelineEventRow({
                                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                                     <span className="cb-timeline-chip">
                                         {event.direction === "inbound"
-                                            ? "Inbound"
+                                            ? t("pages.call_summary.chip_inbound")
                                             : event.direction === "outbound"
-                                              ? "Outbound"
-                                              : "Call"}
+                                              ? t("pages.call_summary.chip_outbound")
+                                              : t("pages.call_summary.call")}
                                     </span>
                                     <span>
                                         {event.direction === "inbound"

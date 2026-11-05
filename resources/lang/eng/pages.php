@@ -2643,6 +2643,8 @@ return [
         'from' => 'From',
         'to' => 'To',
         'duration' => 'Duration',
+        'chip_inbound' => 'Inbound',
+        'chip_outbound' => 'Outbound',
     ],
 
 ];

@@ -66,7 +66,22 @@ export function summaryToEditorHtml(
 
     // Both paths go through the same allow-list, so stored HTML can't smuggle
     // markup into Quill that the markdown path would have stripped.
-    return DOMPurify.sanitize(html, SUMMARY_ALLOWED);
+    const fragment = DOMPurify.sanitize(html, {
+        ...SUMMARY_ALLOWED,
+        RETURN_DOM_FRAGMENT: true,
+    });
+
+    // Tabnabbing guard enforced here rather than relying on MarkdownRenderer's
+    // global DOMPurify hook, which lives in another chunk that may not be
+    // loaded when the Sally workspace renders. Stored links are LLM/meeting
+    // derived, so any `_blank` link gets `noopener noreferrer`.
+    fragment.querySelectorAll('a[target="_blank"]').forEach((anchor) => {
+        anchor.setAttribute("rel", "noopener noreferrer");
+    });
+
+    const container = document.createElement("div");
+    container.appendChild(fragment);
+    return container.innerHTML;
 }
 
 const SUMMARY_ALLOWED: Config = {

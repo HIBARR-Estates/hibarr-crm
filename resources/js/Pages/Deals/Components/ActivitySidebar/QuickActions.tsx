@@ -209,7 +209,12 @@ export default function QuickActions({ deal, permissions }: Props) {
             icon: hasLineChoice ? (
                 <Dropdown menu={{ items: lineMenuItems }} trigger={["click"]}>
                     <span
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                            // Keep the icon click from also selecting the
+                            // segment (native label activation) and dialing.
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }}
                         className="inline-flex items-center justify-center"
                     >
                         <PhoneOutlined style={{ color: "#52c41a" }} />
@@ -242,10 +247,10 @@ export default function QuickActions({ deal, permissions }: Props) {
 
     const handleSegmentChange = (value: string | number) => {
         setSelectedAction(value);
-        if (value === "phone" && hasLineChoice) {
-            setTimeout(() => setSelectedAction(""), 100);
-            return;
-        }
+        // Selecting Call — by clicking its label or with the keyboard — dials
+        // on the active line, also when several lines exist; the icon
+        // dropdown stays the way to pick a specific line. Without this the
+        // option was a dead end for keyboard users and label clicks.
         handleQuickAction(value as string);
         // Reset selection after a short delay to avoid visual feedback issues
         setTimeout(() => setSelectedAction(""), 100);

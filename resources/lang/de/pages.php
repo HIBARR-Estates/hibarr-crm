@@ -2486,6 +2486,8 @@ return [
         'from' => 'Von',
         'to' => 'An',
         'duration' => 'Dauer',
+        'chip_inbound' => 'Eingehend',
+        'chip_outbound' => 'Ausgehend',
     ],
 
 ];

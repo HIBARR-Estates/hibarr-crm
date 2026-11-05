@@ -2464,6 +2464,8 @@ return [
         'from' => 'Kimden',
         'to' => 'Kime',
         'duration' => 'Süre',
+        'chip_inbound' => 'Gelen',
+        'chip_outbound' => 'Giden',
     ],
 
 ];

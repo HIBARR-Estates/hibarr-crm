@@ -4,6 +4,7 @@ import { usePage } from "@inertiajs/react";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import RecordingPlayer from "@/Components/CallRecordingPlayer";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { SoftphoneDeviceSummary } from "@/Types/api/softphone";
 
 import "@/Components/Redesign/redesign.css";
@@ -56,14 +57,22 @@ function formatDuration(seconds: number): string {
 }
 
 /** "Inbound" chip + "Lead owner · Junior Prtu", or a muted "No context". */
-function describeRecording(rec: RecordingRow, isAdmin: boolean): { chip: string | null; text: string } {
+type Translate = (text: string, options: { source: "en" }) => string;
+
+function describeRecording(
+    rec: RecordingRow,
+    isAdmin: boolean,
+    td: Translate,
+): { chip: string | null; text: string } {
     const parts: string[] = [];
     let chip: string | null = null;
     if (rec.direction === "inbound") chip = "Inbound";
     else if (rec.direction === "outbound") chip = "Outbound";
 
     if (isAdmin && rec.is_forwarded && rec.forwarded_from_user_name) {
-        parts.push(`Forwarded · Last user: ${rec.forwarded_from_user_name}`);
+        parts.push(
+            `${td("Forwarded", { source: "en" })} · ${td("Last user", { source: "en" })}: ${rec.forwarded_from_user_name}`,
+        );
     } else if (rec.routing_reason && rec.routing_reason !== "pool_fallback" && ROUTING_REASON_LABELS[rec.routing_reason]) {
         parts.push(ROUTING_REASON_LABELS[rec.routing_reason]);
     }
@@ -100,6 +109,7 @@ function isDefaultLine(label: string, devices: SoftphoneDeviceSummary[]): boolea
  */
 export default function SoftphoneRecordingsPanel({ devices }: Props) {
     const { props } = usePage();
+    const { td } = useTd();
     const isAdmin = (props.auth?.user?.roles ?? []).some(
         (role: { name?: string }) => role?.name === "admin",
     );
@@ -202,7 +212,7 @@ export default function SoftphoneRecordingsPanel({ devices }: Props) {
                         </div>
 
                         {group.rows.map((rec) => {
-                            const ctx = describeRecording(rec, isAdmin);
+                            const ctx = describeRecording(rec, isAdmin, td);
                             return (
                                 <div
                                     key={rec.id}

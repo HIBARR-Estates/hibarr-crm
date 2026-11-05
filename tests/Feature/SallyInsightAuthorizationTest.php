@@ -145,6 +145,23 @@ class SallyInsightAuthorizationTest extends TestCase
         $this->assertStringContainsString('lead only', $this->storedSummary($insightId));
     }
 
+    public function test_explicit_null_summary_clears_the_stored_summary(): void
+    {
+        $this->grant(self::LEAD_OWNER_ID, 'edit_lead', 'all');
+
+        $insightId = $this->makeInsight(1, null);
+
+        $this->actingAsUser(self::LEAD_OWNER_ID);
+
+        // The card's clear flow sends summary:null (and ConvertEmptyStringsToNull
+        // turns "" into null), so null must clear rather than be ignored.
+        $response = $this->update($insightId, null);
+
+        $this->assertSame('success', $response['status']);
+        $this->assertNull(DB::table('sally_meeting_insights')->where('id', $insightId)->value('summary'));
+        $this->assertNotNull(DB::table('sally_meeting_insights')->where('id', $insightId)->value('summary_edited_at'));
+    }
+
     private function assertForbidden(callable $call, string $message): void
     {
         try {
@@ -158,7 +175,7 @@ class SallyInsightAuthorizationTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function update(int $insightId, string $summary): array
+    private function update(int $insightId, ?string $summary): array
     {
         $request = Request::create('/account/sally-insights/'.$insightId, 'PATCH', [
             'summary' => $summary,
