@@ -875,9 +875,22 @@ export default function SoftphoneDock() {
         callRef: string | null;
         leadId: number | null;
         deviceId: number | null;
+        /** Snapshot while live: the routing/forwarding refs reset when the call ends. */
+        fwd: {
+            isForwarded: boolean;
+            lastForwardedUser: RotationUser | null;
+            callRoutingReason: string;
+        };
     } | null>(null);
     const endedLoggedRef = useRef<string | null>(null);
     useEffect(() => {
+        // Every open tab mounts the dock and passive tabs mirror the owner's
+        // call; only the tab that owns the call logs it, or each extra tab
+        // would add a duplicate "ended" row.
+        if (!isActiveTab) {
+            connectedCallRef.current = null;
+            return;
+        }
         if (activeCall && activeCall.phase === "active") {
             connectedCallRef.current = {
                 id: activeCall.id,
@@ -887,6 +900,7 @@ export default function SoftphoneDock() {
                 callRef,
                 leadId: callLead?.id ?? null,
                 deviceId: activeDeviceId ?? null,
+                fwd: { ...forwardedInfoRef.current },
             };
             return;
         }
@@ -899,7 +913,7 @@ export default function SoftphoneDock() {
             return;
         }
         endedLoggedRef.current = ended.id;
-        const fwd = forwardedInfoRef.current;
+        const fwd = ended.fwd;
         const duration = ended.answeredAt
             ? Math.max(1, Math.round((Date.now() - ended.answeredAt) / 1000))
             : 0;
@@ -926,7 +940,17 @@ export default function SoftphoneDock() {
             .catch(() => {
                 // Timeline logging is best-effort only.
             });
-    }, [activeCall?.id, activeCall?.phase, callRef, callLead?.id, activeDeviceId]);
+    }, [
+        activeCall?.id,
+        activeCall?.phase,
+        callRef,
+        callLead?.id,
+        activeDeviceId,
+        isActiveTab,
+        isForwarded,
+        lastForwardedUser,
+        callRoutingReason,
+    ]);
 
     // Incoming calls are surfaced in the softphone dock only. The dock auto-opens while a call is ringing or live and owns Answer/Decline/Hang up.
 

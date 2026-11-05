@@ -192,6 +192,17 @@ export async function refreshSoftphoneDevices(): Promise<
                 devicesLoaded: true,
                 activeDeviceId: nextActiveId,
             });
+            // The registered line was disabled (or unassigned) since it was
+            // registered: drop the registration so it stops ringing here,
+            // unless a call is live on it right now.
+            if (
+                registeredDeviceId !== null &&
+                !list.some((d) => d.id === registeredDeviceId) &&
+                softphone.getState().call == null
+            ) {
+                registeredDeviceId = null;
+                void softphone.stop();
+            }
             if (
                 storeState.isActiveTab &&
                 storeState.canMakeCalls &&
@@ -208,6 +219,27 @@ export async function refreshSoftphoneDevices(): Promise<
         });
 
     return devicesFetchPromise;
+}
+
+/**
+ * Re-check the line list while the app is open (every few minutes and when
+ * the window regains focus), so a line disabled in settings stops ringing in
+ * browsers that registered it earlier. Installed once per page.
+ */
+let lineWatchInstalled = false;
+const LINE_WATCH_INTERVAL_MS = 3 * 60 * 1000;
+function installLineWatch(): void {
+    if (lineWatchInstalled || typeof window === "undefined") {
+        return;
+    }
+    lineWatchInstalled = true;
+    const refresh = () => {
+        if (devicesLoadedOnce && storeState.canMakeCalls !== false) {
+            void refreshSoftphoneDevices();
+        }
+    };
+    window.setInterval(refresh, LINE_WATCH_INTERVAL_MS);
+    window.addEventListener("focus", refresh);
 }
 
 async function ensureDevicesLoaded(): Promise<SoftphoneDeviceSummary[]> {
@@ -421,6 +453,7 @@ export default function useSoftphone() {
         if (!isEnabled || !canMakeCalls) {
             return;
         }
+        installLineWatch();
         return retainSoftphoneRuntime();
     }, [isEnabled, canMakeCalls]);
 

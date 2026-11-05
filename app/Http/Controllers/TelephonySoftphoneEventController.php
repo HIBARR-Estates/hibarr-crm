@@ -454,7 +454,17 @@ class TelephonySoftphoneEventController extends AccountBaseController
         $entityId = isset($validated['entity_id']) ? (int) $validated['entity_id'] : null;
 
         if ($entityType !== null && $entityId !== null) {
-            if (! $this->canViewEntity($entityType, $entityId)) {
+            $viewable = $this->canViewEntity($entityType, $entityId);
+
+            if ($viewable === null) {
+                // The record is gone or belongs to another company (deleted
+                // between the dock's match and this log, or a bad id). Inbound
+                // calls drop the pointer and re-match the number below, so the
+                // call is still logged; an outbound call has no fallback.
+                abort_unless($isInbound, 404);
+                $entityType = null;
+                $entityId = null;
+            } elseif (! $viewable) {
                 // An inbound call reaches whoever is on the line, who may not be
                 // allowed to see the caller's lead. Drop the client's pointer and
                 // match the number below instead, so the call still lands on the
@@ -585,12 +595,17 @@ class TelephonySoftphoneEventController extends AccountBaseController
         return response()->json(['status' => 'success']);
     }
 
-    /** Whether the current user may view the lead or deal (same company). */
-    private function canViewEntity(string $entityType, int $entityId): bool
+    /**
+     * Whether the current user may view the lead or deal: true/false, or null
+     * when it does not exist in this company (so callers can fall back).
+     */
+    private function canViewEntity(string $entityType, int $entityId): ?bool
     {
         if ($entityType === 'lead') {
-            $lead = Lead::findOrFail($entityId);
-            abort_if((int) $lead->company_id !== (int) company()->id, 404);
+            $lead = Lead::find($entityId);
+            if ($lead === null || (int) $lead->company_id !== (int) company()->id) {
+                return null;
+            }
 
             return (bool) PermissionService::checkAccess(user(), 'view_lead', $lead, [
                 'added' => 'added_by',
@@ -598,8 +613,10 @@ class TelephonySoftphoneEventController extends AccountBaseController
             ])['canAccess'];
         }
 
-        $deal = Deal::findOrFail($entityId);
-        abort_if((int) $deal->company_id !== (int) company()->id, 404);
+        $deal = Deal::find($entityId);
+        if ($deal === null || (int) $deal->company_id !== (int) company()->id) {
+            return null;
+        }
 
         return (bool) PermissionService::checkAccess(user(), 'view_deals', $deal, [
             'added' => 'added_by',

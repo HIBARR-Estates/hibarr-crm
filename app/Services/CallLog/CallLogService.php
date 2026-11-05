@@ -78,18 +78,19 @@ class CallLogService
             $types['call_voicemail'] ?? null,
         ]));
 
-        $rows = $query->get(['crm_events.id', 'crm_events.event_type_id', 'crm_events.model_id', 'crm_events.metadata', 'crm_events.occurred_at']);
-
-        $connected = $rows->where('event_type_id', $endedId);
+        // SQL aggregates over the same base query, so the cost does not grow
+        // with a lead's call history (no rows are hydrated).
+        $connected = (clone $query)->where('crm_events.event_type_id', $endedId);
+        $lastAt = (clone $query)->max('crm_events.occurred_at');
 
         return [
-            'total' => $rows->count(),
-            'connected' => $connected->count(),
-            'connected_seconds' => (int) $connected->sum(fn ($e) => (int) (((array) ($e->metadata ?? []))['duration'] ?? 0)),
-            'missed' => $rows->whereIn('event_type_id', $missedIds)->count(),
-            'with_recording' => $rows->filter(fn ($e) => isset(((array) ($e->metadata ?? []))['recording_id']))->count(),
-            'unlinked' => $rows->whereNull('model_id')->count(),
-            'last_at' => $rows->max('occurred_at')?->toIso8601String(),
+            'total' => (clone $query)->count(),
+            'connected' => (clone $connected)->count(),
+            'connected_seconds' => (int) (clone $connected)->sum('crm_events.metadata->duration'),
+            'missed' => $missedIds === [] ? 0 : (clone $query)->whereIn('crm_events.event_type_id', $missedIds)->count(),
+            'with_recording' => (clone $query)->whereNotNull('crm_events.metadata->recording_id')->count(),
+            'unlinked' => (clone $query)->whereNull('crm_events.model_id')->count(),
+            'last_at' => $lastAt !== null ? \Illuminate\Support\Carbon::parse($lastAt)->toIso8601String() : null,
         ];
     }
 
@@ -103,7 +104,9 @@ class CallLogService
         $deals = Deal::withoutGlobalScopes()
             ->where('company_id', $lead->company_id)
             ->where('lead_id', $lead->id)
-            ->get(['id', 'name', 'added_by', 'company_id', 'lead_id']);
+            // Whole rows: isVisibleToUser() reads agent_id (assigned agent)
+            // and relations a narrowed select would leave null.
+            ->get();
 
         $visible = $deals->filter(function (Deal $deal) use ($viewer) {
             $access = \App\Services\PermissionService::checkAccess($viewer, 'view_deals', $deal, [
