@@ -1450,6 +1450,9 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
 
     Route::post('telephony/calls', [TelephonyCallController::class, 'store'])->name('telephony.calls.store');
     Route::get('telephony/calls/log', [\App\Http\Controllers\TelephonyCallLogController::class, 'index'])->name('telephony.calls.log');
+    // Calls page (call managers) and a lead's Calls tab.
+    Route::get('calls', [\App\Http\Controllers\TelephonyCallLogController::class, 'page'])->name('calls.index');
+    Route::get('lead-contact/{lead}/calls', [\App\Http\Controllers\TelephonyCallLogController::class, 'lead'])->name('lead-contact.calls.index')->whereNumber('lead');
     Route::post('telephony/softphone/events', [\App\Http\Controllers\TelephonySoftphoneEventController::class, 'store'])->name('telephony.softphone.events.store');
     Route::get('telephony/softphone/lead-match', [\App\Http\Controllers\TelephonySoftphoneEventController::class, 'leadByPhone'])->name('telephony.softphone.lead-match');
     Route::post('telephony/softphone/pass', [\App\Http\Controllers\TelephonySoftphoneEventController::class, 'passCall'])->name('telephony.softphone.pass');
@@ -1460,6 +1463,7 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
 
     Route::put('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'update'])->name('telephony.softphone.devices.update')->whereNumber('id');
     Route::delete('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'destroy'])->name('telephony.softphone.devices.destroy')->whereNumber('id');
+    Route::patch('telephony/softphone/devices/{id}/active', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'setActive'])->name('telephony.softphone.devices.active')->whereNumber('id');
 
     // Per-line incoming call pool (admin-managed).
     Route::get('telephony/softphone/call-pool', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'index'])->name('telephony.softphone.call-pool.index');

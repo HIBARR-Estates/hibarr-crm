@@ -1,6 +1,6 @@
 import { Tooltip } from "antd";
 import { usePage } from "@inertiajs/react";
-import { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
+import { canPlayCallRecording } from "@/Hooks/useSoftphone";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import useTranslation from "@/Hooks/useTranslation";
@@ -45,17 +45,13 @@ export default function DealTimelineEventRow({
 
     const { props } = usePage<any>();
     const authUser = props.auth?.user;
-    const isAdmin = (authUser?.roles ?? []).some(
-        (r: { name?: string }) => r.name === "admin"
-    );
-    const hasCallPermission = canMakeSoftphoneCalls(
+    const callOwnerId = event.call?.userId ?? event.userId;
+    // The agent on the call or a call manager; the server enforces the same rule.
+    const canPlayRecording = canPlayCallRecording(
         authUser,
         props.auth?.permissions,
+        callOwnerId,
     );
-    const callOwnerId = event.call?.userId ?? event.userId;
-    const canPlayRecording =
-        hasCallPermission &&
-        (isAdmin || (authUser?.id != null && callOwnerId != null && Number(authUser.id) === Number(callOwnerId)));
 
     const hasDetails = Boolean(event.details && event.details.length > 0);
     // Only events an agent logged by hand (custom event type) are editable or

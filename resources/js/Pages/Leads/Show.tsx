@@ -40,6 +40,8 @@ export interface LeadShowProps {
      * to roll up (LeadContactController@show).
      */
     hasLeadExposes?: boolean;
+    /** Deferred: the lead's call totals (Calls tab count); null when calls are off. */
+    callSummary?: import("@/Components/Redesign/calls/types").CallLogSummary | null;
     notePermissions: Record<string, string>;
     /** Task permissions (also mirrored as `permissions` for TasksTab). */
     taskPermissions?: Record<string, string>;

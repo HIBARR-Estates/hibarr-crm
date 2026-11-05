@@ -12,6 +12,8 @@ export interface SoftphoneDeviceSummary {
     id: number;
     label: string;
     is_default: boolean;
+    /** false = disabled: no credentials, cannot place or receive calls. */
+    is_active?: boolean;
 }
 
 export interface SoftphoneDevicesResponse {

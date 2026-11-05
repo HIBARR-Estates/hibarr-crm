@@ -10,6 +10,8 @@ use App\Models\SoftphoneDevice;
 use App\Services\CallRecording\CallRecordingTranscoder;
 use App\Services\FileStorageService;
 use App\Services\PermissionService;
+use App\Support\CallAccess;
+use App\Services\CallRecording\CallRecordingLinker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -29,8 +31,7 @@ class CallRecordingController extends AccountBaseController
 
     public function index(Request $request)
     {
-        $permission = user()->permission('make_softphone_calls');
-        abort_403(! user()->hasRole('admin') && ! in_array($permission, ['all', 'added']));
+        abort_403(! CallAccess::canMakeCalls(user()) && ! CallAccess::canManageCalls(user()));
 
         $scope = $request->input('scope', 'mine');
         $companyId = (int) company()->id;
@@ -42,10 +43,10 @@ class CallRecordingController extends AccountBaseController
         // tenant-visible metadata.
         $query = CallRecording::query()->where('company_id', $companyId);
 
-        // `scope=company` is the Call Bridge "all recordings" view and is
-        // admin-only; everyone else only ever sees their own.
+        // `scope=company` is the "all recordings" view: admins and call
+        // managers (manage_calls); everyone else only ever sees their own.
         if ($scope === 'company') {
-            abort_403(! user()->hasRole('admin'));
+            abort_403(! CallAccess::canManageCalls(user()));
         } else {
             $query->where('user_id', user()->id);
         }
@@ -225,7 +226,7 @@ class CallRecordingController extends AccountBaseController
         // the recording id onto those events so the timeline can say audio was
         // captured.
         if ($callRef) {
-            $this->attachRecordingToCallEvents(
+            app(CallRecordingLinker::class)->attach(
                 (string) $callRef,
                 (int) $recording->id,
                 $recording->company_id !== null ? (int) $recording->company_id : null,
@@ -259,7 +260,7 @@ class CallRecordingController extends AccountBaseController
      */
     private function resolveForwardedByCallRef($rows, int $companyId): array
     {
-        if (! user()->hasRole('admin')) {
+        if (! CallAccess::canManageCalls(user())) {
             return [];
         }
 
@@ -338,89 +339,6 @@ class CallRecordingController extends AccountBaseController
         return (int) $device->id;
     }
 
-    /**
-     * Stamp `recording_id` into the metadata of every CRM event belonging to
-     * this call, so the timeline row for the call shows that audio exists.
-     *
-     * The company id comes from the recording rather than the session, so this
-     * does not depend on an authenticated company being resolvable.
-     *
-     * `call_ref` is a client-supplied string, so it must not be usable to
-     * annotate another agent's call rows: only the uploader's own events (and
-     * system rows that carry no user at all) are eligible.
-     */
-    private function attachRecordingToCallEvents(
-        string $callRef,
-        int $recordingId,
-        ?int $companyId,
-        ?int $ownerUserId = null,
-    ): void {
-        if ($companyId === null || $companyId <= 0) {
-            return;
-        }
-
-        try {
-            $events = \App\Models\CrmEvent::withoutGlobalScopes()
-                ->where('company_id', $companyId)
-                ->whereHas('eventType', fn ($q) => $q->whereIn('slug', ['call_started', 'call_ended', 'call_declined']))
-                ->where('metadata->call_ref', $callRef)
-                ->where(function ($q) use ($ownerUserId) {
-                    $q->whereNull('user_id');
-
-                    if ($ownerUserId !== null) {
-                        $q->orWhere('user_id', $ownerUserId);
-                    }
-                })
-                ->get();
-
-            $isForwarded = false;
-            $forwardedUserId = null;
-            $forwardedUserName = null;
-
-            // Derive forwarding attribution from trusted call events matching this call_ref,
-            // rather than trusting client upload fields.
-            foreach ($events as $event) {
-                $meta = is_array($event->metadata) ? $event->metadata : [];
-                if (! empty($meta['is_forwarded']) && ! empty($meta['forwarded_from_user_id'])) {
-                    $candidateId = (int) $meta['forwarded_from_user_id'];
-                    $targetCompanyId = $companyId ?? company()?->id;
-                    $forwardedUser = User::query()
-                        ->when($targetCompanyId, fn ($q) => $q->where('company_id', $targetCompanyId))
-                        ->find($candidateId);
-
-                    if ($forwardedUser) {
-                        $isForwarded = true;
-                        $forwardedUserId = (int) $forwardedUser->id;
-                        $forwardedUserName = (string) $forwardedUser->name;
-                        break;
-                    }
-                }
-            }
-
-            foreach ($events as $event) {
-                $metadata = is_array($event->metadata) ? $event->metadata : [];
-                if (isset($metadata['recording_id'])) {
-                    continue;
-                }
-                $metadata['recording_id'] = $recordingId;
-                $metadata['has_recording'] = true;
-                if ($isForwarded && $forwardedUserId !== null) {
-                    $metadata['is_forwarded'] = true;
-                    $metadata['forwarded_from_user_id'] = $forwardedUserId;
-                    $metadata['forwarded_from_user_name'] = $forwardedUserName;
-                }
-                $metadata['has_recording'] = true;
-                $event->forceFill(['metadata' => $metadata])->save();
-            }
-        } catch (\Throwable $e) {
-            // Never fail the upload because the timeline could not be annotated.
-            Log::warning('CallRecordingController: could not annotate call events', [
-                'call_ref' => $callRef,
-                'recording_id' => $recordingId,
-                'message' => $e->getMessage(),
-            ]);
-        }
-    }
 
     /** Swap a filename's extension, keeping its base name readable. */
     private function replaceExtension(string $filename, string $extension): string
@@ -514,25 +432,18 @@ class CallRecordingController extends AccountBaseController
     /**
      * Authorise access to a recording.
      *
-     * The recording is tenant data: the caller needs the softphone
-     * permission, must own the recording (or be an admin), must be in the
-     * recording's own company, and the recording must not have expired.
+     * The recording is tenant data: the caller must own the recording (with
+     * the softphone permission) or manage calls, must be in the recording's
+     * own company, and the recording must not have expired.
      */
     private function authorizeRecordingAccess(CallRecording $recording): void
     {
-        $permission = user()->permission('make_softphone_calls');
-        abort_403(! user()->hasRole('admin') && ! in_array($permission, ['all', 'added']));
-
-        // The owner id can come back from the model as a string while the
-        // session user carries an int, so both sides are normalised before the
-        // comparison — otherwise the rightful owner is rejected. A null id on
-        // either side stays null and never matches the other.
-        $userId = user()->id === null ? null : (int) user()->id;
+        // The agent who made the recording (with call permission), or a call
+        // manager (admin / manage_calls). The owner id can come back from the
+        // model as a string, so it is normalised; a null owner never matches.
         $ownerId = $recording->user_id === null ? null : (int) $recording->user_id;
 
-        if ($userId !== $ownerId && ! user()->hasRole('admin')) {
-            abort(403);
-        }
+        abort_unless(CallAccess::canPlayRecording(user(), $ownerId), 403);
 
         // Exact match, and a missing company_id on either side is a mismatch.
         // `isset()` previously let NULL recordings through the check entirely.

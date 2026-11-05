@@ -479,7 +479,10 @@ class CallBridgeService
         $metadata = $this->buildMetadata($olEvent, $dedupeKey);
 
         $event = null;
-        if ($modelType !== null) {
+        // Bridge events with no lead or deal are skipped (the poller sees many
+        // calls the CRM has no record for); the softphone asks for its calls
+        // to be logged anyway (`log_unlinked`), so the Calls page lists them.
+        if ($modelType !== null || ! empty($olEvent['log_unlinked'])) {
             $event = $this->events->record([
                 'event_type_slug' => $slug,
                 'company_id' => $companyId,

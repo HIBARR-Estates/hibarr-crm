@@ -20,7 +20,9 @@ import {
     HistoryOutlined,
     GiftOutlined,
     AppstoreOutlined,
+    PhoneOutlined,
 } from "@ant-design/icons";
+import { canManageCalls } from "@/Hooks/useSoftphone";
 
 import {
     HouseIcon,
@@ -75,6 +77,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const canManageOffers = isPermissionAll(
         props.auth?.permissions?.manage_offers,
     );
+    // Calls page: call managers (admins, or manage_calls = all) while the
+    // softphone feature is on. Mirrors the server gate on calls.index.
+    const canViewCalls =
+        props.featureFlags?.["crm.softphone"] === true &&
+        canManageCalls(props.auth?.user, props.auth?.permissions);
     const canViewPaymentRequests =
         props.featureFlags?.["packages.online-payment"] === true &&
         isPermissionAll(props.auth?.permissions?.edit_payments);
@@ -265,6 +272,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             label: t("app.menu.meetings"),
             icon: <CalendarIcon />,
             href: "/account/meetings",
+        },
+        {
+            key: "calls",
+            label: t("app.menu.calls"),
+            icon: <PhoneOutlined />,
+            href: "/account/calls",
+            hidden: !canViewCalls,
         },
         {
             key: "tasks",
