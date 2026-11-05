@@ -69,7 +69,7 @@ export default function useSoftphoneLineTest() {
             const forbidden = axios.isAxiosError(error) && error.response?.status === 403;
             throw new Error(
                 forbidden
-                    ? "Testing a saved line needs the make softphone calls permission."
+                    ? "Testing a saved line needs the \"Make calls from the CRM\" permission."
                     : "Could not load this line's saved settings.",
             );
         }

@@ -200,7 +200,7 @@ function LinePool({
                                 style={{ width: "100%" }}
                                 loading={eligibleQuery.isLoading}
                                 optionFilterProp="label"
-                                placeholder="Search agents with softphone permission"
+                                placeholder="Search agents who can make calls"
                                 options={options}
                                 notFoundContent="Every eligible agent is already on this line."
                             />

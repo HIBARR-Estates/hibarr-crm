@@ -42,7 +42,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
             })
             ->orderByDesc('is_default')
             ->orderBy('label')
-            ->get(['id', 'label', 'is_default']);
+            ->get(['id', 'label', 'is_default', 'is_active']);
 
         return response()->json([
             'status' => 'success',
@@ -81,6 +81,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
                 'authorization_username' => $device->authorization_username,
                 'display_name' => $device->display_name,
                 'is_default' => $device->is_default,
+                'is_active' => $device->is_active !== false,
                 'has_password' => $device->authorization_password !== null
                     && $device->authorization_password !== '',
             ],
@@ -110,6 +111,10 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
         );
 
         $device = SoftphoneDevice::findOrFail($id);
+
+        // A disabled line hands out no credentials: no browser can register
+        // it, so it can neither place nor receive calls until it is enabled.
+        abort_if($device->is_active === false, 423, 'This line is disabled.');
 
         return response()->json([
             'status' => 'success',
@@ -176,6 +181,26 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
         return response()->json([
             'status' => 'success',
             'message' => 'Device updated.',
+            'data' => $this->transform($device),
+        ]);
+    }
+
+    /** Enable or disable a line (disabled: no outbound, no inbound). */
+    public function setActive(Request $request, int $id): JsonResponse
+    {
+        $this->assertSoftphoneEnabled();
+        $this->assertCanManage();
+
+        $device = $this->findManageableDevice($id);
+        $validated = $request->validate(['active' => 'required|boolean']);
+
+        $device->is_active = (bool) $validated['active'];
+        $device->last_updated_by = (int) user()->id;
+        $device->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => $device->is_active ? 'Line enabled.' : 'Line disabled.',
             'data' => $this->transform($device),
         ]);
     }
@@ -351,6 +376,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
             'id' => $device->id,
             'label' => $device->label,
             'is_default' => $device->is_default,
+            'is_active' => $device->is_active !== false,
         ];
     }
 

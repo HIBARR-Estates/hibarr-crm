@@ -80,6 +80,7 @@ return [
 
     // Extended menu items
     'menu' => [
+        'calls' => 'Aramalar',
         'dashboard' => 'Gösterge Paneli',
         'lead' => 'Potansiyel Müşteriler',
         'deal' => 'Anlaşmalar',

@@ -25,6 +25,8 @@ class SoftphoneDevice extends BaseModel
         'authorization_password',
         'display_name',
         'is_default',
+        // false = disabled: no credentials, so the line can neither call nor ring.
+        'is_active',
         'added_by',
         'last_updated_by',
     ];
@@ -36,5 +38,6 @@ class SoftphoneDevice extends BaseModel
     protected $casts = [
         'authorization_password' => 'encrypted',
         'is_default' => 'boolean',
+        'is_active' => 'boolean',
     ];
 }

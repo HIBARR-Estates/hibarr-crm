@@ -1757,6 +1757,14 @@ class Module extends BaseModel
                     'is_custom' => 1,
                     'name' => 'make_softphone_calls',
                 ],
+                // Call management: the Calls menu, every agent's calls and
+                // every recording. Kept apart from make_softphone_calls,
+                // because listening to colleagues' calls is a separate grant.
+                [
+                    'allowed_permissions' => Permission::ALL_NONE,
+                    'is_custom' => 1,
+                    'name' => 'manage_calls',
+                ],
             ]
         ],
         [

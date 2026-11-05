@@ -18,6 +18,8 @@ export const RECORD_TABS: WorkspaceTabDef[] = [
     { id: "notes", label: "Notes", countable: true },
     { id: "tasks", label: "Tasks", countable: true },
     { id: "meetings", label: "Meetings", countable: true },
+    // Shown only while the softphone feature is on (LeadViewRedesign filters it).
+    { id: "calls", label: "Calls", countable: true },
     { id: "files", label: "Files", countable: true },
     { id: "deals", label: "Deals", countable: true },
     { id: "exposes", label: "Exposes", countable: true },
