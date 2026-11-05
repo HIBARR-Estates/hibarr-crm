@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { usePage } from "@inertiajs/react";
-import { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
+import { canPlayCallRecording } from "@/Hooks/useSoftphone";
 import { Tooltip, Typography } from "antd";
 import {
     UserOutlined,
@@ -178,17 +178,13 @@ export default function CrmEventItem({ event, compact = false }: Props) {
     const { t } = useTranslation();
     const { props } = usePage<any>();
     const authUser = props.auth?.user;
-    const isAdmin = (authUser?.roles ?? []).some(
-        (r: { name?: string }) => r.name === "admin"
-    );
-    const hasCallPermission = canMakeSoftphoneCalls(
+    const eventOwnerId = event.user_id ?? event.user?.id;
+    // The agent on the call or a call manager; the server enforces the same rule.
+    const canPlayRecording = canPlayCallRecording(
         authUser,
         props.auth?.permissions,
+        eventOwnerId,
     );
-    const eventOwnerId = event.user_id ?? event.user?.id;
-    const canPlayRecording =
-        hasCallPermission &&
-        (isAdmin || (authUser?.id != null && eventOwnerId != null && Number(authUser.id) === Number(eventOwnerId)));
 
     const catSlug = event.event_type?.category?.slug ?? "";
     const colors = CATEGORY_COLORS[catSlug] || DEFAULT_CAT;

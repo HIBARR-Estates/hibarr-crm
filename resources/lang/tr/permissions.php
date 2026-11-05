@@ -75,4 +75,5 @@ return array(
     'manage_property_publish_requests' => 'Yayınlama Taleplerini Yönet',
     'manage_property_configuration' => 'Mülk Yapılandırmasını Yönet',
     'make_softphone_calls' => 'Softphone Aramaları Yap',
+    'manage_calls' => 'Aramaları yönet',
 );

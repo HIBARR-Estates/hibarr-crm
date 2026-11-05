@@ -444,5 +444,6 @@ return array (
     'manage_property_publish_requests' => 'Manage Property Publish Requests',
     'manage_property_configuration' => 'Manage Property Configuration',
     'make_softphone_calls' => 'Make Softphone Calls',
+    'manage_calls' => 'Manage Calls',
 
 );

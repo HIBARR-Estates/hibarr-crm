@@ -60,6 +60,41 @@ export function canMakeSoftphoneCalls(
     return perm === "all" || perm === "added";
 }
 
+/**
+ * Call managers (admins, or manage_calls = 'all') see every agent's calls and
+ * may play every recording. Mirrors App\Support\CallAccess::canManageCalls.
+ */
+export function canManageCalls(
+    user?: { roles?: Array<{ name?: string }> } | null,
+    permissions?: Record<string, unknown> | null,
+): boolean {
+    const isAdmin = (user?.roles ?? []).some(
+        (role: { name?: string }) => role?.name === "admin",
+    );
+    return isAdmin || permissions?.manage_calls === "all";
+}
+
+/**
+ * Whether the viewer may play a recording made by `ownerId`: the agent on the
+ * call (with call permission) or a call manager. The server enforces the same
+ * rule (CallAccess::canPlayRecording); this only decides what to render.
+ */
+export function canPlayCallRecording(
+    user?: { id?: number | string | null; roles?: Array<{ name?: string }> } | null,
+    permissions?: Record<string, unknown> | null,
+    ownerId?: number | string | null,
+): boolean {
+    if (canManageCalls(user, permissions)) {
+        return true;
+    }
+    return (
+        canMakeSoftphoneCalls(user, permissions) &&
+        user?.id != null &&
+        ownerId != null &&
+        Number(user.id) === Number(ownerId)
+    );
+}
+
 let storeState: SoftphoneStoreState = {
     devices: [],
     activeDeviceId: null,
@@ -133,7 +168,11 @@ export async function refreshSoftphoneDevices(): Promise<
             route("telephony.softphone.devices.index"),
         )
         .then((response) => {
-            const list = response.data?.data?.devices ?? [];
+            // Disabled lines get no credentials (the server answers 423), so
+            // the dock and call buttons never offer or register them.
+            const list = (response.data?.data?.devices ?? []).filter(
+                (d) => d.is_active !== false,
+            );
             devicesLoadedOnce = true;
             // A refresh must not move the active line (or reactivate a
             // different one) while a call is live: keep the current selection.

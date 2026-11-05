@@ -822,7 +822,7 @@ export default function SoftphoneDock() {
     /** One-shot "call finished" cue when a live call drops. Shared by the dock Answer button and the notification island Answer action, and keyed on the call id so one answered call can only ever log once. */
     const logInboundCallStarted = useCallback(
         async (callId: string, peer: string | null) => {
-            if (!inboundRoute?.matched || !inboundRoute.lead_id) {
+            if (!peer) {
                 return;
             }
             if (inboundLoggedRef.current === callId) {
@@ -835,8 +835,12 @@ export default function SoftphoneDock() {
                     phone: peer,
                     device_id: activeDeviceId,
                     call_id: callId,
-                    entity_type: "lead",
-                    entity_id: inboundRoute.lead_id,
+                    // Only sent when this agent may see the lead; otherwise the
+                    // server matches the number itself, so the call still lands
+                    // on the lead (or in the Calls page as unlinked).
+                    ...(inboundRoute?.matched && inboundRoute.lead_id
+                        ? { entity_type: "lead", entity_id: inboundRoute.lead_id }
+                        : {}),
                     event: "call.started",
                     direction: "inbound",
                     routing_reason: fwd.callRoutingReason,
@@ -856,6 +860,73 @@ export default function SoftphoneDock() {
         },
         [inboundRoute, activeDeviceId, callRef],
     );
+
+    /**
+     * Log "call ended" whenever a connected call ends, whoever hangs up. It
+     * used to be logged only from the dock's End button, so a call the other
+     * side ended left no ended row and its recording never reached the lead.
+     * Keyed on the call id so one call logs once.
+     */
+    const connectedCallRef = useRef<{
+        id: string;
+        peer: string | null;
+        direction: "inbound" | "outbound";
+        answeredAt: number | null;
+        callRef: string | null;
+        leadId: number | null;
+        deviceId: number | null;
+    } | null>(null);
+    const endedLoggedRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (activeCall && activeCall.phase === "active") {
+            connectedCallRef.current = {
+                id: activeCall.id,
+                peer: activeCall.peer ?? null,
+                direction: activeCall.direction === "inbound" ? "inbound" : "outbound",
+                answeredAt: activeCall.answeredAt ?? null,
+                callRef,
+                leadId: callLead?.id ?? null,
+                deviceId: activeDeviceId ?? null,
+            };
+            return;
+        }
+        const ended = connectedCallRef.current;
+        if (!ended || (activeCall && activeCall.id === ended.id && activeCall.phase === "active")) {
+            return;
+        }
+        connectedCallRef.current = null;
+        if (endedLoggedRef.current === ended.id || !ended.peer) {
+            return;
+        }
+        endedLoggedRef.current = ended.id;
+        const fwd = forwardedInfoRef.current;
+        const duration = ended.answeredAt
+            ? Math.max(1, Math.round((Date.now() - ended.answeredAt) / 1000))
+            : 0;
+        void axios
+            .post(route("telephony.softphone.events.store"), {
+                phone: ended.peer,
+                device_id: ended.deviceId,
+                // Without a lead the server matches inbound numbers itself.
+                ...(ended.leadId ? { entity_type: "lead", entity_id: ended.leadId } : {}),
+                event: "call.ended",
+                direction: ended.direction,
+                status: "completed",
+                duration,
+                routing_reason: fwd.callRoutingReason,
+                ...(ended.callRef ? { call_ref: ended.callRef } : {}),
+                ...(fwd.isForwarded && fwd.lastForwardedUser
+                    ? {
+                          is_forwarded: true,
+                          forwarded_from_user_id: fwd.lastForwardedUser.id,
+                          forwarded_from_user_name: fwd.lastForwardedUser.name,
+                      }
+                    : {}),
+            })
+            .catch(() => {
+                // Timeline logging is best-effort only.
+            });
+    }, [activeCall?.id, activeCall?.phase, callRef, callLead?.id, activeDeviceId]);
 
     // Incoming calls are surfaced in the softphone dock only. The dock auto-opens while a call is ringing or live and owns Answer/Decline/Hang up.
 
@@ -1331,30 +1402,8 @@ export default function SoftphoneDock() {
                                 {activeCall.muted ? "Unmute" : "Mute"}
                             </button>
                             <button type="button" className="act act--danger" onClick={() => {
-                                const direction = activeCall.direction === "inbound" ? "inbound" : "outbound";
-                                const duration = activeCall.answeredAt ? Math.max(1, Math.round((Date.now() - activeCall.answeredAt) / 1000)) : 0;
-                                if (activeCall.phase === "active" && callLead) {
-                                    const fwd = forwardedInfoRef.current;
-                                    void axios.post(route("telephony.softphone.events.store"), {
-                                        phone: activeCall.peer,
-                                        device_id: activeDeviceId,
-                                        entity_type: "lead",
-                                        entity_id: callLead.id,
-                                        event: "call.ended",
-                                        direction,
-                                        status: "completed",
-                                        duration,
-                                        routing_reason: fwd.callRoutingReason,
-                                        ...(callRef ? { call_ref: callRef } : {}),
-                                        ...(fwd.isForwarded && fwd.lastForwardedUser
-                                            ? {
-                                                  is_forwarded: true,
-                                                  forwarded_from_user_id: fwd.lastForwardedUser.id,
-                                                  forwarded_from_user_name: fwd.lastForwardedUser.name,
-                                              }
-                                            : {}),
-                                    }).catch(() => undefined);
-                                }
+                                // "call ended" is logged by the effect that watches the
+                                // call end, so a hang-up from the other side logs too.
                                 void hangup();
                             }}>
                                 <span className="act__btn">

@@ -14,6 +14,7 @@ import Badge from "@/Components/Redesign/primitives/Badge";
 import Button from "@/Components/Redesign/primitives/Button";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
+import Switch from "@/Components/Redesign/primitives/Switch";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
@@ -77,7 +78,7 @@ interface PlatformResponse {
 }
 
 const ROW_GRID =
-    "grid grid-cols-[minmax(0,1fr)_70px_minmax(0,1.1fr)_110px] items-center gap-x-3 px-3.5 py-3 border-b border-[#e2e5ea] last:border-b-0";
+    "grid grid-cols-[minmax(0,1fr)_70px_90px_minmax(0,1.1fr)_110px] items-center gap-x-3 px-3.5 py-3 border-b border-[#e2e5ea] last:border-b-0";
 
 const fieldLabel: React.CSSProperties = {
     display: "block",
@@ -282,6 +283,32 @@ export default function SoftphoneDeviceManager() {
         },
     );
 
+    // Disabling a line stops it calling and ringing: the server stops handing
+    // out its credentials, and the dock drops it from its line list.
+    const [togglingId, setTogglingId] = useState<number | null>(null);
+    const handleToggleActive = async (device: SoftphoneDeviceSummary) => {
+        const next = device.is_active === false;
+        setTogglingId(device.id);
+        try {
+            await axios.patch(
+                route("telephony.softphone.devices.active", device.id),
+                { active: next },
+                { headers: { Accept: "application/json" } },
+            );
+            await refetch();
+            void refreshSoftphoneDevices();
+            message.success(
+                next
+                    ? t("pages.calls.line_enabled", { line: device.label })
+                    : t("pages.calls.line_disabled", { line: device.label }),
+            );
+        } catch {
+            message.error(t("pages.calls.line_toggle_failed"));
+        } finally {
+            setTogglingId(null);
+        }
+    };
+
     const handleDelete = async () => {
         if (!deleteTarget) return;
         setDeletingId(deleteTarget.id);
@@ -445,6 +472,7 @@ export default function SoftphoneDeviceManager() {
                 >
                     <span>Label</span>
                     <span>Default</span>
+                    <span>{t("pages.calls.line_active")}</span>
                     <span>Connection</span>
                     <span className="text-right" aria-hidden="true" />
                 </div>
@@ -478,8 +506,26 @@ export default function SoftphoneDeviceManager() {
                                         <StarOutlined style={{ color: T.TEXT_HINT }} />
                                     )}
                                 </span>
+                                <span className="flex items-center">
+                                    <Switch
+                                        checked={device.is_active !== false}
+                                        loading={togglingId === device.id}
+                                        onChange={() => void handleToggleActive(device)}
+                                        aria-label={
+                                            device.is_active !== false
+                                                ? t("pages.calls.line_disable", { line: device.label })
+                                                : t("pages.calls.line_enable", { line: device.label })
+                                        }
+                                    />
+                                </span>
                                 <span className="min-w-0">
-                                    <ConnectionBadge state={lineTest.states[String(device.id)]} />
+                                    {device.is_active === false ? (
+                                        <span className="text-xs" style={{ color: T.TEXT_MUTED }}>
+                                            {t("pages.calls.line_disabled_hint")}
+                                        </span>
+                                    ) : (
+                                        <ConnectionBadge state={lineTest.states[String(device.id)]} />
+                                    )}
                                 </span>
                                 <span className="flex items-center justify-end gap-1">
                                     <Button
@@ -489,6 +535,8 @@ export default function SoftphoneDeviceManager() {
                                         aria-label="Test connection"
                                         title="Test connection"
                                         loading={lineTest.states[String(device.id)]?.status === "testing"}
+                                        // A disabled line hands out no credentials, so there is nothing to test.
+                                        disabled={device.is_active === false}
                                         onClick={() => void lineTest.testSaved(device.id)}
                                     />
                                     <Button

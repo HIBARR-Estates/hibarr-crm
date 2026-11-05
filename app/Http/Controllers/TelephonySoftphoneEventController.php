@@ -427,8 +427,11 @@ class TelephonySoftphoneEventController extends AccountBaseController
         $validated = $request->validate([
             'phone' => 'required|string|max:50',
             'call_id' => 'nullable|string|max:100',
-            'entity_type' => 'required|string|in:lead,deal',
-            'entity_id' => 'required|integer|min:1',
+            // Optional for inbound calls: the server matches the number itself
+            // (see below), so a call answered by an agent who cannot view the
+            // lead, or from a number that matches no lead, is still logged.
+            'entity_type' => 'nullable|string|in:lead,deal|required_with:entity_id',
+            'entity_id' => 'nullable|integer|min:1|required_with:entity_type',
             'device_id' => 'nullable|integer|min:1',
             'event' => 'nullable|string|max:80',
             'direction' => 'nullable|string|in:inbound,outbound,incoming,outgoing',
@@ -446,25 +449,31 @@ class TelephonySoftphoneEventController extends AccountBaseController
             'forwarded_from_user_name' => 'nullable|string|max:180',
         ]);
 
-        $entityType = $validated['entity_type'];
-        $entityId = (int) $validated['entity_id'];
+        $isInbound = in_array($validated['direction'] ?? null, ['inbound', 'incoming'], true);
+        $entityType = $validated['entity_type'] ?? null;
+        $entityId = isset($validated['entity_id']) ? (int) $validated['entity_id'] : null;
 
-        if ($entityType === 'lead') {
-            $lead = Lead::findOrFail($entityId);
-            abort_if((int) $lead->company_id !== (int) company()->id, 404);
-            $access = PermissionService::checkAccess(user(), 'view_lead', $lead, [
-                'added' => 'added_by',
-                'owned' => 'lead_owner',
-            ]);
-            abort_unless($access['canAccess'], 403);
-        } else {
-            $deal = Deal::findOrFail($entityId);
-            abort_if((int) $deal->company_id !== (int) company()->id, 404);
-            $access = PermissionService::checkAccess(user(), 'view_deals', $deal, [
-                'added' => 'added_by',
-                'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
-            ]);
-            abort_unless($access['canAccess'], 403);
+        if ($entityType !== null && $entityId !== null) {
+            if (! $this->canViewEntity($entityType, $entityId)) {
+                // An inbound call reaches whoever is on the line, who may not be
+                // allowed to see the caller's lead. Drop the client's pointer and
+                // match the number below instead, so the call still lands on the
+                // lead without revealing it. Outbound calls are placed from a
+                // record the agent opened, so a hidden one there is refused.
+                abort_unless($isInbound, 403);
+                $entityType = null;
+                $entityId = null;
+            }
+        }
+
+        if ($entityType === null && $isInbound) {
+            $matches = $this->leadMatcher->findLeads((int) company()->id, (string) $validated['phone']);
+            // Only an unambiguous match is linked; several leads sharing a
+            // number stay unlinked rather than guessing.
+            if ($matches->count() === 1) {
+                $entityType = 'lead';
+                $entityId = (int) $matches->first()->id;
+            }
         }
 
         $incomingDigits = preg_replace('/[^0-9]/', '', $validated['phone']) ?? '';
@@ -530,7 +539,20 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 'user_id' => (int) user()->id,
                 'company_id' => (int) company()->id,
                 'occurred_at' => now(),
+                // Softphone calls are logged even with no lead or deal, so the
+                // Calls page shows calls from unknown numbers too.
+                'log_unlinked' => true,
             ]);
+            // The recording upload can finish before this event is written
+            // (it often beats "call ended"); link it now so the order of the
+            // two never decides whether the lead shows the recording.
+            if (! empty($validated['call_ref'])) {
+                app(\App\Services\CallRecording\CallRecordingLinker::class)->linkExisting(
+                    (string) $validated['call_ref'],
+                    (int) company()->id,
+                    (int) user()->id,
+                );
+            }
             // Emit the call event to the OL call bridge so it records the
             // call happening on its side. This is best-effort — a failure
             // here must not block the call that already started or the
@@ -561,5 +583,27 @@ class TelephonySoftphoneEventController extends AccountBaseController
         }
 
         return response()->json(['status' => 'success']);
+    }
+
+    /** Whether the current user may view the lead or deal (same company). */
+    private function canViewEntity(string $entityType, int $entityId): bool
+    {
+        if ($entityType === 'lead') {
+            $lead = Lead::findOrFail($entityId);
+            abort_if((int) $lead->company_id !== (int) company()->id, 404);
+
+            return (bool) PermissionService::checkAccess(user(), 'view_lead', $lead, [
+                'added' => 'added_by',
+                'owned' => 'lead_owner',
+            ])['canAccess'];
+        }
+
+        $deal = Deal::findOrFail($entityId);
+        abort_if((int) $deal->company_id !== (int) company()->id, 404);
+
+        return (bool) PermissionService::checkAccess(user(), 'view_deals', $deal, [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+        ])['canAccess'];
     }
 }

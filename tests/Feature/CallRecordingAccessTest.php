@@ -6,6 +6,7 @@ use App\Models\CallRecording;
 use App\Models\CrmEvent;
 use App\Models\Lead;
 use App\Models\User;
+use App\Services\CallRecording\CallRecordingLinker;
 use App\Services\CallRecording\CallRecordingTranscoder;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\UploadedFile;
@@ -322,6 +323,122 @@ class CallRecordingAccessTest extends TestCase
             $recordingId,
             $this->eventMetadata($mineId)['recording_id'] ?? null
         );
+    }
+
+    // ─── Call managers (manage_calls) ──────────────────────────────────
+
+    public function test_listing_every_agents_recordings_needs_manage_calls(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsUser();
+
+        $this->getJson(route('call-recordings.index', ['scope' => 'company']))->assertForbidden();
+    }
+
+    public function test_a_call_manager_may_list_every_agents_recordings(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsUser(['manage_calls' => 'all']);
+
+        $theirs = $this->insertRecording(['user_id' => self::OTHER_USER_ID]);
+        $otherTenant = $this->insertRecording([
+            'user_id' => self::OTHER_USER_ID,
+            'company_id' => self::OTHER_COMPANY_ID,
+        ]);
+
+        $response = $this->getJson(route('call-recordings.index', ['scope' => 'company']));
+
+        $response->assertOk();
+        $ids = array_column($response->json('data'), 'id');
+        $this->assertContains($theirs, $ids);
+        $this->assertNotContains($otherTenant, $ids, 'manage_calls never crosses tenants.');
+    }
+
+    public function test_a_call_manager_may_play_another_agents_recording(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsUser(['manage_calls' => 'all', 'make_softphone_calls' => 'none']);
+        Http::fake(['*' => Http::response('audio-bytes', 200, ['Content-Type' => 'audio/mpeg'])]);
+
+        $recording = $this->insertRecording([
+            'user_id' => self::OTHER_USER_ID,
+            'external_url' => 'https://minio.test/call-recordings/100/call-9.mp3',
+        ]);
+
+        $this->assertNotSame(403, $this->get($this->playUrl($recording))->getStatusCode());
+    }
+
+    public function test_a_call_manager_still_cannot_play_another_companys_recording(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsUser(['manage_calls' => 'all']);
+
+        $recording = $this->insertRecording([
+            'user_id' => self::OTHER_USER_ID,
+            'company_id' => self::OTHER_COMPANY_ID,
+            'external_url' => 'https://minio.test/call-recordings/100/call-10.mp3',
+        ]);
+
+        $this->get($this->playUrl($recording))->assertForbidden();
+    }
+
+    // ─── Linking a recording to its call, in either order ──────────────
+
+    public function test_an_event_logged_after_the_upload_picks_up_the_recording(): void
+    {
+        $this->actingAsUser();
+
+        // The upload finished first (it often beats "call ended")…
+        $recordingId = $this->insertRecording(['user_id' => self::USER_ID, 'call_ref' => 'late-ref']);
+        // …and the event arrives afterwards.
+        $eventId = $this->insertCallEvent(self::USER_ID, 'late-ref');
+
+        app(CallRecordingLinker::class)->linkExisting('late-ref', self::COMPANY_ID, self::USER_ID);
+
+        $this->assertSame($recordingId, $this->eventMetadata($eventId)['recording_id'] ?? null);
+    }
+
+    public function test_a_late_event_is_not_linked_to_another_agents_recording(): void
+    {
+        $this->actingAsUser();
+
+        $this->insertRecording(['user_id' => self::OTHER_USER_ID, 'call_ref' => 'their-ref']);
+        $eventId = $this->insertCallEvent(self::USER_ID, 'their-ref');
+
+        app(CallRecordingLinker::class)->linkExisting('their-ref', self::COMPANY_ID, self::USER_ID);
+
+        $this->assertArrayNotHasKey('recording_id', $this->eventMetadata($eventId));
+    }
+
+    public function test_a_forwarded_calls_recording_is_linked_with_its_forwarding_agent(): void
+    {
+        $this->actingAsUser();
+
+        // Linking a forwarded call used to throw (User was not imported) and
+        // the catch-all swallowed it, so forwarded calls never got their audio.
+        DB::table('users')->insert([
+            'id' => self::OTHER_USER_ID,
+            'name' => 'Sofia M.',
+            'company_id' => self::COMPANY_ID,
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $eventId = $this->insertCallEvent(self::USER_ID, 'fwd-ref');
+        DB::table('crm_events')->where('id', $eventId)->update([
+            'metadata' => json_encode([
+                'call_ref' => 'fwd-ref',
+                'is_forwarded' => true,
+                'forwarded_from_user_id' => self::OTHER_USER_ID,
+            ]),
+        ]);
+        $recordingId = $this->insertRecording(['user_id' => self::USER_ID, 'call_ref' => 'fwd-ref']);
+
+        app(CallRecordingLinker::class)->attach('fwd-ref', $recordingId, self::COMPANY_ID, self::USER_ID);
+
+        $meta = $this->eventMetadata($eventId);
+        $this->assertSame($recordingId, $meta['recording_id'] ?? null);
+        $this->assertSame('Sofia M.', $meta['forwarded_from_user_name'] ?? null);
     }
 
     // ─── Helpers ────────────────────────────────────────────────────────
