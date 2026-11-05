@@ -37,15 +37,24 @@ class UserPermissionController extends AccountBaseController
         User::where('id', $id)->update(['customised_permissions' => 1]);
 
         cache()->forget('sidebar_user_perms_' . $id);
+        cache()->forget('all_permissions_list');
+        app()->forgetInstance('user.permission-map.' . $id);
 
         return Reply::dataOnly(['status' => 'success']);
     }
 
     public function customPermissions(Request $request, $id)
     {
-        $this->employee = User::with('role')->findOrFail($id);
+        $this->employee = User::with('role', 'roles')->findOrFail($id);
 
-        $roleId = $this->employee->role[0]->role_id;
+        $userRoles = $this->employee->roles;
+        if (count($userRoles) > 1) {
+            $primaryRole = $userRoles->where('name', '!=', 'employee')->first() ?? $userRoles->first();
+            $roleId = $primaryRole->id;
+        } else {
+            $roleId = $this->employee->role[0]->role_id;
+        }
+
         $this->role = Role::with('permissions')->findOrFail($roleId);
 
         $this->modulesData = Module::with('customPermissions')->findOrFail($request->moduleId);
@@ -77,6 +86,7 @@ class UserPermissionController extends AccountBaseController
         User::where('id', $userId)->update(['customised_permissions' => 0]);
 
         cache()->forget('sidebar_user_perms_' . $userId);
+        app()->forgetInstance('user.permission-map.' . $userId);
 
         return Reply::dataOnly(['status' => 'success']);
 

@@ -58,6 +58,14 @@ export interface WonRevenue {
     previous_count: number | null;
 }
 
+/** Every open deal today, in the company currency. */
+export interface CompanyPipeline {
+    /** Company currency; null when none is configured. */
+    currency: string | null;
+    total: number;
+    deal_count: number;
+}
+
 /** One month on a company trend. `label` is "Oct 26". */
 export interface MonthPoint {
     period: string;

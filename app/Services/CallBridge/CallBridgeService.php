@@ -929,6 +929,12 @@ class CallBridgeService
             'failure_message' => isset($olEvent['failure_message'])
                 ? mb_substr((string) $olEvent['failure_message'], 0, 255)
                 : null,
+            'routing_reason' => $olEvent['routing_reason'] ?? null,
+            'is_forwarded' => !empty($olEvent['is_forwarded']) ? true : null,
+            'forwarded_from_user_id' => isset($olEvent['forwarded_from_user_id']) ? (int) $olEvent['forwarded_from_user_id'] : null,
+            'forwarded_from_user_name' => isset($olEvent['forwarded_from_user_name'])
+                ? mb_substr((string) $olEvent['forwarded_from_user_name'], 0, 180)
+                : null,
             'dedupe_key' => $dedupeKey,
         ], fn ($v) => $v !== null && $v !== '');
 

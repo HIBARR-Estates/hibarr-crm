@@ -13,7 +13,7 @@ import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { buildFieldValueMap } from "@/lib/customFieldValueMap";
 import { buildDealVisibilityContext } from "../../adapters/dealVisibilityContext";
 import { GENDER_OPTIONS } from "../../config/analysisFieldMeta";
-import useClickToCall from "@/Hooks/useClickToCall";
+import ClickToCallButton from "@/Components/ClickToCallButton";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
@@ -105,8 +105,6 @@ function ProfileCard({
     whatsapp: string;
     imageUrl?: string;
 }) {
-    const { isEnabled: clickToCallEnabled, initiateCall, isCalling } =
-        useClickToCall();
     const dealCallEntity = { type: "deal" as const, id: dealId };
     const initials = initialsFromName(leadName);
     const [imgError, setImgError] = useState(false);
@@ -147,21 +145,13 @@ function ProfileCard({
 
             {/* Action buttons */}
             <div className="flex gap-2">
-                {primaryPhone && clickToCallEnabled && (
-                    <button
-                        type="button"
-                        disabled={isCalling(primaryPhone, dealCallEntity)}
-                        onClick={() =>
-                            void initiateCall(primaryPhone, dealCallEntity)
-                        }
-                        className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-white transition-colors disabled:opacity-60"
-                        style={{ backgroundColor: T.NAVY }}
-                    >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                        </svg>
-                        {"Call"}
-                    </button>
+                {primaryPhone && (
+                    <ClickToCallButton
+                        phone={primaryPhone}
+                        entity={dealCallEntity}
+                        variant="link"
+                        className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-white transition-colors disabled:opacity-60 bg-[#0A2540]"
+                    />
                 )}
                 {email && (
                     <a

@@ -524,6 +524,55 @@ export const formatAnswerDisplay = (
         .join(", ");
 };
 
+/** Server limits for the snapshot (LeadQualificationController::upsertAnswer). */
+const MAX_QUESTION_LABEL_CHARS = 1000;
+const MAX_ANSWER_LABELS = 50;
+const MAX_ANSWER_LABEL_CHARS = 500;
+
+/** Cut to at most `max` characters without splitting a surrogate pair. */
+const truncateChars = (text: string, max: number): string =>
+    Array.from(text).slice(0, max).join("");
+
+/**
+ * Human-readable text of a question and its chosen options, saved alongside the
+ * answer. The script lives in OL and is only loaded in the browser, so without
+ * this snapshot server-side consumers (the lead AI summary) only ever see opaque
+ * option keys.
+ */
+export const buildAnswerLabelSnapshot = (
+    segment: Segment | undefined,
+    values: string[],
+): { question_label: string | null; answer_labels: string[] } => {
+    const questionLabel = stripHtmlTags(segment?.label ?? "");
+
+    let answerLabels: string[] = [];
+
+    if (segment?.answerType === "boolean") {
+        const raw = values[0];
+        if (raw === "true" || raw === "yes") answerLabels = ["Yes"];
+        else if (raw === "false" || raw === "no") answerLabels = ["No"];
+    } else if (segment?.answerType !== "text") {
+        answerLabels = (segment?.options ?? [])
+            .filter(
+                (option) =>
+                    values.includes(option.id) || values.includes(option.key),
+            )
+            .map((option) => stripHtmlTags(option.label))
+            .filter(Boolean);
+    }
+
+    // The snapshot is optional, but the server validates it: an over-long value
+    // would 422 and lose the answer itself, so bound it here.
+    return {
+        question_label: questionLabel
+            ? truncateChars(questionLabel, MAX_QUESTION_LABEL_CHARS)
+            : null,
+        answer_labels: answerLabels
+            .slice(0, MAX_ANSWER_LABELS)
+            .map((label) => truncateChars(label, MAX_ANSWER_LABEL_CHARS)),
+    };
+};
+
 export const validateSegmentAnswer = (
     segment: Segment,
     answer?: SegmentAnswerState,

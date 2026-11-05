@@ -74,4 +74,5 @@ return array(
     'manage_properties' => 'Управление объектами',
     'manage_property_publish_requests' => 'Запросы на публикацию объектов',
     'manage_property_configuration' => 'Конфигурация объектов',
+    'make_softphone_calls' => 'Совершать звонки через софтфон',
 );
