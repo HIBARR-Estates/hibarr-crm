@@ -126,6 +126,9 @@ final class LeadMergeFields
     /** @var array<string, true>|null */
     private static ?array $columns = null;
 
+    /** Looked-up display names by "table:id". @var array<string, string|null> */
+    private static array $labels = [];
+
     /**
      * Every merged column that exists on this database's leads table.
      *
@@ -158,6 +161,7 @@ final class LeadMergeFields
     public static function flush(): void
     {
         self::$columns = null;
+        self::$labels = [];
     }
 
     /** @return array<string, true> */
@@ -197,8 +201,20 @@ final class LeadMergeFields
 
         $id = (int) self::raw($lead, $field);
 
+        // Lookups are cached per table and id for the review or merge: both
+        // leads often share an owner, source or currency.
+        $lookup = match ($field) {
+            'lead_owner', 'added_by', 'client_id' => 'user',
+            'agent_id', 'referred_by_agent_id' => 'agent',
+            'source_id', 'status_id', 'lead_lifecycle_status_id', 'currency_id' => $field,
+            default => null,
+        };
+        if ($lookup !== null && array_key_exists($lookup.':'.$id, self::$labels)) {
+            return self::$labels[$lookup.':'.$id] ?? self::raw($lead, $field);
+        }
+
         try {
-            return match ($field) {
+            $label = match ($field) {
                 'lead_owner', 'added_by', 'client_id' => User::withoutGlobalScope(ActiveScope::class)->whereKey($id)->value('name'),
                 'agent_id', 'referred_by_agent_id' => LeadAgent::query()->find($id)?->user?->name,
                 'source_id' => LeadSource::withoutGlobalScopes()->whereKey($id)->value('type'),
@@ -206,10 +222,16 @@ final class LeadMergeFields
                 'lead_lifecycle_status_id' => LeadLifecycleStatus::withoutGlobalScopes()->whereKey($id)->value('label'),
                 'currency_id' => Currency::withoutGlobalScopes()->whereKey($id)->value('currency_code'),
                 default => self::format($lead->{$field}),
-            } ?? self::raw($lead, $field);
+            };
         } catch (Throwable) {
-            return self::raw($lead, $field);
+            $label = null;
         }
+
+        if ($lookup !== null) {
+            self::$labels[$lookup.':'.$id] = $label;
+        }
+
+        return $label ?? self::raw($lead, $field);
     }
 
     public static function format(mixed $value): ?string
