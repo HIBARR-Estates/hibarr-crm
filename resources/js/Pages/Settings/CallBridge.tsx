@@ -10,6 +10,7 @@ import SoftphoneDeviceManager from "./SoftphoneDeviceManager";
 import SoftphoneCallPoolManager from "./SoftphoneCallPoolManager";
 import SoftphoneRecordingsPanel from "./SoftphoneRecordingsPanel";
 import SoftphoneCallLogPanel from "./SoftphoneCallLogPanel";
+import { canManageCalls } from "@/Hooks/useSoftphone";
 
 import "@/Components/Redesign/redesign.css";
 import "@/Components/CallRecordingPlayer.css";
@@ -43,6 +44,8 @@ export default function CallBridge({
     const isAdmin = (props.auth?.user?.roles ?? []).some(
         (role: { name?: string }) => role?.name === "admin",
     );
+    // Call managers see the company-wide call log (manage_calls).
+    const canManage = canManageCalls(props.auth?.user, props.auth?.permissions);
 
     const [tab, setTab] = useState<CallBridgeTab>("lines");
 
@@ -65,7 +68,7 @@ export default function CallBridge({
                   },
               ]
             : []),
-        ...(isAdmin
+        ...(canManage
             ? [
                   {
                       key: "calls" as const,
@@ -96,7 +99,7 @@ export default function CallBridge({
                     <h1 className="cb-title">{pageTitle ?? td("Call Bridge", { source: "en" })}</h1>
                     <p className="cb-lede">
                         {td(
-                            "Phone lines, call routing, the call log and recordings for the browser softphone. Each group of settings lives on its own tab.",
+                            "Phone lines, call routing, the call log and recordings for Phone. Each group of settings lives on its own tab.",
                             { source: "en" },
                         )}
                     </p>
@@ -135,7 +138,7 @@ export default function CallBridge({
                             )}
                         </div>
                         <div className="cb-panel" id="calls" hidden={activeTab !== "calls"}>
-                            {isAdmin && activeTab === "calls" && <SoftphoneCallLogPanel />}
+                            {canManage && activeTab === "calls" && <SoftphoneCallLogPanel />}
                         </div>
                         <div
                             className="cb-panel"

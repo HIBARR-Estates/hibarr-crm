@@ -90,6 +90,7 @@ import DealsTab from "./components/workspace/tabs/DealsTab";
 import SallyInsightsPanel from "@/Components/Redesign/sally/SallyInsightsPanel";
 import LeadInfoTab from "./components/workspace/tabs/LeadInfoTab";
 import ItineraryTab from "./components/workspace/tabs/ItineraryTab";
+import CallsTab from "./components/workspace/tabs/CallsTab";
 import TimelineTab from "./components/workspace/tabs/TimelineTab";
 import FilesTab from "./components/workspace/tabs/FilesTab";
 import MarketingTab from "./components/workspace/tabs/MarketingTab";
@@ -158,6 +159,10 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     // with nothing attached anywhere it would open on a permanently empty
     // list, so it stays hidden until the lead actually has one
     // (`hasLeadExposes`, resolved in LeadContactController@show).
+    // Calls tab: every call on the lead and its deals (softphone feature).
+    const showCalls = featureFlags?.["crm.softphone"] === true;
+    const callSummary = props.callSummary;
+
     const showExposes =
         featureFlags?.[DEAL_EXPOSES_FLAG] === true &&
         (page.props.auth?.permissions?.view_lead_proposals ?? "none") !==
@@ -225,7 +230,10 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         if (!showSally && nav.tab === "sally") {
             nav.setTab("overview");
         }
-    }, [nav.setTab, nav.tab, showQualification, showExposes, showSally]);
+        if (!showCalls && nav.tab === "calls") {
+            nav.setTab("overview");
+        }
+    }, [nav.setTab, nav.tab, showQualification, showExposes, showSally, showCalls]);
 
     const leadTourSteps = useMemo(
         () => buildLeadTourSteps(nav.setTab),
@@ -419,6 +427,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 ? undefined
                 : tasks.filter((t) => toLeadTaskPreview(t).isOpen).length,
             meetings: leadFollowUpsLoading ? undefined : leadFollowUps.length,
+            // Deferred `callSummary`: undefined until it resolves (no 0 → N flash).
+            calls: showCalls ? callSummary?.total : undefined,
             deals: deals.length,
             exposes: showExposes ? exposesCount : undefined,
             itinerary: itineraryCount(itineraryLegs),
@@ -446,6 +456,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         showExposes,
         sallyInsights.length,
         exposesCount,
+        showCalls,
+        callSummary?.total,
         tasks,
         tasksLoading,
     ]);
@@ -666,6 +678,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         }
                     />
                 );
+            case "calls":
+                return showCalls ? <CallsTab leadId={lead.id} /> : null;
             case "deals":
                 return (
                     <DealsTab
@@ -954,6 +968,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                 tabCounts={tabCounts}
                                 showQualification={showQualification}
                                 showExposes={showExposes}
+                                showCalls={showCalls}
                                 showSally={showSally}
                             >
                                 {renderTabBody()}

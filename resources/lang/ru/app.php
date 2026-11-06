@@ -80,6 +80,7 @@ return [
 
     // Extended menu items
     'menu' => [
+        'calls' => 'Звонки',
         'dashboard' => 'Панель управления',
         'lead' => 'Лиды',
         'deal' => 'Сделки',

@@ -408,6 +408,20 @@ class LeadContactController extends AccountBaseController
                 fn () => $leadContact->utmTouches()->reorder('id', 'desc')->get(),
                 'marketing'
             ),
+            // Calls tab: count for the tab bar only; the tab loads its rows from
+            // lead-contact.calls.index when opened. Null when calls are off.
+            'callSummary' => Inertia::defer(function () use ($leadContact) {
+                if (! \App\Support\FeatureFlags::enabled('crm.softphone')) {
+                    return null;
+                }
+                $calls = app(\App\Services\CallLog\CallLogService::class);
+                $scope = $calls->leadScope($leadContact, user());
+
+                return $calls->summary((int) $leadContact->company_id, [
+                    'lead_ids' => $scope['lead_ids'],
+                    'deal_ids' => $scope['deal_ids'],
+                ]);
+            }, 'calls'),
             'notes' => Inertia::defer(function () use ($leadId) {
                 $notes = LeadNote::where('lead_id', $leadId)
                     ->with('addedBy')

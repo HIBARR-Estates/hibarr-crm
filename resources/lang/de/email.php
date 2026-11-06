@@ -154,5 +154,13 @@ return [
     'timerStarted' => [
         'subject' => 'Timer gestartet',
     ],
-
+    'leadMerged' => [
+        'subject' => 'Lead mit einem anderen Datensatz zusammengeführt',
+        'text' => ':duplicate wurde von :mergedBy mit :kept zusammengeführt. Notizen, Aufgaben, Deals, Termine, Anrufe und Dateien befinden sich jetzt bei diesem Lead.',
+        'ownerLine' => 'Inhaber des Leads ist jetzt :owner.',
+        'youOwnLine' => 'Sie sind Inhaber des zusammengeführten Leads.',
+        'action' => 'Lead öffnen',
+        'actionDescription' => 'Öffnen Sie den zusammengeführten Lead, um den gesamten Verlauf an einem Ort zu sehen.',
+        'unknownActor' => 'Ein Teammitglied',
+    ],
 ];

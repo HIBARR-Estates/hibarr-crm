@@ -5,6 +5,7 @@ import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import RecordingPlayer from "@/Components/CallRecordingPlayer";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { canManageCalls } from "@/Hooks/useSoftphone";
 import type { SoftphoneDeviceSummary } from "@/Types/api/softphone";
 
 import "@/Components/Redesign/redesign.css";
@@ -110,9 +111,8 @@ function isDefaultLine(label: string, devices: SoftphoneDeviceSummary[]): boolea
 export default function SoftphoneRecordingsPanel({ devices }: Props) {
     const { props } = usePage();
     const { td } = useTd();
-    const isAdmin = (props.auth?.user?.roles ?? []).some(
-        (role: { name?: string }) => role?.name === "admin",
-    );
+    // Call managers (admins, manage_calls) see every agent's recordings.
+    const isAdmin = canManageCalls(props.auth?.user, props.auth?.permissions);
     const [scope, setScope] = useState<"mine" | "company">(isAdmin ? "company" : "mine");
 
     const query = useApiQuery<{ status: string; data: RecordingRow[] }>({

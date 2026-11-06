@@ -60,6 +60,41 @@ export function canMakeSoftphoneCalls(
     return perm === "all" || perm === "added";
 }
 
+/**
+ * Call managers (admins, or manage_calls = 'all') see every agent's calls and
+ * may play every recording. Mirrors App\Support\CallAccess::canManageCalls.
+ */
+export function canManageCalls(
+    user?: { roles?: Array<{ name?: string }> } | null,
+    permissions?: Record<string, unknown> | null,
+): boolean {
+    const isAdmin = (user?.roles ?? []).some(
+        (role: { name?: string }) => role?.name === "admin",
+    );
+    return isAdmin || permissions?.manage_calls === "all";
+}
+
+/**
+ * Whether the viewer may play a recording made by `ownerId`: the agent on the
+ * call (with call permission) or a call manager. The server enforces the same
+ * rule (CallAccess::canPlayRecording); this only decides what to render.
+ */
+export function canPlayCallRecording(
+    user?: { id?: number | string | null; roles?: Array<{ name?: string }> } | null,
+    permissions?: Record<string, unknown> | null,
+    ownerId?: number | string | null,
+): boolean {
+    if (canManageCalls(user, permissions)) {
+        return true;
+    }
+    return (
+        canMakeSoftphoneCalls(user, permissions) &&
+        user?.id != null &&
+        ownerId != null &&
+        Number(user.id) === Number(ownerId)
+    );
+}
+
 let storeState: SoftphoneStoreState = {
     devices: [],
     activeDeviceId: null,
@@ -133,7 +168,11 @@ export async function refreshSoftphoneDevices(): Promise<
             route("telephony.softphone.devices.index"),
         )
         .then((response) => {
-            const list = response.data?.data?.devices ?? [];
+            // Disabled lines get no credentials (the server answers 423), so
+            // the dock and call buttons never offer or register them.
+            const list = (response.data?.data?.devices ?? []).filter(
+                (d) => d.is_active !== false,
+            );
             devicesLoadedOnce = true;
             // A refresh must not move the active line (or reactivate a
             // different one) while a call is live: keep the current selection.
@@ -153,6 +192,17 @@ export async function refreshSoftphoneDevices(): Promise<
                 devicesLoaded: true,
                 activeDeviceId: nextActiveId,
             });
+            // The registered line was disabled (or unassigned) since it was
+            // registered: drop the registration so it stops ringing here,
+            // unless a call is live on it right now.
+            if (
+                registeredDeviceId !== null &&
+                !list.some((d) => d.id === registeredDeviceId) &&
+                softphone.getState().call == null
+            ) {
+                registeredDeviceId = null;
+                void softphone.stop();
+            }
             if (
                 storeState.isActiveTab &&
                 storeState.canMakeCalls &&
@@ -169,6 +219,27 @@ export async function refreshSoftphoneDevices(): Promise<
         });
 
     return devicesFetchPromise;
+}
+
+/**
+ * Re-check the line list while the app is open (every few minutes and when
+ * the window regains focus), so a line disabled in settings stops ringing in
+ * browsers that registered it earlier. Installed once per page.
+ */
+let lineWatchInstalled = false;
+const LINE_WATCH_INTERVAL_MS = 3 * 60 * 1000;
+function installLineWatch(): void {
+    if (lineWatchInstalled || typeof window === "undefined") {
+        return;
+    }
+    lineWatchInstalled = true;
+    const refresh = () => {
+        if (devicesLoadedOnce && storeState.canMakeCalls !== false) {
+            void refreshSoftphoneDevices();
+        }
+    };
+    window.setInterval(refresh, LINE_WATCH_INTERVAL_MS);
+    window.addEventListener("focus", refresh);
 }
 
 async function ensureDevicesLoaded(): Promise<SoftphoneDeviceSummary[]> {
@@ -382,6 +453,7 @@ export default function useSoftphone() {
         if (!isEnabled || !canMakeCalls) {
             return;
         }
+        installLineWatch();
         return retainSoftphoneRuntime();
     }, [isEnabled, canMakeCalls]);
 
@@ -456,7 +528,7 @@ export default function useSoftphone() {
                 if (!ready && softphone.getState().registration !== "registered") {
                     throw new Error(
                         softphone.getState().registrationError ||
-                            "Softphone is not registered — pick a line in the dock.",
+                            "Your phone line isn't connected — pick a line in the phone panel.",
                     );
                 }
             }

@@ -178,6 +178,7 @@ return [
         'December' => 'December',
     ],
     'menu' => [
+        'calls' => 'Calls',
         'units' => 'Units',
         'prefixSettings' => 'Prefix Settings',
         'parent_id' => 'Parent',

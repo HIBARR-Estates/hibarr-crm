@@ -27,6 +27,9 @@ class TelephonySoftphoneEventController extends AccountBaseController
     }
 
 
+    /**
+     * Match an incoming caller's phone number to a lead and return routing details.
+     */
     public function leadByPhone(Request $request): JsonResponse
     {
         if (! user()->hasRole('admin') && ! in_array(user()->permission('make_softphone_calls'), ['all', 'added'])) {
@@ -39,9 +42,11 @@ class TelephonySoftphoneEventController extends AccountBaseController
             'phone' => 'required|string|max:100',
             'device_id' => 'nullable|integer|min:1',
             'call_id' => 'nullable|string|max:100',
+            'call_ref' => 'nullable|string|max:100',
         ]);
         $incoming = preg_replace('/[^0-9]/', '', $request->input('phone') ?? '');
         $callId = $request->input('call_id');
+        $callRef = $request->input('call_ref');
 
         if ($incoming === '') {
             return response()->json(['status' => 'success', 'data' => null]);
@@ -50,7 +55,14 @@ class TelephonySoftphoneEventController extends AccountBaseController
         $companyId = (int) company()->id;
         $deviceId = $this->ringingDeviceId();
 
+        $authoritativeCallKey = $this->isAuthoritativeCallId($callId)
+            ? $callId
+            : ($this->isAuthoritativeCallId($callRef) ? $callRef : null);
+
         $passedUserIds = $this->passedUserIdsForCall($companyId, $deviceId, $incoming, $callId);
+        $callStatus = $this->getCallStatus($companyId, $authoritativeCallKey);
+        $statusVal = $callStatus['status'] ?? null;
+        $answeredByUserId = isset($callStatus['user_id']) ? (int) $callStatus['user_id'] : null;
 
         // Routing (match count, owner, rotation) is derived from every matching
         // lead so it is identical for all viewers; the viewer's own access only
@@ -202,6 +214,8 @@ class TelephonySoftphoneEventController extends AccountBaseController
                     'passed_user_ids' => $passedUserIds,
                     'fallback_seconds' => $fallbackSeconds,
                     'current_user_id' => user()->id,
+                    'call_status' => $statusVal,
+                    'answered_by_user_id' => $answeredByUserId,
                 ],
             ]);
         }
@@ -252,6 +266,8 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 'passed_user_ids' => $passedUserIds,
                 'fallback_seconds' => $fallbackSeconds,
                 'current_user_id' => user()->id,
+                'call_status' => $statusVal,
+                'answered_by_user_id' => $answeredByUserId,
             ],
         ]);
     }
@@ -327,17 +343,25 @@ class TelephonySoftphoneEventController extends AccountBaseController
         return response()->json(['status' => 'success']);
     }
 
+    /**
+     * Cache key for users who passed a call identified by a call ID.
+     */
     private function passCallIdCacheKey(int $companyId, string $callId): string
     {
         return sprintf('softphone:call_pass:id:%d:%s', $companyId, trim($callId));
     }
 
+    /**
+     * Cache key for users who passed a call identified by device and phone.
+     */
     private function passCacheKey(int $companyId, ?int $deviceId, string $incoming): string
     {
         return sprintf('softphone:call_pass:%d:%d:%s', $companyId, $deviceId ?? 0, $incoming);
     }
 
     /**
+     * Fetch user IDs that have passed or declined this call.
+     *
      * @return array<int, int>
      */
     private function passedUserIdsForCall(int $companyId, ?int $deviceId, string $incoming, ?string $callId = null): array
@@ -359,6 +383,9 @@ class TelephonySoftphoneEventController extends AccountBaseController
         return array_values(array_unique(array_map('intval', $cached)));
     }
 
+    /**
+     * Record that a user passed an incoming call.
+     */
     private function recordPassedUser(int $companyId, ?int $deviceId, string $incoming, int $userId, ?string $callId = null): void
     {
         if ($callId !== null && trim($callId) !== '') {
@@ -383,6 +410,9 @@ class TelephonySoftphoneEventController extends AccountBaseController
         }
     }
 
+    /**
+     * Clear passed user state for a call upon answer or termination.
+     */
     private function clearPassedUsers(int $companyId, ?int $deviceId, string $incoming, ?string $callId = null): void
     {
         if ($callId !== null && trim($callId) !== '') {
@@ -394,6 +424,59 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 Cache::forget($this->passCacheKey($companyId, null, $incoming));
             }
         }
+    }
+
+    /**
+     * Determine whether an identifier is an authoritative, call-specific token across agents.
+     */
+    private function isAuthoritativeCallId(?string $callId): bool
+    {
+        if ($callId === null) {
+            return false;
+        }
+
+        $trimmed = trim($callId);
+        if ($trimmed === '' || preg_match('/^call-\d+$/', $trimmed)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Record the authoritative status of an active call using a call-specific identifier.
+     */
+    private function recordCallStatus(int $companyId, ?string $callId, string $status, int $userId): void
+    {
+        if (! $this->isAuthoritativeCallId($callId)) {
+            return;
+        }
+
+        $payload = [
+            'call_id' => trim($callId),
+            'status' => $status,
+            'user_id' => $userId,
+            'updated_at' => now()->timestamp,
+        ];
+
+        Cache::put(sprintf('softphone:call_status:id:%d:%s', $companyId, trim($callId)), $payload, 300);
+    }
+
+    /**
+     * Retrieve the authoritative call status when correlated through an authoritative call identifier.
+     */
+    private function getCallStatus(int $companyId, ?string $callId): ?array
+    {
+        if (! $this->isAuthoritativeCallId($callId)) {
+            return null;
+        }
+
+        $status = Cache::get(sprintf('softphone:call_status:id:%d:%s', $companyId, trim($callId)));
+        if (is_array($status) && isset($status['status'])) {
+            return $status;
+        }
+
+        return null;
     }
 
     /**
@@ -417,6 +500,9 @@ class TelephonySoftphoneEventController extends AccountBaseController
         return (int) $device->id;
     }
 
+    /**
+     * Persist a softphone timeline event (e.g. call.started, call.ended) and update call bridge.
+     */
     public function store(Request $request): JsonResponse
     {
         abort_403(
@@ -427,8 +513,11 @@ class TelephonySoftphoneEventController extends AccountBaseController
         $validated = $request->validate([
             'phone' => 'required|string|max:50',
             'call_id' => 'nullable|string|max:100',
-            'entity_type' => 'required|string|in:lead,deal',
-            'entity_id' => 'required|integer|min:1',
+            // Optional for inbound calls: the server matches the number itself
+            // (see below), so a call answered by an agent who cannot view the
+            // lead, or from a number that matches no lead, is still logged.
+            'entity_type' => 'nullable|string|in:lead,deal|required_with:entity_id',
+            'entity_id' => 'nullable|integer|min:1|required_with:entity_type',
             'device_id' => 'nullable|integer|min:1',
             'event' => 'nullable|string|max:80',
             'direction' => 'nullable|string|in:inbound,outbound,incoming,outgoing',
@@ -446,31 +535,59 @@ class TelephonySoftphoneEventController extends AccountBaseController
             'forwarded_from_user_name' => 'nullable|string|max:180',
         ]);
 
-        $entityType = $validated['entity_type'];
-        $entityId = (int) $validated['entity_id'];
+        $isInbound = in_array($validated['direction'] ?? null, ['inbound', 'incoming'], true);
+        $entityType = $validated['entity_type'] ?? null;
+        $entityId = isset($validated['entity_id']) ? (int) $validated['entity_id'] : null;
 
-        if ($entityType === 'lead') {
-            $lead = Lead::findOrFail($entityId);
-            abort_if((int) $lead->company_id !== (int) company()->id, 404);
-            $access = PermissionService::checkAccess(user(), 'view_lead', $lead, [
-                'added' => 'added_by',
-                'owned' => 'lead_owner',
-            ]);
-            abort_unless($access['canAccess'], 403);
-        } else {
-            $deal = Deal::findOrFail($entityId);
-            abort_if((int) $deal->company_id !== (int) company()->id, 404);
-            $access = PermissionService::checkAccess(user(), 'view_deals', $deal, [
-                'added' => 'added_by',
-                'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
-            ]);
-            abort_unless($access['canAccess'], 403);
+        if ($entityType !== null && $entityId !== null) {
+            $viewable = $this->canViewEntity($entityType, $entityId);
+
+            if ($viewable === null) {
+                // The record is gone or belongs to another company (deleted
+                // between the dock's match and this log, or a bad id). Inbound
+                // calls drop the pointer and re-match the number below, so the
+                // call is still logged; an outbound call has no fallback.
+                abort_unless($isInbound, 404);
+                $entityType = null;
+                $entityId = null;
+            } elseif (! $viewable) {
+                // An inbound call reaches whoever is on the line, who may not be
+                // allowed to see the caller's lead. Drop the client's pointer and
+                // match the number below instead, so the call still lands on the
+                // lead without revealing it. Outbound calls are placed from a
+                // record the agent opened, so a hidden one there is refused.
+                abort_unless($isInbound, 403);
+                $entityType = null;
+                $entityId = null;
+            }
+        }
+
+        if ($entityType === null && $isInbound) {
+            $matches = $this->leadMatcher->findLeads((int) company()->id, (string) $validated['phone']);
+            // Only an unambiguous match is linked; several leads sharing a
+            // number stay unlinked rather than guessing.
+            if ($matches->count() === 1) {
+                $entityType = 'lead';
+                $entityId = (int) $matches->first()->id;
+            }
         }
 
         $incomingDigits = preg_replace('/[^0-9]/', '', $validated['phone']) ?? '';
         $callId = $validated['call_id'] ?? null;
+        $callRef = $validated['call_ref'] ?? null;
+        $authoritativeKey = $this->isAuthoritativeCallId($callId)
+            ? $callId
+            : ($this->isAuthoritativeCallId($callRef) ? $callRef : null);
+
+        $companyId = (int) company()->id;
         if (in_array($validated['direction'] ?? null, ['inbound', 'incoming'], true)) {
-            $this->clearPassedUsers((int) company()->id, $this->ringingDeviceId(), $incomingDigits, $callId);
+            $eventSlug = $validated['event'] ?? 'call.started';
+            if ($eventSlug === 'call.started') {
+                $this->clearPassedUsers($companyId, $this->ringingDeviceId(), $incomingDigits, $callId);
+                $this->recordCallStatus($companyId, $authoritativeKey, 'answered', (int) user()->id);
+            } elseif (in_array($eventSlug, ['call.ended', 'call.completed', 'call.failed', 'call.declined'], true)) {
+                $this->recordCallStatus($companyId, $authoritativeKey, 'ended', (int) user()->id);
+            }
         }
 
         $callRef = $validated['call_ref'] ?? null;
@@ -530,9 +647,22 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 'user_id' => (int) user()->id,
                 'company_id' => (int) company()->id,
                 'occurred_at' => now(),
+                // Softphone calls are logged even with no lead or deal, so the
+                // Calls page shows calls from unknown numbers too.
+                'log_unlinked' => true,
             ]);
+            // The recording upload can finish before this event is written
+            // (it often beats "call ended"); link it now so the order of the
+            // two never decides whether the lead shows the recording.
+            if (! empty($validated['call_ref'])) {
+                app(\App\Services\CallRecording\CallRecordingLinker::class)->linkExisting(
+                    (string) $validated['call_ref'],
+                    (int) company()->id,
+                    (int) user()->id,
+                );
+            }
             // Emit the call event to the OL call bridge so it records the
-            // call happening on its side. This is best-effort — a failure
+            // call happening on its side. This is best-effort â€” a failure
             // here must not block the call that already started or the
             // softphone UI response.
             try {
@@ -561,5 +691,34 @@ class TelephonySoftphoneEventController extends AccountBaseController
         }
 
         return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * Whether the current user may view the lead or deal: true/false, or null
+     * when it does not exist in this company (so callers can fall back).
+     */
+    private function canViewEntity(string $entityType, int $entityId): ?bool
+    {
+        if ($entityType === 'lead') {
+            $lead = Lead::find($entityId);
+            if ($lead === null || (int) $lead->company_id !== (int) company()->id) {
+                return null;
+            }
+
+            return (bool) PermissionService::checkAccess(user(), 'view_lead', $lead, [
+                'added' => 'added_by',
+                'owned' => 'lead_owner',
+            ])['canAccess'];
+        }
+
+        $deal = Deal::find($entityId);
+        if ($deal === null || (int) $deal->company_id !== (int) company()->id) {
+            return null;
+        }
+
+        return (bool) PermissionService::checkAccess(user(), 'view_deals', $deal, [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+        ])['canAccess'];
     }
 }
