@@ -9,28 +9,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { formatCallDuration } from "@/lib/crmEvents/callSummary";
 import type { CallLogRow } from "./types";
-
-/** Outcome → lang key under pages.call_summary ("ended" reads as completed). */
-const OUTCOME_KEYS: Record<string, string> = {
-    started: "started",
-    ended: "completed",
-    missed: "missed",
-    declined: "declined",
-    voicemail: "voicemail",
-    busy: "busy",
-    failed: "failed",
-};
-
-/** Icon tile colours: connected green, unanswered red, refused amber. */
-function outcomeTone(outcome: string): { bg: string; fg: string } {
-    if (outcome === "ended" || outcome === "started") {
-        return { bg: T.GREEN_LIGHT, fg: T.GREEN };
-    }
-    if (outcome === "missed" || outcome === "failed") {
-        return { bg: T.RED_SOFT, fg: T.RED };
-    }
-    return { bg: T.AMBER_SOFT, fg: T.AMBER };
-}
+import { CallDirectionIcon, OUTCOME_KEYS, formatCallFailure, getRecordingStatus } from "./callFormat";
 
 interface CallLogItemProps {
     row: CallLogRow;
@@ -51,7 +30,6 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
     const { formatTime, formatDateTime } = useUserDateTime();
     const [open, setOpen] = useState(false);
 
-    const tone = outcomeTone(row.outcome);
     const direction =
         row.direction === "inbound"
             ? t("pages.call_summary.inbound")
@@ -64,7 +42,9 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
     const duration = row.duration ? formatCallDuration(row.duration, t) : "";
     const meta = [when, duration, row.user_name, row.phone_number].filter(Boolean).join(" · ");
 
+    const failureText = formatCallFailure(row.failure_reason, row.failure_message);
     const rec = row.recording;
+    const recState = getRecordingStatus(row);
     const playable = Boolean(rec?.can_play && rec.play_url);
 
     return (
@@ -79,45 +59,20 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
             }}
         >
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
-                <span
-                    aria-hidden="true"
-                    style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 6,
-                        background: tone.bg,
-                        color: tone.fg,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                    }}
-                >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        {row.direction === "inbound" ? (
-                            <>
-                                <path d="M17 7 7 17" />
-                                <path d="M16 17H7V8" />
-                            </>
-                        ) : (
-                            <>
-                                <path d="M7 17 17 7" />
-                                <path d="M8 7h9v9" />
-                            </>
-                        )}
-                    </svg>
-                </span>
+                <CallDirectionIcon direction={row.direction} outcome={row.outcome} />
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 280px", minWidth: 0 }}>
-                    <span style={{ fontWeight: 600, fontSize: 14, color: T.TEXT }}>
-                        {direction} · {outcome}
-                    </span>
-                    <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>{meta}</span>
-                    {row.outcome === "failed" && row.failure_message && (
-                        <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>
-                            {td(row.failure_message, { source: "en" })}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{ fontWeight: 600, fontSize: 14, color: T.TEXT }}>
+                            {direction} · {outcome}
                         </span>
-                    )}
+                        {failureText && (
+                            <Badge variant="red" style={{ fontSize: 11, padding: "1px 8px" }}>
+                                {failureText}
+                            </Badge>
+                        )}
+                    </div>
+                    <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>{meta}</span>
                 </div>
 
                 {showEntity &&
@@ -147,11 +102,7 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
                     </Badge>
                 )}
 
-                {rec === null ? (
-                    <span style={{ fontSize: 12, color: T.TEXT_HINT }}>{t("pages.calls.no_recording")}</span>
-                ) : rec.expired ? (
-                    <span style={{ fontSize: 12, color: T.TEXT_HINT }}>{t("pages.calls.recording_expired")}</span>
-                ) : playable ? (
+                {recState.status === "playable" && playable ? (
                     <Button
                         variant="ghost"
                         size="sm"
@@ -167,13 +118,31 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
                         aria-expanded={open}
                         onClick={() => setOpen((v) => !v)}
                     >
-                        {open ? t("pages.calls.hide_recording") : t("pages.calls.play_recording")}
+                        {open
+                            ? t("pages.calls.hide_recording")
+                            : recState.duration
+                              ? `${t("pages.calls.play_recording")} (${recState.duration})`
+                              : t("pages.calls.play_recording")}
                     </Button>
-                ) : (
+                ) : recState.status === "processing" ? (
+                    <Badge variant="blue" style={{ fontSize: 11, padding: "2px 8px" }}>
+                        {t("pages.calls.recording_processing")}
+                    </Badge>
+                ) : recState.status === "expired" ? (
+                    <Badge
+                        variant="amber"
+                        style={{ fontSize: 11, padding: "2px 8px" }}
+                        title={recState.expiresAt ? `${t("pages.calls.recording_expired_short")}: ${formatDateTime(recState.expiresAt)}` : undefined}
+                    >
+                        {t("pages.calls.recording_expired")}
+                    </Badge>
+                ) : recState.status === "restricted" ? (
                     <span style={{ fontSize: 12, color: T.TEXT_MUTED, display: "inline-flex", alignItems: "center", gap: 6 }}>
                         <Icon name="lock" size={13} />
                         {t("pages.calls.recording_restricted")}
                     </span>
+                ) : (
+                    <span style={{ fontSize: 12, color: T.TEXT_HINT }}>{t("pages.calls.no_recording")}</span>
                 )}
             </div>
 

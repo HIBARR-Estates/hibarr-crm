@@ -154,5 +154,13 @@ return [
     'timerStarted' => [
         'subject' => 'Zamanlayıcı başlatıldı',
     ],
-
+    'leadMerged' => [
+        'subject' => 'Potansiyel müşteri başka bir kayıtla birleştirildi',
+        'text' => ':duplicate, :mergedBy tarafından :kept ile birleştirildi. Notları, görevleri, fırsatları, toplantıları, aramaları ve dosyaları artık bu kayıtta.',
+        'ownerLine' => 'Bu kaydın sahibi artık :owner.',
+        'youOwnLine' => 'Birleştirilmiş kaydın sahibi sizsiniz.',
+        'action' => 'Kaydı aç',
+        'actionDescription' => 'Tüm geçmişi tek yerde görmek için birleştirilmiş kaydı açın.',
+        'unknownActor' => 'Bir ekip üyesi',
+    ],
 ];
