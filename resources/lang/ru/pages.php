@@ -2464,6 +2464,14 @@ return [
     ],
 
     'calls' => [
+        'bridge_settings' => 'Настройки Call Bridge',
+        'col_when' => 'Когда',
+        'col_call' => 'Звонок',
+        'col_entity' => 'Лид или сделка',
+        'col_duration' => 'Длительность',
+        'col_recording' => 'Запись',
+        'recording_expired_short' => 'Истекла',
+        'recording_locked' => 'Ограничено',
         'agent' => 'Сотрудник',
         'all_agents' => 'Все сотрудники',
         'all_calls' => 'Все звонки',

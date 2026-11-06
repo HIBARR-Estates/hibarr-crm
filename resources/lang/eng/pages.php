@@ -2648,6 +2648,14 @@ return [
     ],
 
     'calls' => [
+        'bridge_settings' => 'Call Bridge settings',
+        'col_when' => 'When',
+        'col_call' => 'Call',
+        'col_entity' => 'Lead or deal',
+        'col_duration' => 'Duration',
+        'col_recording' => 'Recording',
+        'recording_expired_short' => 'Expired',
+        'recording_locked' => 'Restricted',
         'agent' => 'Agent',
         'all_agents' => 'All agents',
         'all_calls' => 'All calls',

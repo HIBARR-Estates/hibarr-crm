@@ -2469,6 +2469,14 @@ return [
     ],
 
     'calls' => [
+        'bridge_settings' => 'Call Bridge ayarları',
+        'col_when' => 'Zaman',
+        'col_call' => 'Arama',
+        'col_entity' => 'Potansiyel müşteri veya fırsat',
+        'col_duration' => 'Süre',
+        'col_recording' => 'Kayıt',
+        'recording_expired_short' => 'Süresi doldu',
+        'recording_locked' => 'Kısıtlı',
         'agent' => 'Temsilci',
         'all_agents' => 'Tüm temsilciler',
         'all_calls' => 'Tüm aramalar',
