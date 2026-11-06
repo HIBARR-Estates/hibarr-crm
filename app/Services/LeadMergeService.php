@@ -1210,8 +1210,13 @@ class LeadMergeService
                                 'origin' => 'backfill',
                                 'is_first_touch' => true,
                             ]);
-                            if ($duplicateMarketing->created_at) {
-                                $touch->created_at = $duplicateMarketing->created_at;
+                            // Date it as the duplicate's first touch, or at least
+                            // before the kept lead's history, so it reads first.
+                            $earliestKept = LeadUtmTouch::query()->where('lead_id', $primary->id)->min('created_at');
+                            $touchedAt = $duplicateMarketing->created_at
+                                ?? ($earliestKept ? \Illuminate\Support\Carbon::parse($earliestKept)->subSecond() : null);
+                            if ($touchedAt) {
+                                $touch->created_at = $touchedAt;
                             }
                             $touch->save();
                         }

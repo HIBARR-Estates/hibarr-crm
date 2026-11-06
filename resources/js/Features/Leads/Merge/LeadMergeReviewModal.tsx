@@ -312,10 +312,9 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
         );
     };
 
-    const moveLabel = (key: string, count: number) =>
-        count === 1
-            ? t(`pages.lead_merge.moves.${key}_one`)
-            : t(`pages.lead_merge.moves.${key}_other`, { count: String(count) });
+    // i18next picks the plural form for the locale from a numeric count
+    // (_one / _few / _many / _other), which Russian needs.
+    const moveLabel = (key: string, count: number) => t(`pages.lead_merge.moves.${key}`, { count });
 
     let body: ReactNode;
     if ((isLoading && !data) || stale) {
