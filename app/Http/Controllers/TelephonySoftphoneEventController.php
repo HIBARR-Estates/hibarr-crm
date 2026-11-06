@@ -51,6 +51,9 @@ class TelephonySoftphoneEventController extends AccountBaseController
         $deviceId = $this->ringingDeviceId();
 
         $passedUserIds = $this->passedUserIdsForCall($companyId, $deviceId, $incoming, $callId);
+        $callStatus = $this->getCallStatus($companyId, $incoming, $callId);
+        $statusVal = $callStatus['status'] ?? null;
+        $answeredByUserId = isset($callStatus['user_id']) ? (int) $callStatus['user_id'] : null;
 
         // Routing (match count, owner, rotation) is derived from every matching
         // lead so it is identical for all viewers; the viewer's own access only
@@ -202,6 +205,8 @@ class TelephonySoftphoneEventController extends AccountBaseController
                     'passed_user_ids' => $passedUserIds,
                     'fallback_seconds' => $fallbackSeconds,
                     'current_user_id' => user()->id,
+                    'call_status' => $statusVal,
+                    'answered_by_user_id' => $answeredByUserId,
                 ],
             ]);
         }
@@ -252,6 +257,8 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 'passed_user_ids' => $passedUserIds,
                 'fallback_seconds' => $fallbackSeconds,
                 'current_user_id' => user()->id,
+                'call_status' => $statusVal,
+                'answered_by_user_id' => $answeredByUserId,
             ],
         ]);
     }
@@ -396,6 +403,39 @@ class TelephonySoftphoneEventController extends AccountBaseController
         }
     }
 
+    private function recordCallStatus(int $companyId, string $incoming, ?string $callId, string $status, int $userId): void
+    {
+        $payload = [
+            'status' => $status,
+            'user_id' => $userId,
+            'updated_at' => now()->timestamp,
+        ];
+        if ($callId !== null && trim($callId) !== '') {
+            Cache::put(sprintf('softphone:call_status:id:%d:%s', $companyId, trim($callId)), $payload, 300);
+        }
+        if ($incoming !== '') {
+            Cache::put(sprintf('softphone:call_status:phone:%d:%s', $companyId, $incoming), $payload, 300);
+        }
+    }
+
+    private function getCallStatus(int $companyId, string $incoming, ?string $callId): ?array
+    {
+        if ($callId !== null && trim($callId) !== '') {
+            $status = Cache::get(sprintf('softphone:call_status:id:%d:%s', $companyId, trim($callId)));
+            if (is_array($status)) {
+                return $status;
+            }
+        }
+        if ($incoming !== '') {
+            $status = Cache::get(sprintf('softphone:call_status:phone:%d:%s', $companyId, $incoming));
+            if (is_array($status)) {
+                return $status;
+            }
+        }
+
+        return null;
+    }
+
     /**
      * The line the call arrived on, sent by the browser (it knows which device
      * its SIP session is registered on). Null lets every active pool agent of
@@ -488,8 +528,15 @@ class TelephonySoftphoneEventController extends AccountBaseController
 
         $incomingDigits = preg_replace('/[^0-9]/', '', $validated['phone']) ?? '';
         $callId = $validated['call_id'] ?? null;
+        $companyId = (int) company()->id;
         if (in_array($validated['direction'] ?? null, ['inbound', 'incoming'], true)) {
-            $this->clearPassedUsers((int) company()->id, $this->ringingDeviceId(), $incomingDigits, $callId);
+            $eventSlug = $validated['event'] ?? 'call.started';
+            if ($eventSlug === 'call.started') {
+                $this->clearPassedUsers($companyId, $this->ringingDeviceId(), $incomingDigits, $callId);
+                $this->recordCallStatus($companyId, $incomingDigits, $callId, 'answered', (int) user()->id);
+            } elseif (in_array($eventSlug, ['call.ended', 'call.completed', 'call.failed', 'call.declined'], true)) {
+                $this->recordCallStatus($companyId, $incomingDigits, $callId, 'ended', (int) user()->id);
+            }
         }
 
         $callRef = $validated['call_ref'] ?? null;
@@ -564,7 +611,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 );
             }
             // Emit the call event to the OL call bridge so it records the
-            // call happening on its side. This is best-effort — a failure
+            // call happening on its side. This is best-effort â€” a failure
             // here must not block the call that already started or the
             // softphone UI response.
             try {

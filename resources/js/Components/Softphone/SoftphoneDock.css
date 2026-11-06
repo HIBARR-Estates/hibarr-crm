@@ -386,6 +386,64 @@
     color: var(--muted);
 }
 
+/* Inbound call notice (clean notice when call ends or is answered elsewhere) */
+
+.sp--notice .sp__body {
+    background: var(--surface);
+}
+
+.sp__dot--notice {
+    background: var(--brand);
+}
+
+.sp__dot--answered {
+    background: var(--ok);
+}
+
+.sp__avatar--notice {
+    background: var(--brand-soft);
+    color: var(--brand);
+}
+
+.sp__avatar--answered {
+    background: var(--ok-soft);
+    color: var(--ok);
+}
+
+.sp__reason--notice {
+    margin: 12px 0 0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 500;
+    color: var(--text);
+    text-align: center;
+}
+
+.sp--notice .sp__actions {
+    margin-top: 20px;
+    gap: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.sp--notice .act:first-child .act__btn {
+    background: var(--brand);
+    color: var(--brand-ink);
+}
+
+.sp--notice .act:first-child {
+    color: var(--brand);
+}
+
+.sp--notice .act:last-child .act__btn {
+    background: var(--ctl);
+    color: var(--muted);
+}
+
 /* Idle (no call) extras — line picker, recording, diagnostics ------------- */
 
 .sp__idle {

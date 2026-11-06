@@ -122,6 +122,8 @@ class SoftphoneClient {
     private endedByUser = false;
     /** A reason is already on record for this attempt (don't overwrite it). */
     private failureRecorded = false;
+    /** Tracks whether an inbound INVITE was canceled due to answer elsewhere. */
+    private inboundCanceledReason: "answered_elsewhere" | "caller_canceled" | null = null;
     private remoteAudio: HTMLAudioElement | null = null;
     private listeners = new Set<Listener>();
     private callSeq = 0;
@@ -551,6 +553,31 @@ class SoftphoneClient {
         this.endCall();
     }
 
+    /**
+     * Terminate the session and immediately surface an informative call notice
+     * (e.g. "Answered on another device") without presenting an alarming error.
+     */
+    notifyCallNotice(code: SoftphoneCallFailureCode, reason: string): void {
+        const call = this.state.call;
+        const session = this.session;
+        if (!call) {
+            return;
+        }
+        this.endedByUser = true;
+        if (session) {
+            try {
+                if (call.phase === "inbound") {
+                    void session.reject();
+                } else {
+                    void session.cancel();
+                }
+            } catch {
+                // ignore
+            }
+        }
+        this.failCall(code, reason);
+    }
+
     setMuted(muted: boolean): void {
         const call = this.state.call;
         if (!call) {
@@ -710,6 +737,25 @@ class SoftphoneClient {
             return;
         }
 
+        this.inboundCanceledReason = null;
+        try {
+            (invitation as unknown as { delegate?: unknown }).delegate = {
+                onCancel: (cancel: unknown) => {
+                    try {
+                        const req = (cancel as { request?: { getHeader?: (name: string) => string | undefined } })?.request;
+                        const reason = req?.getHeader ? req.getHeader("reason") : "";
+                        if (reason && /cause=200|completed elsewhere|answered/i.test(reason)) {
+                            this.inboundCanceledReason = "answered_elsewhere";
+                        }
+                    } catch {
+                        // ignore
+                    }
+                },
+            };
+        } catch {
+            // ignore
+        }
+
         const peer =
             invitation.remoteIdentity?.uri?.user ?? "Unknown caller";
         const managed = invitation as unknown as ManagedSession;
@@ -784,21 +830,31 @@ class SoftphoneClient {
             } else if (state === SessionState.Terminated) {
                 trace("softphone session terminated", this.state.call?.id);
                 const call = this.state.call;
-                // A call that never reached media and did not end by the agent's
-                // own hand is a failed connection — say so instead of closing.
-                if (
-                    call &&
-                    call.connectedAt === null &&
-                    !this.endedByUser &&
-                    !this.failureRecorded
-                ) {
-                    this.failCall(
-                        "terminated",
-                        call.direction === "inbound"
-                            ? "The caller hung up before connecting."
-                            : "The call ended before it connected.",
-                    );
-                    return;
+                if (call && !this.endedByUser && !this.failureRecorded) {
+                    if (call.connectedAt === null) {
+                        if (call.direction === "inbound") {
+                            const isAnsweredElsewhere = this.inboundCanceledReason === "answered_elsewhere";
+                            this.failCall(
+                                isAnsweredElsewhere ? "answered_elsewhere" : "disconnected",
+                                isAnsweredElsewhere
+                                    ? "This call was answered on another device."
+                                    : "The caller disconnected before the call was answered.",
+                            );
+                            return;
+                        }
+                        this.failCall(
+                            "terminated",
+                            "The call ended before it connected.",
+                        );
+                        return;
+                    } else {
+                        // The call was active, but disconnected from the other party's end
+                        this.failCall(
+                            "disconnected",
+                            "The call was disconnected from the client's end.",
+                        );
+                        return;
+                    }
                 }
                 this.endCall();
             }

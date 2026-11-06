@@ -8,7 +8,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { formatCallDuration } from "@/lib/crmEvents/callSummary";
-import { CallDirectionIcon, OUTCOME_KEYS } from "./callFormat";
+import { CallDirectionIcon, OUTCOME_KEYS, formatCallFailure, getRecordingStatus } from "./callFormat";
 import type { CallLogRow } from "./types";
 
 const COLUMN_COUNT = 6;
@@ -76,7 +76,9 @@ export default function CallLogTable({ rows }: { rows: CallLogRow[] }) {
                             ? t(`pages.call_summary.${outcomeKey}`)
                             : td(row.outcome, { source: "en" });
                         const missed = row.outcome === "missed" || row.outcome === "failed";
+                        const failureText = formatCallFailure(row.failure_reason, row.failure_message);
                         const rec = row.recording;
+                        const recState = getRecordingStatus(row);
                         const playable = Boolean(rec?.can_play && rec.play_url);
                         const open = openId === row.id && playable;
                         const rowBg = open ? T.BLUE_LIGHT : T.SURFACE;
@@ -88,21 +90,27 @@ export default function CallLogTable({ rows }: { rows: CallLogRow[] }) {
                                         {formatDateTime(row.occurred_at)}
                                     </td>
                                     <td style={bodyCell}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                                             <CallDirectionIcon direction={row.direction} outcome={row.outcome} size={28} />
-                                            <div style={{ minWidth: 0 }}>
-                                                <span style={{ fontWeight: 600, color: missed ? T.RED : T.TEXT }}>
-                                                    {direction} · {outcome}
-                                                </span>
-                                                {row.is_forwarded && row.forwarded_from_user_name ? (
-                                                    <span style={{ ...subText, color: T.TEAL }}>
+                                            <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                                    <span style={{ fontWeight: 600, color: missed ? T.RED : T.TEXT }}>
+                                                        {direction} · {outcome}
+                                                    </span>
+                                                    {failureText && (
+                                                        <Badge variant="red" style={{ fontSize: 11, padding: "1px 8px" }}>
+                                                            {td(failureText, { source: "en" })}
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                {row.phone_number && (
+                                                    <span style={subText}>{row.phone_number}</span>
+                                                )}
+                                                {row.is_forwarded && row.forwarded_from_user_name && (
+                                                    <span style={{ ...subText, color: T.TEAL, fontWeight: 500 }}>
                                                         {t("pages.calls.forwarded_from", { user: row.forwarded_from_user_name })}
                                                     </span>
-                                                ) : row.outcome === "failed" && row.failure_message ? (
-                                                    <span style={subText}>{td(row.failure_message, { source: "en" })}</span>
-                                                ) : row.phone_number ? (
-                                                    <span style={subText}>{row.phone_number}</span>
-                                                ) : null}
+                                                )}
                                             </div>
                                         </div>
                                     </td>
@@ -134,11 +142,7 @@ export default function CallLogTable({ rows }: { rows: CallLogRow[] }) {
                                         )}
                                     </td>
                                     <td style={{ ...bodyCell, paddingRight: 18, whiteSpace: "nowrap" }}>
-                                        {rec === null ? (
-                                            <span style={{ fontSize: 12, color: T.TEXT_HINT }}>{t("pages.calls.no_recording")}</span>
-                                        ) : rec.expired ? (
-                                            <span style={{ fontSize: 12, color: T.TEXT_HINT }}>{t("pages.calls.recording_expired_short")}</span>
-                                        ) : playable ? (
+                                        {recState.status === "playable" && playable ? (
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
@@ -154,9 +158,25 @@ export default function CallLogTable({ rows }: { rows: CallLogRow[] }) {
                                                 }
                                                 onClick={() => setOpenId(open ? null : row.id)}
                                             >
-                                                {open ? t("pages.calls.hide_recording") : t("pages.calls.play_recording")}
+                                                {open
+                                                    ? t("pages.calls.hide_recording")
+                                                    : recState.duration
+                                                      ? `${t("pages.calls.play_recording")} (${recState.duration})`
+                                                      : t("pages.calls.play_recording")}
                                             </Button>
-                                        ) : (
+                                        ) : recState.status === "processing" ? (
+                                            <Badge variant="blue" style={{ fontSize: 11, padding: "2px 8px" }}>
+                                                {td("Processing", { source: "en" })}
+                                            </Badge>
+                                        ) : recState.status === "expired" ? (
+                                            <Badge
+                                                variant="amber"
+                                                style={{ fontSize: 11, padding: "2px 8px" }}
+                                                title={recState.expiresAt ? `Expired: ${recState.expiresAt}` : undefined}
+                                            >
+                                                {t("pages.calls.recording_expired_short")}
+                                            </Badge>
+                                        ) : recState.status === "restricted" ? (
                                             <span
                                                 title={t("pages.calls.recording_restricted")}
                                                 style={{ fontSize: 12, color: T.TEXT_MUTED, display: "inline-flex", alignItems: "center", gap: 6 }}
@@ -164,6 +184,8 @@ export default function CallLogTable({ rows }: { rows: CallLogRow[] }) {
                                                 <Icon name="lock" size={13} />
                                                 {t("pages.calls.recording_locked")}
                                             </span>
+                                        ) : (
+                                            <span style={{ fontSize: 12, color: T.TEXT_HINT }}>{t("pages.calls.no_recording")}</span>
                                         )}
                                     </td>
                                 </tr>

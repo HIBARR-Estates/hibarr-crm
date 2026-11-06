@@ -163,6 +163,17 @@ class CallRecordingController extends AccountBaseController
             // partial files when toMp3() fails (returns false or throws).
             $mp3Path = $finalPath;
             $transcoded = $this->transcoder->toMp3($file->getRealPath(), $finalPath);
+            if ($transcoded && is_file($mp3Path)) {
+                $probed = $this->transcoder->getDurationSeconds($mp3Path);
+                if ($probed !== null && $probed > 0) {
+                    $duration = $probed;
+                }
+            } elseif ($duration <= 1 && $file->getRealPath() && is_file($file->getRealPath())) {
+                $probed = $this->transcoder->getDurationSeconds($file->getRealPath());
+                if ($probed !== null && $probed > 0) {
+                    $duration = $probed;
+                }
+            }
         } catch (\Throwable $e) {
             $transcoded = false;
             // Clean up any partial output file from a failed transcode

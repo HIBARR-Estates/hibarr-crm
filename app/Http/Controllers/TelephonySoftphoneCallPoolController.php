@@ -151,7 +151,7 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         if ($isFallback) {
             $validated = $request->validate([
                 'user_id' => 'required|integer|min:1',
-                'priority' => 'nullable|integer|min:0|max:1000',
+                'priority' => 'nullable|integer|min:1|max:100',
                 'active' => 'sometimes|boolean',
             ]);
 
@@ -164,6 +164,22 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
                 'User is not eligible for the fallback list.'
             );
 
+            $priority = (int) ($validated['priority'] ?? 1);
+
+            $duplicate = SoftphoneCallPoolAgent::query()
+                ->where('company_id', $companyId)
+                ->whereNull('device_id')
+                ->where('user_id', '!=', $userId)
+                ->where('priority', $priority)
+                ->exists();
+
+            if ($duplicate) {
+                return response()->json([
+                    'status' => 'fail',
+                    'message' => "Priority {$priority} is already assigned to another agent in the fallback list. Each agent must have a unique priority from 1 to 100.",
+                ], 422);
+            }
+
             $agent = SoftphoneCallPoolAgent::updateOrCreate(
                 [
                     'company_id' => $companyId,
@@ -171,7 +187,7 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
                     'user_id' => $userId,
                 ],
                 [
-                    'priority' => $validated['priority'] ?? 100,
+                    'priority' => $priority,
                     'active' => $validated['active'] ?? true,
                     'last_updated_by' => (int) user()->id,
                 ],
@@ -187,7 +203,7 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         $validated = $request->validate([
             'device_id' => 'required|integer|min:1',
             'user_id' => 'required|integer|min:1',
-            'priority' => 'nullable|integer|min:0|max:1000',
+            'priority' => 'nullable|integer|min:1|max:100',
             'active' => 'sometimes|boolean',
         ]);
 
@@ -199,6 +215,22 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         abort_unless($user !== null && (int) $user->company_id === $companyId, 404);
         abort_if($user->hasRole('admin'), 422, 'Admins cannot be added to a line call pool.');
 
+        $priority = (int) ($validated['priority'] ?? 1);
+
+        $duplicate = SoftphoneCallPoolAgent::query()
+            ->where('company_id', $companyId)
+            ->where('device_id', $deviceId)
+            ->where('user_id', '!=', $userId)
+            ->where('priority', $priority)
+            ->exists();
+
+        if ($duplicate) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => "Priority {$priority} is already assigned to another agent on this line. Each agent must have a unique priority from 1 to 100.",
+            ], 422);
+        }
+
         $agent = SoftphoneCallPoolAgent::updateOrCreate(
             [
                 'device_id' => $deviceId,
@@ -206,7 +238,7 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
             ],
             [
                 'company_id' => $companyId,
-                'priority' => $validated['priority'] ?? 100,
+                'priority' => $priority,
                 'active' => $validated['active'] ?? true,
                 'last_updated_by' => (int) user()->id,
             ],
@@ -228,12 +260,32 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         abort_unless((int) $agent->company_id === (int) company()->id, 404);
 
         $validated = $request->validate([
-            'priority' => 'nullable|integer|min:0|max:1000',
+            'priority' => 'nullable|integer|min:1|max:100',
             'active' => 'sometimes|boolean',
         ]);
 
         if (array_key_exists('priority', $validated)) {
-            $agent->priority = $validated['priority'];
+            $priority = (int) $validated['priority'];
+
+            $query = SoftphoneCallPoolAgent::query()
+                ->where('company_id', (int) company()->id)
+                ->where('id', '!=', $agent->id)
+                ->where('priority', $priority);
+
+            if ($agent->device_id !== null) {
+                $query->where('device_id', $agent->device_id);
+            } else {
+                $query->whereNull('device_id');
+            }
+
+            if ($query->exists()) {
+                return response()->json([
+                    'status' => 'fail',
+                    'message' => "Priority {$priority} is already assigned to another agent in this pool. Each agent must have a unique priority from 1 to 100.",
+                ], 422);
+            }
+
+            $agent->priority = $priority;
         }
         if (array_key_exists('active', $validated)) {
             $agent->active = $validated['active'];

@@ -244,10 +244,21 @@ class CallLogService
         $entity = $entities[$type . ':' . $entityId] ?? null;
 
         $recordingId = isset($meta['recording_id']) ? (int) $meta['recording_id'] : null;
-        $recording = $recordingId !== null ? ($recordings[$recordingId] ?? null) : null;
+        $callRef = isset($meta['call_ref']) && is_string($meta['call_ref']) ? $meta['call_ref'] : null;
+        $recording = ($recordingId !== null ? ($recordings['id:' . $recordingId] ?? null) : null)
+            ?? ($callRef !== null ? ($recordings['ref:' . $callRef] ?? null) : null);
         $ownerId = $recording?->user_id !== null ? (int) $recording->user_id : ($event->user_id !== null ? (int) $event->user_id : null);
         $expired = $recording?->expires_at?->isPast() ?? false;
         $canPlay = $recording !== null && ! $expired && CallAccess::canPlayRecording($viewer, $ownerId);
+
+        $hasRecording = $recording !== null || ($meta['has_recording'] ?? false) === true;
+        $recordingState = match (true) {
+            $recording !== null && $expired => 'expired',
+            $recording !== null && ! $canPlay => 'restricted',
+            $recording !== null && $canPlay => 'playable',
+            $hasRecording => 'processing',
+            default => 'none',
+        };
 
         return [
             'id' => $event->id,
@@ -268,17 +279,18 @@ class CallLogService
             'is_forwarded' => ($meta['is_forwarded'] ?? false) === true,
             'forwarded_from_user_id' => isset($meta['forwarded_from_user_id']) ? (int) $meta['forwarded_from_user_id'] : null,
             'forwarded_from_user_name' => $meta['forwarded_from_user_name'] ?? null,
-            'has_recording' => $recording !== null || ($meta['has_recording'] ?? false) === true,
-            'recording' => $recording === null ? null : [
+            'has_recording' => $hasRecording,
+            'recording' => $recording === null && ! $hasRecording ? null : [
+                'state' => $recordingState,
                 'expired' => $expired,
-                'expires_at' => $recording->expires_at?->toIso8601String(),
-                'duration_seconds' => $recording->duration_seconds !== null ? (int) $recording->duration_seconds : null,
+                'expires_at' => $recording?->expires_at?->toIso8601String(),
+                'duration_seconds' => $recording?->duration_seconds !== null ? (int) $recording->duration_seconds : null,
                 'can_play' => $canPlay,
                 // Links only for viewers who may play it.
-                'id' => $canPlay ? $recording->id : null,
-                'filename' => $canPlay ? $recording->filename : null,
-                'play_url' => $canPlay ? route('call-recordings.play', $recording->id) : null,
-                'download_url' => $canPlay ? route('call-recordings.download', $recording->id) : null,
+                'id' => $canPlay ? $recording?->id : null,
+                'filename' => $canPlay ? $recording?->filename : null,
+                'play_url' => $canPlay && $recording ? route('call-recordings.play', $recording->id) : null,
+                'download_url' => $canPlay && $recording ? route('call-recordings.download', $recording->id) : null,
             ],
         ];
     }
@@ -296,7 +308,7 @@ class CallLogService
 
     /**
      * @param  Collection<int, CrmEvent>  $events
-     * @return array<int, CallRecording>
+     * @return array<string, CallRecording>
      */
     private function recordings(Collection $events, int $companyId): array
     {
@@ -308,16 +320,38 @@ class CallLogService
             ->values()
             ->all();
 
-        if ($ids === []) {
+        $callRefs = $events
+            ->map(fn (CrmEvent $e) => ((array) ($e->metadata ?? []))['call_ref'] ?? null)
+            ->filter(fn ($ref) => ! empty($ref) && is_string($ref))
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids === [] && $callRefs === []) {
             return [];
         }
 
-        return CallRecording::query()
-            ->where('company_id', $companyId)
-            ->whereIn('id', $ids)
-            ->get(['id', 'user_id', 'filename', 'duration_seconds', 'expires_at', 'company_id'])
-            ->keyBy('id')
-            ->all();
+        $query = CallRecording::query()->where('company_id', $companyId);
+        $query->where(function ($q) use ($ids, $callRefs) {
+            if ($ids !== []) {
+                $q->whereIn('id', $ids);
+            }
+            if ($callRefs !== []) {
+                $q->orWhereIn('call_ref', $callRefs);
+            }
+        });
+
+        $recordings = $query->get(['id', 'call_ref', 'user_id', 'filename', 'duration_seconds', 'expires_at', 'company_id']);
+
+        $byKey = [];
+        foreach ($recordings as $rec) {
+            $byKey['id:' . $rec->id] = $rec;
+            if (! empty($rec->call_ref)) {
+                $byKey['ref:' . $rec->call_ref] = $rec;
+            }
+        }
+
+        return $byKey;
     }
 
     /**
