@@ -615,6 +615,40 @@ class LeadMergeServiceTest extends TestCase
         $this->assertFalse((bool) $emails['a@example.com']);
     }
 
+    public function test_merge_never_replaces_a_set_referrer_even_when_picked(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary', 'referred_by_agent_id' => 5]);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate', 'referred_by_agent_id' => 6]);
+
+        $review = $this->service->buildReview(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId));
+        $row = collect($review['field_groups'])->flatMap(fn ($g) => $g['rows'])->keyBy('key')['referred_by_agent_id'];
+        $this->assertSame('locked', $row['state']);
+        $this->assertSame('referrer_locked', $row['hint']);
+
+        // Picking the duplicate's referrer would trip LeadObserver::saving and
+        // roll the whole merge back; the kept lead's referrer stays instead.
+        $this->service->merge(
+            Lead::findOrFail($primaryId),
+            Lead::findOrFail($duplicateId),
+            [],
+            1,
+            ['referred_by_agent_id' => 'duplicate'],
+        );
+
+        $this->assertSame(5, (int) Lead::findOrFail($primaryId)->referred_by_agent_id);
+        $this->assertNotNull(Lead::withTrashed()->findOrFail($duplicateId)->deleted_at);
+    }
+
+    public function test_merge_fills_a_missing_referrer_from_the_duplicate(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate', 'referred_by_agent_id' => 6]);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $this->assertSame(6, (int) Lead::findOrFail($primaryId)->referred_by_agent_id);
+    }
+
     public function test_merge_fills_empty_fields_and_joins_languages_and_categories(): void
     {
         DB::table('lead_category')->insert([['id' => 1, 'category_name' => 'Investor'], ['id' => 2, 'category_name' => 'Relocation']]);
@@ -1109,6 +1143,7 @@ class LeadMergeServiceTest extends TestCase
             $table->date('date_of_birth')->nullable();
             $table->text('languages')->nullable();
             $table->unsignedInteger('category_id')->nullable();
+            $table->unsignedInteger('referred_by_agent_id')->nullable();
             $table->softDeletes();
             $table->timestamps();
         });

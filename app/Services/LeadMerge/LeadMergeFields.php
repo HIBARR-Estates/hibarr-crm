@@ -115,7 +115,15 @@ final class LeadMergeFields
     /** Contact columns whose losing value is kept as an alternate contact method. @var list<string> */
     public const ALTERNATE_CONTACT_FIELDS = ['client_email', 'mobile', 'cell', 'office'];
 
-    /** @var array<string, list<string>>|null */
+    /**
+     * Write-once columns: an empty value is filled from the duplicate, but a
+     * value already set is never replaced (LeadObserver::saving rejects it).
+     *
+     * @var list<string>
+     */
+    public const LOCKED_FIELDS = ['referred_by_agent_id'];
+
+    /** @var array<string, true>|null */
     private static ?array $columns = null;
 
     /**

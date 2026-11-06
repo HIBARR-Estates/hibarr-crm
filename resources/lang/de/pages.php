@@ -2590,6 +2590,7 @@ return [
         'hint_combined' => 'Aus beiden Leads zusammengeführt',
         'hint_engagement' => 'Zusammengeführt: ein Ja bei einem der Leads bleibt erhalten',
         'hint_latest_date' => 'Das spätere Datum gilt',
+        'hint_referrer_locked' => 'Der Empfehlende kann nach dem Setzen nicht geändert werden; der des behaltenen Leads bleibt',
         'hint_touch_history' => 'Bleibt der erste Kontakt · der andere kommt in den Kontaktverlauf',
         'row_languages' => 'Sprachen',
         'row_categories' => 'Kategorien',

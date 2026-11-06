@@ -26,7 +26,7 @@ export interface LeadMergeSummary {
 /** Which lead's value the kept lead ends up with. */
 export type LeadMergeSide = "primary" | "duplicate";
 
-export type LeadMergeFieldState = "same" | "fill" | "keep" | "choose";
+export type LeadMergeFieldState = "same" | "fill" | "keep" | "choose" | "locked";
 
 export interface LeadMergeFieldRow {
     /** Lead column, "custom:<id>" or "marketing:<column>". */
@@ -37,7 +37,7 @@ export interface LeadMergeFieldRow {
     duplicate: string | null;
     state: LeadMergeFieldState;
     default_pick: LeadMergeSide;
-    hint: "kept_as_alternate" | "higher_score" | "touch_history" | null;
+    hint: "kept_as_alternate" | "higher_score" | "touch_history" | "referrer_locked" | null;
     custom?: boolean;
 }
 

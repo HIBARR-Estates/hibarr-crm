@@ -82,7 +82,7 @@ type DisplayRow =
       };
 
 function isDifference(row: DisplayRow): boolean {
-    if (row.kind === "field") return row.row.state === "choose" || row.row.state === "fill";
+    if (row.kind === "field") return row.row.state === "choose" || row.row.state === "fill" || row.row.state === "locked";
     return !row.same;
 }
 
@@ -110,6 +110,7 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
     const [otherId, setOtherId] = useState(duplicateId);
     const [picks, setPicks] = useState<Record<string, LeadMergeSide>>({});
     const [view, setView] = useState<View>("differences");
+    const [mergeError, setMergeError] = useState(false);
 
     useEffect(() => {
         if (open) {
@@ -117,6 +118,7 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
             setOtherId(duplicateId);
             setPicks({});
             setView("differences");
+            setMergeError(false);
         }
     }, [open, primaryId, duplicateId]);
 
@@ -145,6 +147,7 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
         setKeptId(otherId);
         setOtherId(keptId);
         setPicks({});
+        setMergeError(false);
     };
 
     const handleConfirm = () => {
@@ -155,10 +158,18 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
             }),
         );
 
+        setMergeError(false);
         confirmMerge(
             { duplicate_id: otherId, field_picks: fieldPicks },
             {
-                onSuccess: () => {
+                // The merge runs in one transaction: a failure changes nothing.
+                onError: () => setMergeError(true),
+                onSuccess: (response) => {
+                    // A refused merge (Reply::error) arrives as a 200 with status "fail".
+                    if (response?.status !== "success") {
+                        setMergeError(true);
+                        return;
+                    }
                     onClose(true);
                     if (keptId !== primaryId) {
                         // The lead this dialog was opened from is now the archived
@@ -187,6 +198,7 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
 
     const hintFor = (row: LeadMergeFieldRow, side: LeadMergeSide): string | null => {
         if (row.state === "fill" && side === "duplicate") return t("pages.lead_merge.hint_filled");
+        if (row.state === "locked" && side === "primary") return t("pages.lead_merge.hint_referrer_locked");
         if (row.state !== "choose") return null;
         if (row.hint === "kept_as_alternate" && side === "duplicate") {
             return row.key === "client_email"
@@ -404,7 +416,13 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
             zIndex={1500}
             footer={
                 <>
-                    <span className="lm-footer-note">{t("pages.lead_merge.footer_note")}</span>
+                    {mergeError ? (
+                        <span className="lm-footer-note is-error" role="alert">
+                            {t("pages.lead_merge.merge_failed")}
+                        </span>
+                    ) : (
+                        <span className="lm-footer-note">{t("pages.lead_merge.footer_note")}</span>
+                    )}
                     <Button variant="ghost" onClick={() => onClose()}>
                         {t("pages.lead_merge.cancel")}
                     </Button>

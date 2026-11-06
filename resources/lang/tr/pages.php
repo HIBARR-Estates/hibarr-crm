@@ -2568,6 +2568,7 @@ return [
         'hint_combined' => 'İki lead\'den birleştirildi',
         'hint_engagement' => 'Birleştirildi: herhangi birindeki evet korunur',
         'hint_latest_date' => 'En son tarih geçerli',
+        'hint_referrer_locked' => 'Yönlendiren bir kez ayarlandıktan sonra değiştirilemez; korunan lead\'inki kalır',
         'hint_touch_history' => 'İlk temas olarak kalır · diğeri temas geçmişine taşınır',
         'row_languages' => 'Diller',
         'row_categories' => 'Kategoriler',

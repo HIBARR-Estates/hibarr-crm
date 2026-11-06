@@ -33,6 +33,9 @@ class LeadMergeService
     /** @var array<string, true>|null */
     private ?array $marketingColumns = null;
 
+    /** Columns per table, read once per merge or review. @var array<string, array<string, true>|null> */
+    private array $tableColumns = [];
+
     public function __construct(
         private LeadContactMethodService $contactMethodService,
     ) {
@@ -289,6 +292,10 @@ class LeadMergeService
                 if ($row !== null) {
                     if ($row['state'] === 'choose' && in_array($field, LeadMergeFields::ALTERNATE_CONTACT_FIELDS, true)) {
                         $row['hint'] = 'kept_as_alternate';
+                    }
+                    if ($row['state'] === 'choose' && in_array($field, LeadMergeFields::LOCKED_FIELDS, true)) {
+                        $row['state'] = 'locked';
+                        $row['hint'] = 'referrer_locked';
                     }
                     $rows[] = $row;
                 }
@@ -635,11 +642,11 @@ class LeadMergeService
     {
         $id = $duplicate->id;
         $count = function (string $table, string $column = 'lead_id', ?callable $scope = null) use ($id): int {
-            if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $column)) {
+            if (! $this->tableHas($table, $column)) {
                 return 0;
             }
             $query = DB::table($table)->where($column, $id);
-            if (Schema::hasColumn($table, 'deleted_at')) {
+            if ($this->tableHas($table, 'deleted_at')) {
                 $query->whereNull('deleted_at');
             }
             if ($scope) {
@@ -688,10 +695,25 @@ class LeadMergeService
         return isset($this->marketingColumns[$column]);
     }
 
+    /** Whether a table (and, given one, a column on it) exists; one schema read per table. */
+    private function tableHas(string $table, ?string $column = null): bool
+    {
+        if (! array_key_exists($table, $this->tableColumns)) {
+            $this->tableColumns[$table] = Schema::hasTable($table)
+                ? array_fill_keys(Schema::getColumnListing($table), true)
+                : null;
+        }
+
+        $columns = $this->tableColumns[$table];
+
+        return $columns !== null && ($column === null || isset($columns[$column]));
+    }
+
     /** Column lists are read once per merge or review (the schema can change between tests). */
     private function resetSchemaCaches(): void
     {
         $this->marketingColumns = null;
+        $this->tableColumns = [];
         LeadMergeFields::flush();
     }
 
@@ -745,7 +767,10 @@ class LeadMergeService
                 continue;
             }
 
-            $useDuplicate = ($fieldPicks[$field] ?? 'primary') === 'duplicate';
+            // A referrer, once set, can't be changed (LeadObserver::saving
+            // rejects it), so the kept lead's referrer always stays.
+            $useDuplicate = ! in_array($field, LeadMergeFields::LOCKED_FIELDS, true)
+                && ($fieldPicks[$field] ?? 'primary') === 'duplicate';
             $winner = $useDuplicate ? $duplicate : $primary;
             $loser = $useDuplicate ? $primary : $duplicate;
 
@@ -1033,19 +1058,19 @@ class LeadMergeService
         $this->moveRowsNotOnKeptLead('purpose_consent_leads', 'purpose_consent_id', $fromId, $toId);
 
         foreach (self::LEAD_ID_TABLES as $table) {
-            if (Schema::hasTable($table) && Schema::hasColumn($table, 'lead_id')) {
+            if ($this->tableHas($table, 'lead_id')) {
                 DB::table($table)->where('lead_id', $fromId)->update(['lead_id' => $toId]);
             }
         }
 
-        if (Schema::hasTable('crm_events')) {
+        if ($this->tableHas('crm_events')) {
             DB::table('crm_events')
                 ->whereIn('model_type', $this->leadModelTypes())
                 ->where('model_id', $fromId)
                 ->update(['model_id' => $toId]);
         }
 
-        if (Schema::hasTable('call_recordings')) {
+        if ($this->tableHas('call_recordings')) {
             DB::table('call_recordings')
                 ->whereIn('entity_type', ['lead', Lead::class])
                 ->where('entity_id', $fromId)
@@ -1056,7 +1081,7 @@ class LeadMergeService
     /** Move a link table's rows, dropping those the kept lead already has. */
     private function moveRowsNotOnKeptLead(string $table, string $column, int $fromId, int $toId): void
     {
-        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, 'lead_id')) {
+        if (! $this->tableHas($table, 'lead_id')) {
             return;
         }
 

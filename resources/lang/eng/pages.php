@@ -2747,6 +2747,7 @@ return [
         'hint_combined' => 'Combined from both leads',
         'hint_engagement' => 'Combined: a yes on either lead is kept',
         'hint_latest_date' => 'Latest date wins',
+        'hint_referrer_locked' => 'The referrer can\'t be changed once set; the kept lead\'s stays',
         'hint_touch_history' => 'Stays the first touch · the other moves to the touch history',
         'row_languages' => 'Languages',
         'row_categories' => 'Categories',

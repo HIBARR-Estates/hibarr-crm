@@ -262,6 +262,11 @@ button.lm-opt:hover:not(.is-on) {
     max-width: 520px;
 }
 
+.lm-footer-note.is-error {
+    color: var(--dr-red);
+    font-weight: 600;
+}
+
 @media (max-width: 720px) {
     .lm-cards {
         grid-template-columns: minmax(0, 1fr);
