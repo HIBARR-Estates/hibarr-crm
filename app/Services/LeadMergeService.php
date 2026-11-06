@@ -123,14 +123,18 @@ class LeadMergeService
         $this->assertCanMerge($primary, $duplicate);
 
         // The duplicate's owner before the merge, for the "Lead merged" notice.
-        $duplicateOwnerId = $duplicate->lead_owner !== null ? (int) $duplicate->lead_owner : null;
+        // Read from the locked row inside the transaction, so an owner change
+        // made after the review was opened is respected.
+        $duplicateOwnerId = null;
 
         // Both leads are marked for the whole merge so the Lead observer skips
         // automations, the "Lead removed from pipeline" notice and the separate
         // owner-assigned email for the merge's own saves and soft delete.
         $merged = LeadMergeContext::run(
             [(int) $primary->id, (int) $duplicate->id],
-            fn () => $this->mergeInTransaction($primary, $duplicate, $ownershipFieldPicks, $actorUserId, $fieldPicks),
+            function () use ($primary, $duplicate, $ownershipFieldPicks, $actorUserId, $fieldPicks, &$duplicateOwnerId) {
+                return $this->mergeInTransaction($primary, $duplicate, $ownershipFieldPicks, $actorUserId, $fieldPicks, $duplicateOwnerId);
+            },
         );
 
         $this->notifyOwners($merged, $duplicate->id, $duplicateOwnerId, $actorUserId);
@@ -148,10 +152,12 @@ class LeadMergeService
         array $ownershipFieldPicks,
         ?int $actorUserId,
         array $fieldPicks,
+        ?int &$duplicateOwnerId = null,
     ): Lead {
-        return DB::transaction(function () use ($primary, $duplicate, $ownershipFieldPicks, $actorUserId, $fieldPicks) {
+        return DB::transaction(function () use ($primary, $duplicate, $ownershipFieldPicks, $actorUserId, $fieldPicks, &$duplicateOwnerId) {
             $primary = Lead::query()->lockForUpdate()->findOrFail($primary->id);
             $duplicate = Lead::query()->lockForUpdate()->findOrFail($duplicate->id);
+            $duplicateOwnerId = $duplicate->lead_owner !== null ? (int) $duplicate->lead_owner : null;
 
             $this->assertCanMerge($primary, $duplicate);
 
