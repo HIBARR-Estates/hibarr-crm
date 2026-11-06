@@ -418,6 +418,49 @@ class LeadMergeServiceTest extends TestCase
         );
     }
 
+    public function test_the_currency_follows_the_value_that_is_kept(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary', 'value' => 1000, 'currency_id' => 1]);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate', 'value' => 5000, 'currency_id' => 2]);
+
+        $review = $this->service->buildReview(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId));
+        $rows = collect($review['field_groups'])->flatMap(fn ($g) => $g['rows'])->keyBy('key');
+        $this->assertSame('follows_value', $rows['currency_id']['hint']);
+
+        // Only the value is picked; the currency still comes with it.
+        $this->service->merge(
+            Lead::findOrFail($primaryId),
+            Lead::findOrFail($duplicateId),
+            [],
+            1,
+            ['value' => 'duplicate', 'currency_id' => 'primary'],
+        );
+
+        $primary = Lead::findOrFail($primaryId);
+        $this->assertEquals(5000, (float) $primary->value);
+        $this->assertSame(2, (int) $primary->currency_id);
+    }
+
+    public function test_first_touch_default_uses_the_touch_history_date(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate']);
+        // The duplicate's marketing row is older, but its first touch happened later.
+        DB::table('lead_marketing')->insert([
+            ['lead_id' => $primaryId, 'utm_source' => 'google', 'created_at' => now(), 'updated_at' => now()],
+            ['lead_id' => $duplicateId, 'utm_source' => 'facebook', 'created_at' => now()->subYear(), 'updated_at' => now()],
+        ]);
+        DB::table('lead_utm_touches')->insert([
+            ['lead_id' => $primaryId, 'utm_source' => 'google', 'is_first_touch' => true, 'created_at' => now()->subMonths(2), 'updated_at' => now()],
+            ['lead_id' => $duplicateId, 'utm_source' => 'facebook', 'is_first_touch' => true, 'created_at' => now()->subMonth(), 'updated_at' => now()],
+        ]);
+
+        $review = $this->service->buildReview(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId));
+
+        $row = collect($review['field_groups'])->flatMap(fn ($g) => $g['rows'])->keyBy('key')['marketing:first_touch'];
+        $this->assertSame('primary', $row['default_pick']);
+    }
+
     public function test_build_review_defaults_first_touch_to_the_earlier_one(): void
     {
         $primaryId = $this->insertLead(['client_name' => 'Primary']);
@@ -1279,6 +1322,8 @@ class LeadMergeServiceTest extends TestCase
             $table->text('languages')->nullable();
             $table->unsignedInteger('category_id')->nullable();
             $table->unsignedInteger('referred_by_agent_id')->nullable();
+            $table->decimal('value', 16, 2)->nullable();
+            $table->unsignedInteger('currency_id')->nullable();
             $table->softDeletes();
             $table->timestamps();
         });

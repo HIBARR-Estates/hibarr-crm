@@ -37,7 +37,7 @@ export interface LeadMergeFieldRow {
     duplicate: string | null;
     state: LeadMergeFieldState;
     default_pick: LeadMergeSide;
-    hint: "kept_as_alternate" | "higher_score" | "touch_history" | "referrer_locked" | null;
+    hint: "kept_as_alternate" | "higher_score" | "touch_history" | "referrer_locked" | "follows_value" | null;
     custom?: boolean;
 }
 

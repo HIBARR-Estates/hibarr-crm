@@ -304,6 +304,9 @@ class LeadMergeService
                     if ($row['state'] === 'choose' && in_array($field, LeadMergeFields::ALTERNATE_CONTACT_FIELDS, true)) {
                         $row['hint'] = 'kept_as_alternate';
                     }
+                    if ($row['state'] === 'choose' && $field === 'currency_id' && $this->valueDiffers($primary, $duplicate)) {
+                        $row['hint'] = 'follows_value';
+                    }
                     if ($row['state'] === 'choose' && in_array($field, LeadMergeFields::LOCKED_FIELDS, true)) {
                         $row['state'] = 'locked';
                         $row['hint'] = 'referrer_locked';
@@ -318,6 +321,14 @@ class LeadMergeService
         $groups[] = ['key' => 'custom', 'rows' => $this->customFieldRows($primary, $duplicate)];
 
         return array_values(array_filter($groups, fn ($g) => $g['rows'] !== []));
+    }
+
+    private function valueDiffers(Lead $primary, Lead $duplicate): bool
+    {
+        $kept = LeadMergeFields::raw($primary, 'value');
+        $other = LeadMergeFields::raw($duplicate, 'value');
+
+        return $kept !== null && $other !== null && $kept !== $other;
     }
 
     /**
@@ -432,14 +443,36 @@ class LeadMergeService
         return $parts !== [] ? implode(' / ', $parts) : (string) collect($marketing->only(LeadUtmTouch::UTM_FIELDS))->filter()->first();
     }
 
-    /** The earlier of the two first touches stays first unless the person picks the other. */
+    /**
+     * The earlier of the two first touches stays first unless the person picks
+     * the other. "Earlier" is when the touch happened: the lead's first-touch
+     * history row, or its marketing row's date when it has no history.
+     */
     private function defaultFirstTouchPick(?LeadMarketing $primary, ?LeadMarketing $duplicate): string
     {
-        if ($primary?->created_at && $duplicate?->created_at && $duplicate->created_at->lt($primary->created_at)) {
-            return 'duplicate';
+        $kept = $this->firstTouchAt($primary);
+        $other = $this->firstTouchAt($duplicate);
+
+        return $kept && $other && $other->lt($kept) ? 'duplicate' : 'primary';
+    }
+
+    private function firstTouchAt(?LeadMarketing $marketing): ?\Illuminate\Support\Carbon
+    {
+        if (! $marketing) {
+            return null;
         }
 
-        return 'primary';
+        if ($this->tableHas('lead_utm_touches')) {
+            $at = LeadUtmTouch::query()
+                ->where('lead_id', $marketing->lead_id)
+                ->where('is_first_touch', true)
+                ->min('created_at');
+            if ($at) {
+                return \Illuminate\Support\Carbon::parse($at);
+            }
+        }
+
+        return $marketing->created_at ? \Illuminate\Support\Carbon::parse($marketing->created_at) : null;
     }
 
     /** @return list<array<string, mixed>> */
@@ -773,6 +806,7 @@ class LeadMergeService
     {
         $setAside = [];
         $contactConflicts = [];
+        $fieldPicks = $this->coupleCurrencyToValue($primary, $duplicate, $fieldPicks);
 
         foreach (LeadMergeFields::fields() as $field) {
             $kept = LeadMergeFields::raw($primary, $field);
@@ -813,6 +847,26 @@ class LeadMergeService
         }
 
         return ['set_aside' => $setAside, 'contact_conflicts' => $contactConflicts];
+    }
+
+    /**
+     * A value and its currency belong together: when both leads hold a value
+     * and they differ, the currency follows the value that is kept, so an
+     * amount is never recorded in the other lead's currency.
+     *
+     * @param  array<string, string>  $fieldPicks
+     * @return array<string, string>
+     */
+    private function coupleCurrencyToValue(Lead $primary, Lead $duplicate, array $fieldPicks): array
+    {
+        $keptValue = LeadMergeFields::raw($primary, 'value');
+        $otherValue = LeadMergeFields::raw($duplicate, 'value');
+
+        if ($keptValue !== null && $otherValue !== null && $keptValue !== $otherValue) {
+            $fieldPicks['currency_id'] = ($fieldPicks['value'] ?? 'primary') === 'duplicate' ? 'duplicate' : 'primary';
+        }
+
+        return $fieldPicks;
     }
 
     /** Copy the stored value as is, so enum/date casts are not round-tripped. */

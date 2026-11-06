@@ -146,7 +146,12 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
         .map((g) => ({ ...g, rows: view === "all" ? g.rows : g.rows.filter(isDifference) }))
         .filter((g) => g.rows.length > 0);
 
-    const pickFor = (row: LeadMergeFieldRow): LeadMergeSide => picks[row.key] ?? row.default_pick;
+    const valueRow = (data?.field_groups ?? []).flatMap((g) => g.rows).find((r) => r.key === "value");
+    const pickFor = (row: LeadMergeFieldRow): LeadMergeSide =>
+        // The currency follows whichever value is kept.
+        row.hint === "follows_value" && valueRow
+            ? picks[valueRow.key] ?? valueRow.default_pick
+            : picks[row.key] ?? row.default_pick;
 
     const swap = () => {
         setKeptId(otherId);
@@ -212,6 +217,7 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
         }
         if (row.hint === "higher_score" && side === row.default_pick) return t("pages.lead_merge.hint_higher_score");
         if (row.hint === "touch_history" && side === pickFor(row)) return t("pages.lead_merge.hint_touch_history");
+        if (row.hint === "follows_value" && side === pickFor(row)) return t("pages.lead_merge.hint_follows_value");
         return null;
     };
 
@@ -227,6 +233,10 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
                 </span>
             </>
         );
+
+        if (row.state === "choose" && row.hint === "follows_value") {
+            return <div className={`lm-opt${pickFor(row) === side ? " is-on" : ""}`}>{content}</div>;
+        }
 
         if (row.state === "choose") {
             const on = pickFor(row) === side;

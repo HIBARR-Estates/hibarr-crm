@@ -2591,6 +2591,7 @@ return [
         'hint_engagement' => 'Zusammengeführt: ein Ja bei einem der Leads bleibt erhalten',
         'hint_latest_date' => 'Das spätere Datum gilt',
         'hint_referrer_locked' => 'Der Empfehlende kann nach dem Setzen nicht geändert werden; der des behaltenen Leads bleibt',
+        'hint_follows_value' => 'Richtet sich nach dem behaltenen Wert',
         'hint_touch_history' => 'Bleibt der erste Kontakt · der andere kommt in den Kontaktverlauf',
         'row_languages' => 'Sprachen',
         'row_categories' => 'Kategorien',
