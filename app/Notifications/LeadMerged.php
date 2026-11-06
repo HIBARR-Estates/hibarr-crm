@@ -39,8 +39,8 @@ class LeadMerged extends BaseNotification
         $this->mergedById = $mergedBy?->id;
         $this->mergedByName = trim((string) ($mergedBy?->name ?? '')) ?: __('email.leadMerged.unknownActor');
         $this->keptOwnerId = $kept->lead_owner !== null ? (int) $kept->lead_owner : null;
-        // Not through the leadOwner relation: its ActiveScope would drop a
-        // deactivated owner's name from the notice.
+        // A deactivated owner is still named (leadOwner() also lifts
+        // ActiveScope; looked up directly so this never depends on that).
         $this->keptOwnerName = $this->keptOwnerId !== null
             ? User::withoutGlobalScope(ActiveScope::class)->whereKey($this->keptOwnerId)->value('name')
             : null;
