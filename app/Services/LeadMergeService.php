@@ -304,7 +304,11 @@ class LeadMergeService
                     if ($row['state'] === 'choose' && in_array($field, LeadMergeFields::ALTERNATE_CONTACT_FIELDS, true)) {
                         $row['hint'] = 'kept_as_alternate';
                     }
-                    if ($row['state'] === 'choose' && $field === 'currency_id' && $this->valueDiffers($primary, $duplicate)) {
+                    $valueSource = $field === 'currency_id' ? $this->valueSource($primary, $duplicate) : null;
+                    if ($valueSource !== null && $row['state'] !== 'same') {
+                        // Not a choice of its own: it follows the value row.
+                        $row['state'] = 'choose';
+                        $row['default_pick'] = $valueSource;
                         $row['hint'] = 'follows_value';
                     }
                     if ($row['state'] === 'choose' && in_array($field, LeadMergeFields::LOCKED_FIELDS, true)) {
@@ -323,12 +327,34 @@ class LeadMergeService
         return array_values(array_filter($groups, fn ($g) => $g['rows'] !== []));
     }
 
-    private function valueDiffers(Lead $primary, Lead $duplicate): bool
+    /**
+     * Whose value the kept lead ends up with: "primary", "duplicate", or null
+     * when neither lead has one or both hold the same value (then the
+     * currency is an ordinary field). The currency always comes from that
+     * same lead, so an amount is never recorded in the other lead's currency.
+     *
+     * @param  array<string, string>  $fieldPicks
+     */
+    private function valueSource(Lead $primary, Lead $duplicate, array $fieldPicks = []): ?string
     {
+        if (! LeadMergeFields::hasLeadColumn('value') || ! LeadMergeFields::hasLeadColumn('currency_id')) {
+            return null;
+        }
+
         $kept = LeadMergeFields::raw($primary, 'value');
         $other = LeadMergeFields::raw($duplicate, 'value');
 
-        return $kept !== null && $other !== null && $kept !== $other;
+        if ($kept === $other) {
+            return null;
+        }
+        if ($kept === null) {
+            return 'duplicate';
+        }
+        if ($other === null) {
+            return 'primary';
+        }
+
+        return ($fieldPicks['value'] ?? 'primary') === 'duplicate' ? 'duplicate' : 'primary';
     }
 
     /**
@@ -806,11 +832,34 @@ class LeadMergeService
     {
         $setAside = [];
         $contactConflicts = [];
-        $fieldPicks = $this->coupleCurrencyToValue($primary, $duplicate, $fieldPicks);
+        // Decided before any value is copied, from the leads as they are.
+        $valueSource = $this->valueSource($primary, $duplicate, $fieldPicks);
 
         foreach (LeadMergeFields::fields() as $field) {
             $kept = LeadMergeFields::raw($primary, $field);
             $other = LeadMergeFields::raw($duplicate, $field);
+
+            if ($field === 'currency_id' && $valueSource !== null) {
+                // The currency comes from the lead whose value is kept, even
+                // when that lead has none (no amount is relabelled).
+                if ($valueSource === 'duplicate' && $kept !== $other) {
+                    if ($kept !== null) {
+                        $setAside[] = [
+                            'label' => LeadMergeFields::LABELS[$field],
+                            'set_aside' => (string) LeadMergeFields::display($primary, $field),
+                            'kept' => (string) (LeadMergeFields::display($duplicate, $field) ?? '—'),
+                        ];
+                    }
+                    $this->copyRawAttribute($primary, $duplicate, $field);
+                } elseif ($valueSource === 'primary' && $kept !== null && $other !== null && $kept !== $other) {
+                    $setAside[] = [
+                        'label' => LeadMergeFields::LABELS[$field],
+                        'set_aside' => (string) LeadMergeFields::display($duplicate, $field),
+                        'kept' => (string) LeadMergeFields::display($primary, $field),
+                    ];
+                }
+                continue;
+            }
 
             if ($other === null || $kept === $other) {
                 continue;
@@ -847,26 +896,6 @@ class LeadMergeService
         }
 
         return ['set_aside' => $setAside, 'contact_conflicts' => $contactConflicts];
-    }
-
-    /**
-     * A value and its currency belong together: when both leads hold a value
-     * and they differ, the currency follows the value that is kept, so an
-     * amount is never recorded in the other lead's currency.
-     *
-     * @param  array<string, string>  $fieldPicks
-     * @return array<string, string>
-     */
-    private function coupleCurrencyToValue(Lead $primary, Lead $duplicate, array $fieldPicks): array
-    {
-        $keptValue = LeadMergeFields::raw($primary, 'value');
-        $otherValue = LeadMergeFields::raw($duplicate, 'value');
-
-        if ($keptValue !== null && $otherValue !== null && $keptValue !== $otherValue) {
-            $fieldPicks['currency_id'] = ($fieldPicks['value'] ?? 'primary') === 'duplicate' ? 'duplicate' : 'primary';
-        }
-
-        return $fieldPicks;
     }
 
     /** Copy the stored value as is, so enum/date casts are not round-tripped. */
@@ -1282,8 +1311,11 @@ class LeadMergeService
                             // Date it as the duplicate's first touch, or at least
                             // before the kept lead's history, so it reads first.
                             $earliestKept = LeadUtmTouch::query()->where('lead_id', $primary->id)->min('created_at');
-                            $touchedAt = $duplicateMarketing->created_at
-                                ?? ($earliestKept ? \Illuminate\Support\Carbon::parse($earliestKept)->subSecond() : null);
+                            $beforeKept = $earliestKept ? \Illuminate\Support\Carbon::parse($earliestKept)->subSecond() : null;
+                            $touchedAt = $duplicateMarketing->created_at;
+                            if ($beforeKept && (! $touchedAt || $touchedAt->gte($beforeKept))) {
+                                $touchedAt = $beforeKept;
+                            }
                             if ($touchedAt) {
                                 $touch->created_at = $touchedAt;
                             }

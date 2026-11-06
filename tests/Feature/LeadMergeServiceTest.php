@@ -441,6 +441,65 @@ class LeadMergeServiceTest extends TestCase
         $this->assertSame(2, (int) $primary->currency_id);
     }
 
+    public function test_a_filled_value_brings_its_own_currency(): void
+    {
+        // Kept lead: currency but no value. Duplicate: 5000 in currency 2.
+        $primaryId = $this->insertLead(['client_name' => 'Primary', 'currency_id' => 1]);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate', 'value' => 5000, 'currency_id' => 2]);
+
+        $review = $this->service->buildReview(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId));
+        $currency = collect($review['field_groups'])->flatMap(fn ($g) => $g['rows'])->keyBy('key')['currency_id'];
+        $this->assertSame('follows_value', $currency['hint']);
+        $this->assertSame('duplicate', $currency['default_pick']);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $primary = Lead::findOrFail($primaryId);
+        $this->assertEquals(5000, (float) $primary->value);
+        $this->assertSame(2, (int) $primary->currency_id);
+    }
+
+    public function test_a_kept_value_is_not_relabelled_with_the_duplicates_currency(): void
+    {
+        // Kept lead: value but no currency. Duplicate: currency only.
+        $primaryId = $this->insertLead(['client_name' => 'Primary', 'value' => 1000]);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate', 'currency_id' => 2]);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $primary = Lead::findOrFail($primaryId);
+        $this->assertEquals(1000, (float) $primary->value);
+        $this->assertNull($primary->currency_id);
+    }
+
+    public function test_backfilled_first_touch_is_dated_before_the_kept_history(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate']);
+        // The duplicate was imported recently: its marketing row is newer than
+        // the kept lead's history, and it has no touch rows of its own.
+        DB::table('lead_marketing')->insert([
+            ['lead_id' => $primaryId, 'utm_source' => 'google', 'created_at' => now()->subMonths(3), 'updated_at' => now()],
+            ['lead_id' => $duplicateId, 'utm_source' => 'facebook', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        DB::table('lead_utm_touches')->insert([
+            ['lead_id' => $primaryId, 'utm_source' => 'google', 'is_first_touch' => true, 'created_at' => now()->subMonths(3), 'updated_at' => now()],
+            ['lead_id' => $primaryId, 'utm_source' => 'newsletter', 'is_first_touch' => false, 'created_at' => now()->subMonth(), 'updated_at' => now()],
+        ]);
+
+        $this->service->merge(
+            Lead::findOrFail($primaryId),
+            Lead::findOrFail($duplicateId),
+            [],
+            1,
+            ['marketing:first_touch' => 'duplicate'],
+        );
+
+        $touches = LeadUtmTouch::query()->where('lead_id', $primaryId)->orderBy('created_at')->get();
+        $this->assertSame('facebook', $touches->first()->utm_source);
+        $this->assertTrue($touches->first()->is_first_touch);
+    }
+
     public function test_first_touch_default_uses_the_touch_history_date(): void
     {
         $primaryId = $this->insertLead(['client_name' => 'Primary']);
