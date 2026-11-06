@@ -54,9 +54,10 @@ The model is never told who the lead is (see Privacy below), yet a summary that 
 
 | Token | Becomes |
 |-------|---------|
-| `{{lead_first_name}}` | the first word of the lead's `client_name` (the default; `{{lead_first_name}} wants …`) |
+| `{{lead_first_name}}` | the first word of the lead's `client_name` (the default) |
 | `{{lead_full_name}}` | the whole `client_name` (sparingly) |
 
+- **The name appears in the header only.** The prompt has the model name the lead once, in `status_line`; the summary, facts and next step say "they". The card can still fill a token anywhere, so older summaries that name the lead in the paragraph render as before.
 - **Substitution happens in the card, after translation.** Every part that shows AI text does `personalize(td(text))`. `td()` sends text to the dynamic-translation service (which already protects `{{…}}` tokens), so a name substituted before `td()` would be sent to it. `EntityAiSummaryCard` takes the name as `leadName` (both lead pages pass `lead.client_name`) and provides it through `SummaryPersonalizationProvider`; `usePersonalize()` is what the prose, facts, next step and header call.
 - **The stored summary holds tokens, never the name**, so renaming a lead needs no regeneration, and the name is not in `entity_ai_summaries`.
 - **A missing name never shows raw braces.** The token becomes "the lead" ("The lead" at the start of a sentence); a made-up `{{…}}` token is dropped. Names are stripped of `**`, `==` and `{{`/`}}` before use, so a name cannot add a highlight or a token.
