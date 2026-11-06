@@ -1329,6 +1329,20 @@ class LeadMergeService
                     'set_aside' => $pick === 'duplicate' ? $keptLabel : $otherLabel,
                     'kept' => $pick === 'duplicate' ? $otherLabel : $keptLabel,
                 ];
+            } elseif ($this->hasUtm($primaryMarketing) && $this->tableHas('lead_utm_touches')) {
+                // Same campaign on both leads: the values don't change, but the
+                // earlier capture stays the first touch in the history.
+                $keptAt = $this->firstTouchAt($primaryMarketing);
+                $otherAt = $this->firstTouchAt($duplicateMarketing);
+                $duplicateHasFirstRow = LeadUtmTouch::query()
+                    ->where('lead_id', $duplicate->id)
+                    ->where('is_first_touch', true)
+                    ->exists();
+
+                if ($duplicateHasFirstRow && $keptAt && $otherAt && $otherAt->lt($keptAt)) {
+                    LeadUtmTouch::query()->where('lead_id', $primary->id)->update(['is_first_touch' => false]);
+                    $duplicateIsFirstTouch = true;
+                }
             }
 
             foreach (self::MARKETING_FLAGS as $flag) {

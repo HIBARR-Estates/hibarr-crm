@@ -168,11 +168,10 @@ final class LeadMergeFields
     private static function leadColumns(): array
     {
         if (self::$columns === null) {
-            try {
-                self::$columns = array_fill_keys(Schema::getColumnListing('leads'), true);
-            } catch (Throwable) {
-                self::$columns = [];
-            }
+            // Not swallowed: an empty list would merge no fields while still
+            // moving records and archiving the duplicate. A failure here
+            // aborts the review or rolls the merge back instead.
+            self::$columns = array_fill_keys(Schema::getColumnListing('leads'), true);
         }
 
         return self::$columns;
@@ -216,7 +215,10 @@ final class LeadMergeFields
         try {
             $label = match ($field) {
                 'lead_owner', 'added_by', 'client_id' => User::withoutGlobalScope(ActiveScope::class)->whereKey($id)->value('name'),
-                'agent_id', 'referred_by_agent_id' => LeadAgent::query()->find($id)?->user?->name,
+                // The agent's user may be deactivated; still show their name.
+                'agent_id', 'referred_by_agent_id' => User::withoutGlobalScope(ActiveScope::class)
+                    ->whereKey(LeadAgent::query()->whereKey($id)->value('user_id'))
+                    ->value('name'),
                 'source_id' => LeadSource::withoutGlobalScopes()->whereKey($id)->value('type'),
                 'status_id' => LeadStatus::withoutGlobalScopes()->whereKey($id)->value('type'),
                 'lead_lifecycle_status_id' => LeadLifecycleStatus::withoutGlobalScopes()->whereKey($id)->value('label'),

@@ -500,6 +500,28 @@ class LeadMergeServiceTest extends TestCase
         $this->assertTrue($touches->first()->is_first_touch);
     }
 
+    public function test_same_campaign_keeps_the_earlier_capture_as_first_touch(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate']);
+        DB::table('lead_marketing')->insert([
+            ['lead_id' => $primaryId, 'utm_source' => 'google', 'utm_campaign' => 'spring', 'created_at' => now(), 'updated_at' => now()],
+            ['lead_id' => $duplicateId, 'utm_source' => 'google', 'utm_campaign' => 'spring', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        $keptTouch = DB::table('lead_utm_touches')->insertGetId(
+            ['lead_id' => $primaryId, 'utm_source' => 'google', 'is_first_touch' => true, 'created_at' => now()->subMonth(), 'updated_at' => now()],
+        );
+        $earlierTouch = DB::table('lead_utm_touches')->insertGetId(
+            ['lead_id' => $duplicateId, 'utm_source' => 'google', 'is_first_touch' => true, 'created_at' => now()->subMonths(4), 'updated_at' => now()],
+        );
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $this->assertTrue((bool) DB::table('lead_utm_touches')->where('id', $earlierTouch)->value('is_first_touch'));
+        $this->assertFalse((bool) DB::table('lead_utm_touches')->where('id', $keptTouch)->value('is_first_touch'));
+        $this->assertSame(1, DB::table('lead_utm_touches')->where('lead_id', $primaryId)->where('is_first_touch', true)->count());
+    }
+
     public function test_first_touch_default_uses_the_touch_history_date(): void
     {
         $primaryId = $this->insertLead(['client_name' => 'Primary']);
