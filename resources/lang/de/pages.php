@@ -2491,6 +2491,14 @@ return [
     ],
 
     'calls' => [
+        'bridge_settings' => 'Call-Bridge-Einstellungen',
+        'col_when' => 'Wann',
+        'col_call' => 'Anruf',
+        'col_entity' => 'Lead oder Deal',
+        'col_duration' => 'Dauer',
+        'col_recording' => 'Aufnahme',
+        'recording_expired_short' => 'Abgelaufen',
+        'recording_locked' => 'Eingeschränkt',
         'agent' => 'Mitarbeiter',
         'all_agents' => 'Alle Mitarbeiter',
         'all_calls' => 'Alle Anrufe',

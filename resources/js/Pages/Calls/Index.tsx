@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import "@/Components/Redesign/redesign.css";
-import CallLogItem from "@/Components/Redesign/calls/CallLogItem";
+import CallLogTable from "@/Components/Redesign/calls/CallLogTable";
 import CallSummaryTiles from "@/Components/Redesign/calls/CallSummaryTiles";
 import useCallLog from "@/Components/Redesign/calls/useCallLog";
 import type { CallLogFilters, CallLogSummary, CallOutcome } from "@/Components/Redesign/calls/types";
@@ -13,6 +13,9 @@ import Pagination from "@/Components/Redesign/primitives/Pagination";
 import Switch from "@/Components/Redesign/primitives/Switch";
 import { REDESIGN_FONT_STACK, REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import useTranslation from "@/Hooks/useTranslation";
+import { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import { Link, usePage } from "@inertiajs/react";
 
 interface CallsPageProps extends PageProps {
     pageTitle: string;
@@ -28,6 +31,8 @@ interface CallsPageProps extends PageProps {
  */
 export default function CallsIndex({ agents, summary }: CallsPageProps) {
     const { t } = useTranslation();
+    const { props } = usePage<CallsPageProps>();
+    const canOpenBridgeSettings = canMakeSoftphoneCalls(props.auth?.user, props.auth?.permissions);
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [direction, setDirection] = useState<"" | "inbound" | "outbound">("");
@@ -97,7 +102,22 @@ export default function CallsIndex({ agents, summary }: CallsPageProps) {
             breadcrumbs={[{ name: t("app.menu.calls") }]}
             mainContentClassName="p-0"
         >
-            <EntityListHeader title={t("app.menu.calls")} subtitle={t("pages.calls.page_subtitle")} sticky />
+            <EntityListHeader
+                title={t("app.menu.calls")}
+                subtitle={t("pages.calls.page_subtitle")}
+                sticky
+                actions={
+                    // Call Bridge settings (lines, routing, recordings) opens for
+                    // admins and agents who can make calls; a call manager without
+                    // call rights would be refused there, so no link for them.
+                    canOpenBridgeSettings ? (
+                        <Link href={route("call-bridge.index")} className="dr-btn dr-btn-ghost">
+                            <Icon name="external-link" size={13} />
+                            {t("pages.calls.bridge_settings")}
+                        </Link>
+                    ) : undefined
+                }
+            />
 
             <div
                 style={{
@@ -225,7 +245,7 @@ export default function CallsIndex({ agents, summary }: CallsPageProps) {
                             />
                         </div>
                     ) : (
-                        rows.map((row) => <CallLogItem key={row.id} row={row} showEntity />)
+                        <CallLogTable rows={rows} />
                     )}
 
                     {total > 0 && (
