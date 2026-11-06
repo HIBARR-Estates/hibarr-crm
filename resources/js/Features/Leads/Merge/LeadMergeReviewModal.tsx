@@ -210,7 +210,8 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
         if (row.state === "fill" && side === "duplicate") return t("pages.lead_merge.hint_filled");
         if (row.state === "locked" && side === "primary") return t("pages.lead_merge.hint_referrer_locked");
         if (row.state !== "choose") return null;
-        if (row.hint === "kept_as_alternate" && side === "duplicate") {
+        // The value that isn't picked stays on the lead as an extra contact method.
+        if (row.hint === "kept_as_alternate" && side !== pickFor(row)) {
             return row.key === "client_email"
                 ? t("pages.lead_merge.hint_alternate_email")
                 : t("pages.lead_merge.hint_alternate_phone");
