@@ -21,7 +21,11 @@ class MergeLeadRequest extends CoreRequest
             'duplicate_id' => [
                 'required',
                 'integer',
-                Rule::exists('leads', 'id')->whereNull('deleted_at'),
+                // Same company as the lead being kept (the controller and
+                // LeadMergeService::assertCanMerge check this again).
+                Rule::exists('leads', 'id')
+                    ->whereNull('deleted_at')
+                    ->where('company_id', company()?->id),
             ],
             'lead_owner' => ['nullable', 'integer'],
             'added_by' => ['nullable', 'integer'],

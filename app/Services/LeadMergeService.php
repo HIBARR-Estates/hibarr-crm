@@ -714,7 +714,7 @@ class LeadMergeService
             'calls' => $count('call_recordings', 'entity_id', fn ($q) => $q->whereIn('entity_type', ['lead', Lead::class])),
             'files' => $count('lead_contact_files'),
             'exposes' => $count('deal_exposes') + $count('expose_snapshots'),
-            'proposals' => $count('proposals'),
+            'proposals' => $count('proposals') + $count('proposal_templates'),
             // Only what actually moves: a consent or product the kept lead
             // already has is dropped from the duplicate, not moved.
             'consents' => $count('purpose_consent_leads', 'lead_id', $notOnKeptLead('purpose_consent_leads', 'purpose_consent_id')),

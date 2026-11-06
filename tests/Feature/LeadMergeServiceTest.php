@@ -461,6 +461,25 @@ class LeadMergeServiceTest extends TestCase
         $this->assertSame('primary', $row['default_pick']);
     }
 
+    public function test_merge_refuses_leads_from_different_companies(): void
+    {
+        DB::table('companies')->insert(['id' => 2, 'company_name' => 'Other Co', 'created_at' => now(), 'updated_at' => now()]);
+        $primaryId = $this->insertLead(['client_name' => 'Ours']);
+        $otherCompanyLeadId = $this->insertLead(['client_name' => 'Theirs', 'company_id' => 2]);
+        DB::table('lead_notes')->insert(['lead_id' => $otherCompanyLeadId, 'title' => 'n', 'details' => 'd', 'type' => 0]);
+
+        try {
+            $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($otherCompanyLeadId), [], 1);
+            $this->fail('A merge across companies must be refused.');
+        } catch (\InvalidArgumentException $e) {
+            $this->assertSame('Leads must belong to the same company.', $e->getMessage());
+        }
+
+        // Nothing moved and the other company's lead is untouched.
+        $this->assertSame(1, DB::table('lead_notes')->where('lead_id', $otherCompanyLeadId)->count());
+        $this->assertNull(DB::table('leads')->where('id', $otherCompanyLeadId)->value('deleted_at'));
+    }
+
     public function test_build_review_defaults_first_touch_to_the_earlier_one(): void
     {
         $primaryId = $this->insertLead(['client_name' => 'Primary']);
