@@ -15,6 +15,8 @@ use App\Models\LeadNote;
 use App\Models\LeadQualification;
 use App\Models\Taskable;
 use App\Models\User;
+use App\Notifications\LeadMerged;
+use App\Support\LeadMergeContext;
 use App\Scopes\ActiveScope;
 use App\Traits\RecordsCrmEvents;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +45,19 @@ class LeadMergeService
         'client_whatsapp',
         'client_telegram',
         'client_instagram',
+    ];
+
+    /** Readable names for the merge note. @var array<string, string> */
+    private const FIELD_LABELS = [
+        'client_email' => 'Email',
+        'mobile' => 'Mobile',
+        'cell' => 'Phone',
+        'office' => 'Office phone',
+        'company_name' => 'Company',
+        'address' => 'Address',
+        'client_whatsapp' => 'WhatsApp',
+        'client_telegram' => 'Telegram',
+        'client_instagram' => 'Instagram',
     ];
 
     /** @var list<string> */
@@ -74,6 +89,31 @@ class LeadMergeService
     ): Lead {
         $this->assertCanMerge($primary, $duplicate);
 
+        // The duplicate's owner before the merge, for the "Lead merged" notice.
+        $duplicateOwnerId = $duplicate->lead_owner !== null ? (int) $duplicate->lead_owner : null;
+
+        // Both leads are marked for the whole merge so the Lead observer skips
+        // automations, the "Lead removed from pipeline" notice and the separate
+        // owner-assigned email for the merge's own saves and soft delete.
+        $merged = LeadMergeContext::run(
+            [(int) $primary->id, (int) $duplicate->id],
+            fn () => $this->mergeInTransaction($primary, $duplicate, $ownershipFieldPicks, $actorUserId),
+        );
+
+        $this->notifyOwners($merged, $duplicate->id, $duplicateOwnerId, $actorUserId);
+
+        return $merged;
+    }
+
+    /**
+     * @param  array<string, int|null>  $ownershipFieldPicks
+     */
+    private function mergeInTransaction(
+        Lead $primary,
+        Lead $duplicate,
+        array $ownershipFieldPicks,
+        ?int $actorUserId,
+    ): Lead {
         return DB::transaction(function () use ($primary, $duplicate, $ownershipFieldPicks, $actorUserId) {
             $primary = Lead::query()->lockForUpdate()->findOrFail($primary->id);
             $duplicate = Lead::query()->lockForUpdate()->findOrFail($duplicate->id);
@@ -126,6 +166,42 @@ class LeadMergeService
 
             return $primary->fresh(['contactMethods']);
         });
+    }
+
+    /**
+     * Tell the owners of both leads (once each, never the person who merged)
+     * what happened: which lead the duplicate went into, and who owns it now.
+     * Sent after the transaction commits; a failure here never undoes a merge.
+     */
+    private function notifyOwners(Lead $kept, int $duplicateId, ?int $duplicateOwnerId, ?int $actorUserId): void
+    {
+        try {
+            $duplicate = Lead::withTrashed()->find($duplicateId);
+            if ($duplicate === null) {
+                return;
+            }
+
+            $kept->loadMissing(['leadOwner', 'company']);
+            $ownerIds = array_values(array_unique(array_filter([
+                $duplicateOwnerId,
+                $kept->lead_owner !== null ? (int) $kept->lead_owner : null,
+            ], fn ($id) => $id !== null && $id !== $actorUserId)));
+
+            if ($ownerIds === []) {
+                return;
+            }
+
+            $recipients = User::query()->whereIn('id', $ownerIds)->get();
+            $actor = $actorUserId !== null ? User::query()->find($actorUserId) : null;
+
+            \Illuminate\Support\Facades\Notification::send($recipients, new LeadMerged($kept, $duplicate, $actor));
+        } catch (Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to notify owners after lead merge', [
+                'kept_lead_id' => $kept->id,
+                'duplicate_lead_id' => $duplicateId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -372,33 +448,52 @@ class LeadMergeService
             return;
         }
 
-        $lines = [
-            'Merged from lead #' . $duplicate->id . ' (' . ($duplicate->client_name ?? 'unnamed') . ').',
-            'Kept primary values; discarded duplicate values below:',
-            '',
-        ];
+        $actorName = $actorUserId !== null
+            ? (User::withoutGlobalScope(ActiveScope::class)->whereKey($actorUserId)->value('name') ?? null)
+            : null;
+
+        $intro = sprintf(
+            'This lead was merged with the duplicate record <strong>%s</strong> (lead #%d) on %s%s.',
+            e($duplicate->client_name ?: 'Unnamed lead'),
+            $duplicate->id,
+            e(now()->format('j F Y')),
+            $actorName ? ' by '.e($actorName) : '',
+        );
+
+        $items = [];
 
         foreach ($contactConflicts as $field => $values) {
-            $lines[] = sprintf(
-                '- %s: kept "%s"; discarded "%s"',
-                $field,
-                $this->stringifyForNote($values['primary']),
-                $this->stringifyForNote($values['duplicate']),
+            $items[] = sprintf(
+                '<li><strong>%s:</strong> %s <em>(this lead keeps %s)</em></li>',
+                e(self::FIELD_LABELS[$field] ?? Str::headline($field)),
+                e($this->stringifyForNote($values['duplicate'])),
+                e($this->stringifyForNote($values['primary'])),
             );
         }
 
+        $customLabels = $customFieldConflicts === []
+            ? collect()
+            : DB::table('custom_fields')
+                ->whereIn('id', array_column($customFieldConflicts, 'custom_field_id'))
+                ->pluck('label', 'id');
+
         foreach ($customFieldConflicts as $conflict) {
-            $lines[] = sprintf(
-                '- custom_field_%d: discarded "%s"',
-                $conflict['custom_field_id'],
-                $this->stringifyForNote($conflict['value']),
+            $items[] = sprintf(
+                '<li><strong>%s:</strong> %s</li>',
+                e($customLabels[$conflict['custom_field_id']] ?? 'Custom field #'.$conflict['custom_field_id']),
+                e($this->stringifyForNote($conflict['value'])),
             );
         }
+
+        $html = '<p>'.$intro.'</p>'
+            .'<p>Where both records held different information, the details already on this lead were kept. '
+            .'The duplicate record held the following values, recorded here for reference:</p>'
+            .'<ul>'.implode('', $items).'</ul>';
 
         $note = new LeadNote();
         $note->lead_id = $primary->id;
-        $note->title = 'Merged lead — previous contact details';
-        $note->details = trim_editor(implode("\n", $lines));
+        $note->title = 'Merged record: details from the duplicate lead';
+        $note->details = trim_editor($html);
         $note->type = 0;
 
         if ($actorUserId !== null) {

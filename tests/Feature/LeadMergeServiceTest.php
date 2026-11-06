@@ -6,12 +6,17 @@ use App\Models\Lead;
 use App\Models\LeadMarketing;
 use App\Models\LeadUtmTouch;
 use App\Models\LeadNote;
+use App\Models\User;
+use App\Notifications\LeadMerged;
+use App\Services\FeatureFlagService;
+use App\Services\LeadAutomationService;
 use App\Services\CrmEventService;
 use App\Services\LeadDuplicateDetectionService;
 use App\Services\LeadMergeService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
 use Tests\TestCase;
@@ -23,6 +28,9 @@ class LeadMergeServiceTest extends TestCase
     private LeadMergeService $service;
 
     private array $recordedCrmEvents = [];
+
+    /** @var list<array{0: int, 1: string|null}> */
+    private array $automationRuns = [];
 
     protected function setUp(): void
     {
@@ -38,6 +46,22 @@ class LeadMergeServiceTest extends TestCase
         $this->createMinimalSchema();
         $this->seedCompany();
         $this->bindCrmEventMock();
+
+        Notification::fake();
+
+        // Feature flags read by notifications stay off; no flag storage here.
+        $flags = Mockery::mock(FeatureFlagService::class);
+        $flags->shouldReceive('isEnabled')->andReturn(false);
+        $flags->shouldReceive('all')->andReturn([]);
+        $this->app->instance(FeatureFlagService::class, $flags);
+
+        // Records every lead the observer runs automations for.
+        $this->automationRuns = [];
+        $automations = Mockery::mock(LeadAutomationService::class);
+        $automations->shouldReceive('process')->andReturnUsing(function (Lead $lead, ?string $trigger = null) {
+            $this->automationRuns[] = [(int) $lead->id, $trigger];
+        });
+        $this->app->instance(LeadAutomationService::class, $automations);
 
         $this->service = app(LeadMergeService::class);
     }
@@ -226,9 +250,9 @@ class LeadMergeServiceTest extends TestCase
         $this->assertSame('keep@example.com', $primary->client_email);
         $this->assertSame('111', $primary->mobile);
 
-        $note = LeadNote::query()->where('lead_id', $primaryId)->where('title', 'Merged lead — previous contact details')->first();
+        $note = LeadNote::query()->where('lead_id', $primaryId)->where('title', 'Merged record: details from the duplicate lead')->first();
         $this->assertNotNull($note);
-        $this->assertStringContainsString('client_email', (string) $note->details);
+        $this->assertStringContainsString('<strong>Email:</strong>', (string) $note->details);
         $this->assertStringContainsString('discard@example.com', (string) $note->details);
 
         $emails = DB::table('lead_contact_methods')->where('lead_id', $primaryId)->where('type', 'email')->get()->keyBy('normalized');
@@ -426,10 +450,80 @@ class LeadMergeServiceTest extends TestCase
             ->value('value');
         $this->assertSame('Low', $leftOnDuplicate);
 
-        $note = LeadNote::query()->where('lead_id', $primaryId)->where('title', 'Merged lead — previous contact details')->first();
+        $note = LeadNote::query()->where('lead_id', $primaryId)->where('title', 'Merged record: details from the duplicate lead')->first();
         $this->assertNotNull($note);
-        $this->assertStringContainsString('custom_field_2', (string) $note->details);
+        $this->assertStringContainsString('<strong>Budget:</strong>', (string) $note->details);
         $this->assertStringContainsString('Low', (string) $note->details);
+    }
+
+    public function test_merge_notifies_both_owners_but_not_the_person_who_merged(): void
+    {
+        $this->insertUsers([10 => 'Sofia M.', 11 => 'Jonas R.', 77 => 'Admin']);
+        $primaryId = $this->insertLead(['client_name' => 'Marta Keller', 'client_email' => 'a@example.com', 'lead_owner' => 10]);
+        $duplicateId = $this->insertLead(['client_name' => 'Marta Keller', 'client_email' => 'b@example.com', 'lead_owner' => 11]);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 77);
+
+        Notification::assertSentTo(User::query()->find(10), LeadMerged::class);
+        Notification::assertSentTo(User::query()->find(11), LeadMerged::class);
+        Notification::assertNotSentTo(User::query()->find(77), LeadMerged::class);
+    }
+
+    public function test_merge_does_not_notify_an_owner_who_merged_the_leads_themselves(): void
+    {
+        $this->insertUsers([10 => 'Sofia M.']);
+        $primaryId = $this->insertLead(['client_name' => 'Primary', 'client_email' => 'a@example.com', 'lead_owner' => 10]);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate', 'client_email' => 'b@example.com', 'lead_owner' => 10]);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 10);
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_merge_with_no_owners_notifies_nobody(): void
+    {
+        $this->insertUsers([77 => 'Admin']);
+        $primaryId = $this->insertLead(['client_name' => 'Primary', 'client_email' => 'a@example.com']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate', 'client_email' => 'b@example.com']);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 77);
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_merge_runs_no_lead_automations_for_either_lead(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary', 'client_email' => 'a@example.com']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate', 'client_email' => 'b@example.com', 'mobile' => '+49 170 1']);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $this->assertSame([], $this->automationRuns, 'A merge is not an edit by a person: no automations.');
+
+        // Ordinary edits after the merge still run them.
+        $primary = Lead::findOrFail($primaryId);
+        $primary->company_name = 'Acme';
+        $primary->save();
+        $this->assertSame([[$primaryId, 'lead_updated']], $this->automationRuns);
+    }
+
+    /**
+     * @param  array<int, string>  $users  id => name
+     */
+    private function insertUsers(array $users): void
+    {
+        foreach ($users as $id => $name) {
+            DB::table('users')->insert([
+                'id' => $id,
+                'company_id' => $this->companyId,
+                'name' => $name,
+                'email' => 'user'.$id.'@example.com',
+                'status' => 'active',
+                'email_notifications' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     public function test_rolls_back_all_changes_when_merge_fails(): void
@@ -728,6 +822,7 @@ class LeadMergeServiceTest extends TestCase
         Schema::dropIfExists('deals');
         Schema::dropIfExists('leads');
         Schema::dropIfExists('users');
+        Schema::dropIfExists('email_notification_settings');
         Schema::dropIfExists('companies');
     }
 
@@ -741,7 +836,19 @@ class LeadMergeServiceTest extends TestCase
 
         Schema::create('users', function (Blueprint $table) {
             $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
             $table->string('name')->nullable();
+            $table->string('email')->nullable();
+            $table->string('status')->default('active');
+            $table->boolean('email_notifications')->default(true);
+            $table->timestamps();
+        });
+
+        Schema::create('email_notification_settings', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('slug');
+            $table->string('send_email')->default('yes');
             $table->timestamps();
         });
 
