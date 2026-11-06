@@ -129,6 +129,8 @@ export type SoftphoneCallFailureCode =
     | "cancelled"
     | "media"
     | "terminated"
+    | "answered_elsewhere"
+    | "disconnected"
     | "unknown";
 
 /**

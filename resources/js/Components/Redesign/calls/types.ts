@@ -1,5 +1,8 @@
+export type CallRecordingState = "playable" | "processing" | "expired" | "restricted" | "none";
+
 /** One call, as App\Services\CallLog\CallLogService serialises it. */
 export interface CallLogRecording {
+    state?: CallRecordingState;
     expired: boolean;
     expires_at: string | null;
     duration_seconds: number | null;

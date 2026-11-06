@@ -125,7 +125,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
             props.customFieldCategories,
         ],
     );
-    const isEditing = !!lead;
+    const isEditing = Boolean(lead?.id);
 
     const customFieldsPath =
         lead?.id != null
