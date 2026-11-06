@@ -526,6 +526,185 @@ class LeadMergeServiceTest extends TestCase
         }
     }
 
+    public function test_merge_applies_field_picks_and_notes_every_value_not_kept(): void
+    {
+        $primaryId = $this->insertLead([
+            'client_name' => 'Marta Keller',
+            'client_email' => 'a@example.com',
+            'city' => 'Berlin',
+            'temperature' => 'warm',
+        ]);
+        $duplicateId = $this->insertLead([
+            'client_name' => 'Marta Keller',
+            'client_email' => 'b@example.com',
+            'city' => 'Kyrenia',
+            'temperature' => 'hot',
+        ]);
+
+        $this->service->merge(
+            Lead::findOrFail($primaryId),
+            Lead::findOrFail($duplicateId),
+            [],
+            1,
+            ['city' => 'duplicate', 'client_email' => 'duplicate'],
+        );
+
+        $primary = Lead::findOrFail($primaryId);
+        $this->assertSame('Kyrenia', $primary->city);
+        $this->assertSame('b@example.com', $primary->client_email);
+        $this->assertSame('warm', $primary->getRawOriginal('temperature'));
+
+        $note = (string) LeadNote::query()->where('lead_id', $primaryId)->value('details');
+        $this->assertStringContainsString('<strong>City:</strong> Berlin', $note);
+        $this->assertStringContainsString('<strong>Temperature:</strong> Hot', $note);
+        $this->assertStringContainsString('<strong>Email:</strong> a@example.com', $note);
+
+        // The kept lead's old email stays on it as an additional email.
+        $emails = DB::table('lead_contact_methods')->where('lead_id', $primaryId)->where('type', 'email')->pluck('is_main', 'normalized');
+        $this->assertTrue((bool) $emails['b@example.com']);
+        $this->assertFalse((bool) $emails['a@example.com']);
+    }
+
+    public function test_merge_fills_empty_fields_and_joins_languages_and_categories(): void
+    {
+        DB::table('lead_category')->insert([['id' => 1, 'category_name' => 'Investor'], ['id' => 2, 'category_name' => 'Relocation']]);
+        $primaryId = $this->insertLead(['client_name' => 'Primary', 'languages' => json_encode(['German', 'English'])]);
+        $duplicateId = $this->insertLead([
+            'client_name' => 'Duplicate',
+            'date_of_birth' => '1979-05-14',
+            'languages' => json_encode(['English', 'Turkish']),
+            'category_id' => 2,
+        ]);
+        DB::table('lead_lead_category')->insert([
+            ['lead_id' => $primaryId, 'lead_category_id' => 1],
+            ['lead_id' => $duplicateId, 'lead_category_id' => 1],
+            ['lead_id' => $duplicateId, 'lead_category_id' => 2],
+        ]);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $primary = Lead::findOrFail($primaryId);
+        $this->assertSame('1979-05-14', $primary->date_of_birth?->format('Y-m-d'));
+        $this->assertSame(['German', 'English', 'Turkish'], $primary->languages);
+        $this->assertSame(2, (int) $primary->category_id);
+        $this->assertEqualsCanonicalizing(
+            [1, 2],
+            DB::table('lead_lead_category')->where('lead_id', $primaryId)->pluck('lead_category_id')->map(fn ($id) => (int) $id)->all(),
+        );
+        $this->assertSame(0, DB::table('lead_lead_category')->where('lead_id', $duplicateId)->count());
+    }
+
+    public function test_merge_combines_marketing_and_keeps_the_higher_lead_score(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate']);
+        DB::table('lead_marketing')->insert([
+            [
+                'lead_id' => $primaryId, 'contact_score' => 62, 'has_registered_for_the_webinar' => true,
+                'has_attended_the_webinar' => false, 'last_webinar_date' => '2026-09-02', 'traffic_source_id' => null,
+                'created_at' => now(), 'updated_at' => now(),
+            ],
+            [
+                'lead_id' => $duplicateId, 'contact_score' => 81, 'has_registered_for_the_webinar' => false,
+                'has_attended_the_webinar' => true, 'last_webinar_date' => '2026-10-28', 'traffic_source_id' => 'facebook',
+                'created_at' => now(), 'updated_at' => now(),
+            ],
+        ]);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $marketing = LeadMarketing::query()->where('lead_id', $primaryId)->firstOrFail();
+        $this->assertSame(81, $marketing->contact_score);
+        $this->assertTrue($marketing->has_registered_for_the_webinar);
+        $this->assertTrue($marketing->has_attended_the_webinar);
+        $this->assertSame('2026-10-28', $marketing->last_webinar_date->format('Y-m-d'));
+        $this->assertSame('facebook', $marketing->traffic_source_id);
+        $this->assertStringContainsString(
+            '<strong>Lead score:</strong> 62',
+            (string) LeadNote::query()->where('lead_id', $primaryId)->value('details'),
+        );
+    }
+
+    public function test_merge_keeps_the_picked_lead_score_over_the_higher_one(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate']);
+        DB::table('lead_marketing')->insert([
+            ['lead_id' => $primaryId, 'contact_score' => 62, 'created_at' => now(), 'updated_at' => now()],
+            ['lead_id' => $duplicateId, 'contact_score' => 81, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $this->service->merge(
+            Lead::findOrFail($primaryId),
+            Lead::findOrFail($duplicateId),
+            [],
+            1,
+            ['marketing:contact_score' => 'primary'],
+        );
+
+        $this->assertSame(62, LeadMarketing::query()->where('lead_id', $primaryId)->value('contact_score'));
+    }
+
+    public function test_merge_moves_files_timeline_recordings_insights_and_consents(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate']);
+
+        DB::table('lead_contact_files')->insert(['lead_id' => $duplicateId]);
+        DB::table('proposals')->insert(['lead_id' => $duplicateId]);
+        DB::table('sally_meeting_insights')->insert(['lead_id' => $duplicateId]);
+        DB::table('crm_events')->insert([
+            ['model_type' => Lead::class, 'model_id' => $duplicateId, 'event_type' => 'call_ended'],
+            ['model_type' => 'App\\Models\\Deal', 'model_id' => $duplicateId, 'event_type' => 'deal_updated'],
+        ]);
+        DB::table('call_recordings')->insert(['entity_type' => 'lead', 'entity_id' => $duplicateId]);
+        DB::table('purpose_consent_leads')->insert([
+            ['lead_id' => $primaryId, 'purpose_consent_id' => 1],
+            ['lead_id' => $duplicateId, 'purpose_consent_id' => 1],
+            ['lead_id' => $duplicateId, 'purpose_consent_id' => 2],
+        ]);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $this->assertSame(1, DB::table('lead_contact_files')->where('lead_id', $primaryId)->count());
+        $this->assertSame(1, DB::table('proposals')->where('lead_id', $primaryId)->count());
+        // Moved before the duplicate's soft delete, so its deleted hook purges nothing.
+        $this->assertSame(1, DB::table('sally_meeting_insights')->where('lead_id', $primaryId)->count());
+        $this->assertSame(1, DB::table('crm_events')->where('model_type', Lead::class)->where('model_id', $primaryId)->count());
+        // Another model's row with the same id is left alone.
+        $this->assertSame(1, DB::table('crm_events')->where('model_type', 'App\\Models\\Deal')->where('model_id', $duplicateId)->count());
+        $this->assertSame(1, DB::table('call_recordings')->where('entity_id', $primaryId)->count());
+        $this->assertEqualsCanonicalizing(
+            [1, 2],
+            DB::table('purpose_consent_leads')->where('lead_id', $primaryId)->pluck('purpose_consent_id')->map(fn ($id) => (int) $id)->all(),
+        );
+        $this->assertSame(0, DB::table('purpose_consent_leads')->where('lead_id', $duplicateId)->count());
+    }
+
+    public function test_build_review_lists_field_groups_combined_values_and_moves(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Marta', 'city' => 'Berlin', 'languages' => json_encode(['German'])]);
+        $duplicateId = $this->insertLead(['client_name' => 'Marta', 'city' => 'Kyrenia', 'client_whatsapp' => '+491701', 'languages' => json_encode(['Turkish'])]);
+        DB::table('lead_marketing')->insert([
+            ['lead_id' => $primaryId, 'contact_score' => 62, 'created_at' => now(), 'updated_at' => now()],
+            ['lead_id' => $duplicateId, 'contact_score' => 81, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        DB::table('lead_notes')->insert(['lead_id' => $duplicateId, 'title' => 'n', 'details' => 'd', 'type' => 0]);
+        DB::table('call_recordings')->insert(['entity_type' => 'lead', 'entity_id' => $duplicateId]);
+
+        $review = $this->service->buildReview(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId));
+
+        $rows = collect($review['field_groups'])->flatMap(fn ($g) => $g['rows'])->keyBy('key');
+        $this->assertSame('same', $rows['client_name']['state']);
+        $this->assertSame('choose', $rows['city']['state']);
+        $this->assertSame('fill', $rows['client_whatsapp']['state']);
+        $this->assertSame('duplicate', $rows['marketing:contact_score']['default_pick']);
+        $this->assertSame('higher_score', $rows['marketing:contact_score']['hint']);
+        $this->assertSame(['German', 'Turkish'], $review['combined']['languages']['result']);
+        $this->assertSame(1, $review['moves']['notes']);
+        $this->assertSame(1, $review['moves']['calls']);
+    }
+
     public function test_rolls_back_all_changes_when_merge_fails(): void
     {
         $primaryId = $this->insertLead(['client_name' => 'Primary', 'client_email' => 'a@example.com']);
@@ -807,6 +986,9 @@ class LeadMergeServiceTest extends TestCase
 
     private function resetSchema(): void
     {
+        foreach (['lead_lead_category', 'lead_category', 'lead_contact_files', 'proposals', 'sally_meeting_insights', 'purpose_consent_leads', 'crm_events', 'call_recordings'] as $table) {
+            Schema::dropIfExists($table);
+        }
         Schema::dropIfExists('notifications');
         Schema::dropIfExists('custom_fields_data');
         Schema::dropIfExists('custom_fields');
@@ -872,6 +1054,11 @@ class LeadMergeServiceTest extends TestCase
             $table->unsignedInteger('agent_id')->nullable();
             $table->unsignedInteger('last_updated_by')->nullable();
             $table->unsignedInteger('merged_into_lead_id')->nullable();
+            $table->string('city')->nullable();
+            $table->string('temperature')->nullable();
+            $table->date('date_of_birth')->nullable();
+            $table->text('languages')->nullable();
+            $table->unsignedInteger('category_id')->nullable();
             $table->softDeletes();
             $table->timestamps();
         });
@@ -956,6 +1143,12 @@ class LeadMergeServiceTest extends TestCase
             foreach (LeadUtmTouch::UTM_FIELDS as $field) {
                 $table->string($field)->nullable();
             }
+            $table->string('traffic_source_id')->nullable();
+            foreach (LeadMergeService::MARKETING_FLAGS as $flag) {
+                $table->boolean($flag)->default(false);
+            }
+            $table->date('last_webinar_date')->nullable();
+            $table->integer('contact_score')->nullable();
             $table->timestamps();
         });
 
@@ -983,6 +1176,49 @@ class LeadMergeServiceTest extends TestCase
             $table->unsignedInteger('model_id');
             $table->string('model')->nullable();
             $table->string('value', 1000);
+        });
+
+        Schema::create('lead_lead_category', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('lead_id');
+            $table->unsignedInteger('lead_category_id');
+            $table->timestamps();
+            $table->unique(['lead_id', 'lead_category_id']);
+        });
+
+        Schema::create('lead_category', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('category_name');
+        });
+
+        foreach (['lead_contact_files', 'proposals', 'sally_meeting_insights'] as $leadTable) {
+            Schema::create($leadTable, function (Blueprint $table) {
+                $table->increments('id');
+                $table->unsignedInteger('lead_id')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        Schema::create('purpose_consent_leads', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('lead_id');
+            $table->unsignedInteger('purpose_consent_id');
+            $table->timestamps();
+        });
+
+        Schema::create('crm_events', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('model_type')->nullable();
+            $table->unsignedBigInteger('model_id')->nullable();
+            $table->string('event_type')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('call_recordings', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('entity_type')->nullable();
+            $table->unsignedBigInteger('entity_id')->nullable();
+            $table->timestamps();
         });
 
         Schema::create('notifications', function (Blueprint $table) {

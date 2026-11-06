@@ -27,6 +27,10 @@ class MergeLeadRequest extends CoreRequest
             'added_by' => ['nullable', 'integer'],
             'client_id' => ['nullable', 'integer'],
             'agent_id' => ['nullable', 'integer'],
+            // Which lead's value wins where both differ: field => primary|duplicate
+            // (lead columns, "custom:<id>", "marketing:contact_score", ...).
+            'field_picks' => ['nullable', 'array', 'max:200'],
+            'field_picks.*' => ['string', Rule::in(['primary', 'duplicate'])],
         ];
     }
 }
