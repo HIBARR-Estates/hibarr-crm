@@ -11,6 +11,9 @@ use App\Notifications\LeadMerged;
 use App\Services\FeatureFlagService;
 use App\Services\LeadAutomationService;
 use App\Services\CrmEventService;
+use App\Services\DealAutomationService;
+use App\Services\LeadNotificationService;
+use App\Notifications\LeadOwnerAssigned;
 use App\Services\LeadDuplicateDetectionService;
 use App\Services\LeadMergeService;
 use Illuminate\Database\Schema\Blueprint;
@@ -517,6 +520,84 @@ class LeadMergeServiceTest extends TestCase
         Notification::assertSentTo(User::query()->find(10), LeadMerged::class);
         Notification::assertSentTo(User::query()->find(11), LeadMerged::class);
         Notification::assertNotSentTo(User::query()->find(77), LeadMerged::class);
+    }
+
+    /**
+     * PHPUnit runs in the console, where LeadObserver skips its web-only
+     * notices before the merge checks are reached. Pretend to be a web
+     * request so those checks are actually exercised.
+     */
+    private function runAsWebRequest(): void
+    {
+        $property = new \ReflectionProperty($this->app, 'isRunningInConsole');
+        $property->setAccessible(true);
+        $property->setValue($this->app, false);
+    }
+
+    public function test_deleting_a_lead_from_a_web_request_still_sends_the_removed_notice(): void
+    {
+        // Control for the test below: outside a merge the notice is sent, so
+        // its absence during a merge comes from the merge check.
+        $this->runAsWebRequest();
+        $notices = Mockery::mock(LeadNotificationService::class);
+        $notices->shouldReceive('notifyLeadDeleted')->once();
+        $this->app->instance(LeadNotificationService::class, $notices);
+
+        $leadId = $this->insertLead(['client_name' => 'Lead']);
+        Lead::findOrFail($leadId)->delete();
+    }
+
+    public function test_web_merge_sends_no_removed_assigned_or_automation_side_effects(): void
+    {
+        $this->insertUsers([10 => 'Sofia M.', 11 => 'Jonas R.', 77 => 'Admin']);
+        $primaryId = $this->insertLead(['client_name' => 'Marta Keller', 'client_email' => 'a@example.com', 'lead_owner' => 10]);
+        $duplicateId = $this->insertLead(['client_name' => 'Marta Keller', 'client_email' => 'b@example.com', 'lead_owner' => 11]);
+
+        $this->runAsWebRequest();
+        $notices = Mockery::mock(LeadNotificationService::class);
+        $notices->shouldNotReceive('notifyLeadDeleted');
+        $this->app->instance(LeadNotificationService::class, $notices);
+        $dealAutomations = Mockery::mock(DealAutomationService::class);
+        $dealAutomations->shouldNotReceive('processLead');
+        $this->app->instance(DealAutomationService::class, $dealAutomations);
+
+        // The pick moves the kept lead to the duplicate's owner, which outside
+        // a merge would send "Lead assigned to you".
+        $this->service->merge(
+            Lead::findOrFail($primaryId),
+            Lead::findOrFail($duplicateId),
+            [],
+            77,
+            ['lead_owner' => 'duplicate'],
+        );
+
+        $this->assertSame(11, (int) Lead::findOrFail($primaryId)->lead_owner);
+        Notification::assertNotSentTo(User::query()->find(11), LeadOwnerAssigned::class);
+        Notification::assertSentTo(User::query()->find(10), LeadMerged::class);
+        Notification::assertSentTo(User::query()->find(11), LeadMerged::class);
+        $this->assertSame([], $this->automationRuns);
+    }
+
+    public function test_merge_notifies_a_deactivated_owner_and_names_them(): void
+    {
+        $this->insertUsers([10 => 'Sofia M.', 11 => 'Jonas R.', 77 => 'Admin']);
+        DB::table('users')->whereIn('id', [10, 77])->update(['status' => 'deactive']);
+        $primaryId = $this->insertLead(['client_name' => 'Marta Keller', 'client_email' => 'a@example.com', 'lead_owner' => 10]);
+        $duplicateId = $this->insertLead(['client_name' => 'Marta Keller', 'client_email' => 'b@example.com', 'lead_owner' => 11]);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 77);
+
+        $deactivatedOwner = User::withoutGlobalScopes()->find(10);
+        Notification::assertSentTo($deactivatedOwner, LeadMerged::class, function (LeadMerged $notice) use ($deactivatedOwner) {
+            // In-app only for a deactivated user, never mailed.
+            return $notice->via($deactivatedOwner) === ['database'];
+        });
+        Notification::assertSentTo(User::query()->find(11), LeadMerged::class, function (LeadMerged $notice) {
+            $text = $notice->toArray(User::query()->find(11))['text'];
+
+            // The deactivated kept-lead owner and the deactivated actor are both named.
+            return str_contains($text, 'Sofia M.') && str_contains($text, 'Admin');
+        });
     }
 
     public function test_merge_does_not_notify_an_owner_who_merged_the_leads_themselves(): void

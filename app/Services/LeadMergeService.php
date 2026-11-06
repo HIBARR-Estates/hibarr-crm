@@ -219,7 +219,7 @@ class LeadMergeService
                 return;
             }
 
-            $kept->loadMissing(['leadOwner', 'company']);
+            $kept->loadMissing(['company']);
             $ownerIds = array_values(array_unique(array_filter([
                 $duplicateOwnerId,
                 $kept->lead_owner !== null ? (int) $kept->lead_owner : null,
@@ -229,8 +229,13 @@ class LeadMergeService
                 return;
             }
 
-            $recipients = User::query()->whereIn('id', $ownerIds)->get();
-            $actor = $actorUserId !== null ? User::query()->find($actorUserId) : null;
+            // Deactivated users are included: they still get the in-app notice
+            // (LeadMerged::via only mails active users), and a deactivated
+            // actor is still named rather than shown as "a team member".
+            $recipients = User::withoutGlobalScope(ActiveScope::class)->whereIn('id', $ownerIds)->get();
+            $actor = $actorUserId !== null
+                ? User::withoutGlobalScope(ActiveScope::class)->find($actorUserId)
+                : null;
 
             \Illuminate\Support\Facades\Notification::send($recipients, new LeadMerged($kept, $duplicate, $actor));
         } catch (Throwable $e) {
@@ -1081,7 +1086,7 @@ class LeadMergeService
     /** Move a link table's rows, dropping those the kept lead already has. */
     private function moveRowsNotOnKeptLead(string $table, string $column, int $fromId, int $toId): void
     {
-        if (! $this->tableHas($table, 'lead_id')) {
+        if (! $this->tableHas($table, 'lead_id') || ! $this->tableHas($table, $column)) {
             return;
         }
 
