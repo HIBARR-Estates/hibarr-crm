@@ -681,6 +681,8 @@ class LeadMergeService
             'consents' => $count('purpose_consent_leads', 'lead_id', $notOnKeptLead('purpose_consent_leads', 'purpose_consent_id')),
             'products' => $count('lead_products', 'lead_id', $notOnKeptLead('lead_products', 'product_id')),
             'sally_insights' => $count('sally_meeting_insights'),
+            'sally_suggestions' => $count('sally_suggestion_logs'),
+            'removal_requests' => $count('removal_requests_lead'),
             'qualifications' => $count('lead_qualifications'),
             'communication_activities' => $count('communication_activities'),
             'flight_itineraries' => $count('lead_flight_itineraries'),

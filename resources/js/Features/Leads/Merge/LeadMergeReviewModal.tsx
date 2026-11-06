@@ -60,6 +60,8 @@ const MOVE_ORDER = [
     "consents",
     "products",
     "sally_insights",
+    "sally_suggestions",
+    "removal_requests",
     "qualifications",
     "communication_activities",
     "flight_itineraries",
