@@ -267,7 +267,7 @@ class LeadMergeService
             ],
             'field_groups' => $this->buildFieldGroupsView($primary, $duplicate),
             'combined' => $this->buildCombinedView($primary, $duplicate),
-            'moves' => $this->movedRecordCounts($duplicate),
+            'moves' => $this->movedRecordCounts($duplicate, $primary),
         ];
     }
 
@@ -643,7 +643,7 @@ class LeadMergeService
      *
      * @return array<string, int>
      */
-    private function movedRecordCounts(Lead $duplicate): array
+    private function movedRecordCounts(Lead $duplicate, Lead $primary): array
     {
         $id = $duplicate->id;
         $count = function (string $table, string $column = 'lead_id', ?callable $scope = null) use ($id): int {
@@ -661,6 +661,11 @@ class LeadMergeService
             return $query->count();
         };
         $leadTypes = $this->leadModelTypes();
+        $notOnKeptLead = fn (string $table, string $column) => function ($query) use ($table, $column, $primary) {
+            if ($this->tableHas($table, $column)) {
+                $query->whereNotIn($column, DB::table($table)->where('lead_id', $primary->id)->select($column));
+            }
+        };
 
         return [
             'deals' => $count('deals'),
@@ -671,8 +676,10 @@ class LeadMergeService
             'files' => $count('lead_contact_files'),
             'exposes' => $count('deal_exposes') + $count('expose_snapshots'),
             'proposals' => $count('proposals'),
-            'consents' => $count('purpose_consent_leads'),
-            'products' => $count('lead_products'),
+            // Only what actually moves: a consent or product the kept lead
+            // already has is dropped from the duplicate, not moved.
+            'consents' => $count('purpose_consent_leads', 'lead_id', $notOnKeptLead('purpose_consent_leads', 'purpose_consent_id')),
+            'products' => $count('lead_products', 'lead_id', $notOnKeptLead('lead_products', 'product_id')),
             'sally_insights' => $count('sally_meeting_insights'),
             'qualifications' => $count('lead_qualifications'),
             'communication_activities' => $count('communication_activities'),

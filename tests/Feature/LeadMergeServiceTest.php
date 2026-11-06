@@ -913,6 +913,15 @@ class LeadMergeServiceTest extends TestCase
         $this->assertSame(['German', 'Turkish'], $review['combined']['languages']['result']);
         $this->assertSame(1, $review['moves']['notes']);
         $this->assertSame(1, $review['moves']['calls']);
+
+        // A consent both leads have is dropped, not moved, so it isn't counted.
+        DB::table('purpose_consent_leads')->insert([
+            ['lead_id' => $primaryId, 'purpose_consent_id' => 1],
+            ['lead_id' => $duplicateId, 'purpose_consent_id' => 1],
+            ['lead_id' => $duplicateId, 'purpose_consent_id' => 2],
+        ]);
+        $review = $this->service->buildReview(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId));
+        $this->assertSame(1, $review['moves']['consents']);
     }
 
     public function test_rolls_back_all_changes_when_merge_fails(): void
