@@ -2563,7 +2563,7 @@ return [
         'hint_combined' => 'Объединено из обоих лидов',
         'hint_engagement' => 'Объединено: «да» в любом из лидов сохраняется',
         'hint_latest_date' => 'Сохраняется более поздняя дата',
-        'hint_first_touch' => 'Первое касание сохраняемого лида остаётся первым · другое попадает в историю',
+        'hint_touch_history' => 'Остаётся первым касанием · другое попадает в историю касаний',
         'row_languages' => 'Языки',
         'row_categories' => 'Категории',
         'row_engagement' => 'Вовлечённость',
@@ -2620,6 +2620,7 @@ return [
             'agent_id' => 'Агент',
             'referred_by_agent_id' => 'Рекомендовал',
             'marketing_contact_score' => 'Оценка лида',
+            'marketing_first_touch' => 'Первое касание (UTM)',
             'marketing_traffic_source_id' => 'Источник трафика',
         ],
         'moves' => [

@@ -339,6 +339,56 @@ class LeadMergeServiceTest extends TestCase
         $this->assertSame('primary-src', LeadMarketing::query()->where('lead_id', $primaryId)->value('utm_source'));
     }
 
+    public function test_merge_takes_the_duplicates_first_touch_when_picked(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary', 'client_email' => 'a@example.com']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate', 'client_email' => 'b@example.com']);
+
+        DB::table('lead_marketing')->insert([
+            ['lead_id' => $primaryId, 'utm_source' => 'primary-src', 'created_at' => now(), 'updated_at' => now()],
+            ['lead_id' => $duplicateId, 'utm_source' => 'dup-src', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        $this->insertTouch($primaryId, 'primary-src', true);
+        $this->insertTouch($duplicateId, 'dup-src', true);
+
+        $this->service->merge(
+            Lead::findOrFail($primaryId),
+            Lead::findOrFail($duplicateId),
+            [],
+            1,
+            ['marketing:first_touch' => 'duplicate'],
+        );
+
+        $this->assertSame('dup-src', LeadMarketing::query()->where('lead_id', $primaryId)->value('utm_source'));
+        $touches = LeadUtmTouch::query()->where('lead_id', $primaryId)->get()->keyBy('utm_source');
+        $this->assertCount(2, $touches);
+        $this->assertTrue($touches['dup-src']->is_first_touch);
+        $this->assertFalse($touches['primary-src']->is_first_touch);
+        $this->assertStringContainsString(
+            '<strong>First touch (UTM):</strong> primary-src',
+            (string) LeadNote::query()->where('lead_id', $primaryId)->value('details'),
+        );
+    }
+
+    public function test_build_review_defaults_first_touch_to_the_earlier_one(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate']);
+        DB::table('lead_marketing')->insert([
+            ['lead_id' => $primaryId, 'utm_source' => 'google', 'utm_medium' => 'cpc', 'created_at' => now(), 'updated_at' => now()],
+            ['lead_id' => $duplicateId, 'utm_source' => 'facebook', 'utm_medium' => 'paid', 'created_at' => now()->subMonth(), 'updated_at' => now()],
+        ]);
+
+        $review = $this->service->buildReview(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId));
+
+        $row = collect($review['field_groups'])->flatMap(fn ($g) => $g['rows'])->keyBy('key')['marketing:first_touch'];
+        $this->assertSame('choose', $row['state']);
+        $this->assertSame('google / cpc', $row['primary']);
+        $this->assertSame('facebook / paid', $row['duplicate']);
+        $this->assertSame('duplicate', $row['default_pick']);
+        $this->assertSame('touch_history', $row['hint']);
+    }
+
     public function test_merge_inherits_duplicate_utm_when_primary_has_none(): void
     {
         $primaryId = $this->insertLead(['client_name' => 'Primary', 'client_email' => 'a@example.com']);

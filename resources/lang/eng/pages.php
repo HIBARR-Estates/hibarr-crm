@@ -2747,7 +2747,7 @@ return [
         'hint_combined' => 'Combined from both leads',
         'hint_engagement' => 'Combined: a yes on either lead is kept',
         'hint_latest_date' => 'Latest date wins',
-        'hint_first_touch' => 'The kept lead\'s first touch stays first · the other joins the touch history',
+        'hint_touch_history' => 'Stays the first touch · the other moves to the touch history',
         'row_languages' => 'Languages',
         'row_categories' => 'Categories',
         'row_engagement' => 'Engagement',
@@ -2804,6 +2804,7 @@ return [
             'agent_id' => 'Agent',
             'referred_by_agent_id' => 'Referred by',
             'marketing_contact_score' => 'Lead score',
+            'marketing_first_touch' => 'First touch (UTM)',
             'marketing_traffic_source_id' => 'Traffic source',
         ],
         'moves' => [

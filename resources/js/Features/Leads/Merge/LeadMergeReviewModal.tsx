@@ -79,15 +79,6 @@ type DisplayRow =
           same: boolean;
           result: string;
           hint: string;
-      }
-    | {
-          kind: "first_touch";
-          key: string;
-          label: string;
-          same: boolean;
-          primary: string | null;
-          duplicate: string | null;
-          hint: string;
       };
 
 function isDifference(row: DisplayRow): boolean {
@@ -203,6 +194,7 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
                 : t("pages.lead_merge.hint_alternate_phone");
         }
         if (row.hint === "higher_score" && side === row.default_pick) return t("pages.lead_merge.hint_higher_score");
+        if (row.hint === "touch_history" && side === pickFor(row)) return t("pages.lead_merge.hint_touch_history");
         return null;
     };
 
@@ -263,28 +255,6 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
                     <div className="lm-label">{label}</div>
                     {renderOption(row.row, "primary")}
                     {renderOption(row.row, "duplicate")}
-                </div>
-            );
-        }
-
-        if (row.kind === "first_touch") {
-            const keptTouch = row.primary ?? row.duplicate;
-            return (
-                <div key={row.key} className="lm-row">
-                    <div className="lm-label">{row.label}</div>
-                    {(["primary", "duplicate"] as const).map((side) => {
-                        const value = side === "primary" ? row.primary : row.duplicate;
-                        const on = value !== null && value === keptTouch && (side === "primary" || row.primary === null);
-                        return (
-                            <div key={side} className={`lm-opt${on ? " is-on" : ""}`}>
-                                <span className="lm-dot" aria-hidden="true" />
-                                <span style={{ minWidth: 0 }}>
-                                    {value ? <span>{value}</span> : <span className="lm-empty">{t("pages.lead_merge.empty")}</span>}
-                                    {on && <span className="lm-hint">{row.hint}</span>}
-                                </span>
-                            </div>
-                        );
-                    })}
                 </div>
             );
         }
@@ -513,19 +483,6 @@ function buildRows(
             same: w.primary === w.duplicate,
             result: w.result ?? "",
             hint: t("pages.lead_merge.hint_latest_date"),
-        });
-    }
-
-    if (combined.first_touch) {
-        const f = combined.first_touch;
-        add("marketing", {
-            kind: "first_touch",
-            key: "first_touch",
-            label: t("pages.lead_merge.row_first_touch"),
-            same: f.primary === f.duplicate || f.duplicate === null,
-            primary: f.primary,
-            duplicate: f.duplicate,
-            hint: t("pages.lead_merge.hint_first_touch"),
         });
     }
 

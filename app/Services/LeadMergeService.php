@@ -381,7 +381,47 @@ class LeadMergeService
             }
         }
 
+        $pt = $this->utmLabel($p);
+        $dt = $this->utmLabel($d);
+        $row = $this->fieldRow(
+            'marketing:first_touch',
+            'First touch (UTM)',
+            $pt,
+            $dt,
+            null,
+            null,
+            $this->defaultFirstTouchPick($p, $d),
+        );
+        if ($row !== null) {
+            if ($row['state'] === 'choose') {
+                $row['hint'] = 'touch_history';
+            }
+            $rows[] = $row;
+        }
+
         return $rows;
+    }
+
+    /** "source / medium / campaign" for a marketing row's first touch, or null without UTM data. */
+    private function utmLabel(?LeadMarketing $marketing): ?string
+    {
+        if (! $marketing || ! $this->hasUtm($marketing)) {
+            return null;
+        }
+
+        $parts = array_filter([$marketing->utm_source, $marketing->utm_medium, $marketing->utm_campaign], 'filled');
+
+        return $parts !== [] ? implode(' / ', $parts) : (string) collect($marketing->only(LeadUtmTouch::UTM_FIELDS))->filter()->first();
+    }
+
+    /** The earlier of the two first touches stays first unless the person picks the other. */
+    private function defaultFirstTouchPick(?LeadMarketing $primary, ?LeadMarketing $duplicate): string
+    {
+        if ($primary?->created_at && $duplicate?->created_at && $duplicate->created_at->lt($primary->created_at)) {
+            return 'duplicate';
+        }
+
+        return 'primary';
     }
 
     /** @return list<array<string, mixed>> */
@@ -428,8 +468,8 @@ class LeadMergeService
 
     /**
      * What combines on its own: languages and categories are joined, an
-     * engagement flag set on either lead stays set, the latest webinar date
-     * wins, and the kept lead's first UTM touch stays first.
+     * engagement flag set on either lead stays set, and the latest webinar
+     * date wins. (The first UTM touch is a pick: see marketingRows.)
      *
      * @return array<string, mixed>
      */
@@ -492,19 +532,6 @@ class LeadMergeService
                     'primary' => $p?->last_webinar_date?->format('j M Y'),
                     'duplicate' => $d?->last_webinar_date?->format('j M Y'),
                     'result' => max($dates)->format('j M Y'),
-                ];
-            }
-
-            $touch = fn (?LeadMarketing $m) => $m && $this->hasUtm($m)
-                ? implode(' / ', array_filter([$m->utm_source, $m->utm_medium, $m->utm_campaign]))
-                : null;
-            $pt = $touch($p);
-            $dt = $touch($d);
-            if ($pt !== null || $dt !== null) {
-                $combined['first_touch'] = [
-                    'primary' => $pt,
-                    'duplicate' => $dt,
-                    'result' => $pt ?? $dt,
                 ];
             }
         }
@@ -1118,11 +1145,33 @@ class LeadMergeService
         $duplicateIsFirstTouch = false;
 
         if ($primaryMarketing && $duplicateMarketing) {
-            // The primary's own first touch wins. Only when it never had UTM
-            // data does it inherit the duplicate's, so they are not lost.
+            // First touch: a lead without UTM data inherits the duplicate's.
+            // When both have one, the earlier stays first unless the person
+            // picked the other; the losing one stays in the touch history.
             if (!$this->hasUtm($primaryMarketing) && $this->hasUtm($duplicateMarketing)) {
                 $primaryMarketing->fill($duplicateMarketing->only(LeadUtmTouch::UTM_FIELDS));
                 $duplicateIsFirstTouch = true;
+            } elseif ($this->hasUtm($primaryMarketing) && $this->hasUtm($duplicateMarketing)
+                && $this->utmLabel($primaryMarketing) !== $this->utmLabel($duplicateMarketing)) {
+                $pick = $fieldPicks['marketing:first_touch']
+                    ?? $this->defaultFirstTouchPick($primaryMarketing, $duplicateMarketing);
+                $keptLabel = (string) $this->utmLabel($primaryMarketing);
+                $otherLabel = (string) $this->utmLabel($duplicateMarketing);
+
+                if ($pick === 'duplicate') {
+                    $primaryMarketing->fill($duplicateMarketing->only(LeadUtmTouch::UTM_FIELDS));
+                    $duplicateIsFirstTouch = true;
+
+                    if (Schema::hasTable('lead_utm_touches')) {
+                        LeadUtmTouch::query()->where('lead_id', $primary->id)->update(['is_first_touch' => false]);
+                    }
+                }
+
+                $setAside[] = [
+                    'label' => 'First touch (UTM)',
+                    'set_aside' => $pick === 'duplicate' ? $keptLabel : $otherLabel,
+                    'kept' => $pick === 'duplicate' ? $otherLabel : $keptLabel,
+                ];
             }
 
             foreach (self::MARKETING_FLAGS as $flag) {

@@ -37,7 +37,7 @@ export interface LeadMergeFieldRow {
     duplicate: string | null;
     state: LeadMergeFieldState;
     default_pick: LeadMergeSide;
-    hint: "kept_as_alternate" | "higher_score" | null;
+    hint: "kept_as_alternate" | "higher_score" | "touch_history" | null;
     custom?: boolean;
 }
 
@@ -65,7 +65,6 @@ export interface LeadMergeCombined {
     categories?: LeadMergeCombinedList;
     engagement?: Array<{ key: string; primary: boolean; duplicate: boolean; result: boolean }>;
     last_webinar_date?: LeadMergeCombinedValue;
-    first_touch?: LeadMergeCombinedValue;
 }
 
 export interface LeadMergeContactConflict {

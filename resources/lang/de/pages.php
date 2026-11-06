@@ -2590,7 +2590,7 @@ return [
         'hint_combined' => 'Aus beiden Leads zusammengeführt',
         'hint_engagement' => 'Zusammengeführt: ein Ja bei einem der Leads bleibt erhalten',
         'hint_latest_date' => 'Das spätere Datum gilt',
-        'hint_first_touch' => 'Der erste Kontakt des behaltenen Leads bleibt der erste · der andere kommt in den Verlauf',
+        'hint_touch_history' => 'Bleibt der erste Kontakt · der andere kommt in den Kontaktverlauf',
         'row_languages' => 'Sprachen',
         'row_categories' => 'Kategorien',
         'row_engagement' => 'Engagement',
@@ -2647,6 +2647,7 @@ return [
             'agent_id' => 'Agent',
             'referred_by_agent_id' => 'Empfohlen von',
             'marketing_contact_score' => 'Lead-Score',
+            'marketing_first_touch' => 'Erster Kontakt (UTM)',
             'marketing_traffic_source_id' => 'Traffic-Quelle',
         ],
         'moves' => [

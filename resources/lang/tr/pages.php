@@ -2568,7 +2568,7 @@ return [
         'hint_combined' => 'İki lead\'den birleştirildi',
         'hint_engagement' => 'Birleştirildi: herhangi birindeki evet korunur',
         'hint_latest_date' => 'En son tarih geçerli',
-        'hint_first_touch' => 'Korunan lead\'in ilk teması ilk kalır · diğeri temas geçmişine eklenir',
+        'hint_touch_history' => 'İlk temas olarak kalır · diğeri temas geçmişine taşınır',
         'row_languages' => 'Diller',
         'row_categories' => 'Kategoriler',
         'row_engagement' => 'Etkileşim',
@@ -2625,6 +2625,7 @@ return [
             'agent_id' => 'Temsilci',
             'referred_by_agent_id' => 'Yönlendiren',
             'marketing_contact_score' => 'Lead puanı',
+            'marketing_first_touch' => 'İlk temas (UTM)',
             'marketing_traffic_source_id' => 'Trafik kaynağı',
         ],
         'moves' => [
