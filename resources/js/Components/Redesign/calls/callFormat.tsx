@@ -16,12 +16,20 @@ export const OUTCOME_KEYS: Record<string, string> = {
 export function formatCallFailure(
     reason: string | null | undefined,
     message: string | null | undefined,
+    t?: (key: string) => string,
 ): string | null {
     if (message?.trim()) {
         return message.trim();
     }
     if (!reason?.trim()) {
         return null;
+    }
+    const key = `pages.calls.failure_${reason}`;
+    if (t) {
+        const translated = t(key);
+        if (translated && translated !== key) {
+            return translated;
+        }
     }
     const friendly: Record<string, string> = {
         timeout: "Call timed out",
@@ -49,10 +57,13 @@ export function getRecordingStatus(row: CallLogRow): {
 } {
     const rec = row.recording;
     if (rec) {
-        if (rec.expired) {
+        if (rec.state === "processing") {
+            return { status: "processing" };
+        }
+        if (rec.expired || rec.state === "expired") {
             return { status: "expired", expiresAt: rec.expires_at ?? undefined };
         }
-        if (!rec.can_play || !rec.play_url) {
+        if (rec.state === "restricted" || !rec.can_play || !rec.play_url) {
             return { status: "restricted" };
         }
         return {

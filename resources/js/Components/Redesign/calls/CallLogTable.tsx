@@ -76,7 +76,7 @@ export default function CallLogTable({ rows }: { rows: CallLogRow[] }) {
                             ? t(`pages.call_summary.${outcomeKey}`)
                             : td(row.outcome, { source: "en" });
                         const missed = row.outcome === "missed" || row.outcome === "failed";
-                        const failureText = formatCallFailure(row.failure_reason, row.failure_message);
+                        const failureText = formatCallFailure(row.failure_reason, row.failure_message, t);
                         const rec = row.recording;
                         const recState = getRecordingStatus(row);
                         const playable = Boolean(rec?.can_play && rec.play_url);
@@ -99,7 +99,7 @@ export default function CallLogTable({ rows }: { rows: CallLogRow[] }) {
                                                     </span>
                                                     {failureText && (
                                                         <Badge variant="red" style={{ fontSize: 11, padding: "1px 8px" }}>
-                                                            {td(failureText, { source: "en" })}
+                                                            {failureText}
                                                         </Badge>
                                                     )}
                                                 </div>

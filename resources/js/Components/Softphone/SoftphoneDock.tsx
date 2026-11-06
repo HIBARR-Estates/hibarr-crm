@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, BellOff, ExternalLink, Phone, PhoneForwarded, PhoneIncoming, PhoneOff, UserPlus, X } from "lucide-react";
 import useSoftphone from "@/Hooks/useSoftphone";
@@ -189,6 +190,7 @@ function CallFailedNotice({
     onClose: () => void;
     isAnsweredElsewhere?: boolean;
 }) {
+    const { t } = useTranslation();
     const activeLabel = devices.find((d) => d.id === activeDeviceId)?.label;
     const isInbound = failure.direction === "inbound";
     const answeredElsewhere = isAnsweredElsewhere || failure.code === "answered_elsewhere";
@@ -214,7 +216,7 @@ function CallFailedNotice({
                         )}
                     </div>
                     <h2 className="sp__name">
-                        {answeredElsewhere ? "Answered elsewhere" : isDisconnected ? "Call disconnected" : "Call ended"}
+                        {answeredElsewhere ? t("pages.softphone.answered_elsewhere") : isDisconnected ? t("pages.softphone.call_disconnected") : t("pages.softphone.call_ended")}
                     </h2>
                     <p className="sp__number">
                         {failure.direction === "outbound" ? "To" : "From"} {failure.context?.leadName || failure.peer}
@@ -234,14 +236,14 @@ function CallFailedNotice({
                                 <span className="act__btn">
                                     <Phone size={24} strokeWidth={2} />
                                 </span>
-                                Call back
+                                {t("pages.softphone.call_back")}
                             </button>
                         )}
                         <button type="button" className="act" onClick={onClose}>
                             <span className="act__btn">
                                 <X size={24} strokeWidth={2} />
                             </span>
-                            Close
+                            {t("pages.softphone.close")}
                         </button>
                     </div>
                 </div>
@@ -313,6 +315,7 @@ function CallFailedNotice({
  * by the OL call-bridge poll and is unaffected here.
  */
 export default function SoftphoneDock() {
+    const { t } = useTranslation();
     const { props } = usePage();
     const isAdmin = (props.auth?.user?.roles ?? []).some(
         (role: { name?: string }) => role?.name === "admin",
@@ -870,23 +873,27 @@ export default function SoftphoneDock() {
 
         setRoutingMode(currentTarget?.role === "owner" ? "owner" : "pool");
 
-        fallbackRef.current = setTimeout(async () => {
+        fallbackRef.current = setTimeout(() => {
             // When the current user's rotation session times out without an answer,
             // mark them as passed so the call stops ringing for them and advances to the next session.
             if (currentTargetId !== null && Number(currentTargetId) === currentUserId) {
                 setPassedCallId(activeCall.id);
                 stopRinging();
                 if (activeCall.peer) {
-                    try {
-                        await axios.post(route("telephony.softphone.pass"), {
-                            phone: activeCall.peer,
-                            device_id: activeDeviceId,
-                            call_id: activeCall.id,
-                            ...(callRef ? { call_ref: callRef } : {}),
+                    void axios
+                        .post(
+                            route("telephony.softphone.pass"),
+                            {
+                                phone: activeCall.peer,
+                                device_id: activeDeviceId,
+                                call_id: activeCall.id,
+                                ...(callRef ? { call_ref: callRef } : {}),
+                            },
+                            { timeout: 3000 },
+                        )
+                        .catch(() => {
+                            // ignore
                         });
-                    } catch {
-                        // ignore
-                    }
                 }
             }
             setRotationIndex((prev) => Math.min(rotationUsers.length, prev + 1));
@@ -930,12 +937,16 @@ export default function SoftphoneDock() {
             setPassedCallId(activeCall.id);
             stopRinging();
             try {
-                await axios.post(route("telephony.softphone.pass"), {
-                    phone: activeCall.peer,
-                    device_id: activeDeviceId,
-                    call_id: activeCall.id,
-                    ...(callRef ? { call_ref: callRef } : {}),
-                });
+                await axios.post(
+                    route("telephony.softphone.pass"),
+                    {
+                        phone: activeCall.peer,
+                        device_id: activeDeviceId,
+                        call_id: activeCall.id,
+                        ...(callRef ? { call_ref: callRef } : {}),
+                    },
+                    { timeout: 5000 },
+                );
                 const res = await axios.get(route("telephony.softphone.lead-match"), {
                     params: {
                         phone: activeCall.peer,
@@ -1301,6 +1312,9 @@ export default function SoftphoneDock() {
                 }
             }
             recordRecorderRef.current = null;
+            recordContextRef.current?.close().catch(() => undefined);
+            recordContextRef.current = null;
+            recordStartedAtRef.current = null;
         };
     }, [activeCall?.id, activeCall?.phase, canRecord, hasActiveCall]);
 
@@ -1525,13 +1539,13 @@ export default function SoftphoneDock() {
                 >
                     <header className="sp__head">
                         <span className="sp__dot sp__dot--notice" />
-                        New Caller · Create Lead
+                        {t("pages.softphone.new_caller_create_lead")}
                     </header>
                     <div className="sp__body">
                         <div className="sp__avatar sp__avatar--notice" aria-hidden="true">
                             <UserPlus size={28} strokeWidth={1.8} />
                         </div>
-                        <h2 className="sp__name">Create Lead</h2>
+                        <h2 className="sp__name">{t("pages.softphone.create_lead")}</h2>
                         <p className="sp__number">
                             {unmatchedPromptPhone}
                         </p>
@@ -1547,7 +1561,7 @@ export default function SoftphoneDock() {
                                 <span className="act__btn">
                                     <UserPlus size={24} strokeWidth={2} />
                                 </span>
-                                Create Lead
+                                {t("pages.softphone.create_lead")}
                             </button>
                             <button
                                 type="button"
@@ -1557,7 +1571,7 @@ export default function SoftphoneDock() {
                                 <span className="act__btn">
                                     <X size={24} strokeWidth={2} />
                                 </span>
-                                Dismiss
+                                {t("pages.softphone.dismiss")}
                             </button>
                         </div>
                     </div>
@@ -1711,7 +1725,7 @@ export default function SoftphoneDock() {
                                         <Bell size={24} strokeWidth={2} />
                                     )}
                                 </span>
-                                {isRingingMuted ? "Unmute Ring" : "Mute Ring"}
+                                {isRingingMuted ? t("pages.softphone.unmute_ring") : t("pages.softphone.mute_ring")}
                             </button>
                             <button type="button" className="act act--ok" onClick={() => {
                                 const callId = activeCall.id;

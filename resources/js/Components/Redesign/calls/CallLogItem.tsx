@@ -68,7 +68,7 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
                         </span>
                         {failureText && (
                             <Badge variant="red" style={{ fontSize: 11, padding: "1px 8px" }}>
-                                {td(failureText, { source: "en" })}
+                                {failureText}
                             </Badge>
                         )}
                     </div>
