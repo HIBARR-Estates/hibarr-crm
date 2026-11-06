@@ -133,7 +133,10 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
         ApiResponse<unknown>
     >(route("lead-contact.merge", keptId), "POST");
 
-    const ready = Boolean(data?.primary && data?.duplicate);
+    // The payload must be for the pair on screen: right after a swap the
+    // previous pair's rows (and default picks) must not be submitted.
+    const ready = data?.primary?.id === keptId && data?.duplicate?.id === otherId;
+    const stale = Boolean(data?.primary && data?.duplicate) && !ready;
     const groups = useMemo(() => buildRows(data, t, td), [data, t, td]);
     const differenceCount = groups.reduce((n, g) => n + g.rows.filter(isDifference).length, 0);
     const allCount = groups.reduce((n, g) => n + g.rows.length, 0);
@@ -315,7 +318,7 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
             : t(`pages.lead_merge.moves.${key}_other`, { count: String(count) });
 
     let body: ReactNode;
-    if (isLoading && !data) {
+    if ((isLoading && !data) || stale) {
         body = (
             <div className="lm-scroll" aria-busy="true" style={{ padding: 22, display: "flex", flexDirection: "column", gap: 10 }}>
                 {[72, 36, 44, 44, 44, 44, 44].map((h, i) => (
@@ -333,7 +336,7 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
                 />
             </div>
         );
-    } else if (data?.primary && data.duplicate) {
+    } else if (ready && data?.primary && data.duplicate) {
         body = (
             <>
                 <div className="lm-scroll">

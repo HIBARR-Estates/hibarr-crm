@@ -1192,8 +1192,29 @@ class LeadMergeService
                     $primaryMarketing->fill($duplicateMarketing->only(LeadUtmTouch::UTM_FIELDS));
                     $duplicateIsFirstTouch = true;
 
-                    if (Schema::hasTable('lead_utm_touches')) {
+                    if ($this->tableHas('lead_utm_touches')) {
                         LeadUtmTouch::query()->where('lead_id', $primary->id)->update(['is_first_touch' => false]);
+
+                        // The duplicate's first touch may exist only on its
+                        // marketing row (written before touch history). Log it,
+                        // as LeadUtmService does with origin "backfill", so the
+                        // kept lead still has a first touch in its history.
+                        $hasFirstTouchRow = LeadUtmTouch::query()
+                            ->where('lead_id', $duplicate->id)
+                            ->where('is_first_touch', true)
+                            ->exists();
+
+                        if (! $hasFirstTouchRow) {
+                            $touch = new LeadUtmTouch($duplicateMarketing->only(LeadUtmTouch::UTM_FIELDS) + [
+                                'lead_id' => $primary->id,
+                                'origin' => 'backfill',
+                                'is_first_touch' => true,
+                            ]);
+                            if ($duplicateMarketing->created_at) {
+                                $touch->created_at = $duplicateMarketing->created_at;
+                            }
+                            $touch->save();
+                        }
                     }
                 }
 

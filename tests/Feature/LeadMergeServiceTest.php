@@ -373,6 +373,51 @@ class LeadMergeServiceTest extends TestCase
         );
     }
 
+    public function test_picked_first_touch_without_touch_history_is_logged_as_the_first_touch(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate']);
+        DB::table('lead_marketing')->insert([
+            ['lead_id' => $primaryId, 'utm_source' => 'primary-src', 'created_at' => now(), 'updated_at' => now()],
+            ['lead_id' => $duplicateId, 'utm_source' => 'dup-src', 'created_at' => now()->subMonth(), 'updated_at' => now()],
+        ]);
+        // Only the kept lead has touch history; the duplicate's first touch
+        // lives on its marketing row alone.
+        $this->insertTouch($primaryId, 'primary-src', true);
+
+        $this->service->merge(
+            Lead::findOrFail($primaryId),
+            Lead::findOrFail($duplicateId),
+            [],
+            1,
+            ['marketing:first_touch' => 'duplicate'],
+        );
+
+        $first = LeadUtmTouch::query()->where('lead_id', $primaryId)->where('is_first_touch', true)->get();
+        $this->assertCount(1, $first);
+        $this->assertSame('dup-src', $first[0]->utm_source);
+        $this->assertSame('backfill', $first[0]->origin);
+        $this->assertFalse(LeadUtmTouch::query()->where('utm_source', 'primary-src')->firstOrFail()->is_first_touch);
+    }
+
+    public function test_empty_custom_field_on_kept_lead_is_filled_from_the_duplicate(): void
+    {
+        DB::table('custom_fields')->insert(['id' => 7, 'label' => 'Budget', 'type' => 'text', 'required' => 'no']);
+        $primaryId = $this->insertLead(['client_name' => 'Primary']);
+        $duplicateId = $this->insertLead(['client_name' => 'Duplicate']);
+        DB::table('custom_fields_data')->insert([
+            ['custom_field_id' => 7, 'model_id' => $primaryId, 'model' => Lead::CUSTOM_FIELD_MODEL, 'value' => ''],
+            ['custom_field_id' => 7, 'model_id' => $duplicateId, 'model' => Lead::CUSTOM_FIELD_MODEL, 'value' => 'High'],
+        ]);
+
+        $this->service->merge(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId), [], 1);
+
+        $this->assertSame(
+            ['High'],
+            DB::table('custom_fields_data')->where('model_id', $primaryId)->where('custom_field_id', 7)->pluck('value')->all(),
+        );
+    }
+
     public function test_build_review_defaults_first_touch_to_the_earlier_one(): void
     {
         $primaryId = $this->insertLead(['client_name' => 'Primary']);
