@@ -15,6 +15,7 @@ use App\Services\LeadLifecycleStatusService;
 use App\Services\LeadNotificationService;
 use App\Services\LeadAutomationService;
 use App\Services\MlmNotificationService;
+use App\Support\LeadMergeContext;
 use App\Services\SallyInsightRetentionService;
 use App\Traits\HasDynamicTranslations;
 use App\Traits\RecordsCrmEvents;
@@ -183,7 +184,9 @@ class LeadObserver
         ];
         \App\Models\Notification::deleteNotification($notifyData, $leadContact->id);
 
-        if (! isRunningInConsoleOrSeeding()) {
+        // A merge soft-deletes the duplicate; LeadMergeService sends its own
+        // "Lead merged" notice, so "Lead removed from pipeline" is not sent.
+        if (! isRunningInConsoleOrSeeding() && ! LeadMergeContext::involves((int) $leadContact->id)) {
             $lead = $leadContact;
             $deletedByUser = user();
             DB::afterCommit(function () use ($lead, $deletedByUser) {
@@ -234,13 +237,21 @@ class LeadObserver
 
         HasDynamicTranslations::dispatchDynamicTranslation($leadContact, true);
 
-        app(LeadAutomationService::class)->process($leadContact, 'lead_updated');
+        // A merge's own saves (the kept lead and the duplicate) are not edits
+        // by a person, so they run no lead or deal automations.
+        $merging = LeadMergeContext::involves((int) $leadContact->id);
+
+        if (! $merging) {
+            app(LeadAutomationService::class)->process($leadContact, 'lead_updated');
+        }
 
         if (isRunningInConsoleOrSeeding()) {
             return;
         }
 
-        app(DealAutomationService::class)->processLead($leadContact, 'lead_updated');
+        if (! $merging) {
+            app(DealAutomationService::class)->processLead($leadContact, 'lead_updated');
+        }
 
         if ($leadContact->wasChanged('temperature')) {
             $from = $leadContact->getOriginal('temperature');
@@ -298,7 +309,12 @@ class LeadObserver
         }
 
         $actorId = user()?->id;
-        DB::afterCommit(function () use ($newOwner, $leadContact, $oldOwnerId, $actorId) {
+        // An owner change made by a merge is announced in the "Lead merged"
+        // notice (which names the new owner), not a separate email.
+        DB::afterCommit(function () use ($newOwner, $leadContact, $oldOwnerId, $actorId, $merging) {
+            if ($merging) {
+                return;
+            }
             try {
                 // Skip when the assignee is the one who made the change (incl. admins).
                 if ($actorId !== null && (int) $actorId === (int) $newOwner->id) {
