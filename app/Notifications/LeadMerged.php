@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\EmailNotificationSetting;
 use App\Models\Lead;
 use App\Models\User;
+use App\Scopes\ActiveScope;
 
 /**
  * Sent to the owners of both leads when a duplicate lead is merged into
@@ -38,7 +39,11 @@ class LeadMerged extends BaseNotification
         $this->mergedById = $mergedBy?->id;
         $this->mergedByName = trim((string) ($mergedBy?->name ?? '')) ?: __('email.leadMerged.unknownActor');
         $this->keptOwnerId = $kept->lead_owner !== null ? (int) $kept->lead_owner : null;
-        $this->keptOwnerName = $kept->leadOwner?->name;
+        // A deactivated owner is still named (leadOwner() also lifts
+        // ActiveScope; looked up directly so this never depends on that).
+        $this->keptOwnerName = $this->keptOwnerId !== null
+            ? User::withoutGlobalScope(ActiveScope::class)->whereKey($this->keptOwnerId)->value('name')
+            : null;
         $this->emailSetting = $this->company
             ? EmailNotificationSetting::where('company_id', $this->company->id)
                 ->where('slug', 'lead-notification')

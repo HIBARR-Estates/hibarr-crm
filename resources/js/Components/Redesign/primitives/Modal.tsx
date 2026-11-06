@@ -37,6 +37,14 @@ interface ModalProps {
      * must say so explicitly or it renders underneath.
      */
     zIndex?: number;
+    /**
+     * Gives the dialog a fixed height (capped to the viewport) so header and
+     * footer never move. The body then becomes a flush flex column with no
+     * padding or scroll of its own: the caller decides which part scrolls
+     * and which stays pinned (the lead merge dialog scrolls its field list
+     * and pins the "moves to the kept lead" summary).
+     */
+    fixedHeight?: number;
 }
 
 export function Modal({
@@ -52,6 +60,7 @@ export function Modal({
     maxWidth,
     zIndex,
     closeOnBackdrop = false,
+    fixedHeight,
 }: ModalProps) {
     const titleId = useId();
 
@@ -64,9 +73,12 @@ export function Modal({
             ariaLabelledBy={titleId}
             zIndex={zIndex}
             panelClassName="modal-panel"
-            panelStyle={
-                maxWidth ? { maxWidth: `min(${maxWidth}px, 100%)` } : undefined
-            }
+            panelStyle={{
+                ...(maxWidth ? { maxWidth: `min(${maxWidth}px, 100%)` } : {}),
+                ...(fixedHeight
+                    ? { height: `min(${fixedHeight}px, calc(100vh - 48px))`, overflowY: "hidden" as const }
+                    : {}),
+            }}
             initialFocus="first"
             trapFocus
         >
@@ -78,13 +90,20 @@ export function Modal({
                 onClose={onClose}
                 closeAriaLabel={closeAriaLabel}
             />
-            <div style={{ padding: "20px 22px", minWidth: 0, overflowWrap: "anywhere" }}>
+            <div
+                style={
+                    fixedHeight
+                        ? { flex: "1 1 auto", minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column" }
+                        : { padding: "20px 22px", minWidth: 0, overflowWrap: "anywhere" }
+                }
+            >
                 {children}
             </div>
             {footer && (
                 <div
                     style={{
                         padding: "14px 22px",
+                        flexShrink: 0,
                         borderTop: `1px solid ${T.BORDER}`,
                         display: "flex",
                         alignItems: "center",
