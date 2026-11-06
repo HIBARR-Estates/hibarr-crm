@@ -2518,6 +2518,7 @@ return [
         'play_recording' => 'Слушать',
         'previous' => 'Назад',
         'recording_expired' => 'Запись удалена через 30 дней',
+        'recording_processing' => 'Обработка',
         'recording_restricted' => 'Записано · доступно звонившему и менеджерам звонков',
         'retry' => 'Повторить',
         'search' => 'Поиск',

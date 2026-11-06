@@ -166,7 +166,7 @@ export default function CallLogTable({ rows }: { rows: CallLogRow[] }) {
                                             </Button>
                                         ) : recState.status === "processing" ? (
                                             <Badge variant="blue" style={{ fontSize: 11, padding: "2px 8px" }}>
-                                                {td("Processing", { source: "en" })}
+                                                {t("pages.calls.recording_processing")}
                                             </Badge>
                                         ) : recState.status === "expired" ? (
                                             <Badge

@@ -126,13 +126,13 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
                     </Button>
                 ) : recState.status === "processing" ? (
                     <Badge variant="blue" style={{ fontSize: 11, padding: "2px 8px" }}>
-                        {td("Processing", { source: "en" })}
+                        {t("pages.calls.recording_processing")}
                     </Badge>
                 ) : recState.status === "expired" ? (
                     <Badge
                         variant="amber"
                         style={{ fontSize: 11, padding: "2px 8px" }}
-                        title={recState.expiresAt ? `Expired: ${recState.expiresAt}` : undefined}
+                        title={recState.expiresAt ? `${t("pages.calls.recording_expired_short")}: ${formatDateTime(recState.expiresAt)}` : undefined}
                     >
                         {t("pages.calls.recording_expired")}
                     </Badge>

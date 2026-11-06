@@ -245,8 +245,17 @@ class CallLogService
 
         $recordingId = isset($meta['recording_id']) ? (int) $meta['recording_id'] : null;
         $callRef = isset($meta['call_ref']) && is_string($meta['call_ref']) ? $meta['call_ref'] : null;
-        $recording = ($recordingId !== null ? ($recordings['id:' . $recordingId] ?? null) : null)
-            ?? ($callRef !== null ? ($recordings['ref:' . $callRef] ?? null) : null);
+        $recording = $recordingId !== null ? ($recordings['id:' . $recordingId] ?? null) : null;
+        if ($recording === null && $callRef !== null) {
+            $candidates = $recordings['refs:' . $callRef] ?? [];
+            foreach ($candidates as $candidate) {
+                // Apply linker owner-eligibility: exclude recordings belonging to another agent, while allowing system events.
+                if ($event->user_id === null || (int) $candidate->user_id === (int) $event->user_id) {
+                    $recording = $candidate;
+                    break;
+                }
+            }
+        }
         $ownerId = $recording?->user_id !== null ? (int) $recording->user_id : ($event->user_id !== null ? (int) $event->user_id : null);
         $expired = $recording?->expires_at?->isPast() ?? false;
         $canPlay = $recording !== null && ! $expired && CallAccess::canPlayRecording($viewer, $ownerId);
@@ -331,13 +340,21 @@ class CallLogService
             return [];
         }
 
+        $hasSystemEvent = $events->contains(fn ($e) => empty($e->user_id));
+        $eventUserIds = $events->pluck('user_id')->filter()->unique()->values()->all();
+
         $query = CallRecording::query()->where('company_id', $companyId);
-        $query->where(function ($q) use ($ids, $callRefs) {
+        $query->where(function ($q) use ($ids, $callRefs, $hasSystemEvent, $eventUserIds) {
             if ($ids !== []) {
                 $q->whereIn('id', $ids);
             }
             if ($callRefs !== []) {
-                $q->orWhereIn('call_ref', $callRefs);
+                $q->orWhere(function ($refQ) use ($callRefs, $hasSystemEvent, $eventUserIds) {
+                    $refQ->whereIn('call_ref', $callRefs);
+                    if (! $hasSystemEvent) {
+                        $refQ->whereIn('user_id', $eventUserIds);
+                    }
+                });
             }
         });
 
@@ -347,7 +364,7 @@ class CallLogService
         foreach ($recordings as $rec) {
             $byKey['id:' . $rec->id] = $rec;
             if (! empty($rec->call_ref)) {
-                $byKey['ref:' . $rec->call_ref] = $rec;
+                $byKey['refs:' . $rec->call_ref][] = $rec;
             }
         }
 

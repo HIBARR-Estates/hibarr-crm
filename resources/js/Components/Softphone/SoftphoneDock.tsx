@@ -760,6 +760,15 @@ export default function SoftphoneDock() {
                           ? 1
                           : 0;
                 setMatchCount(count);
+                if (
+                    call.direction === "inbound" &&
+                    count === 0 &&
+                    !data?.matched &&
+                    !data?.lead_id &&
+                    !call.context?.leadId
+                ) {
+                    confirmedUnmatchedCallIdRef.current = call.id;
+                }
                 if (call.direction === "inbound") {
                     // Routing only applies to inbound calls.
                     setInboundRoute((prev) => {
@@ -1095,6 +1104,7 @@ export default function SoftphoneDock() {
     const [createLeadModalOpen, setCreateLeadModalOpen] = useState(false);
     const prevCallRef = useRef<SoftphoneCall | null>(null);
     const lastCallHadLeadRef = useRef<boolean>(false);
+    const confirmedUnmatchedCallIdRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (activeCall) {
@@ -1118,12 +1128,22 @@ export default function SoftphoneDock() {
             const hadLead = lastCallHadLeadRef.current;
             lastCallHadLeadRef.current = false;
 
+            const isConfirmedUnmatched = confirmedUnmatchedCallIdRef.current === endedCall.id;
+            confirmedUnmatchedCallIdRef.current = null;
+
             const isAnsweredElsewhere =
                 inboundNoticeDetails?.isAnsweredElsewhere ||
                 state.callFailure?.code === "answered_elsewhere";
 
-            // If no lead was matched, and call wasn't answered elsewhere by someone else
-            if (!hadLead && !isAnsweredElsewhere && endedCall.peer && endedCall.peer !== "Unknown caller") {
+            // If confirmed unmatched on an inbound call, and call wasn't answered elsewhere by someone else
+            if (
+                isConfirmedUnmatched &&
+                endedCall.direction === "inbound" &&
+                !hadLead &&
+                !isAnsweredElsewhere &&
+                endedCall.peer &&
+                endedCall.peer !== "Unknown caller"
+            ) {
                 setUnmatchedPromptPhone(endedCall.peer);
             }
         }
@@ -1199,6 +1219,20 @@ export default function SoftphoneDock() {
                 const elapsedCall = callConnectedAt ? (stopTime - callConnectedAt) / 1000 : 0;
                 const duration = Math.max(1, Math.round(Math.max(elapsedRecording, elapsedCall)));
                 recordStartedAtRef.current = null;
+
+                // Close audio context and release microphone tracks immediately before starting upload
+                micStream?.getTracks().forEach((track) => track.stop());
+                const audioCtx = recordContextRef.current ?? ctx;
+                recordContextRef.current = null;
+                recordRecorderRef.current = null;
+                if (audioCtx && audioCtx.state !== "closed") {
+                    try {
+                        await audioCtx.close();
+                    } catch {
+                        // ignore
+                    }
+                }
+
                 setRecordingUploading(true);
                 try {
                     const form = new FormData();
@@ -1245,14 +1279,9 @@ export default function SoftphoneDock() {
                     void loadRecordings();
                 } catch {
                     console.warn("[softphone] Recording upload failed");
+                } finally {
+                    setRecordingUploading(false);
                 }
-                micStream?.getTracks().forEach((track) => track.stop());
-                try {
-                    await ctx.close();
-                } catch {
-                    // ignore
-                }
-                recordRecorderRef.current = null;
             };
             recordContextRef.current = ctx;
             recordStreamRef.current = destination.stream;

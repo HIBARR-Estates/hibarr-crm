@@ -2702,6 +2702,7 @@ return [
         'play_recording' => 'Play',
         'previous' => 'Previous',
         'recording_expired' => 'Recording expired after 30 days',
+        'recording_processing' => 'Processing',
         'recording_restricted' => 'Recorded · playable by the caller and call managers',
         'retry' => 'Try again',
         'search' => 'Search',

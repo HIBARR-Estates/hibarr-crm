@@ -2545,6 +2545,7 @@ return [
         'play_recording' => 'Abspielen',
         'previous' => 'Zurück',
         'recording_expired' => 'Aufnahme nach 30 Tagen abgelaufen',
+        'recording_processing' => 'Wird verarbeitet',
         'recording_restricted' => 'Aufgenommen · abspielbar für den Anrufer und Anrufverwalter',
         'retry' => 'Erneut versuchen',
         'search' => 'Suche',

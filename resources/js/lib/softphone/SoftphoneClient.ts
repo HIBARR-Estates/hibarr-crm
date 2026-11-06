@@ -770,7 +770,11 @@ class SoftphoneClient {
     ): void {
         this.session = session;
         this.callSeq += 1;
-        const id = `call-${this.callSeq}`;
+        const sipCallId =
+            (session as unknown as { incomingInviteRequest?: { message?: { callId?: string } } })?.incomingInviteRequest?.message?.callId ??
+            (session as unknown as { outgoingRequestMessage?: { callId?: string } })?.outgoingRequestMessage?.callId ??
+            (session as unknown as { id?: string })?.id;
+        const id = sipCallId && sipCallId.trim() !== "" ? sipCallId.trim() : `call-${this.callSeq}`;
         // A fresh attempt starts from a clean slate: no stale failure notice,
         // and nothing here counts as "the agent hung up".
         this.endedByUser = false;
@@ -847,8 +851,8 @@ class SoftphoneClient {
                             "The call ended before it connected.",
                         );
                         return;
-                    } else {
-                        // The call was active, but disconnected from the other party's end
+                    } else if (call.direction === "inbound") {
+                        // The inbound call was active, but disconnected from the caller's end
                         this.failCall(
                             "disconnected",
                             "The call was disconnected from the client's end.",

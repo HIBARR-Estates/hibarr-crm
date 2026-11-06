@@ -27,6 +27,9 @@ class TelephonySoftphoneEventController extends AccountBaseController
     }
 
 
+    /**
+     * Match an incoming caller's phone number to a lead and return routing details.
+     */
     public function leadByPhone(Request $request): JsonResponse
     {
         if (! user()->hasRole('admin') && ! in_array(user()->permission('make_softphone_calls'), ['all', 'added'])) {
@@ -39,9 +42,11 @@ class TelephonySoftphoneEventController extends AccountBaseController
             'phone' => 'required|string|max:100',
             'device_id' => 'nullable|integer|min:1',
             'call_id' => 'nullable|string|max:100',
+            'call_ref' => 'nullable|string|max:100',
         ]);
         $incoming = preg_replace('/[^0-9]/', '', $request->input('phone') ?? '');
         $callId = $request->input('call_id');
+        $callRef = $request->input('call_ref');
 
         if ($incoming === '') {
             return response()->json(['status' => 'success', 'data' => null]);
@@ -50,8 +55,12 @@ class TelephonySoftphoneEventController extends AccountBaseController
         $companyId = (int) company()->id;
         $deviceId = $this->ringingDeviceId();
 
+        $authoritativeCallKey = $this->isAuthoritativeCallId($callId)
+            ? $callId
+            : ($this->isAuthoritativeCallId($callRef) ? $callRef : null);
+
         $passedUserIds = $this->passedUserIdsForCall($companyId, $deviceId, $incoming, $callId);
-        $callStatus = $this->getCallStatus($companyId, $incoming, $callId);
+        $callStatus = $this->getCallStatus($companyId, $authoritativeCallKey);
         $statusVal = $callStatus['status'] ?? null;
         $answeredByUserId = isset($callStatus['user_id']) ? (int) $callStatus['user_id'] : null;
 
@@ -334,17 +343,25 @@ class TelephonySoftphoneEventController extends AccountBaseController
         return response()->json(['status' => 'success']);
     }
 
+    /**
+     * Cache key for users who passed a call identified by a call ID.
+     */
     private function passCallIdCacheKey(int $companyId, string $callId): string
     {
         return sprintf('softphone:call_pass:id:%d:%s', $companyId, trim($callId));
     }
 
+    /**
+     * Cache key for users who passed a call identified by device and phone.
+     */
     private function passCacheKey(int $companyId, ?int $deviceId, string $incoming): string
     {
         return sprintf('softphone:call_pass:%d:%d:%s', $companyId, $deviceId ?? 0, $incoming);
     }
 
     /**
+     * Fetch user IDs that have passed or declined this call.
+     *
      * @return array<int, int>
      */
     private function passedUserIdsForCall(int $companyId, ?int $deviceId, string $incoming, ?string $callId = null): array
@@ -366,6 +383,9 @@ class TelephonySoftphoneEventController extends AccountBaseController
         return array_values(array_unique(array_map('intval', $cached)));
     }
 
+    /**
+     * Record that a user passed an incoming call.
+     */
     private function recordPassedUser(int $companyId, ?int $deviceId, string $incoming, int $userId, ?string $callId = null): void
     {
         if ($callId !== null && trim($callId) !== '') {
@@ -390,6 +410,9 @@ class TelephonySoftphoneEventController extends AccountBaseController
         }
     }
 
+    /**
+     * Clear passed user state for a call upon answer or termination.
+     */
     private function clearPassedUsers(int $companyId, ?int $deviceId, string $incoming, ?string $callId = null): void
     {
         if ($callId !== null && trim($callId) !== '') {
@@ -403,34 +426,54 @@ class TelephonySoftphoneEventController extends AccountBaseController
         }
     }
 
-    private function recordCallStatus(int $companyId, string $incoming, ?string $callId, string $status, int $userId): void
+    /**
+     * Determine whether an identifier is an authoritative, call-specific token across agents.
+     */
+    private function isAuthoritativeCallId(?string $callId): bool
     {
+        if ($callId === null) {
+            return false;
+        }
+
+        $trimmed = trim($callId);
+        if ($trimmed === '' || preg_match('/^call-\d+$/', $trimmed)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Record the authoritative status of an active call using a call-specific identifier.
+     */
+    private function recordCallStatus(int $companyId, ?string $callId, string $status, int $userId): void
+    {
+        if (! $this->isAuthoritativeCallId($callId)) {
+            return;
+        }
+
         $payload = [
+            'call_id' => trim($callId),
             'status' => $status,
             'user_id' => $userId,
             'updated_at' => now()->timestamp,
         ];
-        if ($callId !== null && trim($callId) !== '') {
-            Cache::put(sprintf('softphone:call_status:id:%d:%s', $companyId, trim($callId)), $payload, 300);
-        }
-        if ($incoming !== '') {
-            Cache::put(sprintf('softphone:call_status:phone:%d:%s', $companyId, $incoming), $payload, 300);
-        }
+
+        Cache::put(sprintf('softphone:call_status:id:%d:%s', $companyId, trim($callId)), $payload, 300);
     }
 
-    private function getCallStatus(int $companyId, string $incoming, ?string $callId): ?array
+    /**
+     * Retrieve the authoritative call status when correlated through an authoritative call identifier.
+     */
+    private function getCallStatus(int $companyId, ?string $callId): ?array
     {
-        if ($callId !== null && trim($callId) !== '') {
-            $status = Cache::get(sprintf('softphone:call_status:id:%d:%s', $companyId, trim($callId)));
-            if (is_array($status)) {
-                return $status;
-            }
+        if (! $this->isAuthoritativeCallId($callId)) {
+            return null;
         }
-        if ($incoming !== '') {
-            $status = Cache::get(sprintf('softphone:call_status:phone:%d:%s', $companyId, $incoming));
-            if (is_array($status)) {
-                return $status;
-            }
+
+        $status = Cache::get(sprintf('softphone:call_status:id:%d:%s', $companyId, trim($callId)));
+        if (is_array($status) && isset($status['status'])) {
+            return $status;
         }
 
         return null;
@@ -457,6 +500,9 @@ class TelephonySoftphoneEventController extends AccountBaseController
         return (int) $device->id;
     }
 
+    /**
+     * Persist a softphone timeline event (e.g. call.started, call.ended) and update call bridge.
+     */
     public function store(Request $request): JsonResponse
     {
         abort_403(
@@ -528,14 +574,19 @@ class TelephonySoftphoneEventController extends AccountBaseController
 
         $incomingDigits = preg_replace('/[^0-9]/', '', $validated['phone']) ?? '';
         $callId = $validated['call_id'] ?? null;
+        $callRef = $validated['call_ref'] ?? null;
+        $authoritativeKey = $this->isAuthoritativeCallId($callId)
+            ? $callId
+            : ($this->isAuthoritativeCallId($callRef) ? $callRef : null);
+
         $companyId = (int) company()->id;
         if (in_array($validated['direction'] ?? null, ['inbound', 'incoming'], true)) {
             $eventSlug = $validated['event'] ?? 'call.started';
             if ($eventSlug === 'call.started') {
                 $this->clearPassedUsers($companyId, $this->ringingDeviceId(), $incomingDigits, $callId);
-                $this->recordCallStatus($companyId, $incomingDigits, $callId, 'answered', (int) user()->id);
+                $this->recordCallStatus($companyId, $authoritativeKey, 'answered', (int) user()->id);
             } elseif (in_array($eventSlug, ['call.ended', 'call.completed', 'call.failed', 'call.declined'], true)) {
-                $this->recordCallStatus($companyId, $incomingDigits, $callId, 'ended', (int) user()->id);
+                $this->recordCallStatus($companyId, $authoritativeKey, 'ended', (int) user()->id);
             }
         }
 

@@ -2523,6 +2523,7 @@ return [
         'play_recording' => 'Oynat',
         'previous' => 'Önceki',
         'recording_expired' => 'Kayıt 30 gün sonra süresi doldu',
+        'recording_processing' => 'İşleniyor',
         'recording_restricted' => 'Kaydedildi · arayan ve arama yöneticileri dinleyebilir',
         'retry' => 'Tekrar dene',
         'search' => 'Ara',
