@@ -1,7 +1,15 @@
 import React, { useMemo, useState } from "react";
 import axios from "axios";
-import { DeleteOutlined, PlusOutlined, RightOutlined } from "@ant-design/icons";
-import { App, Select } from "antd";
+import {
+    CheckOutlined,
+    CloseOutlined,
+    DeleteOutlined,
+    EditOutlined,
+    InfoCircleOutlined,
+    PlusOutlined,
+    RightOutlined,
+} from "@ant-design/icons";
+import { App, InputNumber, Select, Tooltip } from "antd";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
@@ -46,6 +54,164 @@ function initials(name: string | null, userId: number): string {
 }
 
 /**
+ * Editable priority badge/input for an agent in the line or fallback pool.
+ */
+function PriorityCell({
+    agentId,
+    initialPriority,
+    otherPriorities = [],
+    onUpdated,
+}: {
+    agentId: number;
+    initialPriority: number;
+    otherPriorities?: number[];
+    onUpdated: () => Promise<unknown>;
+}) {
+    const { message } = App.useApp();
+    const [isEditing, setIsEditing] = useState(false);
+    const [value, setValue] = useState<number>(initialPriority);
+    const [saving, setSaving] = useState(false);
+
+    React.useEffect(() => {
+        setValue(initialPriority);
+    }, [initialPriority]);
+
+    const handleSave = async (numToSave?: number) => {
+        const num = numToSave ?? value;
+        if (!Number.isFinite(num) || num < 1 || num > 100) {
+            setValue(initialPriority);
+            void message.error("Priority must be between 1 and 100 (1 rings first).");
+            return;
+        }
+        if (num === initialPriority) {
+            setIsEditing(false);
+            return;
+        }
+        if (otherPriorities.includes(num)) {
+            setValue(initialPriority);
+            void message.error(
+                `Priority ${num} is already assigned to another agent in this pool. Two people cannot have the same priority.`,
+            );
+            return;
+        }
+        setSaving(true);
+        try {
+            await axios.put(
+                route("telephony.softphone.call-pool.update", agentId),
+                { priority: num },
+                { headers: { Accept: "application/json" } },
+            );
+            void message.success("Priority updated.");
+            setIsEditing(false);
+            await onUpdated();
+        } catch (err: any) {
+            setValue(initialPriority);
+            const msg = err?.response?.data?.message || "Could not update priority.";
+            void message.error(msg);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (isEditing) {
+        return (
+            <div
+                style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                }}
+            >
+                <InputNumber
+                    min={1}
+                    max={100}
+                    size="small"
+                    disabled={saving}
+                    value={value}
+                    onChange={(val) => {
+                        if (val !== null) setValue(val);
+                    }}
+                    onPressEnter={() => void handleSave()}
+                    onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                            setValue(initialPriority);
+                            setIsEditing(false);
+                        }
+                    }}
+                    autoFocus
+                    style={{ width: "56px" }}
+                />
+                <button
+                    type="button"
+                    className="cb-icon-btn cb-icon-btn--plain"
+                    style={{ width: "24px", height: "24px" }}
+                    onClick={() => void handleSave()}
+                    disabled={saving}
+                    title="Save (Enter)"
+                    aria-label="Save priority"
+                >
+                    <CheckOutlined style={{ color: "var(--dr-green, #10b981)", fontSize: "12px" }} />
+                </button>
+                <button
+                    type="button"
+                    className="cb-icon-btn cb-icon-btn--plain"
+                    style={{ width: "24px", height: "24px" }}
+                    onClick={() => {
+                        setValue(initialPriority);
+                        setIsEditing(false);
+                    }}
+                    disabled={saving}
+                    title="Cancel (Esc)"
+                    aria-label="Cancel priority edit"
+                >
+                    <CloseOutlined style={{ color: "var(--dr-text-muted)", fontSize: "11px" }} />
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <Tooltip title="Click to edit routing order (1–100)">
+            <button
+                type="button"
+                className="cb-prio cb-num"
+                onClick={() => setIsEditing(true)}
+                style={{
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    padding: "3px 12px",
+                    borderRadius: "999px",
+                    border: "1px solid var(--dr-border)",
+                    background: "var(--dr-surface-2)",
+                    color: "var(--dr-text)",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                    transition: "all 0.15s ease",
+                    outline: "none",
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "var(--dr-blue, #1677ff)";
+                    e.currentTarget.style.background = "var(--dr-surface, #fff)";
+                    e.currentTarget.style.color = "var(--dr-blue, #1677ff)";
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "var(--dr-border)";
+                    e.currentTarget.style.background = "var(--dr-surface-2)";
+                    e.currentTarget.style.color = "var(--dr-text)";
+                }}
+                aria-label={`Routing priority ${initialPriority}, click to edit`}
+            >
+                <span>{initialPriority}</span>
+                <EditOutlined style={{ fontSize: "11px", opacity: 0.5 }} aria-hidden="true" />
+            </button>
+        </Tooltip>
+    );
+}
+
+/**
  * One phone line's call pool: the agents who receive its inbound calls, plus
  * the inline "add agent" form that adds to this line.
  */
@@ -57,6 +223,7 @@ function LinePool({
     const { message } = App.useApp();
     const [picking, setPicking] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+    const [selectedPriority, setSelectedPriority] = useState<number>(100);
     const [deleteTarget, setDeleteTarget] = useState<PoolAgent | null>(null);
     const [removingId, setRemovingId] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
@@ -72,6 +239,14 @@ function LinePool({
     const agents = poolQuery.data?.data?.agents ?? [];
     const eligible = eligibleQuery.data?.data?.users ?? [];
     const alreadyInPool = new Set(agents.map((a) => a.user_id));
+    const alreadyUsedPriorities = useMemo(() => new Set(agents.map((a) => a.priority)), [agents]);
+    const nextPriority = useMemo(() => {
+        for (let i = 1; i <= 100; i++) {
+            if (!alreadyUsedPriorities.has(i)) return i;
+        }
+        return 1;
+    }, [alreadyUsedPriorities]);
+
     const options = eligible
         .filter((u) => !alreadyInPool.has(u.id))
         .map((u) => ({
@@ -81,19 +256,29 @@ function LinePool({
 
     const submitAdd = async () => {
         if (!selectedUserId) return;
+        if (selectedPriority < 1 || selectedPriority > 100) {
+            void message.error("Priority must be between 1 and 100.");
+            return;
+        }
+        if (alreadyUsedPriorities.has(selectedPriority)) {
+            void message.error(`Priority ${selectedPriority} is already assigned. Two people cannot have the same priority.`);
+            return;
+        }
         setSaving(true);
         try {
             await axios.post(
                 route("telephony.softphone.call-pool.store"),
-                { device_id: device.id, user_id: selectedUserId },
+                { device_id: device.id, user_id: selectedUserId, priority: selectedPriority },
                 { headers: { Accept: "application/json" } },
             );
             setPicking(false);
             setSelectedUserId(null);
+            setSelectedPriority(nextPriority);
             await poolQuery.refetch();
             void message.success("Agent added to the line pool.");
-        } catch {
-            void message.error("Could not add agent.");
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || "Could not add agent.";
+            void message.error(msg);
         } finally {
             setSaving(false);
         }
@@ -119,6 +304,7 @@ function LinePool({
     const cancelAdd = () => {
         setPicking(false);
         setSelectedUserId(null);
+        setSelectedPriority(100);
     };
 
     return (
@@ -132,10 +318,19 @@ function LinePool({
                 </span>
             </summary>
 
-            <div className="cb-table cb-pool" role="table" aria-label={`${device.label} agents`}>
-                <div className="cb-grid-row cb-grid-row--head cb-pool" role="row">
+            <div
+                className="cb-table cb-pool"
+                role="table"
+                aria-label={`${device.label} agents`}
+                style={{ "--cols": "minmax(0, 1fr) 130px 44px" } as React.CSSProperties}
+            >
+                <div
+                    className="cb-grid-row cb-grid-row--head cb-pool"
+                    role="row"
+                    style={{ "--cols": "minmax(0, 1fr) 130px 44px" } as React.CSSProperties}
+                >
                     <span>Agent</span>
-                    <span>Priority</span>
+                    <span title="Order in which calls ring agents on this line (1 rings first, 2 rings second, etc.)">Routing Order</span>
                     <span aria-hidden="true" />
                 </div>
 
@@ -149,6 +344,7 @@ function LinePool({
                             key={agent.id}
                             className="cb-grid-row cb-pool"
                             role="row"
+                            style={{ "--cols": "minmax(0, 1fr) 130px 44px" } as React.CSSProperties}
                         >
                             <div className="cb-who">
                                 <span className="cb-avatar" aria-hidden="true">
@@ -161,9 +357,14 @@ function LinePool({
                                     {agent.email && <span className="cb-sub">{agent.email}</span>}
                                 </span>
                             </div>
-                            <span>
-                                <span className="cb-prio cb-num">{agent.priority}</span>
-                            </span>
+                            <PriorityCell
+                                agentId={agent.id}
+                                initialPriority={agent.priority}
+                                otherPriorities={agents.filter((a) => a.id !== agent.id).map((a) => a.priority)}
+                                onUpdated={async () => {
+                                    await poolQuery.refetch();
+                                }}
+                            />
                             <button
                                 type="button"
                                 className="cb-icon-btn"
@@ -183,7 +384,10 @@ function LinePool({
                     <button
                         type="button"
                         className="cb-btn cb-btn--ghost"
-                        onClick={() => setPicking(true)}
+                        onClick={() => {
+                            setSelectedPriority(nextPriority);
+                            setPicking(true);
+                        }}
                     >
                         <PlusOutlined aria-hidden="true" />
                         Add agent to {device.label}
@@ -203,6 +407,17 @@ function LinePool({
                                 placeholder="Search agents who can make calls"
                                 options={options}
                                 notFoundContent="Every eligible agent is already on this line."
+                            />
+                        </div>
+                        <div className="cb-field" style={{ width: "110px", flexShrink: 0 }}>
+                            <label htmlFor={`cb-add-prio-${device.id}`} title="Order this agent will ring (1–100)">Routing Order</label>
+                            <InputNumber
+                                id={`cb-add-prio-${device.id}`}
+                                min={1}
+                                max={100}
+                                style={{ width: "100%", height: "32px" }}
+                                value={selectedPriority}
+                                onChange={(val) => setSelectedPriority(val ?? 1)}
                             />
                         </div>
                         <button
@@ -250,6 +465,7 @@ function AdminFallbackPool() {
     const { message } = App.useApp();
     const [picking, setPicking] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+    const [selectedPriority, setSelectedPriority] = useState<number>(100);
     const [deleteTarget, setDeleteTarget] = useState<PoolAgent | null>(null);
     const [removingId, setRemovingId] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
@@ -265,6 +481,14 @@ function AdminFallbackPool() {
     const agents = poolQuery.data?.data?.agents ?? [];
     const eligible = eligibleQuery.data?.data?.users ?? [];
     const alreadyInPool = new Set(agents.map((a) => a.user_id));
+    const alreadyUsedPriorities = useMemo(() => new Set(agents.map((a) => a.priority)), [agents]);
+    const nextPriority = useMemo(() => {
+        for (let i = 1; i <= 100; i++) {
+            if (!alreadyUsedPriorities.has(i)) return i;
+        }
+        return 1;
+    }, [alreadyUsedPriorities]);
+
     const options = eligible
         .filter((u) => !alreadyInPool.has(u.id))
         .map((u) => ({
@@ -274,19 +498,29 @@ function AdminFallbackPool() {
 
     const submitAdd = async () => {
         if (!selectedUserId) return;
+        if (selectedPriority < 1 || selectedPriority > 100) {
+            void message.error("Priority must be between 1 and 100.");
+            return;
+        }
+        if (alreadyUsedPriorities.has(selectedPriority)) {
+            void message.error(`Priority ${selectedPriority} is already assigned. Two people cannot have the same priority.`);
+            return;
+        }
         setSaving(true);
         try {
             await axios.post(
                 route("telephony.softphone.call-pool.store"),
-                { scope: "fallback", user_id: selectedUserId },
+                { scope: "fallback", user_id: selectedUserId, priority: selectedPriority },
                 { headers: { Accept: "application/json" } },
             );
             setPicking(false);
             setSelectedUserId(null);
+            setSelectedPriority(nextPriority);
             await poolQuery.refetch();
             void message.success("User added to admin fallback list.");
-        } catch {
-            void message.error("Could not add user.");
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || "Could not add user.";
+            void message.error(msg);
         } finally {
             setSaving(false);
         }
@@ -312,6 +546,7 @@ function AdminFallbackPool() {
     const cancelAdd = () => {
         setPicking(false);
         setSelectedUserId(null);
+        setSelectedPriority(100);
     };
 
     return (
@@ -347,10 +582,19 @@ function AdminFallbackPool() {
                 Users on this list receive the call if the lead owner and line agents are unavailable or pass.
             </div>
 
-            <div className="cb-table cb-pool" role="table" aria-label="Admin fallback users">
-                <div className="cb-grid-row cb-grid-row--head cb-pool" role="row">
+            <div
+                className="cb-table cb-pool"
+                role="table"
+                aria-label="Admin fallback users"
+                style={{ "--cols": "minmax(0, 1fr) 130px 44px" } as React.CSSProperties}
+            >
+                <div
+                    className="cb-grid-row cb-grid-row--head cb-pool"
+                    role="row"
+                    style={{ "--cols": "minmax(0, 1fr) 130px 44px" } as React.CSSProperties}
+                >
                     <span>Fallback User</span>
-                    <span>Priority</span>
+                    <span title="Order in which fallback users ring (1 rings first, 2 rings second, etc.)">Routing Order</span>
                     <span aria-hidden="true" />
                 </div>
 
@@ -366,6 +610,7 @@ function AdminFallbackPool() {
                             key={agent.id}
                             className="cb-grid-row cb-pool"
                             role="row"
+                            style={{ "--cols": "minmax(0, 1fr) 130px 44px" } as React.CSSProperties}
                         >
                             <div className="cb-who">
                                 <span className="cb-avatar" aria-hidden="true">
@@ -378,9 +623,14 @@ function AdminFallbackPool() {
                                     {agent.email && <span className="cb-sub">{agent.email}</span>}
                                 </span>
                             </div>
-                            <span>
-                                <span className="cb-prio cb-num">{agent.priority}</span>
-                            </span>
+                            <PriorityCell
+                                agentId={agent.id}
+                                initialPriority={agent.priority}
+                                otherPriorities={agents.filter((a) => a.id !== agent.id).map((a) => a.priority)}
+                                onUpdated={async () => {
+                                    await poolQuery.refetch();
+                                }}
+                            />
                             <button
                                 type="button"
                                 className="cb-icon-btn"
@@ -400,7 +650,10 @@ function AdminFallbackPool() {
                     <button
                         type="button"
                         className="cb-btn cb-btn--ghost"
-                        onClick={() => setPicking(true)}
+                        onClick={() => {
+                            setSelectedPriority(nextPriority);
+                            setPicking(true);
+                        }}
                     >
                         <PlusOutlined aria-hidden="true" />
                         Add user to fallback list
@@ -420,6 +673,17 @@ function AdminFallbackPool() {
                                 placeholder="Search active users and admins"
                                 options={options}
                                 notFoundContent="All eligible users are already on the fallback list."
+                            />
+                        </div>
+                        <div className="cb-field" style={{ width: "110px", flexShrink: 0 }}>
+                            <label htmlFor="cb-add-fallback-prio" title="Order this fallback user will ring (1–100)">Routing Order</label>
+                            <InputNumber
+                                id="cb-add-fallback-prio"
+                                min={1}
+                                max={100}
+                                style={{ width: "100%", height: "32px" }}
+                                value={selectedPriority}
+                                onChange={(val) => setSelectedPriority(val ?? 1)}
                             />
                         </div>
                         <button
@@ -599,6 +863,31 @@ export default function SoftphoneCallPoolManager({
                     <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--dr-text-muted)" }}>
                         Configure who gets incoming calls for each phone line, in order of priority.
                     </p>
+                </div>
+
+                <div
+                    style={{
+                        marginBottom: "16px",
+                        padding: "12px 16px",
+                        borderRadius: "8px",
+                        background: "var(--dr-surface-2, #f8fafc)",
+                        border: "1px solid var(--dr-border, #e2e8f0)",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: "12px",
+                        fontSize: "13px",
+                        lineHeight: "1.5",
+                        color: "var(--dr-text)",
+                    }}
+                >
+                    <InfoCircleOutlined style={{ color: "var(--dr-blue, #1677ff)", fontSize: "16px", marginTop: "2px" }} />
+                    <div>
+                        <strong>Call Routing Order (Priority 1–100):</strong>
+                        <div style={{ marginTop: "2px", color: "var(--dr-text-muted)" }}>
+                            Priority defines the order in which agents are rung for incoming calls. Agent with <strong>Priority 1</strong> rings first, <strong>Priority 2</strong> rings second, and so on.
+                            <strong> Two agents cannot share the same priority.</strong> To change the call routing sequence, simply edit the priority numbers below.
+                        </div>
+                    </div>
                 </div>
 
                 {sorted.length === 0 ? (

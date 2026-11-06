@@ -29,6 +29,9 @@ class CallRecordingController extends AccountBaseController
         $this->fileStorageService = $fileStorageService;
     }
 
+    /**
+     * List call recordings for the current user or company call managers.
+     */
     public function index(Request $request)
     {
         abort_403(! CallAccess::canMakeCalls(user()) && ! CallAccess::canManageCalls(user()));
@@ -89,6 +92,9 @@ class CallRecordingController extends AccountBaseController
         return Reply::successWithData('Recordings', ['data' => $recordings]);
     }
 
+    /**
+     * Upload and store a call recording from the browser softphone.
+     */
     public function store(Request $request)
     {
         $permission = user()->permission('make_softphone_calls');
@@ -137,10 +143,9 @@ class CallRecordingController extends AccountBaseController
         }
 
         $file = $request->file('recording');
-        $duration = (int) $request->input('duration', 180);
-        if ($duration < 1) {
-            $duration = 180;
-        }
+        $rawDuration = $request->input('duration');
+        $suppliedDuration = ($rawDuration !== null && is_numeric($rawDuration)) ? (int) $rawDuration : null;
+        $duration = ($suppliedDuration !== null && $suppliedDuration > 1) ? $suppliedDuration : 180;
 
         $folder = 'call-recordings/' . user()->id;
 
@@ -163,6 +168,17 @@ class CallRecordingController extends AccountBaseController
             // partial files when toMp3() fails (returns false or throws).
             $mp3Path = $finalPath;
             $transcoded = $this->transcoder->toMp3($file->getRealPath(), $finalPath);
+            if ($transcoded && is_file($mp3Path)) {
+                $probed = $this->transcoder->getDurationSeconds($mp3Path);
+                if ($probed !== null && $probed > 0) {
+                    $duration = $probed;
+                }
+            } elseif (($suppliedDuration === null || $suppliedDuration <= 1) && $file->getRealPath() && is_file($file->getRealPath())) {
+                $probed = $this->transcoder->getDurationSeconds($file->getRealPath());
+                if ($probed !== null && $probed > 0) {
+                    $duration = $probed;
+                }
+            }
         } catch (\Throwable $e) {
             $transcoded = false;
             // Clean up any partial output file from a failed transcode
@@ -245,14 +261,6 @@ class CallRecordingController extends AccountBaseController
     }
 
     /**
-     * Resolve the entity a recording is attached to.
-     *
-     * The id arrives from the browser, so it must be checked against the
-     * caller's own tenant and their record-level access — otherwise a
-     * recording could be labelled with (and link to) a lead or deal the
-     * uploader is not allowed to see.
-     */
-    /**
      * Resolve forwarded metadata for recordings from linked call timeline events.
      *
      * @param  \Illuminate\Support\Collection<int, CallRecording>  $rows
@@ -301,6 +309,9 @@ class CallRecordingController extends AccountBaseController
         return $out;
     }
 
+    /**
+     * Resolve the entity a recording is attached to and assert access.
+     */
     private function assertEntityIsAccessible(string $entityType, int $entityId): void
     {
         if ($entityType === 'lead') {
@@ -458,6 +469,9 @@ class CallRecordingController extends AccountBaseController
         }
     }
 
+    /**
+     * Stream a recording for inline playback in the browser.
+     */
     public function play(CallRecording $callRecording)
     {
         $this->authorizeRecordingAccess($callRecording);
