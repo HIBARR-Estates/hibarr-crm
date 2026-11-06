@@ -32,3 +32,9 @@ phpunit.xml
 .phpunit.result.cache
 Homestead.json
 Homestead.yaml
+.woodpecker
+.woodpecker-scripts
+.woodpecker-env
+.tags
+.phpunit-shards
+phpunit.shard-*.xml

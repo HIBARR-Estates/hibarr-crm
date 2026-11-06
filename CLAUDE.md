@@ -24,6 +24,10 @@ Frontend (JS/TS) — **two asset pipelines coexist, pick the one matching the la
 - `npm run dev` / `npm run watch` / `npm run prod` — Laravel Mix (legacy; `webpack.mix.js`). Used by `inertia.blade.php` / `inertia_alt.blade.php`.
 - No JS test runner or linter is configured in this repo (no jest/vitest/eslint config present) — don't assume `npm test` exists.
 
+CI/CD — Woodpecker, not GitHub Actions:
+- `.woodpecker/` and `.woodpecker-scripts/` are **generated** from the `laravel-app` templates in `HIBARR-Estates/hibarr-ci-infrastructure` by its sync job. Don't hand-edit them here (the next sync overwrites it); change the template in that repo. `docker build --target smoke -f docker/Dockerfile .` runs the image checks locally.
+- Deploys are manual Woodpecker pipelines (`deploy-staging`, `deploy-prod`) that call a Dokploy webhook. The Jenkins deploy still exists until the Dokploy move is proven. See `docs/ci-cd-and-docker.md` and `docs/dokploy.md`.
+
 ## Architecture
 
 - **Deferred, non-blocking page loads**: Inertia controllers ship a minimal synchronous prop set and wrap everything else in `Inertia::defer(fn () => ...)` (see `app/Http/Controllers/DealController.php:533` `show()`). The frontend matches each deferred key with Inertia's `<Deferred data="..." fallback={<Skeleton/>}>` (see `DealViewRedesign.tsx`). **New data a page/tab needs should be deferred server-side and wrapped in `<Deferred>` client-side, not fetched eagerly or awaited on first paint.**

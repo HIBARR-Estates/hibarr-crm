@@ -9,7 +9,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    image: hibarr-crm:local
+    image: ${HIBARR_IMAGE:-hibarr-crm:local}
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8080}:80"
@@ -30,7 +30,7 @@ services:
       - "host.docker.internal:host-gateway"
 
   queue:
-    image: hibarr-crm:local
+    image: ${HIBARR_IMAGE:-hibarr-crm:local}
     restart: unless-stopped
     environment:
       <<: *infisical-env
@@ -50,7 +50,7 @@ services:
       - app
 
   scheduler:
-    image: hibarr-crm:local
+    image: ${HIBARR_IMAGE:-hibarr-crm:local}
     restart: unless-stopped
     environment:
       <<: *infisical-env
