@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import axios from "axios";
 import { Deferred } from "@inertiajs/react";
 import DashboardLayout from "@/Components/DashboardLayout";
@@ -42,16 +42,26 @@ export default function CompanyDashboardAccess({ pageTitle, viewers: initialView
     const [pendingId, setPendingId] = useState<number | null>(null);
     const [error, setError] = useState(false);
 
+    // Each response carries the whole list. When changes overlap, a response
+    // is applied only if no newer one has been applied already, so an older
+    // response arriving last can't bring back someone who was just removed.
+    const latestRequest = useRef(0);
+    const lastApplied = useRef(0);
+
     const save = async (request: () => Promise<{ data: { viewers?: Viewer[] } }>, userId: number) => {
+        const requestId = ++latestRequest.current;
         setPendingId(userId);
         setError(false);
         try {
             const { data } = await request();
-            if (data.viewers) setViewers(data.viewers);
+            if (data.viewers && requestId > lastApplied.current) {
+                lastApplied.current = requestId;
+                setViewers(data.viewers);
+            }
         } catch {
             setError(true);
         } finally {
-            setPendingId(null);
+            if (requestId === latestRequest.current) setPendingId(null);
         }
     };
 
