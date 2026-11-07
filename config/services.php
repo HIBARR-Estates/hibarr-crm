@@ -197,7 +197,8 @@ return [
             'status' => env('OL_CALL_BRIDGE_STATUS_PATH', '/call-bridge/calls/status'),
             'events' => env('OL_CALL_BRIDGE_EVENTS_PATH', '/call-bridge/events'),
             'active_calls' => env('OL_CALL_BRIDGE_ACTIVE_CALLS_PATH', '/call-bridge/calls/active'),
-            'emit_event' => env('OL_CALL_BRIDGE_EMIT_EVENT_PATH', '/call-bridge/calls/emit'),
+            'emit' => env('OL_CALL_BRIDGE_EMIT_PATH', env('OL_CALL_BRIDGE_EMIT_EVENT_PATH', '/call-bridge/emit')),
+            'emit_event' => env('OL_CALL_BRIDGE_EMIT_PATH', env('OL_CALL_BRIDGE_EMIT_EVENT_PATH', '/call-bridge/emit')),
             // SIP provider integrations: which platforms OL supports and the
             // connection defaults for one of them. `platform` keeps a
             // `{platform}` placeholder the client substitutes.

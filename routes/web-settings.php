@@ -10,6 +10,7 @@ use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\AttendanceSettingController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\CompanyDashboardAccessController;
 use App\Http\Controllers\AutomationSettingController;
 use App\Http\Controllers\BusinessAddressController;
 use App\Http\Controllers\ContractSettingController;
@@ -109,6 +110,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     /* Audit log — every recorded write and sign-in event (admin-only) */
     Route::get('audit-log', [AuditLogController::class, 'index'])->name('audit-log.index');
     Route::get('audit-log/entries', [AuditLogController::class, 'entries'])->name('audit-log.entries');
+
+    /* Company dashboard access — who may open the Company dashboard (admin-only) */
+    Route::get('company-dashboard-access', [CompanyDashboardAccessController::class, 'index'])->name('company-dashboard-access.index');
+    Route::post('company-dashboard-access', [CompanyDashboardAccessController::class, 'store'])->name('company-dashboard-access.store');
+    Route::delete('company-dashboard-access/{userId}', [CompanyDashboardAccessController::class, 'destroy'])->whereNumber('userId')->name('company-dashboard-access.destroy');
 
     /* Automation settings — email templates + trigger-based automations */
     Route::get('automation', [AutomationSettingController::class, 'index'])->name('settings-automation.index');
