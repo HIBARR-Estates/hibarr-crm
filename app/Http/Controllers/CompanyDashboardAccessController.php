@@ -23,10 +23,16 @@ class CompanyDashboardAccessController extends AccountBaseController
         $this->pageTitle = 'pages.company_dashboard_access.title';
 
         $this->middleware(function ($request, $next) {
-            abort_403(! in_array('admin', user_roles()));
+            self::ensureAdmin();
 
             return $next($request);
         });
+    }
+
+    /** Only admins manage the list (being on it is a separate thing). */
+    public static function ensureAdmin(): void
+    {
+        abort_403(! in_array('admin', user_roles()));
     }
 
     public function index()
