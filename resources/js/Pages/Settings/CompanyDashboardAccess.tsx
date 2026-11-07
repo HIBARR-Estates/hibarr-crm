@@ -42,27 +42,27 @@ export default function CompanyDashboardAccess({ pageTitle, viewers: initialView
     const [pendingId, setPendingId] = useState<number | null>(null);
     const [error, setError] = useState(false);
 
-    // Each response carries the whole list. When changes overlap, a response
-    // is applied only if no newer one has been applied already, so an older
-    // response arriving last can't bring back someone who was just removed.
-    const latestRequest = useRef(0);
-    const lastApplied = useRef(0);
+    // Each response carries the whole list. Changes are sent one at a time,
+    // each after the previous one has finished, so the server applies them in
+    // click order and every response already includes the earlier changes.
+    // Applying each response as it arrives therefore always moves the list
+    // forward; an overlapping pair can never leave someone wrongly listed.
+    const queue = useRef<Promise<void>>(Promise.resolve());
 
-    const save = async (request: () => Promise<{ data: { viewers?: Viewer[] } }>, userId: number) => {
-        const requestId = ++latestRequest.current;
-        setPendingId(userId);
+    const save = (request: () => Promise<{ data: { viewers?: Viewer[] } }>, userId: number) => {
         setError(false);
-        try {
-            const { data } = await request();
-            if (data.viewers && requestId > lastApplied.current) {
-                lastApplied.current = requestId;
-                setViewers(data.viewers);
+        queue.current = queue.current.then(async () => {
+            setPendingId(userId);
+            try {
+                const { data } = await request();
+                if (data.viewers) setViewers(data.viewers);
+            } catch {
+                setError(true);
+            } finally {
+                setPendingId(null);
             }
-        } catch {
-            setError(true);
-        } finally {
-            if (requestId === latestRequest.current) setPendingId(null);
-        }
+        });
+        return queue.current;
     };
 
     const add = (person: PersonOption) =>
