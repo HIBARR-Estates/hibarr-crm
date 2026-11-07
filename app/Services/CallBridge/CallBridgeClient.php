@@ -311,7 +311,7 @@ class CallBridgeClient
             $pending = Http::timeout($timeout)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
-                    'X-Api-Key' => $apiKey,
+                    'x-api-key' => $apiKey,
                     'Accept' => 'application/json',
                 ]);
 
