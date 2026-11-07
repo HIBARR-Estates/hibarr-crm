@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helper\Files;
 use App\Helper\Reply;
 use App\Models\CallRecording;
 use App\Models\Deal;
@@ -79,13 +80,13 @@ class CallRecordingController extends AccountBaseController
                     'duration_seconds' => $recording->duration_seconds,
                     'expires_at' => $recording->expires_at?->toIso8601String(),
                     'is_expired' => $recording->expires_at?->isPast() ?? false,
-                    'play_url' => route('call-recordings.play', $recording->id),
+                    'play_url' => route('call-recordings.play', $recording->id, false),
                     // An authorised app endpoint — never the raw object-storage
                     // link. The storage URL is a durable bearer credential:
                     // handing it to the browser would let anyone who copies it
                     // fetch the audio without a session, without the ownership
                     // check and without the expiry.
-                    'download_url' => route('call-recordings.download', $recording->id),
+                    'download_url' => route('call-recordings.download', $recording->id, false),
                 ];
             });
 
@@ -213,6 +214,20 @@ class CallRecordingController extends AccountBaseController
                 : $this->fileStorageService->upload($file, $folder);
             $objectPath = $uploaded['objectPath'] ?? null;
             $externalUrl = $uploaded['downloadUrl'] ?? null;
+
+            // If the upload gateway routed a video/audio file to Bunny Stream, it may return
+            // an iframe embed URL (https://iframe.mediadelivery.net/embed/...) instead of direct media.
+            // Resolve the direct CDN link from the embed meta tags so callers get playable media.
+            if (is_string($externalUrl) && str_contains($externalUrl, 'iframe.mediadelivery.net/embed/')) {
+                try {
+                    $embedRes = Http::timeout(5)->get($externalUrl);
+                    if ($embedRes->successful() && preg_match('/<meta[^>]+property=["\']og:video:url["\'][^>]+content=["\']([^"\']+)["\']/i', $embedRes->body(), $m)) {
+                        $externalUrl = $m[1];
+                    }
+                } catch (\Throwable $e) {
+                    // Retain original URL if resolving fails
+                }
+            }
         } catch (\Throwable $e) {
             Log::warning('CallRecordingController: storage upload failed, falling back to local disk', [
                 'call_ref' => $request->input('call_ref'),
@@ -283,7 +298,7 @@ class CallRecordingController extends AccountBaseController
         return Reply::successWithData('Recording uploaded', [
             'data' => [
                 'id' => $recording->id,
-                'play_url' => route('call-recordings.play', $recording->id),
+                'play_url' => route('call-recordings.play', $recording->id, false),
                 'expires_at' => $recording->expires_at?->toIso8601String(),
                 'duration_seconds' => $recording->duration_seconds,
             ],
@@ -414,7 +429,28 @@ class CallRecordingController extends AccountBaseController
                 $pending = $pending->withHeaders(['Range' => $range]);
             }
 
-            $upstream = $pending->get($recording->external_url);
+            $targetUrl = $recording->external_url;
+
+            // If the storage service returned a Bunny Stream iframe embed URL
+            // (https://iframe.mediadelivery.net/embed/...), resolve the direct media CDN
+            // URL from its meta tags so the response streams actual audio rather than an HTML webpage.
+            if (is_string($targetUrl) && str_contains($targetUrl, 'iframe.mediadelivery.net/embed/')) {
+                try {
+                    $embedRes = Http::timeout(5)->get($targetUrl);
+                    if ($embedRes->successful()) {
+                        $html = $embedRes->body();
+                        if (preg_match('/<meta[^>]+property=["\']og:video:url["\'][^>]+content=["\']([^"\']+)["\']/i', $html, $m)) {
+                            $targetUrl = $m[1];
+                        } elseif (preg_match('/<meta[^>]+content=["\']([^"\']+\.(?:mp4|webm))["\'][^>]+property=["\']og:video:url["\']/i', $html, $m)) {
+                            $targetUrl = $m[1];
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('CallRecordingController: resolving embed media url failed', ['error' => $e->getMessage()]);
+                }
+            }
+
+            $upstream = $pending->get($targetUrl);
 
             if (! $upstream->successful()) {
                 Log::warning('CallRecordingController: upstream fetch failed', [
@@ -422,6 +458,17 @@ class CallRecordingController extends AccountBaseController
                     'status' => $upstream->status(),
                 ]);
                 abort(502, 'Recording is temporarily unavailable.');
+            }
+
+            // If the upstream responded with an HTML page (e.g. embed player or error page),
+            // never pass HTML to the browser as audio — that corrupts the recording.
+            $upstreamType = strtolower($upstream->header('Content-Type') ?? '');
+            if (str_contains($upstreamType, 'text/html')) {
+                Log::warning('CallRecordingController: upstream returned HTML instead of audio bytes', [
+                    'recording_id' => $recording->id,
+                    'url' => $targetUrl,
+                ]);
+                abort(502, 'Recording stream is invalid.');
             }
 
             // Object storage serves these as `binary/octet-stream`, which makes
@@ -500,6 +547,101 @@ class CallRecordingController extends AccountBaseController
     }
 
     /**
+     * Resolve the filesystem path for an object stored locally.
+     */
+    private function resolveLocalPath(string $objectPath): ?string
+    {
+        $disk = Storage::disk('local');
+        if ($disk->exists($objectPath)) {
+            $path = $disk->path($objectPath);
+            if (is_file($path)) {
+                return $path;
+            }
+        }
+
+        $fallback = storage_path('app/' . ltrim($objectPath, '/'));
+        if (is_file($fallback)) {
+            return $fallback;
+        }
+
+        $publicUploads = public_path(Files::UPLOAD_FOLDER . '/' . ltrim($objectPath, '/'));
+        if (is_file($publicUploads)) {
+            return $publicUploads;
+        }
+
+        return null;
+    }
+
+    /**
+     * Stream a local file with HTTP Range support for seeking in <audio>.
+     *
+     * Uses fopen/fread directly instead of Symfony's BinaryFileResponse /
+     * response()->file(), which calls is_readable() and fails on Windows
+     * under certain ACL configurations.
+     */
+    private function streamLocalFile(string $path, CallRecording $callRecording, string $disposition = 'inline')
+    {
+        $size = (int) @filesize($path);
+        $storedType = $callRecording->mime_type ?: 'audio/mpeg';
+        $contentType = str_starts_with($storedType, 'audio/') ? $storedType : 'audio/mpeg';
+
+        $headers = [
+            'Content-Type' => $contentType,
+            'Content-Disposition' => $disposition . '; filename="' . addslashes($callRecording->filename) . '"',
+            'Accept-Ranges' => 'bytes',
+            'Cache-Control' => 'private, max-age=0, no-store',
+        ];
+
+        $range = request()->header('Range');
+        $start = 0;
+        $end = $size > 0 ? $size - 1 : 0;
+        $status = 200;
+
+        if ($range && preg_match('/bytes=(\d+)-(\d*)/', $range, $matches)) {
+            $start = (int) $matches[1];
+            if (! empty($matches[2])) {
+                $end = min((int) $matches[2], $size - 1);
+            }
+            if ($start <= $end && $start < $size) {
+                $status = 206;
+                $length = $end - $start + 1;
+                $headers['Content-Range'] = "bytes {$start}-{$end}/{$size}";
+                $headers['Content-Length'] = (string) $length;
+            } else {
+                return response('', 416, ['Content-Range' => "bytes */{$size}"]);
+            }
+        } else {
+            $headers['Content-Length'] = (string) $size;
+        }
+
+        return response()->stream(function () use ($path, $start, $end): void {
+            $handle = fopen($path, 'rb');
+            if ($handle === false) {
+                return;
+            }
+            try {
+                if ($start > 0) {
+                    fseek($handle, $start);
+                }
+                $remaining = $end - $start + 1;
+                $chunkSize = 64 * 1024;
+                while ($remaining > 0 && ! feof($handle)) {
+                    $readLength = min($remaining, $chunkSize);
+                    $buffer = fread($handle, $readLength);
+                    if ($buffer === false || $buffer === '') {
+                        break;
+                    }
+                    echo $buffer;
+                    flush();
+                    $remaining -= strlen($buffer);
+                }
+            } finally {
+                fclose($handle);
+            }
+        }, $status, $headers);
+    }
+
+    /**
      * Stream a recording for inline playback in the browser.
      */
     public function play(CallRecording $callRecording)
@@ -515,17 +657,9 @@ class CallRecordingController extends AccountBaseController
         }
 
         if (! empty($callRecording->object_path)) {
-            $disk = Storage::disk('local');
-            $path = $disk->exists($callRecording->object_path)
-                ? $disk->path($callRecording->object_path)
-                : storage_path('app/' . ltrim($callRecording->object_path, '/'));
-            if (is_file($path)) {
-                return response()->file($path, [
-                    'Content-Type' => $callRecording->mime_type ?: 'audio/mpeg',
-                    'Content-Disposition' => 'inline; filename="'.addslashes($callRecording->filename).'"',
-                    'Accept-Ranges' => 'bytes',
-                    'Cache-Control' => 'private, max-age=0, no-store',
-                ]);
+            $path = $this->resolveLocalPath($callRecording->object_path);
+            if ($path !== null) {
+                return $this->streamLocalFile($path, $callRecording, 'inline');
             }
         }
 
@@ -555,17 +689,9 @@ class CallRecordingController extends AccountBaseController
         }
 
         if (! empty($callRecording->object_path)) {
-            $disk = Storage::disk('local');
-            $path = $disk->exists($callRecording->object_path)
-                ? $disk->path($callRecording->object_path)
-                : storage_path('app/' . ltrim($callRecording->object_path, '/'));
-            if (is_file($path)) {
-                return response()->file($path, [
-                    'Content-Type' => $callRecording->mime_type ?: 'audio/mpeg',
-                    'Content-Disposition' => $disposition.'; filename="'.addslashes($callRecording->filename).'"',
-                    'Accept-Ranges' => 'bytes',
-                    'Cache-Control' => 'private, max-age=0, no-store',
-                ]);
+            $path = $this->resolveLocalPath($callRecording->object_path);
+            if ($path !== null) {
+                return $this->streamLocalFile($path, $callRecording, $disposition);
             }
         }
 
