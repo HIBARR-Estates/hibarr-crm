@@ -13,6 +13,7 @@ use App\Services\Dashboard\TeamDashboardDemoDataService;
 use App\Services\Dashboard\TeamDownlineService;
 use App\Services\MeetingVisibilityService;
 use App\Services\MlmCommissionService;
+use App\Support\CompanyDashboardAccess;
 use App\Support\DashboardDateRange;
 use App\Support\FeatureFlags;
 use App\Support\PartnerRole;
@@ -34,22 +35,30 @@ use Inertia\Inertia;
  * Team is gated twice as well: on view_team_dashboard, and on the
  * crm.team-dashboard flag — it is the first surface to show commission across a
  * whole hierarchy, so it rolls out per manager rather than all at once.
- * Company (?view=leadership) is gated on view_leadership_dashboard and
- * crm.company-dashboard. With the flag off its tab is still listed — greyed as
- * coming soon — but the view itself cannot be opened, not even by URL.
+ * Company (?view=leadership) is not a permission: only the people on their
+ * company's list (Settings → Company dashboard access, CompanyDashboardAccess)
+ * get it, admins included. It is also gated on crm.company-dashboard: with the
+ * flag off its tab is still listed — greyed as coming soon — but the view
+ * itself cannot be opened, not even by URL.
  *
  * Every panel is deferred. The synchronous payload is just enough to draw the
  * shell and the switcher, matching the pattern in DealController@show.
  */
 class DashboardV2Controller extends AccountBaseController
 {
-    /** Permission name => view key. Order defines switcher order and the default. */
+    /**
+     * Gate => view key. Order defines switcher order and the default. A gate is
+     * a permission name, except COMPANY_LIST: the Company view is opened by
+     * being on the company's list, not by a permission.
+     */
     private const VIEWS = [
         'view_manager_dashboard' => 'manager',
         'view_team_dashboard' => 'team',
-        'view_leadership_dashboard' => 'leadership',
+        self::COMPANY_LIST => 'leadership',
         'view_partner_dashboard' => 'partner',
     ];
+
+    private const COMPANY_LIST = 'company_dashboard_list';
 
     public function __construct()
     {
@@ -436,7 +445,9 @@ class DashboardV2Controller extends AccountBaseController
         $user = user();
 
         return collect(self::VIEWS)
-            ->filter(fn ($view, $permission) => $user->permission($permission) === 'all')
+            ->filter(fn ($view, $gate) => $gate === self::COMPANY_LIST
+                ? CompanyDashboardAccess::allows($user)
+                : $user->permission($gate) === 'all')
             // Permission says "may see the partner view"; this says "has one".
             ->reject(fn ($view) => $view === 'partner' && ! $this->hasPartnerData((int) $user->id))
             // The flag is the second gate on the team view — see the class

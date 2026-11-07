@@ -62,13 +62,16 @@ export const PAGE_ACCESS: Record<string, PageAccessEntry> = {
         permissions: [
             scopeAll("view_manager_dashboard"),
             scopeAll("view_team_dashboard"),
-            scopeAll("view_leadership_dashboard"),
+            // The Company view has no permission: it opens for the people on
+            // Settings → Company dashboard access.
             scopeAll("view_partner_dashboard"),
         ],
     },
     "Dashboard/ComprehensiveDashboard": EMPTY,
 
     "Settings/Index": EMPTY,
+    // Admin role only (checked in the controller), not a catalogued permission.
+    "Settings/CompanyDashboardAccess": EMPTY,
     "Settings/Preferences": EMPTY,
     "Settings/ReminderPreferences": EMPTY,
     "Settings/Leads/Index": { permissions: [scopeAll("manage_lead_setting")] },
