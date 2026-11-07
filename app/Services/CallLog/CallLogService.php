@@ -301,8 +301,8 @@ class CallLogService
                 // Links only for viewers who may play it.
                 'id' => $canPlay ? $recording?->id : null,
                 'filename' => $canPlay ? $recording?->filename : null,
-                'play_url' => $canPlay && $recording ? route('call-recordings.play', $recording->id) : null,
-                'download_url' => $canPlay && $recording ? route('call-recordings.download', $recording->id) : null,
+                'play_url' => $canPlay && $recording ? route('call-recordings.play', $recording->id, false) : null,
+                'download_url' => $canPlay && $recording ? route('call-recordings.download', $recording->id, false) : null,
             ],
         ];
     }
