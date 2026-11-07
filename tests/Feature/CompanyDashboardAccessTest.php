@@ -67,7 +67,10 @@ class CompanyDashboardAccessTest extends TestCase
 
     private function user(int $id): User
     {
-        return User::withoutGlobalScopes()->findOrFail($id);
+        /** @var User $user */
+        $user = User::withoutGlobalScopes()->findOrFail($id);
+
+        return $user;
     }
 
     public function test_a_person_on_the_list_can_see_the_company_dashboard(): void

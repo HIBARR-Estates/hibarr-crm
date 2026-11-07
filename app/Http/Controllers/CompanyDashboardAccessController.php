@@ -87,10 +87,13 @@ class CompanyDashboardAccessController extends AccountBaseController
     /** @return list<array{user_id: int, name: string, email: string|null, image: string|null, added_at: string|null}> */
     private function viewers(): array
     {
-        return CompanyDashboardViewer::query()
+        /** @var \Illuminate\Database\Eloquent\Collection<int, CompanyDashboardViewer> $rows */
+        $rows = CompanyDashboardViewer::query()
             ->where('company_id', company()->id)
             ->with('user:id,name,email,image,status')
-            ->get()
+            ->get();
+
+        return $rows
             ->filter(fn (CompanyDashboardViewer $viewer) => $viewer->user !== null)
             ->sortBy(fn (CompanyDashboardViewer $viewer) => mb_strtolower($viewer->user->name))
             ->map(fn (CompanyDashboardViewer $viewer) => [
