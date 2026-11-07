@@ -74,7 +74,6 @@ class TelephonySoftphoneEventController extends AccountBaseController
         $poolAgents = SoftphoneCallPoolAgent::query()
             ->where('company_id', $companyId)
             ->where('active', true)
-            ->whereNotIn('user_id', SoftphoneCallPoolAgent::adminUserIds($companyId))
             ->when($deviceId !== null, fn ($q) => $q->where('device_id', $deviceId), fn ($q) => $q->whereNotNull('device_id'))
             ->with(['user' => fn ($q) => $q->select('id', 'name', 'status', 'login')])
             ->orderBy('priority')
@@ -528,6 +527,8 @@ class TelephonySoftphoneEventController extends AccountBaseController
             // the agent-facing sentence, so the timeline can explain it.
             'failure_reason' => 'nullable|string|max:80',
             'failure_message' => 'nullable|string|max:255',
+            'recording_status' => 'nullable|string|max:40',
+            'recording_error' => 'nullable|string|max:255',
             // Inbound call forwarding metadata (when the call rotated past an earlier user).
             'routing_reason' => 'nullable|string|max:40',
             'is_forwarded' => 'nullable|boolean',
@@ -628,6 +629,34 @@ class TelephonySoftphoneEventController extends AccountBaseController
             }
         }
 
+        if (! empty($validated['recording_status']) && $validated['recording_status'] === 'failed') {
+            Log::warning('Softphone: recording failure reported from client', [
+                'call_ref' => $validated['call_ref'] ?? null,
+                'user_id' => (int) user()->id,
+                'error' => $validated['recording_error'] ?? null,
+            ]);
+
+            if (! empty($validated['call_ref'])) {
+                $events = \App\Models\CrmEvent::withoutGlobalScopes()
+                    ->where('company_id', (int) company()->id)
+                    ->where('metadata->call_ref', $validated['call_ref'])
+                    ->whereNull('metadata->recording_id')
+                    ->where(fn ($q) => $q->whereNull('user_id')->orWhere('user_id', (int) user()->id))
+                    ->get();
+
+                foreach ($events as $event) {
+                    $meta = is_array($event->metadata) ? $event->metadata : [];
+                    $meta['recording_status'] = 'failed';
+                    $meta['recording_error'] = $validated['recording_error'] ?? 'Upload failed';
+                    $event->forceFill(['metadata' => $meta])->save();
+                }
+            }
+
+            if (($validated['event'] ?? null) === 'call.recording_failed') {
+                return response()->json(['status' => 'success']);
+            }
+        }
+
         try {
             $this->callBridge->logCallEvent([
                 'event' => $validated['event'] ?? 'call.started',
@@ -637,6 +666,8 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 'call_ref' => $validated['call_ref'] ?? null,
                 'failure_reason' => $validated['failure_reason'] ?? null,
                 'failure_message' => $validated['failure_message'] ?? null,
+                'recording_status' => $validated['recording_status'] ?? null,
+                'recording_error' => $validated['recording_error'] ?? null,
                 'routing_reason' => $validated['routing_reason'] ?? null,
                 'is_forwarded' => $isForwarded ?: null,
                 'forwarded_from_user_id' => $forwardedUserId,
@@ -671,13 +702,18 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 if (! in_array($emitEvent, ['call.started', 'call.ended', 'call.missed', 'call.declined', 'call.busy', 'call.failed', 'call_declined', 'call_voicemail', 'call_busy', 'call_failed'], true)) {
                     $emitEvent = 'call.started';
                 }
-                $this->callBridge->emitCallEvent([
+                $emitPayload = [
                     'event' => $emitEvent,
-                    'call_id' => $validated['call_ref'] ?? null,
+                    'call_id' => $validated['call_ref'] ?? $validated['call_id'] ?? null,
                     'direction' => $emitDirection,
                     'phone_number' => $validated['phone'],
                     'status' => $validated['status'] ?? null,
-                ]);
+                ];
+                if (! empty($entityType) && ! empty($entityId)) {
+                    $emitPayload['entity_type'] = $entityType;
+                    $emitPayload['entity_id'] = $entityId;
+                }
+                $this->callBridge->emitCallEvent($emitPayload);
             } catch (\Throwable $e) {
                 // Emit failure must not block the call logging path.
                 Log::warning('TelephonySoftphoneEventController: failed to emit call event to OL', [

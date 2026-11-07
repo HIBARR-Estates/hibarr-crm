@@ -260,11 +260,13 @@ class CallLogService
         $expired = $recording?->expires_at?->isPast() ?? false;
         $canPlay = $recording !== null && ! $expired && CallAccess::canPlayRecording($viewer, $ownerId);
 
+        $recordingFailure = ($meta['recording_status'] ?? null) === 'failed' || ! empty($meta['recording_error']);
         $hasRecording = $recording !== null || ($meta['has_recording'] ?? false) === true;
         $recordingState = match (true) {
             $recording !== null && $expired => 'expired',
             $recording !== null && ! $canPlay => 'restricted',
             $recording !== null && $canPlay => 'playable',
+            $recordingFailure => 'failed',
             $hasRecording => 'processing',
             default => 'none',
         };
@@ -289,8 +291,9 @@ class CallLogService
             'forwarded_from_user_id' => isset($meta['forwarded_from_user_id']) ? (int) $meta['forwarded_from_user_id'] : null,
             'forwarded_from_user_name' => $meta['forwarded_from_user_name'] ?? null,
             'has_recording' => $hasRecording,
-            'recording' => $recording === null && ! $hasRecording ? null : [
+            'recording' => $recording === null && ! $hasRecording && ! $recordingFailure ? null : [
                 'state' => $recordingState,
+                'error' => $meta['recording_error'] ?? ($recordingFailure ? 'Recording failed' : null),
                 'expired' => $expired,
                 'expires_at' => $recording?->expires_at?->toIso8601String(),
                 'duration_seconds' => $recording?->duration_seconds !== null ? (int) $recording->duration_seconds : null,
