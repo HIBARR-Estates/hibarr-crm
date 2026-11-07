@@ -632,22 +632,28 @@ class TelephonySoftphoneEventController extends AccountBaseController
         if (! empty($validated['recording_status']) && $validated['recording_status'] === 'failed') {
             Log::warning('Softphone: recording failure reported from client', [
                 'call_ref' => $validated['call_ref'] ?? null,
-                'phone' => $validated['phone'],
                 'user_id' => (int) user()->id,
                 'error' => $validated['recording_error'] ?? null,
             ]);
 
             if (! empty($validated['call_ref'])) {
-                \App\Models\CrmEvent::withoutGlobalScopes()
+                $events = \App\Models\CrmEvent::withoutGlobalScopes()
                     ->where('company_id', (int) company()->id)
                     ->where('metadata->call_ref', $validated['call_ref'])
-                    ->get()
-                    ->each(function (\App\Models\CrmEvent $event) use ($validated) {
-                        $meta = is_array($event->metadata) ? $event->metadata : [];
-                        $meta['recording_status'] = 'failed';
-                        $meta['recording_error'] = $validated['recording_error'] ?? 'Upload failed';
-                        $event->forceFill(['metadata' => $meta])->save();
-                    });
+                    ->whereNull('metadata->recording_id')
+                    ->where(fn ($q) => $q->whereNull('user_id')->orWhere('user_id', (int) user()->id))
+                    ->get();
+
+                foreach ($events as $event) {
+                    $meta = is_array($event->metadata) ? $event->metadata : [];
+                    $meta['recording_status'] = 'failed';
+                    $meta['recording_error'] = $validated['recording_error'] ?? 'Upload failed';
+                    $event->forceFill(['metadata' => $meta])->save();
+                }
+            }
+
+            if (($validated['event'] ?? null) === 'call.recording_failed') {
+                return response()->json(['status' => 'success']);
             }
         }
 
@@ -698,7 +704,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 }
                 $emitPayload = [
                     'event' => $emitEvent,
-                    'call_id' => $validated['call_ref'] ?? null,
+                    'call_id' => $validated['call_ref'] ?? $validated['call_id'] ?? null,
                     'direction' => $emitDirection,
                     'phone_number' => $validated['phone'],
                     'status' => $validated['status'] ?? null,

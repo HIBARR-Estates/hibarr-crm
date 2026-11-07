@@ -34,7 +34,33 @@ interface EligibleUser {
     name: string;
     email: string | null;
     has_permission?: boolean;
-    is_lead_agent?: boolean;
+}
+
+const POOL_GRID_STYLE = { "--cols": "minmax(0, 1fr) 130px 140px 44px" } as React.CSSProperties;
+
+function usePermissionToggle(refetch: () => Promise<any> | void) {
+    const { message } = App.useApp();
+    const [togglingUserIds, setTogglingUserIds] = useState<Record<number, boolean>>({});
+
+    const handleTogglePermission = async (userId: number, current: boolean) => {
+        setTogglingUserIds((prev) => ({ ...prev, [userId]: true }));
+        try {
+            await axios.post(
+                route("telephony.softphone.call-pool.toggle-permission"),
+                { user_id: userId, enabled: !current },
+                { headers: { Accept: "application/json" } },
+            );
+            void message.success(!current ? "Softphone permission granted." : "Softphone permission revoked.");
+            await refetch();
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || "Could not update softphone permission.";
+            void message.error(msg);
+        } finally {
+            setTogglingUserIds((prev) => ({ ...prev, [userId]: false }));
+        }
+    };
+
+    return { togglingUserIds, handleTogglePermission };
 }
 
 interface PoolResponse {
@@ -231,7 +257,6 @@ function LinePool({
     const [deleteTarget, setDeleteTarget] = useState<PoolAgent | null>(null);
     const [removingId, setRemovingId] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
-    const [togglingUserIds, setTogglingUserIds] = useState<Record<number, boolean>>({});
 
     const poolQuery = useApiQuery<PoolResponse>({
         path: route("telephony.softphone.call-pool.index", { device_id: device.id }),
@@ -240,6 +265,8 @@ function LinePool({
         path: route("telephony.softphone.call-pool.eligible"),
         options: { enabled: picking },
     });
+
+    const { togglingUserIds, handleTogglePermission } = usePermissionToggle(() => poolQuery.refetch());
 
     const agents = poolQuery.data?.data?.agents ?? [];
     const eligible = eligibleQuery.data?.data?.users ?? [];
@@ -255,34 +282,13 @@ function LinePool({
     const options = eligible
         .filter((u) => !alreadyInPool.has(u.id))
         .map((u) => {
-            const badge = !u.has_permission
-                ? " (Auto-grants softphone access)"
-                : u.is_lead_agent
-                ? " (Lead Agent)"
-                : "";
+            const badge = !u.has_permission ? " (Auto-grants softphone access)" : "";
             return {
                 value: u.id,
                 label: `${u.name}${u.email ? ` — ${u.email}` : ""}${badge}`,
             };
         });
 
-    const handleTogglePermission = async (userId: number, current: boolean) => {
-        setTogglingUserIds((prev) => ({ ...prev, [userId]: true }));
-        try {
-            await axios.post(
-                route("telephony.softphone.call-pool.toggle-permission"),
-                { user_id: userId, enabled: !current },
-                { headers: { Accept: "application/json" } },
-            );
-            void message.success(!current ? "Softphone permission granted." : "Softphone permission revoked.");
-            await poolQuery.refetch();
-        } catch (err: any) {
-            const msg = err?.response?.data?.message || "Could not update softphone permission.";
-            void message.error(msg);
-        } finally {
-            setTogglingUserIds((prev) => ({ ...prev, [userId]: false }));
-        }
-    };
 
     const submitAdd = async () => {
         if (!selectedUserId) return;
@@ -352,16 +358,16 @@ function LinePool({
                 className="cb-table cb-pool"
                 role="table"
                 aria-label={`${device.label} agents`}
-                style={{ "--cols": "minmax(0, 1fr) 130px 140px 44px" } as React.CSSProperties}
+                style={POOL_GRID_STYLE}
             >
                 <div
                     className="cb-grid-row cb-grid-row--head cb-pool"
                     role="row"
-                    style={{ "--cols": "minmax(0, 1fr) 130px 140px 44px" } as React.CSSProperties}
+                    style={POOL_GRID_STYLE}
                 >
                     <span>Agent</span>
                     <span title="Order in which calls ring agents on this line (1 rings first, 2 rings second, etc.)">Routing Order</span>
-                    <span title="Controls whether this agent has permission to make and receive softphone calls">Softphone Access</span>
+                    <span title="Controls whether this agent has permission to make and receive softphone calls. Administrators retain softphone access even if revoked.">Softphone Access</span>
                     <span aria-hidden="true" />
                 </div>
 
@@ -375,7 +381,7 @@ function LinePool({
                             key={agent.id}
                             className="cb-grid-row cb-pool"
                             role="row"
-                            style={{ "--cols": "minmax(0, 1fr) 130px 140px 44px" } as React.CSSProperties}
+                            style={POOL_GRID_STYLE}
                         >
                             <div className="cb-who">
                                 <span className="cb-avatar" aria-hidden="true">
@@ -517,7 +523,6 @@ function AdminFallbackPool() {
     const [deleteTarget, setDeleteTarget] = useState<PoolAgent | null>(null);
     const [removingId, setRemovingId] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
-    const [togglingUserIds, setTogglingUserIds] = useState<Record<number, boolean>>({});
 
     const poolQuery = useApiQuery<PoolResponse>({
         path: route("telephony.softphone.call-pool.index", { scope: "fallback" }),
@@ -526,6 +531,8 @@ function AdminFallbackPool() {
         path: route("telephony.softphone.call-pool.eligible", { scope: "fallback" }),
         options: { enabled: picking },
     });
+
+    const { togglingUserIds, handleTogglePermission } = usePermissionToggle(() => poolQuery.refetch());
 
     const agents = poolQuery.data?.data?.agents ?? [];
     const eligible = eligibleQuery.data?.data?.users ?? [];
@@ -540,35 +547,11 @@ function AdminFallbackPool() {
 
     const options = eligible
         .filter((u) => !alreadyInPool.has(u.id))
-        .map((u) => {
-            const badge = !u.has_permission
-                ? " (Auto-grants softphone access)"
-                : u.is_lead_agent
-                ? " (Lead Agent)"
-                : "";
-            return {
-                value: u.id,
-                label: `${u.name}${u.email ? ` — ${u.email}` : ""}${badge}`,
-            };
-        });
+        .map((u) => ({
+            value: u.id,
+            label: `${u.name}${u.email ? ` — ${u.email}` : ""}`,
+        }));
 
-    const handleTogglePermission = async (userId: number, current: boolean) => {
-        setTogglingUserIds((prev) => ({ ...prev, [userId]: true }));
-        try {
-            await axios.post(
-                route("telephony.softphone.call-pool.toggle-permission"),
-                { user_id: userId, enabled: !current },
-                { headers: { Accept: "application/json" } },
-            );
-            void message.success(!current ? "Softphone permission granted." : "Softphone permission revoked.");
-            await poolQuery.refetch();
-        } catch (err: any) {
-            const msg = err?.response?.data?.message || "Could not update softphone permission.";
-            void message.error(msg);
-        } finally {
-            setTogglingUserIds((prev) => ({ ...prev, [userId]: false }));
-        }
-    };
 
     const submitAdd = async () => {
         if (!selectedUserId) return;
@@ -660,16 +643,16 @@ function AdminFallbackPool() {
                 className="cb-table cb-pool"
                 role="table"
                 aria-label="Admin fallback users"
-                style={{ "--cols": "minmax(0, 1fr) 130px 140px 44px" } as React.CSSProperties}
+                style={POOL_GRID_STYLE}
             >
                 <div
                     className="cb-grid-row cb-grid-row--head cb-pool"
                     role="row"
-                    style={{ "--cols": "minmax(0, 1fr) 130px 140px 44px" } as React.CSSProperties}
+                    style={POOL_GRID_STYLE}
                 >
                     <span>Fallback User</span>
                     <span title="Order in which fallback users ring (1 rings first, 2 rings second, etc.)">Routing Order</span>
-                    <span title="Controls whether this user has permission to make and receive softphone calls">Softphone Access</span>
+                    <span title="Controls whether this user has permission to make and receive softphone calls. Administrators retain softphone access even if revoked.">Softphone Access</span>
                     <span aria-hidden="true" />
                 </div>
 
@@ -685,7 +668,7 @@ function AdminFallbackPool() {
                             key={agent.id}
                             className="cb-grid-row cb-pool"
                             role="row"
-                            style={{ "--cols": "minmax(0, 1fr) 130px 140px 44px" } as React.CSSProperties}
+                            style={POOL_GRID_STYLE}
                         >
                             <div className="cb-who">
                                 <span className="cb-avatar" aria-hidden="true">

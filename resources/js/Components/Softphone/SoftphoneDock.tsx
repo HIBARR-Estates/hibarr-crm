@@ -1716,8 +1716,11 @@ export default function SoftphoneDock() {
                         {recordingUploading ? (
                             <p className="sp__note">
                                 {recordingUploadAttempt
-                                    ? `Uploading recording (attempt ${recordingUploadAttempt.current} of ${recordingUploadAttempt.max})…`
-                                    : "Uploading recording…"}
+                                    ? t("pages.calls.uploading_recording_attempt", {
+                                          current: recordingUploadAttempt.current,
+                                          max: recordingUploadAttempt.max,
+                                      })
+                                    : t("pages.calls.uploading_recording")}
                             </p>
                         ) : null}
                         {failedRecordings.length > 0 && (
@@ -1731,7 +1734,7 @@ export default function SoftphoneDock() {
                                     </span>
                                 </div>
                                 <p style={{ fontSize: 11, color: "#595959", margin: "4px 0 8px", wordBreak: "break-word" }}>
-                                    {failedRecordings[0].error || "Upload failed"}
+                                    {failedRecordings[0].error || t("pages.calls.upload_failed")}
                                 </p>
                                 <div style={{ display: "flex", gap: 6 }}>
                                     <button
@@ -1748,7 +1751,7 @@ export default function SoftphoneDock() {
                                             cursor: isRetryingUpload ? "not-allowed" : "pointer",
                                         }}
                                     >
-                                        {isRetryingUpload ? "Retrying…" : "Retry Upload"}
+                                        {isRetryingUpload ? t("pages.calls.retrying_upload") : t("pages.calls.retry_upload")}
                                     </button>
                                     <button
                                         type="button"
@@ -1763,7 +1766,7 @@ export default function SoftphoneDock() {
                                             cursor: "pointer",
                                         }}
                                     >
-                                        Dismiss
+                                        {t("pages.softphone.dismiss")}
                                     </button>
                                 </div>
                             </div>

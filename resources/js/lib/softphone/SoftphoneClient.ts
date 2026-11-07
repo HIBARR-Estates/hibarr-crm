@@ -874,10 +874,21 @@ class SoftphoneClient {
                             );
                             return;
                         }
-                        this.failCall(
-                            "terminated",
-                            "The call ended before it connected.",
-                        );
+                        // Outbound call that never connected:
+                        // SIP.js transitions the session to Terminated before calling onReject/onRedirect delegates.
+                        // Defer fallback termination to allow the final-response delegate to record the specific status first.
+                        setTimeout(() => {
+                            if (!this.failureRecorded && !this.endedByUser && this.state.call) {
+                                this.failCall(
+                                    "terminated",
+                                    "The call ended before it connected.",
+                                );
+                            } else if (!this.state.call) {
+                                // Already cleaned up
+                            } else {
+                                this.endCall();
+                            }
+                        }, 0);
                         return;
                     } else if (call.direction === "inbound") {
                         // The inbound call was active, but disconnected from the caller's end
@@ -1087,7 +1098,11 @@ export function uriUserOf(uri: string): string {
  * is not rewritten.
  */
 export function normalizePhoneForSip(phone: string, _domain?: string): string {
-    return phone.trim().replace(/[^\d+]/g, "").replace(/(?!^)\+/g, "");
+    const trimmed = phone.trim();
+    if (/(?:\b(?:ext\.?|extension)\b|\bx\b|\bx(?=\d)|[#;])/i.test(trimmed)) {
+        return "";
+    }
+    return trimmed.replace(/[^\d+]/g, "").replace(/(?!^)\+/g, "");
 }
 
 export const softphone = new SoftphoneClient();

@@ -63,39 +63,16 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         $scope = $request->input('scope');
         $rawDeviceId = $request->input('device_id');
 
-        if ($scope === 'fallback' || $rawDeviceId === 'fallback' || ($rawDeviceId !== null && (int) $rawDeviceId === 0 && $scope !== 'line')) {
-            $agents = SoftphoneCallPoolAgent::query()
-                ->where('company_id', $companyId)
-                ->whereNull('device_id')
-                ->with('user:id,name,email')
-                ->orderBy('priority')
-                ->orderBy('id')
-                ->get()
-                ->map(fn(SoftphoneCallPoolAgent $agent) => [
-                    'id' => $agent->id,
-                    'user_id' => $agent->user_id,
-                    'name' => $agent->user?->name,
-                    'email' => $agent->user?->email,
-                    'priority' => $agent->priority,
-                    'active' => $agent->active,
-                ])
-                ->values();
+        $isFallback = $scope === 'fallback' || $rawDeviceId === 'fallback' || ($rawDeviceId !== null && (int) $rawDeviceId === 0 && $scope !== 'line');
 
-            return response()->json([
-                'status' => 'success',
-                'data' => [
-                    'agents' => $agents,
-                    'fallback_seconds' => $fallbackSeconds,
-                ],
-            ]);
+        if (! $isFallback) {
+            $deviceId = (int) $request->input('device_id', 0);
+            $this->assertDeviceBelongsToCompany($deviceId);
         }
-
-        $deviceId = (int) $request->input('device_id', 0);
-        $this->assertDeviceBelongsToCompany($deviceId);
 
         $agentsQuery = SoftphoneCallPoolAgent::query()
             ->where('company_id', $companyId)
-            ->where('device_id', $deviceId)
+            ->when($isFallback, fn ($q) => $q->whereNull('device_id'), fn ($q) => $q->where('device_id', (int) $request->input('device_id', 0)))
             ->with('user:id,name,email')
             ->orderBy('priority')
             ->orderBy('id')
@@ -275,8 +252,6 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         $user = \App\Models\User::find($userId);
         abort_unless($user !== null && (int) $user->company_id === $companyId, 404);
 
-        $this->ensureSoftphonePermission($userId);
-
         return DB::transaction(function () use ($companyId, $deviceId, $userId, $validated) {
             Company::query()->whereKey($companyId)->lockForUpdate()->first();
 
@@ -298,6 +273,8 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
                     'message' => "Priority {$priority} is already assigned to another agent on this line. Each agent must have a unique priority from 1 to 100.",
                 ], 422);
             }
+
+            $this->ensureSoftphonePermission($userId);
 
             $agent = SoftphoneCallPoolAgent::updateOrCreate(
                 [
@@ -416,6 +393,7 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         ]);
 
         $userId = (int) $validated['user_id'];
+        /** @var User $user */
         $user = User::query()->where('company_id', company()->id)->findOrFail($userId);
         $enabled = (bool) $validated['enabled'];
 

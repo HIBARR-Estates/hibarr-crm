@@ -260,7 +260,6 @@ class CallRecordingController extends AccountBaseController
             'recording_id' => $recording->id,
             'call_ref' => $callRef,
             'user_id' => $recording->user_id,
-            'phone_number' => $recording->phone_number,
             'duration_seconds' => $recording->duration_seconds,
             'filename' => $storedName,
             'size' => $size,

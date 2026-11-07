@@ -56,10 +56,7 @@ class SoftphoneCallPoolAgent extends Model
             ->where('company_id', $companyId)
             ->where('status', 'active')
             ->where(function ($q) use ($leadAgentUserIds): void {
-                if (! empty($leadAgentUserIds)) {
-                    $q->whereIn('id', $leadAgentUserIds);
-                }
-                $q->orWhereExists(function ($sub): void {
+                $q->whereExists(function ($sub): void {
                     $sub->select(DB::raw(1))
                         ->from('user_permissions')
                         ->join('permissions', 'permissions.id', '=', 'user_permissions.permission_id')
@@ -70,6 +67,9 @@ class SoftphoneCallPoolAgent extends Model
                             PermissionType::ADDED,
                         ]);
                 });
+                if (! empty($leadAgentUserIds)) {
+                    $q->orWhereIn('id', $leadAgentUserIds);
+                }
                 $q->orWhereExists(function ($sub): void {
                     $sub->select(DB::raw(1))
                         ->from('role_user')

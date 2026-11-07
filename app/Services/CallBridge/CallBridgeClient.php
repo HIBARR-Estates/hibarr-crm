@@ -100,7 +100,8 @@ class CallBridgeClient
         $formatted = $this->formatEmitPayload($payload);
         if ($formatted === null) {
             Log::warning('CallBridgeClient: emitCallEvent skipped — missing or invalid callId', [
-                'payload' => $payload,
+                'event' => $payload['event'] ?? null,
+                'direction' => $payload['direction'] ?? null,
             ]);
 
             return [];
@@ -123,10 +124,10 @@ class CallBridgeClient
     {
         // 1. Resolve callId (required, minLength: 1, maxLength: 191)
         $rawCallId = $payload['callId'] ?? $payload['call_id'] ?? null;
-        if (! is_string($rawCallId) || trim($rawCallId) === '') {
+        if ($rawCallId === null || (! is_string($rawCallId) && ! is_numeric($rawCallId)) || trim((string) $rawCallId) === '') {
             return null;
         }
-        $callId = mb_substr(trim($rawCallId), 0, 191);
+        $callId = mb_substr(trim((string) $rawCallId), 0, 191);
 
         // 2. Resolve direction
         $rawDirection = $payload['direction'] ?? null;
@@ -164,12 +165,17 @@ class CallBridgeClient
             default => in_array($rawStatus, $allowedStatuses, true) ? $rawStatus : null,
         };
         if ($status === null) {
-            $status = match ($event) {
-                'incoming_call', 'outgoing_call' => 'initiated',
-                'call_answered' => 'answered',
-                'call_completed', 'call_ended' => 'completed',
-                'call_missed' => 'no_answer',
-                default => 'unknown',
+            $status = match ($rawEvent) {
+                'call.declined', 'call_declined' => 'rejected',
+                'call.busy', 'call_busy' => 'busy',
+                'call.failed', 'call_failed' => 'failed',
+                default => match ($event) {
+                    'incoming_call', 'outgoing_call' => 'initiated',
+                    'call_answered' => 'answered',
+                    'call_completed', 'call_ended' => 'completed',
+                    'call_missed' => 'no_answer',
+                    default => 'unknown',
+                },
             };
         }
 
@@ -311,7 +317,7 @@ class CallBridgeClient
             $pending = Http::timeout($timeout)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
-                    'x-api-key' => $apiKey,
+                    'X-Api-Key' => $apiKey,
                     'Accept' => 'application/json',
                 ]);
 
@@ -435,11 +441,11 @@ class CallBridgeClient
 
     private function baseUrl(): string
     {
-        return (string) config('services.call_bridge.base_url', '');
+        return (string) config('services.call_bridge.base_url', config('services.ol.base_url', ''));
     }
 
     private function apiKey(): string
     {
-        return (string) config('services.call_bridge.api_key', '');
+        return (string) config('services.call_bridge.api_key', config('services.ol.api_key', ''));
     }
 }
