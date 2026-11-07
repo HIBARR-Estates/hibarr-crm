@@ -76,9 +76,13 @@ export default function AccessInspector() {
     const flags = page.props.featureFlags ?? {};
     const permissions = page.props.auth?.permissions ?? {};
 
+    // `import.meta.env` only exists under the Vite pipeline — webpack/Mix
+    // leaves `import.meta.env` undefined, which previously crashed this
+    // component. Fall back to NODE_ENV there.
     const isDev =
-        (typeof process !== "undefined" && process.env?.NODE_ENV !== "production") ||
-        (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV === true;
+        import.meta.env?.DEV === true ||
+        (typeof process !== "undefined" &&
+            process?.env?.NODE_ENV === "development");
     const visible = isAdmin || isDev;
 
     const entry = pageOnly ? pageAccessFor(page.component) : undefined;
