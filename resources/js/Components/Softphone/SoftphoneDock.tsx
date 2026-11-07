@@ -7,6 +7,13 @@ import axios from "axios";
 import { Link, usePage } from "@inertiajs/react";
 import { softphone } from "@/lib/softphone/SoftphoneClient";
 import SaveLeadModal from "@/Features/Leads/SaveLead/SaveLeadModal";
+import {
+    savePendingRecording,
+    getPendingRecordings,
+    removePendingRecording,
+    uploadRecordingWithRetries,
+    type PendingRecording,
+} from "@/lib/softphone/recordingUploadQueue";
 import "./SoftphoneDock.css";
 import type {
     SoftphoneCall,
@@ -375,6 +382,9 @@ export default function SoftphoneDock() {
     const recordStartedAtRef = useRef<number | null>(null);
     const recordRecorderRef = useRef<MediaRecorder | null>(null);
     const [recordingUploading, setRecordingUploading] = useState(false);
+    const [recordingUploadAttempt, setRecordingUploadAttempt] = useState<{ current: number; max: number } | null>(null);
+    const [failedRecordings, setFailedRecordings] = useState<PendingRecording[]>([]);
+    const [isRetryingUpload, setIsRetryingUpload] = useState(false);
     const [lastRecordingUrl, setLastRecordingUrl] = useState<string | null>(null);
     const [recordings, setRecordings] = useState<CallRecordingItem[]>([]);
     const [matchedLead, setMatchedLead] = useState<MatchedLead | null>(null);
@@ -738,21 +748,22 @@ export default function SoftphoneDock() {
                 });
                 if (cancelled) return;
                 const data = response.data?.data as CallRouting | null;
+                // Only "answered by someone else" is acted on. An "ended"
+                // status is deliberately ignored: forked legs share one SIP
+                // Call-ID, so another agent's/tab's failed or declined event
+                // would otherwise kill a call that is still ringing here. If
+                // the caller really hung up, our own SIP session terminates.
                 if (
                     call.direction === "inbound" &&
-                    (data?.call_status === "ended" ||
-                        (data?.call_status === "answered" &&
-                            data?.answered_by_user_id != null &&
-                            data.answered_by_user_id !== currentUserId))
+                    data?.call_status === "answered" &&
+                    data?.answered_by_user_id != null &&
+                    data.answered_by_user_id !== currentUserId
                 ) {
                     stopRinging();
                     stopAll();
-                    const isAnsweredElsewhere = data?.call_status === "answered";
                     softphone.notifyCallNotice(
-                        isAnsweredElsewhere ? "answered_elsewhere" : "terminated",
-                        isAnsweredElsewhere
-                            ? "This call was answered on another device."
-                            : "The call ended before it was answered.",
+                        "answered_elsewhere",
+                        "This call was answered on another device.",
                     );
                     return;
                 }
@@ -1185,8 +1196,8 @@ export default function SoftphoneDock() {
             let micStream: MediaStream | null = null;
             try {
                 micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            } catch {
-                // Keep remote-side recording when mic access is unavailable.
+            } catch (err) {
+                console.warn("[softphone] Microphone access unavailable for recording, recording remote audio only:", err);
             }
 
             const ctx = new AudioContext();
@@ -1212,6 +1223,9 @@ export default function SoftphoneDock() {
                 destination.stream,
                 mimeType ? { mimeType, audioBitsPerSecond: 48000 } : { audioBitsPerSecond: 48000 },
             );
+            recorder.onerror = (event: any) => {
+                console.error("[softphone] MediaRecorder runtime error:", event?.error || event);
+            };
             recordChunksRef.current = [];
             recorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
@@ -1244,54 +1258,60 @@ export default function SoftphoneDock() {
                     }
                 }
 
-                setRecordingUploading(true);
-                try {
-                    const form = new FormData();
-                    // Upload with a container-appropriate extension; the server transcodes to MP3 before storing.
-                    const fallback = recorder.mimeType || mimeType || "";
-                    const extension = fallback.includes("mp4")
-                        ? "m4a"
-                        : fallback.includes("ogg")
-                            ? "ogg"
-                            : "webm";
-                    form.append("recording", blob, `call-${Date.now()}.${extension}`);
-                    form.append("duration", String(duration));
-                    // Which channel/line this recording was captured on, so the recordings view can group by line.
-                    form.append("device_id", String(activeDeviceId ?? ""));
-                    // Why this call reached this agent: the matched lead (or the fact it was unmatched) and the routing decision.
-                    if (callLead) {
-                        form.append("entity_type", "lead");
-                        form.append("entity_id", String(callLead.id));
-                    }
-                    if (callLead?.name) {
-                        form.append("lead_name", callLead.name);
-                    }
-                    form.append("phone_number", activeCall?.peer ?? lastInboundPhone ?? "");
-                    form.append("direction", activeCall?.direction === "inbound" ? "inbound" : "outbound");
-                    const fwd = forwardedInfoRef.current;
-                    form.append("routing_reason", fwd.callRoutingReason);
-                    if (fwd.isForwarded && fwd.lastForwardedUser) {
-                        form.append("is_forwarded", "1");
-                        form.append("forwarded_from_user_id", String(fwd.lastForwardedUser.id));
-                        form.append("forwarded_from_user_name", fwd.lastForwardedUser.name);
-                    }
+                if (blob.size === 0) {
+                    console.warn("[softphone] Recording empty (0 bytes). Skipping upload.");
                     if (callRef) {
-                        form.append("call_ref", callRef);
+                        void axios.post(route("telephony.softphone.events.store"), {
+                            phone: activeCall?.peer ?? lastInboundPhone ?? "",
+                            event: "call.recording_failed",
+                            call_ref: callRef,
+                            recording_status: "failed",
+                            recording_error: "Empty audio recording (0 bytes captured)",
+                        }).catch(() => undefined);
                     }
-                    const response = await axios.post(route("call-recordings.store"), form, {
-                        headers: {
-                            "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "",
-                        },
-                    });
-                    const playUrl = response.data?.data?.play_url || response.data?.play_url;
-                    if (playUrl) {
-                        setLastRecordingUrl(playUrl);
+                    return;
+                }
+
+                const pendingItem: PendingRecording = {
+                    callRef: callRef || `call-${Date.now()}`,
+                    blob,
+                    duration,
+                    deviceId: activeDeviceId ?? null,
+                    entityType: callLead ? "lead" : undefined,
+                    entityId: callLead?.id,
+                    leadName: callLead?.name,
+                    phone: activeCall?.peer ?? lastInboundPhone ?? "",
+                    direction: activeCall?.direction === "inbound" ? "inbound" : "outbound",
+                    routingReason: forwardedInfoRef.current.callRoutingReason,
+                    isForwarded: forwardedInfoRef.current.isForwarded,
+                    forwardedFromUserId: forwardedInfoRef.current.lastForwardedUser?.id,
+                    forwardedFromUserName: forwardedInfoRef.current.lastForwardedUser?.name,
+                    attempts: 0,
+                    createdAt: Date.now(),
+                };
+
+                await savePendingRecording(pendingItem);
+                setRecordingUploading(true);
+
+                const result = await uploadRecordingWithRetries(pendingItem, {
+                    maxAttempts: 3,
+                    onProgress: (attempt, max) => {
+                        setRecordingUploadAttempt({ current: attempt, max });
+                    },
+                });
+
+                setRecordingUploading(false);
+                setRecordingUploadAttempt(null);
+
+                if (result.success) {
+                    if (result.playUrl) {
+                        setLastRecordingUrl(result.playUrl);
                     }
                     void loadRecordings();
-                } catch {
-                    console.warn("[softphone] Recording upload failed");
-                } finally {
-                    setRecordingUploading(false);
+                    setFailedRecordings((prev) => prev.filter((r) => r.callRef !== pendingItem.callRef));
+                } else {
+                    const list = await getPendingRecordings();
+                    setFailedRecordings(list);
                 }
             };
             recordContextRef.current = ctx;
@@ -1318,11 +1338,50 @@ export default function SoftphoneDock() {
         };
     }, [activeCall?.id, activeCall?.phase, canRecord, hasActiveCall]);
 
+    // Load any un-uploaded recordings from local IndexedDB queue on mount
+    useEffect(() => {
+        void getPendingRecordings().then((list) => {
+            if (list.length > 0) {
+                setFailedRecordings(list);
+            }
+        });
+    }, []);
+
+    const handleManualRetry = useCallback(async (item: PendingRecording) => {
+        setIsRetryingUpload(true);
+        setRecordingUploading(true);
+        const result = await uploadRecordingWithRetries(item, {
+            maxAttempts: 3,
+            onProgress: (attempt, max) => {
+                setRecordingUploadAttempt({ current: attempt, max });
+            },
+        });
+        setIsRetryingUpload(false);
+        setRecordingUploading(false);
+        setRecordingUploadAttempt(null);
+
+        if (result.success) {
+            if (result.playUrl) {
+                setLastRecordingUrl(result.playUrl);
+            }
+            void loadRecordings();
+            setFailedRecordings((prev) => prev.filter((r) => r.callRef !== item.callRef));
+        } else {
+            const list = await getPendingRecordings();
+            setFailedRecordings(list);
+        }
+    }, [loadRecordings]);
+
+    const handleDismissFailedRecording = useCallback(async (callRef: string) => {
+        await removePendingRecording(callRef);
+        setFailedRecordings((prev) => prev.filter((r) => r.callRef !== callRef));
+    }, []);
+
     const hasCall = activeCall !== null;
 
     // Auto-open while a call rings or is live; collapse once it ends. A FAILED call keeps the dock open with the reason — closing silently left agents thinking the app had hung. It self-dismisses after company fallback seconds so it cannot sit on screen forever.
     const callFailure = state.callFailure;
-    const open = pinnedOpen || hasCall || callFailure !== null;
+    const open = pinnedOpen || hasCall || callFailure !== null || failedRecordings.length > 0;
 
     const isNotice = callFailure?.direction === "inbound" || callFailure?.code === "disconnected";
     const isAnsweredElsewhere =
@@ -1655,8 +1714,63 @@ export default function SoftphoneDock() {
                             </div>
                         ) : null}
                         {recordingUploading ? (
-                            <p className="sp__note">Uploading recording…</p>
+                            <p className="sp__note">
+                                {recordingUploadAttempt
+                                    ? t("pages.calls.uploading_recording_attempt", {
+                                          current: recordingUploadAttempt.current,
+                                          max: recordingUploadAttempt.max,
+                                      })
+                                    : t("pages.calls.uploading_recording")}
+                            </p>
                         ) : null}
+                        {failedRecordings.length > 0 && (
+                            <div className="sp__card" style={{ borderLeft: "3px solid #ff4d4f", marginTop: 8 }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <span style={{ fontSize: 12, fontWeight: 600, color: "#cf1322" }}>
+                                        {t("pages.calls.recording_failed")}
+                                    </span>
+                                    <span style={{ fontSize: 11, color: "#8c8c8c" }}>
+                                        {failedRecordings[0].phone}
+                                    </span>
+                                </div>
+                                <p style={{ fontSize: 11, color: "#595959", margin: "4px 0 8px", wordBreak: "break-word" }}>
+                                    {failedRecordings[0].error || t("pages.calls.upload_failed")}
+                                </p>
+                                <div style={{ display: "flex", gap: 6 }}>
+                                    <button
+                                        type="button"
+                                        disabled={isRetryingUpload}
+                                        onClick={() => void handleManualRetry(failedRecordings[0])}
+                                        style={{
+                                            fontSize: 11,
+                                            padding: "3px 8px",
+                                            background: "#1890ff",
+                                            color: "#fff",
+                                            borderRadius: 4,
+                                            border: "none",
+                                            cursor: isRetryingUpload ? "not-allowed" : "pointer",
+                                        }}
+                                    >
+                                        {isRetryingUpload ? t("pages.calls.retrying_upload") : t("pages.calls.retry_upload")}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleDismissFailedRecording(failedRecordings[0].callRef)}
+                                        style={{
+                                            fontSize: 11,
+                                            padding: "3px 8px",
+                                            background: "transparent",
+                                            color: "#8c8c8c",
+                                            borderRadius: 4,
+                                            border: "1px solid #d9d9d9",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        {t("pages.softphone.dismiss")}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                         <button type="button" className="sp__close" onClick={() => setPinnedOpen(false)}>
                             Hide
                         </button>

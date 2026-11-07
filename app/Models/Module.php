@@ -1734,11 +1734,8 @@ class Module extends BaseModel
                     'is_custom' => 1,
                     'name' => 'view_team_dashboard',
                 ],
-                [
-                    'allowed_permissions' => Permission::ALL_NONE,
-                    'is_custom' => 1,
-                    'name' => 'view_leadership_dashboard',
-                ],
+                // No view_leadership_dashboard: the Company dashboard is opened
+                // by being on the company's list (CompanyDashboardAccess).
                 [
                     'allowed_permissions' => Permission::ALL_NONE,
                     'is_custom' => 1,

@@ -124,6 +124,14 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
                               ? `${t("pages.calls.play_recording")} (${recState.duration})`
                               : t("pages.calls.play_recording")}
                     </Button>
+                ) : recState.status === "failed" ? (
+                    <Badge
+                        variant="red"
+                        style={{ fontSize: 11, padding: "2px 8px" }}
+                        title={recState.error ? `${t("pages.calls.recording_failed")}: ${recState.error}` : undefined}
+                    >
+                        {t("pages.calls.recording_failed")}
+                    </Badge>
                 ) : recState.status === "processing" ? (
                     <Badge variant="blue" style={{ fontSize: 11, padding: "2px 8px" }}>
                         {t("pages.calls.recording_processing")}

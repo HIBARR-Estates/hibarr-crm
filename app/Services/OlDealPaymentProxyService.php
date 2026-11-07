@@ -98,6 +98,7 @@ class OlDealPaymentProxyService
             $pending = Http::timeout($timeout)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
+                    'x-api-key' => $apiKey,
                     'X-Api-Key' => $apiKey,
                     'Accept' => 'application/json',
                 ]);

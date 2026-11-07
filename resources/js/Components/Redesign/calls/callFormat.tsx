@@ -48,15 +48,19 @@ export function formatCallFailure(
     return friendly[reason] ?? reason.replace(/_/g, " ");
 }
 
-export type RecordingStatus = "playable" | "processing" | "expired" | "restricted" | "none";
+export type RecordingStatus = "playable" | "processing" | "expired" | "restricted" | "failed" | "none";
 
 export function getRecordingStatus(row: CallLogRow): {
     status: RecordingStatus;
     duration?: string;
     expiresAt?: string;
+    error?: string;
 } {
     const rec = row.recording;
     if (rec) {
+        if (rec.state === "failed") {
+            return { status: "failed", error: rec.error ?? undefined };
+        }
         if (rec.state === "processing") {
             return { status: "processing" };
         }

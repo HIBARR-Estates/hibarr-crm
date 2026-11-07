@@ -106,29 +106,38 @@ class CallRecordingController extends AccountBaseController
         $companyId = company()->id;
         abort_403($companyId === null);
 
-        $request->validate([
-            'recording' => 'required|file|max:51200',
-            'duration' => 'nullable|integer|min:0',
-            // The entity reference and the line are pointers into this tenant.
-            // Both halves of the entity reference must be present, and both are
-            // resolved against the caller's own company before they are stored,
-            // so a recording can never be labelled with a record (or a line)
-            // from another company.
-            'entity_type' => 'nullable|string|in:lead,deal|required_with:entity_id',
-            'entity_id' => 'nullable|integer|min:1|required_with:entity_type',
-            'device_id' => 'nullable|integer|min:1',
-            // Why this call reached this agent — matched/unmatched, owner vs pool.
-            'lead_name' => 'nullable|string|max:180',
-            'phone_number' => 'nullable|string|max:50',
-            'direction' => 'nullable|string|in:inbound,outbound',
-            'routing_reason' => 'nullable|string|max:40',
-            'is_forwarded' => 'nullable|boolean',
-            'forwarded_from_user_id' => 'nullable|integer|min:1',
-            'forwarded_from_user_name' => 'nullable|string|max:180',
-            // Matches the crm_events.metadata.call_ref column width — this value
-            // is what links the recording back to the call's timeline rows.
-            'call_ref' => 'nullable|string|max:64',
-        ]);
+        try {
+            $request->validate([
+                'recording' => 'required|file|max:51200',
+                'duration' => 'nullable|integer|min:0',
+                // The entity reference and the line are pointers into this tenant.
+                // Both halves of the entity reference must be present, and both are
+                // resolved against the caller's own company before they are stored,
+                // so a recording can never be labelled with a record (or a line)
+                // from another company.
+                'entity_type' => 'nullable|string|in:lead,deal|required_with:entity_id',
+                'entity_id' => 'nullable|integer|min:1|required_with:entity_type',
+                'device_id' => 'nullable|integer|min:1',
+                // Why this call reached this agent — matched/unmatched, owner vs pool.
+                'lead_name' => 'nullable|string|max:180',
+                'phone_number' => 'nullable|string|max:50',
+                'direction' => 'nullable|string|in:inbound,outbound',
+                'routing_reason' => 'nullable|string|max:40',
+                'is_forwarded' => 'nullable|boolean',
+                'forwarded_from_user_id' => 'nullable|integer|min:1',
+                'forwarded_from_user_name' => 'nullable|string|max:180',
+                // Matches the crm_events.metadata.call_ref column width — this value
+                // is what links the recording back to the call's timeline rows.
+                'call_ref' => 'nullable|string|max:64',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('CallRecordingController: upload validation rejected', [
+                'call_ref' => $request->input('call_ref'),
+                'user_id' => user()?->id,
+                'errors' => $e->errors(),
+            ]);
+            throw $e;
+        }
 
         $entityType = $request->input('entity_type');
         $entityId = $request->input('entity_id');
@@ -181,6 +190,11 @@ class CallRecordingController extends AccountBaseController
             }
         } catch (\Throwable $e) {
             $transcoded = false;
+            Log::warning('CallRecordingController: transcoding threw', [
+                'call_ref' => $request->input('call_ref'),
+                'user_id' => user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             // Clean up any partial output file from a failed transcode
             if (isset($finalPath) && is_file($finalPath)) {
                 @unlink($finalPath);
@@ -200,6 +214,11 @@ class CallRecordingController extends AccountBaseController
             $objectPath = $uploaded['objectPath'] ?? null;
             $externalUrl = $uploaded['downloadUrl'] ?? null;
         } catch (\Throwable $e) {
+            Log::warning('CallRecordingController: storage upload failed, falling back to local disk', [
+                'call_ref' => $request->input('call_ref'),
+                'user_id' => user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             // Keep recording available even when the external storage gateway
             // is not configured. Fallback to Laravel's local disk, which mirrors
             // lead files' safe offline behaviour.
@@ -235,6 +254,17 @@ class CallRecordingController extends AccountBaseController
             'object_path' => $objectPath,
             'external_url' => $externalUrl,
             'expires_at' => now()->addDays(30),
+        ]);
+
+        Log::info('CallRecordingController: recording created', [
+            'recording_id' => $recording->id,
+            'call_ref' => $callRef,
+            'user_id' => $recording->user_id,
+            'duration_seconds' => $recording->duration_seconds,
+            'filename' => $storedName,
+            'size' => $size,
+            'transcoded' => $transcoded,
+            'has_external_url' => ! empty($externalUrl),
         ]);
 
         // The timeline row for this call may already exist (the dock logs

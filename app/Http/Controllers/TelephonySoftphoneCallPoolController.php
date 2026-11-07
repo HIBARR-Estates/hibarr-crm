@@ -3,8 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
+use App\Models\Permission;
+use App\Models\PermissionType;
 use App\Models\SoftphoneCallPoolAgent;
 use App\Models\SoftphoneDevice;
+use App\Models\User;
+use App\Models\UserPermission;
 use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -59,45 +63,31 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         $scope = $request->input('scope');
         $rawDeviceId = $request->input('device_id');
 
-        if ($scope === 'fallback' || $rawDeviceId === 'fallback' || ($rawDeviceId !== null && (int) $rawDeviceId === 0 && $scope !== 'line')) {
-            $agents = SoftphoneCallPoolAgent::query()
-                ->where('company_id', $companyId)
-                ->whereNull('device_id')
-                ->with('user:id,name,email')
-                ->orderBy('priority')
-                ->orderBy('id')
-                ->get()
-                ->map(fn(SoftphoneCallPoolAgent $agent) => [
-                    'id' => $agent->id,
-                    'user_id' => $agent->user_id,
-                    'name' => $agent->user?->name,
-                    'email' => $agent->user?->email,
-                    'priority' => $agent->priority,
-                    'active' => $agent->active,
-                ])
-                ->values();
+        $isFallback = $scope === 'fallback' || $rawDeviceId === 'fallback' || ($rawDeviceId !== null && (int) $rawDeviceId === 0 && $scope !== 'line');
 
-            return response()->json([
-                'status' => 'success',
-                'data' => [
-                    'agents' => $agents,
-                    'fallback_seconds' => $fallbackSeconds,
-                ],
-            ]);
+        if (! $isFallback) {
+            $deviceId = (int) $request->input('device_id', 0);
+            $this->assertDeviceBelongsToCompany($deviceId);
         }
 
-        $deviceId = (int) $request->input('device_id', 0);
-        $this->assertDeviceBelongsToCompany($deviceId);
-
-        $agents = SoftphoneCallPoolAgent::query()
+        $agentsQuery = SoftphoneCallPoolAgent::query()
             ->where('company_id', $companyId)
-            ->where('device_id', $deviceId)
-            // Admins bypass the line pool, so they are hidden from the line list
-            ->whereNotIn('user_id', SoftphoneCallPoolAgent::adminUserIds($companyId))
+            ->when($isFallback, fn ($q) => $q->whereNull('device_id'), fn ($q) => $q->where('device_id', (int) $request->input('device_id', 0)))
             ->with('user:id,name,email')
             ->orderBy('priority')
             ->orderBy('id')
-            ->get()
+            ->get();
+
+        $permissionId = Permission::query()->where('name', 'make_softphone_calls')->value('id');
+        $permissionUsers = $permissionId ? UserPermission::query()
+            ->whereIn('user_id', $agentsQuery->pluck('user_id'))
+            ->where('permission_id', $permissionId)
+            ->whereIn('permission_type_id', [PermissionType::ALL, PermissionType::ADDED])
+            ->pluck('user_id')
+            ->flip()
+            ->toArray() : [];
+
+        $agents = $agentsQuery
             ->map(fn(SoftphoneCallPoolAgent $agent) => [
                 'id' => $agent->id,
                 'user_id' => $agent->user_id,
@@ -105,6 +95,7 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
                 'email' => $agent->user?->email,
                 'priority' => $agent->priority,
                 'active' => $agent->active,
+                'has_permission' => isset($permissionUsers[$agent->user_id]),
             ])
             ->values();
 
@@ -130,6 +121,15 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
             ? SoftphoneCallPoolAgent::eligibleFallbackUsersForCompany($companyId)
             : SoftphoneCallPoolAgent::eligibleUsersForCompany($companyId);
 
+        $permissionId = Permission::query()->where('name', 'make_softphone_calls')->value('id');
+        $permissionUsers = $permissionId ? UserPermission::query()
+            ->whereIn('user_id', $users->pluck('id'))
+            ->where('permission_id', $permissionId)
+            ->whereIn('permission_type_id', [PermissionType::ALL, PermissionType::ADDED])
+            ->pluck('user_id')
+            ->flip()
+            ->toArray() : [];
+
         return response()->json([
             'status' => 'success',
             'data' => [
@@ -137,6 +137,7 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'has_permission' => isset($permissionUsers[$user->id]),
                 ])->values(),
             ],
         ]);
@@ -250,7 +251,6 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         $userId = (int) $validated['user_id'];
         $user = \App\Models\User::find($userId);
         abort_unless($user !== null && (int) $user->company_id === $companyId, 404);
-        abort_if($user->hasRole('admin'), 422, 'Admins cannot be added to a line call pool.');
 
         return DB::transaction(function () use ($companyId, $deviceId, $userId, $validated) {
             Company::query()->whereKey($companyId)->lockForUpdate()->first();
@@ -273,6 +273,8 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
                     'message' => "Priority {$priority} is already assigned to another agent on this line. Each agent must have a unique priority from 1 to 100.",
                 ], 422);
             }
+
+            $this->ensureSoftphonePermission($userId);
 
             $agent = SoftphoneCallPoolAgent::updateOrCreate(
                 [
@@ -375,6 +377,77 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
             'status' => 'success',
             'message' => 'Removed successfully.',
         ]);
+    }
+
+    /**
+     * Grant or revoke the softphone calls permission for an agent.
+     */
+    public function togglePermission(Request $request): JsonResponse
+    {
+        $this->assertSoftphoneEnabled();
+        $this->assertCanManage();
+
+        $validated = $request->validate([
+            'user_id' => 'required|integer|min:1',
+            'enabled' => 'required|boolean',
+        ]);
+
+        $userId = (int) $validated['user_id'];
+        /** @var User $user */
+        $user = User::query()->where('company_id', company()->id)->findOrFail($userId);
+        $enabled = (bool) $validated['enabled'];
+
+        $permission = Permission::query()->where('name', 'make_softphone_calls')->first();
+        if (! $permission) {
+            $permission = Permission::firstOrCreate(
+                ['name' => 'make_softphone_calls'],
+                [
+                    'display_name' => 'Make Softphone Calls',
+                    'is_custom' => 1,
+                    'allowed_permissions' => Permission::ALL_ADDED_NONE,
+                ]
+            );
+        }
+
+        UserPermission::query()->updateOrCreate(
+            [
+                'user_id' => $user->id,
+                'permission_id' => $permission->id,
+            ],
+            [
+                'permission_type_id' => $enabled ? PermissionType::ALL : PermissionType::NONE,
+            ]
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => $enabled
+                ? "Softphone permission granted to {$user->name}."
+                : "Softphone permission removed from {$user->name}.",
+            'data' => [
+                'user_id' => $user->id,
+                'has_permission' => $enabled,
+            ],
+        ]);
+    }
+
+    /**
+     * Automatically ensure user holds make_softphone_calls permission.
+     */
+    private function ensureSoftphonePermission(int $userId): void
+    {
+        $permission = Permission::query()->where('name', 'make_softphone_calls')->first();
+        if ($permission) {
+            UserPermission::query()->updateOrCreate(
+                [
+                    'user_id' => $userId,
+                    'permission_id' => $permission->id,
+                ],
+                [
+                    'permission_type_id' => PermissionType::ALL,
+                ]
+            );
+        }
     }
 
     private function assertDeviceBelongsToCompany(int $deviceId): SoftphoneDevice
