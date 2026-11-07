@@ -57,16 +57,12 @@ export const PAGE_ACCESS: Record<string, PageAccessEntry> = {
     "Dashboard/V2/PersonalDashboard": {
         flags: ["crm.personal-dashboard"],
     },
-    "Dashboard/V2/DashboardV2": {
-        permissionsMatch: "any",
-        permissions: [
-            scopeAll("view_manager_dashboard"),
-            scopeAll("view_team_dashboard"),
-            // The Company view has no permission: it opens for the people on
-            // Settings → Company dashboard access.
-            scopeAll("view_partner_dashboard"),
-        ],
-    },
+    // No page-level gate: DashboardV2Controller::availableViews() decides
+    // each view (manager/team/partner permissions, and for the Company view
+    // the list in Settings → Company dashboard access, which no permission
+    // can express). Listing permissions here would wrongly show list members
+    // as locked out.
+    "Dashboard/V2/DashboardV2": EMPTY,
     "Dashboard/ComprehensiveDashboard": EMPTY,
 
     "Settings/Index": EMPTY,

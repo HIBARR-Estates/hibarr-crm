@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\CompanyDashboardViewer;
 use App\Models\User;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Who may open the Company dashboard (?view=leadership): only the people on
@@ -25,11 +26,15 @@ final class CompanyDashboardAccess
                 ->where('company_id', $user->company_id)
                 ->where('user_id', $user->id)
                 ->exists();
-        } catch (QueryException) {
+        } catch (QueryException $e) {
             // Before the migration has run there is no list, so nobody is on
-            // it. Catching the error costs nothing per request, unlike asking
-            // the schema whether the table exists on every dashboard load.
-            return false;
+            // it. The schema is only consulted on this error path, never on a
+            // normal dashboard load. Any other database error is not hidden.
+            if (! Schema::hasTable('company_dashboard_viewers')) {
+                return false;
+            }
+
+            throw $e;
         }
     }
 }
