@@ -39,12 +39,19 @@ class LeadMergeController extends AccountBaseController
             static fn ($value) => $value !== null,
         );
 
+        $fieldPicks = array_filter(
+            (array) $request->input('field_picks', []),
+            static fn ($side, $field) => is_string($field) && $field !== '' && in_array($side, ['primary', 'duplicate'], true),
+            ARRAY_FILTER_USE_BOTH,
+        );
+
         try {
             $merged = $this->mergeService->merge(
                 $lead,
                 $duplicate,
                 $ownershipPicks,
                 user()?->id,
+                $fieldPicks,
             );
         } catch (InvalidArgumentException $e) {
             return Reply::error($e->getMessage());
@@ -112,6 +119,8 @@ class LeadMergeController extends AccountBaseController
             'client_whatsapp' => $lead->client_whatsapp,
             'client_telegram' => $lead->client_telegram,
             'client_instagram' => $lead->client_instagram,
+            'owner_name' => $lead->leadOwner?->name,
+            'created_at' => $lead->created_at?->toIso8601String(),
             'contact_methods' => $lead->contactMethods()
                 ->orderByDesc('is_main')
                 ->orderBy('type')

@@ -140,6 +140,14 @@ const ICON_PATHS: Record<string, ReactNode> = {
         </>
     ),
     check: <polyline points="20 6 9 17 4 12" />,
+    swap: (
+        <>
+            <polyline points="17 1 21 5 17 9" />
+            <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+            <polyline points="7 23 3 19 7 15" />
+            <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </>
+    ),
     search: (
         <>
             <circle cx="11" cy="11" r="8" />

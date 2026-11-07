@@ -160,8 +160,7 @@ class LeadSummaryServiceTest extends TestCase
         preg_match_all('/\{\{(\w+)\}\}/', $text, $used);
         $this->assertNotEmpty($used[1], 'the example must show the model using a token');
         $this->assertSame([], array_diff($used[1], \App\Services\EntitySummary\LeadSummaryTokens::NAMES));
-        $this->assertStringContainsString('{{lead_first_name}}', $example['status_line']);
-        $this->assertStringContainsString('{{lead_first_name}}', $example['summary']);
+        $this->assertNameIsInTheHeaderOnly($example);
         foreach (['[name]', '[email]', '[phone]'] as $placeholder) {
             $this->assertStringNotContainsString($placeholder, $text);
         }
@@ -172,6 +171,48 @@ class LeadSummaryServiceTest extends TestCase
 
         $this->assertLessThanOrEqual(6, $this->words($example['next_step']['label']));
         $this->assertLessThanOrEqual(10, $this->words($example['next_step']['rationale']));
+    }
+
+    /**
+     * The prompt also shows a short example: a thin lead who asked about a service, not a
+     * property. It is imitated as much as the main one, so it is held to the same rules.
+     */
+    public function test_the_prompts_short_example_is_valid_and_assumes_nothing(): void
+    {
+        $prompt = (new EntitySummaryPromptLoader())->loadLeadSummaryPrompt();
+
+        $this->assertSame(1, preg_match('/Output for this lead:\s*(\{.*?\n\})/s', $prompt, $match), 'prompt has no short example');
+        $example = json_decode($match[1], true);
+        $this->assertIsArray($example, 'short example is not valid JSON: '.json_last_error_msg());
+
+        (new EntitySummaryValidator())->validateLeadSummary($example);
+
+        $this->assertLessThanOrEqual(20, $this->words($example['status_line']), 'status_line');
+        $this->assertLessThanOrEqual(80, $this->words($example['summary']), 'summary words');
+        $this->assertLessThanOrEqual(1, preg_match_all('/==[^=]+==/u', $example['summary']), 'at most one open item');
+        $this->assertNameIsInTheHeaderOnly($example);
+
+        // The lead asked about a bank account and a company, not a property: the example
+        // must not teach the model to invent a property interest from the lead type or campaign.
+        $kinds = array_column($example['facts'], 'kind');
+        $this->assertNotContains('property', $kinds);
+        $this->assertNotContains('budget', $kinds);
+        $this->assertSame('low', $example['meta']['data_confidence']);
+    }
+
+    /**
+     * The lead is named once, in the header (status_line). The summary, facts and next step
+     * say "they", because the reader has just seen the name in the header.
+     *
+     * @param  array<string, mixed>  $example
+     */
+    private function assertNameIsInTheHeaderOnly(array $example): void
+    {
+        $this->assertSame(1, preg_match_all('/\{\{\w+\}\}/', $example['status_line']), 'the header names the lead once');
+
+        $rest = $example;
+        unset($rest['status_line']);
+        $this->assertStringNotContainsString('{{', json_encode($rest, JSON_UNESCAPED_UNICODE), 'only the header names the lead');
     }
 
     private function words(string $text): int

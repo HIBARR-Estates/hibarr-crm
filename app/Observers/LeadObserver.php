@@ -206,9 +206,12 @@ class LeadObserver
     {
         // Transcripts are client conversations, so they go with the lead. This
         // has to happen here rather than through a cascadeOnDelete foreign key
-        // because Lead soft-deletes, so the database never fires one.
+        // because Lead soft-deletes, so the database never fires one. A merge
+        // moves them to the kept lead first; nothing is purged for it.
         try {
-            app(SallyInsightRetentionService::class)->purgeForLead($leadContact->id);
+            if (! LeadMergeContext::involves($leadContact->id)) {
+                app(SallyInsightRetentionService::class)->purgeForLead($leadContact->id);
+            }
         } catch (\Illuminate\Database\QueryException $e) {
             \Log::warning('Failed to purge Sally insights for lead ID '.$leadContact->id.': '.$e->getMessage());
 
