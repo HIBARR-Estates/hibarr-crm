@@ -12,6 +12,7 @@ import {
 import { App, InputNumber, Select, Tooltip } from "antd";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
+import Switch from "@/Components/Redesign/primitives/Switch";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { SoftphoneDeviceSummary } from "@/Types/api/softphone";
 
@@ -25,12 +26,15 @@ interface PoolAgent {
     email: string | null;
     priority: number;
     active: boolean;
+    has_permission?: boolean;
 }
 
 interface EligibleUser {
     id: number;
     name: string;
     email: string | null;
+    has_permission?: boolean;
+    is_lead_agent?: boolean;
 }
 
 interface PoolResponse {
@@ -227,6 +231,7 @@ function LinePool({
     const [deleteTarget, setDeleteTarget] = useState<PoolAgent | null>(null);
     const [removingId, setRemovingId] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
+    const [togglingUserIds, setTogglingUserIds] = useState<Record<number, boolean>>({});
 
     const poolQuery = useApiQuery<PoolResponse>({
         path: route("telephony.softphone.call-pool.index", { device_id: device.id }),
@@ -249,10 +254,35 @@ function LinePool({
 
     const options = eligible
         .filter((u) => !alreadyInPool.has(u.id))
-        .map((u) => ({
-            value: u.id,
-            label: u.email ? `${u.name} — ${u.email}` : u.name,
-        }));
+        .map((u) => {
+            const badge = !u.has_permission
+                ? " (Auto-grants softphone access)"
+                : u.is_lead_agent
+                ? " (Lead Agent)"
+                : "";
+            return {
+                value: u.id,
+                label: `${u.name}${u.email ? ` — ${u.email}` : ""}${badge}`,
+            };
+        });
+
+    const handleTogglePermission = async (userId: number, current: boolean) => {
+        setTogglingUserIds((prev) => ({ ...prev, [userId]: true }));
+        try {
+            await axios.post(
+                route("telephony.softphone.call-pool.toggle-permission"),
+                { user_id: userId, enabled: !current },
+                { headers: { Accept: "application/json" } },
+            );
+            void message.success(!current ? "Softphone permission granted." : "Softphone permission revoked.");
+            await poolQuery.refetch();
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || "Could not update softphone permission.";
+            void message.error(msg);
+        } finally {
+            setTogglingUserIds((prev) => ({ ...prev, [userId]: false }));
+        }
+    };
 
     const submitAdd = async () => {
         if (!selectedUserId) return;
@@ -322,15 +352,16 @@ function LinePool({
                 className="cb-table cb-pool"
                 role="table"
                 aria-label={`${device.label} agents`}
-                style={{ "--cols": "minmax(0, 1fr) 130px 44px" } as React.CSSProperties}
+                style={{ "--cols": "minmax(0, 1fr) 130px 140px 44px" } as React.CSSProperties}
             >
                 <div
                     className="cb-grid-row cb-grid-row--head cb-pool"
                     role="row"
-                    style={{ "--cols": "minmax(0, 1fr) 130px 44px" } as React.CSSProperties}
+                    style={{ "--cols": "minmax(0, 1fr) 130px 140px 44px" } as React.CSSProperties}
                 >
                     <span>Agent</span>
                     <span title="Order in which calls ring agents on this line (1 rings first, 2 rings second, etc.)">Routing Order</span>
+                    <span title="Controls whether this agent has permission to make and receive softphone calls">Softphone Access</span>
                     <span aria-hidden="true" />
                 </div>
 
@@ -344,7 +375,7 @@ function LinePool({
                             key={agent.id}
                             className="cb-grid-row cb-pool"
                             role="row"
-                            style={{ "--cols": "minmax(0, 1fr) 130px 44px" } as React.CSSProperties}
+                            style={{ "--cols": "minmax(0, 1fr) 130px 140px 44px" } as React.CSSProperties}
                         >
                             <div className="cb-who">
                                 <span className="cb-avatar" aria-hidden="true">
@@ -365,6 +396,23 @@ function LinePool({
                                     await poolQuery.refetch();
                                 }}
                             />
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                                <Switch
+                                    checked={agent.has_permission ?? false}
+                                    loading={!!togglingUserIds[agent.user_id]}
+                                    onChange={() => void handleTogglePermission(agent.user_id, agent.has_permission ?? false)}
+                                    aria-label={`Toggle softphone access for ${agent.name ?? "agent"}`}
+                                />
+                                <span
+                                    style={{
+                                        fontSize: "12px",
+                                        color: agent.has_permission ? "var(--dr-green, #10b981)" : "var(--dr-text-muted)",
+                                        fontWeight: agent.has_permission ? 600 : 400,
+                                    }}
+                                >
+                                    {agent.has_permission ? "Granted" : "Disabled"}
+                                </span>
+                            </div>
                             <button
                                 type="button"
                                 className="cb-icon-btn"
@@ -469,6 +517,7 @@ function AdminFallbackPool() {
     const [deleteTarget, setDeleteTarget] = useState<PoolAgent | null>(null);
     const [removingId, setRemovingId] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
+    const [togglingUserIds, setTogglingUserIds] = useState<Record<number, boolean>>({});
 
     const poolQuery = useApiQuery<PoolResponse>({
         path: route("telephony.softphone.call-pool.index", { scope: "fallback" }),
@@ -491,10 +540,35 @@ function AdminFallbackPool() {
 
     const options = eligible
         .filter((u) => !alreadyInPool.has(u.id))
-        .map((u) => ({
-            value: u.id,
-            label: u.email ? `${u.name} — ${u.email}` : u.name,
-        }));
+        .map((u) => {
+            const badge = !u.has_permission
+                ? " (Auto-grants softphone access)"
+                : u.is_lead_agent
+                ? " (Lead Agent)"
+                : "";
+            return {
+                value: u.id,
+                label: `${u.name}${u.email ? ` — ${u.email}` : ""}${badge}`,
+            };
+        });
+
+    const handleTogglePermission = async (userId: number, current: boolean) => {
+        setTogglingUserIds((prev) => ({ ...prev, [userId]: true }));
+        try {
+            await axios.post(
+                route("telephony.softphone.call-pool.toggle-permission"),
+                { user_id: userId, enabled: !current },
+                { headers: { Accept: "application/json" } },
+            );
+            void message.success(!current ? "Softphone permission granted." : "Softphone permission revoked.");
+            await poolQuery.refetch();
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || "Could not update softphone permission.";
+            void message.error(msg);
+        } finally {
+            setTogglingUserIds((prev) => ({ ...prev, [userId]: false }));
+        }
+    };
 
     const submitAdd = async () => {
         if (!selectedUserId) return;
@@ -586,15 +660,16 @@ function AdminFallbackPool() {
                 className="cb-table cb-pool"
                 role="table"
                 aria-label="Admin fallback users"
-                style={{ "--cols": "minmax(0, 1fr) 130px 44px" } as React.CSSProperties}
+                style={{ "--cols": "minmax(0, 1fr) 130px 140px 44px" } as React.CSSProperties}
             >
                 <div
                     className="cb-grid-row cb-grid-row--head cb-pool"
                     role="row"
-                    style={{ "--cols": "minmax(0, 1fr) 130px 44px" } as React.CSSProperties}
+                    style={{ "--cols": "minmax(0, 1fr) 130px 140px 44px" } as React.CSSProperties}
                 >
                     <span>Fallback User</span>
                     <span title="Order in which fallback users ring (1 rings first, 2 rings second, etc.)">Routing Order</span>
+                    <span title="Controls whether this user has permission to make and receive softphone calls">Softphone Access</span>
                     <span aria-hidden="true" />
                 </div>
 
@@ -610,7 +685,7 @@ function AdminFallbackPool() {
                             key={agent.id}
                             className="cb-grid-row cb-pool"
                             role="row"
-                            style={{ "--cols": "minmax(0, 1fr) 130px 44px" } as React.CSSProperties}
+                            style={{ "--cols": "minmax(0, 1fr) 130px 140px 44px" } as React.CSSProperties}
                         >
                             <div className="cb-who">
                                 <span className="cb-avatar" aria-hidden="true">
@@ -631,6 +706,23 @@ function AdminFallbackPool() {
                                     await poolQuery.refetch();
                                 }}
                             />
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                                <Switch
+                                    checked={agent.has_permission ?? false}
+                                    loading={!!togglingUserIds[agent.user_id]}
+                                    onChange={() => void handleTogglePermission(agent.user_id, agent.has_permission ?? false)}
+                                    aria-label={`Toggle softphone access for ${agent.name ?? "user"}`}
+                                />
+                                <span
+                                    style={{
+                                        fontSize: "12px",
+                                        color: agent.has_permission ? "var(--dr-green, #10b981)" : "var(--dr-text-muted)",
+                                        fontWeight: agent.has_permission ? 600 : 400,
+                                    }}
+                                >
+                                    {agent.has_permission ? "Granted" : "Disabled"}
+                                </span>
+                            </div>
                             <button
                                 type="button"
                                 className="cb-icon-btn"

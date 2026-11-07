@@ -79,6 +79,7 @@ class CallRecordingLinker
                 }
                 $metadata['recording_id'] = $recordingId;
                 $metadata['has_recording'] = true;
+                unset($metadata['recording_status'], $metadata['recording_error']);
                 if ($isForwarded && $forwardedUserId !== null) {
                     $metadata['is_forwarded'] = true;
                     $metadata['forwarded_from_user_id'] = $forwardedUserId;

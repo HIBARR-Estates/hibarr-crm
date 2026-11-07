@@ -44,7 +44,14 @@ type Listener = () => void;
  * counterparty's phone number) is never logged, not even here.
  */
 const trace = (...args: unknown[]): void => {
-    if (import.meta.env.DEV) {
+    // `import.meta.env` only exists under Vite. The Mix/webpack bundle leaves
+    // it undefined, and reading `.DEV` off it threw inside beginCall() — before
+    // the INVITE was sent (outbound never rang) and before an inbound call
+    // could be answered.
+    const dev =
+        (typeof process !== "undefined" && process.env?.NODE_ENV !== "production") ||
+        (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV === true;
+    if (dev) {
         console.log(...args);
     }
 };
@@ -410,7 +417,16 @@ class SoftphoneClient {
         }
 
         const domain = domainOf(this.config.uri);
-        const sipUri = domain ? `sip:${target}@${domain}` : `sip:${target}`;
+        const dialTarget = normalizePhoneForSip(target, domain);
+        if (!dialTarget) {
+            this.reportSetupFailure(
+                target,
+                `"${target}" is not a number this line can dial.`,
+                context,
+            );
+            throw new Error(`Invalid phone number: ${target}`);
+        }
+        const sipUri = domain ? `sip:${dialTarget}@${domain}` : `sip:${dialTarget}`;
         const targetUri = UserAgent.makeURI(sipUri);
         if (!targetUri) {
             this.reportSetupFailure(
@@ -430,23 +446,23 @@ class SoftphoneClient {
         this.beginCall(inviter, "outbound", target, context);
 
         try {
+            // Same identity header as before the regressions: the line's own
+            // SIP URI (this is what sipgate accepted when calls last worked).
             const extraHeaders = this.config.uri
                 ? [`P-Preferred-Identity: ${this.config.uri.startsWith("sip:") ? `<${this.config.uri}>` : `<sip:${this.config.authorization_username || this.config.uri}@${domain || "sipgate.de"}>`}`]
                 : [];
+            trace("softphone INVITE sent", dialTarget.startsWith("+") ? "e164+" : "digits");
             await (inviter as unknown as Inviter).invite({
+                requestDelegate: this.inviteDelegate(),
                 requestOptions: {
                     extraHeaders,
-                    // The only place sip.js 0.21 hands us the call's outcome:
-                    // provisional responses (180 Ringing) and the negative final
-                    // response. Without it an outbound call sat on "Calling…"
-                    // until it ended, with no reason shown for a failed call.
-                    delegate: this.inviteDelegate(),
                 },
             } as never);
             // SessionDescriptionHandler exists only after invite() — attach remote audio now.
             if (this.session) {
                 this.attachRemoteFromSession(this.session);
                 this.refreshRemoteAudio();
+                this.watchMediaPath(this.session);
             }
         } catch (error: unknown) {
             console.error("[softphone] INVITE failed");
@@ -468,6 +484,11 @@ class SoftphoneClient {
     async answer(): Promise<void> {
         const session = this.session;
         if (!session || this.state.call?.phase !== "inbound" || this.answering) {
+            return;
+        }
+        if (session.state === SessionState.Terminated) {
+            // The caller (or the network) already ended this leg.
+            this.failCall("disconnected", "The caller hung up before the call could be answered.");
             return;
         }
         this.answering = true;
@@ -564,13 +585,13 @@ class SoftphoneClient {
             return;
         }
         this.endedByUser = true;
-        if (session) {
+        // An inbound leg is never rejected from here: reject() sends a final
+        // 603 that can end the forked call for every other device too. Another
+        // device already won (or sipgate will CANCEL this leg itself), so just
+        // drop it locally.
+        if (session && call.phase !== "inbound") {
             try {
-                if (call.phase === "inbound") {
-                    void session.reject();
-                } else {
-                    void session.cancel();
-                }
+                void session.cancel();
             } catch {
                 // ignore
             }
@@ -642,17 +663,24 @@ class SoftphoneClient {
      */
     private inviteDelegate() {
         return {
-            onProgress: (response: { statusCode?: number }) => {
-                // 180 Ringing: the callee's phone is buzzing.
-                if (response.statusCode === 180) {
+            onProgress: (response: { statusCode?: number; message?: { statusCode?: number } }) => {
+                const code = response.message?.statusCode ?? response.statusCode;
+                console.info("[softphone] INVITE progress", code);
+                // 180 Ringing or 183 Session Progress with early media
+                if (code === 180 || code === 183) {
                     this.setStage("ringing");
                 }
             },
-            onRedirect: (response: { statusCode?: number; reasonPhrase?: string }) => {
-                this.failFromStatus(response.statusCode, response.reasonPhrase);
+            onRedirect: (response: { statusCode?: number; reasonPhrase?: string; message?: { statusCode?: number; reasonPhrase?: string } }) => {
+                const code = response.message?.statusCode ?? response.statusCode;
+                const phrase = response.message?.reasonPhrase ?? response.reasonPhrase;
+                this.failFromStatus(code, phrase);
             },
-            onReject: (response: { statusCode?: number; reasonPhrase?: string }) => {
-                this.failFromStatus(response.statusCode, response.reasonPhrase);
+            onReject: (response: { statusCode?: number; reasonPhrase?: string; message?: { statusCode?: number; reasonPhrase?: string } }) => {
+                const code = response.message?.statusCode ?? response.statusCode;
+                const phrase = response.message?.reasonPhrase ?? response.reasonPhrase;
+                console.warn("[softphone] INVITE rejected", code, phrase);
+                this.failFromStatus(code, phrase);
             },
         };
     }
@@ -1045,6 +1073,21 @@ class SoftphoneClient {
 function domainOf(uri: string): string {
     const at = uri.indexOf("@");
     return at >= 0 ? uri.slice(at + 1).trim() : "";
+}
+
+export function uriUserOf(uri: string): string {
+    const withoutScheme = uri.replace(/^sip:/i, "");
+    const at = withoutScheme.indexOf("@");
+    return at >= 0 ? withoutScheme.slice(0, at).trim() : withoutScheme.trim();
+}
+
+/**
+ * Clean a dial target: drop spaces/brackets/hyphens but keep a leading "+",
+ * exactly as the number was dialled before the regression. The number itself
+ * is not rewritten.
+ */
+export function normalizePhoneForSip(phone: string, _domain?: string): string {
+    return phone.trim().replace(/[^\d+]/g, "").replace(/(?!^)\+/g, "");
 }
 
 export const softphone = new SoftphoneClient();

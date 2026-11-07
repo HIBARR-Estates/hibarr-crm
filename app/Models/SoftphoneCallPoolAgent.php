@@ -44,25 +44,46 @@ class SoftphoneCallPoolAgent extends Model
      */
     public static function eligibleUsersForCompany(int $companyId)
     {
+        $leadAgentUserIds = LeadAgent::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'enabled')
+            ->pluck('user_id')
+            ->filter()
+            ->unique()
+            ->toArray();
+
         return User::query()
             ->where('company_id', $companyId)
-            ->whereExists(function ($query): void {
-                $query->select(DB::raw(1))
-                    ->from('user_permissions')
-                    ->join('permissions', 'permissions.id', '=', 'user_permissions.permission_id')
-                    ->whereColumn('user_permissions.user_id', 'users.id')
-                    ->where('permissions.name', 'make_softphone_calls')
-                    ->whereIn('user_permissions.permission_type_id', [
-                        PermissionType::ALL,
-                        PermissionType::ADDED,
-                    ]);
+            ->where('status', 'active')
+            ->where(function ($q) use ($leadAgentUserIds): void {
+                if (! empty($leadAgentUserIds)) {
+                    $q->whereIn('id', $leadAgentUserIds);
+                }
+                $q->orWhereExists(function ($sub): void {
+                    $sub->select(DB::raw(1))
+                        ->from('user_permissions')
+                        ->join('permissions', 'permissions.id', '=', 'user_permissions.permission_id')
+                        ->whereColumn('user_permissions.user_id', 'users.id')
+                        ->where('permissions.name', 'make_softphone_calls')
+                        ->whereIn('user_permissions.permission_type_id', [
+                            PermissionType::ALL,
+                            PermissionType::ADDED,
+                        ]);
+                });
+                $q->orWhereExists(function ($sub): void {
+                    $sub->select(DB::raw(1))
+                        ->from('role_user')
+                        ->join('roles', 'roles.id', '=', 'role_user.role_id')
+                        ->whereColumn('role_user.user_id', 'users.id')
+                        ->whereIn('roles.name', ['employee', 'admin']);
+                });
             })
-            ->whereNotExists(function ($query): void {
-                $query->select(DB::raw(1))
+            ->whereNotExists(function ($sub): void {
+                $sub->select(DB::raw(1))
                     ->from('role_user')
                     ->join('roles', 'roles.id', '=', 'role_user.role_id')
                     ->whereColumn('role_user.user_id', 'users.id')
-                    ->where('roles.name', 'admin');
+                    ->where('roles.name', 'client');
             })
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
