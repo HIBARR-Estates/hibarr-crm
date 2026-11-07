@@ -1195,18 +1195,43 @@ export default function SoftphoneDock() {
             const remoteStream = audioEl?.srcObject instanceof MediaStream ? audioEl.srcObject : null;
             let micStream: MediaStream | null = null;
             try {
-                micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                micStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: false, // Prevents Chrome's aggressive frequency gating and robotic tone
+                        autoGainControl: false,  // Prevents volume pumping and amplified room hiss
+                    },
+                });
             } catch (err) {
                 console.warn("[softphone] Microphone access unavailable for recording, recording remote audio only:", err);
             }
 
             const ctx = new AudioContext();
+            if (ctx.state === "suspended") {
+                await ctx.resume().catch(() => undefined);
+            }
             const destination = ctx.createMediaStreamDestination();
+
+            // Dynamics compressor/limiter prevents harsh digital clipping when both parties speak simultaneously
+            const compressor = ctx.createDynamicsCompressor();
+            compressor.threshold.setValueAtTime(-6, ctx.currentTime);
+            compressor.knee.setValueAtTime(10, ctx.currentTime);
+            compressor.ratio.setValueAtTime(12, ctx.currentTime);
+            compressor.attack.setValueAtTime(0.003, ctx.currentTime);
+            compressor.release.setValueAtTime(0.25, ctx.currentTime);
+            compressor.connect(destination);
+
             if (remoteStream) {
-                ctx.createMediaStreamSource(remoteStream).connect(destination);
+                const remoteSource = ctx.createMediaStreamSource(remoteStream);
+                const remoteGain = ctx.createGain();
+                remoteGain.gain.setValueAtTime(0.8, ctx.currentTime);
+                remoteSource.connect(remoteGain).connect(compressor);
             }
             if (micStream) {
-                ctx.createMediaStreamSource(micStream).connect(destination);
+                const micSource = ctx.createMediaStreamSource(micStream);
+                const micGain = ctx.createGain();
+                micGain.gain.setValueAtTime(0.8, ctx.currentTime);
+                micSource.connect(micGain).connect(compressor);
             }
 
             // MediaRecorder cannot encode MP3 — it only emits Opus/WebM (or MP4/AAC on Safari). Pick the best *audio-only* type so we never end up with a video/webm container, and let the server transcode to MP3 on upload.
@@ -1221,7 +1246,7 @@ export default function SoftphoneDock() {
 
             const recorder = new MediaRecorder(
                 destination.stream,
-                mimeType ? { mimeType, audioBitsPerSecond: 48000 } : { audioBitsPerSecond: 48000 },
+                mimeType ? { mimeType, audioBitsPerSecond: 128000 } : { audioBitsPerSecond: 128000 },
             );
             recorder.onerror = (event: any) => {
                 console.error("[softphone] MediaRecorder runtime error:", event?.error || event);
