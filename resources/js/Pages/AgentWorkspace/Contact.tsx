@@ -169,7 +169,10 @@ function ContactLead(props: LeadRedesignProps) {
                 />
             </AgentSecondRow>
 
-            <div className="lead-redesign agent-contact" {...agentPillPanelProps("agent-contact", "lead")}>
+            <div
+                className={`lead-redesign agent-contact${showQualification ? "" : " agent-contact--no-goal"}`}
+                {...agentPillPanelProps("agent-contact", "lead")}
+            >
                 <div className="agent-contact__main">
                 <div className="agent-contact__head-card">
                     <ContactHeader

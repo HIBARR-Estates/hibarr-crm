@@ -20,6 +20,11 @@
     margin: 0 auto;
 }
 
+/* No goal panel (qualification tab flag off): the main column takes the width. */
+.agent-contact--no-goal {
+    grid-template-columns: minmax(0, 1fr);
+}
+
 .agent-contact__main {
     display: flex;
     min-width: 0;

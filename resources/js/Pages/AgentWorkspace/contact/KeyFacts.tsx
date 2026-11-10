@@ -30,14 +30,13 @@ export default function KeyFacts({ groups }: { groups: KeyFactGroup[] }) {
     const bodyId = useId();
 
     const toggle = () => {
-        setOpen((value) => {
-            try {
-                window.localStorage.setItem(STORAGE_KEY, value ? "0" : "1");
-            } catch {
-                // Not remembered; the toggle still works.
-            }
-            return !value;
-        });
+        const next = !open;
+        try {
+            window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+        } catch {
+            // Not remembered; the toggle still works.
+        }
+        setOpen(next);
     };
 
     return (
