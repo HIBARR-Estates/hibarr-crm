@@ -46,7 +46,10 @@ final class AgentWorkspaceAccess
 
         $allowed = self::resolve($user);
 
-        $request?->attributes->set(self::REQUEST_KEY, [...($cached ?? []), $user->id => $allowed]);
+        // Plain assignment, not spread: spreading renumbers integer keys.
+        $answers = is_array($cached) ? $cached : [];
+        $answers[$user->id] = $allowed;
+        $request?->attributes->set(self::REQUEST_KEY, $answers);
 
         return $allowed;
     }

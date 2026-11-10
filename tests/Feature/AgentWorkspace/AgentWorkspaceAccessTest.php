@@ -227,6 +227,18 @@ class AgentWorkspaceAccessTest extends TestCase
         $this->assertFalse($this->allows(self::COLLEAGUE));
     }
 
+    public function test_the_request_cache_keeps_each_persons_answer(): void
+    {
+        $this->app->instance('request', Request::create('/agent/today'));
+
+        // Three answers in one request; the admin (id 1) must not pick up another person's.
+        $this->assertFalse(AgentWorkspaceAccess::allows($this->user(self::COLLEAGUE)));
+        $this->assertTrue(AgentWorkspaceAccess::allows($this->user(self::AGENT)));
+        $this->assertFalse(AgentWorkspaceAccess::allows($this->user(self::DISABLED_AGENT)));
+        $this->assertFalse(AgentWorkspaceAccess::allows($this->user(self::ADMIN, ['admin', 'employee'])));
+        $this->assertTrue(AgentWorkspaceAccess::allows($this->user(self::AGENT)));
+    }
+
     public function test_the_middleware_answers_404_without_access(): void
     {
         $request = Request::create('/agent/today');
