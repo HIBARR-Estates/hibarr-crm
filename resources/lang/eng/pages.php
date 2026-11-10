@@ -2951,6 +2951,7 @@ return [
         'account' => 'Account',
         'preferences' => 'Preferences',
         'logout' => 'Log out',
+        'language' => 'Language',
         'nav' => [
             'today' => 'Today',
             'people' => 'People',

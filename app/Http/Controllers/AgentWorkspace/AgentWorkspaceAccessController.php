@@ -73,9 +73,17 @@ class AgentWorkspaceAccessController extends AccountBaseController
             'access' => ['required', Rule::in(AgentWorkspaceAccessEntry::ACCESS_VALUES)],
         ]);
 
-        AgentWorkspaceAccessEntry::query()->updateOrCreate(
-            ['company_id' => company()->id, 'user_id' => (int) $data['user_id']],
-            ['access' => $data['access'], 'added_by' => user()->id],
+        // One atomic statement, so two saves for the same person at once can't
+        // both insert and trip the (company_id, user_id) unique index.
+        AgentWorkspaceAccessEntry::query()->upsert(
+            [[
+                'company_id' => company()->id,
+                'user_id' => (int) $data['user_id'],
+                'access' => $data['access'],
+                'added_by' => user()->id,
+            ]],
+            ['company_id', 'user_id'],
+            ['access', 'added_by', 'updated_at'],
         );
 
         return Reply::successWithData(__('messages.recordSaved'), ['entries' => $this->entries()]);

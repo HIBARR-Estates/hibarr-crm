@@ -235,6 +235,45 @@
     color: var(--dr-red);
 }
 
+.agent-menu__group {
+    padding: 10px 10px 4px;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.agent-menu__sublist {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-menu__item--lang {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.agent-menu__item--lang[aria-checked="true"] {
+    font-weight: 600;
+}
+
+.agent-menu__lang-name {
+    flex: 1;
+}
+
+.agent-menu__check {
+    color: var(--dr-blue);
+}
+
+.agent-menu__separator {
+    height: 1px;
+    margin: 6px 4px;
+    background: var(--dr-border-soft);
+}
+
 /* ---------- phone bottom tab bar ---------- */
 .agent-ws__tabbar {
     display: none;

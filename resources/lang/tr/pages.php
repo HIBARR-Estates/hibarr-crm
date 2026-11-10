@@ -2772,6 +2772,7 @@ return [
         'account' => 'Hesap',
         'preferences' => 'Tercihler',
         'logout' => 'Çıkış yap',
+        'language' => 'Dil',
         'nav' => [
             'today' => 'Bugün',
             'people' => 'Kişiler',

@@ -4,14 +4,9 @@ import { GlobalOutlined, CheckOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import { useTranslation } from "@/Hooks/useTranslation";
 import type { SupportedLocale } from "@/lib/i18n";
+import { LOCALE_FLAG_EMOJI } from "@/lib/localeFlags";
 
-// Flag emoji mapping for the four supported languages
-const FLAG_EMOJI: Record<string, string> = {
-    gb: "🇬🇧",
-    de: "🇩🇪",
-    ru: "🇷🇺",
-    tr: "🇹🇷",
-};
+const FLAG_EMOJI = LOCALE_FLAG_EMOJI;
 
 interface LanguageSwitcherProps {
     /** Show only icon when true */

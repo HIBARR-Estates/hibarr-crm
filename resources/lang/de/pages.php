@@ -2794,6 +2794,7 @@ return [
         'account' => 'Konto',
         'preferences' => 'Einstellungen',
         'logout' => 'Abmelden',
+        'language' => 'Sprache',
         'nav' => [
             'today' => 'Heute',
             'people' => 'Personen',

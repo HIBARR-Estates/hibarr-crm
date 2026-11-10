@@ -2807,6 +2807,7 @@ return [
         'account' => 'Аккаунт',
         'preferences' => 'Настройки',
         'logout' => 'Выйти',
+        'language' => 'Язык',
         'nav' => [
             'today' => 'Сегодня',
             'people' => 'Люди',
