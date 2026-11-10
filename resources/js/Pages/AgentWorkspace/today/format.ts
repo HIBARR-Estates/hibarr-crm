@@ -20,7 +20,8 @@ export function wallTime(wallClock: string): string {
     return dayjs(wallClock.slice(0, 19)).format(companyTimeDayjsFormat());
 }
 
-function dayDiff(from: string, to: string): number {
+/** Whole days from one day key (YYYY-MM-DD) to another. */
+export function dayDiff(from: string, to: string): number {
     return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 }
 

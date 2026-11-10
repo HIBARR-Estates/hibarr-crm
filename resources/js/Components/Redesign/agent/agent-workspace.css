@@ -22,6 +22,14 @@
     background: var(--dr-navy);
 }
 
+/* ---------- time states (tasks, meetings: late, now, soon, later, none, done) ---------- */
+.agent-ts--late { --ts-bg: var(--dr-time-late-bg); --ts-border: var(--dr-time-late-border); --ts-text: var(--dr-time-late-text); --ts-solid: var(--dr-time-late-solid); }
+.agent-ts--now { --ts-bg: var(--dr-time-now-bg); --ts-border: var(--dr-time-now-border); --ts-text: var(--dr-time-now-text); --ts-solid: var(--dr-time-now-solid); }
+.agent-ts--soon { --ts-bg: var(--dr-time-soon-bg); --ts-border: var(--dr-time-soon-border); --ts-text: var(--dr-time-soon-text); --ts-solid: var(--dr-time-soon-solid); }
+.agent-ts--later { --ts-bg: var(--dr-time-later-bg); --ts-border: var(--dr-time-later-border); --ts-text: var(--dr-time-later-text); --ts-solid: var(--dr-time-later-solid); }
+.agent-ts--none { --ts-bg: var(--dr-time-none-bg); --ts-border: var(--dr-time-none-border); --ts-text: var(--dr-time-none-text); --ts-solid: var(--dr-time-none-solid); }
+.agent-ts--done { --ts-bg: var(--dr-time-done-bg); --ts-border: var(--dr-time-done-border); --ts-text: var(--dr-time-done-text); --ts-solid: var(--dr-time-done-solid); }
+
 /* ---------- top row: corner, dock, actions ---------- */
 .agent-ws__top {
     position: relative;
