@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import axios from "axios";
 import { usePage } from "@inertiajs/react";
-import { softphone } from "@/lib/softphone/SoftphoneClient";
+import { softphone, type OutboundAudioDiagnostics } from "@/lib/softphone/SoftphoneClient";
 import { SoftphoneTabLease } from "@/lib/softphone/SoftphoneTabLease";
 import type {
     SoftphoneCallContext,
@@ -79,6 +79,8 @@ export function canManageCalls(
  * call (with call permission) or a call manager. The server enforces the same
  * rule (CallAccess::canPlayRecording); this only decides what to render.
  */
+export type { OutboundAudioDiagnostics };
+
 export function canPlayCallRecording(
     user?: { id?: number | string | null; roles?: Array<{ name?: string }> } | null,
     permissions?: Record<string, unknown> | null,
@@ -138,6 +140,7 @@ let registeredDeviceId: number | null = null;
 let activatingDeviceId: number | null = null;
 let activationPromise: Promise<boolean> | null = null;
 let activationToken = 0;
+let lastActivationError: string | null = null;
 
 function pickInitialDeviceId(
     devices: SoftphoneDeviceSummary[],
@@ -299,6 +302,7 @@ async function activateDeviceInternal(deviceId: number): Promise<boolean> {
 
     const token = ++activationToken;
     activatingDeviceId = deviceId;
+    lastActivationError = null;
     updateStore({ configLoaded: false });
 
     const promise = axios
@@ -318,14 +322,29 @@ async function activateDeviceInternal(deviceId: number): Promise<boolean> {
                     softphone.getState().registration === "registered";
                 if (token === activationToken) {
                     registeredDeviceId = ready ? deviceId : null;
+                    if (!ready) {
+                        lastActivationError =
+                            softphone.getState().registrationError ?? null;
+                    }
                 }
                 return ready;
             }
+            if (token === activationToken) {
+                lastActivationError =
+                    (response.data as { message?: string } | undefined)?.message ??
+                    null;
+            }
             return false;
         })
-        .catch(() => {
+        .catch((err: unknown) => {
             if (token === activationToken) {
                 registeredDeviceId = null;
+                const serverMessage = (
+                    err as { response?: { data?: { message?: string } } }
+                )?.response?.data?.message;
+                lastActivationError =
+                    serverMessage ||
+                    (err instanceof Error ? err.message : null);
             }
             return false;
         })
@@ -482,10 +501,18 @@ export default function useSoftphone() {
     ]);
 
     const setActiveDevice = useCallback((id: number) => {
+        if (!storeState.isActiveTab && storeState.mirroredCall == null && sharedLease) {
+            sharedLease.takeOver();
+            updateStore({ isActiveTab: true });
+        }
         void activateDeviceInternal(id);
     }, []);
 
     const activateDevice = useCallback(async (id: number): Promise<boolean> => {
+        if (!storeState.isActiveTab && storeState.mirroredCall == null && sharedLease) {
+            sharedLease.takeOver();
+            updateStore({ isActiveTab: true });
+        }
         return activateDeviceInternal(id);
     }, []);
 
@@ -493,8 +520,10 @@ export default function useSoftphone() {
         softphone.attachRemoteAudio(el);
     }, []);
 
-    // Passive tabs must never place/answer/reject — that is the owning tab's
-    // job, otherwise two tabs fight over the same SIP session.
+    // Passive tabs must never place/answer/reject while another tab is in an
+    // active call — that is the owning tab's job, otherwise two tabs fight over
+    // the same SIP session. However, when no call is active in another tab, an
+    // explicit user click in this tab takes over ownership so the call succeeds.
     const call = useCallback(
         async (
             target: string,
@@ -502,9 +531,15 @@ export default function useSoftphone() {
             deviceId?: number,
         ) => {
             if (!storeState.isActiveTab) {
-                throw new Error(
-                    "Calls are handled in another open tab for this account.",
-                );
+                if (storeState.mirroredCall == null && sharedLease) {
+                    sharedLease.takeOver();
+                    updateStore({ isActiveTab: true });
+                } else {
+                    const reason =
+                        "Calls are handled in another open tab for this account.";
+                    softphone.reportSetupFailure(target, reason, context ?? null);
+                    throw new Error(reason);
+                }
             }
 
             let devicesList = storeState.devices;
@@ -520,16 +555,19 @@ export default function useSoftphone() {
 
             if (targetDeviceId !== null) {
                 if (wouldInterruptLiveCall(targetDeviceId)) {
-                    throw new Error(
-                        "Finish the current call before switching lines.",
-                    );
+                    const reason =
+                        "Finish the current call before switching lines.";
+                    softphone.reportSetupFailure(target, reason, context ?? null);
+                    throw new Error(reason);
                 }
                 const ready = await activateDeviceInternal(targetDeviceId);
                 if (!ready && softphone.getState().registration !== "registered") {
-                    throw new Error(
+                    const reason =
                         softphone.getState().registrationError ||
-                            "Your phone line isn't connected — pick a line in the phone panel.",
-                    );
+                        lastActivationError ||
+                        "Your phone line isn't connected — pick a line in the phone panel.";
+                    softphone.reportSetupFailure(target, reason, context ?? null);
+                    throw new Error(reason);
                 }
             }
 
@@ -559,6 +597,19 @@ export default function useSoftphone() {
         [],
     );
     const setHold = useCallback((hold: boolean) => softphone.setHold(hold), []);
+
+    const getLocalSendStream = useCallback(
+        () => softphone.getLocalSendStream(),
+        [],
+    );
+
+    const getOutboundAudioDiagnostics = useCallback(
+        () => softphone.getOutboundAudioDiagnostics(),
+        [],
+    );
+
+    const getMicGain = useCallback(() => softphone.getMicGain(), []);
+    const setMicGain = useCallback((gain: number) => softphone.setMicGain(gain), []);
 
     const activeDevice = useMemo(
         () =>
@@ -593,6 +644,10 @@ export default function useSoftphone() {
         hangup,
         setMuted,
         setHold,
+        getLocalSendStream,
+        getOutboundAudioDiagnostics,
+        getMicGain,
+        setMicGain,
         isReady: state.registration === "registered",
     };
 }

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { message } from "antd";
+import { App, message } from "antd";
 import axios from "axios";
 import { usePage } from "@inertiajs/react";
 import { softphone } from "@/lib/softphone/SoftphoneClient";
@@ -51,6 +51,8 @@ export interface TaskLeadCall {
 export default function useTaskLeadCall(task: Task): TaskLeadCall {
     const { props } = usePage();
     const { t } = useTranslation();
+    const { message: appMessage } = App.useApp();
+    const toast = appMessage ?? message;
     const softphoneEnabled = props.featureFlags?.["crm.softphone"] === true;
     const clickToCall = useClickToCall();
     const {
@@ -119,7 +121,7 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
                 !navigator.mediaDevices ||
                 !window.isSecureContext
             ) {
-                message.error(t("pages.telephony.insecure_context"));
+                toast.error(t("pages.telephony.insecure_context"));
                 return;
             }
             if (
@@ -127,7 +129,7 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
                 typeof deviceId !== "number" &&
                 softphone.getState().registration !== "registered"
             ) {
-                message.warning(t("pages.telephony.softphone_not_registered"));
+                toast.warning(t("pages.telephony.softphone_not_registered"));
                 return;
             }
 
@@ -144,7 +146,7 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
                     },
                     deviceId,
                 );
-                message.info(t("pages.telephony.calling_number", { phone }));
+                toast.info(t("pages.telephony.calling_number", { phone }));
                 void axios
                     .post(route("telephony.softphone.events.store"), {
                         phone,
@@ -156,7 +158,7 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
                         // Timeline logging is best-effort only.
                     });
             } catch (error: unknown) {
-                message.error(
+                toast.error(
                     error instanceof Error
                         ? error.message
                         : t("pages.telephony.generic_error"),
@@ -176,6 +178,7 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
             softphoneEnabled,
             canCall,
             t,
+            toast,
         ],
     );
 

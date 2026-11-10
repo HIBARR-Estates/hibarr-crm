@@ -7,6 +7,7 @@ import axios from "axios";
 import { Link, usePage } from "@inertiajs/react";
 import { softphone } from "@/lib/softphone/SoftphoneClient";
 import SaveLeadModal from "@/Features/Leads/SaveLead/SaveLeadModal";
+import SoftphoneMicDiagnostics from "./SoftphoneMicDiagnostics";
 import {
     savePendingRecording,
     getPendingRecordings,
@@ -332,6 +333,23 @@ export default function SoftphoneDock() {
         ["all", "added"].includes(
             props.auth?.permissions?.make_softphone_calls as string,
         );
+    const appEnv = String((props as { appEnv?: string }).appEnv ?? "").toLowerCase();
+    const isProduction =
+        appEnv === "production" ||
+        appEnv === "staging" ||
+        appEnv === "prod";
+    const isDevEnv =
+        !isProduction &&
+        (appEnv === "local" ||
+            appEnv === "development" ||
+            appEnv === "testing" ||
+            appEnv === "codecanyon" ||
+            (typeof import.meta !== "undefined" && Boolean(import.meta.env?.DEV)) ||
+            (typeof window !== "undefined" &&
+                (window.location.hostname === "localhost" ||
+                    window.location.hostname === "127.0.0.1" ||
+                    window.location.hostname.endsWith(".test") ||
+                    window.location.hostname.endsWith(".local"))));
     const {
         isEnabled,
         state,
@@ -737,6 +755,21 @@ export default function SoftphoneDock() {
                 routeInitializedCallIdRef.current = call.id;
                 setRotationIndex(0);
                 setPassedCallId(null);
+                if (isActiveTab) {
+                    void axios
+                        .post(route("telephony.softphone.events.store"), {
+                            phone,
+                            device_id: activeDeviceId,
+                            call_id: call.id,
+                            event: "incoming_call",
+                            direction: "inbound",
+                            status: "ringing",
+                            ...(callRef ? { call_ref: callRef } : {}),
+                        })
+                        .catch(() => {
+                            // best-effort
+                        });
+                }
             }
         }
 
@@ -1009,9 +1042,10 @@ export default function SoftphoneDock() {
                     // on the lead (or in the Calls page as unlinked).
                     ...(inboundRoute?.matched && inboundRoute.lead_id
                         ? { entity_type: "lead", entity_id: inboundRoute.lead_id }
-                        : {}),
+                        : (matchedLead?.id ? { entity_type: "lead", entity_id: matchedLead.id } : {})),
                     event: "call.started",
                     direction: "inbound",
+                    status: "answered",
                     routing_reason: fwd.callRoutingReason,
                     ...(callRef ? { call_ref: callRef } : {}),
                     ...(fwd.isForwarded && fwd.lastForwardedUser
@@ -1071,6 +1105,9 @@ export default function SoftphoneDock() {
                 deviceId: activeDeviceId ?? null,
                 fwd: { ...forwardedInfoRef.current },
             };
+            if (activeCall.direction === "inbound" && activeCall.peer) {
+                void logInboundCallStarted(activeCall.id, activeCall.peer);
+            }
             return;
         }
         const ended = connectedCallRef.current;
@@ -1090,6 +1127,7 @@ export default function SoftphoneDock() {
             .post(route("telephony.softphone.events.store"), {
                 phone: ended.peer,
                 device_id: ended.deviceId,
+                call_id: ended.id,
                 // Without a lead the server matches inbound numbers itself.
                 ...(ended.leadId ? { entity_type: "lead", entity_id: ended.leadId } : {}),
                 event: "call.ended",
@@ -1187,23 +1225,29 @@ export default function SoftphoneDock() {
     };
 
     useEffect(() => {
-        if (!hasActiveCall || !canRecord || activeCall?.phase !== "active") return;
+        if (!isActiveTab || !hasActiveCall || !canRecord || activeCall?.phase !== "active") return;
 
         const started = async () => {
             if (recordRecorderRef.current) return;
             const audioEl = remoteAudioRef.current;
             const remoteStream = audioEl?.srcObject instanceof MediaStream ? audioEl.srcObject : null;
-            let micStream: MediaStream | null = null;
-            try {
-                micStream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: false, // Prevents Chrome's aggressive frequency gating and robotic tone
-                        autoGainControl: false,  // Prevents volume pumping and amplified room hiss
-                    },
-                });
-            } catch (err) {
-                console.warn("[softphone] Microphone access unavailable for recording, recording remote audio only:", err);
+            // Prefer the live WebRTC sender track directly from SIP.js before falling back
+            // to a second getUserMedia capture, preventing dual-capture gating on Windows/Chrome.
+            let micStream: MediaStream | null = softphone.getLocalSendStream();
+            const usedWebRtcSender = micStream !== null;
+            if (!micStream) {
+                try {
+                    micStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: false, // Prevents Chrome's aggressive frequency gating and robotic tone
+                            autoGainControl: true,
+                            channelCount: 1,
+                        },
+                    });
+                } catch (err) {
+                    console.warn("[softphone] Microphone access unavailable for recording, recording remote audio only:", err);
+                }
             }
 
             const ctx = new AudioContext();
@@ -1230,17 +1274,19 @@ export default function SoftphoneDock() {
             if (micStream) {
                 const micSource = ctx.createMediaStreamSource(micStream);
                 const micGain = ctx.createGain();
-                micGain.gain.setValueAtTime(0.8, ctx.currentTime);
+                const gainValue = usedWebRtcSender ? 1.0 : softphone.getMicGain();
+                micGain.gain.setValueAtTime(gainValue, ctx.currentTime);
                 micSource.connect(micGain).connect(compressor);
             }
 
-            // MediaRecorder cannot encode MP3 — it only emits Opus/WebM (or MP4/AAC on Safari). Pick the best *audio-only* type so we never end up with a video/webm container, and let the server transcode to MP3 on upload.
+            // Target audio-only formats (prioritize MP4/OGG, fallback to audio-only WebM/Opus).
             const AUDIO_MIME_CANDIDATES = [
-                "audio/webm;codecs=opus",
-                "audio/ogg;codecs=opus",
-                "audio/webm",
-                "audio/ogg",
                 "audio/mp4",
+                "audio/mp4;codecs=mp4a.40.2",
+                "audio/ogg;codecs=opus",
+                "audio/ogg",
+                "audio/webm;codecs=opus",
+                "audio/webm",
             ];
             const mimeType = AUDIO_MIME_CANDIDATES.find((type) => MediaRecorder.isTypeSupported(type));
 
@@ -1262,7 +1308,7 @@ export default function SoftphoneDock() {
             const callConnectedAt = activeCall?.connectedAt || activeCall?.answeredAt || recordingStartedAt;
 
             recorder.onstop = async () => {
-                const blob = new Blob(recordChunksRef.current, { type: recorder.mimeType || mimeType || "audio/webm" });
+                const blob = new Blob(recordChunksRef.current, { type: recorder.mimeType || mimeType || "audio/mp4" });
                 recordChunksRef.current = [];
                 const stopTime = Date.now();
                 const elapsedRecording = recordingStartedAt ? (stopTime - recordingStartedAt) / 1000 : 0;
@@ -1270,7 +1316,7 @@ export default function SoftphoneDock() {
                 const duration = Math.max(1, Math.round(Math.max(elapsedRecording, elapsedCall)));
                 recordStartedAtRef.current = null;
 
-                // Close audio context and release microphone tracks immediately before starting upload
+                // Release recording stream tracks (cloned WebRTC stream or isolated mic stream)
                 micStream?.getTracks().forEach((track) => track.stop());
                 const audioCtx = recordContextRef.current ?? ctx;
                 recordContextRef.current = null;
@@ -1285,7 +1331,7 @@ export default function SoftphoneDock() {
 
                 if (blob.size === 0) {
                     console.warn("[softphone] Recording empty (0 bytes). Skipping upload.");
-                    if (callRef) {
+                    if (callRef && isActiveTab) {
                         void axios.post(route("telephony.softphone.events.store"), {
                             phone: activeCall?.peer ?? lastInboundPhone ?? "",
                             event: "call.recording_failed",
@@ -1361,7 +1407,7 @@ export default function SoftphoneDock() {
             recordContextRef.current = null;
             recordStartedAtRef.current = null;
         };
-    }, [activeCall?.id, activeCall?.phase, canRecord, hasActiveCall]);
+    }, [activeCall?.id, activeCall?.phase, canRecord, hasActiveCall, isActiveTab]);
 
     // Load any un-uploaded recordings from local IndexedDB queue on mount
     useEffect(() => {
@@ -1404,9 +1450,11 @@ export default function SoftphoneDock() {
 
     const hasCall = activeCall !== null;
 
-    // Auto-open while a call rings or is live; collapse once it ends. A FAILED call keeps the dock open with the reason — closing silently left agents thinking the app had hung. It self-dismisses after company fallback seconds so it cannot sit on screen forever.
+    // Auto-open while a call rings or is live; collapse once it ends. In dev, pinned open / pending recordings can keep the dock open for testing. In production, the dock only opens for live calls or failure notices.
     const callFailure = state.callFailure;
-    const open = pinnedOpen || hasCall || callFailure !== null || failedRecordings.length > 0;
+    const open = isDevEnv
+        ? (pinnedOpen || hasCall || callFailure !== null || failedRecordings.length > 0)
+        : (hasCall || callFailure !== null);
 
     const isNotice = callFailure?.direction === "inbound" || callFailure?.code === "disconnected";
     const isAnsweredElsewhere =
@@ -1479,45 +1527,67 @@ export default function SoftphoneDock() {
         return () => window.clearTimeout(timer);
     }, [callFailure, clearCallFailure, failureNoticeMs]);
 
-    // Every outbound attempt that never connected (busy, declined, no answer,
-    // not registered, ...) goes on the lead's timeline. The failure object is
+    // Every outbound or inbound attempt that never connected (busy, declined, no answer,
+    // not registered, disconnected...) goes on the timeline / call log. The failure object is
     // replaced per attempt, so keying on identity logs each one exactly once.
     const loggedFailureRef = useRef<typeof callFailure>(null);
     useEffect(() => {
         if (
             !callFailure ||
-            callFailure.direction !== "outbound" ||
             loggedFailureRef.current === callFailure
         ) {
             return;
         }
-        loggedFailureRef.current = callFailure;
-        const leadId = callFailure.context?.leadId;
-        if (!leadId) {
+
+        const isInbound = callFailure.direction === "inbound";
+
+        // Inbound calls answered elsewhere or passive tabs must not log failures
+        if (isInbound && (callFailure.code === "answered_elsewhere" || !isActiveTab)) {
             return;
         }
-        const event =
-            callFailure.code === "busy"
+
+        loggedFailureRef.current = callFailure;
+        const leadId = callFailure.context?.leadId ?? matchedLead?.id ?? inboundRoute?.lead_id ?? null;
+        if (!isInbound && !leadId) {
+            return;
+        }
+
+        const event = isInbound
+            ? (callFailure.code === "declined"
+                ? { event: "call.declined", status: "declined" }
+                : { event: "call.missed", status: "missed" })
+            : (callFailure.code === "busy"
                 ? { event: "call.busy", status: "busy" }
                 : callFailure.code === "declined"
                   ? { event: "call.declined", status: "declined" }
                   : callFailure.code === "no-answer"
                     ? { event: "call.missed", status: "missed" }
-                    : { event: "call.failed", status: "failed" };
+                    : { event: "call.failed", status: "failed" });
+
+        const fwd = forwardedInfoRef.current;
         void axios
             .post(route("telephony.softphone.events.store"), {
                 phone: callFailure.peer,
-                entity_type: "lead",
-                entity_id: leadId,
-                direction: "outbound",
+                device_id: activeDeviceId,
+                ...(callRef ? { call_id: callRef, call_ref: callRef } : {}),
+                ...(leadId ? { entity_type: "lead", entity_id: leadId } : {}),
+                direction: callFailure.direction,
                 failure_reason: callFailure.code,
-                failure_message: callFailure.reason.slice(0, 255),
+                failure_message: (callFailure.reason || "").slice(0, 255),
+                routing_reason: fwd.callRoutingReason,
+                ...(fwd.isForwarded && fwd.lastForwardedUser
+                    ? {
+                          is_forwarded: true,
+                          forwarded_from_user_id: fwd.lastForwardedUser.id,
+                          forwarded_from_user_name: fwd.lastForwardedUser.name,
+                      }
+                    : {}),
                 ...event,
             })
             .catch(() => {
                 // Timeline logging is best-effort only.
             });
-    }, [callFailure]);
+    }, [callFailure, isActiveTab, activeDeviceId, callRef, matchedLead?.id, inboundRoute?.lead_id]);
 
     const retryFailedCall = () => {
         const failure = callFailure;
@@ -1678,8 +1748,8 @@ export default function SoftphoneDock() {
                 />
             )}
 
-            {/* Idle state — line picker + status. Only when no call is live and no failed call is being reported (otherwise both panels render at once). */}
-            {!hasCall && !callFailure && open && (
+            {/* Idle state — line picker + status (Dev only). In production, the dock stays completely off-screen until a call rings or is placed. */}
+            {isDevEnv && !hasCall && !callFailure && open && (
                 <section className="sp" aria-label="Phone status">
                     <header className="sp__head">
                         <span className={statusDotClass} />
@@ -1796,6 +1866,9 @@ export default function SoftphoneDock() {
                                 </div>
                             </div>
                         )}
+                        {/* Mic Test & WebRTC Audio Diagnostics (Idle Mode, Dev only) */}
+                        {isDevEnv && <SoftphoneMicDiagnostics inCall={false} />}
+
                         <button type="button" className="sp__close" onClick={() => setPinnedOpen(false)}>
                             Hide
                         </button>
@@ -1950,8 +2023,32 @@ export default function SoftphoneDock() {
                                 End
                             </button>
                         </div>
+
+                        {/* Mic Test Diagnostic Section during call (Dev only) */}
+                        {isDevEnv && (
+                            <SoftphoneMicDiagnostics
+                                inCall={true}
+                                activeCallId={activeCall.id}
+                                isCallConnected={activeCall.stage === "connected"}
+                            />
+                        )}
                     </div>
                 </section>
+            )}
+
+            {/* Floating Launcher Pill when dock is collapsed/idle (Dev only) */}
+            {isDevEnv && !open && !hasCall && !callFailure && (
+                <button
+                    type="button"
+                    className="sp__launcher"
+                    onClick={() => setPinnedOpen(true)}
+                    aria-label="Phone & Mic Test"
+                    title="Open Phone & Mic Test"
+                >
+                    <span className={statusDotClass} />
+                    <Phone size={14} />
+                    <span>{headerTitle}</span>
+                </button>
             )}
 
         </>

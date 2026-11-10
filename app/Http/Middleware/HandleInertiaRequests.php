@@ -71,6 +71,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'csrf_token' => csrf_token(),
             'app_url' => config('app.url'),
+            'appEnv' => fn () => config('app.env'),
             'appBuildId' => fn () => AppBuild::clientId(),
             'company' => fn () => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
             'appName' => fn () => function_exists('companyOrGlobalSetting')

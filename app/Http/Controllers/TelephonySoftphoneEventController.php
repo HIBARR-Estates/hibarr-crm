@@ -70,6 +70,35 @@ class TelephonySoftphoneEventController extends AccountBaseController
         $matchingLeads = $this->leadMatcher->findLeads($companyId, $incoming)->values();
         $matchCount = $matchingLeads->count();
 
+        // Emit an incoming_call event to the call bridge (OL) once per incoming call
+        $emitCallKey = $authoritativeCallKey ?? $callId ?? $callRef;
+        if (! empty($emitCallKey)) {
+            $emitLockKey = sprintf('softphone:inbound_emitted:%d:%s', $companyId, trim((string) $emitCallKey));
+            if (Cache::add($emitLockKey, 1, 120)) {
+                try {
+                    $firstLead = $matchingLeads->first();
+                    $emitPayload = [
+                        'event' => 'incoming_call',
+                        'call_id' => trim((string) $emitCallKey),
+                        'direction' => 'inbound',
+                        'phone_number' => $request->input('phone'),
+                        'status' => 'ringing',
+                    ];
+                    if ($firstLead) {
+                        $emitPayload['entity_type'] = 'lead';
+                        $emitPayload['entity_id'] = (int) $firstLead->id;
+                    }
+                    $this->callBridge->emitCallEvent($emitPayload);
+                } catch (\Throwable $e) {
+                    Log::warning('TelephonySoftphoneEventController: failed to emit incoming_call event to OL', [
+                        'error' => $e->getMessage(),
+                        'call_id' => $emitCallKey,
+                        'phone' => $request->input('phone'),
+                    ]);
+                }
+            }
+        }
+
         // 1. Line pool: active agents explicitly registered on the ringing line, ordered by priority
         $poolAgents = SoftphoneCallPoolAgent::query()
             ->where('company_id', $companyId)
@@ -660,6 +689,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
         try {
             $this->callBridge->logCallEvent([
                 'event' => $validated['event'] ?? 'call.started',
+                'call_id' => $validated['call_id'] ?? null,
                 'direction' => $validated['direction'] ?? 'outbound',
                 'status' => $validated['status'] ?? null,
                 'duration' => $validated['duration'] ?? null,
@@ -693,18 +723,18 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 );
             }
             // Emit the call event to the OL call bridge so it records the
-            // call happening on its side. This is best-effort â€” a failure
+            // call happening on its side. This is best-effort — a failure
             // here must not block the call that already started or the
             // softphone UI response.
             try {
                 $emitDirection = $validated['direction'] ?? 'outbound';
                 $emitEvent = $validated['event'] ?? 'call.started';
-                if (! in_array($emitEvent, ['call.started', 'call.ended', 'call.missed', 'call.declined', 'call.busy', 'call.failed', 'call_declined', 'call_voicemail', 'call_busy', 'call_failed'], true)) {
-                    $emitEvent = 'call.started';
+                if (! in_array($emitEvent, ['call.started', 'call.answered', 'call_answered', 'incoming_call', 'outgoing_call', 'call.ended', 'call_ended', 'call.missed', 'call_missed', 'call.declined', 'call_declined', 'call.busy', 'call_busy', 'call.failed', 'call_failed', 'call_voicemail'], true)) {
+                    $emitEvent = ($emitDirection === 'inbound') ? 'incoming_call' : 'call.started';
                 }
                 $emitPayload = [
                     'event' => $emitEvent,
-                    'call_id' => $validated['call_ref'] ?? $validated['call_id'] ?? null,
+                    'call_id' => $validated['call_id'] ?? $validated['call_ref'] ?? null,
                     'direction' => $emitDirection,
                     'phone_number' => $validated['phone'],
                     'status' => $validated['status'] ?? null,
@@ -724,6 +754,11 @@ class TelephonySoftphoneEventController extends AccountBaseController
             }
         } catch (\Throwable $e) {
             // Logging must not block the call that already started.
+            Log::warning('TelephonySoftphoneEventController: failed to log call event', [
+                'error' => $e->getMessage(),
+                'event' => $validated['event'] ?? null,
+                'call_id' => $validated['call_id'] ?? null,
+            ]);
         }
 
         return response()->json(['status' => 'success']);
