@@ -43,15 +43,21 @@ function dayDiff(from: string, to: string): number {
 export default function useTodayWork({
     queue,
     schedule,
+    agenda,
     windowDays,
     timeZone,
     nowMs,
+    onSaved,
 }: {
     queue?: PersonalQueue;
     schedule?: TodaySchedule;
+    /** The agenda's current range (same row shapes as the schedule). */
+    agenda?: TodaySchedule;
     windowDays: number;
     timeZone: string;
     nowMs: number;
+    /** Called once a change is saved, so cached data outside the deferred props can re-read. */
+    onSaved?: () => void;
 }) {
     const { t } = useTranslation();
     const [taskOverrides, setTaskOverrides] = useState<Record<number, TaskOverride>>({});
@@ -72,7 +78,9 @@ export default function useTodayWork({
     // Drop overrides the server now agrees with.
     useEffect(() => {
         const serverTasks = new Map<number, QueueTask>();
-        for (const task of [...(queue?.tasks ?? []), ...(schedule?.tasks ?? [])]) serverTasks.set(task.id, task);
+        for (const task of [...(agenda?.tasks ?? []), ...(queue?.tasks ?? []), ...(schedule?.tasks ?? [])]) {
+            serverTasks.set(task.id, task);
+        }
 
         setTaskOverrides((prev) => {
             let changed = false;
@@ -90,11 +98,15 @@ export default function useTodayWork({
         });
         setHeldIds((prev) => {
             if (prev.size === 0) return prev;
-            const settled = new Set((schedule?.meetings ?? []).filter((m) => m.status === "completed").map((m) => m.id));
+            const settled = new Set(
+                [...(schedule?.meetings ?? []), ...(agenda?.meetings ?? [])]
+                    .filter((m) => m.status === "completed")
+                    .map((m) => m.id),
+            );
             const next = new Set([...prev].filter((id) => !settled.has(id)));
             return next.size === prev.size ? prev : next;
         });
-    }, [queue, schedule]);
+    }, [queue, schedule, agenda]);
 
     const { setStatus, isPending: isStatusPending } = useTaskStatus(
         (taskId, slug) => {
@@ -104,6 +116,7 @@ export default function useTodayWork({
                 clearTask(taskId);
                 reloadTasks();
             }
+            onSaved?.();
         },
         (taskId, slug) => {
             if (slug === "done") {
@@ -114,12 +127,12 @@ export default function useTodayWork({
     );
 
     const { reschedule, isPending: isReschedulePending } = useTaskReschedule(
-        () => {},
+        () => onSaved?.(),
         (taskId) => clearTask(taskId),
     );
 
     const { markHeld: postHeld, isPending: isHeldPending } = useMeetingStatus(
-        () => {},
+        () => onSaved?.(),
         MEETING_RELOAD_KEYS,
         (followUpId) =>
             setHeldIds((prev) => {
@@ -220,9 +233,22 @@ export default function useTodayWork({
         };
     }, [schedule, taskOverrides, heldIds, patch, today]);
 
+    const visibleAgenda = useMemo<TodaySchedule | undefined>(() => {
+        if (!agenda) return agenda;
+        if (Object.keys(taskOverrides).length === 0 && heldIds.size === 0) return agenda;
+        return {
+            meetings: agenda.meetings.map((meeting): ScheduleEntry =>
+                heldIds.has(meeting.id) ? { ...meeting, status: "completed" } : meeting,
+            ),
+            // A moved task keeps its row; the agenda files it under its new day.
+            tasks: agenda.tasks.map(patch),
+        };
+    }, [agenda, taskOverrides, heldIds, patch]);
+
     return {
         queue: visibleQueue,
         schedule: visibleSchedule,
+        agenda: visibleAgenda,
         completeTask,
         rescheduleTask,
         markHeld,

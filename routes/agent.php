@@ -16,4 +16,5 @@ Route::middleware(['auth', 'partner.restrict', EnsureAgentWorkspaceAccess::class
     ->group(function () {
         Route::redirect('/', '/agent/today')->name('home');
         Route::get('today', [AgentWorkspaceController::class, 'today'])->name('today');
+        Route::get('today/agenda', [AgentWorkspaceController::class, 'agenda'])->name('today.agenda');
     });
