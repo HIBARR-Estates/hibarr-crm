@@ -2916,8 +2916,7 @@ return [
         'live_monitor' => 'Hear live in headphones (avoid feedback)',
         'mic_gain_boost' => 'Mic Gain Boost (Pre-Amp)',
         'mic_gain_desc' => 'Boosts quiet microphone volume and sharpens vocal clarity before transmission.',
-        'mic_gain_default' => 'Reset to Default (2.5x / +8 dB)',
-
+        'mic_gain_default' => 'Reset to Default (2.5x / +8 dB)',
         'reset_gain' => 'Reset',
         'microphone' => 'Microphone',
     ],

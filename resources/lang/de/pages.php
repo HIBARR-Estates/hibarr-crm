@@ -2759,8 +2759,7 @@ return [
         'live_monitor' => 'Live über Kopfhörer mithören (Vorsicht Rückkopplung)',
         'mic_gain_boost' => 'Mikrofon-Verstärkung (Pre-Amp)',
         'mic_gain_desc' => 'Verstärkt leise Mikrofone und verbessert die Sprachverständlichkeit.',
-        'mic_gain_default' => 'Auf Standard zurücksetzen (2.5x / +8 dB)',
-
+        'mic_gain_default' => 'Auf Standard zurücksetzen (2.5x / +8 dB)',
         'reset_gain' => 'Zurücksetzen',
         'microphone' => 'Mikrofon',
     ],
