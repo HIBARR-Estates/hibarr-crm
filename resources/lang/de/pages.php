@@ -1552,6 +1552,8 @@ return [
                     'stage_updated' => 'Deal-Phase aktualisiert',
                     'update_failed' => 'Phase konnte nicht aktualisiert werden',
                 ],
+                'now' => 'jetzt',
+                'next' => 'als Nächstes',
             ],
             'tabs' => [
                 'overview' => 'Übersicht',
@@ -2807,6 +2809,11 @@ return [
         'pills_label' => 'Ansichten',
         'more' => 'Mehr',
         'search' => 'Suche',
+        'search_people' => 'Personen suchen',
+        'softphone' => 'Softphone',
+        'softphone_ready' => 'Softphone bereit',
+        'softphone_offline' => 'Softphone nicht verbunden',
+        'softphone_on_call' => 'Im Gespräch',
         'account' => 'Konto',
         'preferences' => 'Einstellungen',
         'logout' => 'Abmelden',
@@ -2878,6 +2885,10 @@ return [
                 'failed' => 'Das Ergebnis konnte nicht gespeichert werden.',
             ],
             'range_too_long' => 'Wählen Sie einen Zeitraum von höchstens :days Tagen.',
+            'contact_page' => 'Kontaktseite',
+            'strip_see_all' => 'Alle {{count}} in der Liste ansehen',
+            'strip_more' => '+{{count}} weitere',
+            'strip_all_done' => 'An diesem Tag ist alles erledigt.',
         ],
         'today' => [
             'title' => 'Heute',
@@ -2908,7 +2919,9 @@ return [
                 'deal' => 'Deal',
             ],
             'next' => [
-                'label' => 'Zuerst fällig',
+                'label' => 'Zuerst erledigen',
+                'call_name' => '{{name}} anrufen',
+                'open_contact' => 'Kontaktseite öffnen',
             ],
             'queue' => [
                 'title' => 'Danach, nach Fälligkeit',
@@ -2924,6 +2937,7 @@ return [
                 'uncovered_many' => '{{items}} haben keinen nächsten Schritt',
                 'empty_title' => 'Nichts fällig',
                 'empty_description' => 'Aufgaben, die in den nächsten {{days}} Tagen fällig sind, erscheinen hier.',
+                'show_all' => 'Alle {{count}} anzeigen',
             ],
             'due' => [
                 'done' => 'Erledigt',
@@ -2958,6 +2972,8 @@ return [
                 'late' => 'Überfällig',
                 'untimed_one' => '1 weitere heute fällige Aufgabe hat keine Uhrzeit; sie steht in Ihrer Liste',
                 'untimed_many' => '{{count}} weitere heute fällige Aufgaben haben keine Uhrzeit; sie stehen in Ihrer Liste',
+                'open_agenda' => 'Agenda öffnen',
+                'next_days' => 'Nächste Tage:',
             ],
         ],
         'contact' => [
@@ -3005,6 +3021,8 @@ return [
                 'webinar_registered' => 'Für ein Webinar angemeldet',
                 'last_webinar' => 'Letztes Webinar {{date}}',
                 'ebook' => 'Hat das E-Book heruntergeladen',
+                'deal' => 'Deal',
+                'close_date' => 'Abschluss am {{date}}',
             ],
             'coming_up' => [
                 'deal_title' => 'Als Nächstes in diesem Deal',

@@ -200,6 +200,21 @@ function ContactLead(props: LeadRedesignProps) {
                         onEdit={() => setEditOpen(true)}
                         onMoreAction={onMoreAction}
                     />
+                    {showAiSummary ? (
+                        <div className="agent-contact__summary">
+                            <AiSummaryCard
+                                leadId={lead.id}
+                                leadName={lead.client_name}
+                                summary={props.leadAiSummary}
+                                leadPhone={getDossierFieldValue(lead, "mobile") || undefined}
+                                onCta={{
+                                    onQualifyLead: showQualification ? mission.openTemplatePicker : undefined,
+                                    onCreateTask: () => setCreateKind("task"),
+                                    onScheduleCall: () => setCreateKind("meeting"),
+                                }}
+                            />
+                        </div>
+                    ) : null}
                 </div>
 
                 <div className="agent-contact__body-card">
@@ -211,21 +226,6 @@ function ContactLead(props: LeadRedesignProps) {
                                 isLoading={duplicates.isLoading}
                                 onDismiss={duplicates.dismiss}
                                 onMerged={() => void duplicates.invalidate()}
-                            />
-                        </div>
-                    ) : null}
-                    {showAiSummary ? (
-                        <div className="agent-contact__section agent-contact__summary">
-                            <AiSummaryCard
-                                leadId={lead.id}
-                                leadName={lead.client_name}
-                                summary={props.leadAiSummary}
-                                leadPhone={getDossierFieldValue(lead, "mobile") || undefined}
-                                onCta={{
-                                    onQualifyLead: showQualification ? mission.openTemplatePicker : undefined,
-                                    onCreateTask: () => setCreateKind("task"),
-                                    onScheduleCall: () => setCreateKind("meeting"),
-                                }}
                             />
                         </div>
                     ) : null}

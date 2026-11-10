@@ -3,6 +3,7 @@ import { Head, usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
 import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
 import { AgentLinkPills, AgentSecondRow, AgentWorkspaceLayout, useMinuteClock } from "@/Components/Redesign/agent";
+import { REDESIGN_TOKENS } from "@/Components/Redesign/tokens";
 import CommunicationModal from "@/Email/CommunicationModal";
 import { subscribeOpenSourceEmail } from "@/Email/openSourceEmail";
 import type { EmailFollowUpKind, EmailQuickAction } from "@/Email/types";
@@ -27,6 +28,7 @@ import DealWorkspaceTabs from "@/Pages/Deals/Redesign/components/workspace/DealW
 import WorkspaceContextRail from "@/Pages/Deals/Redesign/components/workspace/rail/WorkspaceContextRail";
 import { DealWorkspaceProvider, useDealWorkspace } from "@/Pages/Deals/Redesign/context/DealWorkspaceContext";
 import useDealAnalysis from "@/Pages/Deals/Redesign/hooks/useDealAnalysis";
+import useDealHeaderData from "@/Pages/Deals/Redesign/hooks/useDealHeaderData";
 import useDealViewNavigation from "@/Pages/Deals/Redesign/hooks/useDealViewNavigation";
 import useDealWorkspaceModel from "@/Pages/Deals/Redesign/hooks/useDealWorkspaceModel";
 import type { DealShowProps } from "@/Pages/Deals/Redesign/types";
@@ -162,6 +164,7 @@ function ContactDealInner(props: ContactDealProps) {
     };
 
     const contact = deal.contact;
+    const dealHeader = useDealHeaderData(deal);
     const keyFacts = useMemo(
         () =>
             contact
@@ -177,9 +180,18 @@ function ContactDealInner(props: ContactDealProps) {
                           ebook: t("pages.agent_workspace.contact.facts.ebook"),
                       },
                       companyCurrency,
-                  ).filter((group) => group.id !== "value") // the deal header carries the deal's value
+                  ).map((group) =>
+                      // The person's lead value gives way to the deal's own value and close date.
+                      group.id === "value"
+                          ? {
+                                id: "deal" as const,
+                                lead: deal.value != null || deal.value_breakdown?.final_value != null ? dealHeader.value : "",
+                                lines: deal.close_date ? [t("pages.agent_workspace.contact.facts.close_date", { date: dealHeader.closeDate })] : [],
+                            }
+                          : group,
+                  )
                 : [],
-        [companyCurrency, contact, t],
+        [companyCurrency, contact, t, deal.value, deal.value_breakdown?.final_value, deal.close_date, dealHeader.value, dealHeader.closeDate],
     );
 
     // Deal info holds the deal's and the person's fields; Edit details opens it.
@@ -206,7 +218,8 @@ function ContactDealInner(props: ContactDealProps) {
         key: String(summary.id),
         label: pillLabel(summary),
         title: summary.name ?? undefined,
-        dot: summary.stage_color,
+        // Blue for an open deal, grey once won or lost: not the stage's config colour.
+        dot: summary.outcome ? REDESIGN_TOKENS.TEXT_HINT : REDESIGN_TOKENS.BLUE,
         href: route("agent.people.deal", { lead: leadId, deal: summary.id }),
         current: summary.id === deal.id,
     }));
@@ -248,48 +261,31 @@ function ContactDealInner(props: ContactDealProps) {
                                 callEntity={{ type: "deal", id: deal.id }}
                                 staticAvatar
                             />
+                            {showAiSummary ? (
+                                <div className="agent-contact__summary">
+                                    <EntityAiSummaryCard
+                                        entityType="deal"
+                                        entityId={deal.id}
+                                        initialSummary={props.dealAiSummary}
+                                        variant="redesign"
+                                        onCreateTask={() => setCreateKind("task")}
+                                        onScheduleCall={() => setCreateKind("meeting")}
+                                        onRequestDocuments={() => {
+                                            nav.setTab("files");
+                                            tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                        }}
+                                        onReviewStaleDeal={() => {
+                                            nav.setTab("timeline");
+                                            tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                        }}
+                                        onAdvanceStage={model.advanceToNextStage}
+                                    />
+                                </div>
+                            ) : null}
                         </div>
                     ) : null}
 
                     <div className="agent-contact__body-card">
-                        <div className="agent-contact__section agent-contact__deal">
-                            <DealStickyHeader
-                                embedded
-                                deal={deal}
-                                permissions={permissions}
-                                employees={employees}
-                                isRefreshing={false}
-                                onRefresh={() => {}}
-                                onAddNote={() => setCreateKind("note")}
-                                onAddTask={() => setCreateKind("task")}
-                                onScheduleMeeting={() => setCreateKind("meeting")}
-                                onOpenAnalysis={showAnalysis ? analysis.open : undefined}
-                                isMobileResponsive
-                                emailQuickAction={emailQuickAction}
-                                onEmail={() => openCommunication(null)}
-                            />
-                        </div>
-                        {showAiSummary ? (
-                            <div className="agent-contact__section agent-contact__summary">
-                                <EntityAiSummaryCard
-                                    entityType="deal"
-                                    entityId={deal.id}
-                                    initialSummary={props.dealAiSummary}
-                                    variant="redesign"
-                                    onCreateTask={() => setCreateKind("task")}
-                                    onScheduleCall={() => setCreateKind("meeting")}
-                                    onRequestDocuments={() => {
-                                        nav.setTab("files");
-                                        tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                                    }}
-                                    onReviewStaleDeal={() => {
-                                        nav.setTab("timeline");
-                                        tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                                    }}
-                                    onAdvanceStage={model.advanceToNextStage}
-                                />
-                            </div>
-                        ) : null}
                         <div className="agent-contact__section agent-contact__stages">
                             <p className="agent-contact__label">
                                 {[
@@ -306,6 +302,7 @@ function ContactDealInner(props: ContactDealProps) {
                                 </p>
                             ) : null}
                             <DealPipelineStepper
+                                variant="ramp"
                                 deal={deal}
                                 permissions={permissions}
                                 onGoToField={({ section, fieldKey }) => {
@@ -332,6 +329,23 @@ function ContactDealInner(props: ContactDealProps) {
                         />
                     </div>
 
+                    <div className="agent-card agent-contact__deal">
+                        <DealStickyHeader
+                            embedded
+                            deal={deal}
+                            permissions={permissions}
+                            employees={employees}
+                            isRefreshing={false}
+                            onRefresh={() => {}}
+                            onAddNote={() => setCreateKind("note")}
+                            onAddTask={() => setCreateKind("task")}
+                            onScheduleMeeting={() => setCreateKind("meeting")}
+                            onOpenAnalysis={showAnalysis ? analysis.open : undefined}
+                            isMobileResponsive
+                            emailQuickAction={emailQuickAction}
+                            onEmail={() => openCommunication(null)}
+                        />
+                    </div>
                     <div ref={tabsRef} className="agent-contact__tabs">
                         <DealWorkspaceTabs
                             props={props}

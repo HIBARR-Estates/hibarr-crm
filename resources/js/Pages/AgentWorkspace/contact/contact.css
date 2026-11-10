@@ -131,8 +131,23 @@
     border-top: 1px solid var(--dr-border-soft);
 }
 
+.agent-contact__summary {
+    margin-top: 14px;
+}
+
 .agent-contact__summary .mb-4 {
     margin-bottom: 0;
+}
+
+/* The AI summary sits in the header card as a light blue strip (board L7-05). */
+.agent-contact__summary .entity-ai-summary-card.entity-ai-summary-card--redesign {
+    border-color: var(--dr-blue-light);
+    background: var(--dr-blue-wash);
+}
+
+/* Navy avatar, as on the boards. */
+.agent-contact .v2-lead-avatar {
+    background: var(--dr-navy);
 }
 
 .agent-contact__label {
@@ -239,7 +254,11 @@
     height: 8px;
     flex-shrink: 0;
     border-radius: 50%;
-    background: var(--dr-gray-dark);
+    background: var(--dr-navy);
+}
+
+.agent-path__dot--lost {
+    background: var(--dr-time-late-solid);
 }
 
 .agent-path__lost {
@@ -855,6 +874,17 @@
     gap: 16px;
 }
 
+/* The analysis button fills the rail in the workspace's blue, as the goal
+   panel on the board does; red stays for small overdue marks only. Its
+   colours are inline on the shared component, hence !important. */
+.agent-contact__rail > button {
+    width: 100%;
+    min-width: 0;
+    border-radius: 20px !important;
+    background: var(--dr-blue) !important;
+    padding: 16px 20px !important;
+}
+
 .agent-contact__stages .agent-contact__label {
     margin-bottom: 12px;
 }
@@ -876,7 +906,60 @@
     overflow: hidden;
 }
 
+/* The deal's own header (name, value, agent, team, its menu), below the
+   activity and above the deal's tabs (canvas L7-11). */
+.agent-card.agent-contact__deal {
+    margin-top: 20px;
+    padding: 18px 20px;
+}
+
+/* The deal's tabs as a row of pills (canvas L7-11), not underlined tabs. */
+.agent-contact__tabs .dr-tabs {
+    gap: 6px;
+    padding: 14px 14px 6px;
+    border-bottom: 0;
+}
+
+.agent-contact__tabs .dr-tabs-scroll,
+.agent-contact__tabs .dr-tabs-meta {
+    gap: 6px;
+}
+
+.agent-contact__tabs .dr-tab {
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--dr-border);
+    border-radius: 999px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+}
+
+.agent-contact__tabs .dr-tab:hover {
+    border-color: var(--dr-navy-mid);
+}
+
+.agent-contact__tabs .dr-tab[aria-selected="true"] {
+    border-color: var(--dr-navy);
+    background: var(--dr-navy);
+    color: var(--dr-white);
+}
+
+.agent-contact__tabs .dr-tab[aria-selected="true"] .dr-tab-count {
+    border-color: transparent;
+    background: rgba(255, 255, 255, 0.18);
+    color: var(--dr-white);
+}
+
+.agent-contact__tabs .dr-tabs-divider {
+    display: none;
+}
+
 @media (max-width: 1023px) {
+    .agent-card.agent-contact__deal {
+        order: 5;
+        margin-top: 0;
+    }
+
     .agent-contact__tabs {
         order: 5;
         margin-top: 0;
@@ -885,5 +968,22 @@
     /* The deal's rail is long; it follows the tabs instead of leading. */
     .agent-contact--deal .agent-contact__goal {
         order: 6;
+    }
+}
+
+/* Phone: the pills scroll on one line, Deal info and Timeline sit under them. */
+@media (max-width: 639px) {
+    .agent-contact__tabs .dr-tabs {
+        flex-wrap: wrap;
+        row-gap: 8px;
+    }
+
+    .agent-contact__tabs .dr-tabs-scroll {
+        flex-basis: 100%;
+    }
+
+    /* A swipe scrolls the pills; the arrow buttons would only wrap. */
+    .agent-contact__tabs .dr-tabs > :not(.dr-tabs-scroll):not(.dr-tabs-meta) {
+        display: none;
     }
 }

@@ -1537,6 +1537,8 @@ return [
                     'stage_updated' => 'Anlaşma aşaması güncellendi',
                     'update_failed' => 'Aşama güncellenemedi',
                 ],
+                'now' => 'şimdi',
+                'next' => 'sıradaki',
             ],
             'tabs' => [
                 'overview' => 'Genel bakış',
@@ -2785,6 +2787,11 @@ return [
         'pills_label' => 'Görünümler',
         'more' => 'Daha fazla',
         'search' => 'Ara',
+        'search_people' => 'Kişi ara',
+        'softphone' => 'Softphone',
+        'softphone_ready' => 'Softphone hazır',
+        'softphone_offline' => 'Softphone bağlı değil',
+        'softphone_on_call' => 'Görüşmede',
         'account' => 'Hesap',
         'preferences' => 'Tercihler',
         'logout' => 'Çıkış yap',
@@ -2856,6 +2863,10 @@ return [
                 'failed' => 'Sonuç kaydedilemedi.',
             ],
             'range_too_long' => 'En fazla :days günlük bir aralık seçin.',
+            'contact_page' => 'Kişi sayfası',
+            'strip_see_all' => 'Listedeki {{count}} öğenin tümünü gör',
+            'strip_more' => '+{{count}} tane daha',
+            'strip_all_done' => 'Bu gündeki her şey tamamlandı.',
         ],
         'today' => [
             'title' => 'Bugün',
@@ -2886,7 +2897,9 @@ return [
                 'deal' => 'Anlaşma',
             ],
             'next' => [
-                'label' => 'İlk sırada',
+                'label' => 'Önce bunu yap',
+                'call_name' => '{{name}} ara',
+                'open_contact' => 'Kişi sayfasını aç',
             ],
             'queue' => [
                 'title' => 'Ardından, bitiş tarihine göre',
@@ -2902,6 +2915,7 @@ return [
                 'uncovered_many' => '{{items}} için sonraki adım yok',
                 'empty_title' => 'Bekleyen görev yok',
                 'empty_description' => 'Önümüzdeki {{days}} gün içinde bitecek görevler burada görünür.',
+                'show_all' => 'Tümünü göster ({{count}})',
             ],
             'due' => [
                 'done' => 'Tamamlandı',
@@ -2936,6 +2950,8 @@ return [
                 'late' => 'Gecikti',
                 'untimed_one' => 'Bugün biten 1 görevin saati yok; listenizde',
                 'untimed_many' => 'Bugün biten {{count}} görevin saati yok; listenizde',
+                'open_agenda' => 'Ajandayı aç',
+                'next_days' => 'Sonraki günler:',
             ],
         ],
         'contact' => [
@@ -2983,6 +2999,8 @@ return [
                 'webinar_registered' => 'Bir webinara kaydoldu',
                 'last_webinar' => 'Son webinar {{date}}',
                 'ebook' => 'E-kitabı indirdi',
+                'deal' => 'Fırsat',
+                'close_date' => 'Kapanış tarihi {{date}}',
             ],
             'coming_up' => [
                 'deal_title' => 'Bu anlaşmada sırada',

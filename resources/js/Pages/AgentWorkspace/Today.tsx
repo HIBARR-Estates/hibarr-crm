@@ -179,6 +179,19 @@ export default function Today({
         [today],
     );
 
+    /** The agenda's list, from today's schedule: on a given day, or today. */
+    const openAgenda = useCallback(
+        (day?: string) => {
+            const target = day && day !== today ? day : null;
+            setTab("agenda");
+            setAgendaView("list");
+            setAgendaDate(target);
+            writeUrl({ tab: "agenda", view: null, date: target });
+            window.scrollTo({ top: 0 });
+        },
+        [today],
+    );
+
     useEffect(() => {
         const warm = () => {
             void loadTaskModal();
@@ -270,6 +283,7 @@ export default function Today({
                         failed={agenda.failed}
                         onRetry={() => void agenda.retry()}
                         onSelectDay={(day) => navigateAgenda(agendaView, day)}
+                        onOpenList={(day) => navigateAgenda("list", day)}
                         handlers={handlers}
                         meetingHandlers={meetingHandlers}
                         outcomes={outcomes}
@@ -323,8 +337,9 @@ export default function Today({
                                 {work.schedule ? (
                                     <TodaySchedule
                                         schedule={work.schedule}
-                                        dateLabel={dateLabel}
+                                        today={today}
                                         handlers={handlers}
+                                        onOpenAgenda={openAgenda}
                                         {...meetingHandlers}
                                     />
                                 ) : (

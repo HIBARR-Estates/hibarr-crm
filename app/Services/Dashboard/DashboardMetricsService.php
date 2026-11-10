@@ -216,10 +216,24 @@ class DashboardMetricsService
             ->whereIn('taskable_type', [Lead::class, Deal::class])
             ->get(['task_id', 'taskable_type', 'taskable_id']);
 
-        $leadNames = Lead::whereIn('id', $links->where('taskable_type', Lead::class)->pluck('taskable_id'))
-            ->pluck('client_name', 'id');
-        $dealNames = Deal::whereIn('id', $links->where('taskable_type', Deal::class)->pluck('taskable_id'))
-            ->pluck('name', 'id');
+        // Name, where the record stands (lifecycle status or deal stage) and the
+        // number to call, so a queue row reads like the person it is about.
+        $leads = Lead::query()
+            ->with('lifecycleStatus:id,label')
+            ->whereIn('id', $links->where('taskable_type', Lead::class)->pluck('taskable_id'))
+            ->get(['id', 'client_name', 'mobile', 'lead_lifecycle_status_id'])
+            ->keyBy('id');
+        $deals = Deal::query()
+            ->with(['leadStage:id,name', 'contact:id,client_name,mobile'])
+            ->whereIn('id', $links->where('taskable_type', Deal::class)->pluck('taskable_id'))
+            ->get(['id', 'name', 'lead_id', 'pipeline_stage_id'])
+            ->keyBy('id');
+
+        $phone = static function (?Lead $lead): ?string {
+            $value = $lead?->mobile_with_phone_code;
+
+            return is_string($value) && $value !== '--' ? $value : null;
+        };
 
         $out = [];
 
@@ -228,19 +242,34 @@ class DashboardMetricsService
                 continue;
             }
 
-            $isLead = $link->taskable_type === Lead::class;
-            $name = $isLead
-                ? $leadNames->get($link->taskable_id)
-                : $dealNames->get($link->taskable_id);
+            if ($link->taskable_type === Lead::class) {
+                $lead = $leads->get($link->taskable_id);
+                if ($lead === null) {
+                    continue;
+                }
+                $out[$link->task_id] = [
+                    'type' => 'lead',
+                    'id' => (int) $lead->id,
+                    'name' => $lead->client_name,
+                    'status' => $lead->lifecycleStatus?->label,
+                    'person' => $lead->client_name,
+                    'phone' => $phone($lead),
+                ];
 
-            if ($name === null) {
                 continue;
             }
 
+            $deal = $deals->get($link->taskable_id);
+            if ($deal === null) {
+                continue;
+            }
             $out[$link->task_id] = [
-                'type' => $isLead ? 'lead' : 'deal',
-                'id' => (int) $link->taskable_id,
-                'name' => $name,
+                'type' => 'deal',
+                'id' => (int) $deal->id,
+                'name' => $deal->name,
+                'status' => $deal->leadStage?->name,
+                'person' => $deal->contact?->client_name,
+                'phone' => $phone($deal->contact),
             ];
         }
 
@@ -256,7 +285,8 @@ class DashboardMetricsService
             ->with([
                 // lead_id is the FK for deal.contact (Lead) — phone fields feed
                 // the meeting modal's Call / Copy CTAs for phone meetings.
-                'deal:id,name,lead_id',
+                'deal:id,name,lead_id,pipeline_stage_id',
+                'deal.leadStage:id,name',
                 'deal.contact:id,client_name,mobile,cell,office',
                 'lead:id,client_name,mobile,cell,office',
                 'meetingType',
@@ -277,6 +307,10 @@ class DashboardMetricsService
                     ?? 'Meeting',
                 'subtitle' => $followUp->lead?->client_name,
                 'type' => $followUp->meetingType?->name,
+                // Who the meeting is with, and the deal's pipeline stage, for
+                // the agent workspace's "Type · Person" and "Deal · stage" lines.
+                'person' => $followUp->lead?->client_name ?? $followUp->deal?->contact?->client_name,
+                'deal_stage' => $followUp->deal?->leadStage?->name,
                 // Named _label, not `location`: the model's own `location` is the
                 // raw platform slug (office / zoom / free text) that
                 // meetingListAdapter.getPlatformMeta() switches on. Overwriting

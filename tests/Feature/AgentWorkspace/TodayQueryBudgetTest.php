@@ -36,6 +36,7 @@ class TodayQueryBudgetTest extends TestCase
         'companies', 'currencies', 'users', 'projects', 'taskboard_columns', 'tasks', 'task_users',
         'taskables', 'leads', 'deals', 'lead_agents', 'email_follow_ups', 'email_messages',
         'lead_follow_up', 'meeting_types', 'meeting_summaries', 'lead_pipelines', 'global_settings',
+        'lead_lifecycle_statuses', 'pipeline_stages',
     ];
 
     protected function setUp(): void
@@ -319,6 +320,7 @@ class TodayQueryBudgetTest extends TestCase
             $table->string('office')->nullable();
             $table->unsignedInteger('lead_owner')->nullable();
             $table->dateTime('first_contacted_at')->nullable();
+            $table->unsignedInteger('lead_lifecycle_status_id')->nullable();
             $table->softDeletes();
             $table->timestamps();
         });
@@ -329,10 +331,21 @@ class TodayQueryBudgetTest extends TestCase
             $table->unsignedInteger('lead_id')->nullable();
             $table->unsignedInteger('agent_id')->nullable();
             $table->unsignedInteger('lead_pipeline_id')->nullable();
+            $table->unsignedInteger('pipeline_stage_id')->nullable();
             $table->unsignedInteger('currency_id')->nullable();
             $table->decimal('value', 15, 2)->nullable();
             $table->string('outcome_status')->nullable();
             $table->timestamps();
+        });
+        Schema::create('lead_lifecycle_statuses', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('label')->nullable();
+        });
+        Schema::create('pipeline_stages', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('name')->nullable();
         });
         Schema::create('lead_agents', function (Blueprint $table) {
             $table->increments('id');

@@ -75,7 +75,7 @@ function ListDay({
                 <span>{dayHeading(dayKey, today, locale, t)}</span>
                 <span className="agent-agenda__day-count">{daySummary(day, t)}</span>
             </h2>
-            <DayItems items={items} handlers={handlers} meetingHandlers={meetingHandlers} showRecordLink />
+            <DayItems items={items} handlers={handlers} meetingHandlers={meetingHandlers} layout="list" showRecordLink />
         </div>
     );
 }

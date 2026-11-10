@@ -3,7 +3,7 @@
    Breakpoints: phone < 640px, tablet 640-1023px, desktop >= 1024px. */
 
 .agent-ws {
-    --agent-band-height: 260px;
+    --agent-band-height: 300px;
     --agent-tabbar-height: 64px;
 
     position: relative;
@@ -71,10 +71,21 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--dr-navy-line);
     border-radius: 50%;
-    background: var(--dr-white);
+    background: var(--dr-navy-pressed);
+}
+
+/* The CRM's own notification dropdown, recoloured for the navy band. */
+.agent-ws__bell .ant-btn,
+.agent-ws__bell .ant-btn .anticon {
+    color: var(--dr-navy-mid) !important;
+}
+
+.agent-ws__bell .ant-btn:hover {
+    background: transparent !important;
 }
 
 /* Agent | Classic switch styles live in agent-switch.css (the classic sidebar loads it too). */
@@ -122,6 +133,83 @@
     background: var(--dr-blue-light);
     color: var(--dr-blue-dark);
     font-weight: 600;
+}
+
+/* Desktop dock items are words only (L7 boards); icons show on tablet. */
+.agent-dock__item-icon {
+    display: none !important;
+}
+
+.agent-dock__divider {
+    flex: 0 0 1px;
+    width: 1px;
+    height: 26px;
+    margin: 0 4px;
+    background: var(--dr-border);
+}
+
+.agent-dock__search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 150px;
+    height: 40px;
+    padding: 0 10px 0 13px;
+    border-radius: 12px;
+    background: var(--dr-surface-hover);
+    color: var(--dr-text-muted);
+}
+
+.agent-dock__search:focus-within {
+    width: 220px;
+    outline: 2px solid var(--dr-blue-mid);
+}
+
+.agent-dock__search-input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 13px;
+}
+
+.agent-dock__search-input::placeholder {
+    color: var(--dr-text-muted);
+}
+
+.agent-dock__search-input::-webkit-search-cancel-button {
+    display: none;
+}
+
+.agent-dock__kbd {
+    padding: 2px 4px;
+    border: 1px solid var(--dr-border);
+    border-radius: 4px;
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 10px;
+    line-height: 1;
+}
+
+.agent-dock__phone {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    margin-left: 2px;
+    padding: 0 13px;
+    border-radius: 12px;
+    background: var(--dr-green);
+    color: var(--dr-white);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-dock__phone--offline {
+    background: var(--dr-gray-dark);
 }
 
 /* ---------- second row (page pills) ---------- */
@@ -341,6 +429,58 @@
         padding: 0;
     }
 
+    .agent-dock__item-icon {
+        display: block !important;
+    }
+
+    .agent-dock__search {
+        width: 44px;
+        padding: 0;
+        justify-content: center;
+    }
+
+    .agent-dock__search:focus-within {
+        width: 180px;
+        padding: 0 10px;
+    }
+
+    .agent-dock__search {
+        position: relative;
+    }
+
+    /* The field still takes the tap: it covers the icon until focused. */
+    .agent-dock__search-input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+    }
+
+    .agent-dock__kbd {
+        display: none;
+    }
+
+    .agent-dock__search:focus-within .agent-dock__search-input {
+        position: static;
+        opacity: 1;
+    }
+
+    .agent-dock__phone {
+        width: 44px;
+        height: 44px;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .agent-dock__phone-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
     .agent-ws__second-row,
     .agent-ws__main {
         padding-left: 16px;
@@ -421,4 +561,17 @@
     .agent-today__heading h1 {
         font-size: 20px;
     }
+}
+
+/* The workspace's secondary action ("Open agenda", "New activity", "+ Note"):
+   a soft blue button, between the filled primary and the plain ghost. */
+.agent-btn-soft.dr-btn {
+    border-color: var(--dr-blue-mid);
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+}
+
+.agent-btn-soft.dr-btn:hover:not(:disabled) {
+    border-color: var(--dr-blue);
+    background: var(--dr-blue-mid);
 }

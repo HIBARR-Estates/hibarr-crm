@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { Popover } from "antd";
 import { usePage } from "@inertiajs/react";
 import { Deal } from "@/Types/api/deals";
@@ -36,6 +36,13 @@ interface DealPipelineStepperProps {
         section: DealInfoSectionId;
         fieldKey: string;
     }) => void;
+    /**
+     * "chips" (default): the deal page's stage pills in a card. "ramp": the
+     * agent workspace's segmented bar, navy for stages behind, blue for the
+     * current one (canvas L7-10). Both move stages and show requirements the
+     * same way; the ramp lists requirements in the "Stage requirements" dialog.
+     */
+    variant?: "chips" | "ramp";
 }
 
 const HIBARR_FIELD_SECTION: Partial<Record<string, DealInfoCoreSectionId>> = {
@@ -369,6 +376,7 @@ export default function DealPipelineStepper({
     deal: dealProp,
     permissions,
     onGoToField,
+    variant = "chips",
 }: DealPipelineStepperProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -427,6 +435,215 @@ export default function DealPipelineStepper({
 
     const openFieldLabel = t("pages.deals.header.pipeline.open_field");
     const doneLabel = t("pages.deals.header.pipeline.requirement_done");
+
+    const dialogs = (
+        <>
+                <ConfirmDialog
+                    open={pendingStage != null}
+                    title={t("pages.deals.stage_jump_confirm_title")}
+                    message={t("pages.deals.stage_jump_confirm_message", {
+                        stage: pendingStage ? td(pendingStage.name, { source: "en" }) : "",
+                    })}
+                    confirmLabel={t("pages.deals.stage_jump_confirm_action")}
+                    onCancel={() => setPendingStageId(null)}
+                    onConfirm={() => {
+                        if (pendingStage) pipeline.updateStage(pendingStage.id);
+                        setPendingStageId(null);
+                    }}
+                />
+
+                <DealModal
+                    open={progressionOpen}
+                    title={t("pages.deals.header.pipeline.progression_title")}
+                    onClose={() => setProgressionOpen(false)}
+                >
+                    <p
+                        style={{
+                            margin: "0 0 16px",
+                            fontSize: TYPE.BODY,
+                            color: T.TEXT_MUTED,
+                            lineHeight: 1.45,
+                        }}
+                    >
+                        {t("pages.deals.header.pipeline.progression_intro")}
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        {pipeline.stages.map((stage, index) => {
+                            const isActive = stage.id === pipeline.currentStageId;
+                            const accent = stage.label_color || T.BLUE;
+                            const requirements = stageRequirements?.[stage.id] ?? [];
+                            const hasRequirements = requirements.length > 0;
+
+                            return (
+                                <div
+                                    key={stage.id}
+                                    style={{
+                                        border: `1px solid ${
+                                            isActive ? accent : T.BORDER
+                                        }`,
+                                        borderRadius: R.MD,
+                                        padding: 12,
+                                        background: isActive
+                                            ? `${accent}12`
+                                            : T.SURFACE,
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 8,
+                                            marginBottom: hasRequirements ? 10 : 0,
+                                        }}
+                                    >
+                                        <span
+                                            aria-hidden="true"
+                                            style={{
+                                                width: 8,
+                                                height: 8,
+                                                borderRadius: "50%",
+                                                flexShrink: 0,
+                                                background: accent,
+                                            }}
+                                        />
+                                        <span
+                                            style={{
+                                                fontSize: TYPE.BODY,
+                                                fontWeight: 700,
+                                                color: T.TEXT,
+                                                lineHeight: 1.3,
+                                            }}
+                                        >
+                                            {td(stage.name, { source: "en" })}
+                                        </span>
+                                        {isActive ? (
+                                            <span
+                                                style={{
+                                                    marginLeft: "auto",
+                                                    fontSize: TYPE.CAPTION,
+                                                    fontWeight: 600,
+                                                    color: accent,
+                                                }}
+                                            >
+                                                {t(
+                                                    "pages.deals.header.pipeline.progression_current",
+                                                )}
+                                            </span>
+                                        ) : (
+                                            <span
+                                                style={{
+                                                    marginLeft: "auto",
+                                                    fontSize: TYPE.CAPTION,
+                                                    color: T.TEXT_HINT,
+                                                }}
+                                            >
+                                                {t(
+                                                    "pages.deals.header.pipeline.progression_step",
+                                                    { n: index + 1 },
+                                                )}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {hasRequirements ? (
+                                        <>
+                                            <div
+                                                style={{
+                                                    marginBottom: 8,
+                                                    fontSize: TYPE.CAPTION,
+                                                    color: T.TEXT_MUTED,
+                                                }}
+                                            >
+                                                {t(
+                                                    "pages.deals.header.pipeline.requirements_label",
+                                                )}
+                                            </div>
+                                            <RequirementConditionRows
+                                                deal={deal}
+                                                requirements={requirements}
+                                                onOpenField={
+                                                    onGoToField
+                                                        ? handleOpenField
+                                                        : undefined
+                                                }
+                                                openFieldLabel={openFieldLabel}
+                                                doneLabel={doneLabel}
+                                            />
+                                        </>
+                                    ) : (
+                                        <div
+                                            style={{
+                                                fontSize: TYPE.CAPTION,
+                                                color: T.TEXT_HINT,
+                                            }}
+                                        >
+                                            {t(
+                                                "pages.deals.header.pipeline.progression_none",
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </DealModal>
+        </>
+    );
+
+    if (variant === "ramp") {
+        const locked = !canChangeStages || dealLocked || pipeline.isUpdating;
+        return (
+            <div className="dr-stage-ramp" data-tour="deal-stage-requirements">
+                <ol className="dr-stage-ramp__steps" style={{ "--dr-stage-count": Math.max(1, pipeline.stages.length) } as CSSProperties}>
+                    {pipeline.stages.map((stage, index) => {
+                        const state = index < currentIdx ? "done" : index === currentIdx ? "current" : "ahead";
+                        const name = td(stage.name, { source: "en" });
+                        return (
+                            <li key={stage.id} className={`dr-stage-ramp__step dr-stage-ramp__step--${state}`}>
+                                <button
+                                    type="button"
+                                    className="dr-stage-ramp__button"
+                                    onClick={() => handleClick(stage, index)}
+                                    aria-current={state === "current" ? "step" : undefined}
+                                    disabled={locked}
+                                    title={name}
+                                >
+                                    <span className="dr-stage-ramp__bar" aria-hidden="true" />
+                                    <span className="dr-stage-ramp__name">
+                                        {name}
+                                        {state === "current" ? (
+                                            <span className="dr-stage-ramp__tag"> · {t("pages.deals.header.pipeline.now")}</span>
+                                        ) : index === currentIdx + 1 ? (
+                                            <span className="dr-stage-ramp__tag"> · {t("pages.deals.header.pipeline.next")}</span>
+                                        ) : null}
+                                    </span>
+                                </button>
+                            </li>
+                        );
+                    })}
+                </ol>
+                <div className="dr-stage-ramp__foot">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setProgressionOpen(true)}
+                        icon={<Icon name="info" size={12} color="currentColor" />}
+                        aria-label={t("pages.deals.header.pipeline.progression_open")}
+                        data-tour="deal-stage-progression"
+                    >
+                        {t("pages.deals.header.pipeline.progression_button")}
+                    </Button>
+                    {pipeline.isUpdating ? (
+                        <span
+                            aria-hidden="true"
+                            className="animate-spin rounded-full border-2 border-solid border-current border-t-transparent"
+                            style={{ width: 10, height: 10, color: T.TEXT_MUTED }}
+                        />
+                    ) : null}
+                </div>
+                {dialogs}
+            </div>
+        );
+    }
 
     return (
         <div
@@ -733,154 +950,7 @@ export default function DealPipelineStepper({
                 )}
             </div>
 
-            <ConfirmDialog
-                open={pendingStage != null}
-                title={t("pages.deals.stage_jump_confirm_title")}
-                message={t("pages.deals.stage_jump_confirm_message", {
-                    stage: pendingStage ? td(pendingStage.name, { source: "en" }) : "",
-                })}
-                confirmLabel={t("pages.deals.stage_jump_confirm_action")}
-                onCancel={() => setPendingStageId(null)}
-                onConfirm={() => {
-                    if (pendingStage) pipeline.updateStage(pendingStage.id);
-                    setPendingStageId(null);
-                }}
-            />
-
-            <DealModal
-                open={progressionOpen}
-                title={t("pages.deals.header.pipeline.progression_title")}
-                onClose={() => setProgressionOpen(false)}
-            >
-                <p
-                    style={{
-                        margin: "0 0 16px",
-                        fontSize: TYPE.BODY,
-                        color: T.TEXT_MUTED,
-                        lineHeight: 1.45,
-                    }}
-                >
-                    {t("pages.deals.header.pipeline.progression_intro")}
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {pipeline.stages.map((stage, index) => {
-                        const isActive = stage.id === pipeline.currentStageId;
-                        const accent = stage.label_color || T.BLUE;
-                        const requirements = stageRequirements?.[stage.id] ?? [];
-                        const hasRequirements = requirements.length > 0;
-
-                        return (
-                            <div
-                                key={stage.id}
-                                style={{
-                                    border: `1px solid ${
-                                        isActive ? accent : T.BORDER
-                                    }`,
-                                    borderRadius: R.MD,
-                                    padding: 12,
-                                    background: isActive
-                                        ? `${accent}12`
-                                        : T.SURFACE,
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 8,
-                                        marginBottom: hasRequirements ? 10 : 0,
-                                    }}
-                                >
-                                    <span
-                                        aria-hidden="true"
-                                        style={{
-                                            width: 8,
-                                            height: 8,
-                                            borderRadius: "50%",
-                                            flexShrink: 0,
-                                            background: accent,
-                                        }}
-                                    />
-                                    <span
-                                        style={{
-                                            fontSize: TYPE.BODY,
-                                            fontWeight: 700,
-                                            color: T.TEXT,
-                                            lineHeight: 1.3,
-                                        }}
-                                    >
-                                        {td(stage.name, { source: "en" })}
-                                    </span>
-                                    {isActive ? (
-                                        <span
-                                            style={{
-                                                marginLeft: "auto",
-                                                fontSize: TYPE.CAPTION,
-                                                fontWeight: 600,
-                                                color: accent,
-                                            }}
-                                        >
-                                            {t(
-                                                "pages.deals.header.pipeline.progression_current",
-                                            )}
-                                        </span>
-                                    ) : (
-                                        <span
-                                            style={{
-                                                marginLeft: "auto",
-                                                fontSize: TYPE.CAPTION,
-                                                color: T.TEXT_HINT,
-                                            }}
-                                        >
-                                            {t(
-                                                "pages.deals.header.pipeline.progression_step",
-                                                { n: index + 1 },
-                                            )}
-                                        </span>
-                                    )}
-                                </div>
-                                {hasRequirements ? (
-                                    <>
-                                        <div
-                                            style={{
-                                                marginBottom: 8,
-                                                fontSize: TYPE.CAPTION,
-                                                color: T.TEXT_MUTED,
-                                            }}
-                                        >
-                                            {t(
-                                                "pages.deals.header.pipeline.requirements_label",
-                                            )}
-                                        </div>
-                                        <RequirementConditionRows
-                                            deal={deal}
-                                            requirements={requirements}
-                                            onOpenField={
-                                                onGoToField
-                                                    ? handleOpenField
-                                                    : undefined
-                                            }
-                                            openFieldLabel={openFieldLabel}
-                                            doneLabel={doneLabel}
-                                        />
-                                    </>
-                                ) : (
-                                    <div
-                                        style={{
-                                            fontSize: TYPE.CAPTION,
-                                            color: T.TEXT_HINT,
-                                        }}
-                                    >
-                                        {t(
-                                            "pages.deals.header.pipeline.progression_none",
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            </DealModal>
+            {dialogs}
         </div>
     );
 }

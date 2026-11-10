@@ -25,6 +25,8 @@ interface AgendaWeekProps {
     handlers: TaskHandlers;
     onSelect: (day: string) => void;
     onOpenMeeting: (meeting: ScheduleEntry) => void;
+    /** Meetings still waiting on "did it happen?": outlined red with a "!". */
+    needOutcome: ReadonlySet<number>;
 }
 
 function weekdayLabel(key: string, locale: string): string {
@@ -75,7 +77,7 @@ export function WeekStrip({ days, byDay, today, selected, onSelect }: Pick<Agend
  * their own. Clicking a column previews that day above the grid; clicking a
  * block opens it.
  */
-export default function AgendaWeek({ days, byDay, today, selected, handlers, onSelect, onOpenMeeting }: AgendaWeekProps) {
+export default function AgendaWeek({ days, byDay, today, selected, handlers, onSelect, onOpenMeeting, needOutcome }: AgendaWeekProps) {
     const { t, locale } = useTranslation();
     const { nowMs, timeZone } = handlers;
 
@@ -178,11 +180,13 @@ export default function AgendaWeek({ days, byDay, today, selected, handlers, onS
                             const short = end - start < 45;
                             if (item.kind === "meeting") {
                                 const { meeting } = item;
+                                const state = meetingState(meeting, nowMs);
+                                const open = needOutcome.has(meeting.id);
                                 return (
                                     <button
                                         key={`m${meeting.id}`}
                                         type="button"
-                                        className={`agent-wk__block agent-ts--${meetingState(meeting, nowMs)}`}
+                                        className={`agent-wk__block agent-ts--${state}${open ? " agent-wk__block--outcome" : ""}`}
                                         style={style}
                                         title={meeting.title}
                                         onClick={(event) => {
@@ -190,8 +194,9 @@ export default function AgendaWeek({ days, byDay, today, selected, handlers, onS
                                             onOpenMeeting(meeting);
                                         }}
                                     >
+                                        {open ? <b aria-hidden="true">! </b> : state === "done" ? <span aria-hidden="true">✓ </span> : null}
                                         <span className="agent-wk__block-time">{meeting.at ? instantTime(meeting.at, timeZone) : ""}</span>{" "}
-                                        <span className="agent-wk__block-title">{meeting.title}</span>
+                                        <span className="agent-wk__block-title">{meeting.person || meeting.title}</span>
                                         {meeting.type && !short ? <span className="agent-wk__block-sub">{meeting.type}</span> : null}
                                     </button>
                                 );

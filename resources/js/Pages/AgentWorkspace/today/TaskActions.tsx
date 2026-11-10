@@ -9,6 +9,9 @@ interface TaskActionsProps {
     emphasis?: boolean;
     completing?: boolean;
     rescheduling?: boolean;
+    /** Only Done (schedule rows); Reschedule stays in the task's own modal. */
+    doneOnly?: boolean;
+    size?: "sm" | "base";
     onComplete: () => void;
     onReschedule: () => void;
 }
@@ -20,6 +23,8 @@ export default function TaskActions({
     emphasis = false,
     completing = false,
     rescheduling = false,
+    doneOnly = false,
+    size = "base",
     onComplete,
     onReschedule,
 }: TaskActionsProps) {
@@ -39,6 +44,7 @@ export default function TaskActions({
         <div className="agent-task-actions">
             <Button
                 variant={emphasis ? "primary" : "ghost"}
+                size={size}
                 icon={<Icon name="check" size={14} />}
                 disabled={busy}
                 onClick={onComplete}
@@ -46,8 +52,10 @@ export default function TaskActions({
             >
                 {t("pages.agent_workspace.today.actions.done")}
             </Button>
+            {doneOnly ? null : (
             <Button
                 variant="ghost"
+                size={size}
                 icon={<Icon name="clock" size={14} />}
                 loading={rescheduling}
                 disabled={busy}
@@ -58,6 +66,7 @@ export default function TaskActions({
             >
                 <span className="agent-task-actions__label">{t("pages.agent_workspace.today.actions.reschedule")}</span>
             </Button>
+            )}
         </div>
     );
 }

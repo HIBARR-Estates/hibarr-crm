@@ -59,9 +59,9 @@ export default function LeadStatusPath({ statuses, currentKey, onMarkLost, savin
                                         className={`agent-path__chip${status.current ? " agent-path__chip--current" : ""}`}
                                         aria-current={status.current ? "true" : undefined}
                                     >
+                                        {/* Navy dots, red for Lost: the path reads as one ramp, not the config's colours. */}
                                         <span
-                                            className="agent-path__dot"
-                                            style={status.label_color ? { background: status.label_color } : undefined}
+                                            className={`agent-path__dot${status.key === "lost" ? " agent-path__dot--lost" : ""}`}
                                             aria-hidden="true"
                                         />
                                         {td(status.label, { source: "en" })}

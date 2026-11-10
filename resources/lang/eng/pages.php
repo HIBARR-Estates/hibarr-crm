@@ -1570,6 +1570,8 @@ return [
                     'stage_updated' => 'Deal stage updated',
                     'update_failed' => 'Failed to update stage',
                 ],
+                'now' => 'now',
+                'next' => 'next',
             ],
             'tabs' => [
                 'overview' => 'Overview',
@@ -2964,6 +2966,11 @@ return [
         'pills_label' => 'Views',
         'more' => 'More',
         'search' => 'Search',
+        'search_people' => 'Search people',
+        'softphone' => 'Softphone',
+        'softphone_ready' => 'Softphone ready',
+        'softphone_offline' => 'Softphone not connected',
+        'softphone_on_call' => 'On a call',
         'account' => 'Account',
         'preferences' => 'Preferences',
         'logout' => 'Log out',
@@ -3035,6 +3042,10 @@ return [
                 'failed' => 'The outcome could not be saved.',
             ],
             'range_too_long' => 'Choose a span of at most :days days.',
+            'contact_page' => 'Contact page',
+            'strip_see_all' => 'See all {{count}} in the list',
+            'strip_more' => '+{{count}} more',
+            'strip_all_done' => 'Everything on this day is done.',
         ],
         'today' => [
             'title' => 'Today',
@@ -3065,7 +3076,9 @@ return [
                 'deal' => 'Deal',
             ],
             'next' => [
-                'label' => 'Due first',
+                'label' => 'Do this first',
+                'call_name' => 'Call {{name}}',
+                'open_contact' => 'Open contact page',
             ],
             'queue' => [
                 'title' => 'Then, by due date',
@@ -3081,6 +3094,7 @@ return [
                 'uncovered_many' => '{{items}} have no next step',
                 'empty_title' => 'Nothing due',
                 'empty_description' => 'Tasks due in the next {{days}} days show up here.',
+                'show_all' => 'Show all {{count}}',
             ],
             'due' => [
                 'done' => 'Done',
@@ -3115,6 +3129,8 @@ return [
                 'late' => 'Late',
                 'untimed_one' => '1 more task due today has no time; it is in your queue',
                 'untimed_many' => '{{count}} more tasks due today have no time; they are in your queue',
+                'open_agenda' => 'Open agenda',
+                'next_days' => 'Next days:',
             ],
         ],
         'contact' => [
@@ -3162,6 +3178,8 @@ return [
                 'webinar_registered' => 'Registered for a webinar',
                 'last_webinar' => 'Last webinar {{date}}',
                 'ebook' => 'Downloaded the ebook',
+                'deal' => 'Deal',
+                'close_date' => 'Close date {{date}}',
             ],
             'coming_up' => [
                 'deal_title' => 'Coming up on this deal',

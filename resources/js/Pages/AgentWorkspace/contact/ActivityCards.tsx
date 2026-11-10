@@ -171,7 +171,7 @@ function ComingUpCard({ source, comingUpTitle, nowMs, timeZone, permissions, onC
     return (
         <Card
             title={comingUpTitle ?? t("pages.agent_workspace.contact.coming_up.title")}
-            action={<NewActivityButton onCreate={onCreate} allowed={permissions.create} size="sm" variant="ghost" />}
+            action={<NewActivityButton onCreate={onCreate} allowed={permissions.create} size="sm" />}
         >
             {loading ? (
                 <CardSkeleton />
@@ -290,7 +290,7 @@ function NotesCard({ source, nowMs, timeZone, permissions, onCreate, onOpenNote 
             }
             action={
                 permissions.create.note !== false ? (
-                    <Button variant="ghost" size="sm" onClick={() => onCreate("note")}>
+                    <Button size="sm" className="agent-btn-soft" onClick={() => onCreate("note")}>
                         <Icon name="plus" size={12} />
                         {t("pages.agent_workspace.contact.notes.add")}
                     </Button>
