@@ -162,6 +162,45 @@ class TodayQueryBudgetTest extends TestCase
         $this->assertSame([], $queries);
     }
 
+    public function test_rows_carry_the_records_status_person_and_phone(): void
+    {
+        DB::table('lead_lifecycle_statuses')->insert(['id' => 4, 'company_id' => 1, 'label' => 'Qualifying']);
+        DB::table('pipeline_stages')->insert(['id' => 6, 'company_id' => 1, 'name' => 'Viewing']);
+        DB::table('leads')->where('id', 1)->update(['lead_lifecycle_status_id' => 4, 'mobile' => '+49 151 2384 7720']);
+        DB::table('leads')->insert(['id' => 2, 'company_id' => 1, 'client_name' => 'No Number', 'mobile' => 'n/a', 'lead_owner' => self::USER]);
+        DB::table('deals')->where('id', 1)->update(['pipeline_stage_id' => 6]);
+
+        // Task 1 hangs off the deal, task 2 off lead 1; task 3 off lead 2.
+        $this->seedTasks(3, due: now()->setTime(15, 0));
+        DB::table('taskables')->where('task_id', 3)->update(['taskable_type' => Lead::class, 'taskable_id' => 2]);
+
+        $related = collect($this->metrics()->personalTasksBetween(self::USER, now()->startOfDay(), now()->endOfDay()))
+            ->mapWithKeys(fn (array $row) => [$row['id'] => $row['related']]);
+
+        $this->assertSame(
+            ['type' => 'deal', 'id' => 1, 'name' => 'Jana · Kyrenia', 'status' => 'Viewing', 'person' => 'Jana Hoffmann', 'phone' => '+4915123847720'],
+            $related[1]
+        );
+        $this->assertSame('Qualifying', $related[2]['status']);
+        $this->assertSame('Jana Hoffmann', $related[2]['person']);
+        $this->assertSame('+4915123847720', $related[2]['phone']);
+        // A number with no digits is no number: no Call or Copy on that row.
+        $this->assertNull($related[3]['phone']);
+    }
+
+    public function test_a_meeting_on_a_deal_is_with_the_deals_contact_at_its_stage(): void
+    {
+        DB::table('pipeline_stages')->insert(['id' => 6, 'company_id' => 1, 'name' => 'Viewing']);
+        DB::table('deals')->where('id', 1)->update(['pipeline_stage_id' => 6]);
+        $this->seedMeetings(1);
+        DB::table('lead_follow_up')->where('id', 1)->update(['lead_id' => null, 'deal_id' => 1]);
+
+        [$meeting] = $this->metrics()->meetingsBetween(self::USER, now()->startOfDay(), now()->endOfDay());
+
+        $this->assertSame('Jana Hoffmann', $meeting['person']);
+        $this->assertSame('Viewing', $meeting['deal_stage']);
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────
 
     private function metrics(): DashboardMetricsService

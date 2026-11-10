@@ -260,7 +260,7 @@ export default function DealWorkspaceTabs({
     );
 
     return (
-        <section className="overflow-hidden rounded-xl border border-dr-border bg-white">
+        <section className={className}>
             <div data-tour="deal-tabs">
                 <DealTabBar
                     activeTab={activeTab}

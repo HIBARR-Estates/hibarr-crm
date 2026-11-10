@@ -242,11 +242,8 @@ function ContactDealInner(props: ContactDealProps) {
                 <AgentLinkPills pills={pills} ariaLabel={t("pages.agent_workspace.contact.deals_aria")} />
             </AgentSecondRow>
 
-            <div
-                className={`lead-redesign deal-redesign dr-mobile-responsive agent-contact agent-contact--deal${
-                    showAnalysis ? "" : " agent-contact--no-goal"
-                }`}
-            >
+            {/* Two columns whatever the analysis flag: the rail always holds the dossier. */}
+            <div className="lead-redesign deal-redesign dr-mobile-responsive agent-contact agent-contact--deal">
                 <div className="agent-contact__main">
                     {contact ? (
                         <div className="agent-contact__head-card">
