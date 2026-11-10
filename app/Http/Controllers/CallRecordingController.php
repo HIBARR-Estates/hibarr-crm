@@ -719,7 +719,7 @@ class CallRecordingController extends AccountBaseController
      */
     private function resolveStorageDisk(): string
     {
-        $customDisk = env('CALL_RECORDINGS_DISK');
+        $customDisk = config('filesystems.call_recordings_disk') ?: (function_exists('env') ? env('CALL_RECORDINGS_DISK') : null);
         if (! empty($customDisk) && config("filesystems.disks.{$customDisk}")) {
             return (string) $customDisk;
         }

@@ -1314,8 +1314,9 @@ class SoftphoneClient {
             return;
         }
 
+        let isBoosting = false;
         const findAndBoost = async () => {
-            if (this.session !== session) {
+            if (this.session !== session || isBoosting) {
                 return;
             }
             const sender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
@@ -1328,21 +1329,29 @@ class SoftphoneClient {
                 return;
             }
 
-            const rawTrack = sender.track;
-            this.rawSenderTrack = rawTrack;
-            const rawStream = new MediaStream([rawTrack]);
-
-            const processor = createBoostedMicStream(rawStream);
-            this.outboundMicProcessor = processor;
-            await processor.ensureRunning();
-            inspectAndLogRawTrackSettings(rawTrack, undefined, processor.audioContext.state);
-
+            isBoosting = true;
             try {
-                await sender.replaceTrack(processor.track);
-                await ensureAudioSenderBitrateUncapped(sender);
-                trace("softphone outbound mic boost applied to sender");
-            } catch (err) {
-                console.warn("[softphone] replaceTrack with boosted mic failed:", err);
+                const rawTrack = sender.track;
+                this.rawSenderTrack = rawTrack;
+                const rawStream = new MediaStream([rawTrack]);
+
+                const processor = createBoostedMicStream(rawStream);
+                if (this.outboundMicProcessor) {
+                    this.outboundMicProcessor.dispose();
+                }
+                this.outboundMicProcessor = processor;
+                await processor.ensureRunning();
+                inspectAndLogRawTrackSettings(rawTrack, undefined, processor.audioContext.state);
+
+                try {
+                    await sender.replaceTrack(processor.track);
+                    await ensureAudioSenderBitrateUncapped(sender);
+                    trace("softphone outbound mic boost applied to sender");
+                } catch (err) {
+                    console.warn("[softphone] replaceTrack with boosted mic failed:", err);
+                }
+            } finally {
+                isBoosting = false;
             }
         };
 

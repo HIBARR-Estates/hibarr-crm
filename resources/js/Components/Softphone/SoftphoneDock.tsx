@@ -1316,10 +1316,8 @@ export default function SoftphoneDock() {
                 const duration = Math.max(1, Math.round(Math.max(elapsedRecording, elapsedCall)));
                 recordStartedAtRef.current = null;
 
-                // Close audio context and release separate microphone tracks if allocated
-                if (!usedWebRtcSender) {
-                    micStream?.getTracks().forEach((track) => track.stop());
-                }
+                // Release recording stream tracks (cloned WebRTC stream or isolated mic stream)
+                micStream?.getTracks().forEach((track) => track.stop());
                 const audioCtx = recordContextRef.current ?? ctx;
                 recordContextRef.current = null;
                 recordRecorderRef.current = null;
