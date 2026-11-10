@@ -133,7 +133,7 @@ class HandleInertiaRequests extends Middleware
         }
 
         $url = AgentWorkspaceAccess::allows($user) ? '/agent/today' : null;
-        $manageUrl = $user->hasRole('admin') ? '/account/settings/agent-workspace-access' : null;
+        $manageUrl = AgentWorkspaceAccess::canManage() ? '/account/settings/agent-workspace-access' : null;
 
         return $url === null && $manageUrl === null ? null : ['url' => $url, 'manageUrl' => $manageUrl];
     }

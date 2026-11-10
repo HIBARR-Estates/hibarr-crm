@@ -37,7 +37,7 @@ class AgentWorkspaceAccessController extends AccountBaseController
     public static function ensureAllowed(): void
     {
         abort_unless(AgentWorkspaceAccess::enabled(), 404);
-        abort_403(! in_array('admin', user_roles()));
+        abort_403(! AgentWorkspaceAccess::canManage());
     }
 
     public function index()

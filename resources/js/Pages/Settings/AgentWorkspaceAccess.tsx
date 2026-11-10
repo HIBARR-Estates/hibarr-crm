@@ -62,15 +62,23 @@ export default function AgentWorkspaceAccess({ pageTitle, entries: initialEntrie
         request: () => Promise<{ data: { entries?: Entry[] } }>,
     ) => {
         setError(false);
-        const before = entries;
-        setEntries(optimistic(before));
+        // Every change touches one person, so a failure only puts that
+        // person's row back and keeps any later clicks still in the queue.
+        const previous = entries.find((entry) => entry.user_id === userId);
+        setEntries(optimistic);
         queue.current = queue.current.then(async () => {
             setPendingId(userId);
             try {
                 const { data } = await request();
                 if (data.entries) setEntries(data.entries);
             } catch {
-                setEntries(before);
+                setEntries((current) => {
+                    const others = current.filter((entry) => entry.user_id !== userId);
+                    if (!previous) return others;
+                    const index = current.findIndex((entry) => entry.user_id === userId);
+                    if (index === -1) return [...others, previous];
+                    return current.map((entry) => (entry.user_id === userId ? previous : entry));
+                });
                 setError(true);
             } finally {
                 setPendingId(null);

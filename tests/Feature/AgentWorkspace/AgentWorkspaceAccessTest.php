@@ -219,6 +219,13 @@ class AgentWorkspaceAccessTest extends TestCase
         $this->assertTrue($this->allows(self::AGENT));
     }
 
+    public function test_a_lead_agent_row_from_another_company_does_not_count(): void
+    {
+        DB::table('lead_agents')->insert(['company_id' => 2, 'user_id' => self::COLLEAGUE, 'status' => 'enabled', 'is_partner' => false]);
+
+        $this->assertFalse($this->allows(self::COLLEAGUE));
+    }
+
     public function test_the_middleware_answers_404_without_access(): void
     {
         $request = Request::create('/agent/today');

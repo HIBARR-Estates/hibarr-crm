@@ -51,11 +51,18 @@ final class AgentWorkspaceAccess
         return $allowed;
     }
 
+    /** Admins manage the access list; the settings page and the sidebar link both ask here. */
+    public static function canManage(): bool
+    {
+        return self::enabled() && in_array('admin', user_roles(), true);
+    }
+
     /** True when the person gets the workspace without an entry on the list. */
     public static function isDefaultMember(User $user): bool
     {
         return LeadAgent::query()
             ->withoutGlobalScopes()
+            ->where('company_id', $user->company_id)
             ->where('user_id', $user->id)
             ->where('status', 'enabled')
             ->where('is_partner', false)
