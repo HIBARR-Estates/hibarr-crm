@@ -2837,7 +2837,7 @@ return [
             'empty_title' => 'Noch keine Ausnahmen',
             'empty_description' => 'Lead-Agenten haben standardmäßig Zugriff. Fügen Sie hier jemanden hinzu, um ihn zuzulassen oder zu sperren.',
             'inactive' => 'Inaktiv',
-            'failed' => 'Die Änderung konnte nicht gespeichert werden. Bitte erneut versuchen.',
+            'failed_for' => 'Die Änderung für {{name}} konnte nicht gespeichert werden. Bitte erneut versuchen.',
         ],
     ],
 ];

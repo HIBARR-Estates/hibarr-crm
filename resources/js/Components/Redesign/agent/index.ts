@@ -1,6 +1,6 @@
 export { default as AgentWorkspaceLayout, AgentSecondRow } from "./AgentWorkspaceLayout";
 export { default as AgentDock } from "./AgentDock";
-export { default as AgentPillRow } from "./AgentPillRow";
+export { default as AgentPillRow, agentPillPanelProps } from "./AgentPillRow";
 export type { AgentPill } from "./AgentPillRow";
 export { default as AgentViewSwitch } from "./AgentViewSwitch";
 export { default as AgentAccountMenu } from "./AgentAccountMenu";

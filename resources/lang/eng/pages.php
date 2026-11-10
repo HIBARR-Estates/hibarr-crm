@@ -2994,7 +2994,7 @@ return [
             'empty_title' => 'No exceptions yet',
             'empty_description' => 'Lead agents have access by default. Add someone here to allow or block them.',
             'inactive' => 'Inactive',
-            'failed' => 'Couldn\'t save that change. Try again.',
+            'failed_for' => 'Couldn\'t save the change for {{name}}. Try again.',
         ],
     ],
 ];

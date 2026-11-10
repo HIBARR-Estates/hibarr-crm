@@ -2815,7 +2815,7 @@ return [
             'empty_title' => 'Henüz istisna yok',
             'empty_description' => 'Lead temsilcileri varsayılan olarak erişir. İzin vermek veya engellemek için buraya birini ekleyin.',
             'inactive' => 'Pasif',
-            'failed' => 'Değişiklik kaydedilemedi. Tekrar deneyin.',
+            'failed_for' => '{{name}} için yapılan değişiklik kaydedilemedi. Tekrar deneyin.',
         ],
     ],
 ];

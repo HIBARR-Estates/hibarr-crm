@@ -50,43 +50,43 @@ export default function AgentWorkspaceAccess({ pageTitle, entries: initialEntrie
     const [pickerOpen, setPickerOpen] = useState(false);
     const [addAs, setAddAs] = useState<Access>("allow");
     const [pendingId, setPendingId] = useState<number | null>(null);
-    const [error, setError] = useState(false);
+    // People whose last change didn't save; each clears once a later change for them does.
+    const [failed, setFailed] = useState<Array<{ userId: number; name: string }>>([]);
 
     // Changes go to the server one at a time, in click order, so every
     // response already includes the earlier changes and can replace the list.
     const queue = useRef<Promise<void>>(Promise.resolve());
-    // The list as the server last confirmed it; failures roll back to this.
+    // The list as the server last confirmed it.
     const confirmed = useRef<Entry[]>(initialEntries);
+    // Changes clicked but not answered yet, oldest first.
+    const pending = useRef<Array<{ id: number; apply: (current: Entry[]) => Entry[] }>>([]);
+    const nextId = useRef(0);
+
+    // What the admin sees: the server's list with every unanswered change on
+    // top, so a response for one row never hides a click still in the queue.
+    const show = () => setEntries(pending.current.reduce((list, change) => change.apply(list), confirmed.current));
 
     const save = (
-        userId: number,
-        optimistic: (current: Entry[]) => Entry[],
+        person: { id: number; name: string },
+        apply: (current: Entry[]) => Entry[],
         request: () => Promise<{ data: { entries?: Entry[] } }>,
     ) => {
-        setError(false);
-        setEntries(optimistic);
+        const change = { id: nextId.current++, apply };
+        pending.current = [...pending.current, change];
+        setFailed((current) => current.filter((item) => item.userId !== person.id));
+        show();
         queue.current = queue.current.then(async () => {
-            setPendingId(userId);
+            setPendingId(person.id);
             try {
                 const { data } = await request();
-                if (data.entries) {
-                    confirmed.current = data.entries;
-                    setEntries(data.entries);
-                }
+                if (data.entries) confirmed.current = data.entries;
+                setFailed((current) => current.filter((item) => item.userId !== person.id));
             } catch {
-                // Every change touches one person, so a failure puts only that
-                // person's row back, as the server last confirmed it, and
-                // keeps other clicks still waiting in the queue.
-                const previous = confirmed.current.find((entry) => entry.user_id === userId);
-                setEntries((current) => {
-                    const others = current.filter((entry) => entry.user_id !== userId);
-                    if (!previous) return others;
-                    const index = current.findIndex((entry) => entry.user_id === userId);
-                    if (index === -1) return [...others, previous];
-                    return current.map((entry) => (entry.user_id === userId ? previous : entry));
-                });
-                setError(true);
+                setFailed((current) => [...current.filter((item) => item.userId !== person.id), { userId: person.id, name: person.name }]);
             } finally {
+                // Answered either way: drop it, so a failure falls back to the server's row.
+                pending.current = pending.current.filter((item) => item.id !== change.id);
+                show();
                 setPendingId(null);
             }
         });
@@ -95,7 +95,7 @@ export default function AgentWorkspaceAccess({ pageTitle, entries: initialEntrie
 
     const setAccess = (person: { id: number; name: string; designation?: string; image?: string | null }, access: Access) =>
         save(
-            person.id,
+            person,
             (current) => {
                 const existing = current.find((entry) => entry.user_id === person.id);
                 if (existing) {
@@ -121,7 +121,7 @@ export default function AgentWorkspaceAccess({ pageTitle, entries: initialEntrie
 
     const remove = (entry: Entry) =>
         save(
-            entry.user_id,
+            { id: entry.user_id, name: entry.name },
             (current) => current.filter((item) => item.user_id !== entry.user_id),
             () => axios.delete(route("agent-workspace-access.destroy", entry.user_id)),
         );
@@ -221,9 +221,11 @@ export default function AgentWorkspaceAccess({ pageTitle, entries: initialEntrie
 
                     {picker}
 
-                    {error && (
+                    {failed.length > 0 && (
                         <div role="alert" style={{ padding: "10px 18px", fontSize: 13, color: T.RED, borderBottom: `1px solid ${T.BORDER_SOFT}` }}>
-                            {t("pages.agent_workspace.access.failed")}
+                            {failed.map((item) => (
+                                <div key={item.userId}>{t("pages.agent_workspace.access.failed_for", { name: item.name })}</div>
+                            ))}
                         </div>
                     )}
 
