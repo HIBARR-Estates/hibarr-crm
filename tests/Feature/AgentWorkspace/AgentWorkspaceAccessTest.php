@@ -4,6 +4,7 @@ namespace Tests\Feature\AgentWorkspace;
 
 use App\Http\Controllers\AgentWorkspace\AgentWorkspaceAccessController;
 use App\Http\Middleware\EnsureAgentWorkspaceAccess;
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\User;
 use App\Support\AgentWorkspaceAccess;
 use Illuminate\Database\Schema\Blueprint;
@@ -243,6 +244,33 @@ class AgentWorkspaceAccessTest extends TestCase
         $response = (new EnsureAgentWorkspaceAccess)->handle($request, fn () => response('ok'));
 
         $this->assertSame('ok', $response->getContent());
+    }
+
+    /** @return array{url: string|null, manageUrl: string|null}|null */
+    private function sharedProp(int $userId, array $roles): ?array
+    {
+        $this->signInAs($userId, $roles);
+        $request = Request::create('/account/dashboard');
+        $this->app->instance('request', $request);
+        // Binding the request resets its user resolver to the auth guard, so set ours after.
+        $request->setUserResolver(fn () => $this->user($userId, $roles));
+
+        $method = new \ReflectionMethod(HandleInertiaRequests::class, 'getAgentWorkspace');
+
+        return $method->invoke(new HandleInertiaRequests, $request);
+    }
+
+    public function test_the_shared_prop_gives_the_switch_to_people_with_access_and_the_list_to_admins(): void
+    {
+        $this->assertSame(['url' => '/agent/today', 'manageUrl' => null], $this->sharedProp(self::AGENT, ['employee']));
+        $this->assertNull($this->sharedProp(self::COLLEAGUE, ['employee']));
+        $this->assertSame(
+            ['url' => null, 'manageUrl' => '/account/settings/agent-workspace-access'],
+            $this->sharedProp(self::ADMIN, ['admin', 'employee']),
+        );
+
+        $this->setFeatureFlag(AgentWorkspaceAccess::FLAG, false);
+        $this->assertNull($this->sharedProp(self::ADMIN, ['admin', 'employee']));
     }
 
     public function test_only_admins_manage_the_list_and_only_while_the_flag_is_on(): void

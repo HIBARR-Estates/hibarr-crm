@@ -55,6 +55,8 @@ export default function AgentWorkspaceAccess({ pageTitle, entries: initialEntrie
     // Changes go to the server one at a time, in click order, so every
     // response already includes the earlier changes and can replace the list.
     const queue = useRef<Promise<void>>(Promise.resolve());
+    // The list as the server last confirmed it; failures roll back to this.
+    const confirmed = useRef<Entry[]>(initialEntries);
 
     const save = (
         userId: number,
@@ -62,16 +64,20 @@ export default function AgentWorkspaceAccess({ pageTitle, entries: initialEntrie
         request: () => Promise<{ data: { entries?: Entry[] } }>,
     ) => {
         setError(false);
-        // Every change touches one person, so a failure only puts that
-        // person's row back and keeps any later clicks still in the queue.
-        const previous = entries.find((entry) => entry.user_id === userId);
         setEntries(optimistic);
         queue.current = queue.current.then(async () => {
             setPendingId(userId);
             try {
                 const { data } = await request();
-                if (data.entries) setEntries(data.entries);
+                if (data.entries) {
+                    confirmed.current = data.entries;
+                    setEntries(data.entries);
+                }
             } catch {
+                // Every change touches one person, so a failure puts only that
+                // person's row back, as the server last confirmed it, and
+                // keeps other clicks still waiting in the queue.
+                const previous = confirmed.current.find((entry) => entry.user_id === userId);
                 setEntries((current) => {
                     const others = current.filter((entry) => entry.user_id !== userId);
                     if (!previous) return others;
