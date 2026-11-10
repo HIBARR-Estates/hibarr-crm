@@ -59,7 +59,8 @@ export interface AgendaRange {
     days: string[];
 }
 
-function rangeOf(from: string, to: string): AgendaRange {
+/** Every day from one day key to another. */
+export function rangeOf(from: string, to: string): AgendaRange {
     const days: string[] = [];
     for (let day = from; day <= to; day = addDays(day, 1)) days.push(day);
     return { from, to, days };

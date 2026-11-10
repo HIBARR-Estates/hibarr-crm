@@ -101,7 +101,7 @@ class AgentWorkspaceAgendaTest extends TestCase
         $this->assertArrayHasKey('message', $response->getData(true));
     }
 
-    /** @return array<string, array<string, string>> */
+    /** @return array<string, array{0: array<string, string>}> */
     public static function badRanges(): array
     {
         return [

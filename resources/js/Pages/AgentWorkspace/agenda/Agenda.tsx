@@ -19,6 +19,7 @@ interface AgendaProps {
     view: AgendaView;
     date: string;
     today: string;
+    /** The days `data` covers; while a new range loads, the last one's. */
     range: AgendaRange;
     data?: AgendaData;
     loading: boolean;
@@ -136,7 +137,7 @@ export default function Agenda({
         const month = (
             <AgendaMonth
                 days={range.days}
-                month={date.slice(0, 7)}
+                month={range.days[Math.floor(range.days.length / 2)].slice(0, 7)}
                 byDay={byDay}
                 today={today}
                 selected={selected}

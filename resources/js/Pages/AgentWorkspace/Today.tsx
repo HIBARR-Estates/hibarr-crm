@@ -158,10 +158,17 @@ export default function Today({
         onSaved: agenda.refresh,
     });
 
-    const chooseTab = useCallback((next: Tab) => {
-        setTab(next);
-        writeUrl(next === "agenda" ? { tab: "agenda" } : { tab: null, view: null, date: null });
-    }, []);
+    const chooseTab = useCallback(
+        (next: Tab) => {
+            setTab(next);
+            writeUrl(
+                next === "agenda"
+                    ? { tab: "agenda", view: agendaView === "list" ? null : agendaView, date: agendaDate }
+                    : { tab: null, view: null, date: null },
+            );
+        },
+        [agendaView, agendaDate],
+    );
 
     const navigateAgenda = useCallback(
         (view: AgendaView, nextDate: string) => {
@@ -245,7 +252,7 @@ export default function Today({
                         date={date}
                         today={today}
                         range={agenda.range}
-                        data={work.agenda}
+                        data={agenda.current ? work.agenda : undefined}
                         needOutcome={outcomesEnabled ? outcomes.items.length : undefined}
                         nowMs={nowMs}
                         timeZone={timezone}
@@ -256,7 +263,7 @@ export default function Today({
                         view={agendaView}
                         date={date}
                         today={today}
-                        range={agenda.range}
+                        range={agenda.dataRange}
                         data={work.agenda}
                         loading={agenda.loading}
                         updating={agenda.updating}

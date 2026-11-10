@@ -1,18 +1,21 @@
 import { useCallback, useEffect } from "react";
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import type { TodaySchedule } from "../today/types";
-import { rangeFor, shiftDate, type AgendaView } from "./range";
+import { rangeFor, rangeOf, shiftDate, type AgendaRange, type AgendaView } from "./range";
 
 /** Meetings and pending tasks for a span of days (AgentWorkspaceController::agenda). */
 export type AgendaData = TodaySchedule;
 
 const AGENDA_KEY = "agent-agenda";
 
-function fetchAgenda(from: string, to: string): Promise<AgendaData> {
+/** A range's data, tagged with the days it covers. */
+type AgendaPayload = AgendaData & { from: string; to: string };
+
+function fetchAgenda(from: string, to: string): Promise<AgendaPayload> {
     return axios
         .get<AgendaData>(route("agent.today.agenda"), { params: { from, to } })
-        .then((response) => response.data);
+        .then((response) => ({ ...response.data, from, to }));
 }
 
 const queryFor = (from: string, to: string) => ({
@@ -35,8 +38,15 @@ export default function useAgendaData(view: AgendaView, date: string, enabled: b
     const query = useQuery({
         ...queryFor(range.from, range.to),
         enabled,
-        placeholderData: keepPreviousData,
+        // Keep the last range on screen while the next loads, but only when it
+        // has the same shape: a week's data in a month grid would mislead.
+        placeholderData: (previous?: AgendaPayload) =>
+            previous && (rangeOf(previous.from, previous.to).days.length > 7) === (range.days.length > 7) ? previous : undefined,
     });
+
+    const data = query.data;
+    const dataRange: AgendaRange =
+        data && (data.from !== range.from || data.to !== range.to) ? rangeOf(data.from, data.to) : range;
 
     const landed = query.isSuccess && !query.isPlaceholderData;
     useEffect(() => {
@@ -54,8 +64,13 @@ export default function useAgendaData(view: AgendaView, date: string, enabled: b
     );
 
     return {
+        /** The days the view asked for: titles and navigation use these. */
         range,
-        data: query.data,
+        /** The days `data` covers, which trail `range` while a new range loads. */
+        dataRange,
+        data,
+        /** False while an older range stands in for the one asked for. */
+        current: !query.isPlaceholderData,
         /** True only before anything has loaded for this view. */
         loading: query.isPending,
         /** A newer range is on its way while an older one is shown. */
