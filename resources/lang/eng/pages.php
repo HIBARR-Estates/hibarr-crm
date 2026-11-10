@@ -3120,6 +3120,9 @@ return [
         'contact' => [
             'views_aria' => 'Lead and deals',
             'lead_pill' => 'Lead · {{status}}',
+            'deal_pill' => 'Deal · {{stage}}',
+            'deals_aria' => "This person's deals",
+            'deal_stage' => 'Deal stage',
             'owner_you' => 'You own',
             'owner_name' => 'Owner: {{name}}',
             'no_owner' => 'No owner',
@@ -3161,6 +3164,7 @@ return [
                 'ebook' => 'Downloaded the ebook',
             ],
             'coming_up' => [
+                'deal_title' => 'Coming up on this deal',
                 'title' => 'Coming up',
                 'empty' => 'Nothing planned yet',
                 'task' => 'Task',

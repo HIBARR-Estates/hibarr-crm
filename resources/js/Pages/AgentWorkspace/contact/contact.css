@@ -346,7 +346,9 @@
 }
 
 .agent-card__head .dr-btn {
+    flex-shrink: 0;
     gap: 4px;
+    white-space: nowrap;
 }
 
 .agent-card__title {
@@ -839,5 +841,49 @@
 
     .agent-goal__title {
         font-size: 18px;
+    }
+}
+
+/* ---------- deal state (canvas L7-10, L7-11) ----------
+   The person's card on top, then the deal's own header, stage path and
+   facts; the deal's tabs under the activity cards; the analysis card and
+   the deal's rail (files, payments, documents) on the right. */
+.agent-contact--deal .agent-contact__goal {
+    display: flex;
+    position: static;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.agent-contact__stages .agent-contact__label {
+    margin-bottom: 12px;
+}
+
+.agent-contact__note {
+    margin: -4px 0 12px;
+    color: var(--dr-text-muted);
+    font-size: 13px;
+}
+
+.agent-contact__tabs {
+    margin-top: 20px;
+    scroll-margin-top: 16px;
+}
+
+.agent-contact__tabs-card.agent-card {
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+@media (max-width: 1023px) {
+    .agent-contact__tabs {
+        order: 5;
+        margin-top: 0;
+    }
+
+    /* The deal's rail is long; it follows the tabs instead of leading. */
+    .agent-contact--deal .agent-contact__goal {
+        order: 6;
     }
 }

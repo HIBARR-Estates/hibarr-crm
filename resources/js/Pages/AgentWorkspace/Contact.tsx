@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { Head, usePage } from "@inertiajs/react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { Head, router, usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
 import { AgentPillRow, AgentSecondRow, AgentWorkspaceLayout, agentPillPanelProps, useMinuteClock } from "@/Components/Redesign/agent";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
@@ -27,7 +27,9 @@ import useLeadLifecycleChange from "@/Pages/Leads/Redesign/hooks/useLeadLifecycl
 import useLeadMissionFlow from "@/Pages/Leads/Redesign/hooks/useLeadMissionFlow";
 import useLeadQualificationWorkspace from "@/Pages/Leads/Redesign/hooks/useLeadQualificationWorkspace";
 import type { LeadRedesignProps } from "@/Pages/Leads/Redesign/types";
-import ActivityCards, { type ActivityPermissions } from "./contact/ActivityCards";
+import { LEAD_TIMELINE_MODEL_TYPE } from "@/Pages/Deals/Redesign/hooks/useDealTimeline";
+import type { Note } from "@/Types/api/note";
+import ActivityCards, { type ActivityPermissions, type ActivitySource } from "./contact/ActivityCards";
 import ContactHeader from "./contact/ContactHeader";
 import GoalPanel from "./contact/GoalPanel";
 import KeyFacts from "./contact/KeyFacts";
@@ -80,7 +82,18 @@ function ContactLead(props: LeadRedesignProps) {
     const nowMs = useMinuteClock();
     const companyCurrency = useCompanyCurrency();
 
-    const { lead, deals, notes, tasks, leadFollowUps } = useLeadWorkspace();
+    const { lead, deals, notes, tasks, leadFollowUps, notesLoading, tasksLoading, leadFollowUpsLoading } = useLeadWorkspace();
+    const activitySource: ActivitySource = {
+        tasks,
+        tasksLoading,
+        meetings: leadFollowUps,
+        meetingsLoading: leadFollowUpsLoading,
+        // Lead notes carry the same fields the notes card reads.
+        notes: notes as unknown as Note[],
+        notesLoading,
+        timelineId: lead.id,
+        timelineModelType: LEAD_TIMELINE_MODEL_TYPE,
+    };
 
     const statuses = useMemo(
         () =>
@@ -100,7 +113,9 @@ function ContactLead(props: LeadRedesignProps) {
         seed: props.leadQualification ?? null,
     });
     const [qualificationOpen, setQualificationOpen] = useState(false);
-    const mission = useLeadMissionFlow({ qualification, deals, changeStatus, setQualificationOpen });
+    // A person with a deal is shown in the deal's state, so deals open there.
+    const dealHref = useCallback((dealId: number) => route("agent.people.deal", { lead: lead.id, deal: dealId }), [lead.id]);
+    const mission = useLeadMissionFlow({ qualification, deals, changeStatus, setQualificationOpen, dealHref });
     const dealCreate = useLeadDealCreate(lead);
     const deleteLead = useLeadDelete(lead);
     const duplicates = useLeadDuplicates(lead.id);
@@ -225,7 +240,7 @@ function ContactLead(props: LeadRedesignProps) {
 
                 <div className="agent-contact__activity">
                     <ActivityCards
-                        leadId={lead.id}
+                        source={activitySource}
                         nowMs={nowMs}
                         timeZone={timezone}
                         permissions={activityPermissions}
@@ -266,6 +281,7 @@ function ContactLead(props: LeadRedesignProps) {
                 qualificationOpen={qualificationOpen}
                 onCloseQualification={() => setQualificationOpen(false)}
                 pageProps={props}
+                onDealCreated={(deal) => router.visit(dealHref(deal.id))}
             />
             {canEdit ? (
                 <EditLeadDetailsModal

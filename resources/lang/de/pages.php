@@ -2963,6 +2963,9 @@ return [
         'contact' => [
             'views_aria' => 'Lead und Deals',
             'lead_pill' => 'Lead · {{status}}',
+            'deal_pill' => 'Deal · {{stage}}',
+            'deals_aria' => 'Deals dieser Person',
+            'deal_stage' => 'Deal-Phase',
             'owner_you' => 'Ihr Lead',
             'owner_name' => 'Inhaber: {{name}}',
             'no_owner' => 'Kein Inhaber',
@@ -3004,6 +3007,7 @@ return [
                 'ebook' => 'Hat das E-Book heruntergeladen',
             ],
             'coming_up' => [
+                'deal_title' => 'Als Nächstes in diesem Deal',
                 'title' => 'Als Nächstes',
                 'empty' => 'Noch nichts geplant',
                 'task' => 'Aufgabe',

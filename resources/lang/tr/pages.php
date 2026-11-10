@@ -2941,6 +2941,9 @@ return [
         'contact' => [
             'views_aria' => 'Lead ve anlaşmalar',
             'lead_pill' => 'Lead · {{status}}',
+            'deal_pill' => 'Anlaşma · {{stage}}',
+            'deals_aria' => 'Bu kişinin anlaşmaları',
+            'deal_stage' => 'Anlaşma aşaması',
             'owner_you' => 'Sizin lead\'iniz',
             'owner_name' => 'Sahibi: {{name}}',
             'no_owner' => 'Sahibi yok',
@@ -2982,6 +2985,7 @@ return [
                 'ebook' => 'E-kitabı indirdi',
             ],
             'coming_up' => [
+                'deal_title' => 'Bu anlaşmada sırada',
                 'title' => 'Sıradakiler',
                 'empty' => 'Henüz bir plan yok',
                 'task' => 'Görev',

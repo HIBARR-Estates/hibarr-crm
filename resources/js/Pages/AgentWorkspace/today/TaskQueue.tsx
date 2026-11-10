@@ -22,7 +22,7 @@ export interface TaskHandlers {
 }
 
 export function recordHref(record: RelatedRecord): string {
-    return record.type === "lead" ? route("agent.people.show", record.id) : route("deals.show", record.id);
+    return record.type === "lead" ? route("agent.people.show", record.id) : route("agent.deals.show", record.id);
 }
 
 function useTaskView(task: QueueTask, handlers: TaskHandlers) {

@@ -127,7 +127,7 @@ function MeetingItem({
     const canJoin = Boolean(listItem.meetingLink) && (state === "now" || state === "soon");
     const canMarkHeld = state === "now" || state === "none";
     const record = meeting.deal_id
-        ? { href: route("deals.show", meeting.deal_id), label: t("pages.agent_workspace.agenda.open_deal") }
+        ? { href: route("agent.deals.show", meeting.deal_id), label: t("pages.agent_workspace.agenda.open_deal") }
         : meeting.lead_id
           ? { href: route("agent.people.show", meeting.lead_id), label: t("pages.agent_workspace.agenda.open_lead") }
           : null;

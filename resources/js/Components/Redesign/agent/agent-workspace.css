@@ -162,11 +162,13 @@
     color: var(--dr-navy-soft);
     font: inherit;
     font-size: 13px;
+    text-decoration: none;
     white-space: nowrap;
     cursor: pointer;
 }
 
-.agent-pills__pill[aria-selected="true"] {
+.agent-pills__pill[aria-selected="true"],
+.agent-pills__pill[aria-current="page"] {
     border-color: var(--dr-white);
     background: var(--dr-white);
     color: var(--dr-navy);

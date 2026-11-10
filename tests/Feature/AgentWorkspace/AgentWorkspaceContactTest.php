@@ -4,6 +4,8 @@ namespace Tests\Feature\AgentWorkspace;
 
 use App\Http\Controllers\LeadContactController;
 use App\Http\Middleware\EnsureAgentWorkspaceAccess;
+use App\Models\User;
+use App\Services\AgentWorkspace\ContactDeals;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -62,8 +64,45 @@ class AgentWorkspaceContactTest extends TestCase
         $redirect = new RedirectResponse('/agent/today');
         $controller = $this->controller($redirect);
 
-        $this->assertSame($redirect, $controller->agentShow(7, Request::create('/agent/people/7')));
+        $this->assertSame($redirect, $controller->agentShow(7, Request::create('/agent/people/7'), $this->deals([])));
         $this->assertSame($redirect, $controller->show(7, Request::create('/account/leads/7')));
+    }
+
+    public function test_a_person_with_a_deal_opens_on_that_deal(): void
+    {
+        $response = $this->controller($this->props())
+            ->agentShow(7, Request::create('/agent/people/7'), $this->deals([['id' => 31], ['id' => 12]]));
+
+        $this->assertInstanceOf(RedirectResponse::class, $response);
+        $this->assertStringEndsWith('/agent/people/7/deals/31', $response->getTargetUrl());
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        session(['user' => new User]);
+    }
+
+    /**
+     * ContactDeals returning the given deals for any lead.
+     *
+     * @param  list<array<string, mixed>>  $deals
+     */
+    private function deals(array $deals): ContactDeals
+    {
+        $fake = new class extends ContactDeals
+        {
+            /** @var list<array<string, mixed>> */
+            public array $deals = [];
+
+            public function forLead(int $leadId, User $viewer): array
+            {
+                return $this->deals;
+            }
+        };
+        $fake->deals = $deals;
+
+        return $fake;
     }
 
     /** @return array<string, mixed> */
@@ -112,6 +151,11 @@ class AgentWorkspaceContactTest extends TestCase
         $request->headers->set('X-Inertia', 'true');
         $this->app->instance('request', $request);
 
-        return $this->controller($props)->{$method}(7, $request)->toResponse($request)->getData(true);
+        $controller = $this->controller($props);
+        $response = $method === 'agentShow'
+            ? $controller->agentShow(7, $request, $this->deals([]))
+            : $controller->{$method}(7, $request);
+
+        return $response->toResponse($request)->getData(true);
     }
 }

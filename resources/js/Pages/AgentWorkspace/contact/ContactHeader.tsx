@@ -26,8 +26,17 @@ interface ContactHeaderProps {
     canFindDuplicates: boolean;
     onCreate: (kind: LeadCreateKind) => void;
     allowedCreate: Partial<Record<LeadCreateKind, boolean>>;
+    /** Edit details; left out when the viewer can't edit. */
     onEdit: () => void;
-    onMoreAction: (id: MoreMenuActionId) => void;
+    /** The lead's ⋯ menu. Left out in the deal state, whose menu sits on the deal. */
+    onMoreAction?: (id: MoreMenuActionId) => void;
+    /** What a call is logged against: the lead, or the deal in the deal state. */
+    callEntity?: { type: "lead" | "deal"; id: number };
+    /**
+     * A plain avatar, without the photo preview and upload: those need the
+     * lead page's context, which the deal state doesn't have.
+     */
+    staticAvatar?: boolean;
 }
 
 /**
@@ -44,6 +53,8 @@ export default function ContactHeader({
     allowedCreate,
     onEdit,
     onMoreAction,
+    callEntity,
+    staticAvatar = false,
 }: ContactHeaderProps) {
     const { t } = useTranslation();
     const { props } = usePage<PageProps>();
@@ -72,13 +83,27 @@ export default function ContactHeader({
     return (
         <header className="agent-contact__header">
             <div className="agent-contact__who">
-                <LeadAvatarButton
-                    name={lead.client_name ?? ""}
-                    image={lead.image}
-                    imageUrl={lead.image_url}
-                    initials={initialsFromName(lead.client_name)}
-                    canUpload={canEdit}
-                />
+                {!staticAvatar ? (
+                    <LeadAvatarButton
+                        name={lead.client_name ?? ""}
+                        image={lead.image}
+                        imageUrl={lead.image_url}
+                        initials={initialsFromName(lead.client_name)}
+                        canUpload={canEdit}
+                    />
+                ) : (
+                    <div className="v2-lead-avatar-wrap">
+                        <div className="v2-lead-avatar-shell">
+                            <span className="v2-lead-avatar" aria-hidden="true">
+                                {lead.image && lead.image_url ? (
+                                    <img src={lead.image_url} alt="" className="v2-lead-avatar__img" />
+                                ) : (
+                                    <span className="v2-lead-avatar__initials">{initialsFromName(lead.client_name)}</span>
+                                )}
+                            </span>
+                        </div>
+                    </div>
+                )}
                 <div className="agent-contact__identity">
                     <div className="agent-contact__name-row">
                         <h1 className="agent-contact__name">{lead.client_name_salutation || lead.client_name}</h1>
@@ -92,7 +117,7 @@ export default function ContactHeader({
                 </div>
             </div>
             <div className="agent-contact__actions">
-                <CallButton lead={lead} />
+                <CallButton lead={lead} entity={callEntity ?? { type: "lead", id: lead.id }} />
                 <NewActivityButton onCreate={onCreate} allowed={allowedCreate} />
                 {canEdit ? (
                     <Button variant="ghost" onClick={onEdit}>
@@ -100,7 +125,9 @@ export default function ContactHeader({
                         {t("pages.agent_workspace.contact.edit_details")}
                     </Button>
                 ) : null}
-                <MoreMenu onAction={onMoreAction} canDelete={canDelete} canFindDuplicates={canFindDuplicates} />
+                {onMoreAction ? (
+                    <MoreMenu onAction={onMoreAction} canDelete={canDelete} canFindDuplicates={canFindDuplicates} />
+                ) : null}
             </div>
         </header>
     );
@@ -155,7 +182,7 @@ export function NewActivityButton({
  * CRM has for this agent (the same check as the lead page's quick actions).
  * Hidden when neither is set up, like there.
  */
-function CallButton({ lead }: { lead: Lead }) {
+function CallButton({ lead, entity }: { lead: Lead; entity: { type: "lead" | "deal"; id: number } }) {
     const { t } = useTranslation();
     const { props } = usePage<PageProps>();
     const { message: appMessage } = App.useApp();
@@ -191,7 +218,7 @@ function CallButton({ lead }: { lead: Lead }) {
     return (
         <ClickToCallButton
             phone={phone}
-            entity={{ type: "lead", id: lead.id }}
+            entity={entity}
             variant="link"
             className="dr-btn dr-btn-call"
             title={t("pages.leads.quick_actions.call_title")}
