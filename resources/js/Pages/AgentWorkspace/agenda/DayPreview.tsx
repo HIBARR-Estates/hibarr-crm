@@ -85,7 +85,10 @@ export default function DayPreview({ dayKey, day, today, handlers, meetingHandle
     const taskCards = grouped ? (openTasks.length > 0 ? 1 : 0) : openTasks.length;
     const meetingSlots = grouped ? Math.max(0, max - taskCards) : ordered.length;
     const shownMeetings = ordered.slice(0, meetingSlots);
-    const hidden = ordered.length - shownMeetings.length;
+    // Left out of the strip: meetings past the cap, and in grouped mode the
+    // open tasks folded into the first task card's "+N more".
+    const hidden = ordered.length - shownMeetings.length + (grouped ? Math.max(0, openTasks.length - 1) : 0);
+    // The list shows the whole day, done tasks included, so its count is the day's.
     const total = items.length;
 
     return (
