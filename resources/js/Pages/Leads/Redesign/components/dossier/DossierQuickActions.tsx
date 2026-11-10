@@ -1,8 +1,9 @@
-import { message } from "antd";
+import { App, message } from "antd";
 import { usePage } from "@inertiajs/react";
 import { Icon } from "@/Components/Redesign";
 import ClickToCallButton from "@/Components/ClickToCallButton";
 import useClickToCall from "@/Hooks/useClickToCall";
+import useSoftphone, { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
 import useTranslation from "@/Hooks/useTranslation";
 import type { EmailQuickAction } from "@/Email/types";
 import useEmailUnreadCount from "@/Email/hooks/useEmailUnreadCount";
@@ -40,6 +41,8 @@ export default function DossierQuickActions({
 }: DossierQuickActionsProps) {
     const { t } = useTranslation();
     const { props } = usePage();
+    const { message: appMessage } = App.useApp();
+    const toast = appMessage ?? message;
     const { isEnabled: olEnabled } = useClickToCall();
     const { unread: emailUnread, available: emailUnreadAvailable } =
         useEmailUnreadCount({
@@ -49,12 +52,18 @@ export default function DossierQuickActions({
 
     const trimmedPhone =
         phone && isMeaningfulDossierValue(phone) ? phone.trim() : "";
-    const softphonePermission = props.auth?.permissions?.make_softphone_calls;
+    const { isEnabled: softphoneFeatureEnabled } = useSoftphone();
+    const hasSoftphonePermission = canMakeSoftphoneCalls(
+        props.auth?.user,
+        props.auth?.permissions,
+    );
     const softphoneEnabled =
-        (softphonePermission === "all" || softphonePermission === "added") &&
+        softphoneFeatureEnabled &&
         props.featureFlags?.["crm.softphone"] === true;
+    const canUseLine =
+        (softphoneEnabled && hasSoftphonePermission) || olEnabled;
     const useTelephonyButton =
-        (softphoneEnabled || olEnabled) &&
+        canUseLine &&
         Boolean(trimmedPhone) &&
         typeof leadId === "number";
 
@@ -117,40 +126,35 @@ export default function DossierQuickActions({
                 {t("pages.leads.quick_actions.title")}
             </h2>
             <div className="v2-quick-actions__list">
-                {useTelephonyButton ? (
-                    <ClickToCallButton
-                        phone={trimmedPhone}
-                        entity={{ type: "lead", id: leadId! }}
-                        variant="link"
-                        className="v2-quick-actions__btn"
-                        title={callTitle}
-                        ariaLabel={callTitle}
-                        dataAction="call"
-                    >
-                        {callButtonChildren}
-                    </ClickToCallButton>
-                ) : (
-                    <button
-                        type="button"
-                        className="v2-quick-actions__btn"
-                        onClick={() => {
-                            if (!trimmedPhone) {
-                                message.warning(
+                {canUseLine && (
+                    useTelephonyButton ? (
+                        <ClickToCallButton
+                            phone={trimmedPhone}
+                            entity={{ type: "lead", id: leadId! }}
+                            variant="link"
+                            className="v2-quick-actions__btn"
+                            title={callTitle}
+                            ariaLabel={callTitle}
+                            dataAction="call"
+                        >
+                            {callButtonChildren}
+                        </ClickToCallButton>
+                    ) : (
+                        <button
+                            type="button"
+                            className="v2-quick-actions__btn"
+                            onClick={() => {
+                                toast.warning(
                                     t("pages.leads.quick_actions.no_phone"),
                                 );
-                                return;
-                            }
-                            window.open(
-                                `tel:${trimmedPhone.replace(/[^\d+]/g, "")}`,
-                                "_self",
-                            );
-                        }}
-                        title={callTitle}
-                        aria-label={callTitle}
-                        data-action="call"
-                    >
-                        {callButtonChildren}
-                    </button>
+                            }}
+                            title={callTitle}
+                            aria-label={callTitle}
+                            data-action="call"
+                        >
+                            {callButtonChildren}
+                        </button>
+                    )
                 )}
 
                 {actions.map((action) => {

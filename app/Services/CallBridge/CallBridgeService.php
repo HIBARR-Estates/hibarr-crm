@@ -482,7 +482,9 @@ class CallBridgeService
         // Bridge events with no lead or deal are skipped (the poller sees many
         // calls the CRM has no record for); the softphone asks for its calls
         // to be logged anyway (`log_unlinked`), so the Calls page lists them.
-        if ($modelType !== null || ! empty($olEvent['log_unlinked'])) {
+        // Inbound calls are always logged even when unlinked so callers without an existing lead appear in the Call Log.
+        $isInbound = $this->direction($olEvent) === CrmEventDirection::INBOUND->value;
+        if ($modelType !== null || ! empty($olEvent['log_unlinked']) || $isInbound) {
             $event = $this->events->record([
                 'event_type_slug' => $slug,
                 'company_id' => $companyId,
@@ -731,14 +733,14 @@ class CallBridgeService
             in_array($olStatus, ['failed', 'failure', 'error', 'cancel', 'cancelled', 'canceled'], true) => ['call_failed', CrmEventStatus::ERROR_OCCURRED],
             in_array($olStatus, ['missed', 'dropped', 'no_answer', 'unanswered', 'no_pickup'], true) => ['call_missed', CrmEventStatus::MISSED],
             // Event-name-driven outcomes (when no usable status is present).
-            in_array($raw, ['call.ended', 'call.completed', 'ended', 'completed'], true) => ['call_ended', CrmEventStatus::COMPLETED],
-            in_array($raw, ['call.missed', 'missed'], true) => ['call_missed', CrmEventStatus::MISSED],
-            in_array($raw, ['call.declined', 'call.rejected', 'declined', 'rejected'], true) => ['call_declined', CrmEventStatus::REJECTED],
-            in_array($raw, ['call.voicemail', 'voicemail', 'voice_mail'], true) => ['call_voicemail', CrmEventStatus::COMPLETED],
-            in_array($raw, ['call.busy', 'busy'], true) => ['call_busy', CrmEventStatus::MISSED],
-            in_array($raw, ['call.failed', 'failed', 'error'], true) => ['call_failed', CrmEventStatus::ERROR_OCCURRED],
+            in_array($raw, ['call.ended', 'call.completed', 'ended', 'completed', 'call_ended', 'call_completed'], true) => ['call_ended', CrmEventStatus::COMPLETED],
+            in_array($raw, ['call.missed', 'missed', 'call_missed'], true) => ['call_missed', CrmEventStatus::MISSED],
+            in_array($raw, ['call.declined', 'call.rejected', 'declined', 'rejected', 'call_declined'], true) => ['call_declined', CrmEventStatus::REJECTED],
+            in_array($raw, ['call.voicemail', 'voicemail', 'voice_mail', 'call_voicemail'], true) => ['call_voicemail', CrmEventStatus::COMPLETED],
+            in_array($raw, ['call.busy', 'busy', 'call_busy'], true) => ['call_busy', CrmEventStatus::MISSED],
+            in_array($raw, ['call.failed', 'failed', 'error', 'call_failed'], true) => ['call_failed', CrmEventStatus::ERROR_OCCURRED],
             // Started (once per call; CRM-initiated calls already log this via startCall).
-            in_array($raw, ['call.started', 'call.initiated', 'started', 'initiated'], true) => ['call_started', CrmEventStatus::COMPLETED],
+            in_array($raw, ['call.started', 'call.initiated', 'started', 'initiated', 'call_started', 'call_answered', 'incoming_call', 'outgoing_call'], true) => ['call_started', CrmEventStatus::COMPLETED],
             // Everything else — ringing, dialing, status pings — is not logged.
             default => null,
         };
@@ -753,6 +755,14 @@ class CallBridgeService
         $type = is_string($olEvent['entity_type'] ?? null) ? strtolower($olEvent['entity_type']) : null;
         $id = !empty($olEvent['entity_id']) ? (int) $olEvent['entity_id'] : 0;
         if ($type === null || $id <= 0) {
+            $phoneNumber = (string) ($olEvent['phone_number'] ?? $olEvent['phone'] ?? '');
+            if ($phoneNumber !== '') {
+                $matchedLead = app(LeadPhoneMatcher::class)->findLead($companyId, $phoneNumber);
+                if ($matchedLead) {
+                    return [Lead::class, (int) $matchedLead->id];
+                }
+            }
+
             return [null, null];
         }
 

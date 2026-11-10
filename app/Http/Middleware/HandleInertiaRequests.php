@@ -6,6 +6,7 @@ use App\Email\EmailFeature;
 use App\Models\UserNotificationAlertSetting;
 use App\Models\UserProductTour;
 use App\Services\I18nTranslationService;
+use App\Support\AgentWorkspaceAccess;
 use App\Support\AppBuild;
 use App\Support\FeatureFlags;
 use App\Support\UserTimezone;
@@ -71,6 +72,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'csrf_token' => csrf_token(),
             'app_url' => config('app.url'),
+            'appEnv' => fn () => config('app.env'),
             'appBuildId' => fn () => AppBuild::clientId(),
             'company' => fn () => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
             'appName' => fn () => function_exists('companyOrGlobalSetting')
@@ -100,6 +102,10 @@ class HandleInertiaRequests extends Middleware
                 ? ['settingsUrl' => '/account/settings/mailbox']
                 : null,
             // Admins manage the pilot list while the flag is on, even before they are listed.
+            // Null while crm.agent-workspace is off. url is set for people with
+            // access (the sidebar's Agent switch); manageUrl for admins (the
+            // access list), who manage it whether or not they have access.
+            'agentWorkspace' => fn () => $this->getAgentWorkspace($request),
             'emailPilot' => fn () => EmailFeature::enabled() && $request->user()?->hasRole('admin')
                 ? ['manageUrl' => '/account/settings/email-pilot']
                 : null,
@@ -113,6 +119,23 @@ class HandleInertiaRequests extends Middleware
             'pipelineFieldScopeMap' => fn () => $this->getPipelineFieldScopeMap($request),
             'stages' => fn () => $this->getPipelineStages($request),
         ]);
+    }
+
+    /**
+     * @return array{url: string|null, manageUrl: string|null}|null
+     */
+    private function getAgentWorkspace(Request $request): ?array
+    {
+        $user = $request->user();
+
+        if ($user === null || ! AgentWorkspaceAccess::enabled()) {
+            return null;
+        }
+
+        $url = AgentWorkspaceAccess::allows($user) ? '/agent/today' : null;
+        $manageUrl = AgentWorkspaceAccess::canManage() ? '/account/settings/agent-workspace-access' : null;
+
+        return $url === null && $manageUrl === null ? null : ['url' => $url, 'manageUrl' => $manageUrl];
     }
 
     /**

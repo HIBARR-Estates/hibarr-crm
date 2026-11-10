@@ -34,6 +34,7 @@ import {
     CheckSquareIcon,
 } from "../icons";
 import { PageProps } from "../DashboardLayout";
+import AgentViewSwitch from "@/Components/Redesign/agent/AgentViewSwitch";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { isPermissionAll } from "@/lib/permissionUtils";
@@ -722,6 +723,21 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     </button>
                 )}
             </div>
+
+            {/* Agent | Classic switch — only for people with agent workspace access */}
+            {props.agentWorkspace?.url && (
+                <div
+                    className={`border-b border-slate-700/50 ${
+                        effectiveCollapsed ? "flex justify-center py-3" : "px-3 py-3"
+                    }`}
+                >
+                    <AgentViewSwitch
+                        current="classic"
+                        tone="sidebar"
+                        compact={effectiveCollapsed}
+                    />
+                </div>
+            )}
 
             {/* Navigation */}
             <nav className="flex-1 overflow-y-auto px-3 py-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">

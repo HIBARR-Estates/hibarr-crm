@@ -62,13 +62,15 @@ class FileStorageService
      *
      * @throws \RuntimeException  When upload fails after all retries
      */
-    public function upload(UploadedFile $file, ?string $targetFolder = null): array
+    public function upload(UploadedFile $file, ?string $targetFolder = null, ?string $mimeType = null): array
     {
         $this->assertHttpsBaseUrl();
 
         $folder = $targetFolder ?? $this->defaultTargetFolder;
+        $contentType = $mimeType ?: $file->getClientMimeType() ?: $file->getMimeType();
+        $headers = $contentType ? ['Content-Type' => $contentType] : [];
 
-        return $this->withRetry(function () use ($file, $folder) {
+        return $this->withRetry(function () use ($file, $folder, $headers) {
             $handle = fopen($file->getRealPath(), 'r');
             if ($handle === false) {
                 throw new \RuntimeException('Could not open uploaded file for reading');
@@ -85,7 +87,8 @@ class FileStorageService
                     ->attach(
                         'file',
                         $handle,
-                        $file->getClientOriginalName()
+                        $file->getClientOriginalName(),
+                        $headers
                     )
                     ->post("{$this->baseUrl}/upload", [
                         'targetFolder' => $folder,
@@ -122,13 +125,15 @@ class FileStorageService
      *
      * @throws \RuntimeException
      */
-    public function uploadFromPath(string $filePath, string $originalName, ?string $targetFolder = null): array
+    public function uploadFromPath(string $filePath, string $originalName, ?string $targetFolder = null, ?string $mimeType = null): array
     {
         $this->assertHttpsBaseUrl();
 
         $folder = $targetFolder ?? $this->defaultTargetFolder;
+        $contentType = $mimeType ?: 'application/octet-stream';
+        $headers = $contentType ? ['Content-Type' => $contentType] : [];
 
-        return $this->withRetry(function () use ($filePath, $originalName, $folder) {
+        return $this->withRetry(function () use ($filePath, $originalName, $folder, $headers) {
             $handle = fopen($filePath, 'r');
             if ($handle === false) {
                 throw new \RuntimeException('Could not open file for reading: '.$filePath);
@@ -145,7 +150,8 @@ class FileStorageService
                     ->attach(
                         'file',
                         $handle,
-                        $originalName
+                        $originalName,
+                        $headers
                     )
                     ->post("{$this->baseUrl}/upload", [
                         'targetFolder' => $folder,

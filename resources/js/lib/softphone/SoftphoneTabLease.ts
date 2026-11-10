@@ -9,7 +9,8 @@
  *
  * Only the tab holding the lease registers. The others stay passive: they do
  * not register, do not ring, and do not accept. The lease is handed over
- * automatically when the owning tab goes away (crash/close) via a heartbeat.
+ * automatically when the owning tab goes away (crash/close) via a heartbeat,
+ * or when the user actively initiates a call or line switch in another tab.
  */
 
 const CHANNEL_NAME = "hibarr.softphone.lease";
@@ -19,6 +20,7 @@ const STALE_MS = 6000;
 
 type LeaseMessage =
     | { type: "claim"; tabId: string; at: number }
+    | { type: "takeover"; tabId: string; at: number }
     | { type: "heartbeat"; tabId: string; at: number }
     | { type: "release"; tabId: string }
     // Broadcast by the owning tab so passive tabs can mirror call state.
@@ -137,6 +139,15 @@ export class SoftphoneTabLease {
         });
     }
 
+    /**
+     * Explicitly claim the lease from another idle tab when the user initiates
+     * a call or line switch in this tab.
+     */
+    takeOver(): void {
+        this.becomeOwner();
+        this.post({ type: "takeover", tabId: this.id, at: Date.now() });
+    }
+
     /** Mirror the active call from the owning tab so passive tabs can display it. */
     broadcastCall(call: unknown | null): void {
         this.post({ type: "call", tabId: this.id, call });
@@ -213,10 +224,19 @@ export class SoftphoneTabLease {
         }
 
         switch (message.type) {
+            case "takeover":
+                this.lastSeenAt = message.at;
+                if (this.owner) {
+                    this.stepDown();
+                }
+                break;
             case "heartbeat":
                 if (!this.owner) {
                     this.lastSeenAt = message.at;
-                } else if (outranks(message.tabId, this.id)) {
+                } else if (
+                    this.readOwner()?.id !== this.id &&
+                    outranks(message.tabId, this.id)
+                ) {
                     // A higher-priority tab is alive and claiming the lease;
                     // step down rather than fight it for the SIP registration.
                     this.stepDown();
@@ -248,12 +268,16 @@ export class SoftphoneTabLease {
     };
 
     private onStorage = (event: StorageEvent): void => {
-        if (event.key === STORAGE_KEY && !this.owner) {
+        if (event.key === STORAGE_KEY) {
             const owner = this.readOwner();
-            // Same single-owner rule as the `release` message: the owner row is
-            // gone, but every passive tab sees it, so only the preferred one
-            // takes over.
-            if ((!owner || this.isStale(owner)) && this.preferredPassiveTab()) {
+            if (this.owner) {
+                if (owner && owner.id !== this.id) {
+                    this.stepDown();
+                }
+            } else if ((!owner || this.isStale(owner)) && this.preferredPassiveTab()) {
+                // Same single-owner rule as the `release` message: the owner row is
+                // gone, but every passive tab sees it, so only the preferred one
+                // takes over.
                 this.becomeOwner();
             }
         }

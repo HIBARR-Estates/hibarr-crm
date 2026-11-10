@@ -1,9 +1,10 @@
 import { ReactNode, useMemo, useState } from "react";
-import { message } from "antd";
+import { App, message } from "antd";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFile } from "@/Types/api/file";
 import useTranslation from "@/Hooks/useTranslation";
 import useClickToCall from "@/Hooks/useClickToCall";
+import { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
 import ClickToCallButton from "@/Components/ClickToCallButton";
 import { usePage } from "@inertiajs/react";
 import { copyToClipboard, resolveLeadPhoneDisplay } from "@/lib/utils";
@@ -68,6 +69,8 @@ export default function WorkspaceContextRail({
     canConfirmPaymentTransfer = false,
 }: WorkspaceContextRailProps) {
     const { t } = useTranslation();
+    const { message: appMessage } = App.useApp();
+    const toast = appMessage ?? message;
     const [open, setOpen] = useState<Set<string>>(
         () => new Set(["Lead", "Deal details"]),
     );
@@ -118,9 +121,8 @@ export default function WorkspaceContextRail({
         "";
     const { props } = usePage();
     const { isEnabled: clickToCallEnabled } = useClickToCall();
-    const softphonePermission = props.auth?.permissions?.make_softphone_calls;
     const softphoneEnabled =
-        (softphonePermission === "all" || softphonePermission === "added") &&
+        canMakeSoftphoneCalls(props.auth?.user, props.auth?.permissions) &&
         props.featureFlags?.["crm.softphone"] === true;
     const canInitiateCall = clickToCallEnabled || softphoneEnabled;
     const dealCallEntity = { type: "deal" as const, id: deal.id };
@@ -135,10 +137,10 @@ export default function WorkspaceContextRail({
         try {
             await copyToClipboard(email);
             setEmailCopied(true);
-            message.success(t("pages.deals.dossier.messages.email_copied"));
+            toast.success(t("pages.deals.dossier.messages.email_copied"));
             window.setTimeout(() => setEmailCopied(false), 2000);
         } catch {
-            message.error(t("pages.deals.dossier.messages.copy_failed"));
+            toast.error(t("pages.deals.dossier.messages.copy_failed"));
         }
     };
 

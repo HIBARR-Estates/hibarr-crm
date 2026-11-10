@@ -3,6 +3,7 @@ import { usePage } from "@inertiajs/react";
 import type { Lead } from "@/Types/api/leads";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import ClickToCallButton from "@/Components/ClickToCallButton";
+import { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
 import { useLeadWorkspace } from "../../context/LeadWorkspaceContext";
 import useLeadNoteCreate from "../../hooks/useLeadNoteCreate";
 import useLeadInfoFieldUpdate from "../../hooks/useLeadInfoFieldUpdate";
@@ -175,9 +176,8 @@ export default function QualifyLeadContextPanel({
     // the plain tel: link to stay usable. The 3cx-calling path uses
     // ClickToCallButton which has its own permission check, so it doesn't need
     // make_softphone_calls here.
-    const softphonePermission = props.auth?.permissions?.make_softphone_calls;
     const softphoneEnabled =
-        (softphonePermission === "all" || softphonePermission === "added") &&
+        canMakeSoftphoneCalls(props.auth?.user, props.auth?.permissions) &&
         props.featureFlags?.["crm.softphone"] === true;
     const threeCxEnabled = props.featureFlags?.["shared.3cx-calling"] === true;
     const telephonyEnabled = softphoneEnabled || threeCxEnabled;

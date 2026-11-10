@@ -15,6 +15,21 @@ import type {
     SoftphoneConfig,
     SoftphoneState,
 } from "@/Types/api/softphone";
+import {
+    buildExplicitMicConstraints,
+    createBoostedMicStream,
+    ensureAudioSenderBitrateUncapped,
+    inspectAndLogRawTrackSettings,
+    preferOpusG722AndApplyFmtp,
+    readStoredMicGain,
+    readStoredMicProfile,
+    readStoredRnnoiseEnabled,
+    storeMicGain,
+    storeMicProfile,
+    storeRnnoiseEnabled,
+    type BoostedMicProcessor,
+    type MicProfileName,
+} from "./micAudioProcessor";
 
 /**
  * Thin SIP.js wrapper that turns sipgate Neo into an in-browser softphone.
@@ -25,6 +40,17 @@ import type {
  * class only manages registration + a single active call and publishes a
  * plain state object the UI subscribes to.
  */
+
+export interface OutboundAudioDiagnostics {
+    trackSettings: MediaTrackSettings | null;
+    trackLabel: string | null;
+    enabled: boolean;
+    muted: boolean;
+    bytesSent: number;
+    packetsSent: number;
+    audioLevel: number | null;
+    codec: string | null;
+}
 
 interface SDHLike {
     peerConnection?: RTCPeerConnection | null;
@@ -135,6 +161,8 @@ class SoftphoneClient {
     private listeners = new Set<Listener>();
     private callSeq = 0;
     private state: SoftphoneState = EMPTY_STATE;
+    private outboundMicProcessor: BoostedMicProcessor | null = null;
+    private rawSenderTrack: MediaStreamTrack | null = null;
 
     subscribe(listener: Listener): () => void {
         this.listeners.add(listener);
@@ -209,7 +237,15 @@ class SoftphoneClient {
 
                 this.config = config;
                 this.setState({ ...EMPTY_STATE, registration: "registering" });
-                const uri = UserAgent.makeURI(config.uri);
+                const rawUri = (config.uri || "").trim();
+                const normalizedUri = /^sips?:/i.test(rawUri)
+                    ? rawUri
+                    : rawUri.includes("@")
+                        ? `sip:${rawUri}`
+                        : config.authorization_username
+                            ? `sip:${config.authorization_username}@sipgate.de`
+                            : `sip:${rawUri}`;
+                const uri = UserAgent.makeURI(normalizedUri);
                 if (!uri) {
                     throw new Error(`Invalid SIP URI: ${config.uri}`);
                 }
@@ -403,7 +439,7 @@ class SoftphoneClient {
             this.reportSetupFailure(target, reason, context);
             throw new Error(
                 this.state.registrationError ||
-                    "Your phone line isn't connected.",
+                "Your phone line isn't connected.",
             );
         }
         if (this.session) {
@@ -437,10 +473,20 @@ class SoftphoneClient {
             throw new Error(`Could not build SIP target: ${sipUri}`);
         }
 
+        const sdpModifier = (desc: RTCSessionDescriptionInit): Promise<RTCSessionDescriptionInit> =>
+            Promise.resolve({
+                ...desc,
+                sdp: preferOpusG722AndApplyFmtp(desc.sdp ?? ""),
+            });
+
         const inviter = new Inviter(this.userAgent, targetUri, {
             sessionDescriptionHandlerOptions: {
-                constraints: { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false }, video: false },
+                constraints: {
+                    audio: buildExplicitMicConstraints(),
+                    video: false,
+                },
             },
+            sessionDescriptionHandlerModifiers: [sdpModifier],
         }) as unknown as ManagedSession;
 
         this.beginCall(inviter, "outbound", target, context);
@@ -498,10 +544,20 @@ class SoftphoneClient {
             if (this.state.call?.id !== answeringCallId) {
                 throw new Error("active call changed during answer");
             }
+            const sdpModifier = (desc: RTCSessionDescriptionInit): Promise<RTCSessionDescriptionInit> =>
+                Promise.resolve({
+                    ...desc,
+                    sdp: preferOpusG722AndApplyFmtp(desc.sdp ?? ""),
+                });
+
             await session.accept({
                 sessionDescriptionHandlerOptions: {
-                    constraints: { audio: true, video: false },
+                    constraints: {
+                        audio: buildExplicitMicConstraints(),
+                        video: false,
+                    },
                 },
+                sessionDescriptionHandlerModifiers: [sdpModifier],
             });
             this.attachRemoteFromSession(session);
             this.refreshRemoteAudio();
@@ -609,7 +665,63 @@ class SoftphoneClient {
                 sender.track.enabled = !muted;
             }
         });
+        if (this.outboundMicProcessor) {
+            this.outboundMicProcessor.track.enabled = !muted;
+        }
+        if (this.rawSenderTrack) {
+            this.rawSenderTrack.enabled = !muted;
+        }
         this.setState({ call: { ...call, muted } });
+    }
+
+    getMicGain(): number {
+        return this.outboundMicProcessor ? this.outboundMicProcessor.getGain() : readStoredMicGain();
+    }
+
+    setMicGain(gain: number): void {
+        storeMicGain(gain);
+        if (this.outboundMicProcessor) {
+            this.outboundMicProcessor.setGain(gain);
+        }
+    }
+
+    getMicProfile(): MicProfileName {
+        return this.outboundMicProcessor ? this.outboundMicProcessor.getProfile() : readStoredMicProfile();
+    }
+
+    setMicProfile(profile: MicProfileName, overrideManualGain?: number): void {
+        storeMicProfile(profile);
+        if (this.outboundMicProcessor) {
+            this.outboundMicProcessor.setProfile(profile, overrideManualGain);
+        }
+    }
+
+    getRnnoiseEnabled(): boolean {
+        return this.outboundMicProcessor
+            ? this.outboundMicProcessor.getRnnoiseEnabled()
+            : readStoredRnnoiseEnabled();
+    }
+
+    setRnnoiseEnabled(enabled: boolean): void {
+        storeRnnoiseEnabled(enabled);
+        if (this.outboundMicProcessor) {
+            this.outboundMicProcessor.setRnnoiseEnabled(enabled);
+        }
+    }
+
+    getRawSendStream(): MediaStream | null {
+        if (!this.rawSenderTrack) {
+            return null;
+        }
+        try {
+            return new MediaStream([this.rawSenderTrack.clone()]);
+        } catch {
+            return null;
+        }
+    }
+
+    getActiveMicProcessor(): BoostedMicProcessor | null {
+        return this.outboundMicProcessor;
     }
 
     setHold(onHold: boolean): void {
@@ -654,13 +766,132 @@ class SoftphoneClient {
         }
     }
 
+    /**
+     * Clones the active outbound audio WebRTC sender track sent to sipgate.
+     * Returning a clone ensures diagnostic recording or level meters can be
+     * stopped or inspected without stopping or mutating the live call track.
+     */
+    getLocalSendStream(): MediaStream | null {
+        if (!this.session) {
+            return null;
+        }
+        const pc = this.peerConnectionOf(this.session);
+        if (!pc) {
+            return null;
+        }
+        const senders = pc.getSenders();
+        const audioSender = senders.find(
+            (sender) => sender.track && sender.track.kind === "audio",
+        );
+        if (!audioSender || !audioSender.track) {
+            return null;
+        }
+        try {
+            return new MediaStream([audioSender.track.clone()]);
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Inspects the outbound audio RTCRtpSender track and pc.getStats()
+     * for WebRTC outbound-rtp / media-source statistics.
+     */
+    async getOutboundAudioDiagnostics(): Promise<OutboundAudioDiagnostics | null> {
+        if (!this.session) {
+            return null;
+        }
+        const pc = this.peerConnectionOf(this.session);
+        if (!pc) {
+            return null;
+        }
+        const senders = pc.getSenders();
+        const audioSender = senders.find(
+            (sender) => sender.track && sender.track.kind === "audio",
+        );
+        const track = audioSender?.track ?? null;
+        const trackSettings = track ? track.getSettings() : null;
+        const trackLabel = track ? track.label : null;
+        const enabled = track ? track.enabled : false;
+        const muted = track ? track.muted : false;
+
+        let bytesSent = 0;
+        let packetsSent = 0;
+        let audioLevel: number | null = null;
+        let codecId: string | null = null;
+        let codec: string | null = null;
+
+        try {
+            const stats = await pc.getStats();
+            stats.forEach((report: Record<string, unknown>) => {
+                if (
+                    report.type === "outbound-rtp" &&
+                    (report.kind === "audio" || report.mediaType === "audio")
+                ) {
+                    bytesSent = Number(report.bytesSent || 0);
+                    packetsSent = Number(report.packetsSent || 0);
+                    if (report.codecId && typeof report.codecId === "string") {
+                        codecId = report.codecId;
+                    }
+                    if (typeof report.audioLevel === "number") {
+                        audioLevel = report.audioLevel;
+                    }
+                }
+                if (
+                    report.type === "media-source" &&
+                    (report.kind === "audio" || report.mediaType === "audio")
+                ) {
+                    if (typeof report.audioLevel === "number") {
+                        audioLevel = report.audioLevel;
+                    }
+                }
+            });
+
+            if (codecId && stats.has(codecId)) {
+                const codecReport = stats.get(codecId) as
+                    | Record<string, unknown>
+                    | undefined;
+                if (codecReport && typeof codecReport.mimeType === "string") {
+                    codec = codecReport.mimeType;
+                }
+            }
+            if (!codec) {
+                stats.forEach((report: Record<string, unknown>) => {
+                    if (
+                        report.type === "codec" &&
+                        typeof report.mimeType === "string" &&
+                        report.mimeType.toLowerCase().includes("audio")
+                    ) {
+                        codec = report.mimeType;
+                    }
+                });
+            }
+            if (codec && this.outboundMicProcessor) {
+                this.outboundMicProcessor.setNegotiatedCodec(codec);
+            }
+        } catch {
+            // stats query error or pc closing
+        }
+
+        return {
+            trackSettings,
+            trackLabel,
+            enabled,
+            muted,
+            bytesSent,
+            packetsSent,
+            audioLevel,
+            codec,
+        };
+    }
+
     // --- internals -------------------------------------------------------
 
-/**
-     * INVITE progress. sip.js 0.21 has no session state for either of these, so
-     * this is where an outbound call learns that the far end started ringing and
-     * — when it never connects — why.
-     */
+    /**
+         * INVITE progress. sip.js 0.21 has no session state for either of these, so
+         * this is where an outbound call learns that the far end started ringing and
+         * — when it never connects — why.
+         */
     private inviteDelegate() {
         return {
             onProgress: (response: { statusCode?: number; message?: { statusCode?: number } }) => {
@@ -690,7 +921,7 @@ class SoftphoneClient {
      * call live). There is no session to tear down, so this writes the notice
      * straight into state — otherwise the agent gets no explanation.
      */
-    private reportSetupFailure(
+    public reportSetupFailure(
         peer: string,
         reason: string,
         context: SoftphoneCallContext | null,
@@ -914,6 +1145,17 @@ class SoftphoneClient {
         if (!call || call.stage === stage) {
             return;
         }
+        if (stage === "connected" && this.outboundMicProcessor) {
+            const ctxState = this.outboundMicProcessor.audioContext.state;
+            if (ctxState !== "running") {
+                console.warn(
+                    `[softphone] WARNING: Outbound mic AudioContext state is "${ctxState}" (not "running") when call connected. Attempting resume...`,
+                );
+                void this.outboundMicProcessor.ensureRunning();
+            }
+            // Step 2: Check negotiated codec from getStats() when connected so PCMU/PCMA switches lowpass to 3600 Hz
+            void this.getOutboundAudioDiagnostics();
+        }
         this.setState({
             call: {
                 ...call,
@@ -960,6 +1202,11 @@ class SoftphoneClient {
 
     private endCall(): void {
         this.session = null;
+        if (this.outboundMicProcessor) {
+            this.outboundMicProcessor.dispose();
+            this.outboundMicProcessor = null;
+        }
+        this.rawSenderTrack = null;
         if (this.remoteAudio) {
             const audio = this.remoteAudio;
             try {
@@ -988,6 +1235,7 @@ class SoftphoneClient {
             trace("softphone attachRemoteFromSession: no peer connection");
             return;
         }
+        void this.applyOutboundMicBoost(session);
         trace("softphone attachRemoteFromSession: pc", pc.connectionState, pc.iceConnectionState);
         pc.addEventListener("iceconnectionstatechange", () => {
             trace("softphone iceConnectionState", pc.iceConnectionState);
@@ -1060,7 +1308,64 @@ class SoftphoneClient {
             .forEach(fn);
     }
 
+    private async applyOutboundMicBoost(session: ManagedSession): Promise<void> {
+        const pc = this.peerConnectionOf(session);
+        if (!pc) {
+            return;
+        }
+
+        let isBoosting = false;
+        const findAndBoost = async () => {
+            if (this.session !== session || isBoosting) {
+                return;
+            }
+            const sender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
+            if (!sender || !sender.track) {
+                return;
+            }
+
+            // Already boosted this sender track
+            if (this.outboundMicProcessor && this.outboundMicProcessor.track.id === sender.track.id) {
+                return;
+            }
+
+            isBoosting = true;
+            try {
+                const rawTrack = sender.track;
+                this.rawSenderTrack = rawTrack;
+                const rawStream = new MediaStream([rawTrack]);
+
+                const processor = createBoostedMicStream(rawStream);
+                if (this.outboundMicProcessor) {
+                    this.outboundMicProcessor.dispose();
+                }
+                this.outboundMicProcessor = processor;
+                await processor.ensureRunning();
+                inspectAndLogRawTrackSettings(rawTrack, undefined, processor.audioContext.state);
+
+                try {
+                    await sender.replaceTrack(processor.track);
+                    await ensureAudioSenderBitrateUncapped(sender);
+                    trace("softphone outbound mic boost applied to sender");
+                } catch (err) {
+                    console.warn("[softphone] replaceTrack with boosted mic failed:", err);
+                }
+            } finally {
+                isBoosting = false;
+            }
+        };
+
+        void findAndBoost();
+        setTimeout(() => void findAndBoost(), 250);
+        setTimeout(() => void findAndBoost(), 1000);
+    }
+
     private async teardown(): Promise<void> {
+        if (this.outboundMicProcessor) {
+            this.outboundMicProcessor.dispose();
+            this.outboundMicProcessor = null;
+        }
+        this.rawSenderTrack = null;
         try {
             await this.registerer?.unregister();
         } catch {
