@@ -65,6 +65,9 @@ return [
         'crm.mobile-responsive-layout',
         'crm.property-completeness-score',
         'crm.email',
+        // Agent workspace at /agent (Today, contact page, destinations). Master switch on top of the
+        // per-user access list in Settings → Agent workspace access (lead agents by default).
+        'crm.agent-workspace',
     ],
 
     /*
@@ -92,5 +95,6 @@ return [
     'local_overrides' => [
         'crm.sally-insights-tab' => true,
         'callbridge.integrations' => true,
+        'crm.agent-workspace' => true,
     ],
 ];

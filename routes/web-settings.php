@@ -6,6 +6,7 @@ use App\Email\Http\Controllers\MailboxSettingsController;
 use App\Email\Http\Controllers\PilotAllowlistSettingsController;
 use App\Email\Http\Middleware\EnsureEmailEnabled;
 use App\Email\Http\Middleware\EnsureEmailPilot;
+use App\Http\Controllers\AgentWorkspace\AgentWorkspaceAccessController;
 use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\AttendanceSettingController;
@@ -115,6 +116,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('company-dashboard-access', [CompanyDashboardAccessController::class, 'index'])->name('company-dashboard-access.index');
     Route::post('company-dashboard-access', [CompanyDashboardAccessController::class, 'store'])->name('company-dashboard-access.store');
     Route::delete('company-dashboard-access/{userId}', [CompanyDashboardAccessController::class, 'destroy'])->whereNumber('userId')->name('company-dashboard-access.destroy');
+
+    /* Agent workspace access list (crm.agent-workspace + admin; 404 while the flag is off) */
+    Route::get('agent-workspace-access', [AgentWorkspaceAccessController::class, 'index'])->name('agent-workspace-access.index');
+    Route::post('agent-workspace-access', [AgentWorkspaceAccessController::class, 'store'])->name('agent-workspace-access.store');
+    Route::delete('agent-workspace-access/{userId}', [AgentWorkspaceAccessController::class, 'destroy'])->whereNumber('userId')->name('agent-workspace-access.destroy');
 
     /* Automation settings — email templates + trigger-based automations */
     Route::get('automation', [AutomationSettingController::class, 'index'])->name('settings-automation.index');
