@@ -104,6 +104,7 @@ class AgentWorkspaceAccessController extends AccountBaseController
 
         $leadAgentIds = LeadAgent::query()
             ->withoutGlobalScopes()
+            ->where('company_id', company()->id)
             ->whereIn('user_id', $rows->pluck('user_id'))
             ->where('status', 'enabled')
             ->where('is_partner', false)
