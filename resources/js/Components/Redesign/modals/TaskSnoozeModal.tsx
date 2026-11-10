@@ -45,7 +45,7 @@ const CUSTOM_KEY = "custom";
 const CALENDAR_PATH =
     "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z";
 
-interface SnoozeModalProps {
+interface TaskSnoozeModalProps {
     open: boolean;
     /** What's being snoozed, shown as the modal's subtitle. */
     taskName?: string;
@@ -91,13 +91,13 @@ function Spinner({ color = "currentColor" }: { color?: string }) {
  * underneath is already updated optimistically, this is only so the click
  * itself doesn't feel like it went nowhere.
  */
-export default function SnoozeModal({
+export default function TaskSnoozeModal({
     open,
     taskName,
     snoozing,
     onClose,
     onSelect,
-}: SnoozeModalProps) {
+}: TaskSnoozeModalProps) {
     const { t } = useTranslation();
     const today = dayjs().format("YYYY-MM-DD");
     const [pendingDate, setPendingDate] = useState<string | null>(null);
@@ -142,7 +142,7 @@ export default function SnoozeModal({
                         <button
                             key={option.key}
                             type="button"
-                            className="dv2-snooze-option"
+                            className="dr-snooze-option"
                             disabled={pendingKey !== null}
                             onClick={() => choose(option.key, date)}
                         >
@@ -195,7 +195,7 @@ export default function SnoozeModal({
                 })}
 
                 <div
-                    className="dv2-snooze-option"
+                    className="dr-snooze-option"
                     style={{
                         cursor: "default",
                         ...(pendingDate

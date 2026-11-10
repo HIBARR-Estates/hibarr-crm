@@ -7,7 +7,7 @@ import RescheduleMeetingModal, {
     type RescheduleMeetingSubmitPayload,
 } from "@/Components/Redesign/modals/RescheduleMeetingModal";
 import { buildRescheduleFormFromFollowup } from "@/Pages/Deals/Redesign/components/workspace/meetingFormUtils";
-import useDashboardMeetingReschedule from "../hooks/useDashboardMeetingReschedule";
+import useMeetingReschedule from "../hooks/useMeetingReschedule";
 
 interface MeetingActionModalsProps {
     meeting: DealFollowup | null;
@@ -34,7 +34,7 @@ export default function MeetingActionModals({
 }: MeetingActionModalsProps) {
     const { t } = useTranslation();
     const { rescheduleMeeting, isRescheduling, errors, clearErrors } =
-        useDashboardMeetingReschedule(meeting?.id ?? null, reloadKeys);
+        useMeetingReschedule(meeting?.id ?? null, reloadKeys);
 
     const rescheduleNested = ({
         rescheduleOpen,
