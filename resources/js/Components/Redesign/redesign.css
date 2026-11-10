@@ -518,3 +518,36 @@
         transform: none;
     }
 }
+
+/* TaskSnoozeModal's date options. Unscoped: Modal portals to document.body. */
+.dr-snooze-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--dr-border);
+    border-radius: 8px;
+    background: var(--dr-surface);
+    cursor: pointer;
+    text-align: left;
+    transition:
+        background 0.12s,
+        border-color 0.12s;
+}
+
+.dr-snooze-option:hover {
+    background: var(--dr-bg);
+    border-color: var(--dr-navy-mid);
+}
+
+.dr-snooze-option:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 1px;
+}
+
+@media (max-width: 639px) {
+    .dr-snooze-option {
+        min-height: 44px;
+    }
+}

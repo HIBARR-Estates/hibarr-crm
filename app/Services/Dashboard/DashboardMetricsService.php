@@ -2,6 +2,7 @@
 
 namespace App\Services\Dashboard;
 
+use App\Email\FollowUps\FollowUpLinker;
 use App\Enums\MeetingAttendanceOutcome;
 use App\Enums\MlmCommissionStatus;
 use App\Enums\MlmCommissionType;
@@ -348,8 +349,6 @@ class DashboardMetricsService
 
         $tasks = $tasksQuery->get();
 
-        $related = $this->relatedRecords($tasks->pluck('id')->all());
-
         // One aggregate query instead of three separate counts — same
         // `pending()` base, only the due_date bucket differs.
         $dueCounts = $pending()
@@ -363,17 +362,7 @@ class DashboardMetricsService
             ->first();
 
         return [
-            'tasks' => $tasks
-                ->map(function (Task $task) use ($related, $today, $useRedesignedTasks) {
-                    $due = Carbon::parse($task->due_date)->startOfDay();
-                    $base = $useRedesignedTasks ? TaskPresenter::present($task) : $task->toFrontendArray();
-
-                    return $base + [
-                        'days_overdue' => $due->lessThan($today) ? (int) $today->diffInDays($due) : 0,
-                        'related' => $related[$task->id] ?? null,
-                    ];
-                })
-                ->all(),
+            'tasks' => $this->presentQueueTasks($tasks, $useRedesignedTasks),
             'counts' => [
                 // Overdue is deliberately unbounded below: something six months
                 // late is the most urgent row on the page, not the least.
@@ -386,6 +375,81 @@ class DashboardMetricsService
                 'deals' => $this->dealsWithoutNextStep($this->agentIdsForUser($userId))?->count() ?? 0,
             ],
         ];
+    }
+
+    /**
+     * The user's pending tasks due inside [$from, $to], in the queue's row
+     * shape and due-date order. Today in the agent workspace uses it for the
+     * day's timed tasks: those must not depend on the queue's row cap, which
+     * a long overdue backlog fills before today is reached.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function personalTasksBetween(int $userId, CarbonInterface $from, CarbonInterface $to, int $limit = 50): array
+    {
+        $useRedesignedTasks = FeatureFlags::enabled('crm.tasks-workspace-redesign');
+
+        $query = Task::query()
+            ->pending()
+            ->visibleToUser($userId)
+            ->whereBetween('due_date', $this->storageWindow($from, $to))
+            ->with($useRedesignedTasks ? TaskPresenter::RELATIONS : ['users:id,name,image', 'boardColumn:id,slug,column_name'])
+            ->orderBy('due_date')
+            ->limit($limit);
+
+        if ($useRedesignedTasks) {
+            $query->withCount(TaskPresenter::COUNTS);
+        }
+
+        return $this->presentQueueTasks($query->get(), $useRedesignedTasks);
+    }
+
+    /**
+     * Bounds for a whereBetween on a stored instant. The query builder writes
+     * a Carbon out in its own zone, so a window built in the viewer's zone
+     * (their "today") is moved into the app's zone first.
+     *
+     * @return array{0: CarbonInterface, 1: CarbonInterface}
+     */
+    private function storageWindow(CarbonInterface $from, CarbonInterface $to): array
+    {
+        $zone = config('app.timezone');
+
+        return [$from->copy()->setTimezone($zone), $to->copy()->setTimezone($zone)];
+    }
+
+    /**
+     * Queue rows: the task in the shape its modal opens, plus how late it is
+     * and the lead or deal it hangs off.
+     *
+     * The email each task came from is looked up for all rows at once first;
+     * both row shapes otherwise ask for it one task at a time (two queries per
+     * row).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function presentQueueTasks(Collection $tasks, bool $useRedesignedTasks): array
+    {
+        if ($tasks->isEmpty()) {
+            return [];
+        }
+
+        $today = now()->startOfDay();
+        $related = $this->relatedRecords($tasks->pluck('id')->all());
+        app(FollowUpLinker::class)->decorateSourceUuids($tasks);
+
+        return $tasks
+            ->map(function (Task $task) use ($related, $today, $useRedesignedTasks) {
+                $due = Carbon::parse($task->due_date)->startOfDay();
+                $base = $useRedesignedTasks ? TaskPresenter::present($task) : $task->toFrontendArray();
+
+                return $base + [
+                    'days_overdue' => $due->lessThan($today) ? (int) $today->diffInDays($due) : 0,
+                    'related' => $related[$task->id] ?? null,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**
@@ -624,11 +688,25 @@ class DashboardMetricsService
      */
     public function upcomingMeetings(int $userId, int $limit = 12): array
     {
+        return $this->meetingsBetween(
+            $userId,
+            now(),
+            now()->addDays(self::PERSONAL_WINDOW_DAYS)->endOfDay(),
+            $limit
+        );
+    }
+
+    /**
+     * The user's meetings starting inside [$from, $to], earliest first, in the
+     * agenda's row shape. Held and still-open meetings both count; cancelled
+     * ones never do (see followUpQuery()).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function meetingsBetween(int $userId, CarbonInterface $from, CarbonInterface $to, int $limit = 50): array
+    {
         $followUps = $this->followUpQuery($userId)
-            ->whereBetween('next_follow_up_date', [
-                now(),
-                now()->addDays(self::PERSONAL_WINDOW_DAYS)->endOfDay(),
-            ])
+            ->whereBetween('next_follow_up_date', $this->storageWindow($from, $to))
             ->orderBy('next_follow_up_date')
             ->limit($limit)
             ->get();

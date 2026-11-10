@@ -27,7 +27,7 @@ interface PersonalTaskCreateModalProps {
  * The same TaskRedesignFormModal every other embed uses, in create mode with
  * no locked link — this page isn't scoped to one lead or deal, so unlike the
  * Deal/Lead workspace tabs there's nothing to pre-attach. Behind
- * crm.tasks-workspace-redesign only; see PersonalTaskModal's own note on why
+ * crm.tasks-workspace-redesign only; see QueueTaskModal's own note on why
  * the older SaveTaskModal fallback isn't wired here — it needs labels/
  * projects/a full user list this page doesn't fetch, for a page whose whole
  * task-modal integration already assumes the flag everywhere else.

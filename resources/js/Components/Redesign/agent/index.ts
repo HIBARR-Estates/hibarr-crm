@@ -6,5 +6,13 @@ export { default as AgentViewSwitch } from "./AgentViewSwitch";
 export { default as AgentAccountMenu } from "./AgentAccountMenu";
 export { AGENT_DESTINATIONS, AGENT_HOME_URL, CLASSIC_HOME_URL, activeDestinationKey } from "./destinations";
 export type { AgentDestination } from "./destinations";
-export { TIME_STATE_COLORS } from "./timeState";
+export {
+    TIME_STATE_COLORS,
+    dayKeyIn,
+    hasDueTime,
+    meetingTimeState,
+    taskTimeState,
+    wallClockToMs,
+} from "./timeState";
+export { default as useMinuteClock } from "./useMinuteClock";
 export type { TimeState, TimeStateColors } from "./timeState";
