@@ -8,6 +8,9 @@ use App\Models\TaskboardColumn;
 use App\Models\TaskCategory;
 use App\Services\Dashboard\DashboardMetricsService;
 use App\Support\UserTimezone;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,6 +22,15 @@ use Inertia\Response;
  */
 class AgentWorkspaceController extends AccountBaseController
 {
+    /**
+     * Longest span one agenda request may cover: a month grid shows six
+     * weeks at most (the days before the 1st and after the last).
+     */
+    public const AGENDA_MAX_DAYS = 42;
+
+    /** Rows per kind in one agenda response; a month of a busy agent fits well inside. */
+    public const AGENDA_ROWS = 300;
+
     public function __construct()
     {
         parent::__construct();
@@ -61,9 +73,8 @@ class AgentWorkspaceController extends AccountBaseController
 
             // The viewer's own calendar day, not the server's: the schedule
             // answers "what is on today" for the person reading it.
-            'schedule' => Inertia::defer(function () use ($metrics, $user, $userId) {
-                $company = company();
-                $zone = UserTimezone::forViewer($user, $company instanceof Company ? $company : null);
+            'schedule' => Inertia::defer(function () use ($metrics, $userId) {
+                $zone = $this->viewerZone();
                 $start = now($zone)->startOfDay();
                 $end = now($zone)->endOfDay();
 
@@ -73,5 +84,47 @@ class AgentWorkspaceController extends AccountBaseController
                 ];
             }, 'schedule'),
         ]);
+    }
+
+    /**
+     * Today › Agenda: the viewer's meetings and pending tasks for the days
+     * the agenda shows (a list of seven days, a week or a month grid).
+     *
+     * A JSON read rather than a deferred prop: moving between weeks or
+     * months is client-side, and the page caches each range and fetches the
+     * next one ahead, so going forward or back is instant. Dates are days in
+     * the viewer's own zone, like Today's schedule.
+     */
+    public function agenda(Request $request, DashboardMetricsService $metrics): JsonResponse
+    {
+        $validated = $request->validate([
+            'from' => ['required', 'date_format:Y-m-d'],
+            'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
+        ]);
+
+        $zone = $this->viewerZone();
+        $from = Carbon::createFromFormat('Y-m-d', $validated['from'], $zone)->startOfDay();
+        $to = Carbon::createFromFormat('Y-m-d', $validated['to'], $zone)->endOfDay();
+
+        if ($from->diffInDays($to) >= self::AGENDA_MAX_DAYS) {
+            return response()->json([
+                'message' => __('pages.agent_workspace.agenda.range_too_long', ['days' => self::AGENDA_MAX_DAYS]),
+            ], 422);
+        }
+
+        $userId = (int) user()->id;
+
+        return response()->json([
+            'meetings' => $metrics->meetingsBetween($userId, $from, $to, self::AGENDA_ROWS),
+            'tasks' => $metrics->personalTasksBetween($userId, $from, $to, self::AGENDA_ROWS),
+        ]);
+    }
+
+    /** The zone the viewer reads days in: theirs, else the company's. */
+    private function viewerZone(): string
+    {
+        $company = company();
+
+        return UserTimezone::forViewer(user(), $company instanceof Company ? $company : null);
     }
 }

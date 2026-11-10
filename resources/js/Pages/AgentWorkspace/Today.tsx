@@ -1,7 +1,15 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Deferred, Head } from "@inertiajs/react";
-import { AgentWorkspaceLayout, useMinuteClock } from "@/Components/Redesign/agent";
+import { Deferred, Head, router } from "@inertiajs/react";
+import {
+    AgentPillRow,
+    AgentSecondRow,
+    AgentWorkspaceLayout,
+    agentPillPanelProps,
+    dayKeyIn,
+    useMinuteClock,
+} from "@/Components/Redesign/agent";
 import Segmented from "@/Components/Redesign/primitives/Segmented";
+import useMeetingAttendanceConfirmationFlag from "@/Hooks/useMeetingAttendanceConfirmationFlag";
 import useTranslation from "@/Hooks/useTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
@@ -19,7 +27,13 @@ import type {
     TodaySchedule as TodayScheduleData,
 } from "./today/types";
 import useTodayWork, { MEETING_RELOAD_KEYS } from "./today/useTodayWork";
+import Agenda from "./agenda/Agenda";
+import AgendaHeader from "./agenda/AgendaHeader";
+import { useAgendaOutcomes } from "./agenda/OutcomePanel";
+import { AGENDA_VIEWS, isDayKey, shiftDate, type AgendaView } from "./agenda/range";
+import useAgendaData from "./agenda/useAgendaData";
 import "./today/today.css";
+import "./agenda/agenda.css";
 
 // Opened on demand, so their code (and the task and meeting modals behind
 // them) stays out of the first load. Warmed once the page is idle.
@@ -48,6 +62,28 @@ interface TodayProps {
 }
 
 type Panel = "work" | "schedule";
+type Tab = "work" | "agenda";
+
+function readUrl() {
+    const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
+    const view = params.get("view") as AgendaView | null;
+    const date = params.get("date");
+    return {
+        tab: (params.get("tab") === "agenda" ? "agenda" : "work") as Tab,
+        view: view && AGENDA_VIEWS.includes(view) ? view : ("list" as AgendaView),
+        date: isDayKey(date) ? date : null,
+    };
+}
+
+/** Keeps the pill, the agenda's view and its date in the URL without a visit. */
+function writeUrl(changes: Record<string, string | null>) {
+    const url = new URL(window.location.href);
+    for (const [key, value] of Object.entries(changes)) {
+        if (value === null) url.searchParams.delete(key);
+        else url.searchParams.set(key, value);
+    }
+    window.history.replaceState(window.history.state, "", url);
+}
 
 /** Hour of the day in `timeZone` (the browser's own when empty), like the rest of the app. */
 function hourIn(nowMs: number, timeZone: string): number {
@@ -97,11 +133,51 @@ export default function Today({
     const firstName = userName.split(" ")[0] ?? userName;
 
     const [panel, setPanel] = useState<Panel>(panelFromUrl);
+    const today = dayKeyIn(nowMs, timezone);
+    const [tab, setTab] = useState<Tab>(() => readUrl().tab);
+    const [agendaView, setAgendaView] = useState<AgendaView>(() => readUrl().view);
+    const [agendaDate, setAgendaDate] = useState<string | null>(() => readUrl().date);
+    const date = agendaDate ?? today;
     const [openTask, setOpenTask] = useState<Task | null>(null);
     const [openMeeting, setOpenMeeting] = useState<ScheduleEntry | null>(null);
     const [snoozeTask, setSnoozeTask] = useState<QueueTask | null>(null);
 
-    const work = useTodayWork({ queue, schedule, windowDays, timeZone: timezone, nowMs });
+    const agenda = useAgendaData(agendaView, date, tab === "agenda");
+    const outcomesEnabled = useMeetingAttendanceConfirmationFlag();
+    const outcomes = useAgendaOutcomes(outcomesEnabled && tab === "agenda", () => {
+        void agenda.refresh();
+        router.reload({ only: MEETING_RELOAD_KEYS });
+    });
+    const work = useTodayWork({
+        queue,
+        schedule,
+        agenda: agenda.data,
+        windowDays,
+        timeZone: timezone,
+        nowMs,
+        onSaved: agenda.refresh,
+    });
+
+    const chooseTab = useCallback(
+        (next: Tab) => {
+            setTab(next);
+            writeUrl(
+                next === "agenda"
+                    ? { tab: "agenda", view: agendaView === "list" ? null : agendaView, date: agendaDate }
+                    : { tab: null, view: null, date: null },
+            );
+        },
+        [agendaView, agendaDate],
+    );
+
+    const navigateAgenda = useCallback(
+        (view: AgendaView, nextDate: string) => {
+            setAgendaView(view);
+            setAgendaDate(nextDate === today ? null : nextDate);
+            writeUrl({ view: view === "list" ? null : view, date: nextDate === today ? null : nextDate });
+        },
+        [today],
+    );
 
     useEffect(() => {
         const warm = () => {
@@ -138,6 +214,12 @@ export default function Today({
         [Math.floor(nowMs / 3_600_000), locale, timezone],
     );
 
+    const meetingHandlers = {
+        onOpenMeeting: setOpenMeeting,
+        onMarkHeld: work.markHeld,
+        isMarkingHeld: work.isHeldPending,
+    };
+
     const handlers: TaskHandlers = {
         nowMs,
         timeZone: timezone,
@@ -151,66 +233,108 @@ export default function Today({
     return (
         <>
             <Head title={pageTitle} />
-            <div className="agent-today" data-panel={panel}>
-                <TodayHeader
-                    greeting={t(greetingKey(hourIn(nowMs, timezone)), { name: firstName })}
-                    dateLabel={dateLabel}
-                    userId={userId}
-                    nowMs={nowMs}
-                    timeZone={timezone}
-                    queue={work.queue}
-                    schedule={work.schedule}
-                    stats={stats}
-                    commission={commission}
-                    openDeals={openDeals}
+            <AgentSecondRow>
+                <AgentPillRow<Tab>
+                    pills={[
+                        { key: "work", label: t("pages.agent_workspace.today.work_tab") },
+                        { key: "agenda", label: t("pages.agent_workspace.agenda.tab") },
+                    ]}
+                    active={tab}
+                    onChange={chooseTab}
+                    ariaLabel={t("pages.agent_workspace.today.title")}
+                    idPrefix="agent-today"
                 />
-
-                <div className="agent-today__switch">
-                    <Segmented<Panel>
-                        value={panel}
-                        onChange={choosePanel}
-                        variant="raised"
-                        fullWidth
-                        ariaLabel={t("pages.agent_workspace.today.panels_label")}
-                        options={[
-                            {
-                                value: "work",
-                                label: t("pages.agent_workspace.today.work_tab"),
-                                count: work.queue ? work.queue.counts.overdue + work.queue.counts.today + work.queue.counts.later : undefined,
-                            },
-                            {
-                                value: "schedule",
-                                label: t("pages.agent_workspace.today.schedule_tab"),
-                                count: work.schedule ? work.schedule.meetings.length : undefined,
-                            },
-                        ]}
+            </AgentSecondRow>
+            {tab === "agenda" ? (
+                <div className="agent-today agent-today--agenda" {...agentPillPanelProps("agent-today", "agenda")}>
+                    <AgendaHeader
+                        view={agendaView}
+                        date={date}
+                        today={today}
+                        range={agenda.range}
+                        data={agenda.current ? work.agenda : undefined}
+                        needOutcome={outcomesEnabled ? outcomes.items.length : undefined}
+                        nowMs={nowMs}
+                        timeZone={timezone}
+                        onNavigate={navigateAgenda}
+                        onStep={(direction) => navigateAgenda(agendaView, shiftDate(agendaView, date, direction))}
+                    />
+                    <Agenda
+                        view={agendaView}
+                        date={date}
+                        today={today}
+                        range={agenda.dataRange}
+                        data={work.agenda}
+                        loading={agenda.loading}
+                        updating={agenda.updating}
+                        failed={agenda.failed}
+                        onRetry={() => void agenda.retry()}
+                        onSelectDay={(day) => navigateAgenda(agendaView, day)}
+                        handlers={handlers}
+                        meetingHandlers={meetingHandlers}
+                        outcomes={outcomes}
                     />
                 </div>
+            ) : (
+                <div className="agent-today" data-panel={panel} {...agentPillPanelProps("agent-today", "work")}>
+                    <TodayHeader
+                        greeting={t(greetingKey(hourIn(nowMs, timezone)), { name: firstName })}
+                        dateLabel={dateLabel}
+                        userId={userId}
+                        nowMs={nowMs}
+                        timeZone={timezone}
+                        queue={work.queue}
+                        schedule={work.schedule}
+                        stats={stats}
+                        commission={commission}
+                        openDeals={openDeals}
+                    />
 
-                <div className="agent-today__grid">
-                    <div className="agent-today__work" aria-label={t("pages.agent_workspace.today.work_tab")} role="region">
-                        <Deferred data="queue" fallback={<TaskQueueSkeleton />}>
-                            {work.queue ? <TaskQueue queue={work.queue} windowDays={windowDays} handlers={handlers} /> : <TaskQueueSkeleton />}
-                        </Deferred>
+                    <div className="agent-today__switch">
+                        <Segmented<Panel>
+                            value={panel}
+                            onChange={choosePanel}
+                            variant="raised"
+                            fullWidth
+                            ariaLabel={t("pages.agent_workspace.today.panels_label")}
+                            options={[
+                                {
+                                    value: "work",
+                                    label: t("pages.agent_workspace.today.work_tab"),
+                                    count: work.queue ? work.queue.counts.overdue + work.queue.counts.today + work.queue.counts.later : undefined,
+                                },
+                                {
+                                    value: "schedule",
+                                    label: t("pages.agent_workspace.today.schedule_tab"),
+                                    count: work.schedule ? work.schedule.meetings.length : undefined,
+                                },
+                            ]}
+                        />
                     </div>
-                    <aside className="agent-today__schedule" aria-label={t("pages.agent_workspace.today.schedule_tab")}>
-                        <Deferred data="schedule" fallback={<TodayScheduleSkeleton />}>
-                            {work.schedule ? (
-                                <TodaySchedule
-                                    schedule={work.schedule}
-                                    dateLabel={dateLabel}
-                                    handlers={handlers}
-                                    onOpenMeeting={setOpenMeeting}
-                                    onMarkHeld={work.markHeld}
-                                    isMarkingHeld={work.isHeldPending}
-                                />
-                            ) : (
-                                <TodayScheduleSkeleton />
-                            )}
-                        </Deferred>
-                    </aside>
+
+                    <div className="agent-today__grid">
+                        <div className="agent-today__work" aria-label={t("pages.agent_workspace.today.work_tab")} role="region">
+                            <Deferred data="queue" fallback={<TaskQueueSkeleton />}>
+                                {work.queue ? <TaskQueue queue={work.queue} windowDays={windowDays} handlers={handlers} /> : <TaskQueueSkeleton />}
+                            </Deferred>
+                        </div>
+                        <aside className="agent-today__schedule" aria-label={t("pages.agent_workspace.today.schedule_tab")}>
+                            <Deferred data="schedule" fallback={<TodayScheduleSkeleton />}>
+                                {work.schedule ? (
+                                    <TodaySchedule
+                                        schedule={work.schedule}
+                                        dateLabel={dateLabel}
+                                        handlers={handlers}
+                                        {...meetingHandlers}
+                                    />
+                                ) : (
+                                    <TodayScheduleSkeleton />
+                                )}
+                            </Deferred>
+                        </aside>
+                    </div>
                 </div>
-            </div>
+            )}
 
             <Suspense fallback={null}>
                 {openTask ? (
@@ -228,7 +352,10 @@ export default function Today({
                             work.completeTask(task);
                             setOpenTask(null);
                         }}
-                        onChanged={work.reloadTasks}
+                        onChanged={() => {
+                            work.reloadTasks();
+                            void agenda.refresh();
+                        }}
                     />
                 ) : null}
                 {openMeeting ? (
@@ -241,6 +368,7 @@ export default function Today({
                         }}
                         markingHeld={work.isHeldPending(openMeeting.id)}
                         reloadKeys={MEETING_RELOAD_KEYS}
+                        onRescheduled={() => void agenda.refresh()}
                     />
                 ) : null}
                 {snoozeTask ? (

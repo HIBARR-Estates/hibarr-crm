@@ -16,6 +16,8 @@ interface MeetingActionModalsProps {
     markingHeld?: boolean;
     /** Deferred props to re-resolve after a reschedule — the host page's. */
     reloadKeys: string[];
+    /** After a reschedule saves, for data the host keeps outside its deferred props. */
+    onRescheduled?: () => void;
 }
 
 /**
@@ -31,6 +33,7 @@ export default function MeetingActionModals({
     onMarkHeld,
     markingHeld = false,
     reloadKeys,
+    onRescheduled,
 }: MeetingActionModalsProps) {
     const { t } = useTranslation();
     const { rescheduleMeeting, isRescheduling, errors, clearErrors } =
@@ -51,7 +54,12 @@ export default function MeetingActionModals({
                 saving={isRescheduling}
                 errors={errors}
                 clearErrors={clearErrors}
-                onSubmit={(payload, done) => rescheduleMeeting(payload, done)}
+                onSubmit={(payload, done) =>
+                    rescheduleMeeting(payload, () => {
+                        done?.();
+                        onRescheduled?.();
+                    })
+                }
                 labels={{
                     title: t(
                         "pages.deals.workspace.meetings.reschedule_meeting",

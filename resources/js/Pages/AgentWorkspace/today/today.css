@@ -10,6 +10,17 @@
 .agent-ts--none { --ts-bg: var(--dr-time-none-bg); --ts-border: var(--dr-time-none-border); --ts-text: var(--dr-time-none-text); --ts-solid: var(--dr-time-none-solid); }
 .agent-ts--done { --ts-bg: var(--dr-time-done-bg); --ts-border: var(--dr-time-done-border); --ts-text: var(--dr-time-done-text); --ts-solid: var(--dr-time-done-solid); }
 
+/* ---------- band: dock, the My work | Agenda pills, then the header ---------- */
+.agent-ws:has(.agent-today) {
+    --agent-band-height: 304px;
+}
+
+@media (max-width: 1023px) {
+    .agent-ws:has(.agent-today) {
+        --agent-band-height: 264px;
+    }
+}
+
 /* ---------- header on the band ---------- */
 .agent-today__top {
     display: flex;
@@ -501,7 +512,11 @@
 @media (max-width: 639px) {
     /* The header wraps to more lines here; keep the chips on the navy band. */
     .agent-ws:has(.agent-today) {
-        --agent-band-height: 222px;
+        --agent-band-height: 266px;
+    }
+
+    .agent-ws:has(.agent-today--agenda) {
+        --agent-band-height: 232px;
     }
 
     .agent-today__top {
