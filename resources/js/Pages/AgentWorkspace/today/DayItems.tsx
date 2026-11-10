@@ -1,3 +1,4 @@
+import { Link } from "@inertiajs/react";
 import { useMemo } from "react";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
@@ -128,7 +129,7 @@ function MeetingItem({
     const record = meeting.deal_id
         ? { href: route("deals.show", meeting.deal_id), label: t("pages.agent_workspace.agenda.open_deal") }
         : meeting.lead_id
-          ? { href: route("lead-contact.show", meeting.lead_id), label: t("pages.agent_workspace.agenda.open_lead") }
+          ? { href: route("agent.people.show", meeting.lead_id), label: t("pages.agent_workspace.agenda.open_lead") }
           : null;
     const recordLink = showRecordLink && record;
 
@@ -165,9 +166,9 @@ function MeetingItem({
                             </Button>
                         ) : null}
                         {recordLink ? (
-                            <a className="dr-btn dr-btn-ghost" href={record.href}>
+                            <Link className="dr-btn dr-btn-ghost" href={record.href}>
                                 {record.label}
-                            </a>
+                            </Link>
                         ) : null}
                     </div>
                 ) : null}
@@ -221,11 +222,11 @@ function TaskItem({ task, handlers, showRecordLink }: { task: QueueTask; handler
                         onReschedule={() => handlers.onReschedule(task)}
                     />
                     {showRecordLink && task.related ? (
-                        <a className="dr-btn dr-btn-ghost" href={recordHref(task.related)}>
+                        <Link className="dr-btn dr-btn-ghost" href={recordHref(task.related)}>
                             {task.related.type === "lead"
                                 ? t("pages.agent_workspace.agenda.open_lead")
                                 : t("pages.agent_workspace.agenda.open_deal")}
-                        </a>
+                        </Link>
                     ) : null}
                 </div>
             </div>

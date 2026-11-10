@@ -191,6 +191,14 @@
     background: var(--dr-button-danger-bg);
     color: var(--dr-button-danger-text);
 }
+/* Call: dialling a person (the softphone's green). */
+.dr-btn-call {
+    background: var(--dr-button-call-bg);
+    color: var(--dr-button-call-text);
+}
+.dr-btn-call:hover:not(:disabled) {
+    background: var(--dr-button-call-hover-bg);
+}
 
 .dr-pill {
     display: inline-flex;
