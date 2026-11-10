@@ -137,7 +137,7 @@ function MeetingItem({
     else if (state === "soon" && meeting.at) stateText = t("pages.agent_workspace.today.schedule.in_minutes", { count: minutesUntil(meeting.at, nowMs) });
     else if (state === "none") stateText = t("pages.agent_workspace.today.schedule.ended");
 
-    const canJoin = Boolean(meeting.meeting_link) && (state === "now" || state === "soon");
+    const canJoin = Boolean(listItem.meetingLink) && (state === "now" || state === "soon");
     const canMarkHeld = state === "now" || state === "none";
 
     return (
@@ -157,7 +157,7 @@ function MeetingItem({
                 {canJoin || canMarkHeld ? (
                     <div className="agent-sched__actions">
                         {canJoin ? (
-                            <a className="dr-btn dr-btn-primary" href={meeting.meeting_link} target="_blank" rel="noopener noreferrer">
+                            <a className="dr-btn dr-btn-primary" href={listItem.meetingLink ?? undefined} target="_blank" rel="noopener noreferrer">
                                 <Icon name="video" size={14} />
                                 {t("pages.agent_workspace.today.actions.join")}
                             </a>

@@ -68,6 +68,7 @@ class AgentWorkspaceTodayTest extends TestCase
 
     protected function tearDown(): void
     {
+        Carbon::setTestNow();
         Mockery::close();
         foreach (['taskboard_columns', 'task_category'] as $table) {
             Schema::dropIfExists($table);
@@ -136,8 +137,6 @@ class AgentWorkspaceTodayTest extends TestCase
         $tokyoDay = ['2026-11-11T00:00:00+09:00', '2026-11-11T23:59:59+09:00'];
         $this->assertSame($tokyoDay, $windows['meetings']);
         $this->assertSame($tokyoDay, $windows['tasks']);
-
-        Carbon::setTestNow();
     }
 
     public function test_the_stats_group_reads_stats_commission_and_open_deals(): void
