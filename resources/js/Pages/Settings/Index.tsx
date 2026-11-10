@@ -63,6 +63,8 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
     const automationV2Enabled =
         pageProps.featureFlags?.["crm.automation-v2"] === true;
     const softphoneEnabled = pageProps.featureFlags?.["crm.softphone"] === true;
+    const agentWorkspaceEnabled =
+        pageProps.featureFlags?.["crm.agent-workspace"] === true;
 
     const cards: EntitySettingCard[] = [
         {
@@ -185,6 +187,21 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
                       connected: true,
                       onOpen: () =>
                           router.visit(route("company-dashboard-access.index")),
+                  },
+              ]
+            : []),
+        ...(isAdmin && agentWorkspaceEnabled
+            ? [
+                  {
+                      key: "agent-workspace-access",
+                      icon: <TeamOutlined />,
+                      iconBg: "bg-blue-50",
+                      iconColor: "text-blue-600",
+                      title: t("pages.agent_workspace.access.title"),
+                      description: t("pages.agent_workspace.access.card_desc"),
+                      connected: true,
+                      onOpen: () =>
+                          router.visit(route("agent-workspace-access.index")),
                   },
               ]
             : []),

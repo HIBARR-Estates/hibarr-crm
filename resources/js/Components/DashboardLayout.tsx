@@ -23,6 +23,8 @@ export interface PageProps extends InertiaPageProps {
         worksuitePlugins?: unknown[];
     };
     currentRouteName: string;
+    /** Null unless crm.agent-workspace is on (see HandleInertiaRequests). */
+    agentWorkspace?: { url: string | null; manageUrl: string | null } | null;
     // Internationalization props
     locale?: string;
     isRtl?: boolean;

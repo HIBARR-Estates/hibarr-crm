@@ -1,0 +1,19 @@
+<?php
+
+use App\Http\Controllers\AgentWorkspace\AgentWorkspaceController;
+use App\Http\Middleware\EnsureAgentWorkspaceAccess;
+use Illuminate\Support\Facades\Route;
+
+/*
+| Agent workspace (crm.agent-workspace + per-user access). Lives at /agent for a
+| clean URL; same auth and partner restriction as /account. Anyone without
+| access, including everyone while the flag is off, gets a 404. Mutations keep
+| calling the existing /account endpoints, so nothing here duplicates an API.
+*/
+Route::middleware(['auth', 'partner.restrict', EnsureAgentWorkspaceAccess::class])
+    ->prefix('agent')
+    ->name('agent.')
+    ->group(function () {
+        Route::redirect('/', '/agent/today')->name('home');
+        Route::get('today', [AgentWorkspaceController::class, 'today'])->name('today');
+    });
