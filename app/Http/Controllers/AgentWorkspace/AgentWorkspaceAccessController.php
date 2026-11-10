@@ -68,7 +68,7 @@ class AgentWorkspaceAccessController extends AccountBaseController
             'user_id' => [
                 'required',
                 'integer',
-                Rule::exists('users', 'id')->where('company_id', company()->id),
+                Rule::exists('users', 'id')->where('company_id', company()->id)->where('status', 'active'),
             ],
             'access' => ['required', Rule::in(AgentWorkspaceAccessEntry::ACCESS_VALUES)],
         ]);

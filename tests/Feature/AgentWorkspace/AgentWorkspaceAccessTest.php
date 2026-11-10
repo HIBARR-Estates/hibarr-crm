@@ -294,6 +294,14 @@ class AgentWorkspaceAccessTest extends TestCase
         }
     }
 
+    public function test_an_inactive_user_cannot_be_added(): void
+    {
+        DB::table('users')->where('id', self::COLLEAGUE)->update(['status' => 'deactive']);
+        $this->expectException(ValidationException::class);
+
+        $this->controller()->store(Request::create('/', 'POST', ['user_id' => self::COLLEAGUE, 'access' => 'allow']));
+    }
+
     public function test_removing_only_touches_this_companys_list(): void
     {
         DB::table('agent_workspace_access')->insert([
