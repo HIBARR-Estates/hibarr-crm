@@ -16,6 +16,8 @@ interface UseLeadMissionFlowArgs {
     onViewAnswers?: () => void;
     /** "Open deal" when no single deal can be opened. */
     onShowDeals?: () => void;
+    /** Where "Open deal" goes. Defaults to the deal page. */
+    dealHref?: (dealId: number) => string;
 }
 
 /**
@@ -31,6 +33,7 @@ export default function useLeadMissionFlow({
     setQualificationOpen,
     onViewAnswers,
     onShowDeals,
+    dealHref,
 }: UseLeadMissionFlowArgs) {
     const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
     const [createDealOpen, setCreateDealOpen] = useState(false);
@@ -87,7 +90,7 @@ export default function useLeadMissionFlow({
                     break;
                 case "open_deal":
                     if (primaryDeal?.id) {
-                        router.visit(route("deals.show", primaryDeal.id));
+                        router.visit(dealHref ? dealHref(primaryDeal.id) : route("deals.show", primaryDeal.id));
                     } else if (deals.length > 0) {
                         onShowDeals?.();
                     }
@@ -102,7 +105,7 @@ export default function useLeadMissionFlow({
                     break;
             }
         },
-        [changeStatus, deals.length, onShowDeals, onViewAnswers, openTemplatePicker, primaryDeal, qualification, setQualificationOpen],
+        [changeStatus, dealHref, deals.length, onShowDeals, onViewAnswers, openTemplatePicker, primaryDeal, qualification, setQualificationOpen],
     );
 
     return {

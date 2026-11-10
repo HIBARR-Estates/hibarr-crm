@@ -55,7 +55,7 @@ export function buildLeadPath(statuses: LeadStatusOption[], currentKey: string):
 
 /* ---------- key facts ---------- */
 
-export type KeyFactGroupId = "reach" | "who" | "where" | "value" | "came_from";
+export type KeyFactGroupId = "reach" | "who" | "where" | "value" | "deal" | "came_from";
 
 export interface KeyFactGroup {
     id: KeyFactGroupId;

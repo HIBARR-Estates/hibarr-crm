@@ -36,6 +36,7 @@ class TodayQueryBudgetTest extends TestCase
         'companies', 'currencies', 'users', 'projects', 'taskboard_columns', 'tasks', 'task_users',
         'taskables', 'leads', 'deals', 'lead_agents', 'email_follow_ups', 'email_messages',
         'lead_follow_up', 'meeting_types', 'meeting_summaries', 'lead_pipelines', 'global_settings',
+        'lead_lifecycle_statuses', 'pipeline_stages',
     ];
 
     protected function setUp(): void
@@ -159,6 +160,45 @@ class TodayQueryBudgetTest extends TestCase
 
         $this->assertSame('msg-9', $payload['source_email_message_id']);
         $this->assertSame([], $queries);
+    }
+
+    public function test_rows_carry_the_records_status_person_and_phone(): void
+    {
+        DB::table('lead_lifecycle_statuses')->insert(['id' => 4, 'company_id' => 1, 'label' => 'Qualifying']);
+        DB::table('pipeline_stages')->insert(['id' => 6, 'company_id' => 1, 'name' => 'Viewing']);
+        DB::table('leads')->where('id', 1)->update(['lead_lifecycle_status_id' => 4, 'mobile' => '+49 151 2384 7720']);
+        DB::table('leads')->insert(['id' => 2, 'company_id' => 1, 'client_name' => 'No Number', 'mobile' => 'n/a', 'lead_owner' => self::USER]);
+        DB::table('deals')->where('id', 1)->update(['pipeline_stage_id' => 6]);
+
+        // Task 1 hangs off the deal, task 2 off lead 1; task 3 off lead 2.
+        $this->seedTasks(3, due: now()->setTime(15, 0));
+        DB::table('taskables')->where('task_id', 3)->update(['taskable_type' => Lead::class, 'taskable_id' => 2]);
+
+        $related = collect($this->metrics()->personalTasksBetween(self::USER, now()->startOfDay(), now()->endOfDay()))
+            ->mapWithKeys(fn (array $row) => [$row['id'] => $row['related']]);
+
+        $this->assertSame(
+            ['type' => 'deal', 'id' => 1, 'name' => 'Jana · Kyrenia', 'status' => 'Viewing', 'person' => 'Jana Hoffmann', 'phone' => '+4915123847720'],
+            $related[1]
+        );
+        $this->assertSame('Qualifying', $related[2]['status']);
+        $this->assertSame('Jana Hoffmann', $related[2]['person']);
+        $this->assertSame('+4915123847720', $related[2]['phone']);
+        // A number with no digits is no number: no Call or Copy on that row.
+        $this->assertNull($related[3]['phone']);
+    }
+
+    public function test_a_meeting_on_a_deal_is_with_the_deals_contact_at_its_stage(): void
+    {
+        DB::table('pipeline_stages')->insert(['id' => 6, 'company_id' => 1, 'name' => 'Viewing']);
+        DB::table('deals')->where('id', 1)->update(['pipeline_stage_id' => 6]);
+        $this->seedMeetings(1);
+        DB::table('lead_follow_up')->where('id', 1)->update(['lead_id' => null, 'deal_id' => 1]);
+
+        [$meeting] = $this->metrics()->meetingsBetween(self::USER, now()->startOfDay(), now()->endOfDay());
+
+        $this->assertSame('Jana Hoffmann', $meeting['person']);
+        $this->assertSame('Viewing', $meeting['deal_stage']);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
@@ -319,6 +359,7 @@ class TodayQueryBudgetTest extends TestCase
             $table->string('office')->nullable();
             $table->unsignedInteger('lead_owner')->nullable();
             $table->dateTime('first_contacted_at')->nullable();
+            $table->unsignedInteger('lead_lifecycle_status_id')->nullable();
             $table->softDeletes();
             $table->timestamps();
         });
@@ -329,10 +370,21 @@ class TodayQueryBudgetTest extends TestCase
             $table->unsignedInteger('lead_id')->nullable();
             $table->unsignedInteger('agent_id')->nullable();
             $table->unsignedInteger('lead_pipeline_id')->nullable();
+            $table->unsignedInteger('pipeline_stage_id')->nullable();
             $table->unsignedInteger('currency_id')->nullable();
             $table->decimal('value', 15, 2)->nullable();
             $table->string('outcome_status')->nullable();
             $table->timestamps();
+        });
+        Schema::create('lead_lifecycle_statuses', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('label')->nullable();
+        });
+        Schema::create('pipeline_stages', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('name')->nullable();
         });
         Schema::create('lead_agents', function (Blueprint $table) {
             $table->increments('id');

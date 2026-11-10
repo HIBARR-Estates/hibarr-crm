@@ -1,5 +1,6 @@
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { formatMobileForDisplay } from "@/lib/utils";
+import type { Deal } from "@/Types/api/deals";
 import type { Lead } from "@/Types/api/leads";
 import type { QualificationLeadPatch } from "@/Types/qualification";
 import { useLeadWorkspace } from "../../context/LeadWorkspaceContext";
@@ -35,6 +36,8 @@ interface LeadMissionModalsProps {
     qualificationOpen: boolean;
     onCloseQualification: () => void;
     pageProps: DealMetaProps;
+    /** After a deal (and its kickoff meeting, if any) is created. */
+    onDealCreated?: (deal: Deal) => void;
 }
 
 /**
@@ -50,6 +53,7 @@ export default function LeadMissionModals({
     qualificationOpen,
     onCloseQualification,
     pageProps: props,
+    onDealCreated,
 }: LeadMissionModalsProps) {
     const { td } = useTd();
     const { lead, setLead } = useLeadWorkspace();
@@ -124,7 +128,12 @@ export default function LeadMissionModals({
                     stages: props.leadStages ?? props.stages,
                     leadAgents: props.leadAgents,
                 }}
-                onSubmit={(input) => dealCreate.createDeal(input, flow.closeCreateDeal)}
+                onSubmit={(input) =>
+                    dealCreate.createDeal(input, (deal) => {
+                        flow.closeCreateDeal();
+                        onDealCreated?.(deal);
+                    })
+                }
             />
         </>
     );

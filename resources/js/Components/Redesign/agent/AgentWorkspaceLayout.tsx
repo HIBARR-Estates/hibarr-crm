@@ -8,8 +8,11 @@ import "../redesign.css";
 import "./agent-workspace.css";
 import AgentAccountMenu from "./AgentAccountMenu";
 import AgentDock from "./AgentDock";
+import AgentDockSearch from "./AgentDockSearch";
+import AgentSoftphonePill from "./AgentSoftphonePill";
 import AgentViewSwitch from "./AgentViewSwitch";
-import { AGENT_DESTINATIONS, activeDestinationKey } from "./destinations";
+import useTranslation from "@/Hooks/useTranslation";
+import { activeDestinationKey } from "./destinations";
 
 const SecondRowSlot = createContext<HTMLElement | null>(null);
 
@@ -29,11 +32,11 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
     const appName = (props.appName as string | undefined) ?? "";
     const active = activeDestinationKey(url);
     const [slot, setSlot] = useState<HTMLElement | null>(null);
-    const showTabs = AGENT_DESTINATIONS.length > 1;
+    const { t } = useTranslation();
 
     return (
         <SecondRowSlot.Provider value={slot}>
-            <div className={`agent-ws${showTabs ? " agent-ws--with-tabs" : ""}`}>
+            <div className="agent-ws agent-ws--with-tabs">
                 <div className="agent-ws__band" aria-hidden="true" />
                 <header className="agent-ws__top">
                     <div className="agent-ws__corner">
@@ -43,7 +46,12 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
                         <AgentViewSwitch current="agent" tone="band" />
                     </div>
                     <div className="agent-ws__dock-wrap">
-                        <AgentDock active={active} variant="dock" />
+                        <nav aria-label={t("pages.agent_workspace.dock_label")} className="agent-dock">
+                            <AgentDock active={active} variant="dock" />
+                            <span className="agent-dock__divider" aria-hidden="true" />
+                            <AgentDockSearch />
+                            <AgentSoftphonePill />
+                        </nav>
                     </div>
                     <div className="agent-ws__actions">
                         <div className="agent-ws__bell">
@@ -54,11 +62,11 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
                 </header>
                 <div ref={setSlot} className="agent-ws__second-row" />
                 <main className="agent-ws__main">{children}</main>
-                {showTabs ? (
-                    <div className="agent-ws__tabbar">
+                <div className="agent-ws__tabbar">
+                    <nav aria-label={t("pages.agent_workspace.dock_label")} className="agent-tabs">
                         <AgentDock active={active} variant="tabs" />
-                    </div>
-                ) : null}
+                    </nav>
+                </div>
                 <SoftphoneDock />
             </div>
         </SecondRowSlot.Provider>

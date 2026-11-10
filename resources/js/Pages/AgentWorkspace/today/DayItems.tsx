@@ -1,8 +1,9 @@
 import { Link } from "@inertiajs/react";
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { hasDueTime, meetingTimeState, taskTimeState, wallClockToMs, type TimeState } from "@/Components/Redesign/agent";
+import { meetingPlatformColor, REDESIGN_TOKENS } from "@/Components/Redesign/tokens";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { toWorkspaceMeetingListItem } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
@@ -46,10 +47,13 @@ export function useDayItems(meetings: ScheduleEntry[], tasks: QueueTask[], timeZ
     return useMemo(() => buildDayItems(meetings, tasks, timeZone), [meetings, tasks, timeZone]);
 }
 
+export type DayItemsLayout = "timeline" | "list";
+
 /**
  * Schedule cards for one day: meetings with Join and Mark held, tasks with
- * Done and Reschedule. `layout="grid"` lays them out side by side (the
- * agenda's day preview) instead of down a timeline.
+ * Done and Reschedule. `timeline` is Today's schedule (time beside the card),
+ * `list` the agenda's list (time inside a single-line row with the platform's
+ * colour bar).
  */
 export function DayItems({
     items,
@@ -57,16 +61,30 @@ export function DayItems({
     meetingHandlers,
     layout = "timeline",
     showRecordLink = false,
+    nowMarker = false,
 }: {
     items: DayItem[];
     handlers: TaskHandlers;
     meetingHandlers: MeetingHandlers;
-    layout?: "timeline" | "grid";
+    layout?: DayItemsLayout;
     showRecordLink?: boolean;
+    /** Draws the current time between the items (today's timeline). */
+    nowMarker?: boolean;
 }) {
+    // The line goes before the first item that starts after now.
+    const nowIndex = nowMarker ? items.findIndex((item) => item.at > handlers.nowMs) : -1;
+    const nowAt = nowMarker ? (nowIndex === -1 ? items.length : nowIndex) : -1;
+    const nowLine =
+        nowAt >= 0 ? (
+            <li key="now" className="agent-sched__now" aria-hidden="true">
+                <span>{instantTime(new Date(handlers.nowMs).toISOString(), handlers.timeZone)}</span>
+            </li>
+        ) : null;
+
     return (
-        <ol className={`agent-sched${layout === "grid" ? " agent-sched--grid" : ""}`}>
-            {items.map((item) =>
+        <ol className={`agent-sched${layout === "timeline" ? "" : ` agent-sched--${layout}`}`}>
+            {items.flatMap((item, index) => [
+                index === nowAt ? nowLine : null,
                 item.kind === "meeting" ? (
                     <MeetingItem
                         key={`m${item.meeting.id}`}
@@ -77,32 +95,24 @@ export function DayItems({
                         onMarkHeld={() => meetingHandlers.onMarkHeld(item.meeting.id)}
                         markingHeld={meetingHandlers.isMarkingHeld(item.meeting.id)}
                         showRecordLink={showRecordLink}
+                        layout={layout}
                     />
                 ) : (
-                    <TaskItem key={`t${item.task.id}`} task={item.task} handlers={handlers} showRecordLink={showRecordLink} />
+                    <TaskItem key={`t${item.task.id}`} task={item.task} handlers={handlers} showRecordLink={showRecordLink} layout={layout} />
                 ),
-            )}
+            ])}
+            {nowAt === items.length ? nowLine : null}
         </ol>
     );
 }
 
-function MeetingItem({
-    meeting,
-    nowMs,
-    timeZone,
-    onOpen,
-    onMarkHeld,
-    markingHeld,
-    showRecordLink,
-}: {
-    meeting: ScheduleEntry;
-    nowMs: number;
-    timeZone: string;
-    onOpen: () => void;
-    onMarkHeld: () => void;
-    markingHeld: boolean;
-    showRecordLink: boolean;
-}) {
+/**
+ * What a meeting card shows, worked out once for the schedule, the agenda
+ * list and the day strip: its time state and chip, "Type · Person", where it
+ * happens, the "Deal · stage" line, its platform colour and which actions
+ * apply.
+ */
+export function useMeetingView(meeting: ScheduleEntry, nowMs: number, timeZone: string) {
     const { t } = useTranslation();
     const { td } = useTd();
     const held = meeting.status === "completed";
@@ -124,50 +134,104 @@ function MeetingItem({
     else if (state === "soon" && meeting.at) stateText = t("pages.agent_workspace.today.schedule.in_minutes", { count: minutesUntil(meeting.at, nowMs) });
     else if (state === "none") stateText = t("pages.agent_workspace.today.schedule.ended");
 
+    // "Kick Off · Thomas Becker": the meeting type and who it is with, as on
+    // the boards; the deal name when either is missing.
+    const heading = meeting.type && meeting.person ? `${td(meeting.type, { source: "en" })} · ${meeting.person}` : meeting.title;
+    const recordLine = meeting.deal_id
+        ? [t("pages.agent_workspace.today.record.deal"), meeting.deal_stage ? td(meeting.deal_stage, { source: "en" }) : null].filter(Boolean).join(" · ")
+        : meeting.lead_id
+          ? t("pages.agent_workspace.today.record.lead")
+          : null;
+    const barColor = listItem.locationType === "video" ? meetingPlatformColor(meeting.location) : REDESIGN_TOKENS.NAVY;
+
     const canJoin = Boolean(listItem.meetingLink) && (state === "now" || state === "soon");
     const canMarkHeld = state === "now" || state === "none";
     const record = meeting.deal_id
-        ? { href: route("deals.show", meeting.deal_id), label: t("pages.agent_workspace.agenda.open_deal") }
+        ? route("agent.deals.show", meeting.deal_id)
         : meeting.lead_id
-          ? { href: route("agent.people.show", meeting.lead_id), label: t("pages.agent_workspace.agenda.open_lead") }
+          ? route("agent.people.show", meeting.lead_id)
           : null;
-    const recordLink = showRecordLink && record;
+
+    return { state, start, end, where, stateText, heading, recordLine, barColor, canJoin, canMarkHeld, record, listItem };
+}
+
+function MeetingItem({
+    meeting,
+    nowMs,
+    timeZone,
+    onOpen,
+    onMarkHeld,
+    markingHeld,
+    showRecordLink,
+    layout,
+}: {
+    meeting: ScheduleEntry;
+    nowMs: number;
+    timeZone: string;
+    onOpen: () => void;
+    onMarkHeld: () => void;
+    markingHeld: boolean;
+    showRecordLink: boolean;
+    layout: DayItemsLayout;
+}) {
+    const { t } = useTranslation();
+    const { state, start, end, where, stateText, heading, recordLine, barColor, canJoin, canMarkHeld, record, listItem } = useMeetingView(
+        meeting,
+        nowMs,
+        timeZone,
+    );
+    const list = layout === "list";
 
     return (
-        <li className={`agent-sched__item agent-ts--${state}`}>
+        <li className={`agent-sched__item agent-ts--${state}`} style={list ? ({ "--agent-bar": barColor } as CSSProperties) : undefined}>
             <span className="agent-sched__time">{start}</span>
             <div className="agent-sched__card">
-                <div className="agent-sched__top">
-                    <button type="button" className="agent-sched__title" onClick={onOpen}>
-                        {meeting.title}
-                    </button>
-                    {stateText ? <span className="agent-sched__state">{stateText}</span> : null}
+                <div className="agent-sched__text">
+                    <div className="agent-sched__top">
+                        <button type="button" className="agent-sched__title" onClick={onOpen}>
+                            {heading}
+                        </button>
+                        {stateText ? (
+                            <span className="agent-sched__state">
+                                <span className="agent-sched__state-dot" aria-hidden="true" />
+                                {stateText}
+                            </span>
+                        ) : null}
+                    </div>
+                    {list ? (
+                        <div className="agent-sched__meta">
+                            <span className="agent-sched__platform">{where}</span>
+                            <span>{["", recordLine, `${start}–${end}`].filter((part) => part !== null).join(" · ")}</span>
+                        </div>
+                    ) : (
+                        <div className="agent-sched__meta">
+                            <Icon name={listItem.locationType === "video" ? "video" : listItem.locationType === "phone" ? "phone" : "map-pin"} size={12} />
+                            <span>{[where, `${start}–${end}`].filter(Boolean).join(" · ")}</span>
+                        </div>
+                    )}
                 </div>
-                <div className="agent-sched__meta">
-                    <Icon name={listItem.locationType === "video" ? "video" : listItem.locationType === "phone" ? "phone" : "map-pin"} size={13} />
-                    <span>{[t("pages.agent_workspace.today.schedule.meeting"), where, `${start}–${end}`].filter(Boolean).join(" · ")}</span>
-                </div>
-                {canJoin || canMarkHeld || recordLink ? (
+                {canJoin || canMarkHeld || (showRecordLink && record) ? (
                     <div className="agent-sched__actions">
                         {canJoin ? (
-                            <a className="dr-btn dr-btn-primary" href={listItem.meetingLink ?? undefined} target="_blank" rel="noopener noreferrer">
-                                <Icon name="video" size={14} />
+                            <a className="dr-btn dr-btn-primary dr-btn-sm" href={listItem.meetingLink ?? undefined} target="_blank" rel="noopener noreferrer">
+                                <Icon name="video" size={13} />
                                 {t("pages.agent_workspace.today.actions.join")}
                             </a>
                         ) : null}
                         {canMarkHeld ? (
                             <Button
-                                variant={state === "none" ? "primary" : "ghost"}
-                                icon={<Icon name="check" size={14} />}
+                                size="sm"
+                                variant={state === "none" && !canJoin ? "primary" : "ghost"}
+                                icon={<Icon name="check" size={13} />}
                                 loading={markingHeld}
                                 onClick={onMarkHeld}
                             >
                                 {t("pages.agent_workspace.today.actions.mark_held")}
                             </Button>
                         ) : null}
-                        {recordLink ? (
-                            <Link className="dr-btn dr-btn-ghost" href={record.href}>
-                                {record.label}
+                        {showRecordLink && record ? (
+                            <Link className="dr-btn dr-btn-ghost dr-btn-sm" href={record}>
+                                {t("pages.agent_workspace.agenda.contact_page")}
                             </Link>
                         ) : null}
                     </div>
@@ -177,55 +241,96 @@ function MeetingItem({
     );
 }
 
-function TaskItem({ task, handlers, showRecordLink }: { task: QueueTask; handlers: TaskHandlers; showRecordLink: boolean }) {
-    const { t } = useTranslation();
+/**
+ * A task's place in the day: done or not, whether it has a clock time, and
+ * its time state. A task with a time turns "soon" an hour ahead, like a
+ * meeting; one with only a date is soon all its day.
+ */
+export function taskView(task: QueueTask, nowMs: number, timeZone: string) {
     const done = isTaskDone(task);
     const timed = Boolean(task.due_date && hasDueTime(task.due_date));
-    const at = timed && task.due_date ? wallClockToMs(task.due_date, handlers.timeZone) : Number.NaN;
-    // A task with a time turns "soon" an hour ahead, like a meeting; one with
-    // only a date is soon all its day.
+    const at = timed && task.due_date ? wallClockToMs(task.due_date, timeZone) : Number.NaN;
     const state: TimeState = !timed
-        ? taskTimeState({ due_date: task.due_date, done }, handlers.nowMs, handlers.timeZone)
+        ? taskTimeState({ due_date: task.due_date, done }, nowMs, timeZone)
         : done
           ? "done"
-          : at < handlers.nowMs
+          : at < nowMs
             ? "late"
-            : at - handlers.nowMs <= 3_600_000
+            : at - nowMs <= 3_600_000
               ? "soon"
               : "later";
+    return { done, timed, at, state };
+}
+
+function TaskItem({
+    task,
+    handlers,
+    showRecordLink,
+    layout,
+}: {
+    task: QueueTask;
+    handlers: TaskHandlers;
+    showRecordLink: boolean;
+    layout: DayItemsLayout;
+}) {
+    const { t } = useTranslation();
+    const { done, timed, at, state } = taskView(task, handlers.nowMs, handlers.timeZone);
 
     let stateText: string | null = null;
     if (state === "late") stateText = t("pages.agent_workspace.today.schedule.late");
     else if (state === "soon" && timed) stateText = t("pages.agent_workspace.today.schedule.in_minutes", { count: Math.max(1, Math.ceil((at - handlers.nowMs) / 60_000)) });
 
+    const who = task.related?.person || task.related?.name;
+
     return (
-        <li className={`agent-sched__item agent-ts--${state}`}>
+        <li
+            className={`agent-sched__item agent-sched__item--task agent-ts--${state}`}
+            style={layout === "list" ? ({ "--agent-bar": REDESIGN_TOKENS.BLUE } as CSSProperties) : undefined}
+        >
             <span className="agent-sched__time">{timed && task.due_date ? wallTime(task.due_date) : t("pages.agent_workspace.agenda.any_time")}</span>
             <div className="agent-sched__card">
-                <div className="agent-sched__top">
-                    <button type="button" className="agent-sched__title" onClick={() => handlers.onOpen(task)}>
-                        {task.heading}
-                    </button>
-                    {stateText ? <span className="agent-sched__state">{stateText}</span> : null}
-                </div>
-                <div className="agent-sched__meta">
-                    <Icon name="check-square" size={13} />
-                    <span>{[t("pages.agent_workspace.today.schedule.task"), task.related?.name].filter(Boolean).join(" · ")}</span>
+                <div className="agent-sched__text">
+                    <div className="agent-sched__top">
+                        <button type="button" className="agent-sched__title" onClick={() => handlers.onOpen(task)}>
+                            {task.heading}
+                        </button>
+                        {stateText ? (
+                            <span className="agent-sched__state">
+                                <span className="agent-sched__state-dot" aria-hidden="true" />
+                                {stateText}
+                            </span>
+                        ) : null}
+                    </div>
+                    <div className="agent-sched__meta">
+                        <Icon name="check-square" size={12} />
+                        <span>{[t("pages.agent_workspace.today.schedule.task"), who].filter(Boolean).join(" · ")}</span>
+                    </div>
                 </div>
                 <div className="agent-sched__actions">
-                    <TaskActions
-                        name={task.heading}
-                        done={done}
-                        completing={handlers.isCompleting(task.id)}
-                        rescheduling={handlers.isRescheduling(task.id)}
-                        onComplete={() => handlers.onComplete(task)}
-                        onReschedule={() => handlers.onReschedule(task)}
-                    />
+                    {showRecordLink ? (
+                        <TaskActions
+                            name={task.heading}
+                            done={done}
+                            size="sm"
+                            completing={handlers.isCompleting(task.id)}
+                            rescheduling={handlers.isRescheduling(task.id)}
+                            onComplete={() => handlers.onComplete(task)}
+                            onReschedule={() => handlers.onReschedule(task)}
+                        />
+                    ) : (
+                        <TaskActions
+                            name={task.heading}
+                            done={done}
+                            size="sm"
+                            doneOnly
+                            completing={handlers.isCompleting(task.id)}
+                            onComplete={() => handlers.onComplete(task)}
+                            onReschedule={() => handlers.onReschedule(task)}
+                        />
+                    )}
                     {showRecordLink && task.related ? (
-                        <Link className="dr-btn dr-btn-ghost" href={recordHref(task.related)}>
-                            {task.related.type === "lead"
-                                ? t("pages.agent_workspace.agenda.open_lead")
-                                : t("pages.agent_workspace.agenda.open_deal")}
+                        <Link className="dr-btn dr-btn-ghost dr-btn-sm" href={recordHref(task.related)}>
+                            {t("pages.agent_workspace.agenda.contact_page")}
                         </Link>
                     ) : null}
                 </div>

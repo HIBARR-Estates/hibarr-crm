@@ -1,13 +1,11 @@
 import type { ReactNode } from "react";
 import { usePage } from "@inertiajs/react";
-import { App, Dropdown, message, type MenuProps } from "antd";
+import { Dropdown, type MenuProps } from "antd";
 import type { PageProps } from "@/Components/DashboardLayout";
-import ClickToCallButton from "@/Components/ClickToCallButton";
+import AgentCallButton from "@/Components/Redesign/agent/AgentCallButton";
 import { initialsFromName } from "@/Components/Redesign";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
-import useClickToCall from "@/Hooks/useClickToCall";
-import useSoftphone, { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
 import useTranslation from "@/Hooks/useTranslation";
 import { getDossierFieldValue, isMeaningfulDossierValue } from "@/Pages/Leads/Redesign/adapters/dossierAdapter";
 import LeadAvatarButton from "@/Pages/Leads/Redesign/components/header/LeadAvatarButton";
@@ -26,8 +24,17 @@ interface ContactHeaderProps {
     canFindDuplicates: boolean;
     onCreate: (kind: LeadCreateKind) => void;
     allowedCreate: Partial<Record<LeadCreateKind, boolean>>;
+    /** Edit details; left out when the viewer can't edit. */
     onEdit: () => void;
-    onMoreAction: (id: MoreMenuActionId) => void;
+    /** The lead's ⋯ menu. Left out in the deal state, whose menu sits on the deal. */
+    onMoreAction?: (id: MoreMenuActionId) => void;
+    /** What a call is logged against: the lead, or the deal in the deal state. */
+    callEntity?: { type: "lead" | "deal"; id: number };
+    /**
+     * A plain avatar, without the photo preview and upload: those need the
+     * lead page's context, which the deal state doesn't have.
+     */
+    staticAvatar?: boolean;
 }
 
 /**
@@ -44,6 +51,8 @@ export default function ContactHeader({
     allowedCreate,
     onEdit,
     onMoreAction,
+    callEntity,
+    staticAvatar = false,
 }: ContactHeaderProps) {
     const { t } = useTranslation();
     const { props } = usePage<PageProps>();
@@ -72,13 +81,27 @@ export default function ContactHeader({
     return (
         <header className="agent-contact__header">
             <div className="agent-contact__who">
-                <LeadAvatarButton
-                    name={lead.client_name ?? ""}
-                    image={lead.image}
-                    imageUrl={lead.image_url}
-                    initials={initialsFromName(lead.client_name)}
-                    canUpload={canEdit}
-                />
+                {!staticAvatar ? (
+                    <LeadAvatarButton
+                        name={lead.client_name ?? ""}
+                        image={lead.image}
+                        imageUrl={lead.image_url}
+                        initials={initialsFromName(lead.client_name)}
+                        canUpload={canEdit}
+                    />
+                ) : (
+                    <div className="v2-lead-avatar-wrap">
+                        <div className="v2-lead-avatar-shell">
+                            <span className="v2-lead-avatar" aria-hidden="true">
+                                {lead.image && lead.image_url ? (
+                                    <img src={lead.image_url} alt="" className="v2-lead-avatar__img" />
+                                ) : (
+                                    <span className="v2-lead-avatar__initials">{initialsFromName(lead.client_name)}</span>
+                                )}
+                            </span>
+                        </div>
+                    </div>
+                )}
                 <div className="agent-contact__identity">
                     <div className="agent-contact__name-row">
                         <h1 className="agent-contact__name">{lead.client_name_salutation || lead.client_name}</h1>
@@ -92,7 +115,7 @@ export default function ContactHeader({
                 </div>
             </div>
             <div className="agent-contact__actions">
-                <CallButton lead={lead} />
+                <AgentCallButton phone={leadPhone(lead)} entity={callEntity ?? { type: "lead", id: lead.id }} />
                 <NewActivityButton onCreate={onCreate} allowed={allowedCreate} />
                 {canEdit ? (
                     <Button variant="ghost" onClick={onEdit}>
@@ -100,7 +123,9 @@ export default function ContactHeader({
                         {t("pages.agent_workspace.contact.edit_details")}
                     </Button>
                 ) : null}
-                <MoreMenu onAction={onMoreAction} canDelete={canDelete} canFindDuplicates={canFindDuplicates} />
+                {onMoreAction ? (
+                    <MoreMenu onAction={onMoreAction} canDelete={canDelete} canFindDuplicates={canFindDuplicates} />
+                ) : null}
             </div>
         </header>
     );
@@ -114,13 +139,11 @@ export function NewActivityButton({
     onCreate,
     allowed,
     size = "base",
-    variant = "primary",
 }: {
     onCreate: (kind: LeadCreateKind) => void;
     /** Kinds the viewer may not create are left out (permissions). */
     allowed?: Partial<Record<LeadCreateKind, boolean>>;
     size?: "base" | "sm";
-    variant?: "primary" | "ghost";
 }) {
     const { t } = useTranslation();
     const all: Array<{ key: LeadCreateKind; icon: ReactNode; label: string }> = [
@@ -140,7 +163,7 @@ export function NewActivityButton({
         >
             {/* antd positions the menu from a DOM node; the span gives it one. */}
             <span className="agent-contact__menu-anchor">
-                <Button variant={variant} size={size} aria-haspopup="menu">
+                <Button size={size} className="agent-btn-soft" aria-haspopup="menu">
                     <Icon name="plus" size={size === "sm" ? 12 : 14} />
                     {t("pages.agent_workspace.contact.new_activity")}
                     <Icon name="chevron-down" size={size === "sm" ? 12 : 14} />
@@ -150,55 +173,8 @@ export function NewActivityButton({
     );
 }
 
-/**
- * Dials through the softphone or the click-to-call bridge, whichever the
- * CRM has for this agent (the same check as the lead page's quick actions).
- * Hidden when neither is set up, like there.
- */
-function CallButton({ lead }: { lead: Lead }) {
-    const { t } = useTranslation();
-    const { props } = usePage<PageProps>();
-    const { message: appMessage } = App.useApp();
-    const toast = appMessage ?? message;
-    const { isEnabled: olEnabled } = useClickToCall();
-    const { isEnabled: softphoneFeatureEnabled } = useSoftphone();
-
+/** The lead's mobile, formatted for dialling; empty when there is none. */
+function leadPhone(lead: Lead): string {
     const raw = getDossierFieldValue(lead, "mobile");
-    const phone = raw && isMeaningfulDossierValue(raw) ? raw.trim() : "";
-    const softphoneEnabled = softphoneFeatureEnabled && props.featureFlags?.["crm.softphone"] === true;
-    const canUseLine = (softphoneEnabled && canMakeSoftphoneCalls(props.auth?.user, props.auth?.permissions)) || olEnabled;
-    if (!canUseLine) return null;
-
-    const content = (
-        <>
-            <Icon name="phone" size={14} />
-            {t("pages.agent_workspace.contact.call")}
-        </>
-    );
-
-    if (!phone) {
-        return (
-            <Button
-                variant="call"
-                title={t("pages.leads.quick_actions.no_phone")}
-                onClick={() => toast.warning(t("pages.leads.quick_actions.no_phone"))}
-            >
-                {content}
-            </Button>
-        );
-    }
-
-    return (
-        <ClickToCallButton
-            phone={phone}
-            entity={{ type: "lead", id: lead.id }}
-            variant="link"
-            className="dr-btn dr-btn-call"
-            title={t("pages.leads.quick_actions.call_title")}
-            ariaLabel={t("pages.leads.quick_actions.call_title")}
-            dataAction="call"
-        >
-            {content}
-        </ClickToCallButton>
-    );
+    return raw && isMeaningfulDossierValue(raw) ? raw.trim() : "";
 }

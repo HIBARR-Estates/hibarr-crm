@@ -2,7 +2,7 @@ import { useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import type { TodaySchedule } from "../today/types";
-import { rangeFor, rangeOf, shiftDate, type AgendaRange, type AgendaView } from "./range";
+import { addDays, rangeFor, rangeOf, shiftDate, type AgendaRange, type AgendaView } from "./range";
 
 /** Meetings and pending tasks for a span of days (AgentWorkspaceController::agenda). */
 export type AgendaData = TodaySchedule;
@@ -80,3 +80,15 @@ export default function useAgendaData(view: AgendaView, date: string, enabled: b
         refresh,
     };
 }
+
+/**
+ * Meetings and open tasks for a few days after `today`, for Today's "Next
+ * days" chips. Shares the agenda's cache, so opening the agenda after it
+ * paints at once.
+ */
+export function useUpcomingDays(today: string, days: number) {
+    const from = addDays(today, 1);
+    const to = addDays(today, days);
+    return useQuery({ ...queryFor(from, to), staleTime: 5 * 60_000 }).data;
+}
+

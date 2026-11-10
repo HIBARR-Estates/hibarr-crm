@@ -80,11 +80,9 @@ export function useAgendaOutcomes(enabled: boolean, onSaved: () => void) {
 interface OutcomePanelProps {
     outcomes: ReturnType<typeof useAgendaOutcomes>;
     timeZone: string;
-    /** Full width above a grid, rather than a side column. */
-    wide?: boolean;
 }
 
-export default function OutcomePanel({ outcomes, timeZone, wide = false }: OutcomePanelProps) {
+export default function OutcomePanel({ outcomes, timeZone }: OutcomePanelProps) {
     const { t, locale } = useTranslation();
     const { td } = useTd();
     const [noteFor, setNoteFor] = useState<PendingMeetingAttendanceConfirmation | null>(null);
@@ -93,7 +91,7 @@ export default function OutcomePanel({ outcomes, timeZone, wide = false }: Outco
     if (outcomes.items.length === 0) return null;
 
     return (
-        <section className={`agent-panel agent-outcome${wide ? " agent-outcome--wide" : ""}`} aria-labelledby="agent-outcome-title">
+        <section className="agent-panel agent-outcome" aria-labelledby="agent-outcome-title">
             <p className="agent-outcome__label">
                 {t(`${key}.label`)} · {outcomes.items.length}
             </p>

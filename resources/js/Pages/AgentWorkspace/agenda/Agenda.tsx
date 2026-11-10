@@ -27,6 +27,8 @@ interface AgendaProps {
     failed: boolean;
     onRetry: () => void;
     onSelectDay: (day: string) => void;
+    /** Switches to the list at this day (the strip's "see all" and the outcome count). */
+    onOpenList: (day: string) => void;
     handlers: TaskHandlers;
     meetingHandlers: MeetingHandlers;
     outcomes: ReturnType<typeof useAgendaOutcomes>;
@@ -37,8 +39,8 @@ interface AgendaProps {
  * agent's meetings and tasks (canvas L7-02 to L7-04). The selected day is
  * the date in the URL; on week and month it is previewed above the grid.
  * Phones get a day strip for the week and a dot grid whose days open in a
- * sheet. Meetings still waiting on an outcome sit beside the list, or
- * above the week and month.
+ * sheet. Meetings still waiting on an outcome sit beside the list only;
+ * on week and month the header's count switches to the list.
  */
 export default function Agenda({
     view,
@@ -51,6 +53,7 @@ export default function Agenda({
     failed,
     onRetry,
     onSelectDay,
+    onOpenList,
     handlers,
     meetingHandlers,
     outcomes,
@@ -58,6 +61,7 @@ export default function Agenda({
     const { t } = useTranslation();
     const isPhone = useMediaQuery("(max-width: 639px)");
     const byDay = useMemo(() => groupByDay(data, handlers.timeZone), [data, handlers.timeZone]);
+    const needOutcome = useMemo(() => new Set(outcomes.items.map((item) => item.id)), [outcomes.items]);
     const selected = range.days.includes(date) ? date : range.from;
     const [sheetDay, setSheetDay] = useState<string | null>(null);
     const touchStart = useRef<number | null>(null);
@@ -83,6 +87,8 @@ export default function Agenda({
             handlers={handlers}
             meetingHandlers={meetingHandlers}
             hint={hint}
+            max={hint ? 3 : undefined}
+            onOpenList={onOpenList}
         />
     );
 
@@ -130,6 +136,7 @@ export default function Agenda({
                     handlers={handlers}
                     onSelect={onSelectDay}
                     onOpenMeeting={meetingHandlers.onOpenMeeting}
+                    needOutcome={needOutcome}
                 />
             </>
         );
@@ -147,6 +154,7 @@ export default function Agenda({
                     if (isPhone) setSheetDay(day);
                 }}
                 onOpenMeeting={meetingHandlers.onOpenMeeting}
+                needOutcome={needOutcome}
             />
         );
         body = isPhone ? (
@@ -189,9 +197,6 @@ export default function Agenda({
 
     return (
         <div className={`agent-agenda agent-agenda--${view}`} aria-busy={updating}>
-            {view !== "list" && outcomes.items.length > 0 ? (
-                <OutcomePanel outcomes={outcomes} timeZone={handlers.timeZone} wide />
-            ) : null}
             {body}
         </div>
     );

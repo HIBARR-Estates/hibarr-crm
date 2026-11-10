@@ -4,11 +4,11 @@ namespace App\Http\Controllers;
 
 use App\DataTables\DealNotesDataTable;
 use App\DataTables\DealsDataTable;
-use App\Email\EmailFeature;
-use App\Email\FollowUps\AttachesSourceEmail;
 use App\DataTables\LeadFollowupDataTable;
 use App\DataTables\LeadGDPRDataTable;
 use App\DataTables\ProposalDataTable;
+use App\Email\EmailFeature;
+use App\Email\FollowUps\AttachesSourceEmail;
 use App\Enums\MlmCommissionStatus;
 use App\Enums\OutcomeStatus;
 use App\Enums\Salutation;
@@ -52,6 +52,7 @@ use App\Models\SallyMeetingInsight;
 use App\Models\User;
 use App\Notifications\MeetingLinkGenerationFailed;
 use App\Scopes\ActiveScope;
+use App\Services\AgentWorkspace\ContactDeals;
 use App\Services\CalendarSyncDispatcher;
 use App\Services\Deal\DealOutcomeService;
 use App\Services\Deal\DealPaymentValueGuard;
@@ -73,7 +74,9 @@ use App\Traits\DealAutomationTrait;
 use App\Traits\ImportExcel;
 use Carbon\Carbon;
 use GuzzleHttp\Client;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -521,6 +524,74 @@ class DealController extends AccountBaseController
 
     public function show($id)
     {
+        $props = $this->showProps($id);
+
+        return is_array($props) ? Inertia::render('Deals/Show', $props) : $props;
+    }
+
+    /**
+     * Deferred props the agent workspace's contact page never reads. Inertia
+     * fetches every deferred group a response lists, so these are left out
+     * rather than loaded and ignored (leadContacts alone is every lead).
+     */
+    public const AGENT_CONTACT_UNUSED_PROPS = [
+        'histories',
+        'activities',
+        'taskLabels',
+        'leadContacts',
+        'nonActiveLeadAgents',
+        'pipelineCustomFieldCategoryIdsByPipeline',
+    ];
+
+    /**
+     * The agent workspace's contact page in its deal state
+     * (/agent/people/{lead}/deals/{deal}). Same access check and props as
+     * show(), plus the person's other deals for the second row.
+     */
+    public function agentShow($lead, $deal, ContactDeals $contactDeals)
+    {
+        // The deal must belong to this person; checked before the heavy load.
+        $leadId = Deal::whereKey($deal)->value('lead_id');
+        abort_if($leadId === null || (int) $leadId !== (int) $lead, 404);
+
+        $props = $this->showProps($deal);
+        if (! is_array($props)) {
+            return $props;
+        }
+
+        return Inertia::render('AgentWorkspace/ContactDeal', array_merge(
+            Arr::except($props, self::AGENT_CONTACT_UNUSED_PROPS),
+            ['contactDeals' => $contactDeals->forLead((int) $lead, user())],
+        ));
+    }
+
+    /**
+     * /agent/deals/{deal}: opens a deal in the agent workspace, on its
+     * person's contact page. Links that only know the deal id (Today's tasks
+     * and meetings) go through here. A deal with no person opens the deal page.
+     * Access is checked by the page it lands on.
+     */
+    public function agentOpen($deal): RedirectResponse
+    {
+        $found = Deal::whereKey($deal)->first(['id', 'lead_id']);
+        abort_if($found === null, 404);
+
+        if ($found->lead_id === null) {
+            return redirect()->route('deals.show', $found->id);
+        }
+
+        return redirect()->route('agent.people.deal', ['lead' => $found->lead_id, 'deal' => $found->id]);
+    }
+
+    /**
+     * The deal page's props: the shell plus the deferred groups. Returns a
+     * redirect instead when an Inertia request has no access to the deal
+     * (a plain request without access gets a 403).
+     *
+     * @return array<string, mixed>|RedirectResponse
+     */
+    protected function showProps($id): array|RedirectResponse
+    {
         // Shell vs deferred prop matrix: docs/inertia-react-performance-checklist.md (Task C1).
         // Deferred keys use Inertia::defer (Task C3).
 
@@ -691,7 +762,7 @@ class DealController extends AccountBaseController
 
         $dealId = (int) $id;
 
-        return Inertia::render('Deals/Show', array_merge($formData, [
+        return array_merge($formData, [
             'deal' => $dealWithCustomFields,
             'productNames' => $productNames,
             'visibleDealFieldKeys' => $visibleDealFieldKeys,
@@ -827,7 +898,7 @@ class DealController extends AccountBaseController
                     ];
                 })(),
             ] : []),
-        ]));
+        ]);
     }
 
     /**

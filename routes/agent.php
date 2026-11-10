@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AgentWorkspace\AgentWorkspaceController;
+use App\Http\Controllers\DealController;
 use App\Http\Controllers\LeadContactController;
 use App\Http\Middleware\EnsureAgentWorkspaceAccess;
 use Illuminate\Support\Facades\Route;
@@ -22,4 +23,12 @@ Route::middleware(['auth', 'partner.restrict', EnsureAgentWorkspaceAccess::class
         Route::get('people/{lead}', [LeadContactController::class, 'agentShow'])
             ->whereNumber('lead')
             ->name('people.show');
+        // The same page in a deal's state: runs on the deal page's props.
+        Route::get('people/{lead}/deals/{deal}', [DealController::class, 'agentShow'])
+            ->whereNumber(['lead', 'deal'])
+            ->name('people.deal');
+        // A deal by id alone: redirects to its person's page in the deal state.
+        Route::get('deals/{deal}', [DealController::class, 'agentOpen'])
+            ->whereNumber('deal')
+            ->name('deals.show');
     });

@@ -5,10 +5,12 @@ import Icon from "@/Components/Redesign/primitives/Icon";
 import Segmented from "@/Components/Redesign/primitives/Segmented";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
-import useDealTimeline, { LEAD_TIMELINE_MODEL_TYPE } from "@/Pages/Deals/Redesign/hooks/useDealTimeline";
+import useDealTimeline from "@/Pages/Deals/Redesign/hooks/useDealTimeline";
 import useWorkspaceOverview from "@/Pages/Deals/Redesign/hooks/useWorkspaceOverview";
-import { useLeadWorkspace } from "@/Pages/Leads/Redesign/context/LeadWorkspaceContext";
 import type { LeadCreateKind } from "@/Pages/Leads/Redesign/components/workspace/LeadCreateModals";
+import type { DealFollowup } from "@/Types/api/deal-followup";
+import type { Note } from "@/Types/api/note";
+import type { Task } from "@/Types/api/tasks";
 import { dayKeyIn, hasDueTime } from "@/Components/Redesign/agent";
 import { dayDiff, taskDueText, wallTime } from "../today/format";
 import { NewActivityButton } from "./ContactHeader";
@@ -26,8 +28,26 @@ export interface ActivityPermissions {
     create: Partial<Record<LeadCreateKind, boolean>>;
 }
 
+/**
+ * The record's lists, from whichever workspace context the page holds
+ * (LeadWorkspaceContext or DealWorkspaceContext), and the timeline to read.
+ */
+export interface ActivitySource {
+    tasks: Task[];
+    tasksLoading: boolean;
+    meetings: DealFollowup[];
+    meetingsLoading: boolean;
+    notes: Note[];
+    notesLoading: boolean;
+    /** useDealTimeline's record: the deal id (default model) or the lead id with LEAD_TIMELINE_MODEL_TYPE. */
+    timelineId: number;
+    timelineModelType?: string;
+}
+
 interface ActivityCardsProps {
-    leadId: number;
+    source: ActivitySource;
+    /** "Coming up on this deal" in the deal state. */
+    comingUpTitle?: string;
     nowMs: number;
     timeZone: string;
     permissions: ActivityPermissions;
@@ -39,8 +59,8 @@ interface ActivityCardsProps {
 
 /**
  * Coming up, Last touches and Notes, side by side; tabs on a phone. Coming
- * up and Notes read LeadWorkspaceContext (the lead page's deferred lists);
- * Last touches is the lead's CRM-event timeline, the lead page's Timeline tab.
+ * up and Notes read the page's workspace context (the record page's own
+ * lists); Last touches is the record's CRM-event timeline, its Timeline tab.
  */
 export default function ActivityCards(props: ActivityCardsProps) {
     const { t } = useTranslation();
@@ -49,7 +69,11 @@ export default function ActivityCards(props: ActivityCardsProps) {
 
     const cards: Array<{ id: CardId; label: string; node: ReactNode }> = [];
     if (permissions.viewTasks || permissions.viewMeetings) {
-        cards.push({ id: "coming_up", label: t("pages.agent_workspace.contact.coming_up.title"), node: <ComingUpCard {...props} /> });
+        cards.push({
+            id: "coming_up",
+            label: t("pages.agent_workspace.contact.coming_up.title"),
+            node: <ComingUpCard {...props} />,
+        });
     }
     cards.push({ id: "touches", label: t("pages.agent_workspace.contact.touches.title"), node: <LastTouchesCard {...props} /> });
     if (permissions.viewNotes) {
@@ -115,19 +139,19 @@ function shortDay(ms: number, nowMs: number, timeZone: string, locale: string, t
     return new Intl.DateTimeFormat(locale || undefined, { ...options, timeZone: timeZone || undefined }).format(new Date(ms));
 }
 
-function ComingUpCard({ nowMs, timeZone, permissions, onCreate, onOpenTask, onOpenMeeting }: ActivityCardsProps) {
+function ComingUpCard({ source, comingUpTitle, nowMs, timeZone, permissions, onCreate, onOpenTask, onOpenMeeting }: ActivityCardsProps) {
     const { t, locale } = useTranslation();
     const todayLabel = t("pages.agent_workspace.today.title");
     const { td } = useTd();
-    const { tasks, leadFollowUps, tasksLoading, leadFollowUpsLoading } = useLeadWorkspace();
-    const overview = useWorkspaceOverview({ dealFollowUps: leadFollowUps });
+    const { tasks, meetings, tasksLoading, meetingsLoading } = source;
+    const overview = useWorkspaceOverview({ dealFollowUps: meetings });
 
     const items = useMemo(
         () =>
             buildComingUp(permissions.viewTasks ? tasks : [], permissions.viewMeetings ? overview.meetings : [], nowMs, timeZone),
         [nowMs, overview.meetings, permissions.viewMeetings, permissions.viewTasks, tasks, timeZone],
     );
-    const loading = (tasksLoading && tasks.length === 0) || (leadFollowUpsLoading && leadFollowUps.length === 0);
+    const loading = (tasksLoading && tasks.length === 0) || (meetingsLoading && meetings.length === 0);
 
     const when = (item: ComingUpItem): string => {
         if (item.kind === "meeting") {
@@ -146,8 +170,8 @@ function ComingUpCard({ nowMs, timeZone, permissions, onCreate, onOpenTask, onOp
 
     return (
         <Card
-            title={t("pages.agent_workspace.contact.coming_up.title")}
-            action={<NewActivityButton onCreate={onCreate} allowed={permissions.create} size="sm" variant="ghost" />}
+            title={comingUpTitle ?? t("pages.agent_workspace.contact.coming_up.title")}
+            action={<NewActivityButton onCreate={onCreate} allowed={permissions.create} size="sm" />}
         >
             {loading ? (
                 <CardSkeleton />
@@ -203,20 +227,22 @@ function ComingUpCard({ nowMs, timeZone, permissions, onCreate, onOpenTask, onOp
     );
 }
 
-function LastTouchesCard({ leadId, nowMs, timeZone, onCreate }: ActivityCardsProps) {
+function LastTouchesCard({ source, nowMs, timeZone, permissions, onCreate }: ActivityCardsProps) {
     const { t, locale } = useTranslation();
     const todayLabel = t("pages.agent_workspace.today.title");
     const { td } = useTd();
-    const timeline = useDealTimeline(leadId, LEAD_TIMELINE_MODEL_TYPE);
+    const timeline = useDealTimeline(source.timelineId, source.timelineModelType);
     const events = timeline.events.slice(0, ROWS);
 
     return (
         <Card
             title={t("pages.agent_workspace.contact.touches.title")}
             action={
-                <Button variant="ghost" size="sm" onClick={() => onCreate("log")}>
-                    {t("pages.agent_workspace.contact.log_activity")}
-                </Button>
+                permissions.create.log !== false ? (
+                    <Button variant="ghost" size="sm" onClick={() => onCreate("log")}>
+                        {t("pages.agent_workspace.contact.log_activity")}
+                    </Button>
+                ) : null
             }
         >
             {timeline.isLoading ? (
@@ -248,11 +274,11 @@ function LastTouchesCard({ leadId, nowMs, timeZone, onCreate }: ActivityCardsPro
     );
 }
 
-function NotesCard({ nowMs, timeZone, permissions, onCreate, onOpenNote }: ActivityCardsProps) {
+function NotesCard({ source, nowMs, timeZone, permissions, onCreate, onOpenNote }: ActivityCardsProps) {
     const { t, locale } = useTranslation();
     const todayLabel = t("pages.agent_workspace.today.title");
-    const { notes, notesLoading } = useLeadWorkspace();
-    const overview = useWorkspaceOverview({ notes: notes as Parameters<typeof useWorkspaceOverview>[0]["notes"] });
+    const { notes, notesLoading } = source;
+    const overview = useWorkspaceOverview({ notes });
 
     return (
         <Card
@@ -264,7 +290,7 @@ function NotesCard({ nowMs, timeZone, permissions, onCreate, onOpenNote }: Activ
             }
             action={
                 permissions.create.note !== false ? (
-                    <Button variant="ghost" size="sm" onClick={() => onCreate("note")}>
+                    <Button size="sm" className="agent-btn-soft" onClick={() => onCreate("note")}>
                         <Icon name="plus" size={12} />
                         {t("pages.agent_workspace.contact.notes.add")}
                     </Button>

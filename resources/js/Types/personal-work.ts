@@ -12,6 +12,12 @@ export interface RelatedRecord {
     type: "lead" | "deal";
     id: number;
     name: string;
+    /** The lead's lifecycle status, or the deal's stage. */
+    status?: string | null;
+    /** The person: the lead itself, or the deal's contact. */
+    person?: string | null;
+    /** The person's mobile with its country code, when there is one. */
+    phone?: string | null;
 }
 
 /** A full task, so the row can open TaskDetailModal without a second fetch. */
@@ -31,6 +37,10 @@ export type ScheduleEntry = DealFollowup & {
     title: string;
     subtitle: string | null;
     type: string | null;
+    /** Who the meeting is with: the lead, or the deal's contact. */
+    person?: string | null;
+    /** The deal's pipeline stage name, when the meeting is on a deal. */
+    deal_stage?: string | null;
     location_label: string | null;
     at: string | null;
     duration: number;

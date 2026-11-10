@@ -80,17 +80,32 @@ export default function AgendaHeader({
         });
         if (next?.at) parts.push(t(`${key}.status.next_at`, { time: instantTime(next.at, timeZone) }));
     }
-    if (needOutcome) {
-        parts.push(
-            needOutcome === 1 ? t(`${key}.status.outcome_one`) : t(`${key}.status.outcome_many`, { count: needOutcome }),
-        );
-    }
+    // Answered beside the list; on week and month the count opens the list.
+    const outcomeText = needOutcome
+        ? needOutcome === 1
+            ? t(`${key}.status.outcome_one`)
+            : t(`${key}.status.outcome_many`, { count: needOutcome })
+        : null;
 
     return (
         <div className="agent-today__top agent-agenda__top">
             <div className="agent-today__heading">
                 <h1>{title}</h1>
-                <p aria-live="polite">{parts.length > 0 ? parts.join(" · ") : " "}</p>
+                <p aria-live="polite">
+                    {parts.length > 0 || outcomeText ? parts.join(" · ") : " "}
+                    {outcomeText ? (
+                        <>
+                            {parts.length > 0 ? " · " : null}
+                            {view === "list" ? (
+                                <b>{outcomeText}</b>
+                            ) : (
+                                <button type="button" className="agent-agenda__outcome-link" onClick={() => onNavigate("list", date)}>
+                                    {outcomeText}
+                                </button>
+                            )}
+                        </>
+                    ) : null}
+                </p>
             </div>
             <div className="agent-agenda__controls">
                 <button

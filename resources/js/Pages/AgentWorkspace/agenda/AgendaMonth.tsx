@@ -18,13 +18,15 @@ interface AgendaMonthProps {
     handlers: TaskHandlers;
     onSelect: (day: string) => void;
     onOpenMeeting: (meeting: ScheduleEntry) => void;
+    /** Meetings still waiting on "did it happen?": outlined red with a "!", and a red dot on the date. */
+    needOutcome: ReadonlySet<number>;
 }
 
 /**
  * The month as a grid of days. On a desktop each day lists its first few
  * meetings and tasks; on a phone it shows dots. Clicking a day previews it.
  */
-export default function AgendaMonth({ days, month, byDay, today, selected, handlers, onSelect, onOpenMeeting }: AgendaMonthProps) {
+export default function AgendaMonth({ days, month, byDay, today, selected, handlers, onSelect, onOpenMeeting, needOutcome }: AgendaMonthProps) {
     const { locale } = useTranslation();
     const weekdays = days.slice(0, 7).map((key) =>
         new Date(`${key}T12:00:00Z`).toLocaleDateString(locale || undefined, { weekday: "short", timeZone: "UTC" }),
@@ -49,6 +51,7 @@ export default function AgendaMonth({ days, month, byDay, today, selected, handl
                         handlers={handlers}
                         onSelect={onSelect}
                         onOpenMeeting={onOpenMeeting}
+                        needOutcome={needOutcome}
                     />
                 ))}
             </div>
@@ -65,6 +68,7 @@ function MonthCell({
     handlers,
     onSelect,
     onOpenMeeting,
+    needOutcome,
 }: {
     dayKey: string;
     day: AgendaDay;
@@ -74,12 +78,14 @@ function MonthCell({
     handlers: TaskHandlers;
     onSelect: (day: string) => void;
     onOpenMeeting: (meeting: ScheduleEntry) => void;
+    needOutcome: ReadonlySet<number>;
 }) {
     const { t, locale } = useTranslation();
     const { nowMs, timeZone } = handlers;
     const items = useOrderedDay(day, timeZone);
     const shown = items.slice(0, MAX_CHIPS);
     const more = items.length - shown.length;
+    const waiting = day.meetings.some((meeting) => needOutcome.has(meeting.id));
     const label = new Date(`${dayKey}T12:00:00Z`).toLocaleDateString(locale || undefined, {
         weekday: "long",
         day: "numeric",
@@ -105,23 +111,27 @@ function MonthCell({
                 }}
             >
                 {Number(dayKey.slice(8, 10))}
+                {waiting ? <span className="agent-mo__flag" aria-hidden="true" /> : null}
             </button>
             <div className="agent-mo__chips">
                 {shown.map((item) => {
                     if (item.kind === "meeting") {
                         const { meeting } = item;
+                        const state = meetingState(meeting, nowMs);
+                        const open = needOutcome.has(meeting.id);
                         return (
                             <button
                                 key={`m${meeting.id}`}
                                 type="button"
-                                className={`agent-mo__chip agent-ts--${meetingState(meeting, nowMs)}`}
+                                className={`agent-mo__chip agent-ts--${state}${open ? " agent-mo__chip--outcome" : ""}`}
                                 title={meeting.title}
                                 onClick={(event) => {
                                     event.stopPropagation();
                                     onOpenMeeting(meeting);
                                 }}
                             >
-                                {meeting.at ? <b>{instantTime(meeting.at, timeZone)}</b> : null} {meeting.title}
+                                {open ? <b aria-hidden="true">! </b> : state === "done" ? <span aria-hidden="true">✓ </span> : null}
+                                {meeting.at ? <b>{instantTime(meeting.at, timeZone)}</b> : null} {meeting.person || meeting.title}
                             </button>
                         );
                     }

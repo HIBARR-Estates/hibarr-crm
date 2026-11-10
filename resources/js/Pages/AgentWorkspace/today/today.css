@@ -85,7 +85,7 @@
 /* ---------- two columns ---------- */
 .agent-today__grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+    grid-template-columns: minmax(0, 1fr) minmax(400px, 520px);
     align-items: start;
     gap: 16px;
 }
@@ -217,15 +217,79 @@
     font-weight: 700;
 }
 
-/* ---------- due first ---------- */
+/* ---------- record badges ---------- */
+.agent-badge {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-badge--lead {
+    background: var(--dr-blue);
+    color: var(--dr-white);
+}
+
+.agent-badge--deal {
+    background: var(--dr-surface-hover);
+    color: var(--dr-gray-darker);
+}
+
+.agent-badge__mark {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: var(--dr-navy);
+}
+
+/* ---------- do this first ---------- */
 .agent-next {
+    overflow: hidden;
+    border: 1px solid var(--dr-border);
+    border-radius: 20px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+}
+
+.agent-next__strip {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 18px 20px;
-    border-radius: 20px;
+    gap: 8px;
+    margin: 0;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--ts-border);
     background: var(--ts-bg);
-    color: var(--dr-text);
+    color: var(--ts-text);
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.agent-next__dot {
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--ts-solid);
+}
+
+.agent-next__main {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 18px 20px;
+}
+
+.agent-next__main > .dr-avatar,
+.agent-next__main > span:first-child {
+    flex: none;
 }
 
 .agent-next__body {
@@ -234,15 +298,7 @@
     flex: 1;
     flex-direction: column;
     align-items: flex-start;
-    gap: 6px;
-}
-
-.agent-next__eyebrow {
-    color: var(--ts-text);
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+    gap: 8px;
 }
 
 .agent-next__title {
@@ -252,8 +308,8 @@
     background: none;
     color: var(--dr-text);
     cursor: pointer;
-    font-size: 19px;
-    font-weight: 700;
+    font-size: 20px;
+    font-weight: 600;
     line-height: 1.3;
     text-align: left;
 }
@@ -262,15 +318,41 @@
     text-decoration: underline;
 }
 
+.agent-next__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    color: var(--dr-text-muted);
+    font-size: 13px;
+}
+
 .agent-next__actions {
+    display: flex;
+    width: 180px;
     flex: none;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.agent-next__actions > .dr-btn,
+.agent-next__actions > a.dr-btn {
+    width: 100%;
+    min-height: 40px;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.agent-next__actions .agent-task-actions {
+    flex-direction: column;
+    align-items: stretch;
 }
 
 /* ---------- queue rows ---------- */
 .agent-q {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -280,13 +362,14 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 12px;
+    padding: 11px 14px;
+    border: 1px solid var(--dr-border);
     border-radius: 12px;
-    background: var(--dr-surface-2);
+    background: var(--dr-white);
 }
 
-.agent-q__row.agent-ts--late {
-    background: var(--ts-bg);
+.agent-q__row:hover {
+    border-color: var(--dr-navy-mid);
 }
 
 .agent-q__row.is-done {
@@ -302,7 +385,28 @@
     min-width: 0;
     flex: 1;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
+}
+
+.agent-q__head {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+}
+
+.agent-q__name {
+    overflow: hidden;
+    color: var(--dr-text);
+    font-size: 14.5px;
+    font-weight: 600;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-q__name:hover {
+    color: var(--dr-blue);
 }
 
 .agent-q__title {
@@ -310,10 +414,9 @@
     padding: 0;
     border: 0;
     background: none;
-    color: var(--dr-text);
+    color: var(--dr-text-muted);
     cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 13px;
     text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -323,28 +426,60 @@
     color: var(--dr-blue);
 }
 
-.agent-q__meta {
-    display: flex;
-    min-width: 0;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 10px;
+.agent-q__head:empty + .agent-q__title {
+    color: var(--dr-text);
+    font-size: 14px;
+    font-weight: 600;
 }
 
 .agent-q__due {
+    display: inline-flex;
     flex: none;
-    padding: 2px 8px;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 10px;
+    border: 1px solid var(--ts-border);
     border-radius: 999px;
-    background: var(--ts-solid);
-    color: var(--dr-white);
-    font-size: 11.5px;
-    font-weight: 700;
-}
-
-.agent-ts--done .agent-q__due,
-.agent-ts--none .agent-q__due {
     background: var(--ts-bg);
     color: var(--ts-text);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-q__due-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ts-solid);
+}
+
+.agent-q__open {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--dr-text-muted);
+    cursor: pointer;
+}
+
+.agent-q__open:hover {
+    background: var(--dr-surface-hover);
+    color: var(--dr-text);
+}
+
+.agent-show-all.dr-btn {
+    border-color: var(--dr-blue-mid);
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark) !important;
+    text-decoration: none;
 }
 
 /* ---------- schedule ---------- */
@@ -359,36 +494,45 @@
 
 .agent-sched__item {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 12px;
 }
 
 .agent-sched__time {
-    width: 48px;
+    width: 44px;
     flex: none;
-    padding-top: 12px;
     color: var(--dr-text-muted);
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
     font-size: 12.5px;
     font-variant-numeric: tabular-nums;
-    font-weight: 600;
 }
 
 .agent-sched__card {
     display: flex;
     min-width: 0;
     flex: 1;
-    flex-direction: column;
-    gap: 6px;
+    align-items: center;
+    gap: 10px;
     padding: 10px 12px;
+    border: 1px solid var(--ts-border);
     border-radius: 12px;
     background: var(--ts-bg);
 }
 
+.agent-sched__text {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 3px;
+}
+
 .agent-sched__top {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
 }
 
 .agent-sched__title {
@@ -398,7 +542,7 @@
     background: none;
     color: var(--dr-text);
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 600;
     text-align: left;
 }
@@ -409,23 +553,30 @@
 
 .agent-ts--done .agent-sched__title {
     color: var(--dr-text-muted);
+    text-decoration: line-through;
 }
 
 .agent-sched__state {
+    display: inline-flex;
     flex: none;
-    padding: 2px 8px;
+    align-items: center;
+    gap: 5px;
+    height: 22px;
+    padding: 0 8px;
+    border: 1px solid var(--ts-border);
     border-radius: 999px;
-    background: var(--ts-solid);
-    color: var(--dr-white);
+    background: var(--dr-white);
+    color: var(--ts-text);
     font-size: 11.5px;
-    font-weight: 700;
+    font-weight: 600;
     white-space: nowrap;
 }
 
-.agent-ts--none .agent-sched__state,
-.agent-ts--done .agent-sched__state {
-    background: var(--dr-white);
-    color: var(--ts-text);
+.agent-sched__state-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ts-solid);
 }
 
 .agent-sched__meta {
@@ -433,8 +584,8 @@
     min-width: 0;
     align-items: center;
     gap: 6px;
-    color: var(--ts-text);
-    font-size: 12.5px;
+    color: var(--dr-text-muted);
+    font-size: 12px;
 }
 
 .agent-sched__meta span {
@@ -445,7 +596,9 @@
 
 .agent-sched__actions {
     display: flex;
+    flex: none;
     flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 6px;
 }
 
@@ -453,10 +606,78 @@
     text-decoration: none;
 }
 
+.agent-sched__actions .agent-task-done {
+    padding: 4px 9px;
+    font-size: 12px;
+}
+
+/* The current time, between the items it falls between. */
+.agent-sched__now {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 14px;
+    color: var(--dr-time-late-solid);
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+}
+
+.agent-sched__now span {
+    width: 44px;
+}
+
+.agent-sched__now::before {
+    content: "";
+    position: absolute;
+    left: 50px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--dr-time-late-solid);
+}
+
+.agent-sched__now::after {
+    content: "";
+    flex: 1;
+    height: 2px;
+    background: var(--dr-time-late-solid);
+}
+
+/* ---------- next days ---------- */
+.agent-next-days {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding-top: 4px;
+    color: var(--dr-text-muted);
+    font-size: 12.5px;
+}
+
+.agent-next-days__day {
+    height: 30px;
+    padding: 0 11px;
+    border: 1px solid var(--dr-border);
+    border-radius: 8px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    cursor: pointer;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.agent-next-days__day:hover {
+    border-color: var(--dr-blue-mid);
+    color: var(--dr-blue-dark);
+}
+
 /* ---------- tablet: same two columns, narrower schedule ---------- */
 @media (max-width: 1023px) {
+    /* Too narrow for two useful columns: the schedule follows the work. */
     .agent-today__grid {
-        grid-template-columns: minmax(0, 1fr) 300px;
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .agent-task-actions__label {
@@ -469,34 +690,19 @@
         justify-content: center;
     }
 
-    .agent-next {
+    .agent-next__main {
         flex-wrap: wrap;
     }
 
     .agent-next__actions {
-        flex-basis: 100%;
+        width: 100%;
+        flex-direction: row;
     }
 
-    /* Actions drop under the text so titles keep their room. */
-    .agent-q__row {
-        flex-wrap: wrap;
-    }
-
-    .agent-q__body {
-        flex-basis: calc(100% - 44px);
-    }
-
-    .agent-q__title {
-        white-space: normal;
-    }
-
-    .agent-q__row .agent-task-actions,
-    .agent-q__row .agent-task-done {
-        margin-left: 44px;
-    }
-
-    .agent-sched__meta span {
-        white-space: normal;
+    .agent-next__actions > .dr-btn,
+    .agent-next__actions > a.dr-btn {
+        width: auto;
+        flex: 1;
     }
 }
 
@@ -554,29 +760,33 @@
     }
 
     .agent-next {
-        padding: 16px;
         border-radius: 16px;
+    }
+
+    .agent-next__strip {
+        padding: 9px 14px;
+    }
+
+    .agent-next__main {
+        gap: 12px;
+        padding: 14px;
     }
 
     .agent-next__title {
         font-size: 17px;
     }
 
-    .agent-q__row .agent-task-actions,
-    .agent-q__row .agent-task-done {
-        margin-left: 0;
+    .agent-next__actions {
+        flex-direction: column;
     }
 
-    .agent-q__row .agent-task-actions {
-        width: 100%;
-    }
-
+    .agent-next__actions > .dr-btn,
+    .agent-next__actions > a.dr-btn,
     .agent-task-actions .dr-btn,
     .agent-sched__actions .dr-btn {
         min-height: 44px;
     }
 
-    .agent-q__row .agent-task-actions .dr-btn:first-child,
     .agent-next .agent-task-actions .dr-btn:first-child {
         flex: 1;
         justify-content: center;
@@ -584,5 +794,52 @@
 
     .agent-task-actions__reschedule {
         width: 44px;
+    }
+
+    /* Avatar | name, task, due chip | chevron: the chip sits under the task. */
+    .agent-q__row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        column-gap: 12px;
+        row-gap: 6px;
+    }
+
+    .agent-q__row > :first-child {
+        grid-row: 1 / span 2;
+        align-self: start;
+    }
+
+    .agent-q__body {
+        grid-column: 2;
+    }
+
+    .agent-q__due {
+        grid-column: 2;
+        justify-self: start;
+    }
+
+    .agent-q__open {
+        grid-column: 3;
+        grid-row: 1 / span 2;
+    }
+
+    .agent-q__row {
+        padding: 10px 12px;
+    }
+
+    /* The name wins over the badge: the badge drops to its own line. */
+    .agent-q__head {
+        flex-wrap: wrap;
+        row-gap: 4px;
+    }
+
+    .agent-q__name {
+        flex: none;
+        max-width: 100%;
+    }
+
+    .agent-q__open {
+        width: 44px;
+        height: 44px;
     }
 }

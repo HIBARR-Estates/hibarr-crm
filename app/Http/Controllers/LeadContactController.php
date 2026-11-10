@@ -40,6 +40,7 @@ use App\Models\PipelineStage;
 use App\Models\Product;
 use App\Models\SallyMeetingInsight;
 use App\Models\User;
+use App\Services\AgentWorkspace\ContactDeals;
 use App\Services\DealAgentAssignmentService;
 use App\Services\LeadCoreFieldsService;
 use App\Services\LeadFilterFacetsService;
@@ -222,12 +223,21 @@ class LeadContactController extends AccountBaseController
     ];
 
     /**
-     * The agent workspace's contact page (/agent/people/{id}). Same access
-     * check and the same props as show(), so both pages run on one payload;
-     * only the deferred groups the agent page doesn't use are dropped.
+     * The agent workspace's contact page (/agent/people/{id}) in its lead
+     * state. Same access check and the same props as show(), so both pages
+     * run on one payload; only the deferred groups the agent page doesn't
+     * use are dropped.
      */
-    public function agentShow($id, Request $request)
+    public function agentShow($id, Request $request, ContactDeals $contactDeals)
     {
+        // Only qualified leads have deals, and once one exists the page is
+        // about the deal: open on the first deal the viewer may see (open
+        // deals first). The deal page runs its own access check.
+        $deals = $contactDeals->forLead((int) $id, user());
+        if ($deals !== []) {
+            return redirect()->route('agent.people.deal', ['lead' => (int) $id, 'deal' => $deals[0]['id']]);
+        }
+
         $props = $this->showProps($id, $request);
         if (! is_array($props)) {
             return $props;

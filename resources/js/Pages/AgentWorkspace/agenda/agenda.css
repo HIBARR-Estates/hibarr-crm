@@ -112,29 +112,142 @@
     font-size: 13px;
 }
 
-/* Cards side by side, the time above each card. */
-.agent-sched--grid {
+/* The selected day as up to three cards side by side. */
+.agent-daycards {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
     gap: 10px;
 }
 
-.agent-sched--grid .agent-sched__item {
+.agent-daycard {
+    display: flex;
+    min-width: 0;
     flex-direction: column;
-    gap: 0;
-    border-radius: 14px;
+    gap: 6px;
+    padding: 12px 14px;
+    border: 1px solid var(--ts-border);
+    border-radius: 12px;
     background: var(--ts-bg);
 }
 
-.agent-sched--grid .agent-sched__time {
-    width: auto;
-    padding: 10px 12px 0;
-    color: var(--ts-text);
+.agent-daycard--task {
+    border: 1px solid var(--dr-border);
+    background: var(--dr-white);
 }
 
-.agent-sched--grid .agent-sched__card {
-    flex: 1;
+.agent-daycard__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.agent-daycard__time {
+    color: var(--dr-text);
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.agent-daycard__title {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--dr-text);
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 700;
+    text-align: left;
+}
+
+.agent-daycard__title:hover {
+    text-decoration: underline;
+}
+
+.agent-ts--done .agent-daycard__title {
+    color: var(--dr-text-muted);
+    text-decoration: line-through;
+}
+
+.agent-daycard__meta {
+    margin: 0;
+    color: var(--dr-text-muted);
+    font-size: 12.5px;
+}
+
+.agent-daycard__platform {
+    font-weight: 600;
+}
+
+.agent-daycard__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: auto;
     padding-top: 4px;
+}
+
+.agent-daycard__actions a.dr-btn {
+    text-decoration: none;
+}
+
+.agent-agenda__outcome-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* Single-line rows: time, the platform's colour bar, then the meeting. */
+.agent-sched--list .agent-sched__item {
+    gap: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--ts-border);
+    border-radius: 12px;
+    background: var(--ts-bg);
+}
+
+/* Later and untimed items stay plain white; only time states are tinted. */
+.agent-sched--list .agent-ts--later,
+.agent-sched--list .agent-ts--none:not(.agent-sched__item--task) {
+    border-color: var(--dr-border);
+    background: var(--dr-white);
+}
+
+.agent-sched--list .agent-sched__time {
+    width: 72px;
+    white-space: nowrap;
+    color: var(--dr-text);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.agent-sched--list .agent-sched__card {
+    padding: 0 0 0 14px;
+    border: 0;
+    border-left: 3px solid var(--agent-bar, var(--dr-navy));
+    border-radius: 0;
+    background: none;
+}
+
+.agent-sched--list .agent-sched__title {
+    font-size: 14px;
+}
+
+.agent-sched--list .agent-sched__meta {
+    gap: 3px;
+}
+
+.agent-sched--list .agent-sched__platform {
+    flex: none;
+    color: var(--agent-bar, var(--dr-navy));
+    font-weight: 600;
 }
 
 /* ---------- list ---------- */
@@ -146,7 +259,7 @@
 }
 
 .agent-agenda__list--with-aside {
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 440px);
 }
 
 .agent-agenda__list--with-aside .agent-agenda__aside {
@@ -215,6 +328,7 @@
     gap: 8px;
     padding: 12px;
     border-radius: 12px;
+    border: 1px solid var(--dr-time-late-border);
     background: var(--dr-time-late-bg);
 }
 
@@ -236,17 +350,14 @@
 .agent-outcome__choices {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 5px;
 }
 
 .agent-outcome__choices .dr-btn {
+    padding-right: 7px;
+    padding-left: 7px;
     background: var(--dr-white);
-}
-
-/* Above the week and month grids the items sit side by side. */
-.agent-outcome--wide .agent-outcome__list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+    font-size: 12px;
 }
 
 /* ---------- week grid ---------- */
@@ -316,18 +427,28 @@
 .agent-wk__chip,
 .agent-mo__chip {
     overflow: hidden;
-    padding: 3px 7px;
+    padding: 1px 6px;
     border: 1px solid var(--ts-border);
     border-radius: 6px;
     background: var(--ts-bg);
     color: var(--ts-text);
     font: inherit;
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 600;
     text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
     cursor: pointer;
+}
+
+.agent-mo__flag {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-left: 3px;
+    border-radius: 50%;
+    background: var(--dr-time-late-solid);
+    vertical-align: 2px;
 }
 
 .agent-wk__body {
@@ -516,10 +637,10 @@
 .agent-mo__cell {
     display: flex;
     min-width: 0;
-    min-height: 104px;
+    min-height: 78px;
     flex-direction: column;
-    gap: 4px;
-    padding: 6px;
+    gap: 3px;
+    padding: 5px 6px;
     border-right: 1px solid var(--dr-border-soft);
     border-bottom: 1px solid var(--dr-border-soft);
     cursor: pointer;
@@ -581,6 +702,14 @@
     border-color: var(--dr-gray-darker);
     background: var(--dr-gray-darker);
     color: var(--dr-white);
+}
+
+/* Waiting on "did it happen?": a red outline and a "!", whatever its time. */
+.agent-mo__chip.agent-mo__chip--outcome,
+.agent-wk__block.agent-wk__block--outcome {
+    border-color: var(--dr-time-late-border);
+    background: var(--dr-time-late-bg);
+    color: var(--dr-time-late-text);
 }
 
 .agent-mo__more {
@@ -668,7 +797,7 @@
     }
 
     .agent-mo__cell {
-        min-height: 88px;
+        min-height: 70px;
     }
 }
 
@@ -695,8 +824,25 @@
         padding: 0 10px;
     }
 
-    .agent-sched--grid {
-        grid-template-columns: minmax(0, 1fr);
+    .agent-sched--list .agent-sched__item {
+        align-items: flex-start;
+        padding: 10px 12px;
+    }
+
+    .agent-sched--list .agent-sched__time {
+        width: 50px;
+        font-size: 13px;
+        white-space: normal;
+    }
+
+    .agent-sched--list .agent-sched__card {
+        flex-direction: column;
+        align-items: stretch;
+        padding-left: 10px;
+    }
+
+    .agent-sched--list .agent-sched__actions {
+        justify-content: flex-start;
     }
 
     .agent-mo__weekdays span {
