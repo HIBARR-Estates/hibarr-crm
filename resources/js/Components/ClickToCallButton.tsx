@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
 import { PhoneOutlined } from "@ant-design/icons";
-import { Dropdown, type MenuProps, message, Tooltip } from "antd";
+import { App, Dropdown, type MenuProps, message, Tooltip } from "antd";
 import { usePage } from "@inertiajs/react";
 import { softphone } from "@/lib/softphone/SoftphoneClient";
 import useClickToCall from "@/Hooks/useClickToCall";
@@ -19,6 +19,7 @@ interface ClickToCallButtonProps {
     title?: string;
     ariaLabel?: string;
     dataAction?: string;
+    allowTelFallback?: boolean;
     children?: ReactNode;
 }
 
@@ -38,10 +39,13 @@ export default function ClickToCallButton({
     title,
     ariaLabel,
     dataAction,
+    allowTelFallback = true,
     children,
 }: ClickToCallButtonProps) {
     const { t } = useTranslation();
     const { props } = usePage();
+    const { message: appMessage } = App.useApp();
+    const toast = appMessage ?? message;
     const { isEnabled: olEnabled, initiateCall, isCalling } = useClickToCall();
     const {
         isEnabled: softphoneFeatureEnabled,
@@ -98,7 +102,7 @@ export default function ClickToCallButton({
     // Users with no assigned line (Call routing) cannot dial through the
     // softphone, so the button falls back to a plain tel: link for them.
     const useSoftphonePath = softphoneEnabled && hasCallPermission && hasLine;
-    const useTelFallback = softphoneEnabled && hasCallPermission && !hasLine;
+    const useTelFallback = allowTelFallback && softphoneEnabled && hasCallPermission && !hasLine;
 
     if ((!useSoftphonePath && !olEnabled && !useTelFallback) || !trimmedPhone) {
         return null;
@@ -121,7 +125,7 @@ export default function ClickToCallButton({
                 !navigator.mediaDevices ||
                 !window.isSecureContext
             ) {
-                message.error(t("pages.telephony.insecure_context"));
+                toast.error(t("pages.telephony.insecure_context"));
                 return;
             }
             if (
@@ -129,7 +133,7 @@ export default function ClickToCallButton({
                 typeof deviceId !== "number" &&
                 !softphoneReady
             ) {
-                message.warning(
+                toast.warning(
                     t("pages.telephony.softphone_not_registered"),
                 );
                 return;
@@ -144,7 +148,7 @@ export default function ClickToCallButton({
                 deviceId,
             )
                 .then(() => {
-                    message.info(
+                    toast.info(
                         t("pages.telephony.calling_number", {
                             phone: normalizedPhone,
                         }),
@@ -163,7 +167,7 @@ export default function ClickToCallButton({
                 .catch((error: unknown) => {
                     const detail =
                         error instanceof Error ? error.message?.trim() : "";
-                    message.error(detail || t("pages.telephony.generic_error"));
+                    toast.error(detail || t("pages.telephony.generic_error"));
                     if (
                         detail &&
                         (detail.includes("603") ||
@@ -184,7 +188,10 @@ export default function ClickToCallButton({
         void initiateCall(trimmedPhone, entity);
     };
 
-    const handleClick = () => makeCallWithDevice();
+    const handleClick = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        makeCallWithDevice();
+    };
 
     const lineMenuItems: MenuProps["items"] = [
         {
@@ -235,18 +242,18 @@ export default function ClickToCallButton({
                 <Dropdown
                     menu={{ items: lineMenuItems }}
                     trigger={["click"]}
-                    disabled={loading || cooling}
                     open={menuOpen}
                     onOpenChange={setMenuOpen}
+                    disabled={loading || cooling}
                 >
                     <button
                         type="button"
+                        onClick={(e) => e.stopPropagation()}
                         disabled={loading || cooling}
                         className={className}
                         title={title}
                         aria-label={ariaLabel ?? title}
                         data-action={dataAction}
-                        onClick={(e) => e.stopPropagation()}
                     >
                         {buttonContent}
                     </button>
@@ -274,18 +281,16 @@ export default function ClickToCallButton({
                 <Dropdown
                     menu={{ items: lineMenuItems }}
                     trigger={["click"]}
-                    disabled={loading || cooling}
                     open={menuOpen}
                     onOpenChange={setMenuOpen}
+                    disabled={loading || cooling}
                 >
                     <PhoneOutlined
                         role="button"
                         aria-label={ariaLabel ?? title ?? t("pages.telephony.call")}
                         data-action={dataAction}
                         onClick={(e) => e.stopPropagation()}
-                        className={`mt-1 flex-shrink-0 cursor-pointer text-[11px] text-green-600 transition-opacity hover:text-green-700 group-hover:opacity-100 ${
-                            menuOpen ? "opacity-100" : "opacity-0"
-                        } ${
+                        className={`mt-1 flex-shrink-0 cursor-pointer text-[11px] text-green-600 opacity-0 transition-opacity hover:text-green-700 group-hover:opacity-100 ${
                             loading ? "pointer-events-none opacity-50" : ""
                         } ${className}`}
                     />

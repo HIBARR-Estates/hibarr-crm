@@ -47,12 +47,7 @@ export default function QuickActions2({ deal, permissions }: Props) {
         props.featureFlags?.["crm.softphone"] === true &&
         hasSoftphonePermission &&
         hasLine;
-    // No assigned line (Call routing): skip softphone/OL and use a tel: link.
-    const noLineFallback =
-        softphoneFeatureEnabled &&
-        props.featureFlags?.["crm.softphone"] === true &&
-        hasSoftphonePermission &&
-        !hasLine;
+    const canUseLine = (softphoneFeatureEnabled && props.featureFlags?.["crm.softphone"] === true && hasSoftphonePermission) || olEnabled;
 
     const [conversationModalOpen, setConversationModalOpen] = useState(false);
     const [meetingModalOpen, setMeetingModalOpen] = useState(false);
@@ -67,6 +62,9 @@ export default function QuickActions2({ deal, permissions }: Props) {
         "";
 
     const placeCall = (deviceId?: number) => {
+        if (!canUseLine) {
+            return;
+        }
         if (!contactPhone) {
             messageApi.warning(t("pages.deals.quick_actions.no_phone"));
             return;
@@ -107,7 +105,7 @@ export default function QuickActions2({ deal, permissions }: Props) {
                 });
             return;
         }
-        if (olEnabled && !noLineFallback) {
+        if (olEnabled) {
             void initiateCall(contactPhone, { type: "deal", id: deal.id });
             return;
         }
@@ -203,12 +201,16 @@ export default function QuickActions2({ deal, permissions }: Props) {
             title: "WhatsApp",
             color: "#25D366",
         },
-        {
-            key: "phone",
-            icon: <PhoneOutlined />,
-            title: "Call",
-            color: "#52c41a",
-        },
+        ...(canUseLine
+            ? [
+                  {
+                      key: "phone",
+                      icon: <PhoneOutlined />,
+                      title: "Call",
+                      color: "#52c41a",
+                  },
+              ]
+            : []),
         {
             key: "telegram",
             label: "Telegram",

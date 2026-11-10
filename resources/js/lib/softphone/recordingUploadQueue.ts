@@ -261,11 +261,9 @@ export async function uploadRecordingWithRetries(
     const maxAttempts = options.maxAttempts ?? 3;
     let lastError: DetailedUploadError | null = null;
 
-    const extension = item.blob.type.includes("mp4")
-        ? "m4a"
-        : item.blob.type.includes("ogg")
-          ? "ogg"
-          : "webm";
+    const extension = item.blob.type.includes("ogg")
+        ? "ogg"
+        : "m4a";
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         if (options.onProgress) {

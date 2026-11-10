@@ -47,12 +47,7 @@ export default function QuickActions({ deal, permissions }: Props) {
         props.featureFlags?.["crm.softphone"] === true &&
         hasSoftphonePermission &&
         hasLine;
-    // No assigned line (Call routing): skip softphone/OL and use a tel: link.
-    const noLineFallback =
-        softphoneFeatureEnabled &&
-        props.featureFlags?.["crm.softphone"] === true &&
-        hasSoftphonePermission &&
-        !hasLine;
+    const canUseLine = (softphoneFeatureEnabled && props.featureFlags?.["crm.softphone"] === true && hasSoftphonePermission) || olEnabled;
 
     const [conversationModalOpen, setConversationModalOpen] = useState(false);
     const [meetingModalOpen, setMeetingModalOpen] = useState(false);
@@ -68,6 +63,9 @@ export default function QuickActions({ deal, permissions }: Props) {
         "";
 
     const placeCall = (deviceId?: number) => {
+        if (!canUseLine) {
+            return;
+        }
         if (!contactPhone) {
             messageApi.warning(t("pages.deals.quick_actions.no_phone"));
             return;
@@ -108,7 +106,7 @@ export default function QuickActions({ deal, permissions }: Props) {
                 });
             return;
         }
-        if (olEnabled && !noLineFallback) {
+        if (olEnabled) {
             void initiateCall(contactPhone, { type: "deal", id: deal.id });
             return;
         }
@@ -204,27 +202,34 @@ export default function QuickActions({ deal, permissions }: Props) {
             icon: <WhatsAppOutlined style={{ color: "#25D366" }} />,
             label: "WhatsApp",
         },
-        {
-            value: "phone",
-            icon: hasLineChoice ? (
-                <Dropdown menu={{ items: lineMenuItems }} trigger={["click"]}>
-                    <span
-                        onClick={(e) => {
-                            // Keep the icon click from also selecting the
-                            // segment (native label activation) and dialing.
-                            e.preventDefault();
-                            e.stopPropagation();
-                        }}
-                        className="inline-flex items-center justify-center"
-                    >
-                        <PhoneOutlined style={{ color: "#52c41a" }} />
-                    </span>
-                </Dropdown>
-            ) : (
-                <PhoneOutlined style={{ color: "#52c41a" }} />
-            ),
-            label: t("pages.deals.quick_actions.call_label"),
-        },
+        ...(canUseLine
+            ? [
+                  {
+                      value: "phone",
+                      icon: hasLineChoice ? (
+                          <Dropdown
+                              menu={{ items: lineMenuItems }}
+                              trigger={["click"]}
+                          >
+                              <span
+                                  onClick={(e) => {
+                                      // Keep the icon click from also selecting the
+                                      // segment (native label activation) and dialing.
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                  }}
+                                  className="inline-flex items-center justify-center"
+                              >
+                                  <PhoneOutlined style={{ color: "#52c41a" }} />
+                              </span>
+                          </Dropdown>
+                      ) : (
+                          <PhoneOutlined style={{ color: "#52c41a" }} />
+                      ),
+                      label: t("pages.deals.quick_actions.call_label"),
+                  },
+              ]
+            : []),
         {
             value: "telegram",
             icon: <MessageOutlined style={{ color: "#0088cc" }} />,
