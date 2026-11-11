@@ -10,7 +10,6 @@ import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdap
 import { getDossierFieldValue } from "@/Pages/Leads/Redesign/adapters/dossierAdapter";
 import { canEditLead } from "@/Pages/Leads/Redesign/adapters/leadEditAccess";
 import { resolveLifecycle } from "@/Pages/Leads/Redesign/adapters/lifecycleAdapter";
-import EditLeadDetailsModal from "@/Pages/Leads/Redesign/components/qualification/EditLeadDetailsModal";
 import LeadMissionModals from "@/Pages/Leads/Redesign/components/qualification/LeadMissionModals";
 import DuplicateLeadsCard from "@/Pages/Leads/Redesign/components/workspace/DuplicateLeadsCard";
 import LeadCreateModals, { type LeadCreateKind } from "@/Pages/Leads/Redesign/components/workspace/LeadCreateModals";
@@ -28,6 +27,8 @@ import useLeadQualificationWorkspace from "@/Pages/Leads/Redesign/hooks/useLeadQ
 import type { LeadRedesignProps } from "@/Pages/Leads/Redesign/types";
 import { LEAD_TIMELINE_MODEL_TYPE } from "@/Pages/Deals/Redesign/hooks/useDealTimeline";
 import type { Note } from "@/Types/api/note";
+import LeadEditPage from "./edit/LeadEditPage";
+import type { EditOptions } from "./edit/leadEditForm";
 import ActivityCards, { type ActivityPermissions, type ActivitySource } from "./contact/ActivityCards";
 import AiBriefStrip from "./contact/AiBriefStrip";
 import ContactHeader, { leadPhone } from "./contact/ContactHeader";
@@ -35,6 +36,7 @@ import GoalPanel from "./contact/GoalPanel";
 import KeyFacts from "./contact/KeyFacts";
 import LeadStatusPath from "./contact/LeadStatusPath";
 import { buildKeyFacts } from "./contact/model";
+import useKeyFactLabels from "./contact/useKeyFactLabels";
 import { buildQualificationFact } from "./contact/qualificationFact";
 import "@/Components/Redesign/redesign.css";
 import "@/Pages/Deals/Redesign/deal-redesign.css";
@@ -142,21 +144,10 @@ function ContactLead(props: LeadRedesignProps) {
         },
     };
 
+    const keyFactLabels = useKeyFactLabels();
     const keyFacts = useMemo(
         () => {
-            const facts = buildKeyFacts(
-                lead,
-                {
-                    preferredTime: (time) => t("pages.agent_workspace.contact.best_time", { time }),
-                    addedBy: (name) => t("pages.agent_workspace.contact.facts.added_by", { name }),
-                    score: (score) => t("pages.agent_workspace.contact.facts.score", { score }),
-                    webinarAttended: t("pages.agent_workspace.contact.facts.webinar_attended"),
-                    webinarRegistered: t("pages.agent_workspace.contact.facts.webinar_registered"),
-                    lastWebinar: (date) => t("pages.agent_workspace.contact.facts.last_webinar", { date }),
-                    ebook: t("pages.agent_workspace.contact.facts.ebook"),
-                },
-                companyCurrency,
-            );
+            const facts = buildKeyFacts(lead, keyFactLabels, companyCurrency);
             // The qualification's progress sits before where they came from.
             const progress = showQualification
                 ? buildQualificationFact(qualification.templateTree, qualification.current, {
@@ -169,8 +160,24 @@ function ContactLead(props: LeadRedesignProps) {
             const at = facts.findIndex((group) => group.id === "came_from");
             return at < 0 ? [...facts, progress] : [...facts.slice(0, at), progress, ...facts.slice(at)];
         },
-        [companyCurrency, lead, qualification.current, qualification.templateTree, showQualification, t],
+        [companyCurrency, keyFactLabels, lead, qualification.current, qualification.templateTree, showQualification, t],
     );
+
+    const editOptions = useMemo<EditOptions>(
+        () => ({
+            salutations: props.salutations ?? [],
+            ageRanges: props.ageRanges ?? [],
+            countries: props.countries ?? [],
+            sources: props.sources ?? [],
+            categories: props.categories ?? [],
+        }),
+        [props.ageRanges, props.categories, props.countries, props.salutations, props.sources],
+    );
+    const editing = canEdit && editOpen;
+    const openEdit = useCallback(() => {
+        setEditOpen(true);
+        window.scrollTo({ top: 0 });
+    }, []);
 
     const hasLost = statuses.some((status) => status.key === "lost");
     const canMarkLost = canEdit && hasLost && lifecycle.statusKey !== "lost";
@@ -198,6 +205,16 @@ function ContactLead(props: LeadRedesignProps) {
                 />
             </AgentSecondRow>
 
+            {editing ? (
+                <div {...agentPillPanelProps("agent-contact", "lead")}>
+                    <LeadEditPage
+                        options={editOptions}
+                        statusLabel={lifecycle.statusLabel}
+                        duplicates={duplicates}
+                        onClose={() => setEditOpen(false)}
+                    />
+                </div>
+            ) : (
             <div
                 className="lead-redesign agent-contact agent-deal"
                 {...agentPillPanelProps("agent-contact", "lead")}
@@ -213,7 +230,7 @@ function ContactLead(props: LeadRedesignProps) {
                                     canFindDuplicates={duplicates.canMerge}
                                     onCreate={setCreateKind}
                                     allowedCreate={activityPermissions.create}
-                                    onEdit={() => setEditOpen(true)}
+                                    onEdit={openEdit}
                                     onMoreAction={onMoreAction}
                                 />
                             </div>
@@ -276,6 +293,7 @@ function ContactLead(props: LeadRedesignProps) {
                     ) : null}
                 </div>
             </div>
+            )}
 
             <LeadCreateModals
                 open={createKind}
@@ -295,18 +313,6 @@ function ContactLead(props: LeadRedesignProps) {
                 onDealCreated={(deal) => router.visit(dealHref(deal.id))}
                 qualificationPlacement="under-dock"
             />
-            {canEdit ? (
-                <EditLeadDetailsModal
-                    open={editOpen}
-                    onClose={() => setEditOpen(false)}
-                    lead={lead}
-                    salutations={props.salutations ?? []}
-                    ageRanges={props.ageRanges ?? []}
-                    countries={props.countries ?? []}
-                    sources={props.sources ?? []}
-                    categories={props.categories ?? []}
-                />
-            ) : null}
             <LeadTaskDetailModal
                 task={tasks.find((task) => task.id === openTaskId) ?? null}
                 taskBoardColumns={props.taskBoardColumns ?? []}
