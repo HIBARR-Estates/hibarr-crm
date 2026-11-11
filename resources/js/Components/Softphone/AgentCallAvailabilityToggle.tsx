@@ -3,6 +3,7 @@ import axios from "axios";
 import { usePage } from "@inertiajs/react";
 import { Tooltip, message } from "antd";
 import useTranslation from "@/Hooks/useTranslation";
+import { hasAnySoftphonePermission } from "@/Hooks/useSoftphone";
 
 interface AgentCallAvailabilityToggleProps {
     className?: string;
@@ -30,6 +31,10 @@ export default function AgentCallAvailabilityToggle({
 
     // Softphone must be enabled for the company
     const isSoftphoneEnabled = props.featureFlags?.["crm.softphone"] ?? false;
+    const hasSoftphonePermission = hasAnySoftphonePermission(
+        props.auth?.user,
+        props.auth?.permissions,
+    );
 
     const initialCanReceive = Boolean(props.auth?.user?.can_receive_calls ?? true);
     const [canReceive, setCanReceive] = useState<boolean>(initialCanReceive);
@@ -54,7 +59,7 @@ export default function AgentCallAvailabilityToggle({
         return () => window.removeEventListener("softphone:availability-changed", onAvailabilityChanged);
     }, []);
 
-    if (!isSoftphoneEnabled) {
+    if (!isSoftphoneEnabled || !hasSoftphonePermission) {
         return null;
     }
 

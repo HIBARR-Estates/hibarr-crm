@@ -462,6 +462,12 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         /** @var User $currentUser */
         $currentUser = user();
         abort_unless($currentUser !== null, 401);
+        abort_unless(
+            $currentUser->hasRole('admin')
+            || in_array($currentUser->permission('make_softphone_calls'), ['all', 'added'], true)
+            || $currentUser->permission('manage_calls') === 'all',
+            403
+        );
 
         $canReceive = (bool) $validated['can_receive_calls'];
         $currentUser->can_receive_calls = $canReceive;

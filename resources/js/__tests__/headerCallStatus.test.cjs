@@ -312,4 +312,71 @@ describe("Header Call Status & Access Visibility Specs", () => {
             assert.equal(sequence[1].id, 51);
         });
     });
+
+    describe("Call Availability Toggle Softphone Permission Gate", () => {
+        function canMakeSoftphoneCalls(user, permissions) {
+            const isAdmin = (user?.roles ?? []).some(
+                (role) => role?.name === "admin" || role === "admin"
+            );
+            if (isAdmin) return true;
+            const perm = permissions?.make_softphone_calls;
+            return perm === "all" || perm === "added";
+        }
+
+        function canManageCalls(user, permissions) {
+            const isAdmin = (user?.roles ?? []).some(
+                (role) => role?.name === "admin" || role === "admin"
+            );
+            return isAdmin || permissions?.manage_calls === "all";
+        }
+
+        function hasAnySoftphonePermission(user, permissions) {
+            return canMakeSoftphoneCalls(user, permissions) || canManageCalls(user, permissions);
+        }
+
+        function shouldRenderCallAvailabilityToggle(isSoftphoneEnabled, user, permissions) {
+            return Boolean(isSoftphoneEnabled && hasAnySoftphonePermission(user, permissions));
+        }
+
+        test("Toggle renders for Admin users when softphone enabled", () => {
+            const adminUser = { roles: [{ name: "admin" }] };
+            assert.equal(shouldRenderCallAvailabilityToggle(true, adminUser, {}), true);
+        });
+
+        test("Toggle renders for users with make_softphone_calls = 'all'", () => {
+            const agentUser = { roles: [{ name: "employee" }] };
+            const permissions = { make_softphone_calls: "all" };
+            assert.equal(shouldRenderCallAvailabilityToggle(true, agentUser, permissions), true);
+        });
+
+        test("Toggle renders for users with make_softphone_calls = 'added'", () => {
+            const agentUser = { roles: [{ name: "employee" }] };
+            const permissions = { make_softphone_calls: "added" };
+            assert.equal(shouldRenderCallAvailabilityToggle(true, agentUser, permissions), true);
+        });
+
+        test("Toggle renders for users with manage_calls = 'all'", () => {
+            const managerUser = { roles: [{ name: "manager" }] };
+            const permissions = { manage_calls: "all" };
+            assert.equal(shouldRenderCallAvailabilityToggle(true, managerUser, permissions), true);
+        });
+
+        test("Toggle is hidden (returns false) when user has NO softphone permissions", () => {
+            const standardUser = { roles: [{ name: "employee" }] };
+            const permissions = { view_leads: "all", edit_leads: "all" };
+            assert.equal(shouldRenderCallAvailabilityToggle(true, standardUser, permissions), false);
+        });
+
+        test("Toggle is hidden when permissions are empty or null", () => {
+            const standardUser = { roles: [{ name: "employee" }] };
+            assert.equal(shouldRenderCallAvailabilityToggle(true, standardUser, null), false);
+            assert.equal(shouldRenderCallAvailabilityToggle(true, standardUser, {}), false);
+        });
+
+        test("Toggle is hidden when crm.softphone feature flag is disabled, even for admin", () => {
+            const adminUser = { roles: [{ name: "admin" }] };
+            const permissions = { make_softphone_calls: "all" };
+            assert.equal(shouldRenderCallAvailabilityToggle(false, adminUser, permissions), false);
+        });
+    });
 });
