@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Support\AuditLog\AuditRecorder;
+use App\Enums\CrmEventGenerationType;
+use App\Enums\CrmEventSource;
 use App\Models\User;
 use App\Scopes\ActiveScope;
 use Illuminate\Http\Request;
@@ -84,6 +87,13 @@ class EmployeeImpersonationService
         $request->session()->put(self::SESSION_ID, $actor->id);
         $request->session()->put(self::SESSION_NAME, $actor->name);
 
+        $this->recordImpersonationEvent(
+            'impersonation_started',
+            $actor,
+            $target,
+            $actor->name.' started acting on behalf of '.$target->name.'.',
+        );
+
         Log::info('Employee impersonation started', [
             'impersonator_id' => $actor->id,
             'employee_id' => $target->id,
@@ -102,15 +112,25 @@ class EmployeeImpersonationService
             ->withoutGlobalScope(ActiveScope::class)
             ->find($impersonatorId);
 
-        abort_unless(
-            $admin && $current && (int) $admin->company_id === (int) $current->company_id,
-            403
-        );
+        if (
+            ! $admin instanceof User
+            || ! $current instanceof User
+            || (int) $admin->company_id !== (int) $current->company_id
+        ) {
+            abort(403);
+        }
 
         $employeeId = $current->id;
 
         $this->assume($request, $admin);
         $request->session()->forget([self::SESSION_ID, self::SESSION_NAME]);
+
+        $this->recordImpersonationEvent(
+            'impersonation_ended',
+            $admin,
+            $current,
+            $admin->name.' stopped acting on behalf of '.$current->name.'.',
+        );
 
         Log::info('Employee impersonation ended', [
             'impersonator_id' => $admin->id,
@@ -120,35 +140,115 @@ class EmployeeImpersonationService
     }
 
     /**
-     * Note the admin on an activity recorded while they are signed in as
-     * someone else. The activity itself stays attributed to that person.
+     * An action recorded while impersonating was taken by the admin, on behalf
+     * of the employee the session is signed in as.
      *
-     * @param  array<string, mixed>|null  $metadata
-     * @return array<string, mixed>|null
+     * Events with no user, or a user other than that employee, are left alone.
+     *
+     * @param  array<string, mixed>  $event
+     * @return array<string, mixed>
      */
-    public function attribute(?array $metadata): ?array
+    public function attributeEvent(array $event): array
     {
         if (! $this->isActive()) {
-            return $metadata;
+            return $event;
         }
 
-        $metadata ??= [];
-        $metadata['impersonator_id'] ??= (int) session(self::SESSION_ID);
+        $adminId = (int) session(self::SESSION_ID);
+        $sessionUser = Auth::user();
+        $behalfId = (int) ($sessionUser?->getAuthIdentifier() ?? 0);
 
+        if ($adminId === 0 || $behalfId === 0 || $behalfId === $adminId) {
+            return $event;
+        }
+
+        $recordedUser = isset($event['user_id']) ? (int) $event['user_id'] : 0;
+
+        if ($recordedUser !== $behalfId && $recordedUser !== $adminId) {
+            return $event;
+        }
+
+        if ($recordedUser === $behalfId) {
+            $event['user_id'] = $adminId;
+        }
+
+        $metadata = is_array($event['metadata'] ?? null) ? $event['metadata'] : [];
+        $metadata['on_behalf_of_id'] ??= $behalfId;
+        $metadata['impersonator_id'] ??= $adminId;
+
+        $behalfName = $sessionUser?->name;
+        $adminName = $this->impersonatorName($adminId);
+
+        if (is_string($behalfName) && $behalfName !== '') {
+            $metadata['on_behalf_of_name'] ??= $behalfName;
+        }
+
+        if ($adminName !== '') {
+            $metadata['impersonator_name'] ??= $adminName;
+        }
+
+        $event['metadata'] = $metadata;
+
+        return $event;
+    }
+
+    /**
+     * Write the start or end of an impersonation as its own CRM event.
+     * The actor is the admin. The subject is the employee.
+     */
+    private function recordImpersonationEvent(string $slug, User $admin, User $employee, string $comment): void
+    {
+        app(AuditRecorder::class)->recordImpersonation($slug, $admin, $employee);
+
+        try {
+            $event = app(CrmEventService::class)->record([
+                'event_type_slug' => $slug,
+                'company_id' => (int) $employee->company_id,
+                'user_id' => (int) $admin->id,
+                'model_type' => User::class,
+                'model_id' => (int) $employee->id,
+                'generation_type' => CrmEventGenerationType::USER_GENERATED->value,
+                'source' => CrmEventSource::CONTROLLER->value,
+                'metadata' => [
+                    'comment' => $comment,
+                    'on_behalf_of_id' => (int) $employee->id,
+                    'on_behalf_of_name' => $employee->name,
+                    'impersonator_id' => (int) $admin->id,
+                    'impersonator_name' => $admin->name,
+                ],
+            ]);
+
+            if ($event === null) {
+                Log::warning('Impersonation event was not recorded', [
+                    'slug' => $slug,
+                    'impersonator_id' => $admin->id,
+                    'employee_id' => $employee->id,
+                ]);
+            }
+        } catch (\Throwable $exception) {
+            Log::warning('Impersonation event was not recorded', [
+                'slug' => $slug,
+                'impersonator_id' => $admin->id,
+                'employee_id' => $employee->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function impersonatorName(int $adminId): string
+    {
         $name = session(self::SESSION_NAME);
 
-        if (! is_string($name) || $name === '') {
-            $name = User::query()
-                ->withoutGlobalScope(ActiveScope::class)
-                ->whereKey(session(self::SESSION_ID))
-                ->value('name');
-        }
-
         if (is_string($name) && $name !== '') {
-            $metadata['impersonator_name'] ??= $name;
+            return $name;
         }
 
-        return $metadata;
+        $stored = User::query()
+            ->withoutGlobalScope(ActiveScope::class)
+            ->whereKey($adminId)
+            ->value('name');
+
+        return is_string($stored) ? $stored : '';
     }
 
     /**

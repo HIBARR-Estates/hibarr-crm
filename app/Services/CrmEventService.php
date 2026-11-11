@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Enums\CrmEventGenerationType;
 use App\Enums\CrmEventSource;
 use App\Jobs\RecordCrmEventJob;
-use App\Services\EmployeeImpersonationService;
 use App\Models\CrmBusinessRule;
 use App\Models\CrmEvent;
 use App\Models\CrmEventCategory;
@@ -110,11 +109,13 @@ class CrmEventService
             'source' => $params['source'],
             'ip_address' => $params['ip_address'] ?? null,
             'user_agent' => $params['user_agent'] ?? null,
-            'metadata' => app(EmployeeImpersonationService::class)->attribute(
-                is_array($params['metadata'] ?? null) ? $params['metadata'] : null
-            ),
+            'metadata' => is_array($params['metadata'] ?? null) ? $params['metadata'] : null,
             'occurred_at' => $params['occurred_at'] ?? now(),
         ];
+
+        // While an admin is signed in as an employee, the admin is the actor
+        // and the employee is who they acted on behalf of.
+        $eventData = app(EmployeeImpersonationService::class)->attributeEvent($eventData);
 
         $this->stampLeadFirstContact($eventData, $params['event_type_slug']);
 

@@ -27,6 +27,7 @@ import type {
     CrmEventDirection,
 } from "@/Types/api/crm-event";
 import getEventIcon from "./crmEvent";
+import { onBehalfOfName } from "./onBehalfOf";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { describeCallEvent, isCallStartedEvent } from "@/lib/crmEvents/callSummary";
@@ -179,6 +180,7 @@ export default function CrmEventItem({ event, compact = false }: Props) {
     const { props } = usePage<any>();
     const authUser = props.auth?.user;
     const eventOwnerId = event.user_id ?? event.user?.id;
+    const behalfName = onBehalfOfName(event.metadata);
     // The agent on the call or a call manager; the server enforces the same rule.
     const canPlayRecording = canPlayCallRecording(
         authUser,
@@ -322,7 +324,12 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                             <UserOutlined className="text-[9px] text-gray-500" />
                         </div>
                         <span className="text-[11px] font-semibold text-gray-700">
-                            {event.user.name}
+                            {behalfName
+                                ? t("app.impersonation.onBehalfOf", {
+                                      admin: event.user.name,
+                                      name: behalfName,
+                                  })
+                                : event.user.name}
                         </span>
                     </div>
                 )}

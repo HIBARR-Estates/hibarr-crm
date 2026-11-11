@@ -207,6 +207,45 @@ class EmployeeImpersonationTest extends TestCase
         $this->assertFalse(session()->has(EmployeeImpersonationService::SESSION_ID));
         $this->assertSame('admin-secret', session('password_hash_web'));
         $this->assertSame('refresh-1', session(KeycloakLogout::REFRESH_TOKEN_SESSION_KEY));
+        $this->assertFalse(session()->has(EmployeeImpersonationService::SESSION_NAME));
+    }
+
+    public function test_actions_during_impersonation_are_by_the_admin_on_behalf_of_the_employee(): void
+    {
+        $admin = $this->user('Ada Admin', 'admin');
+        $employee = $this->user('Grace Hopper', 'employee');
+        $request = $this->bindRequest($admin);
+        $controller = app(EmployeeDirectoryController::class);
+        $controller->store($request, $employee->id);
+
+        $service = app(EmployeeImpersonationService::class);
+        $event = $service->attributeEvent([
+            'user_id' => $employee->id,
+            'metadata' => ['comment' => 'Note added'],
+        ]);
+
+        $this->assertSame($admin->id, $event['user_id']);
+        $this->assertSame($employee->id, $event['metadata']['on_behalf_of_id']);
+        $this->assertSame('Grace Hopper', $event['metadata']['on_behalf_of_name']);
+        $this->assertSame($admin->id, $event['metadata']['impersonator_id']);
+        $this->assertSame('Ada Admin', $event['metadata']['impersonator_name']);
+        $this->assertSame('Note added', $event['metadata']['comment']);
+
+        $system = $service->attributeEvent([
+            'user_id' => null,
+            'metadata' => null,
+        ]);
+        $this->assertNull($system['user_id']);
+        $this->assertNull($system['metadata']);
+
+        $controller->leave($request);
+
+        $own = app(EmployeeImpersonationService::class)->attributeEvent([
+            'user_id' => $admin->id,
+            'metadata' => ['comment' => 'Own'],
+        ]);
+        $this->assertSame($admin->id, $own['user_id']);
+        $this->assertSame(['comment' => 'Own'], $own['metadata']);
     }
 
     public function test_impersonation_is_refused_for_the_cases_that_would_break_the_session(): void

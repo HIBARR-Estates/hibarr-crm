@@ -23,7 +23,7 @@ use Throwable;
  */
 class AuditLogController extends AccountBaseController
 {
-    public const EVENTS = ['created', 'updated', 'deleted', 'restored', 'login', 'logout', 'login_failed', 'password_reset'];
+    public const EVENTS = ['created', 'updated', 'deleted', 'restored', 'login', 'logout', 'login_failed', 'password_reset', 'impersonation_started', 'impersonation_ended'];
 
     public const SOURCES = ['web', 'api', 'console', 'queue'];
 

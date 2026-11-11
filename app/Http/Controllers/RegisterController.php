@@ -111,6 +111,7 @@ class RegisterController extends Controller
             }
 
             session()->forget('user');
+            \App\Support\AuditLog\AuthTrigger::mark(\App\Support\AuditLog\AuthTrigger::REGISTRATION);
             Auth::login($user);
 
             return Reply::success(__('messages.signupSuccess'));
@@ -180,6 +181,7 @@ class RegisterController extends Controller
             $user->permissionTypes()->attach([$permission => ['permission_type_id' => PermissionType::ALL]]);
         }
 
+        \App\Support\AuditLog\AuthTrigger::mark(\App\Support\AuditLog\AuthTrigger::REGISTRATION);
         Auth::login($user);
 
         return Reply::success(__('messages.signupSuccess'));
