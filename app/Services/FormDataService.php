@@ -50,6 +50,8 @@ class FormDataService
                 return $this->getCategories($request);
             case 'sources':
                 return $this->getSources($request);
+            case 'lead-origins':
+                return $this->getLeadOrigins();
             case 'employees':
                 return $this->getEmployees($request);
             case 'lead-pipelines':
@@ -214,6 +216,13 @@ class FormDataService
         }
 
         return $this->paginateIfRequested($query, $request);
+    }
+
+    private function getLeadOrigins(): Collection
+    {
+        return \App\Models\LeadOrigin::query()
+            ->get(['id', 'name'])
+            ->values();
     }
 
     private function getEmployees(Request $request)

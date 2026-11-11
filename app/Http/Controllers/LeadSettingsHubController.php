@@ -6,11 +6,15 @@ use App\Helper\Reply;
 use App\Http\Requests\LeadSetting\StoreLeadLifecycleStatus;
 use App\Http\Requests\LeadSetting\UpdateLeadLifecycleStatus;
 use App\Models\LeadLifecycleStatus;
+use App\Models\LeadOrigin;
 use App\Models\LeadSetting;
 use App\Models\LeadSource;
 use App\Services\Dashboard\DashboardMetricsService;
 use App\Services\LeadLifecycleStatusService;
+use App\Support\MarketingLeadIntake;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -61,7 +65,122 @@ class LeadSettingsHubController extends AccountBaseController
                 ->values()
                 ->all(),
             'currentUserId' => (int) user()->id,
+            'origins' => $this->originRows(),
+            'marketingIntake' => [
+                'department_ids' => MarketingLeadIntake::departmentIds(),
+                'origin_id' => MarketingLeadIntake::originId(),
+                'departments' => DB::table('teams')
+                    ->where('company_id', company()->id)
+                    ->orderBy('team_name')
+                    ->get(['id', 'team_name'])
+                    ->map(fn ($team) => [
+                        'id' => (int) $team->id,
+                        'name' => (string) $team->team_name,
+                        'members_count' => $this->departmentMemberCount((int) $team->id),
+                    ])
+                    ->values()
+                    ->all(),
+            ],
         ]);
+    }
+
+    public function storeOrigin(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100', Rule::unique('lead_origins', 'name')->where('company_id', company()->id)],
+        ]);
+
+        $origin = new LeadOrigin;
+        $origin->company_id = company()->id;
+        $origin->name = trim($validated['name']);
+        $origin->added_by = user()->id;
+        $origin->save();
+
+        return response()->json(Reply::successWithData(__('messages.recordSaved'), [
+            'origin' => $this->serializeOrigin($origin->fresh()),
+        ]));
+    }
+
+    public function updateOrigin(Request $request, int $origin)
+    {
+        $model = LeadOrigin::findOrFail($origin);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100', Rule::unique('lead_origins', 'name')->where('company_id', company()->id)->ignore($model->id)],
+        ]);
+
+        $model->name = trim($validated['name']);
+        $model->last_updated_by = user()->id;
+        $model->save();
+
+        return response()->json(Reply::successWithData(__('messages.updateSuccess'), [
+            'origin' => $this->serializeOrigin($model->fresh()),
+        ]));
+    }
+
+    public function destroyOrigin(int $origin)
+    {
+        $model = LeadOrigin::findOrFail($origin);
+
+        // The marketing flow must always have an origin to stamp.
+        if ((int) $model->id === MarketingLeadIntake::originId()) {
+            throw ValidationException::withMessages([
+                'origin' => [__('pages.lead_settings.origins.in_use_by_marketing_flow')],
+            ]);
+        }
+
+        // leads.lead_origin_id is nullOnDelete: those leads go back to no origin.
+        $model->delete();
+
+        return response()->json(Reply::success(__('messages.deleteSuccess')));
+    }
+
+    public function reorderOrigins(Request $request)
+    {
+        $validated = $request->validate([
+            'originIds' => 'required|array',
+            'originIds.*' => 'required|integer',
+        ]);
+
+        $ids = array_map('intval', $validated['originIds']);
+        $existing = LeadOrigin::query()->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        if (array_diff($ids, $existing) !== [] || array_diff($existing, $ids) !== []) {
+            return response()->json(['message' => 'The origin list is out of date. Reload and try again.'], 400);
+        }
+
+        foreach ($ids as $index => $id) {
+            LeadOrigin::where('id', $id)->update(['sort_order' => $index + 1]);
+        }
+
+        return response()->json(Reply::successWithData(__('messages.updateSuccess'), [
+            'origins' => $this->originRows(),
+        ]));
+    }
+
+    public function updateMarketingIntake(Request $request)
+    {
+        $companyId = (int) company()->id;
+
+        $validated = $request->validate([
+            'department_ids' => 'present|array',
+            'department_ids.*' => ['integer', Rule::exists('teams', 'id')->where('company_id', $companyId)],
+            'origin_id' => ['required', 'integer', Rule::exists('lead_origins', 'id')->where('company_id', $companyId)],
+        ]);
+
+        MarketingLeadIntake::save(
+            $companyId,
+            (int) user()->id,
+            $validated['department_ids'],
+            (int) $validated['origin_id'],
+        );
+
+        return response()->json(Reply::successWithData(__('messages.updateSuccess'), [
+            'marketingIntake' => [
+                'department_ids' => MarketingLeadIntake::departmentIds($companyId),
+                'origin_id' => MarketingLeadIntake::originId($companyId),
+            ],
+        ]));
     }
 
     public function update(Request $request)
@@ -272,6 +391,47 @@ class LeadSettingsHubController extends AccountBaseController
             'is_system' => $status->isSystemKey(),
             'is_default' => $status->isDefaultForNewLeads(),
         ];
+    }
+
+    /**
+     * @return array<int, array{id: int, name: string, sort_order: int, leads_count: int}>
+     */
+    private function originRows(): array
+    {
+        // Every company has the Marketing option, even one created after the migration.
+        LeadOrigin::marketingFor((int) company()->id);
+
+        return LeadOrigin::query()
+            ->withCount('leads')
+            ->get()
+            ->map(fn (LeadOrigin $origin) => $this->serializeOrigin($origin))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array{id: int, name: string, sort_order: int, leads_count: int}
+     */
+    private function serializeOrigin(LeadOrigin $origin): array
+    {
+        if (! array_key_exists('leads_count', $origin->getAttributes())) {
+            $origin->loadCount('leads');
+        }
+
+        return [
+            'id' => (int) $origin->id,
+            'name' => (string) $origin->name,
+            'sort_order' => (int) $origin->sort_order,
+            'leads_count' => (int) $origin->leads_count,
+        ];
+    }
+
+    private function departmentMemberCount(int $teamId): int
+    {
+        return DB::table('employee_details')->where('department_id', $teamId)->pluck('user_id')
+            ->merge(DB::table('employee_teams')->where('team_id', $teamId)->pluck('user_id'))
+            ->unique()
+            ->count();
     }
 
     private function canEditSource(LeadSource $source): bool

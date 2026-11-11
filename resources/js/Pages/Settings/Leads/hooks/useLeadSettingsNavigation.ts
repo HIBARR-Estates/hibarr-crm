@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { router } from "@inertiajs/react";
 
-export const LEAD_SETTINGS_TABS = ["sources", "statuses", "sla"] as const;
+export const LEAD_SETTINGS_TABS = ["sources", "origins", "statuses", "marketing", "sla"] as const;
 
 export type LeadSettingsTab = (typeof LEAD_SETTINGS_TABS)[number];
 
