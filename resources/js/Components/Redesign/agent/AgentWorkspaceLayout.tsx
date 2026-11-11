@@ -1,4 +1,4 @@
-import { createContext, useContext, useLayoutEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
@@ -15,6 +15,15 @@ import useTranslation from "@/Hooks/useTranslation";
 import { activeDestinationKey } from "./destinations";
 
 const SecondRowSlot = createContext<HTMLElement | null>(null);
+
+interface PinnedChrome {
+    /** Where a page's pinned bar goes, under the dock's second row. */
+    slot: HTMLElement | null;
+    /** A page that pins something keeps the whole chrome on screen while it scrolls. */
+    setSticky: (sticky: boolean) => void;
+}
+
+const PinnedSlot = createContext<PinnedChrome>({ slot: null, setSticky: () => {} });
 
 /**
  * The agent workspace shell: navy band, floating dock (bottom tab bar on
@@ -34,12 +43,17 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
     const [slot, setSlot] = useState<HTMLElement | null>(null);
     const { t } = useTranslation();
     const [top, setTop] = useState<HTMLElement | null>(null);
+    const [pin, setPin] = useState<HTMLElement | null>(null);
+    const [sticky, setSticky] = useState(false);
+    const pinned = useMemo(() => ({ slot: pin, setSticky }), [pin]);
     useChromeBottom(top, slot);
 
     return (
         <SecondRowSlot.Provider value={slot}>
-            <div className="agent-ws agent-ws--with-tabs">
+            <PinnedSlot.Provider value={pinned}>
+            <div className={`agent-ws agent-ws--with-tabs${sticky ? " agent-ws--sticky-chrome" : ""}`}>
                 <div className="agent-ws__band" aria-hidden="true" />
+                <div className="agent-ws__chrome">
                 <header ref={setTop} className="agent-ws__top">
                     <div className="agent-ws__corner">
                         <span className="agent-ws__brand" aria-hidden="true">
@@ -63,6 +77,8 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
                     </div>
                 </header>
                 <div ref={setSlot} className="agent-ws__second-row" />
+                <div ref={setPin} className="agent-ws__pin" />
+                </div>
                 <main className="agent-ws__main">{children}</main>
                 <div className="agent-ws__tabbar">
                     <nav aria-label={t("pages.agent_workspace.dock_label")} className="agent-tabs">
@@ -71,6 +87,7 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
                 </div>
                 <SoftphoneDock />
             </div>
+            </PinnedSlot.Provider>
         </SecondRowSlot.Provider>
     );
 }
@@ -116,4 +133,20 @@ function useChromeBottom(top: HTMLElement | null, secondRow: HTMLElement | null)
 export function AgentSecondRow({ children }: { children: ReactNode }) {
     const slot = useContext(SecondRowSlot);
     return slot ? createPortal(children, slot) : null;
+}
+
+/**
+ * Pins a page's bar under the dock's second row and keeps the dock, the
+ * second row and that bar on screen while the page scrolls (canvas L7-11).
+ * Render it with no children to keep the dock sticky while the bar is hidden:
+ * the bar sits outside the layout flow, so showing or hiding it never moves
+ * the page.
+ */
+export function AgentPinned({ children }: { children?: ReactNode }) {
+    const { slot, setSticky } = useContext(PinnedSlot);
+    useLayoutEffect(() => {
+        setSticky(true);
+        return () => setSticky(false);
+    }, [setSticky]);
+    return slot && children ? createPortal(children, slot) : null;
 }

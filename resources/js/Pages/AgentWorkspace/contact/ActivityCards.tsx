@@ -93,7 +93,7 @@ export default function ActivityCards(props: ActivityCardsProps) {
                 />
             </div>
             {cards.map((card) => (
-                <div key={card.id} className="agent-activity__slot" data-card={card.id}>
+                <div key={card.id} id={`agent-activity-${card.id}`} className="agent-activity__slot" data-card={card.id}>
                     {card.node}
                 </div>
             ))}
