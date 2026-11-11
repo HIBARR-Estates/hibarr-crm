@@ -202,7 +202,7 @@ function ContactLead(props: LeadRedesignProps) {
                 className="lead-redesign agent-contact agent-deal"
                 {...agentPillPanelProps("agent-contact", "lead")}
             >
-                <div className="agent-deal__top">
+                <div className={`agent-deal__top${showQualification ? "" : " agent-deal__top--solo"}`}>
                     <div className="agent-deal__main">
                         <section className="agent-deal__card">
                             <div className="agent-deal__head">

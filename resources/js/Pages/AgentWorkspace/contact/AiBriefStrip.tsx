@@ -45,7 +45,8 @@ export default function AiBriefStrip({ entityType, entityId, initialSummary, lea
     const [open, setOpen] = useState(false);
     // The full brief is a second card with its own state; when it writes a newer
     // summary the strip follows, so closing and reopening shows the latest.
-    const [fromCard, setFromCard] = useState<EntitySummaryPayload | null>(null);
+    const [cardSummary, setCardSummary] = useState<{ entityId: number; summary: EntitySummaryPayload | null } | null>(null);
+    const fromCard = cardSummary?.entityId === entityId ? cardSummary.summary : null;
     const { summary: own, loading, error, generate, regenerate } = useEntityAiSummary({
         entityType,
         entityId,
@@ -115,7 +116,7 @@ export default function AiBriefStrip({ entityType, entityId, initialSummary, lea
                         initialSummary={summary}
                         variant="legacy"
                         className="agent-brief__full"
-                        onSummaryChange={setFromCard}
+                        onSummaryChange={(next) => setCardSummary({ entityId, summary: next })}
                         leadName={leadName}
                         leadPhone={leadPhone}
                         onQualifyLead={closing(actions.onQualifyLead)}

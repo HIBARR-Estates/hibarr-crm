@@ -48,7 +48,7 @@
 }
 
 /* The lead state has no goal panel when qualification is off. */
-.agent-deal__top:not(:has(> .agent-deal__rail)) {
+.agent-deal__top--solo {
     grid-template-columns: minmax(0, 1fr);
 }
 
