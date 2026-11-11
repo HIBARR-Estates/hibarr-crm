@@ -51,6 +51,55 @@ function optionsOf(field: FilterFieldConfig): FilterOption[] {
     return options ?? [];
 }
 
+function normalizeQuery(text: string): string {
+    return text
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+}
+
+/**
+ * Narrow one field to a search query. A query that names the field (or its
+ * section) keeps every option; otherwise only the options whose label matches
+ * stay, and a field with no matching option drops out. Options the draft has
+ * already selected are kept, so a search never hides what is being applied.
+ */
+function searchField(
+    field: FilterFieldConfig,
+    query: string,
+    sectionMatches: boolean,
+    selected: unknown,
+): FilterFieldConfig | null {
+    if (!query || sectionMatches) return field;
+    if (normalizeQuery(field.label).includes(query)) return field;
+
+    const options = optionsOf(field);
+    if (options.length === 0) return null;
+
+    const selectedValues = new Set(
+        (Array.isArray(selected) ? selected : selected != null ? [selected] : []).map(
+            (value) => String(value),
+        ),
+    );
+    const matching = options.filter(
+        (option) =>
+            normalizeQuery(String(option.label ?? option.value)).includes(query) ||
+            selectedValues.has(String(option.value)),
+    );
+    const anyMatch = matching.some(
+        (option) => !selectedValues.has(String(option.value)),
+    );
+    if (!anyMatch) return null;
+
+    // Segmented and temperature controls are a fixed, short set: show it whole.
+    if (field.control === "segmented" || field.control === "temperature") {
+        return field;
+    }
+
+    return { ...field, options: matching };
+}
+
 /** Date-range fields write two keys; leads' created range keeps the legacy pair. */
 function rangeKeysOf(field: FilterFieldConfig): [string, string] {
     return field.rangeKeys ?? ["start_date", "end_date"];
@@ -87,6 +136,8 @@ export default function EntityFilterModal({
     const [activeViewId, setActiveViewId] = useState<number | null>(null);
     const [activeSection, setActiveSection] = useState<string | null>(null);
     const paneRef = useRef<HTMLDivElement | null>(null);
+    const [searchText, setSearchText] = useState("");
+    const query = normalizeQuery(searchText);
 
     // Sections in declaration order, minus anything excluded/hidden.
     const sections = useMemo(() => {
@@ -103,6 +154,36 @@ export default function EntityFilterModal({
             fields,
         }));
     }, [config]);
+
+    /** Sections and fields narrowed to the search box (all of them when empty). */
+    const visibleSections = useMemo(() => {
+        if (!query) return sections;
+        return sections
+            .map((section) => {
+                const sectionMatches = normalizeQuery(section.name).includes(query);
+                const fields = section.fields
+                    .map((field) =>
+                        searchField(
+                            field,
+                            query,
+                            sectionMatches,
+                            draftFilters[field.key],
+                        ),
+                    )
+                    .filter((field): field is FilterFieldConfig => field !== null);
+                return { name: section.name, fields };
+            })
+            .filter((section) => section.fields.length > 0);
+    }, [sections, query, draftFilters]);
+
+    const visibleFieldCount = useMemo(
+        () =>
+            visibleSections.reduce(
+                (total, section) => total + section.fields.length,
+                0,
+            ),
+        [visibleSections],
+    );
 
     const parts = useMemo(
         () => describeFilters(config, draftFilters),
@@ -371,8 +452,10 @@ export default function EntityFilterModal({
     };
 
     const utmFields = useMemo(
-        () => config.fields.filter((field) => field.section === UTM_SECTION),
-        [config.fields],
+        () =>
+            visibleSections.find((section) => section.name === UTM_SECTION)
+                ?.fields ?? [],
+        [visibleSections],
     );
 
     return (
@@ -399,6 +482,51 @@ export default function EntityFilterModal({
                         </p>
                     </div>
                     <div className="lfm-header__actions">
+                        <label className="lfm-search">
+                            <svg
+                                className="lfm-search__icon"
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                            >
+                                <circle cx="11" cy="11" r="7" />
+                                <path d="m20 20-3.5-3.5" />
+                            </svg>
+                            <input
+                                type="search"
+                                className="lfm-search__input"
+                                value={searchText}
+                                onChange={(event) => {
+                                    setSearchText(event.target.value);
+                                    paneRef.current?.scrollTo({ top: 0 });
+                                }}
+                                onKeyDown={(event) => {
+                                    if (event.key === "Escape" && searchText) {
+                                        event.stopPropagation();
+                                        setSearchText("");
+                                    }
+                                }}
+                                placeholder="Search filters and options…"
+                                aria-label="Search filters and options"
+                                autoFocus
+                            />
+                            {searchText && (
+                                <button
+                                    type="button"
+                                    className="lfm-search__clear"
+                                    onClick={() => setSearchText("")}
+                                    aria-label="Clear search"
+                                >
+                                    ✕
+                                </button>
+                            )}
+                        </label>
                         <button
                             type="button"
                             className="lfm-btn"
@@ -442,7 +570,7 @@ export default function EntityFilterModal({
 
                 <div className="lfm-body">
                     <nav className="lfm-rail">
-                        {sections.map((section) => (
+                        {visibleSections.map((section) => (
                             <button
                                 key={section.name}
                                 type="button"
@@ -485,7 +613,23 @@ export default function EntityFilterModal({
                                 Loading filter options…
                             </div>
                         )}
-                        {sections.map((section, index) => (
+                        {query && (
+                            <div className="lfm-search-summary" role="status">
+                                {visibleFieldCount === 0
+                                    ? `No filters or options match “${searchText.trim()}”.`
+                                    : `${visibleFieldCount} ${visibleFieldCount === 1 ? "filter matches" : "filters match"} “${searchText.trim()}”.`}
+                                {visibleFieldCount === 0 && (
+                                    <button
+                                        type="button"
+                                        className="lfm-search-summary__reset"
+                                        onClick={() => setSearchText("")}
+                                    >
+                                        Show all filters
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                        {visibleSections.map((section, index) => (
                             <section
                                 key={section.name}
                                 data-section={section.name}

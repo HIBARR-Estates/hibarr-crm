@@ -43,12 +43,18 @@ export default function AiBriefStrip({ entityType, entityId, initialSummary, lea
     const { t } = useTranslation();
     const { td } = useTd();
     const [open, setOpen] = useState(false);
-    const { summary, loading, error, generate, regenerate } = useEntityAiSummary({
+    // The full brief is a second card with its own state; when it writes a newer
+    // summary the strip follows, so closing and reopening shows the latest.
+    const [cardSummary, setCardSummary] = useState<{ entityId: number; summary: EntitySummaryPayload | null } | null>(null);
+    const fromCard = cardSummary?.entityId === entityId ? cardSummary.summary : null;
+    const { summary: own, loading, error, generate, regenerate } = useEntityAiSummary({
         entityType,
         entityId,
         initialSummary,
         autoGenerate: false,
     });
+    const generatedAt = (item: EntitySummaryPayload | null) => Date.parse(item?.meta?.generated_at ?? "") || 0;
+    const summary = fromCard && generatedAt(fromCard) > generatedAt(own) ? fromCard : own;
     const tokens = buildLeadTokenValues(leadName);
     const text = summary ? personalizeSummaryText(td(briefText(summary), { source: "en" }), tokens).replace(/\*\*|==/g, "") : "";
     const age = summary?.meta?.generated_at ? dayjs(summary.meta.generated_at).fromNow(true) : null;
@@ -110,6 +116,7 @@ export default function AiBriefStrip({ entityType, entityId, initialSummary, lea
                         initialSummary={summary}
                         variant="legacy"
                         className="agent-brief__full"
+                        onSummaryChange={(next) => setCardSummary({ entityId, summary: next })}
                         leadName={leadName}
                         leadPhone={leadPhone}
                         onQualifyLead={closing(actions.onQualifyLead)}

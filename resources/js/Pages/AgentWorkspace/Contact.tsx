@@ -12,7 +12,6 @@ import { canEditLead } from "@/Pages/Leads/Redesign/adapters/leadEditAccess";
 import { resolveLifecycle } from "@/Pages/Leads/Redesign/adapters/lifecycleAdapter";
 import EditLeadDetailsModal from "@/Pages/Leads/Redesign/components/qualification/EditLeadDetailsModal";
 import LeadMissionModals from "@/Pages/Leads/Redesign/components/qualification/LeadMissionModals";
-import AiSummaryCard from "@/Pages/Leads/Redesign/components/workspace/AiSummaryCard";
 import DuplicateLeadsCard from "@/Pages/Leads/Redesign/components/workspace/DuplicateLeadsCard";
 import LeadCreateModals, { type LeadCreateKind } from "@/Pages/Leads/Redesign/components/workspace/LeadCreateModals";
 import LeadMeetingDetailModal from "@/Pages/Leads/Redesign/components/workspace/LeadMeetingDetailModal";
@@ -30,15 +29,18 @@ import type { LeadRedesignProps } from "@/Pages/Leads/Redesign/types";
 import { LEAD_TIMELINE_MODEL_TYPE } from "@/Pages/Deals/Redesign/hooks/useDealTimeline";
 import type { Note } from "@/Types/api/note";
 import ActivityCards, { type ActivityPermissions, type ActivitySource } from "./contact/ActivityCards";
-import ContactHeader from "./contact/ContactHeader";
+import AiBriefStrip from "./contact/AiBriefStrip";
+import ContactHeader, { leadPhone } from "./contact/ContactHeader";
 import GoalPanel from "./contact/GoalPanel";
 import KeyFacts from "./contact/KeyFacts";
 import LeadStatusPath from "./contact/LeadStatusPath";
 import { buildKeyFacts } from "./contact/model";
+import { buildQualificationFact } from "./contact/qualificationFact";
 import "@/Components/Redesign/redesign.css";
 import "@/Pages/Deals/Redesign/deal-redesign.css";
 import "@/Pages/Leads/Redesign/lead-redesign.css";
 import "./contact/contact.css";
+import "./deal/deal.css";
 
 const allowed = (permissions: Record<string, string> | undefined, key: string) =>
     !permissions || (permissions[key] ?? "none") !== "none";
@@ -141,8 +143,8 @@ function ContactLead(props: LeadRedesignProps) {
     };
 
     const keyFacts = useMemo(
-        () =>
-            buildKeyFacts(
+        () => {
+            const facts = buildKeyFacts(
                 lead,
                 {
                     preferredTime: (time) => t("pages.agent_workspace.contact.best_time", { time }),
@@ -154,8 +156,20 @@ function ContactLead(props: LeadRedesignProps) {
                     ebook: t("pages.agent_workspace.contact.facts.ebook"),
                 },
                 companyCurrency,
-            ),
-        [companyCurrency, lead, t],
+            );
+            // The qualification's progress sits before where they came from.
+            const progress = showQualification
+                ? buildQualificationFact(qualification.templateTree, qualification.current, {
+                      answered: (answered, total) => t("pages.agent_workspace.contact.facts.qualification_answered", { answered, total }),
+                      next: (step) => t("pages.agent_workspace.contact.facts.qualification_next", { step }),
+                      complete: t("pages.agent_workspace.contact.facts.qualification_complete"),
+                  })
+                : null;
+            if (!progress) return facts;
+            const at = facts.findIndex((group) => group.id === "came_from");
+            return at < 0 ? [...facts, progress] : [...facts.slice(0, at), progress, ...facts.slice(at)];
+        },
+        [companyCurrency, lead, qualification.current, qualification.templateTree, showQualification, t],
     );
 
     const hasLost = statuses.some((status) => status.key === "lost");
@@ -185,85 +199,82 @@ function ContactLead(props: LeadRedesignProps) {
             </AgentSecondRow>
 
             <div
-                className={`lead-redesign agent-contact${showQualification ? "" : " agent-contact--no-goal"}`}
+                className="lead-redesign agent-contact agent-deal"
                 {...agentPillPanelProps("agent-contact", "lead")}
             >
-                <div className="agent-contact__main">
-                <div className="agent-contact__head-card">
-                    <ContactHeader
-                        lead={lead}
-                        canEdit={canEdit}
-                        canDelete={props.deleteLeadPermission !== "none"}
-                        canFindDuplicates={duplicates.canMerge}
-                        onCreate={setCreateKind}
-                        allowedCreate={activityPermissions.create}
-                        onEdit={() => setEditOpen(true)}
-                        onMoreAction={onMoreAction}
-                    />
-                    {showAiSummary ? (
-                        <div className="agent-contact__summary">
-                            <AiSummaryCard
-                                leadId={lead.id}
-                                leadName={lead.client_name}
-                                summary={props.leadAiSummary}
-                                leadPhone={getDossierFieldValue(lead, "mobile") || undefined}
-                                onCta={{
-                                    onQualifyLead: showQualification ? mission.openTemplatePicker : undefined,
-                                    onCreateTask: () => setCreateKind("task"),
-                                    onScheduleCall: () => setCreateKind("meeting"),
-                                }}
+                <div className={`agent-deal__top${showQualification ? "" : " agent-deal__top--solo"}`}>
+                    <div className="agent-deal__main">
+                        <section className="agent-deal__card">
+                            <div className="agent-deal__head">
+                                <ContactHeader
+                                    lead={lead}
+                                    canEdit={canEdit}
+                                    canDelete={props.deleteLeadPermission !== "none"}
+                                    canFindDuplicates={duplicates.canMerge}
+                                    onCreate={setCreateKind}
+                                    allowedCreate={activityPermissions.create}
+                                    onEdit={() => setEditOpen(true)}
+                                    onMoreAction={onMoreAction}
+                                />
+                            </div>
+                            {showAiSummary ? (
+                                <AiBriefStrip
+                                    entityType="lead"
+                                    entityId={lead.id}
+                                    initialSummary={props.leadAiSummary}
+                                    leadName={lead.client_name}
+                                    leadPhone={leadPhone(lead)}
+                                    onQualifyLead={showQualification ? mission.openTemplatePicker : undefined}
+                                    onCreateTask={() => setCreateKind("task")}
+                                    onScheduleCall={() => setCreateKind("meeting")}
+                                />
+                            ) : null}
+                            {duplicates.visible ? (
+                                <div className="agent-contact__section">
+                                    <DuplicateLeadsCard
+                                        leadId={lead.id}
+                                        duplicates={duplicates.duplicates}
+                                        isLoading={duplicates.isLoading}
+                                        onDismiss={duplicates.dismiss}
+                                        onMerged={() => void duplicates.invalidate()}
+                                    />
+                                </div>
+                            ) : null}
+                            <LeadStatusPath
+                                statuses={statuses}
+                                currentKey={lifecycle.statusKey}
+                                onMarkLost={canMarkLost ? () => setConfirmLost(true) : undefined}
+                                saving={statusSaving}
+                            />
+                            <KeyFacts groups={keyFacts} />
+                        </section>
+
+                        <div className="agent-deal__activity">
+                            <ActivityCards
+                                source={activitySource}
+                                nowMs={nowMs}
+                                timeZone={timezone}
+                                permissions={activityPermissions}
+                                onCreate={setCreateKind}
+                                onOpenTask={setOpenTaskId}
+                                onOpenMeeting={setOpenMeetingId}
+                                onOpenNote={setOpenNoteId}
                             />
                         </div>
-                    ) : null}
-                </div>
+                    </div>
 
-                <div className="agent-contact__body-card">
-                    {duplicates.visible ? (
-                        <div className="agent-contact__section">
-                            <DuplicateLeadsCard
-                                leadId={lead.id}
-                                duplicates={duplicates.duplicates}
-                                isLoading={duplicates.isLoading}
-                                onDismiss={duplicates.dismiss}
-                                onMerged={() => void duplicates.invalidate()}
+                    {showQualification ? (
+                        <aside className="agent-deal__rail">
+                            <GoalPanel
+                                lead={lead}
+                                lifecycle={lifecycle}
+                                qualification={qualification}
+                                busy={qualification.isStartingFlow || qualification.resumingId != null}
+                                onAction={mission.handleMissionAction}
                             />
-                        </div>
+                        </aside>
                     ) : null}
-                    <LeadStatusPath
-                        statuses={statuses}
-                        currentKey={lifecycle.statusKey}
-                        onMarkLost={canMarkLost ? () => setConfirmLost(true) : undefined}
-                        saving={statusSaving}
-                    />
-                    <KeyFacts groups={keyFacts} />
                 </div>
-
-                <div className="agent-contact__activity">
-                    <ActivityCards
-                        source={activitySource}
-                        nowMs={nowMs}
-                        timeZone={timezone}
-                        permissions={activityPermissions}
-                        onCreate={setCreateKind}
-                        onOpenTask={setOpenTaskId}
-                        onOpenMeeting={setOpenMeetingId}
-                        onOpenNote={setOpenNoteId}
-                    />
-                </div>
-                </div>
-
-                {showQualification ? (
-                    <aside className="agent-contact__goal">
-                        <GoalPanel
-                            lead={lead}
-                            lifecycle={lifecycle}
-                            qualification={qualification}
-                            busy={qualification.isStartingFlow || qualification.resumingId != null}
-                            onAction={mission.handleMissionAction}
-                        />
-                    </aside>
-                ) : null}
-
             </div>
 
             <LeadCreateModals

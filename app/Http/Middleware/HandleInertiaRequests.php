@@ -107,6 +107,9 @@ class HandleInertiaRequests extends Middleware
             // access (the sidebar's Agent switch); manageUrl for admins (the
             // access list), who manage it whether or not they have access.
             'agentWorkspace' => fn () => $this->getAgentWorkspace($request),
+            // Null unless the user is in a department picked for the marketing
+            // lead flow (Lead settings); the leads list and sidebar offer it then.
+            'marketingLeadIntake' => fn () => $this->getMarketingLeadIntake($request),
             'emailPilot' => fn () => EmailFeature::enabled() && $request->user()?->hasRole('admin')
                 ? ['manageUrl' => '/account/settings/email-pilot']
                 : null,
@@ -123,6 +126,21 @@ class HandleInertiaRequests extends Middleware
             'pipelineFieldScopeMap' => fn () => $this->getPipelineFieldScopeMap($request),
             'stages' => fn () => $this->getPipelineStages($request),
         ]);
+    }
+
+    /**
+     * @return array{url: string}|null
+     */
+    private function getMarketingLeadIntake(Request $request): ?array
+    {
+        try {
+            return \App\Support\MarketingLeadIntake::allows($request->user())
+                ? ['url' => '/account/marketing-leads']
+                : null;
+        } catch (\Illuminate\Database\QueryException) {
+            // Before the lead origins migration has run.
+            return null;
+        }
     }
 
     /**

@@ -61,18 +61,14 @@ export default function KeyFacts({ groups }: { groups: KeyFactGroup[] }) {
                                 <span className="agent-fact__label">
                                     {group.label ? td(group.label, { source: "en" }) : t(`pages.agent_workspace.contact.facts.${group.id}`)}
                                 </span>
-                                {empty ? (
-                                    <span className="agent-fact__lead">{group.lead || t("pages.agent_workspace.contact.facts.empty")}</span>
-                                ) : (
-                                    <>
-                                        <span className="agent-fact__lead">{group.lead}</span>
-                                        {group.lines.map((line) => (
-                                            <span key={line} className="agent-fact__line">
-                                                {line}
-                                            </span>
-                                        ))}
-                                    </>
-                                )}
+                                <span className="agent-fact__lead">
+                                    {empty ? group.lead || t("pages.agent_workspace.contact.facts.empty") : group.lead}
+                                </span>
+                                {group.lines.map((line) => (
+                                    <span key={line} className="agent-fact__line">
+                                        {line}
+                                    </span>
+                                ))}
                             </li>
                         );
                     })}

@@ -46,7 +46,7 @@ class FormDataController extends Controller
             'lead-custom-fields', 'lead-custom-field-categories',
             'developer-projects', 'developer_projects',
             'lead-utm-sources', 'lead-utm-mediums', 'lead-utm-campaigns',
-            'lead-utm-contents', 'lead-utm-terms', 'lead-utm-audiences',
+            'lead-utm-contents', 'lead-utm-terms', 'lead-utm-audiences', 'lead-origins',
         ];
 
         if (!in_array($type, $allowedTypes)) {
@@ -97,7 +97,7 @@ class FormDataController extends Controller
             'deal-custom-fields', 'deal-custom-field-categories', 'deal-pipeline-custom-field-category-map',
             'lead-custom-fields', 'lead-custom-field-categories',
             'lead-utm-sources', 'lead-utm-mediums', 'lead-utm-campaigns',
-            'lead-utm-contents', 'lead-utm-terms', 'lead-utm-audiences',
+            'lead-utm-contents', 'lead-utm-terms', 'lead-utm-audiences', 'lead-origins',
         ];
 
         $types = $request->get('types');

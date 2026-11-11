@@ -38,3 +38,22 @@ export interface LeadStatusDraft {
     label_color: string;
     sort_order: number;
 }
+
+export interface LeadOriginRow {
+    id: number;
+    name: string;
+    sort_order: number;
+    leads_count: number;
+}
+
+export interface MarketingIntakeDepartment {
+    id: number;
+    name: string;
+    members_count: number;
+}
+
+export interface MarketingIntakeSettings {
+    department_ids: number[];
+    origin_id: number;
+    departments: MarketingIntakeDepartment[];
+}
