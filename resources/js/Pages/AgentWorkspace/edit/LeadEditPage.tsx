@@ -50,7 +50,8 @@ export default function LeadEditPage({ options, statusLabel, duplicates, onClose
     const [sectionId, setSectionId] = useState<EditSection["id"]>("profile");
     const [confirmDiscard, setConfirmDiscard] = useState(false);
     const [reviewId, setReviewId] = useState<number | null>(null);
-    const [notSame, setNotSame] = useState(false);
+    // "Not the same person" is remembered per candidate, so a different duplicate still shows.
+    const [notSame, setNotSame] = useState<number[]>([]);
 
     const dirty = changed.length > 0;
 
@@ -104,15 +105,15 @@ export default function LeadEditPage({ options, statusLabel, duplicates, onClose
         if (!dirty) return [];
         const before = buildKeyFacts(lead, keyFactLabels, companyCurrency);
         const after = buildKeyFacts(draftLead(lead, form, options), keyFactLabels, companyCurrency);
-        return after.filter((group, at) => {
-            const old = before[at];
+        return after.filter((group) => {
+            const old = before.find((item) => item.id === group.id);
             return !old || old.lead !== group.lead || old.lines.join("\n") !== group.lines.join("\n");
         });
     }, [companyCurrency, dirty, form, keyFactLabels, lead, options]);
 
     const close = () => (dirty ? setConfirmDiscard(true) : onClose());
     const name = lead.client_name || t(`${PREFIX}.unnamed`);
-    const candidate = duplicates.visible && !notSame ? duplicates.duplicates[0] : undefined;
+    const candidate = duplicates.visible ? duplicates.duplicates.find((item) => !notSame.includes(item.id)) : undefined;
 
     const selectOptions = (field: EditField): Array<{ value: string; label: string }> => {
         switch (field.options) {
@@ -296,7 +297,7 @@ export default function LeadEditPage({ options, statusLabel, duplicates, onClose
                         <Button variant="navy" size="sm" onClick={() => setReviewId(candidate.id)}>
                             {t(`${PREFIX}.review_merge`)}
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setNotSame(true)}>
+                        <Button variant="ghost" size="sm" onClick={() => setNotSame((previous) => [...previous, candidate.id])}>
                             {t(`${PREFIX}.not_same`)}
                         </Button>
                     </div>

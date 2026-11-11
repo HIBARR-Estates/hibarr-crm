@@ -133,6 +133,8 @@ export function initialEditForm(lead: Lead): EditForm {
             }
         }
     }
+    // With a date of birth the age range is always the one it gives, whatever was stored.
+    if (form.date_of_birth) form.age_range = computeAgeFieldsFromDateOfBirth(form.date_of_birth).age_range ?? form.age_range ?? "";
     return form;
 }
 
