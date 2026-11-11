@@ -282,6 +282,7 @@ function ContactLead(props: LeadRedesignProps) {
                 onCloseQualification={() => setQualificationOpen(false)}
                 pageProps={props}
                 onDealCreated={(deal) => router.visit(dealHref(deal.id))}
+                qualificationPlacement="under-dock"
             />
             {canEdit ? (
                 <EditLeadDetailsModal

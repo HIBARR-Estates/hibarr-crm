@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type { KeyFactGroup } from "./model";
 
@@ -26,6 +27,7 @@ function initialOpen(): boolean {
  */
 export default function KeyFacts({ groups }: { groups: KeyFactGroup[] }) {
     const { t } = useTranslation();
+    const { td } = useTd();
     const [open, setOpen] = useState(initialOpen);
     const bodyId = useId();
 
@@ -53,12 +55,14 @@ export default function KeyFacts({ groups }: { groups: KeyFactGroup[] }) {
             {open ? (
                 <ul id={bodyId} className="agent-facts__grid">
                     {groups.map((group) => {
-                        const empty = !group.lead;
+                        const empty = group.empty ?? !group.lead;
                         return (
                             <li key={group.id} className={`agent-fact${empty ? " agent-fact--empty" : ""}`}>
-                                <span className="agent-fact__label">{t(`pages.agent_workspace.contact.facts.${group.id}`)}</span>
+                                <span className="agent-fact__label">
+                                    {group.label ? td(group.label, { source: "en" }) : t(`pages.agent_workspace.contact.facts.${group.id}`)}
+                                </span>
                                 {empty ? (
-                                    <span className="agent-fact__lead">{t("pages.agent_workspace.contact.facts.empty")}</span>
+                                    <span className="agent-fact__lead">{group.lead || t("pages.agent_workspace.contact.facts.empty")}</span>
                                 ) : (
                                     <>
                                         <span className="agent-fact__lead">{group.lead}</span>

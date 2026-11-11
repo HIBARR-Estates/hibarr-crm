@@ -49,6 +49,8 @@ export interface Deal {
     added_by: null | number;
     last_updated_by?: number;
     close_date?: null | string;
+    /** When the deal entered its current stage (Deal::$stage_entered_at). */
+    stage_entered_at?: null | string;
     meeting_date?: null | string;
     created_at?: string;
     updated_at?: string;

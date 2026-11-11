@@ -38,6 +38,8 @@ interface LeadMissionModalsProps {
     pageProps: DealMetaProps;
     /** After a deal (and its kickoff meeting, if any) is created. */
     onDealCreated?: (deal: Deal) => void;
+    /** Where the qualification call opens: "under-dock" on the agent workspace. */
+    qualificationPlacement?: "center" | "under-dock";
 }
 
 /**
@@ -54,6 +56,7 @@ export default function LeadMissionModals({
     onCloseQualification,
     pageProps: props,
     onDealCreated,
+    qualificationPlacement,
 }: LeadMissionModalsProps) {
     const { td } = useTd();
     const { lead, setLead } = useLeadWorkspace();
@@ -95,6 +98,7 @@ export default function LeadMissionModals({
                             customFieldCategories={props.customFieldCategories}
                             editLeadPermission={props.editLeadPermission}
                             meetingTypes={props.meetingTypes ?? []}
+                            placement={qualificationPlacement}
                             onClose={onCloseQualification}
                             onCompleted={(updated) => {
                                 qualification.handleQualificationUpdated(updated);

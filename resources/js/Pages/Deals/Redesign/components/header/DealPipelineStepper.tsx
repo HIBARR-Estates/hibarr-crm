@@ -43,6 +43,12 @@ interface DealPipelineStepperProps {
      * same way; the ramp lists requirements in the "Stage requirements" dialog.
      */
     variant?: "chips" | "ramp";
+    /**
+     * Ramp only: show the "Stage requirements" button under the bars. The
+     * agent contact page lists the next stage's conditions in its own panel
+     * (canvas L7-10) and turns this off.
+     */
+    showProgression?: boolean;
 }
 
 const HIBARR_FIELD_SECTION: Partial<Record<string, DealInfoCoreSectionId>> = {
@@ -63,7 +69,7 @@ const HIBARR_FIELD_SECTION: Partial<Record<string, DealInfoCoreSectionId>> = {
     category_id: "general",
 };
 
-function resolveSectionForField(
+export function resolveSectionForField(
     field: string,
     customFields: Array<{
         id: number;
@@ -95,7 +101,7 @@ function resolveSectionForField(
 }
 
 /** Normalize condition field keys so highlight selectors can match anchors. */
-function normalizeFieldKey(field: string): string {
+export function normalizeFieldKey(field: string): string {
     const base = field.includes(".")
         ? field.slice(field.lastIndexOf(".") + 1)
         : field;
@@ -377,6 +383,7 @@ export default function DealPipelineStepper({
     permissions,
     onGoToField,
     variant = "chips",
+    showProgression = true,
 }: DealPipelineStepperProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -622,16 +629,18 @@ export default function DealPipelineStepper({
                     })}
                 </ol>
                 <div className="dr-stage-ramp__foot">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setProgressionOpen(true)}
-                        icon={<Icon name="info" size={12} color="currentColor" />}
-                        aria-label={t("pages.deals.header.pipeline.progression_open")}
-                        data-tour="deal-stage-progression"
-                    >
-                        {t("pages.deals.header.pipeline.progression_button")}
-                    </Button>
+                    {showProgression ? (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setProgressionOpen(true)}
+                            icon={<Icon name="info" size={12} color="currentColor" />}
+                            aria-label={t("pages.deals.header.pipeline.progression_open")}
+                            data-tour="deal-stage-progression"
+                        >
+                            {t("pages.deals.header.pipeline.progression_button")}
+                        </Button>
+                    ) : null}
                     {pipeline.isUpdating ? (
                         <span
                             aria-hidden="true"
