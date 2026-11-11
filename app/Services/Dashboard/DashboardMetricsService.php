@@ -2,6 +2,7 @@
 
 namespace App\Services\Dashboard;
 
+use App\Email\FollowUps\FollowUpLinker;
 use App\Enums\MeetingAttendanceOutcome;
 use App\Enums\MlmCommissionStatus;
 use App\Enums\MlmCommissionType;
@@ -215,10 +216,24 @@ class DashboardMetricsService
             ->whereIn('taskable_type', [Lead::class, Deal::class])
             ->get(['task_id', 'taskable_type', 'taskable_id']);
 
-        $leadNames = Lead::whereIn('id', $links->where('taskable_type', Lead::class)->pluck('taskable_id'))
-            ->pluck('client_name', 'id');
-        $dealNames = Deal::whereIn('id', $links->where('taskable_type', Deal::class)->pluck('taskable_id'))
-            ->pluck('name', 'id');
+        // Name, where the record stands (lifecycle status or deal stage) and the
+        // number to call, so a queue row reads like the person it is about.
+        $leads = Lead::query()
+            ->with('lifecycleStatus:id,label')
+            ->whereIn('id', $links->where('taskable_type', Lead::class)->pluck('taskable_id'))
+            ->get(['id', 'client_name', 'mobile', 'lead_lifecycle_status_id'])
+            ->keyBy('id');
+        $deals = Deal::query()
+            ->with(['leadStage:id,name', 'contact:id,client_name,mobile'])
+            ->whereIn('id', $links->where('taskable_type', Deal::class)->pluck('taskable_id'))
+            ->get(['id', 'name', 'lead_id', 'pipeline_stage_id'])
+            ->keyBy('id');
+
+        $phone = static function (?Lead $lead): ?string {
+            $value = $lead?->mobile_with_phone_code;
+
+            return is_string($value) && $value !== '--' ? $value : null;
+        };
 
         $out = [];
 
@@ -227,19 +242,34 @@ class DashboardMetricsService
                 continue;
             }
 
-            $isLead = $link->taskable_type === Lead::class;
-            $name = $isLead
-                ? $leadNames->get($link->taskable_id)
-                : $dealNames->get($link->taskable_id);
+            if ($link->taskable_type === Lead::class) {
+                $lead = $leads->get($link->taskable_id);
+                if ($lead === null) {
+                    continue;
+                }
+                $out[$link->task_id] = [
+                    'type' => 'lead',
+                    'id' => (int) $lead->id,
+                    'name' => $lead->client_name,
+                    'status' => $lead->lifecycleStatus?->label,
+                    'person' => $lead->client_name,
+                    'phone' => $phone($lead),
+                ];
 
-            if ($name === null) {
                 continue;
             }
 
+            $deal = $deals->get($link->taskable_id);
+            if ($deal === null) {
+                continue;
+            }
             $out[$link->task_id] = [
-                'type' => $isLead ? 'lead' : 'deal',
-                'id' => (int) $link->taskable_id,
-                'name' => $name,
+                'type' => 'deal',
+                'id' => (int) $deal->id,
+                'name' => $deal->name,
+                'status' => $deal->leadStage?->name,
+                'person' => $deal->contact?->client_name,
+                'phone' => $phone($deal->contact),
             ];
         }
 
@@ -255,7 +285,8 @@ class DashboardMetricsService
             ->with([
                 // lead_id is the FK for deal.contact (Lead) — phone fields feed
                 // the meeting modal's Call / Copy CTAs for phone meetings.
-                'deal:id,name,lead_id',
+                'deal:id,name,lead_id,pipeline_stage_id',
+                'deal.leadStage:id,name',
                 'deal.contact:id,client_name,mobile,cell,office',
                 'lead:id,client_name,mobile,cell,office',
                 'meetingType',
@@ -276,6 +307,10 @@ class DashboardMetricsService
                     ?? 'Meeting',
                 'subtitle' => $followUp->lead?->client_name,
                 'type' => $followUp->meetingType?->name,
+                // Who the meeting is with, and the deal's pipeline stage, for
+                // the agent workspace's "Type · Person" and "Deal · stage" lines.
+                'person' => $followUp->lead?->client_name ?? $followUp->deal?->contact?->client_name,
+                'deal_stage' => $followUp->deal?->leadStage?->name,
                 // Named _label, not `location`: the model's own `location` is the
                 // raw platform slug (office / zoom / free text) that
                 // meetingListAdapter.getPlatformMeta() switches on. Overwriting
@@ -348,8 +383,6 @@ class DashboardMetricsService
 
         $tasks = $tasksQuery->get();
 
-        $related = $this->relatedRecords($tasks->pluck('id')->all());
-
         // One aggregate query instead of three separate counts — same
         // `pending()` base, only the due_date bucket differs.
         $dueCounts = $pending()
@@ -363,17 +396,7 @@ class DashboardMetricsService
             ->first();
 
         return [
-            'tasks' => $tasks
-                ->map(function (Task $task) use ($related, $today, $useRedesignedTasks) {
-                    $due = Carbon::parse($task->due_date)->startOfDay();
-                    $base = $useRedesignedTasks ? TaskPresenter::present($task) : $task->toFrontendArray();
-
-                    return $base + [
-                        'days_overdue' => $due->lessThan($today) ? (int) $today->diffInDays($due) : 0,
-                        'related' => $related[$task->id] ?? null,
-                    ];
-                })
-                ->all(),
+            'tasks' => $this->presentQueueTasks($tasks, $useRedesignedTasks),
             'counts' => [
                 // Overdue is deliberately unbounded below: something six months
                 // late is the most urgent row on the page, not the least.
@@ -386,6 +409,81 @@ class DashboardMetricsService
                 'deals' => $this->dealsWithoutNextStep($this->agentIdsForUser($userId))?->count() ?? 0,
             ],
         ];
+    }
+
+    /**
+     * The user's pending tasks due inside [$from, $to], in the queue's row
+     * shape and due-date order. Today in the agent workspace uses it for the
+     * day's timed tasks: those must not depend on the queue's row cap, which
+     * a long overdue backlog fills before today is reached.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function personalTasksBetween(int $userId, CarbonInterface $from, CarbonInterface $to, int $limit = 50): array
+    {
+        $useRedesignedTasks = FeatureFlags::enabled('crm.tasks-workspace-redesign');
+
+        $query = Task::query()
+            ->pending()
+            ->visibleToUser($userId)
+            ->whereBetween('due_date', $this->storageWindow($from, $to))
+            ->with($useRedesignedTasks ? TaskPresenter::RELATIONS : ['users:id,name,image', 'boardColumn:id,slug,column_name'])
+            ->orderBy('due_date')
+            ->limit($limit);
+
+        if ($useRedesignedTasks) {
+            $query->withCount(TaskPresenter::COUNTS);
+        }
+
+        return $this->presentQueueTasks($query->get(), $useRedesignedTasks);
+    }
+
+    /**
+     * Bounds for a whereBetween on a stored instant. The query builder writes
+     * a Carbon out in its own zone, so a window built in the viewer's zone
+     * (their "today") is moved into the app's zone first.
+     *
+     * @return array{0: CarbonInterface, 1: CarbonInterface}
+     */
+    private function storageWindow(CarbonInterface $from, CarbonInterface $to): array
+    {
+        $zone = config('app.timezone');
+
+        return [$from->copy()->setTimezone($zone), $to->copy()->setTimezone($zone)];
+    }
+
+    /**
+     * Queue rows: the task in the shape its modal opens, plus how late it is
+     * and the lead or deal it hangs off.
+     *
+     * The email each task came from is looked up for all rows at once first;
+     * both row shapes otherwise ask for it one task at a time (two queries per
+     * row).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function presentQueueTasks(Collection $tasks, bool $useRedesignedTasks): array
+    {
+        if ($tasks->isEmpty()) {
+            return [];
+        }
+
+        $today = now()->startOfDay();
+        $related = $this->relatedRecords($tasks->pluck('id')->all());
+        app(FollowUpLinker::class)->decorateSourceUuids($tasks);
+
+        return $tasks
+            ->map(function (Task $task) use ($related, $today, $useRedesignedTasks) {
+                $due = Carbon::parse($task->due_date)->startOfDay();
+                $base = $useRedesignedTasks ? TaskPresenter::present($task) : $task->toFrontendArray();
+
+                return $base + [
+                    'days_overdue' => $due->lessThan($today) ? (int) $today->diffInDays($due) : 0,
+                    'related' => $related[$task->id] ?? null,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**
@@ -624,11 +722,25 @@ class DashboardMetricsService
      */
     public function upcomingMeetings(int $userId, int $limit = 12): array
     {
+        return $this->meetingsBetween(
+            $userId,
+            now(),
+            now()->addDays(self::PERSONAL_WINDOW_DAYS)->endOfDay(),
+            $limit
+        );
+    }
+
+    /**
+     * The user's meetings starting inside [$from, $to], earliest first, in the
+     * agenda's row shape. Held and still-open meetings both count; cancelled
+     * ones never do (see followUpQuery()).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function meetingsBetween(int $userId, CarbonInterface $from, CarbonInterface $to, int $limit = 50): array
+    {
         $followUps = $this->followUpQuery($userId)
-            ->whereBetween('next_follow_up_date', [
-                now(),
-                now()->addDays(self::PERSONAL_WINDOW_DAYS)->endOfDay(),
-            ])
+            ->whereBetween('next_follow_up_date', $this->storageWindow($from, $to))
             ->orderBy('next_follow_up_date')
             ->limit($limit)
             ->get();

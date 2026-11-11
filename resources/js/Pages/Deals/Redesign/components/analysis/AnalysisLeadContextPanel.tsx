@@ -26,6 +26,8 @@ interface Props {
     onLeadCustomFieldChange: (fieldId: number, value: any) => void;
     onContactFieldSave: (fieldKey: string, value: any) => void;
     canEdit: boolean;
+    /** The profile card on top; off under the agent dock (see QualifyLeadContextPanel). */
+    showProfile?: boolean;
 }
 
 type Tab = "lead" | "files" | "notes" | "flights";
@@ -208,6 +210,7 @@ export default function AnalysisLeadContextPanel({
     onLeadCustomFieldChange,
     onContactFieldSave,
     canEdit,
+    showProfile = true,
 }: Props) {
     const { deal, notes, files, filesLoading } = useDealWorkspace();
     const contact = deal.contact as any;
@@ -389,6 +392,7 @@ export default function AnalysisLeadContextPanel({
     return (
         <div className="flex h-full flex-col overflow-hidden">
             {/* ProfileCard — replaces gradient hero */}
+            {showProfile ? (
             <ProfileCard
                 leadName={leadName}
                 email={email}
@@ -401,6 +405,7 @@ export default function AnalysisLeadContextPanel({
                         : undefined
                 }
             />
+            ) : null}
 
             {/* Tab bar — revamp §C.2 style */}
             <div

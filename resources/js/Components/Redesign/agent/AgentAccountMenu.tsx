@@ -4,6 +4,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import { LOCALE_FLAG_EMOJI } from "@/lib/localeFlags";
 import type { SupportedLocale } from "@/lib/i18n";
 import Avatar from "../primitives/Avatar";
+import { REDESIGN_TOKENS } from "../tokens";
 import { initialsFromName } from "../adapters/initials";
 import { CLASSIC_HOME_URL } from "./destinations";
 
@@ -62,7 +63,7 @@ export default function AgentAccountMenu({ name, image }: AgentAccountMenuProps)
                 aria-label={t("pages.agent_workspace.account")}
                 onClick={() => setOpen((value) => !value)}
             >
-                <Avatar initials={initialsFromName(name)} src={image ?? undefined} size={38} />
+                <Avatar initials={initialsFromName(name)} src={image ?? undefined} size={38} tone={{ bg: REDESIGN_TOKENS.NAVY_MID, fg: REDESIGN_TOKENS.NAVY }} />
             </button>
             {open ? (
                 <ul id={menuId} role="menu" className="agent-menu__list">

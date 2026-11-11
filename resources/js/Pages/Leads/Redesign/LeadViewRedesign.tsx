@@ -1,17 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Deferred, router, usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import PageLayout from "@/Components/PageLayout";
 import ProductTour, { ProductTourHandle } from "@/Components/ProductTour/ProductTour";
-import {
-    AddNoteModal,
-    AddTaskModal,
-    ConfirmDialog,
-    ScheduleMeetingModal,
-} from "@/Components/Redesign";
-import type { AddNoteFormState } from "@/Components/Redesign/modals/AddNoteModal";
-import type { AddTaskFormState } from "@/Components/Redesign/modals/AddTaskModal";
-import type { MeetingFormState } from "@/Components/Redesign/meeting/meetingFormUtils";
-import { buildEmptyMeetingForm, getMeetingOwner } from "@/Components/Redesign/meeting/meetingFormUtils";
+import { ConfirmDialog } from "@/Components/Redesign";
 import type { PageProps } from "@/Components/DashboardLayout";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
@@ -23,7 +14,7 @@ import {
     TabDeferredSkeleton,
 } from "@/Pages/Deals/Redesign/components/workspace/overview/overviewShared";
 import type { LeadRedesignProps } from "./types";
-import type { LeadMissionCtaAction, WorkspaceTabId } from "./types";
+import type { WorkspaceTabId } from "./types";
 import type { MoreMenuActionId } from "./config/moreMenuItems";
 import {
     buildLeadTourSteps,
@@ -42,31 +33,20 @@ import { toLeadTaskPreview } from "./adapters/taskAdapter";
 import { toLeadMeetingPreview } from "./adapters/meetingAdapter";
 import useMeetingClockTick from "@/Pages/Deals/Redesign/hooks/useMeetingClockTick";
 import { itineraryCount } from "./adapters/itineraryAdapter";
-import { formatMobileForDisplay } from "@/lib/utils";
-import type { Lead } from "@/Types/api/leads";
 import type { SallyMeetingInsight } from "@/Types/api/sally-meeting-insight";
-import type { QualificationLeadPatch } from "@/Types/qualification";
 import {
     LeadWorkspaceProvider,
     useLeadWorkspace,
 } from "./context/LeadWorkspaceContext";
 import useLeadViewNavigation from "./hooks/useLeadViewNavigation";
 import useLeadQualificationWorkspace from "./hooks/useLeadQualificationWorkspace";
+import useLeadMissionFlow from "./hooks/useLeadMissionFlow";
 import useLeadLifecycleChange from "./hooks/useLeadLifecycleChange";
 import useLeadDelete from "./hooks/useLeadDelete";
 import useLeadDealCreate from "./hooks/useLeadDealCreate";
 import useLeadNoteCreate from "./hooks/useLeadNoteCreate";
-import useLeadTaskCreate from "./hooks/useLeadTaskCreate";
-import useLeadMeetingCreate from "./hooks/useLeadMeetingCreate";
 import useLeadDocuments from "./hooks/useLeadDocuments";
 import useLeadDuplicates from "./hooks/useLeadDuplicates";
-import type { Task as RedesignedTask } from "@/Types/Task";
-import useTasksWorkspaceRedesignFlag from "@/Hooks/useTasksWorkspaceRedesignFlag";
-import useTasksWorkspaceMutations from "@/Pages/Tasks/Redesign/hooks/useTasksWorkspaceMutations";
-import useTaskExtras from "@/Pages/Tasks/Redesign/hooks/useTaskExtras";
-import TaskRedesignFormModal from "@/Pages/Tasks/Redesign/components/embed/TaskRedesignFormModal";
-import { formLinksPayload } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
-import { afterCreateTaskFormSubmit, patchTaskListExtrasCounts } from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
 import LeadHeaderRoot from "./components/header/LeadHeaderRoot";
 import AiSummaryCard from "./components/workspace/AiSummaryCard";
 import DuplicateLeadsCard from "./components/workspace/DuplicateLeadsCard";
@@ -78,10 +58,9 @@ import CommunicationModal from "@/Email/CommunicationModal";
 import { subscribeOpenSourceEmail } from "@/Email/openSourceEmail";
 import type { EmailFollowUpKind, EmailQuickAction } from "@/Email/types";
 import { replaceUrlKeepingHistoryState } from "@/lib/inertiaHistory";
-import LogActionModal from "@/Components/CrmEvents/LogActionModal";
-import { LEAD_TIMELINE_MODEL_TYPE } from "@/Pages/Deals/Redesign/hooks/useDealTimeline";
 import LeadMeetingDetailModal from "./components/workspace/LeadMeetingDetailModal";
 import LeadTaskDetailModal from "./components/workspace/LeadTaskDetailModal";
+import LeadCreateModals, { type LeadCreateKind } from "./components/workspace/LeadCreateModals";
 import OverviewTab from "./components/workspace/tabs/OverviewTab";
 import NotesTab from "./components/workspace/tabs/NotesTab";
 import TasksTab from "./components/workspace/tabs/TasksTab";
@@ -96,12 +75,9 @@ import FilesTab from "./components/workspace/tabs/FilesTab";
 import MarketingTab from "./components/workspace/tabs/MarketingTab";
 import ExposesTab from "./components/workspace/tabs/ExposesTab";
 import QualificationTab from "./components/workspace/tabs/QualificationTab";
-import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { Task } from "@/Types/api/tasks";
-import TemplatePickerModal from "./components/qualification/TemplatePickerModal";
-import QualifyModal from "./components/qualification/QualifyModal";
-import CreateDealModal from "./components/dealCreate/CreateDealModal";
+import LeadMissionModals from "./components/qualification/LeadMissionModals";
 import {
     answersFromQualification,
     computeWalkSegments,
@@ -187,8 +163,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         sallyInsightsSettled,
         sallyInsightsError,
         refetchSallyInsights,
-        addTask,
-        setTasks,
     } = useLeadWorkspace();
     // Unlike the other gated tabs, Sally visibility depends on an async client
     // fetch, so it must stay in play until the query settles — otherwise a
@@ -260,8 +234,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         useLeadLifecycleChange(lifecycleStatuses);
     const deleteLead = useLeadDelete(lead);
     const dealCreate = useLeadDealCreate(lead);
-    const { createNote, isSaving: noteSaving, errors: noteErrors, clearErrors: clearNoteErrors } =
-        useLeadNoteCreate(lead.id);
+    const { createNote } = useLeadNoteCreate(lead.id);
     /** Turn a Sally insight's summary + bullet points into a CRM note on the lead. */
     const addInsightToNote = useCallback(
         (content: string) => {
@@ -272,45 +245,26 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         },
         [createNote, td],
     );
-    const { createTask, isCreating: taskCreating, errors: taskErrors, clearErrors: clearTaskErrors } =
-        useLeadTaskCreate(lead.id);
-    const { createMeeting, isCreating: meetingCreating, errors: meetingErrors, clearErrors: clearMeetingErrors } =
-        useLeadMeetingCreate(lead);
     const duplicates = useLeadDuplicates(lead.id);
-
-    // Behind crm.tasks-workspace-redesign, "Add task" opens the redesigned
-    // form (checklist/attachments fields, multi-record linking) instead of
-    // the older AddTaskModal — createRedesignedTask's own setTasks patch is
-    // a no-op (this page's task list is patched via addTask, same as the
-    // old flow already does) since it only needs the created task back.
-    const useRedesignedTasks = useTasksWorkspaceRedesignFlag();
-    const { persistExtras } = useTaskExtras();
-    const {
-        createTask: createRedesignedTask,
-        isCreating: isCreatingRedesignedTask,
-        createErrors: createRedesignedTaskErrors,
-        clearCreateErrors: clearCreateRedesignedErrors,
-    } = useTasksWorkspaceMutations(() => {}, null);
 
     const qualification = useLeadQualificationWorkspace(lead, {
         enabled: showQualification,
         seed: props.leadQualification ?? null,
     });
 
-    const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
-    const [createDealOpen, setCreateDealOpen] = useState(false);
     // undefined until the tab is opened, so the pill stays hidden rather than
     // reading 0 for a lead whose exposes have never been loaded.
     const [exposesCount, setExposesCount] = useState<number | undefined>(
         undefined,
     );
-    const [addNoteOpen, setAddNoteOpen] = useState(false);
-    const [addTaskOpen, setAddTaskOpen] = useState(false);
-    const [addMeetingOpen, setAddMeetingOpen] = useState(false);
+    const [createKind, setCreateKind] = useState<LeadCreateKind | null>(null);
     const [sourceEmailMessageId, setSourceEmailMessageId] = useState<
         string | null
     >(null);
-    const [logActionOpen, setLogActionOpen] = useState(false);
+    const closeCreate = useCallback(() => {
+        setCreateKind(null);
+        setSourceEmailMessageId(null);
+    }, []);
     const hasMailboxConnection = emailQuickAction?.has_connection === true;
     const emailQuickActionForUi: EmailQuickAction | null =
         emailQuickAction == null
@@ -359,9 +313,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const openCreateFromEmail = (kind: EmailFollowUpKind, messageId: string) => {
         closeCommunication();
         setSourceEmailMessageId(messageId);
-        if (kind === "task") setAddTaskOpen(true);
-        else if (kind === "note") setAddNoteOpen(true);
-        else setAddMeetingOpen(true);
+        setCreateKind(kind === "task" || kind === "note" ? kind : "meeting");
     };
     const [detailMeeting, setDetailMeeting] = useState<DealFollowup | null>(
         null,
@@ -499,87 +451,15 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         })[0];
     }, [openTasks]);
 
-    const primaryDeal = useMemo((): Deal | null => {
-        if (deals.length === 0) return null;
-        // Prefer highest id as latest when order is ambiguous.
-        return [...deals].sort((a, b) => b.id - a.id)[0] ?? null;
-    }, [deals]);
-
-    const handleTemplateSelect = useCallback(
-        async (templateId: string) => {
-            // Open first so this feels instant; the start call and script
-            // load show inside the modal.
-            setTemplatePickerOpen(false);
-            nav.setQualificationOpen(true);
-
-            const started =
-                await qualification.startQualificationScript(templateId);
-            if (!started) {
-                // Start failed — don't leave an empty modal hanging.
-                nav.setQualificationOpen(false);
-            }
-        },
-        [nav, qualification],
-    );
-
-    const openTemplatePicker = useCallback(() => {
-        if (qualification.templates.length === 1) {
-            void handleTemplateSelect(qualification.templates[0].id);
-            return;
-        }
-        setTemplatePickerOpen(true);
-    }, [handleTemplateSelect, qualification.templates]);
-
-    const handleMissionAction = useCallback(
-        (action: LeadMissionCtaAction) => {
-            switch (action) {
-                case "qualify_start":
-                    openTemplatePicker();
-                    break;
-                case "qualify_resume": {
-                    const active =
-                        qualification.current?.status === "inProgress"
-                            ? qualification.current
-                            : qualification.history.find(
-                                  (run) => run.status === "inProgress",
-                              ) ?? null;
-                    if (!active) break;
-                    // Modal first — the tree load shows inside it.
-                    nav.setQualificationOpen(true);
-                    void qualification.resumeQualification(active);
-                    break;
-                }
-                case "create_deal":
-                    setCreateDealOpen(true);
-                    break;
-                case "open_deal": {
-                    const latest = primaryDeal;
-                    if (latest?.id) {
-                        router.visit(route("deals.show", latest.id));
-                    } else if (deals.length > 0) {
-                        nav.setTab("deals");
-                    }
-                    break;
-                }
-                case "reactivate":
-                    void changeStatus("new");
-                    break;
-                case "view_answers":
-                    nav.setTab("qualification");
-                    break;
-                default:
-                    break;
-            }
-        },
-        [
-            changeStatus,
-            deals.length,
-            nav,
-            openTemplatePicker,
-            primaryDeal,
-            qualification,
-        ],
-    );
+    const mission = useLeadMissionFlow({
+        qualification,
+        deals,
+        changeStatus,
+        setQualificationOpen: nav.setQualificationOpen,
+        onViewAnswers: () => nav.setTab("qualification"),
+        onShowDeals: () => nav.setTab("deals"),
+    });
+    const { primaryDeal, openTemplatePicker, handleMissionAction } = mission;
 
     const handleBannerPrimary = useCallback(() => {
         handleMissionAction(lifecycle.banner.primaryCta.action);
@@ -600,13 +480,13 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         (id: MoreMenuActionId) => {
             switch (id) {
                 case "task":
-                    setAddTaskOpen(true);
+                    setCreateKind("task");
                     break;
                 case "deal":
-                    setCreateDealOpen(true);
+                    mission.openCreateDeal();
                     break;
                 case "note":
-                    setAddNoteOpen(true);
+                    setCreateKind("note");
                     break;
                 case "find_duplicates":
                     void duplicates.findDuplicates();
@@ -640,9 +520,9 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                     followUps: props.followUpPermissions,
                                 }}
                                 onNavigateTab={nav.setTab}
-                                onAddNote={() => setAddNoteOpen(true)}
-                                onAddTask={() => setAddTaskOpen(true)}
-                                onAddMeeting={() => setAddMeetingOpen(true)}
+                                onAddNote={() => setCreateKind("note")}
+                                onAddTask={() => setCreateKind("task")}
+                                onAddMeeting={() => setCreateKind("meeting")}
                             />
                         )}
                     </div>
@@ -653,7 +533,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 ) : (
                     <NotesTab
                         permissions={props.notePermissions}
-                        onAddNote={() => setAddNoteOpen(true)}
+                        onAddNote={() => setCreateKind("note")}
                     />
                 );
             case "tasks":
@@ -663,7 +543,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     <TasksTab
                         taskBoardColumns={props.taskBoardColumns ?? []}
                         permissions={props.taskPermissions ?? props.permissions}
-                        onAddTask={() => setAddTaskOpen(true)}
+                        onAddTask={() => setCreateKind("task")}
                     />
                 );
             case "meetings":
@@ -890,13 +770,13 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                             "mobile",
                                         )}
                                         onLogAction={() =>
-                                            setLogActionOpen(true)
+                                            setCreateKind("log")
                                         }
                                         onAddNote={() =>
-                                            setAddNoteOpen(true)
+                                            setCreateKind("note")
                                         }
                                         onScheduleMeeting={() =>
-                                            setAddMeetingOpen(true)
+                                            setCreateKind("meeting")
                                         }
                                         emailQuickAction={emailQuickActionForUi}
                                         onEmail={() => openCommunication(null)}
@@ -929,9 +809,9 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                         onCta={{
                                             onQualifyLead: openTemplatePicker,
                                             onCreateTask: () =>
-                                                setAddTaskOpen(true),
+                                                setCreateKind("task"),
                                             onScheduleCall: () =>
-                                                setAddMeetingOpen(true),
+                                                setCreateKind("meeting"),
                                         }}
                                     />
                                 </div>
@@ -953,9 +833,9 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                     dealsLoading={
                                         leadFollowUpsLoading || tasksLoading
                                     }
-                                    onSchedule={() => setAddMeetingOpen(true)}
-                                    onCreateTask={() => setAddTaskOpen(true)}
-                                    onCreateDeal={() => setCreateDealOpen(true)}
+                                    onSchedule={() => setCreateKind("meeting")}
+                                    onCreateTask={() => setCreateKind("task")}
+                                    onCreateDeal={() => mission.openCreateDeal()}
                                     onOpenMeeting={setDetailMeeting}
                                     onOpenTask={setDetailTask}
                                     onViewAllDeals={() => nav.setTab("deals")}
@@ -981,11 +861,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                     leadId={lead.id}
                                     phone={getDossierFieldValue(lead, "mobile")}
                                     onLogAction={() =>
-                                        setLogActionOpen(true)
+                                        setCreateKind("log")
                                     }
-                                    onAddNote={() => setAddNoteOpen(true)}
+                                    onAddNote={() => setCreateKind("note")}
                                     onScheduleMeeting={() =>
-                                        setAddMeetingOpen(true)
+                                        setCreateKind("meeting")
                                     }
                                     emailQuickAction={emailQuickActionForUi}
                                     onEmail={() => openCommunication(null)}
@@ -1008,99 +888,23 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 </div>
             </div>
 
-            {showQualification && (
-                <>
-                    <TemplatePickerModal
-                        open={templatePickerOpen}
-                        leadName={lead.client_name ?? td("Lead", { source: "en" })}
-                        templates={qualification.templates}
-                        loading={qualification.templatesLoading}
-                        selecting={qualification.isStartingFlow}
-                        onClose={() => setTemplatePickerOpen(false)}
-                        onSelect={(id) => void handleTemplateSelect(id)}
-                    />
-
-                    {nav.qualificationOpen && (
-                            <QualifyModal
-                                open={nav.qualificationOpen}
-                                lead={lead}
-                                qualification={qualification.current}
-                                templateTree={qualification.templateTree}
-                                treeLoading={qualification.treeLoading}
-                                starting={qualification.isStartingFlow}
-                                fields={props.fields}
-                                customFieldCategories={
-                                    props.customFieldCategories
-                                }
-                                editLeadPermission={props.editLeadPermission}
-                                meetingTypes={props.meetingTypes ?? []}
-                                onClose={() => nav.setQualificationOpen(false)}
-                                onCompleted={(updated) => {
-                                    qualification.handleQualificationUpdated(
-                                        updated,
-                                    );
-                                }}
-                                onActionsDone={(updated) => {
-                                    qualification.finishQualificationSession(
-                                        updated,
-                                    );
-                                }}
-                                onLeadUpdated={(patch) => {
-                                    setLead((prev) =>
-                                        mergeQualificationLeadPatch(prev, patch),
-                                    );
-                                }}
-                            />
-                        )}
-                </>
-            )}
-
-            <CreateDealModal
-                open={createDealOpen}
-                onClose={() => {
-                    setCreateDealOpen(false);
-                    dealCreate.clearErrors();
-                }}
-                saving={dealCreate.isCreating}
-                errors={dealCreate.errors}
-                defaultAgentId={(() => {
-                    const agents = props.leadAgents ?? [];
-                    const ownerUserId = lead.lead_owner?.id;
-                    if (!ownerUserId) return null;
-                    const match = agents.find(
-                        (agent: {
-                            id: number;
-                            user_id?: number;
-                            user?: { id?: number };
-                        }) =>
-                            agent.user_id === ownerUserId ||
-                            agent.user?.id === ownerUserId,
-                    );
-                    return match?.id ?? null;
-                })()}
-                meetingTypes={props.meetingTypes ?? []}
-                dealMeta={{
-                    categories: props.categories,
-                    packages: props.packages,
-                    products: props.products,
-                    pipelines: props.leadPipelines,
-                    stages: props.leadStages ?? props.stages,
-                    leadAgents: props.leadAgents,
-                }}
-                onSubmit={(input) =>
-                    dealCreate.createDeal(input, () => {
-                        setCreateDealOpen(false);
-                    })
-                }
+            <LeadMissionModals
+                flow={mission}
+                qualification={qualification}
+                dealCreate={dealCreate}
+                showQualification={showQualification}
+                qualificationOpen={nav.qualificationOpen}
+                onCloseQualification={() => nav.setQualificationOpen(false)}
+                pageProps={props}
             />
 
-            <LogActionModal
-                open={logActionOpen}
-                onClose={() => setLogActionOpen(false)}
-                onSuccess={() => setLogActionOpen(false)}
-                modelType={LEAD_TIMELINE_MODEL_TYPE}
-                modelId={lead.id}
-                userId={page.props.auth?.user?.id}
+            <LeadCreateModals
+                open={createKind}
+                onClose={closeCreate}
+                sourceEmailMessageId={sourceEmailMessageId}
+                meetingTypes={props.meetingTypes ?? []}
+                taskBoardColumns={props.taskBoardColumns ?? []}
+                taskCategories={props.taskCategories ?? []}
             />
 
             <CommunicationModal
@@ -1112,196 +916,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 hasConnection={hasMailboxConnection}
                 prefillTo={lead.client_email ?? null}
                 onCreateFollowUp={openCreateFromEmail}
-            />
-
-            <AddNoteModal
-                open={addNoteOpen}
-                onClose={() => {
-                    setAddNoteOpen(false);
-                    setSourceEmailMessageId(null);
-                    clearNoteErrors();
-                }}
-                saving={noteSaving}
-                errors={noteErrors}
-                onSubmit={(form: AddNoteFormState) =>
-                    createNote(
-                        {
-                            title: form.title,
-                            text: form.text,
-                            sourceEmailMessageId,
-                        },
-                        () => {
-                            setAddNoteOpen(false);
-                            setSourceEmailMessageId(null);
-                        },
-                    )
-                }
-                labels={{
-                    title: td("Add note", { source: "en" }),
-                    cancel: td("Cancel", { source: "en" }),
-                    submit: td("Save note", { source: "en" }),
-                    titleField: td("Title", { source: "en" }),
-                    titlePlaceholder: td("Optional title", { source: "en" }),
-                    detailsField: td("Details", { source: "en" }),
-                    bodyPlaceholder: td("Write your note…", { source: "en" }),
-                }}
-            />
-
-            {useRedesignedTasks ? (
-                <Deferred data="taskCategories" fallback={null}>
-                    <TaskRedesignFormModal
-                        open={addTaskOpen}
-                        mode="create"
-                        columns={props.taskBoardColumns ?? []}
-                        categories={props.taskCategories ?? []}
-                        lockedLinks={[
-                            {
-                                type: "lead",
-                                id: lead.id,
-                                name: lead.client_name || "Lead",
-                            },
-                        ]}
-                        saving={isCreatingRedesignedTask}
-                        errors={createRedesignedTaskErrors}
-                        onClose={() => {
-                            setAddTaskOpen(false);
-                            setSourceEmailMessageId(null);
-                            clearCreateRedesignedErrors();
-                        }}
-                        onSubmit={(values) =>
-                            createRedesignedTask(
-                                {
-                                    title: values.title,
-                                    startDate: values.startDate,
-                                    dueDate: values.dueDate,
-                                    dueTime: values.dueTime,
-                                    priority: values.priority,
-                                    description: values.description,
-                                    assignees: values.assignees,
-                                    categoryId: values.categoryId,
-                                    boardColumnId:
-                                        values.boardColumnId ?? undefined,
-                                    links: formLinksPayload(values),
-                                    sourceEmailMessageId,
-                                },
-                                afterCreateTaskFormSubmit(
-                                    values,
-                                    persistExtras,
-                                    (task) => {
-                                        if (task) {
-                                            addTask(
-                                                task as unknown as Parameters<
-                                                    typeof addTask
-                                                >[0],
-                                            );
-                                        }
-                                        setAddTaskOpen(false);
-                                        setSourceEmailMessageId(null);
-                                    },
-                                    (task, result) => {
-                                        setTasks(
-                                            (prev) =>
-                                                patchTaskListExtrasCounts(
-                                                    prev as unknown as RedesignedTask[],
-                                                    task.id,
-                                                    result,
-                                                ) as unknown as typeof prev,
-                                        );
-                                    },
-                                ),
-                            )
-                        }
-                    />
-                </Deferred>
-            ) : (
-                <AddTaskModal
-                    open={addTaskOpen}
-                    onClose={() => {
-                        setAddTaskOpen(false);
-                        setSourceEmailMessageId(null);
-                        clearTaskErrors();
-                    }}
-                    saving={taskCreating}
-                    errors={taskErrors}
-                    defaultAssigneeUserId={lead.lead_owner?.id}
-                    onSubmit={(form: AddTaskFormState) =>
-                        createTask(
-                            { ...form, sourceEmailMessageId },
-                            (task) => {
-                                if (task) addTask(task);
-                                setAddTaskOpen(false);
-                                setSourceEmailMessageId(null);
-                            },
-                        )
-                    }
-                    labels={{
-                        title: td("Create task", { source: "en" }),
-                        cancel: td("Cancel", { source: "en" }),
-                        submit: td("Create task", { source: "en" }),
-                        titleField: td("Title", { source: "en" }),
-                        titlePlaceholder: td("What needs to be done?", { source: "en" }),
-                        description: td("Description", { source: "en" }),
-                        descriptionPlaceholder: td("Optional details", { source: "en" }),
-                        startDate: td("Start date", { source: "en" }),
-                        dueDate: td("Due date", { source: "en" }),
-                        dueTime: td("Due time", { source: "en" }),
-                        priority: td("Priority", { source: "en" }),
-                        priorityHigh: td("High", { source: "en" }),
-                        priorityMedium: td("Medium", { source: "en" }),
-                        priorityLow: td("Low", { source: "en" }),
-                        priorityHighest: td("Highest", { source: "en" }),
-                        priorityUrgent: td("Urgent", { source: "en" }),
-                        assignees: td("Assignees", { source: "en" }),
-                        dateRangeError: td("Due date must be on or after start date", { source: "en" }),
-                    }}
-                />
-            )}
-
-            <ScheduleMeetingModal
-                open={addMeetingOpen}
-                onClose={() => {
-                    setAddMeetingOpen(false);
-                    setSourceEmailMessageId(null);
-                    clearMeetingErrors();
-                }}
-                saving={meetingCreating}
-                errors={meetingErrors}
-                meetingTypes={props.meetingTypes ?? []}
-                initialForm={buildEmptyMeetingForm(
-                    lead,
-                    page.props.auth?.user?.id,
-                    page.props.auth?.user?.email,
-                )}
-                onSubmit={(form: MeetingFormState) =>
-                    createMeeting(
-                        {
-                            meetingTypeId: form.meetingTypeId,
-                            date: form.date,
-                            startTime: form.startTime,
-                            endTime: form.endTime,
-                            duration: form.duration,
-                            platform: form.platform,
-                            locationDetail: form.locationDetail,
-                            meetingLink: form.meetingLink,
-                            participants: form.participants,
-                            hostId: form.hostId,
-                            remark: form.remark,
-                            reminders: form.reminders,
-                            timezone: form.timezone,
-                            sourceEmailMessageId,
-                        },
-                        () => {
-                            setAddMeetingOpen(false);
-                            setSourceEmailMessageId(null);
-                        },
-                    )
-                }
-                mustIncludeOwner={getMeetingOwner(lead)}
-                labels={{
-                    title: td("Schedule meeting", { source: "en" }),
-                    cancel: td("Cancel", { source: "en" }),
-                    submit: td("Schedule", { source: "en" }),
-                }}
             />
 
             <LeadMeetingDetailModal
@@ -1321,54 +935,4 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             <ConfirmDialog {...deleteLead.dialogProps} />
         </PageLayout>
     );
-}
-
-/** Apply the qualification-complete lead patch into workspace state (no reload). */
-function mergeQualificationLeadPatch(
-    prev: Lead,
-    patch: QualificationLeadPatch,
-): Lead {
-    const next = { ...prev } as Record<string, unknown>;
-
-    Object.entries(patch).forEach(([key, val]) => {
-        if (val === undefined) return;
-        next[key] =
-            (key === "languages" ||
-                key === "categories" ||
-                key === "category_ids") &&
-            !Array.isArray(val)
-                ? []
-                : val;
-    });
-
-    const lifecycle =
-        patch.lead_lifecycle_status ?? patch.lifecycleStatus;
-    if (lifecycle != null) {
-        next.lead_lifecycle_status = lifecycle;
-        next.lifecycleStatus = lifecycle;
-    }
-
-    if (patch.custom_fields_data && typeof patch.custom_fields_data === "object") {
-        next.custom_fields_data = patch.custom_fields_data;
-    }
-
-    if (patch.mobile !== undefined) {
-        const formatted = formatMobileForDisplay(String(patch.mobile ?? ""));
-        next.mobile_with_phonecode =
-            formatted && formatted !== "--"
-                ? formatted
-                : (patch.mobile_with_phonecode as string | undefined) ?? "--";
-    }
-
-    if (patch.office !== undefined) {
-        const formatted = formatMobileForDisplay(String(patch.office ?? ""));
-        next.office_phone_formatted =
-            formatted && formatted !== "--"
-                ? formatted
-                : (patch.office_phone_formatted as string | undefined) ||
-                  String(patch.office ?? "") ||
-                  "--";
-    }
-
-    return next as unknown as Lead;
 }

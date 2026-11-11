@@ -15,14 +15,14 @@ import {
     type TaskFormValues,
 } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
 import { afterUpdateTaskFormSubmit } from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
-import useDashboardTaskUpdate from "../hooks/useDashboardTaskUpdate";
+import useTaskUpdate from "../hooks/useTaskUpdate";
 
 interface CategoryOption {
     id: number;
     category_name: string;
 }
 
-interface PersonalTaskModalProps {
+interface QueueTaskModalProps {
     task: Task | null;
     taskBoardColumns: TaskboardColumn[];
     onClose: () => void;
@@ -51,7 +51,7 @@ interface PersonalTaskModalProps {
  * both need a company-wide user list this page doesn't fetch. Everything
  * else — view, edit, checklist, attachments, complete — works without one.
  */
-export default function PersonalTaskModal({
+export default function QueueTaskModal({
     task,
     taskBoardColumns,
     onClose,
@@ -60,14 +60,14 @@ export default function PersonalTaskModal({
     isStatusPending,
     onComplete,
     onChanged,
-}: PersonalTaskModalProps) {
+}: QueueTaskModalProps) {
     const { t } = useTranslation();
     const { props } = usePage();
     const userId = props.auth?.user?.id;
     const useRedesignedTasks = useTasksWorkspaceRedesignFlag();
     const [editing, setEditing] = useState(false);
 
-    const { updateTask, isUpdating, errors, clearErrors } = useDashboardTaskUpdate(
+    const { updateTask, isUpdating, errors, clearErrors } = useTaskUpdate(
         task ?? ({ id: 0 } as Task),
         (updated) => {
             onPatched(updated);

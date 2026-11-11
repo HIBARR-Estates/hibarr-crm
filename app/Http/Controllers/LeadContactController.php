@@ -40,6 +40,7 @@ use App\Models\PipelineStage;
 use App\Models\Product;
 use App\Models\SallyMeetingInsight;
 use App\Models\User;
+use App\Services\AgentWorkspace\ContactDeals;
 use App\Services\DealAgentAssignmentService;
 use App\Services\LeadCoreFieldsService;
 use App\Services\LeadFilterFacetsService;
@@ -52,7 +53,9 @@ use App\Support\FeatureFlags;
 use App\Support\LeadExportFields;
 use App\Support\TaskPresenter;
 use App\Traits\ImportExcel;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
@@ -194,6 +197,63 @@ class LeadContactController extends AccountBaseController
     }
 
     public function show($id, Request $request)
+    {
+        $props = $this->showProps($id, $request);
+
+        return is_array($props) ? Inertia::render('Leads/Show', $props) : $props;
+    }
+
+    /**
+     * Deferred props the agent workspace's contact page never reads. Inertia
+     * fetches every deferred group a response lists, so these are left out
+     * rather than loaded and ignored (leadContacts alone is every lead).
+     */
+    public const AGENT_CONTACT_UNUSED_PROPS = [
+        'utmTouches',
+        'callSummary',
+        'dealFileFields',
+        'taskLabels',
+        'projects',
+        'stages',
+        'nonActiveLeadAgents',
+        'leadContacts',
+        'dealCustomFields',
+        'dealCustomFieldCategories',
+        'pipelineCustomFieldCategoryIdsByPipeline',
+    ];
+
+    /**
+     * The agent workspace's contact page (/agent/people/{id}) in its lead
+     * state. Same access check and the same props as show(), so both pages
+     * run on one payload; only the deferred groups the agent page doesn't
+     * use are dropped.
+     */
+    public function agentShow($id, Request $request, ContactDeals $contactDeals)
+    {
+        // Only qualified leads have deals, and once one exists the page is
+        // about the deal: open on the first deal the viewer may see (open
+        // deals first). The deal page runs its own access check.
+        $deals = $contactDeals->forLead((int) $id, user());
+        if ($deals !== []) {
+            return redirect()->route('agent.people.deal', ['lead' => (int) $id, 'deal' => $deals[0]['id']]);
+        }
+
+        $props = $this->showProps($id, $request);
+        if (! is_array($props)) {
+            return $props;
+        }
+
+        return Inertia::render('AgentWorkspace/Contact', Arr::except($props, self::AGENT_CONTACT_UNUSED_PROPS));
+    }
+
+    /**
+     * The lead page's props: the shell plus the deferred groups. Returns a
+     * redirect instead when an Inertia request has no access to the lead
+     * (a plain request without access gets a 403).
+     *
+     * @return array<string, mixed>|RedirectResponse
+     */
+    protected function showProps($id, Request $request): array|RedirectResponse
     {
         // Shell vs deferred prop matrix: docs/inertia-react-performance-checklist.md (Task C1).
         // Deferred keys use Inertia::defer (Task C2).
@@ -368,7 +428,7 @@ class LeadContactController extends AccountBaseController
         $leadId = (int) $id;
         $leadContact = $this->leadContact;
 
-        return Inertia::render('Leads/Show', array_merge($formData, [
+        return array_merge($formData, [
             'lead' => $leadContact,
             'fields' => $formData['customFields'],
             'editLeadPermission' => $this->editLeadPermission,
@@ -567,7 +627,7 @@ class LeadContactController extends AccountBaseController
                     })
                     ->toArray();
             }, 'dealMeta'),
-        ]));
+        ]);
     }
 
     public function notes()

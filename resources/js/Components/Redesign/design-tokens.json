@@ -24,6 +24,7 @@
         "GREEN": "#177a5b",
         "GREEN_LIGHT": "#e1f5ee",
         "GREEN_MID": "#9fe1cb",
+        "GREEN_PRESSED": "#11603f",
         "AMBER": "#92400e",
         "AMBER_SOFT": "#fff7ed",
         "AMBER_BANNER": "#fef3c7",
@@ -100,7 +101,10 @@
         "GHOST_HOVER_BG": "GRAY",
         "GHOST_HOVER_TEXT": "TEXT",
         "DANGER_BG": "RED",
-        "DANGER_TEXT": "WHITE"
+        "DANGER_TEXT": "WHITE",
+        "CALL_BG": "GREEN",
+        "CALL_HOVER_BG": "GREEN_PRESSED",
+        "CALL_TEXT": "WHITE"
     },
     "meetingPlatformColors": {
         "zoom": "#2d8cff",

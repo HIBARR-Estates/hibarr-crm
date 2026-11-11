@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { usePage } from "@inertiajs/react";
+import useTranslation from "@/Hooks/useTranslation";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
@@ -11,7 +12,7 @@ import {
     todayIsoDate,
 } from "@/Pages/Deals/Redesign/hooks/taskDateUtils";
 
-export interface DashboardTaskUpdateInput {
+export interface TaskUpdateInput {
     title: string;
     startDate?: string;
     dueDate?: string;
@@ -32,21 +33,24 @@ interface UpdateTaskRequest {
 }
 
 /**
- * Task edits from the dashboard queue.
+ * Task edits from a page that holds tasks outside a deal or lead workspace:
+ * the personal dashboard's queue, Today in the agent workspace, the lead
+ * list's next-action flow.
  *
  * The deal and lead workspaces have the same hook against their own contexts;
  * this one exists because those hooks call useDealWorkspace()/useLeadWorkspace(),
- * which throw outside their providers — and the dashboard has neither.
+ * which throw outside their providers.
  *
  * ponytail: a three-way duplication with useDealTaskUpdate / useLeadTaskUpdate.
  * Collapse them the way useTaskStatus was collapsed (a shared hook taking an
  * onUpdated callback) once a third caller needs a fourth behaviour.
  */
-export default function useDashboardTaskUpdate(
+export default function useTaskUpdate(
     task: Task,
     onUpdated: (task: Task) => void,
 ) {
     const { props } = usePage();
+    const { t } = useTranslation();
     const [errors, setErrors] = useState<string[]>([]);
 
     const { mutate, status } = useApiMutate<
@@ -56,11 +60,11 @@ export default function useDashboardTaskUpdate(
     >(route("tasks.update", task.id), "PUT");
 
     const updateTask = useCallback(
-        (input: DashboardTaskUpdateInput, onSuccess?: () => void) => {
+        (input: TaskUpdateInput, onSuccess?: () => void) => {
             const title = input.title.trim();
 
             if (!title) {
-                setErrors(["Task title is required"]);
+                setErrors([t("pages.tasks.feedback.title_required")]);
                 return;
             }
 
@@ -111,12 +115,12 @@ export default function useDashboardTaskUpdate(
                     setErrors(
                         responseErrors.length > 0
                             ? responseErrors
-                            : [formatted.message || "Failed to update task"],
+                            : [formatted.message || t("pages.tasks.feedback.update_failed")],
                     );
                 },
             });
         },
-        [mutate, props.company, onUpdated],
+        [mutate, props.company, onUpdated, t],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

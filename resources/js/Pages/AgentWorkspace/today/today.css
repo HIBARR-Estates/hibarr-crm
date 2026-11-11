@@ -1,0 +1,845 @@
+/* Today › My work. Colours come from the --dr-* tokens; time states from the
+   TIME_* set (late, now, soon, later, none, done). Cards are filled, never
+   edged with a side border. */
+
+/* ---------- band: dock, the My work | Agenda pills, then the header ---------- */
+.agent-ws:has(.agent-today) {
+    --agent-band-height: 304px;
+}
+
+@media (max-width: 1023px) {
+    .agent-ws:has(.agent-today) {
+        --agent-band-height: 264px;
+    }
+}
+
+/* ---------- header on the band ---------- */
+.agent-today__top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px 24px;
+}
+
+.agent-today__heading {
+    min-width: 0;
+    flex: 1 1 360px;
+}
+
+.agent-today__status {
+    color: var(--dr-white);
+}
+
+.agent-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-chip > a,
+.agent-chip--loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 0 13px;
+    border: 1px solid var(--dr-navy-line);
+    border-radius: 999px;
+    background: var(--dr-navy-pressed);
+    color: var(--dr-navy-soft);
+    font-size: 13px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.agent-chip > a:hover {
+    border-color: var(--dr-navy-mid);
+    color: var(--dr-white);
+}
+
+.agent-chip > a:focus-visible {
+    outline: 2px solid var(--dr-white);
+    outline-offset: 2px;
+}
+
+.agent-chip__value {
+    color: var(--dr-white);
+    font-weight: 700;
+}
+
+.agent-chip--loading .agent-chip__value {
+    border-radius: 4px;
+    background: var(--dr-navy-line);
+    color: transparent;
+}
+
+/* ---------- phone switch (hidden from tablet up) ---------- */
+.agent-today__switch {
+    display: none;
+}
+
+/* ---------- two columns ---------- */
+.agent-today__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(400px, 520px);
+    align-items: start;
+    gap: 16px;
+}
+
+.agent-today__work,
+.agent-today__schedule {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.agent-skeleton-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* ---------- panels ---------- */
+.agent-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 18px;
+    border: 1px solid var(--dr-border);
+    border-radius: 20px;
+    background: var(--dr-white);
+}
+
+.agent-panel__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.agent-panel__title {
+    margin: 0;
+    color: var(--dr-gray-darker);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.agent-panel__title-sub {
+    color: var(--dr-text-muted);
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.agent-panel__summary {
+    margin: -4px 0 2px;
+    color: var(--dr-text-muted);
+    font-size: 13px;
+}
+
+.agent-panel__foot {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px 16px;
+    margin: 2px 0 0;
+    color: var(--dr-text-muted);
+    font-size: 12.5px;
+}
+
+.agent-panel__foot a {
+    color: var(--dr-blue);
+    font-weight: 600;
+}
+
+.agent-panel__foot:empty {
+    display: none;
+}
+
+/* ---------- record link ---------- */
+.agent-record-link {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+    color: var(--dr-text);
+    font-size: 12.5px;
+    text-decoration: none;
+}
+
+.agent-record-link:hover .agent-record-link__name {
+    color: var(--dr-blue);
+    text-decoration: underline;
+}
+
+.agent-record-link__type {
+    flex: none;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--dr-navy-soft);
+    color: var(--dr-navy);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.agent-record-link__name {
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------- task actions ---------- */
+.agent-task-actions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+}
+
+.agent-task-done {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: var(--dr-green-light);
+    color: var(--dr-green);
+    font-size: 12.5px;
+    font-weight: 700;
+}
+
+/* ---------- record badges ---------- */
+.agent-badge {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-badge--lead {
+    background: var(--dr-blue);
+    color: var(--dr-white);
+}
+
+.agent-badge--deal {
+    background: var(--dr-surface-hover);
+    color: var(--dr-gray-darker);
+}
+
+.agent-badge__mark {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: var(--dr-navy);
+}
+
+/* ---------- do this first ---------- */
+.agent-next {
+    overflow: hidden;
+    border: 1px solid var(--dr-border);
+    border-radius: 20px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+}
+
+.agent-next__strip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--ts-border);
+    background: var(--ts-bg);
+    color: var(--ts-text);
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.agent-next__dot {
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--ts-solid);
+}
+
+.agent-next__main {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 18px 20px;
+}
+
+.agent-next__main > .dr-avatar,
+.agent-next__main > span:first-child {
+    flex: none;
+}
+
+.agent-next__body {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.agent-next__title {
+    max-width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--dr-text);
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.3;
+    text-align: left;
+}
+
+.agent-next__title:hover {
+    text-decoration: underline;
+}
+
+.agent-next__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    color: var(--dr-text-muted);
+    font-size: 13px;
+}
+
+.agent-next__actions {
+    display: flex;
+    width: 180px;
+    flex: none;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.agent-next__actions > .dr-btn,
+.agent-next__actions > a.dr-btn {
+    width: 100%;
+    min-height: 40px;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.agent-next__actions .agent-task-actions {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+/* ---------- queue rows ---------- */
+.agent-q {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-q__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    border: 1px solid var(--dr-border);
+    border-radius: 12px;
+    background: var(--dr-white);
+}
+
+.agent-q__row:hover {
+    border-color: var(--dr-navy-mid);
+}
+
+.agent-q__row.is-done {
+    opacity: 0.72;
+}
+
+.agent-q__row.is-done .agent-q__title {
+    text-decoration: line-through;
+}
+
+.agent-q__body {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.agent-q__head {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+}
+
+.agent-q__name {
+    overflow: hidden;
+    color: var(--dr-text);
+    font-size: 14.5px;
+    font-weight: 600;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-q__name:hover {
+    color: var(--dr-blue);
+}
+
+.agent-q__title {
+    overflow: hidden;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--dr-text-muted);
+    cursor: pointer;
+    font-size: 13px;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-q__title:hover {
+    color: var(--dr-blue);
+}
+
+.agent-q__head:empty + .agent-q__title {
+    color: var(--dr-text);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.agent-q__due {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 10px;
+    border: 1px solid var(--ts-border);
+    border-radius: 999px;
+    background: var(--ts-bg);
+    color: var(--ts-text);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-q__due-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ts-solid);
+}
+
+.agent-q__open {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--dr-text-muted);
+    cursor: pointer;
+}
+
+.agent-q__open:hover {
+    background: var(--dr-surface-hover);
+    color: var(--dr-text);
+}
+
+.agent-show-all.dr-btn {
+    border-color: var(--dr-blue-mid);
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark) !important;
+    text-decoration: none;
+}
+
+/* ---------- schedule ---------- */
+.agent-sched {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-sched__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.agent-sched__time {
+    width: 44px;
+    flex: none;
+    color: var(--dr-text-muted);
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+}
+
+.agent-sched__card {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--ts-border);
+    border-radius: 12px;
+    background: var(--ts-bg);
+}
+
+.agent-sched__text {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.agent-sched__top {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+}
+
+.agent-sched__title {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--dr-text);
+    cursor: pointer;
+    font-size: 13.5px;
+    font-weight: 600;
+    text-align: left;
+}
+
+.agent-sched__title:hover {
+    text-decoration: underline;
+}
+
+.agent-ts--done .agent-sched__title {
+    color: var(--dr-text-muted);
+    text-decoration: line-through;
+}
+
+.agent-sched__state {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 5px;
+    height: 22px;
+    padding: 0 8px;
+    border: 1px solid var(--ts-border);
+    border-radius: 999px;
+    background: var(--dr-white);
+    color: var(--ts-text);
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-sched__state-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ts-solid);
+}
+
+.agent-sched__meta {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+.agent-sched__meta span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-sched__actions {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.agent-sched__actions a.dr-btn {
+    text-decoration: none;
+}
+
+.agent-sched__actions .agent-task-done {
+    padding: 4px 9px;
+    font-size: 12px;
+}
+
+/* The current time, between the items it falls between. */
+.agent-sched__now {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 14px;
+    color: var(--dr-time-late-solid);
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+}
+
+.agent-sched__now span {
+    width: 44px;
+}
+
+.agent-sched__now::before {
+    content: "";
+    position: absolute;
+    left: 50px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--dr-time-late-solid);
+}
+
+.agent-sched__now::after {
+    content: "";
+    flex: 1;
+    height: 2px;
+    background: var(--dr-time-late-solid);
+}
+
+/* ---------- next days ---------- */
+.agent-next-days {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding-top: 4px;
+    color: var(--dr-text-muted);
+    font-size: 12.5px;
+}
+
+.agent-next-days__day {
+    height: 30px;
+    padding: 0 11px;
+    border: 1px solid var(--dr-border);
+    border-radius: 8px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    cursor: pointer;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.agent-next-days__day:hover {
+    border-color: var(--dr-blue-mid);
+    color: var(--dr-blue-dark);
+}
+
+/* ---------- tablet: same two columns, narrower schedule ---------- */
+@media (max-width: 1023px) {
+    /* Too narrow for two useful columns: the schedule follows the work. */
+    .agent-today__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .agent-task-actions__label {
+        display: none;
+    }
+
+    .agent-task-actions__reschedule {
+        width: 36px;
+        padding: 0;
+        justify-content: center;
+    }
+
+    .agent-next__main {
+        flex-wrap: wrap;
+    }
+
+    .agent-next__actions {
+        width: 100%;
+        flex-direction: row;
+    }
+
+    .agent-next__actions > .dr-btn,
+    .agent-next__actions > a.dr-btn {
+        width: auto;
+        flex: 1;
+    }
+}
+
+/* ---------- phone: one column, a switch between work and schedule ---------- */
+@media (max-width: 639px) {
+    /* The header wraps to more lines here; keep the chips on the navy band. */
+    .agent-ws:has(.agent-today) {
+        --agent-band-height: 266px;
+    }
+
+    .agent-ws:has(.agent-today--agenda) {
+        --agent-band-height: 232px;
+    }
+
+    .agent-today__top {
+        gap: 12px;
+    }
+
+    .agent-today__heading {
+        flex-basis: 100%;
+    }
+
+    .agent-chips {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        margin: 0 -16px;
+        padding: 0 16px 2px;
+        scrollbar-width: none;
+    }
+
+    .agent-chips::-webkit-scrollbar {
+        display: none;
+    }
+
+    .agent-today__switch {
+        display: block;
+    }
+
+    .agent-today__switch button {
+        min-height: 44px;
+    }
+
+    .agent-today__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .agent-today[data-panel="work"] .agent-today__schedule,
+    .agent-today[data-panel="schedule"] .agent-today__work {
+        display: none;
+    }
+
+    .agent-panel {
+        padding: 14px;
+        border-radius: 16px;
+    }
+
+    .agent-next {
+        border-radius: 16px;
+    }
+
+    .agent-next__strip {
+        padding: 9px 14px;
+    }
+
+    .agent-next__main {
+        gap: 12px;
+        padding: 14px;
+    }
+
+    .agent-next__title {
+        font-size: 17px;
+    }
+
+    .agent-next__actions {
+        flex-direction: column;
+    }
+
+    .agent-next__actions > .dr-btn,
+    .agent-next__actions > a.dr-btn,
+    .agent-task-actions .dr-btn,
+    .agent-sched__actions .dr-btn {
+        min-height: 44px;
+    }
+
+    .agent-next .agent-task-actions .dr-btn:first-child {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .agent-task-actions__reschedule {
+        width: 44px;
+    }
+
+    /* Avatar | name, task, due chip | chevron: the chip sits under the task. */
+    .agent-q__row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        column-gap: 12px;
+        row-gap: 6px;
+    }
+
+    .agent-q__row > :first-child {
+        grid-row: 1 / span 2;
+        align-self: start;
+    }
+
+    .agent-q__body {
+        grid-column: 2;
+    }
+
+    .agent-q__due {
+        grid-column: 2;
+        justify-self: start;
+    }
+
+    .agent-q__open {
+        grid-column: 3;
+        grid-row: 1 / span 2;
+    }
+
+    .agent-q__row {
+        padding: 10px 12px;
+    }
+
+    /* The name wins over the badge: the badge drops to its own line. */
+    .agent-q__head {
+        flex-wrap: wrap;
+        row-gap: 4px;
+    }
+
+    .agent-q__name {
+        flex: none;
+        max-width: 100%;
+    }
+
+    .agent-q__open {
+        width: 44px;
+        height: 44px;
+    }
+}

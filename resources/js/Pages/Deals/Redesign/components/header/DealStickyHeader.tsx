@@ -48,6 +48,12 @@ interface DealStickyHeaderProps {
     /** Fail-closed Email Quick action (flag + pilot). */
     emailQuickAction?: EmailQuickAction | null;
     onEmail?: () => void;
+    /**
+     * Shown inside another page (the agent workspace's contact page), which
+     * has its own back navigation and Call button and updates in place: no
+     * Back, Call or Refresh here.
+     */
+    embedded?: boolean;
 }
 
 export default function DealStickyHeader({
@@ -64,6 +70,7 @@ export default function DealStickyHeader({
     isMobileResponsive = false,
     emailQuickAction = null,
     onEmail,
+    embedded = false,
 }: DealStickyHeaderProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -188,7 +195,9 @@ export default function DealStickyHeader({
                 <div className="flex flex-wrap items-start justify-between gap-6">
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                            <BackButton fallbackHref={route("deals.index")} />
+                            {!embedded && (
+                                <BackButton fallbackHref={route("deals.index")} />
+                            )}
                             <EditableTitle
                                 value={deal.name ?? ""}
                                 canEdit={dealPermissions.canEdit}
@@ -213,7 +222,7 @@ export default function DealStickyHeader({
                                     {t("pages.deals.header.locked")}
                                 </span>
                             )}
-                            {contactPhone && (
+                            {!embedded && contactPhone && (
                                 <ClickToCallButton
                                     phone={contactPhone}
                                     entity={{ type: "deal", id: deal.id }}
@@ -313,16 +322,18 @@ export default function DealStickyHeader({
                                         : td("Open Analysis", { source: "en" })}
                                 </Button>
                             )}
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={onRefresh}
-                                disabled={isRefreshing}
-                            >
-                                {isRefreshing
-                                    ? t("pages.deals.common.refreshing")
-                                    : t("pages.deals.common.refresh")}
-                            </Button>
+                            {!embedded && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={onRefresh}
+                                    disabled={isRefreshing}
+                                >
+                                    {isRefreshing
+                                        ? t("pages.deals.common.refreshing")
+                                        : t("pages.deals.common.refresh")}
+                                </Button>
+                            )}
                         </div>
 
                         <div className="mt-1 text-xs text-dr-text-muted">

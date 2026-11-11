@@ -1,10 +1,21 @@
-export { default as AgentWorkspaceLayout, AgentSecondRow } from "./AgentWorkspaceLayout";
+export { default as AgentWorkspaceLayout, AgentPinned, AgentSecondRow } from "./AgentWorkspaceLayout";
 export { default as AgentDock } from "./AgentDock";
 export { default as AgentPillRow, agentPillPanelProps } from "./AgentPillRow";
 export type { AgentPill } from "./AgentPillRow";
+export { default as AgentLinkPills } from "./AgentLinkPills";
+export { default as AgentCallButton } from "./AgentCallButton";
+export type { AgentLinkPill } from "./AgentLinkPills";
 export { default as AgentViewSwitch } from "./AgentViewSwitch";
 export { default as AgentAccountMenu } from "./AgentAccountMenu";
-export { AGENT_DESTINATIONS, AGENT_HOME_URL, CLASSIC_HOME_URL, activeDestinationKey } from "./destinations";
+export { AGENT_DESTINATIONS, AGENT_HOME_URL, CLASSIC_HOME_URL, activeDestinationKey, destinationHref } from "./destinations";
 export type { AgentDestination } from "./destinations";
-export { TIME_STATE_COLORS } from "./timeState";
+export {
+    TIME_STATE_COLORS,
+    dayKeyIn,
+    hasDueTime,
+    meetingTimeState,
+    taskTimeState,
+    wallClockToMs,
+} from "./timeState";
+export { default as useMinuteClock } from "./useMinuteClock";
 export type { TimeState, TimeStateColors } from "./timeState";
