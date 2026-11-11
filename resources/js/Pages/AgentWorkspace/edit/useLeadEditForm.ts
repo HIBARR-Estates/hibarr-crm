@@ -16,7 +16,9 @@ import { buildEditPatch, changedKeys, initialEditForm, type EditForm } from "./l
 export default function useLeadEditForm(lead: Lead, onSaved: () => void) {
     const { t } = useTranslation();
     const { setLead } = useLeadWorkspace();
-    const initial = useMemo(() => initialEditForm(lead), [lead]);
+    // What the person was shown when they opened the page. It stays fixed, so a change to the
+    // lead underneath (a merge, a refresh) never turns untouched fields into pending edits.
+    const [initial] = useState(() => initialEditForm(lead));
     const [form, setForm] = useState<EditForm>(initial);
     const [saving, setSaving] = useState(false);
     const [nameMissing, setNameMissing] = useState(false);

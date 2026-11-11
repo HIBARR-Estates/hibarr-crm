@@ -113,7 +113,8 @@ export default function LeadEditPage({ options, statusLabel, duplicates, onClose
 
     const close = () => (dirty ? setConfirmDiscard(true) : onClose());
     const name = lead.client_name || t(`${PREFIX}.unnamed`);
-    const candidate = duplicates.visible ? duplicates.duplicates.find((item) => !notSame.includes(item.id)) : undefined;
+    const open = duplicates.visible ? duplicates.duplicates.filter((item) => !notSame.includes(item.id)) : [];
+    const candidate = open[0];
 
     const selectOptions = (field: EditField): Array<{ value: string; label: string }> => {
         switch (field.options) {
@@ -289,8 +290,8 @@ export default function LeadEditPage({ options, statusLabel, duplicates, onClose
                             <b>{t(`${PREFIX}.duplicate_title`, { name: candidate.client_name || t(`${PREFIX}.unnamed`) })}</b>
                             <span>
                                 {[candidate.client_email, candidate.mobile, candidate.company_name].filter(Boolean).join(" · ")}
-                                {duplicates.duplicates.length > 1
-                                    ? ` · ${t(`${PREFIX}.duplicate_more`, { count: duplicates.duplicates.length - 1 })}`
+                                {open.length > 1
+                                    ? ` · ${t(`${PREFIX}.duplicate_more`, { count: open.length - 1 })}`
                                     : ""}
                             </span>
                         </div>
