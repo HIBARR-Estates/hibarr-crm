@@ -31,11 +31,52 @@ function formatRate(rate: number): string {
     return rate.toFixed(8).replace(/\.?0+$/, "");
 }
 
+/**
+ * Keep a typed rate as digits plus one decimal point.
+ *
+ * A comma is a decimal mark (`1,25` → `1.25`), which is how de/ru/tr users
+ * type a rate. Grouped amounts (`1.250,50`) keep their last separator as the
+ * decimal mark. Anything else — a comma dropped into the middle of the
+ * digits, or mixed separators that aren't a grouped number — stays as typed
+ * so it fails to parse, instead of becoming a much larger rate.
+ */
 function sanitizeRate(value: string): string {
-    const cleaned = value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
-    const [whole, decimals] = cleaned.split(".");
-    if (decimals === undefined) return cleaned;
+    const cleaned = value.replace(/[^\d.,]/g, "");
+    const normalized = normalizeRateDecimal(cleaned);
+    if (normalized === null) return cleaned;
+
+    const [whole, decimals] = normalized.split(".");
+    if (decimals === undefined) return whole ?? "";
     return `${whole}.${decimals.slice(0, 8)}`;
+}
+
+function normalizeRateDecimal(value: string): string | null {
+    if (value === "") return "";
+
+    const commas = value.split(",").length - 1;
+    const dots = value.split(".").length - 1;
+
+    if (commas === 1 && dots === 0) return value.replace(",", ".");
+    if (commas === 0 && dots <= 1) return value;
+
+    if (commas > 0 && dots > 0) {
+        const decimalSep = value.lastIndexOf(",") > value.lastIndexOf(".") ? "," : ".";
+        const groupSep = decimalSep === "," ? "." : ",";
+        const parts = value.split(decimalSep);
+        if (parts.length !== 2) return null;
+        const groups = parts[0].split(groupSep);
+        if (groups.some((group, index) => group === "" || (index > 0 && group.length !== 3))) {
+            return null;
+        }
+        return `${groups.join("")}.${parts[1]}`;
+    }
+
+    const groups = value.split(commas > 0 ? "," : ".");
+    if (groups.every((group, index) => group !== "" && (index === 0 || group.length === 3))) {
+        return groups.join("");
+    }
+
+    return null;
 }
 
 function parseRate(value: string): number | null {
