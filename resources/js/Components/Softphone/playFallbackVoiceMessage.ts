@@ -43,14 +43,26 @@ export function playFallbackVoiceMessage({
                 currentPlayIteration++;
                 executeIteration();
             };
-            audioElement.onerror = () => {
-                currentPlayIteration++;
-                executeIteration();
+            const fallbackToSpeech = () => {
+                if (typeof window !== "undefined" && "speechSynthesis" in window) {
+                    const utterance = new SpeechSynthesisUtterance(spokenText);
+                    utterance.rate = 0.95;
+                    utterance.onend = () => {
+                        currentPlayIteration++;
+                        executeIteration();
+                    };
+                    utterance.onerror = () => {
+                        currentPlayIteration++;
+                        executeIteration();
+                    };
+                    window.speechSynthesis.speak(utterance);
+                } else {
+                    currentPlayIteration++;
+                    executeIteration();
+                }
             };
-            audioElement.play().catch(() => {
-                currentPlayIteration++;
-                executeIteration();
-            });
+            audioElement.onerror = fallbackToSpeech;
+            audioElement.play().catch(fallbackToSpeech);
         } else if (typeof window !== "undefined" && "speechSynthesis" in window) {
             const utterance = new SpeechSynthesisUtterance(spokenText);
             utterance.rate = 0.95;
@@ -73,8 +85,16 @@ export function playFallbackVoiceMessage({
 
     executeIteration();
 
+    const maxSafetyTimeout = setTimeout(() => {
+        if (!isCancelled) {
+            isCancelled = true;
+            onComplete();
+        }
+    }, 60000);
+
     return () => {
         isCancelled = true;
+        clearTimeout(maxSafetyTimeout);
         if (typeof window !== "undefined" && "speechSynthesis" in window) {
             window.speechSynthesis.cancel();
         }

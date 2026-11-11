@@ -143,24 +143,53 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
 
         // Tier 1: Call matched to lead -> route to the assigned Lead Owner first
         /** @var Lead $lead */
-        $lead = $matchingLeads->first(fn (Lead $l) => ! empty($l->lead_owner)) ?? $matchingLeads->first();
+        $lead = null;
+        $activeOwner = null;
+
+        // Find matching lead whose assigned owner is active and available
+        foreach ($matchingLeads as $candidateLead) {
+            if (empty($candidateLead->lead_owner)) {
+                continue;
+            }
+            $candidateOwner = User::query()
+                ->where('company_id', $companyId)
+                ->find((int) $candidateLead->lead_owner);
+
+            if (
+                $candidateOwner !== null
+                && (($candidateOwner->status ?? 'active') === 'active')
+                && (($candidateOwner->login ?? 'enable') !== 'disable')
+                && ($candidateOwner->can_receive_calls ?? true)
+            ) {
+                $lead = $candidateLead;
+                $activeOwner = $candidateOwner;
+                break;
+            }
+        }
+
+        if ($lead === null) {
+            $lead = $matchingLeads->first(fn (Lead $l) => ! empty($l->lead_owner)) ?? $matchingLeads->first();
+            $rawOwnerId = $lead->lead_owner ? (int) $lead->lead_owner : null;
+            $owner = $rawOwnerId
+                ? User::query()->where('company_id', $companyId)->find($rawOwnerId)
+                : null;
+            $isActiveOwner = $owner !== null
+                && (($owner->status ?? 'active') === 'active')
+                && (($owner->login ?? 'enable') !== 'disable')
+                && ($owner->can_receive_calls ?? true);
+            if ($isActiveOwner) {
+                $activeOwner = $owner;
+            }
+        }
+
         $canViewLead = (bool) (PermissionService::checkAccess(user(), 'view_lead', $lead, [
             'added' => 'added_by',
             'owned' => 'lead_owner',
         ])['canAccess'] ?? false);
-        $rawOwnerId = $lead->lead_owner ? (int) $lead->lead_owner : null;
-        $owner = $rawOwnerId
-            ? User::query()
-                ->where('company_id', $companyId)
-                ->find($rawOwnerId)
-            : null;
-        $isActiveOwner = $owner !== null
-            && (($owner->status ?? 'active') === 'active')
-            && (($owner->login ?? 'enable') !== 'disable')
-            && ($owner->can_receive_calls ?? true);
-        $ownerId = $isActiveOwner ? (int) $owner->id : null;
-        $ownerName = $isActiveOwner
-            ? (trim((string) ($owner->name ?? '')) ?: ('User #' . $owner->id))
+
+        $ownerId = $activeOwner ? (int) $activeOwner->id : null;
+        $ownerName = $activeOwner
+            ? (trim((string) ($activeOwner->name ?? '')) ?: ('User #' . $activeOwner->id))
             : null;
 
         $rotationUsers = $this->buildRotationSequence($ownerId, $ownerName, $poolUsers, $defaultFallbackUsers, $adminFallbackUsers);
@@ -701,7 +730,8 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
             ->where('company_id', $companyId)
             ->where('active', true)
             ->where('tier', $tier)
-            ->when($deviceId !== null, fn ($q) => $q->where('device_id', $deviceId), fn ($q) => $q->whereNull('device_id'))
+            ->when($deviceId !== null, fn ($q) => $q->where('device_id', $deviceId))
+            ->when($deviceId === null && $tier !== SoftphoneCallPoolAgent::TIER_LINE, fn ($q) => $q->whereNull('device_id'))
             ->with(['user' => fn ($q) => $q->select('id', 'name', 'status', 'login', 'can_receive_calls')])
             ->orderBy('priority')
             ->orderBy('id')
@@ -739,7 +769,12 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
             'admin_fallback'
         );
 
-        if (! empty($configuredAgents)) {
+        $hasConfiguredTierAgents = SoftphoneCallPoolAgent::query()
+            ->where('company_id', $companyId)
+            ->where('tier', SoftphoneCallPoolAgent::TIER_ADMIN_FALLBACK)
+            ->exists();
+
+        if ($hasConfiguredTierAgents) {
             return $configuredAgents;
         }
 

@@ -127,7 +127,6 @@ export default function SoftphoneTimingManager({
                 route("telephony.softphone.call-pool.store"),
                 {
                     incoming_call_fallback_seconds: parsedSeconds,
-                    fallback_voice_message_enabled: voiceMessageEnabled,
                     fallback_voice_message_repeat_count: voiceMessageRepeatCount,
                     fallback_voice_message_text: voiceMessageText,
                     fallback_voice_message_url: voiceMessageUrl.trim() || null,

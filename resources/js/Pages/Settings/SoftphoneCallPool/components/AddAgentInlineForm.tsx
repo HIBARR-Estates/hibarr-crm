@@ -71,6 +71,7 @@ export default function AddAgentInlineForm({
                     showSearch
                     style={{ width: "100%" }}
                     placeholder={placeholder}
+                    aria-label="User"
                     optionFilterProp="label"
                     value={selectedUserId ?? undefined}
                     onChange={(val) => onUserSelected(typeof val === "number" ? val : null)}
@@ -85,6 +86,7 @@ export default function AddAgentInlineForm({
                     min={1}
                     max={100}
                     style={{ width: "100%", height: "32px" }}
+                    aria-label="Routing Order"
                     value={selectedPriority}
                     onChange={(val) => onPrioritySelected(val ?? 1)}
                 />
