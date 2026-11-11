@@ -215,7 +215,6 @@ function ContactLead(props: LeadRedesignProps) {
                                     allowedCreate={activityPermissions.create}
                                     onEdit={() => setEditOpen(true)}
                                     onMoreAction={onMoreAction}
-                                    staticAvatar
                                 />
                             </div>
                             {showAiSummary ? (
