@@ -1,4 +1,6 @@
 /* Agent workspace › contact page, deal state (canvases L7-10, L7-11, L5-BF-A-Sections).
+   The lead state (L7-05) shares the card, the right panel and the activity
+   row, so those classes (agent-deal__top ... __activity) serve both.
    One card for the person, their deal's stage and key facts; the stage
    conditions as a blue panel beside it; the activity cards; then the deal's
    sections, each a card the pills under the dock scroll to.
@@ -43,6 +45,11 @@
     min-width: 0;
     flex-direction: column;
     gap: 14px;
+}
+
+/* The lead state has no goal panel when qualification is off. */
+.agent-deal__top:not(:has(> .agent-deal__rail)) {
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .agent-deal__rail {
@@ -309,6 +316,10 @@
 
 .agent-deal .agent-fact__line {
     font-size: 12px;
+}
+
+.agent-deal .agent-fact--empty .agent-fact__line {
+    color: var(--dr-amber);
 }
 
 /* ---------- activity ---------- */

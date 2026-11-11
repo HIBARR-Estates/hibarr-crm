@@ -3038,6 +3038,10 @@ return [
                 'deal' => 'Deal',
                 'close_date' => 'Abschluss am {{date}}',
                 'budget_value' => 'Budget · Wert',
+                'qualification' => 'Qualifizierung',
+                'qualification_answered' => '{{answered}} von {{total}} beantwortet',
+                'qualification_next' => 'Schritt {{step}} ist als Nächstes dran',
+                'qualification_complete' => 'Alle Fragen beantwortet',
             ],
             'ai' => [
                 'writing' => 'Briefing wird erstellt…',

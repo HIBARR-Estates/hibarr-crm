@@ -3016,6 +3016,10 @@ return [
                 'deal' => 'Fırsat',
                 'close_date' => 'Kapanış tarihi {{date}}',
                 'budget_value' => 'Bütçe · değer',
+                'qualification' => 'Nitelendirme',
+                'qualification_answered' => '{{answered}} / {{total}} yanıtlandı',
+                'qualification_next' => 'Sıradaki: {{step}}. adım',
+                'qualification_complete' => 'Tüm sorular yanıtlandı',
             ],
             'ai' => [
                 'writing' => 'Özet hazırlanıyor…',
