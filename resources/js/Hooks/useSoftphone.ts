@@ -64,6 +64,19 @@ export function canMakeSoftphoneCalls(
  * Call managers (admins, or manage_calls = 'all') see every agent's calls and
  * may play every recording. Mirrors App\Support\CallAccess::canManageCalls.
  */
+/**
+ * Whether the user holds any softphone-related permission:
+ * - Administrators
+ * - Users with make_softphone_calls = 'all' | 'added'
+ * - Users with manage_calls = 'all'
+ */
+export function hasAnySoftphonePermission(
+    user?: { roles?: Array<{ name?: string }> } | null,
+    permissions?: Record<string, unknown> | null,
+): boolean {
+    return canMakeSoftphoneCalls(user, permissions) || canManageCalls(user, permissions);
+}
+
 export function canManageCalls(
     user?: { roles?: Array<{ name?: string }> } | null,
     permissions?: Record<string, unknown> | null,
