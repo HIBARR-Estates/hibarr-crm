@@ -535,11 +535,19 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         if ($company && $company->fallback_voice_message_url) {
             $url = $company->fallback_voice_message_url;
             $filename = basename(parse_url($url, PHP_URL_PATH) ?? '');
-            if ($filename) {
-                try {
-                    Files::deleteFile($filename, 'voicemail');
-                } catch (\Throwable $e) {
-                    // Suppress if file cannot be unlinked or was external
+            $cleanFilename = preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $filename);
+            if ($cleanFilename && ! str_contains($cleanFilename, '..')) {
+                $otherCompanyUsesFile = Company::query()
+                    ->where('id', '!=', $companyId)
+                    ->where('fallback_voice_message_url', 'like', "%/{$cleanFilename}")
+                    ->exists();
+
+                if (! $otherCompanyUsesFile) {
+                    try {
+                        Files::deleteFile($cleanFilename, 'voicemail');
+                    } catch (\Throwable $e) {
+                        // Suppress if file cannot be unlinked or was external
+                    }
                 }
             }
         }
@@ -636,15 +644,17 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
                 ->update(['active' => $enabled]);
 
             if ($enabled) {
-                UserPermission::query()->updateOrCreate(
-                    [
-                        'user_id' => $user->id,
-                        'permission_id' => $permission->id,
-                    ],
-                    [
-                        'permission_type_id' => PermissionType::ALL,
-                    ]
-                );
+                UserPermission::withoutEvents(function () use ($user, $permission) {
+                    UserPermission::query()->updateOrCreate(
+                        [
+                            'user_id' => $user->id,
+                            'permission_id' => $permission->id,
+                        ],
+                        [
+                            'permission_type_id' => PermissionType::ALL,
+                        ]
+                    );
+                });
             }
 
             return response()->json([

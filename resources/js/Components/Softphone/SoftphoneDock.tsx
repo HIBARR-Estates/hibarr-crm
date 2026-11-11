@@ -713,7 +713,7 @@ export default function SoftphoneDock() {
             const voiceConfig = inboundRoute.fallback_voice_message;
             if (voiceConfig?.enabled) {
                 stopRinging();
-                return playFallbackVoiceMessage({
+                const cancelPlay = playFallbackVoiceMessage({
                     config: voiceConfig,
                     onProgress: (statusText) => {
                         setIsPlayingVoiceMessage(true);
@@ -725,6 +725,20 @@ export default function SoftphoneDock() {
                         void reject();
                     },
                 });
+
+                // Safety deadline: if playback stalls for any reason, force reject after bounded duration
+                const safetySeconds = Math.max(1, (routeFallbackSeconds ?? 20) + 15);
+                const voiceDeadlineTimer = setTimeout(() => {
+                    cancelPlay();
+                    setIsPlayingVoiceMessage(false);
+                    stopAll();
+                    void reject();
+                }, safetySeconds * 1000);
+
+                return () => {
+                    clearTimeout(voiceDeadlineTimer);
+                    cancelPlay();
+                };
             }
 
             // Final fallback tier timeout: if no one answers within fallback seconds, dismiss the call

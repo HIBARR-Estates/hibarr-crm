@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\CallBridge\CallBridgeService;
 use App\Services\CallBridge\LeadPhoneMatcher;
 use App\Services\PermissionService;
+use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -155,11 +156,24 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
                 ->where('company_id', $companyId)
                 ->find((int) $candidateLead->lead_owner);
 
+            $hasSoftphonePerm = $candidateOwner !== null
+                && ($candidateOwner->hasRole('admin') || in_array($candidateOwner->permission('make_softphone_calls'), ['all', 'added'], true));
+
+            $hasLineAccess = true;
+            if ($candidateOwner !== null && $ringingDeviceId !== null && ! $candidateOwner->hasRole('admin')) {
+                $allowedLines = SoftphoneCallPoolAgent::allowedDeviceIdsForUser($companyId, (int) $candidateOwner->id);
+                if ($allowedLines !== null && ! in_array((int) $ringingDeviceId, $allowedLines, true)) {
+                    $hasLineAccess = false;
+                }
+            }
+
             if (
                 $candidateOwner !== null
                 && (($candidateOwner->status ?? 'active') === 'active')
                 && (($candidateOwner->login ?? 'enable') !== 'disable')
                 && ($candidateOwner->can_receive_calls ?? true)
+                && $hasSoftphonePerm
+                && $hasLineAccess
             ) {
                 $lead = $candidateLead;
                 $activeOwner = $candidateOwner;
