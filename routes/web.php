@@ -1470,6 +1470,10 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('telephony/softphone/call-pool/eligible', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'eligibleAgents'])->name('telephony.softphone.call-pool.eligible');
     Route::post('telephony/softphone/call-pool', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'store'])->name('telephony.softphone.call-pool.store');
     Route::post('telephony/softphone/call-pool/toggle-permission', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'togglePermission'])->name('telephony.softphone.call-pool.toggle-permission');
+    Route::post('telephony/softphone/toggle-receive-calls', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'toggleUserAvailability'])->name('telephony.softphone.toggle-receive-calls');
+    Route::post('telephony/softphone/upload-voicemail', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'uploadVoicemailFile'])->name('telephony.softphone.upload-voicemail');
+    Route::delete('telephony/softphone/voicemail-file', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'deleteVoicemailFile'])->name('telephony.softphone.voicemail-file.destroy');
+    Route::post('telephony/softphone/toggle-voicemail', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'toggleVoicemail'])->name('telephony.softphone.toggle-voicemail');
     Route::put('telephony/softphone/call-pool/{id}', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'update'])->name('telephony.softphone.call-pool.update')->whereNumber('id');
     Route::delete('telephony/softphone/call-pool/{id}', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'destroy'])->name('telephony.softphone.call-pool.destroy')->whereNumber('id');
 

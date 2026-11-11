@@ -40,7 +40,7 @@ class UserPermissionObserver
         ], true);
 
         if (! $granted) {
-            SoftphoneCallPoolAgent::where('user_id', $permission->user_id)->delete();
+            SoftphoneCallPoolAgent::where('user_id', $permission->user_id)->update(['active' => false]);
 
             return;
         }
