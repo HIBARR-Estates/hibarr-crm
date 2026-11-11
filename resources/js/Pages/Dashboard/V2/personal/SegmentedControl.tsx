@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface Segment<T extends string> {
@@ -42,9 +43,24 @@ export default function SegmentedControl<T extends string>({
     const { td } = useTd();
 
     const ariaLabel = localize ? td(label, { source: "en" }) : label;
+    const navRef = useRef<HTMLElement>(null);
+
+    // On a phone the track scrolls (see .dv2-tabs), so the tab you are on can
+    // start off-screen. Scroll the track only — never the page.
+    useEffect(() => {
+        const nav = navRef.current;
+        const current = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+
+        if (!nav || !current || nav.scrollWidth <= nav.clientWidth) {
+            return;
+        }
+
+        nav.scrollLeft =
+            current.offsetLeft - (nav.clientWidth - current.offsetWidth) / 2;
+    }, [active]);
 
     return (
-        <nav className="dv2-tabs" aria-label={ariaLabel}>
+        <nav ref={navRef} className="dv2-tabs" aria-label={ariaLabel}>
             {segments.map((segment) => (
                 <button
                     key={segment.value}

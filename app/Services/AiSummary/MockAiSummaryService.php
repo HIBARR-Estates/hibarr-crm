@@ -68,25 +68,16 @@ class MockAiSummaryService implements AiSummaryInterface, EntitySummaryAgentInte
             ];
         }
 
-        $lead = $inputPayload['lead'] ?? [];
         $deals = $inputPayload['sections']['deals'] ?? [];
 
         return [
-            'status_line' => "Mock summary for {$lead['name']} — connect an AI provider for real insights.",
+            'status_line' => 'Mock lead summary — connect an AI provider for real insights.',
+            'summary' => 'This is a **placeholder summary** for local development. ==Connect an AI provider== to see what this lead wants, where things stand and what is still unknown.',
+            'facts' => [],
             'risk_level' => count($deals) > 0 ? 'medium' : 'low',
             'primary_risk_source' => count($deals) > 0 ? 'linked_deal' : 'lead',
-            'chips' => [
-                [
-                    'id' => 'contactability',
-                    'label' => 'Contactability',
-                    'value' => 'Reachable',
-                    'tone' => 'green',
-                    'sublabel' => 'Mock chip',
-                ],
-            ],
-            'bullets' => [
-                'This is a placeholder AI lead summary.',
-            ],
+            'chips' => [],
+            'bullets' => [],
             'next_step' => [
                 'action_type' => count($deals) === 1 ? 'OPEN_DEAL' : 'CONTACT_LEAD',
                 'target_deal_id' => count($deals) === 1 ? (string) ($deals[0]['deal_id'] ?? null) : null,
@@ -100,5 +91,14 @@ class MockAiSummaryService implements AiSummaryInterface, EntitySummaryAgentInte
                 'stale_data_warning' => false,
             ],
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $inputPayload
+     * @return array<string, mixed>
+     */
+    public function executeAgentBySlug(string $slug, array $inputPayload): array
+    {
+        return $this->executeStructuredAgent('lead_summary', '', $inputPayload);
     }
 }

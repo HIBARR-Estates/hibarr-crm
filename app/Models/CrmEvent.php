@@ -6,6 +6,7 @@ use App\Enums\CrmEventGenerationType;
 use App\Enums\CrmEventSource;
 use App\Enums\CrmEventStatus;
 use App\Enums\CrmEventDirection;
+use App\Scopes\CompanyScope;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -50,10 +51,36 @@ class CrmEvent extends BaseModel
 
     /**
      * Get the event type definition for this event.
+     *
+     * The CompanyScope on CrmEventType is replaced here, not simply dropped.
+     * System event types (the `call_*` family among them) are seeded with
+     * `company_id IS NULL` so every company shares them, and the scope's
+     * `WHERE company_id = <current company>` filtered those out entirely — the
+     * relation resolved to null, so the timeline had no slug to describe and
+     * calls fell through to the generic "Activity updated" title.
+     *
+     * The replacement constrains the same way the scope did, plus the shared
+     * rows: a type must belong to this event's own company or be shared. That
+     * keeps cross-tenant isolation intact even if a row ever points at another
+     * company's type — `event_type_id` is a plain FK with no same-company
+     * constraint on it, so the FK alone is not sufficient protection.
+     *
+     * Note for eager loads (`with('eventType.category')`): Eloquent builds this
+     * relation once, from the first model in the batch, so the company binding
+     * is that of the first row. Every caller here loads events already filtered
+     * to a single company — see CrmEventService::query(), which constrains
+     * `company_id` before eager loading — so the batch is single-tenant and the
+     * binding is correct. A future cross-company eager load would need this
+     * constraint applied per row instead.
      */
     public function eventType(): BelongsTo
     {
-        return $this->belongsTo(CrmEventType::class, 'event_type_id');
+        return $this->belongsTo(CrmEventType::class, 'event_type_id')
+            ->withoutGlobalScope(CompanyScope::class)
+            ->where(function ($query): void {
+                $query->whereNull('crm_event_types.company_id')
+                    ->orWhere('crm_event_types.company_id', $this->company_id);
+            });
     }
 
     /**

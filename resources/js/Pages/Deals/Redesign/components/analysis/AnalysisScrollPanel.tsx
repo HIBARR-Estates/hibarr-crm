@@ -200,11 +200,11 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
 
     return (
         <>
-        <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto bg-dr-surface-2">
+        <div ref={containerRef} className="analysis-scroll flex-1 min-h-0 overflow-y-auto bg-dr-surface-2">
             {/* Sticky progress bar */}
             <div
                 ref={stickyRef}
-                className="sticky top-0 z-10 px-6 pt-4 pb-3 bg-dr-surface-2/95 backdrop-blur-sm"
+                className="analysis-progress sticky top-0 z-10 px-6 pt-4 pb-3 bg-dr-surface-2/95 backdrop-blur-sm"
                 style={{ borderBottom: "1px solid var(--dr-border)" }}
             >
                 <div className="flex items-center justify-between mb-1.5">

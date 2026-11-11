@@ -68,6 +68,10 @@ export default function DashboardHeader({
             <div
                 style={{
                     marginLeft: "auto",
+                    // Lets the switcher scroll inside the header instead of
+                    // widening the page past a phone screen.
+                    minWidth: 0,
+                    maxWidth: "100%",
                     display: "flex",
                     alignItems: "center",
                     gap: 10,

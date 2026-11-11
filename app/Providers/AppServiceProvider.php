@@ -3,11 +3,14 @@
 namespace App\Providers;
 
 use App\Models\Company;
+use App\Models\UserPermission;
+use App\Observers\UserPermissionObserver;
 use Barryvdh\LaravelIdeHelper\IdeHelperServiceProvider;
 use Carbon\CarbonInterval;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -62,6 +65,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot()
     {
+        
+
         $this->app->extend('auth.password', function ($ignored, $app) {
             return new \App\Auth\Passwords\CustomPasswordBrokerManager($app);
         });
@@ -103,6 +108,8 @@ class AppServiceProvider extends ServiceProvider
         });
 
             //    Model::preventLazyLoading(app()->environment('development'));
+
+        UserPermission::observe(UserPermissionObserver::class);
 
     }
 

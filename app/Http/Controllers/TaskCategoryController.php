@@ -33,6 +33,7 @@ class TaskCategoryController extends AccountBaseController
 
         $category = new TaskCategory();
         $category->category_name = $request->category_name;
+        $category->action = $request->input('action');
         $category->save();
 
         $categories = TaskCategory::allCategories();
@@ -48,6 +49,7 @@ class TaskCategoryController extends AccountBaseController
 
         $category = TaskCategory::findOrFail($id);
         $category->category_name = strip_tags($request->category_name);
+        $category->action = $request->input('action');
         $category->save();
 
         $categories = TaskCategory::allCategories();

@@ -96,6 +96,7 @@
         "react-quill-new": "^3.6.0",
         "recharts": "^3.8.0",
         "signature_pad": "^3.0.0-beta.4",
+        "sip.js": "^0.21.2",
         "sweetalert2": "^10.12.0",
         "ziggy-js": "^2.6.0"
     }

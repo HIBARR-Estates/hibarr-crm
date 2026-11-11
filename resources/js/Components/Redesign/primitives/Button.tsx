@@ -1,6 +1,6 @@
 import { ButtonHTMLAttributes, ReactNode } from "react";
 
-type Variant = "ghost" | "primary" | "navy";
+type Variant = "ghost" | "primary" | "navy" | "call";
 type Size = "base" | "sm";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

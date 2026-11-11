@@ -38,18 +38,24 @@ use App\Models\LeadSource;
 use App\Models\LeadStatus;
 use App\Models\PipelineStage;
 use App\Models\Product;
+use App\Models\SallyMeetingInsight;
 use App\Models\User;
+use App\Services\AgentWorkspace\ContactDeals;
 use App\Services\DealAgentAssignmentService;
 use App\Services\LeadCoreFieldsService;
 use App\Services\LeadFilterFacetsService;
 use App\Services\LeadQualificationService;
 use App\Services\LeadService;
 use App\Services\PermissionService;
+use App\Services\SallyMeetingInsightService;
+use App\Services\SallySuggestionLogService;
 use App\Support\FeatureFlags;
 use App\Support\LeadExportFields;
 use App\Support\TaskPresenter;
 use App\Traits\ImportExcel;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
@@ -191,6 +197,63 @@ class LeadContactController extends AccountBaseController
     }
 
     public function show($id, Request $request)
+    {
+        $props = $this->showProps($id, $request);
+
+        return is_array($props) ? Inertia::render('Leads/Show', $props) : $props;
+    }
+
+    /**
+     * Deferred props the agent workspace's contact page never reads. Inertia
+     * fetches every deferred group a response lists, so these are left out
+     * rather than loaded and ignored (leadContacts alone is every lead).
+     */
+    public const AGENT_CONTACT_UNUSED_PROPS = [
+        'utmTouches',
+        'callSummary',
+        'dealFileFields',
+        'taskLabels',
+        'projects',
+        'stages',
+        'nonActiveLeadAgents',
+        'leadContacts',
+        'dealCustomFields',
+        'dealCustomFieldCategories',
+        'pipelineCustomFieldCategoryIdsByPipeline',
+    ];
+
+    /**
+     * The agent workspace's contact page (/agent/people/{id}) in its lead
+     * state. Same access check and the same props as show(), so both pages
+     * run on one payload; only the deferred groups the agent page doesn't
+     * use are dropped.
+     */
+    public function agentShow($id, Request $request, ContactDeals $contactDeals)
+    {
+        // Only qualified leads have deals, and once one exists the page is
+        // about the deal: open on the first deal the viewer may see (open
+        // deals first). The deal page runs its own access check.
+        $deals = $contactDeals->forLead((int) $id, user());
+        if ($deals !== []) {
+            return redirect()->route('agent.people.deal', ['lead' => (int) $id, 'deal' => $deals[0]['id']]);
+        }
+
+        $props = $this->showProps($id, $request);
+        if (! is_array($props)) {
+            return $props;
+        }
+
+        return Inertia::render('AgentWorkspace/Contact', Arr::except($props, self::AGENT_CONTACT_UNUSED_PROPS));
+    }
+
+    /**
+     * The lead page's props: the shell plus the deferred groups. Returns a
+     * redirect instead when an Inertia request has no access to the lead
+     * (a plain request without access gets a 403).
+     *
+     * @return array<string, mixed>|RedirectResponse
+     */
+    protected function showProps($id, Request $request): array|RedirectResponse
     {
         // Shell vs deferred prop matrix: docs/inertia-react-performance-checklist.md (Task C1).
         // Deferred keys use Inertia::defer (Task C2).
@@ -365,7 +428,7 @@ class LeadContactController extends AccountBaseController
         $leadId = (int) $id;
         $leadContact = $this->leadContact;
 
-        return Inertia::render('Leads/Show', array_merge($formData, [
+        return array_merge($formData, [
             'lead' => $leadContact,
             'fields' => $formData['customFields'],
             'editLeadPermission' => $this->editLeadPermission,
@@ -405,6 +468,20 @@ class LeadContactController extends AccountBaseController
                 fn () => $leadContact->utmTouches()->reorder('id', 'desc')->get(),
                 'marketing'
             ),
+            // Calls tab: count for the tab bar only; the tab loads its rows from
+            // lead-contact.calls.index when opened. Null when calls are off.
+            'callSummary' => Inertia::defer(function () use ($leadContact) {
+                if (! \App\Support\FeatureFlags::enabled('crm.softphone')) {
+                    return null;
+                }
+                $calls = app(\App\Services\CallLog\CallLogService::class);
+                $scope = $calls->leadScope($leadContact, user());
+
+                return $calls->summary((int) $leadContact->company_id, [
+                    'lead_ids' => $scope['lead_ids'],
+                    'deal_ids' => $scope['deal_ids'],
+                ]);
+            }, 'calls'),
             'notes' => Inertia::defer(function () use ($leadId) {
                 $notes = LeadNote::where('lead_id', $leadId)
                     ->with('addedBy')
@@ -550,7 +627,7 @@ class LeadContactController extends AccountBaseController
                     })
                     ->toArray();
             }, 'dealMeta'),
-        ]));
+        ]);
     }
 
     public function notes()
@@ -2193,5 +2270,211 @@ class LeadContactController extends AccountBaseController
         }
 
         return response()->download($sampleFilePath, 'lead-contact-sample.xlsx');
+    }
+
+    public function leadSallyInsights(Request $request, $id)
+    {
+        $lead = Lead::findOrFail($id);
+        $leadRules = [
+            'added' => 'added_by',
+            'owned' => 'lead_owner',
+        ];
+        $access = PermissionService::checkAccess(user(), 'view_lead', $lead, $leadRules);
+        abort_403(! $access['canAccess']);
+
+        $service = app(\App\Services\SallyMeetingInsightService::class);
+        $insights = $service->visibleDealsOnly($service->forLead((int) $id), user());
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $service->serializeMany($insights),
+        ]);
+    }
+
+    /**
+     * The Sally summary and bullet points are human-editable fields: the
+     * bot's versions are starting points, and the team corrects them. The
+     * transcript stays read-only — it is the source recording, not CRM copy.
+     */
+    public function updateSallyInsight(Request $request, $insight)
+    {
+        $model = SallyMeetingInsight::query()->findOrFail($insight);
+
+        // leadSallyInsights hides an insight whose deal the user may not view,
+        // so editing one must not be granted on the lead's permission alone:
+        // a lead editor with no access to the deal could otherwise write a
+        // summary they cannot even read. A deal-scoped insight needs both gates.
+        abort_403(! $this->canEditSallyInsight($model));
+
+        $data = $request->validate([
+            'summary' => ['nullable', 'string', 'max:50000'],
+            'bullet_points' => ['nullable', 'array', 'max:50'],
+            'bullet_points.*' => ['string', 'max:2000'],
+        ]);
+
+        if (! array_key_exists('summary', $data) && ! array_key_exists('bullet_points', $data)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'summary' => ['Provide a summary or bullet points.'],
+            ]);
+        }
+
+        app(SallyMeetingInsightService::class)->applyAgentContentEdit(
+            $model,
+            // A key that is present but null means "clear it" (the card sends
+            // summary:null, and ConvertEmptyStringsToNull turns "" into null);
+            // the service treats null as "not provided", so map it to empty.
+            array_key_exists('summary', $data) ? ($data['summary'] ?? '') : null,
+            array_key_exists('bullet_points', $data) ? ($data['bullet_points'] ?? []) : null,
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => __('messages.sallyInsightUpdated'),
+            'data' => app(SallyMeetingInsightService::class)->serialize($model->fresh(['meetingFollowUp', 'suggestionLogs'])),
+        ]);
+    }
+
+    /**
+     * Edit a suggested note's working text. Once the suggestion has been
+     * logged as a note its text is fixed — the note carries it.
+     */
+    public function updateSallySuggestion(Request $request, $insight, $suggestionId)
+    {
+        $model = SallyMeetingInsight::query()->findOrFail($insight);
+        abort_403(! $this->canEditSallyInsight($model));
+
+        $data = $request->validate([
+            'text' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $service = app(SallyMeetingInsightService::class);
+        $service->updateSuggestionText($model, (string) $suggestionId, $data['text']);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => __('messages.sallyInsightUpdated'),
+            'data' => $service->serialize($model->fresh(['meetingFollowUp', 'suggestionLogs'])),
+        ]);
+    }
+
+    /**
+     * Log a suggested note as a normal CRM note on the insight's lead (or its
+     * deal, for insights without a lead). Logging uses the existing note
+     * permissions — no new permission is introduced for the Sally card.
+     */
+    public function logSallySuggestion(Request $request, $insight, $suggestionId)
+    {
+        $model = SallyMeetingInsight::query()->findOrFail($insight);
+        abort_403(! $this->canReadSallyInsight($model));
+
+        $data = $request->validate([
+            'text' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        if ($model->lead_id) {
+            abort_403(! in_array(user()->permission('add_lead_note'), ['all', 'added', 'both']));
+        } else {
+            abort_403(! in_array(user()->permission('add_deal_note'), ['all', 'added', 'both']));
+            $this->abortForDealWatchers((int) $model->deal_id);
+        }
+
+        $log = app(SallySuggestionLogService::class)->log(
+            $model,
+            (string) $suggestionId,
+            $data['text'] ?? null,
+            user(),
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => __('messages.recordSaved'),
+            'data' => app(SallyMeetingInsightService::class)->serialize($model->fresh(['meetingFollowUp', 'suggestionLogs'])),
+            'logged' => ['note_id' => $log->note_id, 'mode' => $log->logged_mode],
+        ]);
+    }
+
+    protected function canEditSallyInsight(SallyMeetingInsight $model): bool
+    {
+        $canEdit = true;
+
+        if ($model->deal_id) {
+            $deal = Deal::find($model->deal_id);
+
+            if ($deal === null) {
+                return false;
+            }
+
+            // Write gate: watchers may read a deal but never write to it, so
+            // this uses hasTeamMemberAccess() rather than isVisibleToUser().
+            $dealRules = [
+                'added' => 'added_by',
+                'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
+            ];
+            $canEdit = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules)['canAccess'];
+        }
+
+        if ($model->lead_id) {
+            $lead = Lead::find($model->lead_id);
+            $leadRules = ['added' => 'added_by', 'owned' => 'lead_owner'];
+            $leadCanEdit = $lead !== null
+                && PermissionService::checkAccess(user(), 'edit_lead', $lead, $leadRules)['canAccess'];
+            $canEdit = $model->deal_id ? ($canEdit && $leadCanEdit) : $leadCanEdit;
+        }
+
+        return $canEdit;
+    }
+
+    /**
+     * Read gate for actions that only need the insight to be visible —
+     * logging a suggestion. Mirrors leadSallyInsights: the lead must be
+     * viewable and, for a deal-scoped insight, the deal as well.
+     */
+    private function canReadSallyInsight(SallyMeetingInsight $model): bool
+    {
+        $canRead = true;
+
+        if ($model->deal_id) {
+            $deal = Deal::find($model->deal_id);
+
+            if ($deal === null) {
+                return false;
+            }
+
+            $dealRules = [
+                'added' => 'added_by',
+                'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+            ];
+            $canRead = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules)['canAccess'];
+        }
+
+        if ($model->lead_id) {
+            $lead = Lead::find($model->lead_id);
+            $leadRules = ['added' => 'added_by', 'owned' => 'lead_owner'];
+            $leadCanRead = $lead !== null
+                && PermissionService::checkAccess(user(), 'view_lead', $lead, $leadRules)['canAccess'];
+            $canRead = $canRead && $leadCanRead;
+        }
+
+        return $canRead;
+    }
+
+    /**
+     * Watchers can see everything but never write — the same rule the note
+     * form applies (DealNoteController::store): watchers are blocked unless
+     * they are admins or hold unrestricted edit_deals.
+     */
+    private function abortForDealWatchers(int $dealId): void
+    {
+        $deal = Deal::findOrFail($dealId);
+        $isUnrestrictedWriter = in_array('admin', user_roles())
+            || user()->permission('edit_deals') === 'all';
+
+        if (! $isUnrestrictedWriter
+            && $deal->added_by != user()->id
+            && ! $deal->hasTeamMemberAccess(user()->id)
+            && $deal->dealWatchers()->where('user_id', user()->id)->exists()
+        ) {
+            abort_403(true);
+        }
     }
 }

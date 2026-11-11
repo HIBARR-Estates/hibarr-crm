@@ -24,8 +24,13 @@ class StoreTaskCategory extends CoreRequest
      */
     public function rules()
     {
+        $categoryId = $this->route('taskCategory');
+
         return [
-            'category_name' => 'required|unique:task_category,category_name,null,id,company_id,' . company()->id
+            // Ignore the current record on update so re-saving the same name
+            // (e.g. editing only the action) doesn't trip the unique rule.
+            'category_name' => 'required|unique:task_category,category_name,' . ($categoryId ?: 'null') . ',id,company_id,' . company()->id,
+            'action' => 'nullable|in:email,call',
         ];
     }
 

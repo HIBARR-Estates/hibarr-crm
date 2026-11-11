@@ -1,0 +1,938 @@
+/*
+ * Softphone widget.
+ *
+ * Colours resolve to the CRM design tokens (`--dr-*`, emitted from
+ * design-tokens.json by tailwind.config.js) — no second palette, no purple.
+ * Colour carries meaning here: blue = the agent, amber = something in flight,
+ * green = connected, red = failed. Nothing is hard-coded below.
+ */
+
+.sp {
+    /* Role aliases → design tokens. */
+    --bg: var(--dr-bg);
+    --surface: var(--dr-surface);
+    --panel: var(--dr-surface-2);
+    --ink: var(--dr-navy);
+    --text: var(--dr-text);
+    --muted: var(--dr-text-muted);
+    --hint: var(--dr-text-hint);
+    --line: var(--dr-border);
+    --brand: var(--dr-blue);
+    --brand-soft: var(--dr-blue-light);
+    --brand-ink: var(--dr-white);
+    /* In flight (calling / ringing / connecting) */
+    --pending: var(--dr-amber-text);
+    --pending-bg: var(--dr-amber-bg);
+    --pending-line: var(--dr-amber-border);
+    /* Connected */
+    --ok: var(--dr-green);
+    --ok-ink: var(--dr-white);
+    --ok-soft: var(--dr-green-light);
+    /* Failed */
+    --danger: var(--dr-red);
+    --danger-ink: var(--dr-white);
+    --danger-soft: var(--dr-red-soft);
+    --danger-line: var(--dr-red-mid);
+    --ctl: var(--dr-gray);
+    --ctl-on: var(--dr-navy);
+    --ctl-on-ink: var(--dr-white);
+    --radius-card: 20px;
+    --radius-ctl: 50%;
+    --shadow: 0 1px 2px rgba(20, 30, 50, 0.06), 0 12px 32px rgba(20, 30, 50, 0.1);
+
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 9999;
+    width: 300px;
+    background: var(--surface);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    font-family: var(--sp-font, inherit);
+    color: var(--ink);
+}
+
+.sp * {
+    box-sizing: border-box;
+}
+
+/* header ------------------------------------------------------------------ */
+
+.sp__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.sp__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+}
+
+.sp__dot--registered { background: var(--ok); }
+.sp__dot--registering { background: var(--pending); }
+.sp__dot--failed,
+.sp__dot--unregistered { background: var(--danger); }
+
+.sp__signal {
+    margin-left: auto;
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 12px;
+}
+
+.sp__signal i {
+    width: 3px;
+    border-radius: 1px;
+    background: var(--line);
+}
+
+.sp__signal i:nth-child(1) { height: 4px; }
+.sp__signal i:nth-child(2) { height: 7px; }
+.sp__signal i:nth-child(3) { height: 10px; }
+
+.sp__signal[data-quality="good"] i { background: var(--ok); }
+.sp__signal[data-quality="fair"] i:nth-child(-n + 2) { background: var(--pending); }
+.sp__signal[data-quality="poor"] i:nth-child(1) { background: var(--danger); }
+
+/* identity ---------------------------------------------------------------- */
+
+.sp__body {
+    padding: 28px 18px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.sp__avatar {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--brand-soft);
+    color: var(--brand);
+    display: grid;
+    place-items: center;
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+}
+
+/* Ring only while an inbound call is ringing. */
+.sp--incoming .sp__avatar::before,
+.sp--incoming .sp__avatar::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid var(--brand);
+    opacity: 0;
+    animation: sp-ring 2s ease-out infinite;
+}
+
+.sp--incoming .sp__avatar::after { animation-delay: 1s; }
+
+@keyframes sp-ring {
+    0% { transform: scale(1); opacity: 0.5; }
+    100% { transform: scale(1.6); opacity: 0; }
+}
+
+.sp__name {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.sp__number {
+    margin: 4px 0 0;
+    font-size: 15px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.sp__lead {
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--brand);
+    background: var(--brand-soft);
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 0;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+/* call lifecycle state ---------------------------------------------------- */
+
+/*
+ * Replaces the bare timer while the call is still setting up. The dot pulses
+ * for the pending stages (something is still happening), then goes solid and
+ * green once media is actually flowing.
+ */
+.sp__state {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 14px 0 0;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    /* In flight: amber, with a pulsing dot — something is still happening. */
+    color: var(--pending);
+    background: var(--pending-bg);
+    border: 1px solid var(--pending-line);
+}
+
+.sp__state::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+}
+
+.sp__state[data-stage="calling"]::before,
+.sp__state[data-stage="ringing"]::before,
+.sp__state[data-stage="connecting"]::before {
+    animation: sp-blink 1.4s ease-in-out infinite;
+}
+
+/* Connected: green. The only other thing that means "you are live". */
+.sp__state[data-stage="connected"] {
+    color: var(--ok);
+    background: var(--ok-soft);
+    border-color: var(--ok);
+}
+
+.sp__state[data-stage="ended"] {
+    color: var(--muted);
+    background: var(--ctl);
+    border-color: var(--line);
+}
+
+@keyframes sp-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+}
+
+/* Matched lead name → opens the lead in place (call keeps running) -------- */
+
+.sp__name-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--brand);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+}
+
+.sp__name-link:hover {
+    border-bottom-color: currentColor;
+}
+
+.sp__name-open {
+    width: 15px;
+    height: 15px;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.sp__timer {
+    margin: 12px 0 0;
+    font-size: 28px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
+/* actions ----------------------------------------------------------------- */
+
+.sp__actions {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 28px;
+    margin-top: 28px;
+}
+
+.act {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.act__btn {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-ctl);
+    display: grid;
+    place-items: center;
+    background: var(--ctl);
+    color: var(--ink);
+    transition: transform 0.12s, background 0.12s;
+}
+
+.act:hover .act__btn { transform: scale(1.05); }
+.act:active .act__btn { transform: scale(0.96); }
+.act:focus-visible { outline: none; }
+.act:focus-visible .act__btn {
+    outline: 3px solid var(--brand);
+    outline-offset: 3px;
+}
+
+.act--ok .act__btn { background: var(--ok); color: var(--ok-ink); }
+.act--danger .act__btn { background: var(--danger); color: var(--danger-ink); }
+
+.act[aria-pressed="true"] .act__btn {
+    background: var(--ctl-on);
+    color: var(--ctl-on-ink);
+}
+
+.act svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sp--incoming .sp__avatar::before,
+    .sp--incoming .sp__avatar::after,
+    .sp__state::before {
+        animation: none !important;
+    }
+    .act__btn { transition: none; }
+}
+
+/* Failed call notice ----------------------------------------------------- */
+
+/*
+ * The strongest signal in the widget: a call that never connected. Red is
+ * reserved for exactly this, so it reads before the words do.
+ */
+.sp--failed .sp__body {
+    background: var(--danger-soft);
+}
+
+.sp__avatar--failed {
+    background: var(--danger);
+    color: var(--danger-ink);
+}
+
+.sp__number--peer {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.sp__reason {
+    margin: 12px 0 0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--danger-line);
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 600;
+    color: var(--danger);
+    text-align: center;
+}
+
+.sp--failed .sp__actions {
+    margin-top: 20px;
+    gap: 20px;
+}
+
+/* "Try again" carries the action; "Close" is deliberately the quiet one. */
+.sp--failed .act:first-child .act__btn {
+    background: var(--brand);
+    color: var(--brand-ink);
+}
+
+.sp--failed .act:first-child {
+    color: var(--brand);
+}
+
+.sp--failed .act:last-child .act__btn {
+    background: var(--ctl);
+    color: var(--muted);
+}
+
+/* Inbound call notice (clean notice when call ends or is answered elsewhere) */
+
+.sp--notice .sp__body {
+    background: var(--surface);
+}
+
+.sp__dot--notice {
+    background: var(--brand);
+}
+
+.sp__dot--answered {
+    background: var(--ok);
+}
+
+.sp__avatar--notice {
+    background: var(--brand-soft);
+    color: var(--brand);
+}
+
+.sp__avatar--answered {
+    background: var(--ok-soft);
+    color: var(--ok);
+}
+
+.sp__reason--notice {
+    margin: 12px 0 0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 500;
+    color: var(--text);
+    text-align: center;
+}
+
+.sp--notice .sp__actions {
+    margin-top: 20px;
+    gap: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.sp--notice .act:first-child .act__btn {
+    background: var(--brand);
+    color: var(--brand-ink);
+}
+
+.sp--notice .act:first-child {
+    color: var(--brand);
+}
+
+.sp--notice .act:last-child .act__btn {
+    background: var(--ctl);
+    color: var(--muted);
+}
+
+/* Idle (no call) extras — line picker, recording, diagnostics ------------- */
+
+.sp__idle {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+    font-size: 13px;
+}
+
+.sp__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sp__field > span {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.sp__select {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+}
+
+.sp__note {
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.sp__note--danger { color: var(--danger); }
+.sp__note--ok { color: var(--ok); }
+
+.sp__card {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: var(--bg);
+}
+
+.sp__card audio { width: 100%; }
+
+.sp__lead-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.sp__link {
+    color: var(--brand);
+    font-weight: 600;
+}
+
+.sp__close {
+    margin-left: auto;
+    background: none;
+    border: 0;
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    padding: 0 2px;
+}
+
+
+/* Mic Diagnostics & Audio Test --------------------------------------------- */
+
+.sp__mic-diag {
+    margin-top: 10px;
+    border-top: 1px solid var(--line, #e2e8f0);
+    padding-top: 8px;
+}
+
+.sp__mic-diag-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 6px 4px;
+    cursor: pointer;
+    color: var(--ink, #1e293b);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    transition: background-color 0.15s ease;
+}
+
+.sp__mic-diag-toggle:hover {
+    background-color: var(--panel, #f8fafc);
+}
+
+.sp__mic-diag-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sp__mic-icon {
+    color: var(--brand, #3b82f6);
+}
+
+.sp__badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: var(--line, #e2e8f0);
+    color: var(--muted, #64748b);
+    text-transform: uppercase;
+}
+
+.sp__badge--live {
+    background: var(--pending-bg, #fef3c7);
+    color: var(--pending, #d97706);
+}
+
+.sp__mic-diag-body {
+    padding: 8px 4px 4px;
+}
+
+/* Audio Level Meter */
+.sp__mic-meter-box {
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    background: var(--panel, #f8fafc);
+    border: 1px solid var(--line, #e2e8f0);
+    border-radius: 8px;
+}
+
+.sp__mic-meter-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    margin-bottom: 4px;
+}
+
+.sp__mic-meter-name {
+    color: var(--muted, #64748b);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+}
+
+.sp__mic-meter-db {
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--ink, #1e293b);
+    font-weight: 600;
+}
+
+.sp__mic-meter-bar-track {
+    height: 6px;
+    background: var(--line, #e2e8f0);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+
+.sp__mic-meter-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--ok, #10b981);
+    border-radius: 3px;
+    transition: width 0.06s ease;
+}
+
+.sp__mic-meter-bar-fill--mid {
+    background: var(--pending, #f59e0b);
+}
+
+.sp__mic-meter-bar-fill--peak {
+    background: var(--danger, #ef4444);
+}
+
+/* Diagnostics Data Grid */
+.sp__diag-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px 8px;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    background: var(--panel, #f8fafc);
+    border: 1px solid var(--line, #e2e8f0);
+    border-radius: 8px;
+    font-size: 10.5px;
+}
+
+.sp__diag-item {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sp__diag-key {
+    color: var(--muted, #64748b);
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.sp__diag-val {
+    color: var(--ink, #1e293b);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sp__diag-val--ok {
+    color: var(--ok, #10b981);
+}
+
+.sp__diag-val--off {
+    color: var(--muted, #94a3b8);
+}
+
+.sp__diag-hint {
+    font-size: 11px;
+    color: var(--muted, #64748b);
+    margin: 4px 0 8px;
+}
+
+/* Checkbox rows */
+.sp__mic-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    color: var(--ink, #1e293b);
+    cursor: pointer;
+    margin-bottom: 4px;
+    user-select: none;
+}
+
+.sp__mic-checkbox-row input[type="checkbox"] {
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+.sp__mic-constraints {
+    margin: 8px 0;
+    padding: 6px 8px;
+    background: var(--panel, #f8fafc);
+    border: 1px solid var(--line, #e2e8f0);
+    border-radius: 8px;
+}
+
+.sp__mic-field {
+    margin-bottom: 6px;
+}
+
+.sp__mic-field-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--muted, #64748b);
+}
+
+.sp__mic-refresh-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted, #64748b);
+    padding: 2px;
+}
+
+.sp__mic-refresh-btn:hover {
+    color: var(--ink, #1e293b);
+}
+
+/* Actions */
+.sp__mic-actions {
+    margin-top: 8px;
+    display: flex;
+    gap: 6px;
+}
+
+.sp__btn-mic-rec {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 6px 10px;
+    background: var(--brand, #3b82f6);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.sp__btn-mic-rec:hover {
+    filter: brightness(1.08);
+}
+
+.sp__btn-mic-rec--recording {
+    background: var(--danger, #ef4444);
+    animation: sp-pulse 1.5s infinite;
+}
+
+@keyframes sp-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.85; }
+}
+
+/* Playback & Download Card */
+.sp__mic-playback-card {
+    margin-top: 10px;
+    padding: 8px;
+    background: var(--panel, #f8fafc);
+    border: 1px solid var(--line, #e2e8f0);
+    border-radius: 8px;
+}
+
+.sp__mic-playback-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.sp__mic-playback-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink, #1e293b);
+}
+
+.sp__mic-playback-meta {
+    font-size: 10px;
+    color: var(--muted, #64748b);
+    font-family: ui-monospace, monospace;
+}
+
+.sp__mic-playback-settings {
+    font-size: 10px;
+    color: var(--muted, #64748b);
+    margin: 2px 0 6px;
+    line-height: 1.3;
+}
+
+.sp__mic-audio-el {
+    width: 100%;
+    height: 32px;
+    margin: 4px 0 6px;
+}
+
+.sp__mic-playback-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+}
+
+.sp__btn-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--brand, #3b82f6);
+    text-decoration: none;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--brand-soft, #eff6ff);
+    border: 1px solid var(--brand, #3b82f6);
+}
+
+.sp__btn-download:hover {
+    text-decoration: underline;
+}
+
+.sp__btn-clear {
+    background: none;
+    border: none;
+    font-size: 11px;
+    color: var(--muted, #64748b);
+    cursor: pointer;
+    padding: 2px 4px;
+}
+
+.sp__btn-clear:hover {
+    color: var(--ink, #1e293b);
+}
+
+/* Floating Launcher Pill */
+.sp__launcher {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--surface, #ffffff);
+    border: 1px solid var(--line, #e2e8f0);
+    border-radius: 9999px;
+    box-shadow: 0 4px 12px rgba(20, 30, 50, 0.1);
+    color: var(--ink, #1e293b);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sp__launcher:hover {
+    box-shadow: 0 6px 16px rgba(20, 30, 50, 0.15);
+    transform: translateY(-1px);
+}
+
+
+/* Mic Gain Boost Slider (Pre-Amp) */
+.sp__mic-gain-box {
+    margin: 8px 0;
+    padding: 6px 8px;
+    background: var(--panel, #f8fafc);
+    border: 1px solid var(--line, #e2e8f0);
+    border-radius: 8px;
+}
+
+.sp__mic-gain-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    margin-bottom: 4px;
+}
+
+.sp__mic-gain-title {
+    color: var(--muted, #64748b);
+    font-weight: 600;
+}
+
+.sp__mic-gain-val {
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--brand, #3b82f6);
+    font-weight: 700;
+}
+
+.sp__mic-gain-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sp__mic-gain-bound {
+    font-size: 10px;
+    color: var(--muted, #94a3b8);
+    font-family: ui-monospace, monospace;
+}
+
+.sp__mic-gain-slider {
+    flex: 1;
+    cursor: pointer;
+    accent-color: var(--brand, #3b82f6);
+    height: 4px;
+}
+
+.sp__mic-gain-reset {
+    background: none;
+    border: none;
+    color: var(--muted, #64748b);
+    font-size: 10px;
+    cursor: pointer;
+    padding: 2px 0 0;
+    text-decoration: underline;
+    display: block;
+    margin-top: 2px;
+}
+
+.sp__mic-gain-reset:hover {
+    color: var(--brand, #3b82f6);
+}

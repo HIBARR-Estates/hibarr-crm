@@ -363,6 +363,10 @@ export interface UpsertAnswerPayload {
     segment_key: string;
     answer_values: string[];
     answer_text?: string | null;
+    /** Readable snapshot of the OL question, for server-side consumers (AI summary). */
+    question_label?: string | null;
+    /** Readable snapshot of the chosen option label(s). */
+    answer_labels?: string[];
 }
 
 export interface UpdateNavigationPayload {

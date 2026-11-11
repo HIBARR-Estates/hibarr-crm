@@ -196,6 +196,57 @@ class LeadQualificationServiceTest extends LeadQualificationTestCase
         $this->assertSame(['join_the_cage'], $answer->answer_values);
     }
 
+    public function test_upsert_answer_snapshots_question_and_option_labels(): void
+    {
+        $lead = Lead::withoutGlobalScopes()->find($this->leadId);
+        $qualification = $this->service->start($lead, [
+            'template_id' => '3',
+            'template_version' => 1,
+            'agent_language' => 'en',
+            'agent_id' => $this->userId,
+        ]);
+
+        $answer = $this->service->upsertAnswer($qualification, [
+            'segment_key' => 'budget',
+            'answer_values' => ['b2'],
+            'answer_text' => 'Flexible if the location is right',
+            'question_label' => 'What is your budget?',
+            'answer_labels' => ['200,000 - 250,000 EUR'],
+        ]);
+
+        $this->assertSame('What is your budget?', $answer->question_label);
+        $this->assertSame(['200,000 - 250,000 EUR'], $answer->answer_labels);
+    }
+
+    public function test_upsert_answer_without_labels_does_not_wipe_an_earlier_snapshot(): void
+    {
+        $lead = Lead::withoutGlobalScopes()->find($this->leadId);
+        $qualification = $this->service->start($lead, [
+            'template_id' => '3',
+            'template_version' => 1,
+            'agent_language' => 'en',
+            'agent_id' => $this->userId,
+        ]);
+
+        $this->service->upsertAnswer($qualification, [
+            'segment_key' => 'budget',
+            'answer_values' => ['b2'],
+            'question_label' => 'What is your budget?',
+            'answer_labels' => ['200,000 - 250,000 EUR'],
+        ]);
+
+        // A client that predates label snapshots saves the same answer again.
+        $answer = $this->service->upsertAnswer($qualification, [
+            'segment_key' => 'budget',
+            'answer_values' => ['b2'],
+            'answer_text' => 'Updated context',
+        ]);
+
+        $this->assertSame('What is your budget?', $answer->fresh()->question_label);
+        $this->assertSame(['200,000 - 250,000 EUR'], $answer->fresh()->answer_labels);
+        $this->assertSame('Updated context', $answer->fresh()->answer_text);
+    }
+
     public function test_clear_branch_answers_deletes_specified_segments(): void
     {
         $lead = Lead::withoutGlobalScopes()->find($this->leadId);

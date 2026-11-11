@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Lead;
 use App\Models\LeadLifecycleStatus;
 use Illuminate\Support\Collection;
 
@@ -20,6 +21,26 @@ class LeadLifecycleStatusService
     public function resolveDefaultForCompany(int $companyId): ?LeadLifecycleStatus
     {
         return LeadLifecycleStatus::findByKey($companyId, LeadLifecycleStatus::DEFAULT_KEY);
+    }
+
+    /**
+     * Give a not-yet-saved lead its company's default status when it has none.
+     *
+     * LeadObserver::creating calls this, but saveQuietly() skips observers,
+     * so any path that creates leads quietly (external API, Bitrix import)
+     * must call it before saving or the lead is stored without a status.
+     */
+    public function applyDefaultIfMissing(Lead $lead): void
+    {
+        if ($lead->lead_lifecycle_status_id || ! $lead->company_id) {
+            return;
+        }
+
+        $defaultStatus = $this->resolveDefaultForCompany((int) $lead->company_id);
+
+        if ($defaultStatus) {
+            $lead->lead_lifecycle_status_id = $defaultStatus->id;
+        }
     }
 
     public function isInUse(LeadLifecycleStatus $status): bool

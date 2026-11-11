@@ -6,9 +6,12 @@ use App\Email\Http\Controllers\MailboxSettingsController;
 use App\Email\Http\Controllers\PilotAllowlistSettingsController;
 use App\Email\Http\Middleware\EnsureEmailEnabled;
 use App\Email\Http\Middleware\EnsureEmailPilot;
+use App\Http\Controllers\AgentWorkspace\AgentWorkspaceAccessController;
 use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\AttendanceSettingController;
+use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\CompanyDashboardAccessController;
 use App\Http\Controllers\AutomationSettingController;
 use App\Http\Controllers\BusinessAddressController;
 use App\Http\Controllers\ContractSettingController;
@@ -114,6 +117,20 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::put('leads/statuses/{status}', [LeadSettingsHubController::class, 'updateStatus'])->name('settings-leads.statuses.update');
     Route::delete('leads/statuses/{status}', [LeadSettingsHubController::class, 'destroyStatus'])->name('settings-leads.statuses.destroy');
 
+    /* Audit log — every recorded write and sign-in event (admin-only) */
+    Route::get('audit-log', [AuditLogController::class, 'index'])->name('audit-log.index');
+    Route::get('audit-log/entries', [AuditLogController::class, 'entries'])->name('audit-log.entries');
+
+    /* Company dashboard access — who may open the Company dashboard (admin-only) */
+    Route::get('company-dashboard-access', [CompanyDashboardAccessController::class, 'index'])->name('company-dashboard-access.index');
+    Route::post('company-dashboard-access', [CompanyDashboardAccessController::class, 'store'])->name('company-dashboard-access.store');
+    Route::delete('company-dashboard-access/{userId}', [CompanyDashboardAccessController::class, 'destroy'])->whereNumber('userId')->name('company-dashboard-access.destroy');
+
+    /* Agent workspace access list (crm.agent-workspace + admin; 404 while the flag is off) */
+    Route::get('agent-workspace-access', [AgentWorkspaceAccessController::class, 'index'])->name('agent-workspace-access.index');
+    Route::post('agent-workspace-access', [AgentWorkspaceAccessController::class, 'store'])->name('agent-workspace-access.store');
+    Route::delete('agent-workspace-access/{userId}', [AgentWorkspaceAccessController::class, 'destroy'])->whereNumber('userId')->name('agent-workspace-access.destroy');
+
     /* Automation settings — email templates + trigger-based automations */
     Route::get('automation', [AutomationSettingController::class, 'index'])->name('settings-automation.index');
 
@@ -200,6 +217,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('meeting-attendance-confirmation-settings', [MeetingAttendanceConfirmationSettingsApiController::class, 'page'])->name('meeting-attendance-confirmation-settings.index');
     Route::get('meeting-attendance-confirmation-settings/data', [MeetingAttendanceConfirmationSettingsApiController::class, 'index'])->name('meeting-attendance-confirmation-settings.data');
     Route::put('meeting-attendance-confirmation-settings/data', [MeetingAttendanceConfirmationSettingsApiController::class, 'update'])->name('meeting-attendance-confirmation-settings.update');
+
+    // Call Bridge — channels, per-line call pool and call recordings.
+    Route::get('call-bridge', [\App\Http\Controllers\CallBridgeSettingsController::class, 'page'])->name('call-bridge.index');
 
     // Currency Settings routes
     Route::get('currency-settings/update/exchange-rates', [CurrencySettingController::class, 'updateExchangeRate'])->name('currency_settings.update_exchange_rates');

@@ -1,10 +1,11 @@
 import { ReloadOutlined, RobotOutlined } from "@ant-design/icons";
 import { Button } from "antd";
-import { Sparkles } from "lucide-react";
+import { ChevronDown, RotateCw, Sparkles } from "lucide-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
+import { usePersonalize } from "./SummaryPersonalization";
 import type {
     EntitySummaryChip,
     EntitySummaryEntityType,
@@ -45,6 +46,10 @@ interface EntityAiSummaryHeaderProps {
     hasSummary?: boolean;
     isStale?: boolean;
     isHeuristic?: boolean;
+    /** Redesign lead brief layout: the generated time is part of the label, and the
+     * confidence badge, Regenerate and the accordion arrow sit together on the right
+     * (arrow furthest right). The risk badge is not shown in this layout. */
+    leadBrief?: boolean;
 }
 
 export default function EntityAiSummaryHeader({
@@ -63,9 +68,11 @@ export default function EntityAiSummaryHeader({
     hasSummary = false,
     isStale = false,
     isHeuristic = false,
+    leadBrief = false,
 }: EntityAiSummaryHeaderProps) {
     const { t } = useTranslation();
     const { td } = useTd();
+    const personalize = usePersonalize();
 
     const timestampLabel = generatedAt
         ? `generated ${dayjs(generatedAt).fromNow()}`
@@ -135,7 +142,103 @@ export default function EntityAiSummaryHeader({
         }
 
         const expanded = !collapsed;
-        return (
+
+        if (leadBrief) {
+            const generatedAgo = generatedAt ? dayjs(generatedAt).fromNow() : null;
+
+            return (
+                <div className="entity-ai-summary-lead-header">
+                    {/* Clicking the label area also toggles, as the whole header used to.
+                        It is a pointer convenience only: the arrow button on the right is
+                        the keyboard- and screen-reader-accessible control. */}
+                    <div
+                        className="entity-ai-summary-lead-header__main"
+                        role="presentation"
+                        onClick={onToggleCollapse}
+                    >
+                        <span className="entity-ai-summary-lead-header__label">
+                            <Sparkles
+                                width={14}
+                                height={14}
+                                strokeWidth={2}
+                                aria-hidden="true"
+                                className="entity-ai-summary-lead-header__spark"
+                            />
+                            <span>
+                                {generatedAgo
+                                    ? `${title} · ${generatedAgo}`
+                                    : title}
+                            </span>
+                            {isStale && (
+                                <span className="entity-ai-summary-stale-pill">
+                                    {t("pages.entity_summary.out_of_date")}
+                                </span>
+                            )}
+                            {isHeuristic && (
+                                <span className="entity-ai-summary-heuristic-pill">
+                                    {t("pages.entity_summary.fallback")}
+                                </span>
+                            )}
+                        </span>
+                        {statusLine && (
+                            <span className="entity-ai-summary-header__status-line">
+                                {personalize(td(statusLine, { source: "en" }))}
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="entity-ai-summary-lead-header__actions">
+                        {shownConfidence && (
+                            <span
+                                className={`entity-ai-summary-confidence-pill entity-ai-summary-confidence-pill--${shownConfidence}`}
+                            >
+                                {t("pages.entity_summary.confidence_badge", {
+                                    level: t(
+                                        `pages.entity_summary.confidence.${shownConfidence}`,
+                                    ),
+                                })}
+                            </span>
+                        )}
+                        <button
+                            type="button"
+                            className="entity-ai-summary-regenerate-btn"
+                            disabled={loading}
+                            onClick={onRegenerate}
+                        >
+                            <RotateCw
+                                width={14}
+                                height={14}
+                                strokeWidth={2}
+                                aria-hidden="true"
+                            />
+                            {isStale
+                                ? t("pages.entity_summary.refresh")
+                                : t("pages.entity_summary.regenerate")}
+                        </button>
+                        <button
+                            type="button"
+                            className="entity-ai-summary-lead-header__chevron"
+                            aria-expanded={expanded}
+                            aria-label={t(
+                                expanded
+                                    ? "pages.entity_summary.collapse_summary"
+                                    : "pages.entity_summary.expand_summary",
+                            )}
+                            onClick={onToggleCollapse}
+                        >
+                            <ChevronDown
+                                width={18}
+                                height={18}
+                                strokeWidth={2}
+                                aria-hidden="true"
+                            />
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        const toggle = (
             <div
                 role="button"
                 tabIndex={0}
@@ -192,7 +295,7 @@ export default function EntityAiSummaryHeader({
                     </span>
                     {statusLine && (
                         <span className="entity-ai-summary-header__status-line">
-                            {td(statusLine, { source: "en" })}
+                            {personalize(td(statusLine, { source: "en" }))}
                         </span>
                     )}
                     {collapsed && chips.length > 0 && (
@@ -214,6 +317,8 @@ export default function EntityAiSummaryHeader({
                 </span>
             </div>
         );
+
+        return toggle;
     }
 
     return (

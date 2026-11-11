@@ -17,6 +17,7 @@ import {
     answersFromQualification,
     buildTokenMap,
     computeVisibleSegments,
+    buildAnswerLabelSnapshot,
     computeWalkSegments,
     findEntrySegment,
     getActionsForSelectedOutcomes,
@@ -127,6 +128,7 @@ export const useQualificationFlow = ({
                             segment_key: segment.key,
                             answer_values: storedValues,
                             answer_text: text ?? null,
+                            ...buildAnswerLabelSnapshot(segment, values),
                         })
                         .catch(() => {
                             message.error("Failed to save answer");

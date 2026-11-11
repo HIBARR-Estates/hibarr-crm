@@ -210,8 +210,8 @@ class LeadService
     private function applyContactStatusFilter(Builder $query, mixed $status): void
     {
         match ($status) {
-            'contacted' => $query->whereNotNull('first_contacted_at'),
-            'uncontacted' => $query->whereNull('first_contacted_at'),
+            'contacted' => $query->whereNotNull('leads.first_contacted_at'),
+            'uncontacted' => $query->whereNull('leads.first_contacted_at'),
             default => null,
         };
     }
@@ -438,7 +438,7 @@ class LeadService
         $query = Lead::query()->select('leads.id');
         $this->applyPermissionScope($query, $viewPermission);
         $this->applyFilters($query, $request);
-        $query->where('temperature', $temperature);
+        $query->where('leads.temperature', $temperature);
 
         return $query->count();
     }
@@ -548,15 +548,15 @@ class LeadService
 
         switch ($viewPermission) {
             case 'added':
-                $query->where('added_by', $userId);
+                $query->where('leads.added_by', $userId);
                 break;
             case 'owned':
-                $query->where('lead_owner', $userId);
+                $query->where('leads.lead_owner', $userId);
                 break;
             case 'both':
                 $query->where(function ($q) use ($userId) {
-                    $q->where('added_by', $userId)
-                        ->orWhere('lead_owner', $userId);
+                    $q->where('leads.added_by', $userId)
+                        ->orWhere('leads.lead_owner', $userId);
                 });
                 break;
             case 'all':
@@ -567,31 +567,36 @@ class LeadService
     }
 
     /**
-     * Apply request filters
+     * Apply request filters.
+     *
+     * Every lead column is qualified with `leads.`: applySorting() left-joins
+     * users / lead_category / lead_sources, which share column names with
+     * leads (added_by, created_at, mobile, gender, company_id, ...), so an
+     * unqualified predicate fails as ambiguous once a joined sort is active.
      */
     private function applyFilters(Builder $query, Request $request): void
     {
-        if ($request->filled('search')) {
-            $search = $request->get('search');
-            $query->where(function ($q) use ($search) {
-                $term = '%'.$search.'%';
-                $q->where('client_name', 'like', $term)
-                    ->orWhere('client_email', 'like', $term)
-                    ->orWhere('company_name', 'like', $term)
-                    ->orWhere('country', 'like', $term);
-                LeadSearchQuery::applyMobileMatch($q, $search);
-                LeadSearchQuery::applyContactMethodMatch($q, $search);
-            });
+        $search = $this->normalizeSearch($request->get('search'));
+        if ($search !== '') {
+            $this->applySearch($query, $search);
+        }
+
+        if ($request->filled('lead_type')) {
+            match ($request->get('lead_type')) {
+                'lead' => $query->whereNull('leads.client_id'),
+                'client' => $query->whereNotNull('leads.client_id'),
+                default => null,
+            };
         }
 
         if ($request->filled('lead_source')) {
-            $query->whereIn('source_id', $this->toValueArray($request->get('lead_source')));
+            $query->whereIn('leads.source_id', $this->toValueArray($request->get('lead_source')));
         }
 
         if ($request->filled('category_id')) {
             $categoryIds = $this->toValueArray($request->get('category_id'));
             $query->where(function ($q) use ($categoryIds) {
-                $q->whereIn('category_id', $categoryIds)
+                $q->whereIn('leads.category_id', $categoryIds)
                     ->orWhereHas('categories', function ($cq) use ($categoryIds) {
                         $cq->whereIn('lead_category.id', $categoryIds);
                     });
@@ -599,53 +604,56 @@ class LeadService
         }
 
         if ($request->filled('lead_owner_id')) {
-            $query->whereIn('lead_owner', $this->toValueArray($request->get('lead_owner_id')));
+            $query->whereIn('leads.lead_owner', $this->toValueArray($request->get('lead_owner_id')));
         }
 
         if ($request->filled('added_by_id')) {
-            $query->whereIn('added_by', $this->toValueArray($request->get('added_by_id')));
+            $query->whereIn('leads.added_by', $this->toValueArray($request->get('added_by_id')));
         }
 
         if ($request->filled('referred_by_agent_id')) {
             $query->whereIn(
-                'referred_by_agent_id',
+                'leads.referred_by_agent_id',
                 $this->toValueArray($request->get('referred_by_agent_id'))
             );
         }
 
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->whereBetween('created_at', [
-                $this->dateBound($request->get('start_date'), '00:00:00'),
-                $this->dateBound($request->get('end_date'), '23:59:59'),
-            ]);
+        // Each bound applies on its own: an open-ended range ("created since")
+        // used to be dropped entirely, returning every lead.
+        if ($request->filled('start_date')) {
+            $query->where('leads.created_at', '>=', $this->dateBound($request->get('start_date'), '00:00:00'));
+        }
+
+        if ($request->filled('end_date')) {
+            $query->where('leads.created_at', '<=', $this->dateBound($request->get('end_date'), '23:59:59'));
         }
 
         if ($request->filled('lifecycle_status_id')) {
-            $query->whereIn('lead_lifecycle_status_id', $this->toValueArray($request->get('lifecycle_status_id')));
+            $query->whereIn('leads.lead_lifecycle_status_id', $this->toValueArray($request->get('lifecycle_status_id')));
         }
 
         if ($request->filled('temperature')) {
-            $query->whereIn('temperature', $this->toValueArray($request->get('temperature')));
+            $query->whereIn('leads.temperature', $this->toValueArray($request->get('temperature')));
         }
 
         if ($request->filled('preferred_contact_time')) {
-            $query->whereIn('preferred_contact_time', $this->toValueArray($request->get('preferred_contact_time')));
+            $query->whereIn('leads.preferred_contact_time', $this->toValueArray($request->get('preferred_contact_time')));
         }
 
         if ($request->filled('gender')) {
-            $query->whereIn('gender', $this->toValueArray($request->get('gender')));
+            $query->whereIn('leads.gender', $this->toValueArray($request->get('gender')));
         }
 
         if ($request->filled('age_range')) {
-            $query->whereIn('age_range', $this->toValueArray($request->get('age_range')));
+            $query->whereIn('leads.age_range', $this->toValueArray($request->get('age_range')));
         }
 
         if ($request->filled('nationality')) {
-            $query->whereIn('nationality', $this->toValueArray($request->get('nationality')));
+            $query->whereIn('leads.nationality', $this->toValueArray($request->get('nationality')));
         }
 
         if ($request->filled('country')) {
-            $query->whereIn('country', $this->toValueArray($request->get('country')));
+            $query->whereIn('leads.country', $this->toValueArray($request->get('country')));
         }
 
         if ($request->filled('next_action')) {
@@ -660,7 +668,7 @@ class LeadService
             $languageCodes = $this->toValueArray($request->get('language'));
             $query->where(function ($q) use ($languageCodes) {
                 foreach ($languageCodes as $code) {
-                    $q->orWhereJsonContains('languages', $code);
+                    $q->orWhereJsonContains('leads.languages', $code);
                 }
             });
         }
@@ -669,7 +677,9 @@ class LeadService
 
         if ($request->filled('qualification_segment_key')) {
             $segmentKey = $request->get('qualification_segment_key');
-            $answerValues = array_filter((array) $request->get('qualification_answer_values', []));
+            // The filter UI sends a comma-separated string; casting it with
+            // (array) kept "a,b" as one value that no answer could contain.
+            $answerValues = $this->toValueArray($request->get('qualification_answer_values'));
 
             $query->whereExists(function ($sub) use ($segmentKey, $answerValues) {
                 $sub->select(DB::raw(1))
@@ -691,6 +701,41 @@ class LeadService
         }
 
         $this->applyCustomFieldFilters($query, $request);
+    }
+
+    /** Trimmed search text with inner whitespace collapsed; '' when absent. */
+    private function normalizeSearch(mixed $search): string
+    {
+        if (! is_scalar($search)) {
+            return '';
+        }
+
+        return trim((string) preg_replace('/\s+/u', ' ', (string) $search));
+    }
+
+    /**
+     * Free-text search. A phone-shaped term ("+49 176 123") is matched as one
+     * number. Anything else is split into words and every word must match
+     * some field, so "smith john" still finds "John Smith" and an extra word
+     * narrows the result instead of matching nothing.
+     */
+    private function applySearch(Builder $query, string $search): void
+    {
+        $terms = LeadSearchQuery::looksLikePhone($search)
+            ? [$search]
+            : array_slice(array_values(array_unique(explode(' ', $search))), 0, 6);
+
+        foreach ($terms as $term) {
+            $query->where(function ($q) use ($term) {
+                $like = '%'.$term.'%';
+                $q->where('leads.client_name', 'like', $like)
+                    ->orWhere('leads.client_email', 'like', $like)
+                    ->orWhere('leads.company_name', 'like', $like)
+                    ->orWhere('leads.country', 'like', $like);
+                LeadSearchQuery::applyMobileMatch($q, $term, 'leads.mobile');
+                LeadSearchQuery::applyContactMethodMatch($q, $term);
+            });
+        }
     }
 
     /**

@@ -4,7 +4,7 @@ import useTaskStatus, { applyTaskStatus } from "@/Hooks/useTaskStatus";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { Task } from "@/Types/api/tasks";
 import TaskDetailModal from "@/Components/Redesign/modals/TaskDetailModal";
-import useDashboardTaskUpdate from "../hooks/useDashboardTaskUpdate";
+import useTaskUpdate from "@/Components/Redesign/hooks/useTaskUpdate";
 
 interface TaskActionModalsProps {
     task: Task | null;
@@ -40,7 +40,7 @@ export default function TaskActionModals({
     });
 
     const { updateTask, isUpdating, errors, clearErrors } =
-        useDashboardTaskUpdate(task ?? ({ id: 0 } as Task), (updated) => {
+        useTaskUpdate(task ?? ({ id: 0 } as Task), (updated) => {
             onPatched(updated);
             onChanged();
         });

@@ -22,6 +22,8 @@ class VerifyCsrfToken extends Middleware
         'razorpay-webhook/*',
         'square-webhook/*',
         'verify-webhook/*', // Stripe
+        // Keycloak back-channel logout: authenticated by the logout token signature
+        'sso/backchannel-logout',
         // Public lead and ticket forms
         'lead-form/leadStore',
         'lead-form/ticket-store',

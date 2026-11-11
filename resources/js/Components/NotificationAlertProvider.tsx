@@ -38,11 +38,12 @@ export type NotchSeverity =
 export interface NotificationAlertAction {
     label: string;
     primary?: boolean;
+    color?: string | null;
     href?: string | null;
     /** Open join/external meeting links without leaving the current page. */
     openInNewTab?: boolean;
-    /** Run a callback instead of navigating (e.g. "Undo"). Takes priority over href. */
-    onClick?: () => void;
+    /** Run a callback instead of navigating (e.g. "Undo"). Returning false keeps the island mounted. */
+    onClick?: () => void | Promise<void | boolean>;
 }
 
 export interface NotificationAlertPayload {
@@ -55,6 +56,7 @@ export interface NotificationAlertPayload {
     /** Destination breadcrumb (e.g. "Deals · #2841"), revealed on hover. */
     dest?: string;
     link?: string | null;
+    sticky?: boolean;
     severity?: NotchSeverity;
     timeAgo?: string;
     actions?: NotificationAlertAction[];
@@ -140,6 +142,32 @@ function usePrefersReducedMotion(): boolean {
     return reduced;
 }
 
+/**
+ * Identity of an alert for pending-action tracking.
+ *
+ * The notification id when there is one — so a refreshed copy of the same
+ * notification keeps its pending state — and the payload itself otherwise.
+ */
+type PendingAlertKey = string | NotificationAlertPayload;
+
+function pendingAlertKey(
+    alert: NotificationAlertPayload | null | undefined,
+): PendingAlertKey | null {
+    if (!alert) return null;
+    return alert.id ? `id:${alert.id}` : alert;
+}
+
+/** Whether the alert has an action that is still resolving. */
+function hasPendingAction(
+    pending: Map<PendingAlertKey, Set<string>>,
+    alert: NotificationAlertPayload | null | undefined,
+): boolean {
+    const key = pendingAlertKey(alert);
+    if (key === null) return false;
+    const actions = pending.get(key);
+    return !!actions && actions.size > 0;
+}
+
 function wrapperStyle(position: NotchPosition): CSSProperties {
     const isTop = position.indexOf("top") === 0;
     const hAlign =
@@ -185,7 +213,58 @@ export default function NotificationAlertProvider({
     const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const hoverRef = useRef(false);
+    const pointerHoverRef = useRef(false);
     const currentRef = useRef<NotificationAlertPayload | null>(null);
+    // Keeps sticky call alerts expanded while focus is inside the island or an
+    // action (Answer/Hang up) is still resolving.
+    const focusWithinRef = useRef(false);
+    // Pending actions are tracked per alert and per action: an alert that
+    // replaces another one keeps its own state, and only the action that
+    // started the request can clear it.
+    const [pendingActions, setPendingActions] = useState<
+        Map<PendingAlertKey, Set<string>>
+    >(new Map());
+    // Mirror of the map above for the timer callbacks, which must not
+    // re-subscribe.
+    const pendingActionsRef = useRef(pendingActions);
+    // Mirrors of the two refs above for render-time reads — reading a ref during
+    // render does not re-render, so the expanded calculation was one frame stale.
+    // The refs stay for the timer callbacks, which must not re-subscribe.
+    const [focusWithin, setFocusWithin] = useState(false);
+
+    const markActionPending = useCallback(
+        (alert: NotificationAlertPayload | null, action: NotificationAlertAction) => {
+            const key = pendingAlertKey(alert);
+            if (key === null) return;
+
+            const pending = new Map(pendingActionsRef.current);
+            const actions = new Set(pending.get(key) ?? []);
+            actions.add(action.label);
+            pending.set(key, actions);
+            pendingActionsRef.current = pending;
+            setPendingActions(pending);
+        },
+        [],
+    );
+
+    const clearActionPending = useCallback(
+        (alert: NotificationAlertPayload | null, action: NotificationAlertAction) => {
+            const key = pendingAlertKey(alert);
+            if (key === null) return;
+
+            const pending = new Map(pendingActionsRef.current);
+            const actions = new Set(pending.get(key) ?? []);
+            actions.delete(action.label);
+            if (actions.size === 0) {
+                pending.delete(key);
+            } else {
+                pending.set(key, actions);
+            }
+            pendingActionsRef.current = pending;
+            setPendingActions(pending);
+        },
+        [],
+    );
 
     const clearTimer = (ref: MutableRefObject<ReturnType<typeof setTimeout> | null>) => {
         if (ref.current) {
@@ -206,7 +285,13 @@ export default function NotificationAlertProvider({
 
     const armDismiss = useCallback(() => {
         clearTimer(dismissTimer);
+        if (currentRef.current?.sticky) return;
         if (hoverRef.current) return;
+        // Only the alert that owns the pending action is held open — an alert
+        // that replaced it is dismissed on its own schedule.
+        if (focusWithinRef.current) return;
+        if (hasPendingAction(pendingActionsRef.current, currentRef.current))
+            return;
         dismissTimer.current = setTimeout(() => {
             setOpen(false);
             setHover(false);
@@ -234,6 +319,10 @@ export default function NotificationAlertProvider({
             const hadPrevious = currentRef.current !== null;
             currentRef.current = notification;
             setCurrent(notification);
+
+            // The pending state belongs to the alert it was started from: the
+            // alert that replaces this one carries its own, so arming the
+            // dismiss timer below is judged against the new alert alone.
 
             if (hadPrevious) {
                 setPulse(true);
@@ -263,24 +352,51 @@ export default function NotificationAlertProvider({
     const onEnter = useCallback(() => {
         if (!current) return;
         hoverRef.current = true;
+        pointerHoverRef.current = true;
         clearTimer(dismissTimer);
         setHover(true);
     }, [current]);
 
     const onLeave = useCallback(() => {
         hoverRef.current = false;
+        pointerHoverRef.current = false;
         setHover(false);
         if (current) armDismiss();
     }, [current, armDismiss]);
 
+    // Keyboard focus: update hoverRef and visible hover state, but NOT pointerHoverRef.
+    // This prevents keyboard focus from suppressing armDismiss when focus leaves.
+    const onFocus = useCallback(() => {
+        if (!current) return;
+        hoverRef.current = true;
+        clearTimer(dismissTimer);
+        setHover(true);
+    }, [current]);
+
     const onBlur = useCallback(
         (e: FocusEvent<HTMLDivElement>) => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                onLeave();
+            const stillInside = e.currentTarget.contains(e.relatedTarget as Node);
+            focusWithinRef.current = stillInside;
+            setFocusWithin(stillInside);
+            if (!stillInside) {
+                // Losing focus must not clear pointer hover — the pointer may still be
+                // over the island (and the dismiss timer would fire under it).
+                // Synchronize hoverRef with pointerHoverRef: if the pointer is still
+                // over the island, keep hover active; otherwise allow dismissal.
+                hoverRef.current = pointerHoverRef.current;
+                setHover(pointerHoverRef.current);
+                if (!pointerHoverRef.current) {
+                    armDismiss();
+                }
             }
         },
-        [onLeave],
+        [armDismiss],
     );
+
+    const onFocusCapture = useCallback(() => {
+        focusWithinRef.current = true;
+        setFocusWithin(true);
+    }, []);
 
     const handleOpenClick = useCallback(
         (e: MouseEvent) => {
@@ -298,7 +414,34 @@ export default function NotificationAlertProvider({
         (action: NotificationAlertAction) => (e: MouseEvent) => {
             e.stopPropagation();
             if (action.onClick) {
-                action.onClick();
+                // Captured so the async continuation can tell whether the alert
+                // it was fired from is still on screen, or has since been
+                // replaced by a newer one.
+                const actedOn = current;
+                const result = action.onClick();
+                if (result && typeof (result as Promise<unknown>).then === "function") {
+                    // The pending state belongs to this alert and this action.
+                    markActionPending(actedOn, action);
+                    (result as Promise<unknown>)
+                        .then((value) => {
+                            // Compare by ID when both have one, otherwise fall back to identity
+                            const sameAlert = currentRef.current?.id && actedOn?.id
+                                ? currentRef.current.id === actedOn.id
+                                : currentRef.current === actedOn;
+                            if (value !== false && sameAlert) {
+                                dismiss();
+                            }
+                        })
+                        .catch(() => {
+                            // Failed — leave the alert up so the agent can retry.
+                        })
+                        .finally(() => {
+                            // Only this action clears its own pending state.
+                            clearActionPending(actedOn, action);
+                            armDismiss();
+                        });
+                    return;
+                }
                 dismiss();
                 return;
             }
@@ -318,7 +461,7 @@ export default function NotificationAlertProvider({
             }
             dismiss();
         },
-        [current, dismiss, markAsReadQuiet],
+        [current, dismiss, markAsReadQuiet, markActionPending, clearActionPending],
     );
 
     const handleDismissClick = useCallback(
@@ -337,9 +480,15 @@ export default function NotificationAlertProvider({
     const hasDetail = !!current && (!!current.body || !!current.dest);
     const shortBody =
         !!current?.body && current.body.trim().length > 0 && current.body.length <= 90;
+    // Only an action of this very alert keeps it open — an action that is
+    // still running on an alert that has since been replaced does not.
+    const actionPending = hasPendingAction(pendingActions, current);
+    // Call alerts (sticky) must stay expanded while focused or while an action
+    // is in flight (e.g. Answer), otherwise the pointer leaving the island
+    // collapses the action row and hides it behind aria-hidden mid-click.
     const expanded =
         open &&
-        hover &&
+        (hover || focusWithin || (!!current?.sticky && actionPending)) &&
         !!current &&
         (hasDetail || (current.actions?.length ?? 0) > 0 || !!current.link);
 
@@ -407,7 +556,8 @@ export default function NotificationAlertProvider({
                         }
                         onMouseEnter={onEnter}
                         onMouseLeave={onLeave}
-                        onFocus={onEnter}
+                        onFocus={onFocus}
+                        onFocusCapture={onFocusCapture}
                         onBlur={onBlur}
                         tabIndex={0}
                         animate={{

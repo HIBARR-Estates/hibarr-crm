@@ -34,6 +34,8 @@ interface DashboardPanelProps {
     fill?: boolean;
     /** `data-tour` selector target for the ProductTour engine. */
     dataTour?: string;
+    /** Hook for a grid placement rule in dashboard-v2.css. */
+    className?: string;
     style?: CSSProperties;
     children: ReactNode;
 }
@@ -55,6 +57,7 @@ export default function DashboardPanel({
     flush = false,
     fill = false,
     dataTour,
+    className,
     style,
     children,
 }: DashboardPanelProps) {
@@ -73,6 +76,7 @@ export default function DashboardPanel({
     return (
         <section
             {...(dataTour ? { "data-tour": dataTour } : {})}
+            className={className}
             style={{
                 background: T.SURFACE,
                 border: `1px solid ${T.BORDER}`,

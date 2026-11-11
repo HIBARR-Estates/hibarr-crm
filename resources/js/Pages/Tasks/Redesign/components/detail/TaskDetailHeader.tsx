@@ -82,6 +82,8 @@ export default function TaskDetailHeader({ vm }: TaskDetailHeaderProps) {
                     <TaskPriorityStripe priority={vm.priority} size={14} />
                     {td(`${vm.priority.label} priority`, { source: "en" })}
                 </span>
+                {/* The category quick-action lives in the modal body as a call
+                    banner (TaskCallBanner) — not here in the meta row. */}
             </div>
 
             <span

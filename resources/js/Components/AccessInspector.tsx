@@ -76,7 +76,10 @@ export default function AccessInspector() {
     const flags = page.props.featureFlags ?? {};
     const permissions = page.props.auth?.permissions ?? {};
 
-    const visible = isAdmin || import.meta.env.DEV;
+    const isDev =
+        (typeof process !== "undefined" && process.env?.NODE_ENV !== "production") ||
+        (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV === true;
+    const visible = isAdmin || isDev;
 
     const entry = pageOnly ? pageAccessFor(page.component) : undefined;
     const pageScoped = pageOnly && entry !== undefined;

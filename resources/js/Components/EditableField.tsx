@@ -41,6 +41,7 @@ import {
 import { parseMultiSelectStoredValue } from "@/lib/parseMultiSelectStoredValue";
 import { DetailFieldEditContext } from "./DetailSection";
 import DealBadge from "@/Components/Redesign/primitives/Badge";
+import CopyValueButton from "@/Components/Redesign/primitives/CopyValueButton";
 
 const { Text } = Typography;
 
@@ -124,7 +125,18 @@ interface EditableFieldProps {
      * humanized `fieldName`; pass the field's visible label where one exists
      * (the parent DetailField/dossier row renders it, out of reach here). */
     editLabel?: string;
+    /** Show a copy-to-clipboard button beside the displayed value (revealed
+     * with the pencil on hover/focus of the enclosing `group`). Opt-in; only
+     * shown for a non-empty value and never while editing. */
+    copyable?: boolean;
+    /** Text to copy when `copyable` is set. Defaults to the rendered display
+     * text when that is plain text — pass this when `displayValue` is a
+     * ReactNode or the copied form should differ from the displayed one. */
+    copyValue?: string;
 }
+
+/** Display fallbacks that stand for "no value" and must never be copied. */
+const EMPTY_DISPLAY_TEXT = new Set(["--", "—", "-"]);
 
 /** Last-resort accessible name for the edit trigger, from the machine field
  *  name ("date_of_birth" -> "Date of birth"). Callers that know the field's
@@ -329,6 +341,8 @@ export default function EditableField({
     onChange,
     activateOnSingleClick = false,
     editLabel,
+    copyable = false,
+    copyValue,
 }: EditableFieldProps) {
     const { props } = usePage<any>();
     const { countries } = useCountries();
@@ -951,6 +965,22 @@ export default function EditableField({
             normalizedValue === "" ||
             (Array.isArray(normalizedValue) && normalizedValue.length === 0));
 
+    const copyText =
+        !copyable || isEmptyValue
+            ? ""
+            : (copyValue ??
+              (typeof displayText === "string" || typeof displayText === "number"
+                  ? String(displayText)
+                  : ""));
+    const copyButton =
+        copyText.trim() && !EMPTY_DISPLAY_TEXT.has(copyText.trim()) ? (
+            <CopyValueButton
+                value={copyText}
+                label={editLabel ?? humanizeFieldName(fieldName)}
+                className="mt-0.5"
+            />
+        ) : undefined;
+
     if (editing) {
         return (
             <Spin
@@ -1334,7 +1364,7 @@ export default function EditableField({
                     } ${className}`}
                     onDoubleClick={canStartEditing ? startEditing : undefined}
                 >
-                    <ClampedText text={displayText} />
+                    <ClampedText text={displayText} trailing={copyButton} />
                 </div>
             </Skeleton>
         );
@@ -1375,22 +1405,29 @@ export default function EditableField({
                     text={displayText}
                     textClassName={`border-b border-dashed ${
                         canStartEditing
-                            ? "border-transparent transition-colors group-hover:border-blue-300"
+                            ? "border-transparent transition-colors [.group:hover_&]:border-blue-300"
                             : ""
                     } ${isEmptyValue ? "italic text-gray-400" : ""}`}
                     trailing={
-                        canStartEditing ? (
-                            // Revealed on hover/focus of the enclosing `group`
-                            // (DetailField, or the lead dossier row). Opacity,
-                            // not `hidden`: antd's own `.anticon{display:inline-flex}`
-                            // has the same specificity as Tailwind's `.hidden`
-                            // and loads later, so a display-based hide never
-                            // took effect and the pencil showed permanently.
-                            <EditOutlined
-                                aria-hidden="true"
-                                className="mt-1 inline-flex shrink-0 text-blue-600 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                                style={{ fontSize: 11 }}
-                            />
+                        canStartEditing || copyButton ? (
+                            <>
+                                {canStartEditing ? (
+                                    // Revealed on hover/focus of the enclosing `group`
+                                    // (DetailField, or the lead dossier row). Opacity,
+                                    // not `hidden`: antd's own `.anticon{display:inline-flex}`
+                                    // has the same specificity as Tailwind's `.hidden`
+                                    // and loads later, so a display-based hide never
+                                    // took effect and the pencil showed permanently.
+                                    // Plain-:hover variant (not group-hover:) for the
+                                    // same touchscreen-laptop reason as CopyValueButton.
+                                    <EditOutlined
+                                        aria-hidden="true"
+                                        className="mt-1 inline-flex shrink-0 text-blue-600 opacity-0 transition-opacity [.group:hover_&]:opacity-100 group-focus-within:opacity-100"
+                                        style={{ fontSize: 11 }}
+                                    />
+                                ) : null}
+                                {copyButton}
+                            </>
                         ) : undefined
                     }
                 />

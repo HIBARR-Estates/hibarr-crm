@@ -18,6 +18,7 @@ use App\Models\Role;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
 use App\Models\User;
+use App\Services\LeadLifecycleStatusService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -895,7 +896,8 @@ class BitrixImportController extends Controller
             if ($createdDate = $this->parseDate(Arr::get($contactData, 'createdDate'))) {
                 $lead->created_at = $createdDate;
             }
-            
+
+            app(LeadLifecycleStatusService::class)->applyDefaultIfMissing($lead);
             $lead->saveQuietly();
         } else {
             $lead->client_name = $name !== '' ? $name : $lead->client_name;

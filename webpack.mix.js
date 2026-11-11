@@ -78,8 +78,15 @@ mix.js("resources/js/bootstrap.js", "public/js")
         "public/js/main.js"
     )
     // Inertia React entry point
-    .ts("resources/js/inertia.tsx", "public/js")
-    .ts("resources/js/stale-build-banner.ts", "public/js")
+    // transpileOnly: ts-loader's default mode builds a full type-checker
+    // program for every file reachable from the entries and keeps it in
+    // memory for the whole build, which pushed `npm run production` past the
+    // 4GB heap cap. Babel strips the types anyway; type errors are not the
+    // bundler's job.
+    .ts("resources/js/inertia.tsx", "public/js", { transpileOnly: true })
+    .ts("resources/js/stale-build-banner.ts", "public/js", {
+        transpileOnly: true,
+    })
     .react()
     // .reactRefresh()
     .sass("resources/scss/main.scss", "public/css")
@@ -90,8 +97,33 @@ mix.js("resources/js/bootstrap.js", "public/js")
     .options({ processCssUrls: false })
     // A4: keep source maps in development; omit large .map files from production builds
     .sourceMaps(false, "source-map")
+    // mix.js() and each mix.ts() register an identical babel-loader rule, and
+    // webpack runs every matching rule, so Babel transformed each source file
+    // twice. Keep the first babel-loader rule per `test`.
+    .override((config) => {
+        const seenBabelTests = new Set();
+        config.module.rules = config.module.rules.filter((rule) => {
+            const usesBabel = (rule.use || []).some((use) =>
+                String(use.loader || use).includes("babel-loader")
+            );
+            if (!usesBabel) return true;
+            const key = String(rule.test);
+            if (seenBabelTests.has(key)) return false;
+            seenBabelTests.add(key);
+            return true;
+        });
+    })
     .webpackConfig({
         plugins: [new RemoveSvgStylingPlugin()],
+        // Async chunks (one per Inertia page, plus posthog) carry a content
+        // hash. With fixed names, a browser holding one release's runtime or
+        // vendor bundle (open tab, or a cached copy — .htaccess caches .js for
+        // 3h) fetched the next release's `pages-*.js` under the same URL; its
+        // module ids were missing from the old bundles and webpack threw
+        // "Cannot read properties of undefined (reading 'call')" on navigation.
+        output: mix.inProduction()
+            ? { chunkFilename: "js/[name].[contenthash:8].js" }
+            : {},
         // A1: emit vendor/common chunks (prep for async page imports in A2).
         // Names include `js/` because initial split chunks use output.filename
         // (`[name].js`), not chunkFilename — same pattern as Mix `.extract()`.
@@ -163,3 +195,10 @@ mix.js("resources/js/bootstrap.js", "public/js")
             },
         },
     });
+
+// Entry bundles keep fixed names (Blade tags them via mix()), so version them:
+// mix() then appends ?id=<hash>, and a cached react/vendor/antd/inertia.js from
+// an earlier release is never paired with this release's page chunks.
+if (mix.inProduction()) {
+    mix.version();
+}
