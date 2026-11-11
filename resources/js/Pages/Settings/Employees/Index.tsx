@@ -289,9 +289,9 @@ export default function EmployeesIndex({
                     <div className="overflow-x-auto rounded-lg border border-[#e2e5ea] bg-white">
                         <table className="w-full table-fixed border-collapse text-left">
                             <colgroup>
-                                <col style={{ width: "34%" }} />
-                                <col style={{ width: "18%" }} />
-                                <col style={{ width: "18%" }} />
+                                <col style={{ width: "32%" }} />
+                                <col style={{ width: "22%" }} />
+                                <col style={{ width: "16%" }} />
                                 <col style={{ width: "14%" }} />
                                 <col style={{ width: "160px" }} />
                             </colgroup>
@@ -323,10 +323,18 @@ export default function EmployeesIndex({
                                     return (
                                         <tr
                                             key={employee.id}
-                                            className="border-b border-[#eef0f3] align-middle last:border-b-0"
+                                            className="cursor-pointer border-b border-[#eef0f3] align-top last:border-b-0 hover:bg-[#f8f9fb]"
+                                            onClick={() => {
+                                                window.location.assign(
+                                                    route(
+                                                        "employees.show",
+                                                        employee.id,
+                                                    ),
+                                                );
+                                            }}
                                         >
                                             <td className="px-5 py-3.5">
-                                                <div className="flex items-center gap-3">
+                                                <div className="flex items-start gap-3">
                                                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
                                                         {initialsFromName(
                                                             employee.name,
@@ -336,27 +344,48 @@ export default function EmployeesIndex({
                                                         <div className="truncate text-sm font-semibold text-[#1a1f2e]">
                                                             {employee.name}
                                                         </div>
-                                                        <div className="mt-0.5 truncate text-xs text-[#9ca3af]">
-                                                            {employee.email}
-                                                            {employee.employee_id
-                                                                ? ` · ${employee.employee_id}`
-                                                                : ""}
-                                                            {employee.designation
-                                                                ? ` · ${employee.designation}`
-                                                                : ""}
-                                                        </div>
+                                                        {(employee.employee_id ||
+                                                            employee.email) && (
+                                                            <div className="mt-0.5 break-words text-xs text-[#9ca3af]">
+                                                                {employee.employee_id
+                                                                    ? `#${employee.employee_id}`
+                                                                    : ""}
+                                                                {employee.employee_id &&
+                                                                employee.email
+                                                                    ? " · "
+                                                                    : ""}
+                                                                {employee.email}
+                                                            </div>
+                                                        )}
+                                                        {employee.designation && (
+                                                            <div className="mt-0.5 break-words text-xs text-[#5b6472]">
+                                                                {employee.designation}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </td>
                                             <td className="px-5 py-3.5">
-                                                <div className="truncate text-sm text-[#1a1f2e]">
-                                                    {employee.roles
-                                                        .map(
-                                                            (role) =>
-                                                                role.display_name,
-                                                        )
-                                                        .join(", ") || "—"}
-                                                </div>
+                                                {employee.roles.length === 0 ? (
+                                                    <div className="text-sm text-[#1a1f2e]">
+                                                        —
+                                                    </div>
+                                                ) : (
+                                                    <ul className="space-y-0.5 text-sm text-[#1a1f2e]">
+                                                        {employee.roles.map(
+                                                            (role) => (
+                                                                <li
+                                                                    key={role.id}
+                                                                    className="break-words"
+                                                                >
+                                                                    {
+                                                                        role.display_name
+                                                                    }
+                                                                </li>
+                                                            ),
+                                                        )}
+                                                    </ul>
+                                                )}
                                             </td>
                                             <td className="px-5 py-3.5">
                                                 <div className="truncate text-sm text-[#1a1f2e]">
@@ -377,7 +406,12 @@ export default function EmployeesIndex({
                                                         : t("app.inactive")}
                                                 </Badge>
                                             </td>
-                                            <td className="px-5 py-3.5">
+                                            <td
+                                                className="px-5 py-3.5"
+                                                onClick={(event) =>
+                                                    event.stopPropagation()
+                                                }
+                                            >
                                                 <span title={reason}>
                                                     <Button
                                                         type="button"

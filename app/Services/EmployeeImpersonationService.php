@@ -17,6 +17,8 @@ class EmployeeImpersonationService
 {
     public const SESSION_ID = 'impersonator_id';
 
+    public const SESSION_NAME = 'impersonator_name';
+
     public function isActive(): bool
     {
         return session()->has(self::SESSION_ID);
@@ -80,6 +82,7 @@ class EmployeeImpersonationService
         $this->assume($request, $target);
 
         $request->session()->put(self::SESSION_ID, $actor->id);
+        $request->session()->put(self::SESSION_NAME, $actor->name);
 
         Log::info('Employee impersonation started', [
             'impersonator_id' => $actor->id,
@@ -107,13 +110,45 @@ class EmployeeImpersonationService
         $employeeId = $current->id;
 
         $this->assume($request, $admin);
-        $request->session()->forget(self::SESSION_ID);
+        $request->session()->forget([self::SESSION_ID, self::SESSION_NAME]);
 
         Log::info('Employee impersonation ended', [
             'impersonator_id' => $admin->id,
             'employee_id' => $employeeId,
             'company_id' => $admin->company_id,
         ]);
+    }
+
+    /**
+     * Note the admin on an activity recorded while they are signed in as
+     * someone else. The activity itself stays attributed to that person.
+     *
+     * @param  array<string, mixed>|null  $metadata
+     * @return array<string, mixed>|null
+     */
+    public function attribute(?array $metadata): ?array
+    {
+        if (! $this->isActive()) {
+            return $metadata;
+        }
+
+        $metadata ??= [];
+        $metadata['impersonator_id'] ??= (int) session(self::SESSION_ID);
+
+        $name = session(self::SESSION_NAME);
+
+        if (! is_string($name) || $name === '') {
+            $name = User::query()
+                ->withoutGlobalScope(ActiveScope::class)
+                ->whereKey(session(self::SESSION_ID))
+                ->value('name');
+        }
+
+        if (is_string($name) && $name !== '') {
+            $metadata['impersonator_name'] ??= $name;
+        }
+
+        return $metadata;
     }
 
     /**
