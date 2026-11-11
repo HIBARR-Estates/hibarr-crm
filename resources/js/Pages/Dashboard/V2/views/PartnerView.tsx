@@ -14,6 +14,8 @@ import { currencyAmount } from "../format";
 import ReferralTable from "../components/ReferralTable";
 import ReferralFlagsCard from "../components/ReferralFlagsCard";
 import FlagReferralModal from "../components/FlagReferralModal";
+import LeadDetailModal from "@/Pages/Partner/Leads/components/LeadDetailModal";
+import usePartnerLeadDetail from "@/Pages/Partner/Leads/hooks/usePartnerLeadDetail";
 import type {
     PartnerFlagThreadItem,
     PartnerForecast,
@@ -48,11 +50,9 @@ const COMMISSION_ORDER = ["paid", "pending", "reverted"];
 /**
  * The whole referral book, and nothing else.
  *
- * External partners sit outside the trust boundary: no deal values, no client
- * contact details, no handling agent, nothing about other partners. That
- * scoping is enforced in DashboardMetricsService — the fields never reach this
- * component. A partner's per-lead deal values live on the My leads view
- * (Partner/Leads), which has its own scoping.
+ * External partners sit outside the trust boundary: no email, phone, or
+ * handling agent. Opening a referral loads the same detail as My leads,
+ * still limited to leads this partner referred.
  */
 export default function PartnerView({
     partnerStats,
@@ -64,6 +64,8 @@ export default function PartnerView({
 }: PartnerViewProps) {
     const { td } = useTd();
     const [raising, setRaising] = useState(false);
+    const [openLeadId, setOpenLeadId] = useState<number | null>(null);
+    const leadDetail = usePartnerLeadDetail();
     const flaggable = useMemo(() => {
         const openLeadIds = new Set(
             (partnerFlags ?? [])
@@ -364,7 +366,13 @@ export default function PartnerView({
                 <div className={noReferrals ? undefined : "dv2-partner-book"}>
                     {!noReferrals && (
                         <DashboardPanel flush fill style={{ height: "100%" }}>
-                            <ReferralTable rows={partnerReferrals ?? []} />
+                            <ReferralTable
+                                rows={partnerReferrals ?? []}
+                                onOpen={(id) => {
+                                    setOpenLeadId(id);
+                                    leadDetail.open(id);
+                                }}
+                            />
                         </DashboardPanel>
                     )}
                     <DashboardPanel
@@ -384,7 +392,13 @@ export default function PartnerView({
                             </Button>
                         }
                     >
-                        <ReferralFlagsCard flags={partnerFlags ?? []} />
+                        <ReferralFlagsCard
+                            flags={partnerFlags ?? []}
+                            onOpen={(id) => {
+                                setOpenLeadId(id);
+                                leadDetail.open(id);
+                            }}
+                        />
                         <FlagReferralModal
                             open={raising}
                             referrals={flaggable}
@@ -394,6 +408,16 @@ export default function PartnerView({
                 </div>
                 )}
             </Deferred>
+            <LeadDetailModal
+                open={openLeadId !== null}
+                detail={leadDetail.detail}
+                loading={leadDetail.loading}
+                error={leadDetail.error}
+                onClose={() => {
+                    setOpenLeadId(null);
+                    leadDetail.close();
+                }}
+            />
         </div>
     );
 }

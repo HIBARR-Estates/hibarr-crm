@@ -3,6 +3,8 @@ import { FilterConfig } from "@/contexts/FilterContext";
 interface PartnerLeadFilterConfigProps {
     /** Lifecycle statuses the partner's own leads actually have. */
     statuses?: Array<{ id: number; label: string }>;
+    /** Preferred sources (and a differing lead source) on those leads. */
+    sources?: string[];
 }
 
 /**
@@ -12,11 +14,12 @@ interface PartnerLeadFilterConfigProps {
  * and `ActiveFilterSentence` render this page without knowing anything about
  * partners. Keys are the query params `PartnerLeadController@index` reads.
  * Search is not a field here: it lives in the page's top bar, as on Leads, so
- * it is not offered twice. Status options are only what this partner's own
- * leads have.
+ * it is not offered twice. Status and source options are only what this
+ * partner's own leads have.
  */
 const createPartnerLeadFilterConfig = ({
     statuses = [],
+    sources = [],
 }: PartnerLeadFilterConfigProps): FilterConfig => ({
     routeName: "partner.leads.index",
     title: "Lead Filters",
@@ -33,6 +36,35 @@ const createPartnerLeadFilterConfig = ({
                 value: status.id,
             })),
             placeholder: "Filter by status",
+        },
+        {
+            key: "source",
+            label: "Source",
+            type: "multiselect",
+            control: "pills",
+            section: "General",
+            sentence: "source",
+            options: sources.map((source) => ({
+                label: source,
+                value: source,
+            })),
+            placeholder: "Filter by source",
+        },
+        {
+            key: "added_from",
+            label: "Added",
+            type: "date",
+            control: "datePresets",
+            sentence: "added",
+            section: "General",
+            rangeKeys: ["added_from", "added_to"],
+        },
+        {
+            key: "added_to",
+            label: "Added to",
+            type: "date",
+            section: "General",
+            hidden: true,
         },
         {
             key: "deals",

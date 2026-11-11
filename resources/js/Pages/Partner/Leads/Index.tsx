@@ -14,7 +14,7 @@ import createPartnerLeadFilterConfig from "@/configs/partnerLeadFilterConfig";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { mergeQueryParams } from "@/lib/inertiaQuery";
+import { mergeQueryParams, getCurrentQueryParams } from "@/lib/inertiaQuery";
 import LeadDetailModal from "./components/LeadDetailModal";
 import PartnerLeadsResultsView from "./components/PartnerLeadsResultsView";
 import usePartnerLeadDetail from "./hooks/usePartnerLeadDetail";
@@ -28,7 +28,7 @@ interface Props {
     hasAgent: boolean;
 }
 
-const NO_OPTIONS: PartnerLeadOptions = { statuses: [] };
+const NO_OPTIONS: PartnerLeadOptions = { statuses: [], sources: [] };
 
 /** Placeholder rows shaped like the table, so the page does not jump when it lands. */
 function ResultsSkeleton() {
@@ -68,6 +68,7 @@ const PartnerLeadsIndex = ({ pageTitle, leads, hasAgent }: Props) => {
         [optionsKey],
     );
     const { filter } = usePageSearchAndFilter({ filterConfig });
+    const addedSort = getCurrentQueryParams().sort === "added_asc" ? "added_asc" : "added_desc";
     const { openDrawer } = filter;
 
     // Count clauses, not raw keys, so the badge matches the filter sentence.
@@ -158,6 +159,13 @@ const PartnerLeadsIndex = ({ pageTitle, leads, hasAgent }: Props) => {
                                 isPaging={isPaging}
                                 filtered={activeFilterCount > 0}
                                 onClearFilters={filter.resetFilters}
+                                sort={addedSort}
+                                onToggleAddedSort={() =>
+                                    visitList({
+                                        sort: addedSort === "added_asc" ? "added_desc" : "added_asc",
+                                        page: 1,
+                                    })
+                                }
                             />
                         ) : (
                             <EmptyState

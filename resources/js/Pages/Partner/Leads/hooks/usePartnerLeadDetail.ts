@@ -3,8 +3,9 @@ import axios from "axios";
 import type { PartnerLeadDetail } from "../types";
 
 /**
- * One lead's detail for the modal. Fetched on open and kept per id, so
- * reopening a lead the partner has already looked at is instant.
+ * One lead's detail for the modal. A lead already opened in this session
+ * shows at once, then refreshes, so a flag or a new deal is not stuck on
+ * the first look.
  *
  * Only the lead currently asked for may touch the modal's state: a slow
  * response for a lead the partner has since closed (or swapped for another)
@@ -25,11 +26,11 @@ export default function usePartnerLeadDetail() {
         if (cached) {
             setDetail(cached);
             setLoading(false);
-            return;
+        } else {
+            setDetail(null);
+            setLoading(true);
         }
 
-        setDetail(null);
-        setLoading(true);
         try {
             const response = await axios.get(route("partner.leads.show", id));
             const data = response.data?.data as PartnerLeadDetail | undefined;
@@ -40,7 +41,7 @@ export default function usePartnerLeadDetail() {
             cache.current.set(id, data);
             if (requested.current === id) setDetail(data);
         } catch {
-            if (requested.current === id) setError(true);
+            if (requested.current === id && !cache.current.has(id)) setError(true);
         } finally {
             if (requested.current === id) setLoading(false);
         }

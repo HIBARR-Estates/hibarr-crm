@@ -2195,6 +2195,7 @@ class DashboardMetricsService
                     'stage' => $stage,
                     'stalled' => self::referralIsStalled($touched, $idleDays, $stalledAfterDays, $requireTouch),
                     'days_open' => (int) Carbon::parse($row->created_at)->diffInDays(now()),
+                    'added_at' => $row->created_at ? Carbon::parse($row->created_at)->toIso8601String() : null,
                     'idle_days' => $idleDays,
                     'flag_status' => $row->flag_status,
                     'flag_response' => $row->flag_response,

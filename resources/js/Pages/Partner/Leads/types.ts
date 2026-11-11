@@ -29,6 +29,8 @@ export interface DealCounts {
 export interface PartnerLeadOptions {
     /** Lifecycle statuses the partner's own leads actually have. */
     statuses: LeadStatus[];
+    /** Preferred sources, plus a lead source when it differs from that. */
+    sources: string[];
 }
 
 export interface PartnerLeadsPage {
@@ -61,6 +63,16 @@ export interface PartnerLeadTotal extends CurrencyRef {
     amount: number;
 }
 
+export interface PartnerFlagDetail {
+    id: number;
+    reason: string;
+    message: string | null;
+    status: string;
+    response: string | null;
+    created_at: string | null;
+    resolved_at: string | null;
+}
+
 export interface PartnerLeadDetail {
     id: number;
     name: string | null;
@@ -68,7 +80,15 @@ export interface PartnerLeadDetail {
     source: string | null;
     /** Lead source, only when it differs from `source`. */
     lead_source: string | null;
+    utm_medium: string | null;
+    utm_campaign: string | null;
     status: LeadStatus | null;
+    added_at: string | null;
+    updated_at: string | null;
+    first_contacted_at: string | null;
+    first_meeting_at: string | null;
+    /** Flags this partner raised on the lead, newest first. */
+    flags: PartnerFlagDetail[];
     active_deals: PartnerDealRow[];
     closed_deals: PartnerDealRow[];
     /** Open plus won deals, per currency. Lost deals are listed, not counted. */

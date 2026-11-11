@@ -9,13 +9,21 @@ const LABEL_STYLE = {
     color: T.TEXT,
 };
 
+interface Props {
+    /** "added_desc" is newest first. */
+    sort: "added_asc" | "added_desc";
+    onToggleAddedSort: () => void;
+}
+
 /**
  * Column headings for the list. The widths and responsive classes come from
  * `PartnerLeadRow`'s own column table, so a column that disappears at a
- * breakpoint disappears from both halves at once.
+ * breakpoint disappears from both halves at once. Added is the one sortable
+ * column: the header toggles oldest and newest.
  */
-export default function PartnerLeadsListHeader() {
+export default function PartnerLeadsListHeader({ sort, onToggleAddedSort }: Props) {
     const { td } = useTd();
+    const newestFirst = sort !== "added_asc";
 
     return (
         <div
@@ -27,6 +35,29 @@ export default function PartnerLeadsListHeader() {
             }}
         >
             <span className="min-w-0 flex-1">{td("Lead")}</span>
+            <span className={`shrink-0 ${C.added.className}`} style={{ width: C.added.width }}>
+                <button
+                    type="button"
+                    onClick={onToggleAddedSort}
+                    aria-sort={newestFirst ? "descending" : "ascending"}
+                    style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        padding: 0,
+                        border: "none",
+                        background: "none",
+                        color: "inherit",
+                        font: "inherit",
+                        letterSpacing: "inherit",
+                        textTransform: "inherit",
+                        cursor: "pointer",
+                    }}
+                >
+                    {td("Added")}
+                    <span aria-hidden>{newestFirst ? "↓" : "↑"}</span>
+                </button>
+            </span>
             <span className={`shrink-0 ${C.source.className}`} style={{ width: C.source.width }}>
                 {td("Source")}
             </span>

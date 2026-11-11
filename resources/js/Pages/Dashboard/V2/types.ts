@@ -214,6 +214,8 @@ export interface PartnerReferral {
     stage: string;
     stalled: boolean;
     days_open: number;
+    /** When the lead was added. */
+    added_at: string | null;
     idle_days: number;
     /** Null when this partner has no open flag on the referral. */
     flag_status: "open" | "acknowledged" | null;
