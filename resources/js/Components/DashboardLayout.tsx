@@ -23,6 +23,7 @@ export interface PageProps extends InertiaPageProps {
         worksuitePlugins?: unknown[];
     };
     currentRouteName: string;
+    impersonation?: { active: boolean } | null;
     /** Null unless crm.agent-workspace is on (see HandleInertiaRequests). */
     agentWorkspace?: { url: string | null; manageUrl: string | null } | null;
     /** Set only for members of the departments assigned to the marketing lead flow. */

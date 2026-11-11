@@ -166,6 +166,16 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
               ]
             : []),
         {
+            key: "employees",
+            icon: <TeamOutlined />,
+            iconBg: "bg-slate-50",
+            iconColor: "text-slate-600",
+            title: t("app.menu.employees"),
+            description: t("app.settingsHub.employeesDesc"),
+            connected: true,
+            onOpen: () => router.visit(route("settings-employees.index")),
+        },
+        {
             key: "audit-log",
             icon: <AuditOutlined />,
             iconBg: "bg-slate-100",

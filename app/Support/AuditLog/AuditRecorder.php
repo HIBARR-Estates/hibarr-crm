@@ -77,8 +77,20 @@ class AuditRecorder
             });
         }
 
-        Event::listen(Login::class, fn (Login $e) => $this->recordAuthEvent('login', $e->user));
-        Event::listen(Logout::class, fn (Logout $e) => $this->recordAuthEvent('logout', $e->user));
+        Event::listen(Login::class, function (Login $e) {
+            $trigger = AuthTrigger::forLogin($e);
+
+            if ($trigger !== null) {
+                $this->recordAuthEvent('login', $e->user, $trigger);
+            }
+        });
+        Event::listen(Logout::class, function (Logout $e) {
+            $trigger = AuthTrigger::forLogout();
+
+            if ($trigger !== null) {
+                $this->recordAuthEvent('logout', $e->user, $trigger);
+            }
+        });
         Event::listen(PasswordReset::class, fn (PasswordReset $e) => $this->recordAuthEvent('password_reset', $e->user));
         Event::listen(Failed::class, fn (Failed $e) => $this->recordFailedLogin($e));
 
@@ -126,10 +138,16 @@ class AuditRecorder
         });
     }
 
-    public function recordAuthEvent(string $event, ?Authenticatable $user): void
+    public function recordAuthEvent(string $event, ?Authenticatable $user, ?string $trigger = null): void
     {
-        $this->safely(function () use ($event, $user) {
+        $this->safely(function () use ($event, $user, $trigger) {
             if (! $user) {
+                return;
+            }
+
+            // Sign-in and sign-out are only recorded when the reason is known.
+            // A password reset has no such reason.
+            if (in_array($event, ['login', 'logout'], true) && ($trigger === null || $trigger === '')) {
                 return;
             }
 
@@ -142,8 +160,32 @@ class AuditRecorder
                 'auditable_id' => $this->stringOrNull($user->getAuthIdentifier(), 64),
                 'auditable_label' => $model ? $this->labelFor($model) : null,
                 'old_values' => null,
-                'new_values' => null,
+                'new_values' => $trigger ? $this->encode(['trigger' => $trigger]) : null,
             ], $user);
+        });
+    }
+
+    /**
+     * An administrator started or stopped acting as an employee. This is not
+     * a sign-in or a sign-out: the admin's own session never ended.
+     */
+    public function recordImpersonation(string $event, Model $admin, Model $employee): void
+    {
+        $this->safely(function () use ($event, $admin, $employee) {
+            $name = $employee->getAttributes()['name'] ?? null;
+
+            $this->write($employee->getConnectionName(), [
+                'company_id' => $this->intOrNull($employee->getAttributes()['company_id'] ?? null),
+                'event' => $event,
+                'auditable_type' => $employee->getMorphClass(),
+                'auditable_id' => $this->stringOrNull($employee->getKey(), 64),
+                'auditable_label' => $this->labelFor($employee),
+                'old_values' => null,
+                'new_values' => $this->encode([
+                    'trigger' => $event,
+                    'on_behalf_of_name' => is_string($name) ? $name : null,
+                ]),
+            ], $admin instanceof Authenticatable ? $admin : null);
         });
     }
 

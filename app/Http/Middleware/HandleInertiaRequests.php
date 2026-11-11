@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Email\EmailFeature;
 use App\Models\UserNotificationAlertSetting;
 use App\Models\UserProductTour;
+use App\Services\EmployeeImpersonationService;
 use App\Services\I18nTranslationService;
 use App\Support\AgentWorkspaceAccess;
 use App\Support\AppBuild;
@@ -111,6 +112,9 @@ class HandleInertiaRequests extends Middleware
             'marketingLeadIntake' => fn () => $this->getMarketingLeadIntake($request),
             'emailPilot' => fn () => EmailFeature::enabled() && $request->user()?->hasRole('admin')
                 ? ['manageUrl' => '/account/settings/email-pilot']
+                : null,
+            'impersonation' => fn () => session()->has(EmployeeImpersonationService::SESSION_ID)
+                ? ['active' => true]
                 : null,
             'viewerTimezone' => fn () => UserTimezone::forViewer(
                 $request->user(),

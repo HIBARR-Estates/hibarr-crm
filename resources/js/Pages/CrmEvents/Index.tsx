@@ -34,6 +34,7 @@ import {
 import dayjs from "dayjs";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { onBehalfOfName } from "@/Components/CrmEvents/onBehalfOf";
 import type {
     CrmEvent,
     CrmEventCategory,
@@ -257,16 +258,24 @@ function Index({
             title: "User",
             dataIndex: "user",
             key: "user",
-            width: 140,
-            render: (_: any, record: CrmEvent) =>
-                record.user ? (
+            width: 220,
+            render: (_: any, record: CrmEvent) => {
+                const behalfName = onBehalfOfName(record.metadata);
+
+                return record.user ? (
                     <Text className="text-[13px]">
                         <UserOutlined className="mr-1 text-gray-400" />
-                        {record.user.name}
+                        {behalfName
+                            ? t("app.impersonation.onBehalfOf", {
+                                  admin: record.user.name,
+                                  name: behalfName,
+                              })
+                            : record.user.name}
                     </Text>
                 ) : (
                     <Text type="secondary">—</Text>
-                ),
+                );
+            },
         },
         {
             title: "Model",
