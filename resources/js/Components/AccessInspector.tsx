@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Popover } from "antd";
+import { LockOutlined } from "@ant-design/icons";
 import { usePage } from "@inertiajs/react";
 import { useTranslation } from "@/Hooks/useTranslation";
 import useIsAdminRole from "@/Hooks/useIsAdminRole";
@@ -76,10 +77,8 @@ export default function AccessInspector() {
     const flags = page.props.featureFlags ?? {};
     const permissions = page.props.auth?.permissions ?? {};
 
-    const isDev =
-        (typeof process !== "undefined" && process.env?.NODE_ENV !== "production") ||
-        (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV === true;
-    const visible = isAdmin || isDev;
+    // Render only for admin users
+    const visible = isAdmin;
 
     const entry = pageOnly ? pageAccessFor(page.component) : undefined;
     const pageScoped = pageOnly && entry !== undefined;
@@ -327,21 +326,26 @@ export default function AccessInspector() {
                 },
             }}
         >
-            <span>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={<Icon name="lock" size={14} />}
-                    aria-label={t("app.access_inspector.title")}
-                    aria-expanded={open}
-                    aria-haspopup="dialog"
-                >
-                    <span className="hidden lg:inline">
-                        {t("app.access_inspector.title")}
-                    </span>
-                </Button>
-            </span>
+            <button
+                type="button"
+                className="inline-flex items-center gap-1.5 h-11 px-3 rounded-lg text-[13px] font-medium text-[#374151] bg-transparent hover:bg-gray-100 transition-colors border-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                style={{
+                    height: "44px",
+                    padding: "0 12px",
+                    borderRadius: "8px",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#374151",
+                    background: "transparent",
+                    border: "none",
+                }}
+                aria-label={t("app.access_inspector.title") || "Access"}
+                aria-expanded={open}
+                aria-haspopup="dialog"
+            >
+                <LockOutlined style={{ fontSize: 15 }} aria-hidden="true" />
+                <span>{t("app.access_inspector.title") || "Access"}</span>
+            </button>
         </Popover>
     );
 }

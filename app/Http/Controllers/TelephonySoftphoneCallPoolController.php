@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helper\Files;
 use App\Models\Company;
 use App\Models\Permission;
 use App\Models\PermissionType;
@@ -15,11 +16,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Incoming call routing pool (per-line agent pools and admin fallback list).
+ * Incoming call routing pool (per-line agent pools, default fallback tier, and admin fallback tier).
  *
- * Each line has its own pool of agents. If the lead owner and line agents do not
- * answer within the fallback window, the call routes to the admin fallback list.
- * Membership is managed per line (device_id, user_id) or globally (null, user_id).
+ * Tier 1: Lead Owner (Direct route when incoming caller matches a CRM lead)
+ * Tier 2: Line call pool (device_id, user_id)
+ * Tier 2: Default fallback tier (tier = 'default_fallback', device_id = null)
+ * Tier 3: Admin fallback tier (tier = 'admin_fallback', device_id = null)
+ * Tier 4: Fallback voice message (behind softphone.voicemail flag)
  *
  * Reads are open to any company user behind the crm.softphone flag so the
  * dock can resolve the ring list. Writes are admin-only.
@@ -27,12 +30,13 @@ use Illuminate\Support\Facades\DB;
 class TelephonySoftphoneCallPoolController extends AccountBaseController
 {
     /**
-     * Compute the next available priority for a pool, defaulting to 100 or the lowest unused slot <= 100.
+     * Compute the next available priority for a pool/tier, defaulting to 100 or the lowest unused slot <= 100.
      */
-    private function nextAvailablePriority(int $companyId, ?int $deviceId, ?int $userId = null): int
+    private function nextAvailablePriority(int $companyId, string $tier, ?int $deviceId, ?int $userId = null): int
     {
         $existing = SoftphoneCallPoolAgent::query()
             ->where('company_id', $companyId)
+            ->where('tier', $tier)
             ->when($deviceId !== null, fn ($q) => $q->where('device_id', $deviceId), fn ($q) => $q->whereNull('device_id'))
             ->when($userId !== null, fn ($q) => $q->where('user_id', '!=', $userId))
             ->pluck('priority')
@@ -52,28 +56,49 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         return 100;
     }
 
-    /** Pool members for one line or the global admin fallback list. */
+    /**
+     * Resolve tier from request scope and device_id.
+     */
+    private function resolveTier(Request $request): string
+    {
+        $scope = (string) $request->input('scope', '');
+        $rawDeviceId = (string) $request->input('device_id', '');
+
+        if ($scope === 'default_fallback' || $scope === 'default') {
+            return SoftphoneCallPoolAgent::TIER_DEFAULT_FALLBACK;
+        }
+
+        if ($scope === 'admin_fallback' || $scope === 'fallback' || $rawDeviceId === 'fallback') {
+            return SoftphoneCallPoolAgent::TIER_ADMIN_FALLBACK;
+        }
+
+        return SoftphoneCallPoolAgent::TIER_LINE;
+    }
+
+    /** Pool members for a line or one of the fallback tiers. */
     public function index(Request $request): JsonResponse
     {
         $this->assertSoftphoneEnabled();
 
         $companyId = (int) company()->id;
-        $fallbackSeconds = (int) (Company::query()->whereKey($companyId)->value('incoming_call_fallback_seconds') ?? company()->incoming_call_fallback_seconds ?? 20);
+        $company = Company::query()->whereKey($companyId)->first();
+        $fallbackSeconds = (int) ($company?->incoming_call_fallback_seconds ?? 20);
 
-        $scope = $request->input('scope');
-        $rawDeviceId = $request->input('device_id');
+        $tier = $this->resolveTier($request);
+        $isLine = $tier === SoftphoneCallPoolAgent::TIER_LINE;
 
-        $isFallback = $scope === 'fallback' || $rawDeviceId === 'fallback' || ($rawDeviceId !== null && (int) $rawDeviceId === 0 && $scope !== 'line');
-
-        if (! $isFallback) {
+        if ($isLine) {
             $deviceId = (int) $request->input('device_id', 0);
             $this->assertDeviceBelongsToCompany($deviceId);
+        } else {
+            $deviceId = null;
         }
 
         $agentsQuery = SoftphoneCallPoolAgent::query()
             ->where('company_id', $companyId)
-            ->when($isFallback, fn ($q) => $q->whereNull('device_id'), fn ($q) => $q->where('device_id', (int) $request->input('device_id', 0)))
-            ->with('user:id,name,email')
+            ->where('tier', $tier)
+            ->when($isLine, fn ($q) => $q->where('device_id', $deviceId), fn ($q) => $q->whereNull('device_id'))
+            ->with('user:id,name,email,can_receive_calls')
             ->orderBy('priority')
             ->orderBy('id')
             ->get();
@@ -94,7 +119,9 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
                 'name' => $agent->user?->name,
                 'email' => $agent->user?->email,
                 'priority' => $agent->priority,
-                'active' => $agent->active,
+                'active' => (bool) $agent->active,
+                'tier' => $agent->tier,
+                'can_receive_calls' => (bool) ($agent->user?->can_receive_calls ?? true),
                 'has_permission' => isset($permissionUsers[$agent->user_id]),
             ])
             ->values();
@@ -103,7 +130,13 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
             'status' => 'success',
             'data' => [
                 'agents' => $agents,
+                'tier' => $tier,
                 'fallback_seconds' => $fallbackSeconds,
+                'fallback_voice_message_enabled' => (bool) ($company?->fallback_voice_message_enabled ?? false),
+                'fallback_voice_message_url' => $company?->fallback_voice_message_url,
+                'fallback_voice_message_text' => $company?->fallback_voice_message_text ?? 'We are unable to take your call at this time. Please try again later.',
+                'fallback_voice_message_repeat_count' => (int) ($company?->fallback_voice_message_repeat_count ?? 1),
+                'voice_message_flag_enabled' => FeatureFlags::enabled('softphone.voicemail'),
             ],
         ]);
     }
@@ -115,7 +148,8 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         $this->assertCanManage();
 
         $companyId = (int) company()->id;
-        $isFallback = $request->input('scope') === 'fallback' || $request->input('fallback') == '1';
+        $tier = $this->resolveTier($request);
+        $isFallback = $tier !== SoftphoneCallPoolAgent::TIER_LINE;
 
         $users = $isFallback
             ? SoftphoneCallPoolAgent::eligibleFallbackUsersForCompany($companyId)
@@ -137,6 +171,7 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'can_receive_calls' => (bool) ($user->can_receive_calls ?? true),
                     'has_permission' => isset($permissionUsers[$user->id]),
                 ])->values(),
             ],
@@ -144,125 +179,142 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
     }
 
     /**
-     * Add an agent to a line call pool or the admin fallback list.
+     * Add an agent to a line call pool or fallback tier, or update company telephony settings.
      */
     public function store(Request $request): JsonResponse
     {
         $this->assertSoftphoneEnabled();
         $this->assertCanManage();
 
-        if ($request->has('incoming_call_fallback_seconds') && ! $request->has('user_id')) {
-            $validated = $request->validate([
-                'incoming_call_fallback_seconds' => 'required|integer|min:1|max:600',
-            ]);
-            $seconds = (int) $validated['incoming_call_fallback_seconds'];
-            $companyId = (int) company()->id;
+        $companyId = (int) company()->id;
 
-            Company::query()
-                ->whereKey($companyId)
-                ->update(['incoming_call_fallback_seconds' => $seconds]);
+        if ($this->isSettingsUpdateRequest($request)) {
+            return $this->updateTelephonySettings($request, $companyId);
+        }
+
+        return $this->addAgentToPool($request, $companyId);
+    }
+
+    /**
+     * Check if the incoming request is updating company-wide telephony rotation settings.
+     */
+    private function isSettingsUpdateRequest(Request $request): bool
+    {
+        $settingsKeys = [
+            'incoming_call_fallback_seconds',
+            'fallback_voice_message_enabled',
+            'fallback_voice_message_repeat_count',
+            'fallback_voice_message_text',
+            'fallback_voice_message_url',
+        ];
+
+        return ! $request->has('user_id') && $request->hasAny($settingsKeys);
+    }
+
+    /**
+     * Update company-level call rotation timing and voice message fallback settings.
+     */
+    private function updateTelephonySettings(Request $request, int $companyId): JsonResponse
+    {
+        $validated = $request->validate([
+            'incoming_call_fallback_seconds' => 'nullable|integer|min:1|max:600',
+            'fallback_voice_message_enabled' => 'nullable|boolean',
+            'fallback_voice_message_repeat_count' => 'nullable|integer|min:1|max:10',
+            'fallback_voice_message_text' => 'nullable|string|max:500',
+            'fallback_voice_message_url' => 'nullable|string|max:500',
+        ]);
+
+        $updates = [];
+        if (isset($validated['incoming_call_fallback_seconds'])) {
+            $updates['incoming_call_fallback_seconds'] = (int) $validated['incoming_call_fallback_seconds'];
+        }
+        if (array_key_exists('fallback_voice_message_enabled', $validated)) {
+            $updates['fallback_voice_message_enabled'] = (bool) $validated['fallback_voice_message_enabled'];
+        }
+        if (isset($validated['fallback_voice_message_repeat_count'])) {
+            $updates['fallback_voice_message_repeat_count'] = (int) $validated['fallback_voice_message_repeat_count'];
+        }
+        if (array_key_exists('fallback_voice_message_text', $validated)) {
+            $updates['fallback_voice_message_text'] = $validated['fallback_voice_message_text'];
+        }
+        if (array_key_exists('fallback_voice_message_url', $validated)) {
+            $updates['fallback_voice_message_url'] = $validated['fallback_voice_message_url'];
+        }
+
+        if (! empty($updates)) {
+            Company::query()->whereKey($companyId)->update($updates);
 
             if (session()->has('company')) {
                 $cached = session('company');
-                $cached->incoming_call_fallback_seconds = $seconds;
+                foreach ($updates as $key => $val) {
+                    $cached->{$key} = $val;
+                }
                 session(['company' => $cached]);
             }
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Call rotation timing updated.',
-                'data' => ['fallback_seconds' => $seconds],
-            ]);
         }
 
-        $companyId = (int) company()->id;
-        $isFallback = $request->input('scope') === 'fallback'
-            || $request->input('device_id') === 'fallback';
+        $updatedCompany = Company::query()->whereKey($companyId)->first();
 
-        if ($isFallback) {
-            $validated = $request->validate([
-                'user_id' => 'required|integer|min:1',
-                'priority' => 'nullable|integer|min:1|max:100',
-                'active' => 'sometimes|boolean',
-            ]);
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Telephony settings updated.',
+            'data' => [
+                'fallback_seconds' => (int) ($updatedCompany?->incoming_call_fallback_seconds ?? 20),
+                'fallback_voice_message_enabled' => (bool) ($updatedCompany?->fallback_voice_message_enabled ?? false),
+                'fallback_voice_message_repeat_count' => (int) ($updatedCompany?->fallback_voice_message_repeat_count ?? 1),
+                'fallback_voice_message_text' => $updatedCompany?->fallback_voice_message_text,
+                'fallback_voice_message_url' => $updatedCompany?->fallback_voice_message_url,
+            ],
+        ]);
+    }
 
-            $userId = (int) $validated['user_id'];
-            $user = \App\Models\User::find($userId);
-            abort_unless($user !== null && (int) $user->company_id === $companyId, 404);
-            abort_unless(
-                SoftphoneCallPoolAgent::eligibleFallbackUsersForCompany($companyId)->contains('id', $userId),
-                422,
-                'User is not eligible for the fallback list.'
-            );
+    /**
+     * Add a user to a specific call pool or fallback tier.
+     */
+    private function addAgentToPool(Request $request, int $companyId): JsonResponse
+    {
+        $tier = $this->resolveTier($request);
+        $isLine = $tier === SoftphoneCallPoolAgent::TIER_LINE;
 
-            return DB::transaction(function () use ($companyId, $userId, $validated) {
-                Company::query()->whereKey($companyId)->lockForUpdate()->first();
-
-                $explicitPriority = isset($validated['priority']) && is_numeric($validated['priority'])
-                    ? (int) $validated['priority']
-                    : null;
-                $priority = $explicitPriority ?? $this->nextAvailablePriority($companyId, null, $userId);
-
-                $duplicate = SoftphoneCallPoolAgent::query()
-                    ->where('company_id', $companyId)
-                    ->whereNull('device_id')
-                    ->where('user_id', '!=', $userId)
-                    ->where('priority', $priority)
-                    ->exists();
-
-                if ($duplicate) {
-                    return response()->json([
-                        'status' => 'fail',
-                        'message' => "Priority {$priority} is already assigned to another agent in the fallback list. Each agent must have a unique priority from 1 to 100.",
-                    ], 422);
-                }
-
-                $agent = SoftphoneCallPoolAgent::updateOrCreate(
-                    [
-                        'company_id' => $companyId,
-                        'device_id' => null,
-                        'user_id' => $userId,
-                    ],
-                    [
-                        'priority' => $priority,
-                        'active' => $validated['active'] ?? true,
-                        'last_updated_by' => (int) user()->id,
-                    ],
-                );
-
-                return response()->json([
-                    'status' => 'success',
-                    'message' => 'User added to admin fallback list.',
-                    'data' => ['id' => $agent->id],
-                ]);
-            });
-        }
-
-        $validated = $request->validate([
-            'device_id' => 'required|integer|min:1',
+        $rules = [
             'user_id' => 'required|integer|min:1',
             'priority' => 'nullable|integer|min:1|max:100',
             'active' => 'sometimes|boolean',
-        ]);
+        ];
+        if ($isLine) {
+            $rules['device_id'] = 'required|integer|min:1';
+        }
 
-        $deviceId = (int) $validated['device_id'];
-        $this->assertDeviceBelongsToCompany($deviceId);
-
+        $validated = $request->validate($rules);
         $userId = (int) $validated['user_id'];
-        $user = \App\Models\User::find($userId);
-        abort_unless($user !== null && (int) $user->company_id === $companyId, 404);
+        $user = User::query()->where('company_id', $companyId)->find($userId);
+        abort_unless($user !== null, 404);
 
-        return DB::transaction(function () use ($companyId, $deviceId, $userId, $validated) {
+        if (! $isLine) {
+            abort_unless(
+                SoftphoneCallPoolAgent::eligibleFallbackUsersForCompany($companyId)->contains('id', $userId),
+                422,
+                'User is not eligible for this fallback tier.'
+            );
+        }
+
+        $deviceId = $isLine ? (int) $validated['device_id'] : null;
+        if ($isLine) {
+            $this->assertDeviceBelongsToCompany($deviceId);
+        }
+
+        return DB::transaction(function () use ($companyId, $tier, $deviceId, $userId, $validated) {
             Company::query()->whereKey($companyId)->lockForUpdate()->first();
 
             $explicitPriority = isset($validated['priority']) && is_numeric($validated['priority'])
                 ? (int) $validated['priority']
                 : null;
-            $priority = $explicitPriority ?? $this->nextAvailablePriority($companyId, $deviceId, $userId);
+            $priority = $explicitPriority ?? $this->nextAvailablePriority($companyId, $tier, $deviceId, $userId);
 
             $duplicate = SoftphoneCallPoolAgent::query()
                 ->where('company_id', $companyId)
-                ->where('device_id', $deviceId)
+                ->where('tier', $tier)
+                ->when($deviceId !== null, fn ($q) => $q->where('device_id', $deviceId), fn ($q) => $q->whereNull('device_id'))
                 ->where('user_id', '!=', $userId)
                 ->where('priority', $priority)
                 ->exists();
@@ -270,35 +322,44 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
             if ($duplicate) {
                 return response()->json([
                     'status' => 'fail',
-                    'message' => "Priority {$priority} is already assigned to another agent on this line. Each agent must have a unique priority from 1 to 100.",
+                    'message' => "Priority {$priority} is already assigned to another agent in this list. Each agent must have a unique priority from 1 to 100.",
                 ], 422);
             }
 
-            $this->ensureSoftphonePermission($userId);
+            if ($tier === SoftphoneCallPoolAgent::TIER_LINE) {
+                $this->ensureSoftphonePermission($userId);
+            }
 
             $agent = SoftphoneCallPoolAgent::updateOrCreate(
                 [
+                    'company_id' => $companyId,
+                    'tier' => $tier,
                     'device_id' => $deviceId,
                     'user_id' => $userId,
                 ],
                 [
-                    'company_id' => $companyId,
                     'priority' => $priority,
                     'active' => $validated['active'] ?? true,
                     'last_updated_by' => (int) user()->id,
                 ],
             );
 
+            $tierName = match ($tier) {
+                SoftphoneCallPoolAgent::TIER_DEFAULT_FALLBACK => 'default fallback tier',
+                SoftphoneCallPoolAgent::TIER_ADMIN_FALLBACK => 'admin fallback tier',
+                default => 'line pool',
+            };
+
             return response()->json([
                 'status' => 'success',
-                'message' => 'Agent added to the line pool.',
+                'message' => "User added to {$tierName}.",
                 'data' => ['id' => $agent->id],
             ]);
         });
     }
 
     /**
-     * Update a pool agent's priority or active status.
+     * Update a pool agent's priority or active status (the 'Route calls to me' toggle).
      */
     public function update(Request $request, int $id): JsonResponse
     {
@@ -328,6 +389,7 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
 
                 $query = SoftphoneCallPoolAgent::query()
                     ->where('company_id', (int) $agent->company_id)
+                    ->where('tier', $agent->tier ?? SoftphoneCallPoolAgent::TIER_LINE)
                     ->where('id', '!=', $agent->id)
                     ->where('priority', $priority);
 
@@ -346,16 +408,22 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
 
                 $agent->priority = $priority;
             }
+
             if (array_key_exists('active', $validated)) {
-                $agent->active = $validated['active'];
+                $agent->active = (bool) $validated['active'];
             }
+
             $agent->last_updated_by = (int) user()->id;
             $agent->save();
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Pool agent updated.',
-                'data' => ['id' => $agent->id],
+                'data' => [
+                    'id' => $agent->id,
+                    'active' => (bool) $agent->active,
+                    'priority' => $agent->priority,
+                ],
             ]);
         });
     }
@@ -380,6 +448,162 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
     }
 
     /**
+     * Current user's personal availability toggle: "Yes I can receive calls".
+     * Available to any authenticated softphone user.
+     */
+    public function toggleUserAvailability(Request $request): JsonResponse
+    {
+        $this->assertSoftphoneEnabled();
+
+        $validated = $request->validate([
+            'can_receive_calls' => 'required|boolean',
+        ]);
+
+        /** @var User $currentUser */
+        $currentUser = user();
+        abort_unless($currentUser !== null, 401);
+        abort_unless(
+            $currentUser->hasRole('admin')
+            || in_array($currentUser->permission('make_softphone_calls'), ['all', 'added'], true)
+            || $currentUser->permission('manage_calls') === 'all',
+            403
+        );
+
+        $canReceive = (bool) $validated['can_receive_calls'];
+        $currentUser->can_receive_calls = $canReceive;
+        $currentUser->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => $canReceive ? 'You are now available to receive calls.' : 'You will not receive incoming calls.',
+            'data' => [
+                'user_id' => $currentUser->id,
+                'can_receive_calls' => $canReceive,
+            ],
+        ]);
+    }
+
+    /**
+     * Upload an audio file for the company voicemail fallback greeting.
+     * Note: This upload endpoint is not gated by softphone.voicemail flag.
+     */
+    public function uploadVoicemailFile(Request $request): JsonResponse
+    {
+        $this->assertSoftphoneEnabled();
+        $this->assertCanManage();
+
+        $request->validate([
+            'file' => 'required|file|mimes:mp3,wav,ogg,m4a,aac|max:10240',
+        ]);
+
+        $companyId = (int) company()?->id;
+        abort_unless($companyId > 0, 400, 'No active company found.');
+
+        $file = $request->file('file');
+        $filename = Files::uploadLocalOrS3($file, 'voicemail');
+        $fileUrl = asset_url_local_s3('voicemail/' . $filename);
+
+        Company::query()->whereKey($companyId)->update([
+            'fallback_voice_message_url' => $fileUrl,
+        ]);
+
+        if (session()->has('company')) {
+            $cached = session('company');
+            $cached->fallback_voice_message_url = $fileUrl;
+            session(['company' => $cached]);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Voicemail audio file uploaded successfully.',
+            'fallback_voice_message_url' => $fileUrl,
+        ]);
+    }
+
+    /**
+     * Remove the company voicemail audio file.
+     */
+    public function deleteVoicemailFile(): JsonResponse
+    {
+        $this->assertSoftphoneEnabled();
+        $this->assertCanManage();
+
+        $companyId = (int) company()?->id;
+        abort_unless($companyId > 0, 400, 'No active company found.');
+
+        $company = Company::query()->whereKey($companyId)->first();
+        if ($company && $company->fallback_voice_message_url) {
+            $url = $company->fallback_voice_message_url;
+            $filename = basename(parse_url($url, PHP_URL_PATH) ?? '');
+            $cleanFilename = preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $filename);
+            if ($cleanFilename && ! str_contains($cleanFilename, '..')) {
+                $otherCompanyUsesFile = Company::query()
+                    ->where('id', '!=', $companyId)
+                    ->where('fallback_voice_message_url', 'like', "%/{$cleanFilename}")
+                    ->exists();
+
+                if (! $otherCompanyUsesFile) {
+                    try {
+                        Files::deleteFile($cleanFilename, 'voicemail');
+                    } catch (\Throwable $e) {
+                        // Suppress if file cannot be unlinked or was external
+                    }
+                }
+            }
+        }
+
+        Company::query()->whereKey($companyId)->update([
+            'fallback_voice_message_url' => null,
+        ]);
+
+        if (session()->has('company')) {
+            $cached = session('company');
+            $cached->fallback_voice_message_url = null;
+            session(['company' => $cached]);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Voicemail audio file removed.',
+            'fallback_voice_message_url' => null,
+        ]);
+    }
+
+    /**
+     * Toggle the company voicemail fallback feature on or off.
+     */
+    public function toggleVoicemail(Request $request): JsonResponse
+    {
+        $this->assertSoftphoneEnabled();
+        $this->assertCanManage();
+
+        $validated = $request->validate([
+            'enabled' => 'required|boolean',
+        ]);
+
+        $companyId = (int) company()?->id;
+        abort_unless($companyId > 0, 400, 'No active company found.');
+
+        $enabled = (bool) $validated['enabled'];
+
+        Company::query()->whereKey($companyId)->update([
+            'fallback_voice_message_enabled' => $enabled,
+        ]);
+
+        if (session()->has('company')) {
+            $cached = session('company');
+            $cached->fallback_voice_message_enabled = $enabled;
+            session(['company' => $cached]);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => $enabled ? 'Voicemail feature turned on.' : 'Voicemail feature turned off.',
+            'fallback_voice_message_enabled' => $enabled,
+        ]);
+    }
+
+    /**
      * Grant or revoke the softphone calls permission for an agent.
      */
     public function togglePermission(Request $request): JsonResponse
@@ -390,12 +614,14 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         $validated = $request->validate([
             'user_id' => 'required|integer|min:1',
             'enabled' => 'required|boolean',
+            'device_id' => 'nullable|integer',
         ]);
 
         $userId = (int) $validated['user_id'];
         /** @var User $user */
         $user = User::query()->where('company_id', company()->id)->findOrFail($userId);
         $enabled = (bool) $validated['enabled'];
+        $deviceId = $request->filled('device_id') ? (int) $request->input('device_id') : null;
 
         $permission = Permission::query()->where('name', 'make_softphone_calls')->first();
         if (! $permission) {
@@ -409,6 +635,43 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
             );
         }
 
+        // If toggling access on a specific line, revoke or grant access for that line without deleting from pool
+        if ($deviceId !== null) {
+            SoftphoneCallPoolAgent::query()
+                ->where('company_id', company()->id)
+                ->where('user_id', $userId)
+                ->where('device_id', $deviceId)
+                ->update(['active' => $enabled]);
+
+            if ($enabled) {
+                UserPermission::withoutEvents(function () use ($user, $permission) {
+                    UserPermission::query()->updateOrCreate(
+                        [
+                            'user_id' => $user->id,
+                            'permission_id' => $permission->id,
+                        ],
+                        [
+                            'permission_type_id' => PermissionType::ALL,
+                        ]
+                    );
+                });
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => $enabled
+                    ? "Softphone access granted to {$user->name} on this line."
+                    : "Softphone access revoked for {$user->name} on this line.",
+                'data' => [
+                    'user_id' => $user->id,
+                    'device_id' => $deviceId,
+                    'active' => $enabled,
+                    'has_permission' => $enabled,
+                ],
+            ]);
+        }
+
+        // Global toggle across lines for this user
         UserPermission::query()->updateOrCreate(
             [
                 'user_id' => $user->id,
@@ -419,11 +682,16 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
             ]
         );
 
+        SoftphoneCallPoolAgent::query()
+            ->where('company_id', company()->id)
+            ->where('user_id', $userId)
+            ->update(['active' => $enabled]);
+
         return response()->json([
             'status' => 'success',
             'message' => $enabled
-                ? "Softphone permission granted to {$user->name}."
-                : "Softphone permission removed from {$user->name}.",
+                ? "Softphone access granted to {$user->name}."
+                : "Softphone access revoked for {$user->name}.",
             'data' => [
                 'user_id' => $user->id,
                 'has_permission' => $enabled,

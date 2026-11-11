@@ -40,6 +40,7 @@ import {
     useNotificationMutations,
 } from "@/Hooks/useNotifications";
 import type { Notification, NotificationIcon } from "@/Types/api/notification";
+import { Bell } from "lucide-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import {
@@ -497,19 +498,18 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                     >
-                        <Button
-                            type="text"
-                            icon={
-                                <BellOutlined
-                                    className={`text-xl ${
-                                        badgeCount > 0
-                                            ? "text-blue-500"
-                                            : "text-gray-500"
-                                    }`}
-                                />
-                            }
-                            className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100"
-                        />
+                        <button
+                            type="button"
+                            className="flex items-center justify-center rounded-full bg-transparent hover:bg-gray-100 text-[#4b5563] transition-colors border-0 p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                            style={{
+                                width: "44px",
+                                height: "44px",
+                                borderRadius: "9999px",
+                            }}
+                            aria-label={badgeCount > 0 ? `Notifications (${badgeCount} unread)` : "Notifications"}
+                        >
+                            <Bell size={18} strokeWidth={1.8} color="#4b5563" aria-hidden="true" />
+                        </button>
                     </motion.div>
                 </Badge>
                 {/* Pulse animation for new (unacknowledged) notifications */}

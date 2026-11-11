@@ -310,7 +310,7 @@
 }
 
 .cb-spec-page .cb-pool {
-    --cols: minmax(0, 1fr) 110px 44px;
+    --cols: minmax(0, 1fr) 130px 140px 44px;
 }
 
 .cb-spec-page .cb-recs {
