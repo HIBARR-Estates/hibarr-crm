@@ -205,7 +205,12 @@ export interface PartnerTrendPoint {
 
 export interface PartnerReferral {
     id: number;
+    /** Full client name. */
     client: string | null;
+    /** First-touch UTM source when the lead has one, otherwise the lead source. */
+    source: string | null;
+    /** Lead source, only when it differs from `source`. */
+    lead_source: string | null;
     stage: string;
     stalled: boolean;
     days_open: number;

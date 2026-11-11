@@ -177,7 +177,7 @@ export function createLeadBulkUpdateFields(
                       hint: "Write-once — leads that already have a referrer are skipped",
                       confirmNote: [
                           "Leads that already have a referrer keep it — the referrer can never be reassigned.",
-                          "Setting a referrer grants them access: these leads appear on that partner's dashboard, with the client and agent names abbreviated.",
+                          "Setting a referrer grants them access: these leads appear on that partner's dashboard with the client's full name. Email and phone stay hidden.",
                       ],
                       options: leadAgents,
                       toPayload: (value: BulkUpdateValue) => ({

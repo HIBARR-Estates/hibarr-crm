@@ -27,6 +27,9 @@ export default function PartnerLeadsListHeader() {
             }}
         >
             <span className="min-w-0 flex-1">{td("Lead")}</span>
+            <span className={`shrink-0 ${C.source.className}`} style={{ width: C.source.width }}>
+                {td("Source")}
+            </span>
             <span className={`shrink-0 ${C.status.className}`} style={{ width: C.status.width }}>
                 {td("Status")}
             </span>

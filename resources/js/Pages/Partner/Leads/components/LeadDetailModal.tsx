@@ -128,6 +128,17 @@ export default function LeadDetailModal({ open, detail, loading, error, onClose 
 
             {detail && (
                 <>
+                    {detail.source && (
+                        <div style={{ fontSize: 13, color: T.TEXT, marginBottom: 14 }}>
+                            <span style={{ color: T.TEXT_MUTED }}>
+                                {td("Source", { source: "en" })}{" "}
+                            </span>
+                            {detail.source}
+                            {detail.lead_source ? (
+                                <span style={{ color: T.TEXT_HINT }}> · {detail.lead_source}</span>
+                            ) : null}
+                        </div>
+                    )}
                     <div
                         style={{
                             background: T.SURFACE_2,

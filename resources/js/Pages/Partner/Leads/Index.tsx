@@ -113,7 +113,7 @@ const PartnerLeadsIndex = ({ pageTitle, leads, hasAgent }: Props) => {
         >
             <EntityListHeader
                 title={title}
-                subtitle={td("The leads you have referred, with their status and open, won and lost deals.")}
+                subtitle={td("The leads you have referred, with their source, status, and open, won and lost deals.")}
                 sticky
                 // On the title line rather than a toolbar row of its own: the
                 // page has no tabs or toolbar content for that row to hold.

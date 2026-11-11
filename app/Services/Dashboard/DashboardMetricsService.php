@@ -21,6 +21,7 @@ use App\Services\CrmEventService;
 use App\Services\MlmCommissionService;
 use App\Support\DashboardDateRange;
 use App\Support\FeatureFlags;
+use App\Support\PartnerRole;
 use App\Support\TaskPresenter;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -2116,10 +2117,11 @@ class DashboardMetricsService
     /**
      * A partner's open referrals, one row each.
      *
-     * Names are abbreviated server-side ("Sarah Al-Rashid" → "S. Al-Rashid")
-     * and no email, phone or deal value is selected at all — the partner sits
-     * outside the trust boundary, so the redaction happens in the query rather
-     * than by the UI choosing not to render a field it was handed.
+     * The client name is the full name. No email, phone or deal value is
+     * selected at all — the partner sits outside the trust boundary, so that
+     * redaction happens in the query rather than by the UI choosing not to
+     * render a field it was handed. Source is the first-touch UTM source when
+     * the lead has one, otherwise the lead source.
      *
      * Stalled, behind PARTNER_LEAD_STALLED_FLAG: the lead was touched (first
      * contact, a held meeting, or any deal) and leads.updated_at is then at
@@ -2154,6 +2156,7 @@ class DashboardMetricsService
                         PartnerFlag::STATUS_ACKNOWLEDGED,
                     ]);
             })
+            ->leftJoin('lead_sources', 'lead_sources.id', '=', 'leads.source_id')
             ->orderBy('leads.created_at')
             ->limit(50)
             ->toBase()
@@ -2163,8 +2166,10 @@ class DashboardMetricsService
                 'leads.created_at',
                 'leads.updated_at',
                 'leads.first_contacted_at',
+                'lead_sources.type as lead_source_type',
                 'partner_flags.status as flag_status',
                 'partner_flags.response as flag_response',
+                DB::raw($this->firstTouchUtmSourceSql().' as first_touch_utm_source'),
                 DB::raw($this->firstMeetingSubquery().' as met_at'),
                 DB::raw('(SELECT COUNT(*) FROM deals d WHERE d.lead_id = leads.id AND d.outcome_status IS NULL) as open_deals'),
                 DB::raw('(SELECT COUNT(*) FROM deals dx WHERE dx.lead_id = leads.id) as deal_count'),
@@ -2185,7 +2190,8 @@ class DashboardMetricsService
 
                 return [
                     'id' => $row->id,
-                    'client' => $this->abbreviateName($row->client_name),
+                    'client' => PartnerRole::fullName($row->client_name),
+                    ...PartnerRole::sourceLabels($row->first_touch_utm_source, $row->lead_source_type),
                     'stage' => $stage,
                     'stalled' => self::referralIsStalled($touched, $idleDays, $stalledAfterDays, $requireTouch),
                     'days_open' => (int) Carbon::parse($row->created_at)->diffInDays(now()),
@@ -2228,7 +2234,7 @@ class DashboardMetricsService
             ->map(fn (PartnerFlag $flag) => [
                 'id' => $flag->id,
                 'lead_id' => $flag->lead_id,
-                'client' => $this->abbreviateName($flag->lead?->client_name),
+                'client' => PartnerRole::fullName($flag->lead?->client_name),
                 'reason' => $flag->reason,
                 'message' => $flag->message,
                 'status' => $flag->status,
@@ -2377,6 +2383,24 @@ class DashboardMetricsService
     }
 
     /**
+     * First-touch UTM source: the touch flagged as first, then the marketing
+     * row, which keeps that same first set and is never overwritten.
+     */
+    private function firstTouchUtmSourceSql(): string
+    {
+        return "COALESCE(
+            (SELECT t.utm_source FROM lead_utm_touches t
+             WHERE t.lead_id = leads.id AND t.is_first_touch = 1
+               AND t.utm_source IS NOT NULL AND t.utm_source <> ''
+             ORDER BY t.id ASC LIMIT 1),
+            (SELECT lm.utm_source FROM lead_marketing lm
+             WHERE lm.lead_id = leads.id
+               AND lm.utm_source IS NOT NULL AND lm.utm_source <> ''
+             ORDER BY lm.id ASC LIMIT 1)
+        )";
+    }
+
+    /**
      * Correlated subquery for a lead's first held meeting, reached either
      * directly (`lead_id`) or through one of its deals.
      */
@@ -2474,14 +2498,5 @@ class DashboardMetricsService
         $rank = (int) ceil($percentile / 100 * count($values));
 
         return (float) $values[max(0, $rank - 1)];
-    }
-
-    /**
-     * "Sarah Al-Rashid" → "S. Al-Rashid". Used on the partner view, where the
-     * full client name is more than the partner is entitled to see.
-     */
-    private function abbreviateName(?string $name): ?string
-    {
-        return \App\Support\PartnerRole::abbreviateName($name);
     }
 }

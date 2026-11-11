@@ -3,7 +3,7 @@ import { Pagination, REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { PartnerReferral } from "../types";
 
-const GRID = "minmax(150px, 1.5fr) 1fr .8fr 1fr";
+const GRID = "minmax(140px, 1.4fr) minmax(110px, 1fr) 1fr .8fr 1fr";
 
 const STAGE_PILL: Record<string, string> = {
     "Deal open": "blue",
@@ -15,9 +15,9 @@ const STAGE_PILL: Record<string, string> = {
 /**
  * A partner's open referrals.
  *
- * Names arrive abbreviated and no contact detail or deal value is in the
- * payload at all — the redaction happens in the query, not by this table
- * choosing not to render a field it was handed.
+ * Names arrive in full. No email, phone, or deal value is in the payload —
+ * that redaction happens in the query, not by this table choosing not to
+ * render a field it was handed. Source prefers the first-touch UTM source.
  */
 export default function ReferralTable({ rows }: { rows: PartnerReferral[] }) {
     const { td } = useTd();
@@ -115,7 +115,7 @@ export default function ReferralTable({ rows }: { rows: PartnerReferral[] }) {
             </div>
 
             <div className="dv2-scroll-x" style={{ flex: 1 }}>
-                <div style={{ minWidth: 520 }}>
+                <div style={{ minWidth: 680 }}>
                     <div
                         className="dv2-eyebrow"
                         style={{
@@ -127,6 +127,7 @@ export default function ReferralTable({ rows }: { rows: PartnerReferral[] }) {
                         }}
                     >
                         <div>{td("Client", { source: "en" })}</div>
+                        <div>{td("Source", { source: "en" })}</div>
                         <div>{td("Stage", { source: "en" })}</div>
                         <div style={{ textAlign: "right" }}>{td("Days open", { source: "en" })}</div>
                         <div style={{ textAlign: "right" }}>
@@ -161,10 +162,24 @@ export default function ReferralTable({ rows }: { rows: PartnerReferral[] }) {
                                         : `1px solid ${T.BORDER_SOFT}`,
                             }}
                         >
-                            <div>
-                                <div style={{ fontWeight: 600 }}>
+                            <div style={{ minWidth: 0 }}>
+                                <div className="truncate" style={{ fontWeight: 600 }}>
                                     {row.client ?? td("Unnamed referral", { source: "en" })}
                                 </div>
+                            </div>
+
+                            <div style={{ minWidth: 0 }}>
+                                <div className="truncate">
+                                    {row.source ?? "—"}
+                                </div>
+                                {row.lead_source && (
+                                    <div
+                                        className="truncate"
+                                        style={{ fontSize: 11, color: T.TEXT_HINT }}
+                                    >
+                                        {row.lead_source}
+                                    </div>
+                                )}
                             </div>
 
                             <div>

@@ -1,4 +1,4 @@
-/** Shapes returned by PartnerLeadController. No contact fields exist here on purpose. */
+/** Shapes returned by PartnerLeadController. Email and phone are never on these shapes. */
 
 export interface LeadStatus {
     id: number;
@@ -8,8 +8,12 @@ export interface LeadStatus {
 
 export interface PartnerLeadRow {
     id: number;
-    /** Abbreviated, e.g. "S. Al-Rashid". */
+    /** Full client name. */
     name: string | null;
+    /** First-touch UTM source when the lead has one, otherwise the lead source. */
+    source: string | null;
+    /** Lead source, only when it differs from `source`. */
+    lead_source: string | null;
     status: LeadStatus | null;
     created_at: string | null;
     /** Deals by outcome — open, won or lost — never by pipeline stage. */
@@ -60,6 +64,10 @@ export interface PartnerLeadTotal extends CurrencyRef {
 export interface PartnerLeadDetail {
     id: number;
     name: string | null;
+    /** First-touch UTM source when the lead has one, otherwise the lead source. */
+    source: string | null;
+    /** Lead source, only when it differs from `source`. */
+    lead_source: string | null;
     status: LeadStatus | null;
     active_deals: PartnerDealRow[];
     closed_deals: PartnerDealRow[];

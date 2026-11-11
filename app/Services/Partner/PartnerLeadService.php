@@ -17,9 +17,10 @@ use Illuminate\Support\Collection;
  * A partner's own referrals, as the partner is allowed to see them.
  *
  * Scoped to leads whose referred_by_agent_id is the partner's agent — a query,
- * not a UI choice — and never selecting contact fields, the handling agent, or
- * anyone else's leads. Names are abbreviated, as everywhere else a partner sees
- * a client.
+ * not a UI choice — and never selecting email, phone, the handling agent, or
+ * anyone else's leads. The partner sees the client's full name, and where the
+ * lead came from: the first-touch UTM source when there is one, otherwise the
+ * lead source.
  *
  * Deals that pay this partner nothing are left out of every figure here: a deal
  * whose attached packages all resolve to no commission for them (a configured
@@ -29,9 +30,7 @@ use Illuminate\Support\Collection;
  */
 class PartnerLeadService
 {
-    public function __construct(private MlmCommissionService $commissions)
-    {
-    }
+    public function __construct(private MlmCommissionService $commissions) {}
 
     public function agentFor(int $userId): ?LeadAgent
     {
@@ -41,7 +40,7 @@ class PartnerLeadService
     /**
      * The partner's leads, filtered and paged, with the options the filters offer.
      *
-     * Every one of the partner's own leads is loaded (four columns each) so the
+     * Every one of the partner's own leads is loaded (name, source, status, date) so the
      * deal-based filters see the same payout-adjusted deals as the counts do —
      * a deal that pays the partner nothing never makes a lead match "has an
      * open, won or lost deal". Filtering and paging then happen on the rows.
@@ -51,12 +50,10 @@ class PartnerLeadService
      */
     public function index(LeadAgent $agent, array $filters, int $page = 1, int $perPage = 25): array
     {
-        $leads = Lead::query()
-            ->where('referred_by_agent_id', $agent->id)
-            ->with('lifecycleStatus:id,label,label_color')
+        $leads = $this->referredLeads($agent)
             ->orderByDesc('created_at')
             ->orderByDesc('id')
-            ->get(['leads.id', 'leads.client_name', 'leads.created_at', 'leads.lead_lifecycle_status_id']);
+            ->get(['leads.id', 'leads.client_name', 'leads.source_id', 'leads.created_at', 'leads.lead_lifecycle_status_id']);
 
         $deals = $this->payableDeals($leads->pluck('id')->all(), $agent);
 
@@ -65,7 +62,8 @@ class PartnerLeadService
 
             return [
                 'id' => $lead->id,
-                'name' => PartnerRole::abbreviateName($lead->client_name),
+                'name' => PartnerRole::fullName($lead->client_name),
+                ...$this->sourceLabels($lead),
                 'status' => $this->status($lead),
                 'created_at' => $lead->created_at?->toIso8601String(),
                 // Outcome, not pipeline stage: stages differ from one pipeline
@@ -152,11 +150,9 @@ class PartnerLeadService
      */
     public function detail(LeadAgent $agent, int $leadId): ?array
     {
-        $lead = Lead::query()
-            ->where('id', $leadId)
-            ->where('referred_by_agent_id', $agent->id)
-            ->with('lifecycleStatus:id,label,label_color')
-            ->first(['leads.id', 'leads.client_name', 'leads.created_at', 'leads.lead_lifecycle_status_id']);
+        $lead = $this->referredLeads($agent)
+            ->where('leads.id', $leadId)
+            ->first(['leads.id', 'leads.client_name', 'leads.source_id', 'leads.created_at', 'leads.lead_lifecycle_status_id']);
 
         if (is_null($lead)) {
             return null;
@@ -168,7 +164,8 @@ class PartnerLeadService
 
         return [
             'id' => $lead->id,
-            'name' => PartnerRole::abbreviateName($lead->client_name),
+            'name' => PartnerRole::fullName($lead->client_name),
+            ...$this->sourceLabels($lead),
             'status' => $this->status($lead),
             'active_deals' => $active->map(fn (Deal $d) => $this->dealRow($d))->all(),
             'closed_deals' => $closed->map(fn (Deal $d) => $this->dealRow($d))->all(),
@@ -235,6 +232,42 @@ class PartnerLeadService
 
             return $this->commissions->resolvePackageCommission($package, $agent, $override) === null;
         });
+    }
+
+    /**
+     * This partner's own leads, with the status, lead source, and first-touch
+     * UTM the tables display. Email and phone are not loaded.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<Lead>
+     */
+    private function referredLeads(LeadAgent $agent)
+    {
+        return Lead::query()
+            ->where('referred_by_agent_id', $agent->id)
+            ->with([
+                'lifecycleStatus:id,label,label_color',
+                'leadSource:id,type',
+                'marketing:id,lead_id,utm_source',
+                'utmTouches' => fn ($query) => $query
+                    ->where('is_first_touch', true)
+                    ->select(['id', 'lead_id', 'utm_source']),
+            ]);
+    }
+
+    /**
+     * First-touch UTM when the lead has one (the touch row, then the marketing
+     * row that stores the same first set), otherwise the lead source.
+     *
+     * @return array{source: string|null, lead_source: string|null}
+     */
+    private function sourceLabels(Lead $lead): array
+    {
+        $touch = $lead->utmTouches->first(fn ($row) => filled($row->utm_source));
+
+        return PartnerRole::sourceLabels(
+            $touch?->utm_source ?? $lead->marketing?->utm_source,
+            $lead->leadSource?->type,
+        );
     }
 
     /** @return array{id: int, label: string, color: string|null}|null */
