@@ -17,6 +17,7 @@ import {
     ThunderboltOutlined,
     TagsOutlined,
     DollarOutlined,
+    TeamOutlined,
 } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import TaskCategoryManager from "./TaskCategoryManager";
@@ -141,6 +142,16 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
                   },
               ]
             : []),
+        {
+            key: "employees",
+            icon: <TeamOutlined />,
+            iconBg: "bg-slate-50",
+            iconColor: "text-slate-600",
+            title: t("app.menu.employees"),
+            description: t("app.settingsHub.employeesDesc"),
+            connected: true,
+            onOpen: () => router.visit(route("settings-employees.index")),
+        },
         {
             key: "notes",
             icon: <FileTextOutlined />,

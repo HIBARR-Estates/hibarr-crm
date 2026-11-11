@@ -22,6 +22,7 @@ export interface PageProps extends InertiaPageProps {
         worksuitePlugins?: unknown[];
     };
     currentRouteName: string;
+    impersonation?: { active: boolean } | null;
     // Internationalization props
     locale?: string;
     isRtl?: boolean;

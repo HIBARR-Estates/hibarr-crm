@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Email\EmailFeature;
 use App\Models\UserNotificationAlertSetting;
 use App\Models\UserProductTour;
+use App\Services\EmployeeImpersonationService;
 use App\Services\I18nTranslationService;
 use App\Support\AppBuild;
 use App\Support\FeatureFlags;
@@ -102,6 +103,9 @@ class HandleInertiaRequests extends Middleware
             // Admins manage the pilot list while the flag is on, even before they are listed.
             'emailPilot' => fn () => EmailFeature::enabled() && $request->user()?->hasRole('admin')
                 ? ['manageUrl' => '/account/settings/email-pilot']
+                : null,
+            'impersonation' => fn () => session()->has(EmployeeImpersonationService::SESSION_ID)
+                ? ['active' => true]
                 : null,
             'viewerTimezone' => fn () => UserTimezone::forViewer(
                 $request->user(),
