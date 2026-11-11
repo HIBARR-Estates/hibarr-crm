@@ -58,7 +58,11 @@ export function buildLeadPath(statuses: LeadStatusOption[], currentKey: string):
 export type KeyFactGroupId = "reach" | "who" | "where" | "value" | "deal" | "came_from";
 
 export interface KeyFactGroup {
-    id: KeyFactGroupId;
+    id: KeyFactGroupId | string;
+    /** Shown instead of the translated label for `id` (a section of the company's own analysis script). */
+    label?: string;
+    /** Nothing recorded yet, shown as needing input. */
+    empty?: boolean;
     /** First value, shown large. */
     lead: string;
     /** The rest, one per line. Already in display form. */

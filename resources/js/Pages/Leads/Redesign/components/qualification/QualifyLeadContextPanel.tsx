@@ -21,6 +21,12 @@ interface QualifyLeadContextPanelProps {
     fields?: any[];
     customFieldCategories?: Array<{ id: number; name: string }>;
     editLeadPermission?: string;
+    /**
+     * The name, contact lines and Call/Email buttons on top. Off under the
+     * agent dock, where the flow's header names the person and calls go
+     * through the softphone.
+     */
+    showProfile?: boolean;
 }
 
 type Tab = "lead" | "notes";
@@ -165,6 +171,7 @@ export default function QualifyLeadContextPanel({
     fields = [],
     customFieldCategories = [],
     editLeadPermission = "all",
+    showProfile = true,
 }: QualifyLeadContextPanelProps) {
     const { td } = useTd();
     const { props } = usePage();
@@ -370,6 +377,7 @@ export default function QualifyLeadContextPanel({
             style={{ background: T.SURFACE }}
         >
             {/* Profile — same shape as AnalysisLeadContextPanel ProfileCard */}
+            {showProfile ? (
             <div className="p-4 border-b border-dr-border">
                 <div className="flex items-center gap-3 mb-3">
                     {lead.image_url && !imgError ? (
@@ -444,6 +452,7 @@ export default function QualifyLeadContextPanel({
                     ) : null}
                 </div>
             </div>
+            ) : null}
 
             {/* Tabs — AnalysisLeadContextPanel tab strip */}
             <div

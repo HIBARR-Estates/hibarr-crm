@@ -1,4 +1,4 @@
-export { default as AgentWorkspaceLayout, AgentSecondRow } from "./AgentWorkspaceLayout";
+export { default as AgentWorkspaceLayout, AgentPinned, AgentSecondRow } from "./AgentWorkspaceLayout";
 export { default as AgentDock } from "./AgentDock";
 export { default as AgentPillRow, agentPillPanelProps } from "./AgentPillRow";
 export type { AgentPill } from "./AgentPillRow";

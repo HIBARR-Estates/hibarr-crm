@@ -17,6 +17,14 @@ import type { Lead } from "@/Types/api/leads";
 
 const TEMPERATURE_PILL: Record<string, string> = { hot: "red", warm: "amber", cold: "blue" };
 
+/** A New activity entry that isn't one of the lead page's create forms. */
+export interface ExtraActivity {
+    key: string;
+    icon: ReactNode;
+    label: string;
+    onSelect: () => void;
+}
+
 interface ContactHeaderProps {
     lead: Lead;
     canEdit: boolean;
@@ -28,6 +36,10 @@ interface ContactHeaderProps {
     onEdit: () => void;
     /** The lead's ⋯ menu. Left out in the deal state, whose menu sits on the deal. */
     onMoreAction?: (id: MoreMenuActionId) => void;
+    /** Replaces the lead's ⋯ menu (the deal state's own). */
+    moreMenu?: ReactNode;
+    /** Further entries in the New activity menu (Email). */
+    extraActivities?: ExtraActivity[];
     /** What a call is logged against: the lead, or the deal in the deal state. */
     callEntity?: { type: "lead" | "deal"; id: number };
     /**
@@ -51,6 +63,8 @@ export default function ContactHeader({
     allowedCreate,
     onEdit,
     onMoreAction,
+    moreMenu,
+    extraActivities,
     callEntity,
     staticAvatar = false,
 }: ContactHeaderProps) {
@@ -116,16 +130,17 @@ export default function ContactHeader({
             </div>
             <div className="agent-contact__actions">
                 <AgentCallButton phone={leadPhone(lead)} entity={callEntity ?? { type: "lead", id: lead.id }} />
-                <NewActivityButton onCreate={onCreate} allowed={allowedCreate} />
+                <NewActivityButton onCreate={onCreate} allowed={allowedCreate} extra={extraActivities} />
                 {canEdit ? (
                     <Button variant="ghost" onClick={onEdit}>
                         <Icon name="edit" size={14} />
                         {t("pages.agent_workspace.contact.edit_details")}
                     </Button>
                 ) : null}
-                {onMoreAction ? (
-                    <MoreMenu onAction={onMoreAction} canDelete={canDelete} canFindDuplicates={canFindDuplicates} />
-                ) : null}
+                {moreMenu ??
+                    (onMoreAction ? (
+                        <MoreMenu onAction={onMoreAction} canDelete={canDelete} canFindDuplicates={canFindDuplicates} />
+                    ) : null)}
             </div>
         </header>
     );
@@ -139,11 +154,13 @@ export function NewActivityButton({
     onCreate,
     allowed,
     size = "base",
+    extra = [],
 }: {
     onCreate: (kind: LeadCreateKind) => void;
     /** Kinds the viewer may not create are left out (permissions). */
     allowed?: Partial<Record<LeadCreateKind, boolean>>;
     size?: "base" | "sm";
+    extra?: ExtraActivity[];
 }) {
     const { t } = useTranslation();
     const all: Array<{ key: LeadCreateKind; icon: ReactNode; label: string }> = [
@@ -152,12 +169,22 @@ export function NewActivityButton({
         { key: "note", icon: <Icon name="file-text" size={14} />, label: t("pages.agent_workspace.contact.new_note") },
         { key: "log", icon: <Icon name="activity" size={14} />, label: t("pages.agent_workspace.contact.log_activity") },
     ];
-    const items: MenuProps["items"] = all.filter((item) => allowed?.[item.key] !== false);
+    const items: MenuProps["items"] = [
+        ...all.filter((item) => allowed?.[item.key] !== false),
+        ...extra.map((item) => ({ key: item.key, icon: item.icon, label: item.label })),
+    ];
     if (items.length === 0) return null;
 
     return (
         <Dropdown
-            menu={{ items, onClick: ({ key }) => onCreate(key as LeadCreateKind) }}
+            menu={{
+                items,
+                onClick: ({ key }) => {
+                    const entry = extra.find((item) => item.key === key);
+                    if (entry) entry.onSelect();
+                    else onCreate(key as LeadCreateKind);
+                },
+            }}
             trigger={["click"]}
             placement="bottomRight"
         >
@@ -174,7 +201,7 @@ export function NewActivityButton({
 }
 
 /** The lead's mobile, formatted for dialling; empty when there is none. */
-function leadPhone(lead: Lead): string {
+export function leadPhone(lead: Lead): string {
     const raw = getDossierFieldValue(lead, "mobile");
     return raw && isMeaningfulDossierValue(raw) ? raw.trim() : "";
 }

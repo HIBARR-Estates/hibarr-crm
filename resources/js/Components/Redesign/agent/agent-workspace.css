@@ -30,6 +30,57 @@
 .agent-ts--none { --ts-bg: var(--dr-time-none-bg); --ts-border: var(--dr-time-none-border); --ts-text: var(--dr-time-none-text); --ts-solid: var(--dr-time-none-solid); }
 .agent-ts--done { --ts-bg: var(--dr-time-done-bg); --ts-border: var(--dr-time-done-border); --ts-text: var(--dr-time-done-text); --ts-solid: var(--dr-time-done-solid); }
 
+/* ---------- sticky chrome (pages that pin a bar, canvas L7-11) ----------
+   The dock, the second row and the page's pinned bar stay on a navy backdrop
+   while the page scrolls under them. The pin is out of the flow, so showing or
+   hiding it never moves the page. */
+.agent-ws__chrome {
+    position: relative;
+}
+
+.agent-ws__pin {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    z-index: 5;
+}
+
+.agent-ws__pin:empty {
+    display: none;
+}
+
+@media (min-width: 1024px) {
+    .agent-ws--sticky-chrome .agent-ws__chrome {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        padding-bottom: 18px;
+        background: var(--dr-navy);
+    }
+
+    .agent-ws--sticky-chrome .agent-ws__main {
+        padding-top: 0;
+    }
+
+    .agent-ws--sticky-chrome .agent-ws__pin {
+        background: var(--dr-navy);
+        padding: 0 24px 18px;
+    }
+}
+
+/* Tablet and phone: the dock scrolls away; only the pinned bar stays, fixed
+   to the top of the screen. */
+@media (max-width: 1023px) {
+    .agent-ws--sticky-chrome .agent-ws__pin {
+        position: fixed;
+        top: 0;
+        z-index: 30;
+        background: var(--dr-navy);
+        padding: 0 16px 10px;
+    }
+}
+
 /* ---------- top row: corner, dock, actions ---------- */
 .agent-ws__top {
     position: relative;
