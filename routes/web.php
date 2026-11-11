@@ -66,6 +66,7 @@ use App\Http\Controllers\KnowledgeBaseFileController;
 use App\Http\Controllers\LeadBoardController;
 use App\Http\Controllers\LeadCategoryController;
 use App\Http\Controllers\LeadContactController;
+use App\Http\Controllers\MarketingLeadController;
 use App\Http\Controllers\LeadContactFileController;
 use App\Http\Controllers\LeadContactMethodController;
 use App\Http\Controllers\LeadCustomFormController;
@@ -659,6 +660,11 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     // Static i18n dictionaries (auth-protected; cached per locale)
     Route::get('api/i18n/{locale}.json', [I18nController::class, 'show'])->name('i18n.show');
     // deals route
+
+    // Marketing lead flow — members of the departments picked in Lead settings only
+    Route::get('marketing-leads', [MarketingLeadController::class, 'page'])->name('marketing-leads.index');
+    Route::get('marketing-leads/options', [MarketingLeadController::class, 'options'])->name('marketing-leads.options');
+    Route::post('marketing-leads', [MarketingLeadController::class, 'store'])->name('marketing-leads.store');
 
     // Lead Contact routes (explicit to avoid Route::resource overriding PUT/PATCH)
     Route::get('lead-contact', [LeadContactController::class, 'index'])->name('lead-contact.index');

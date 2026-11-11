@@ -103,6 +103,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::post('leads/sources', [LeadSettingsHubController::class, 'storeSource'])->name('settings-leads.sources.store');
     Route::put('leads/sources/{source}', [LeadSettingsHubController::class, 'updateSource'])->name('settings-leads.sources.update');
     Route::delete('leads/sources/{source}', [LeadSettingsHubController::class, 'destroySource'])->name('settings-leads.sources.destroy');
+    Route::post('leads/origins/reorder', [LeadSettingsHubController::class, 'reorderOrigins'])->name('settings-leads.origins.reorder');
+    Route::post('leads/origins', [LeadSettingsHubController::class, 'storeOrigin'])->name('settings-leads.origins.store');
+    Route::put('leads/origins/{origin}', [LeadSettingsHubController::class, 'updateOrigin'])->name('settings-leads.origins.update');
+    Route::delete('leads/origins/{origin}', [LeadSettingsHubController::class, 'destroyOrigin'])->name('settings-leads.origins.destroy');
+    Route::put('leads/marketing-intake', [LeadSettingsHubController::class, 'updateMarketingIntake'])->name('settings-leads.marketing-intake.update');
     Route::post('leads/statuses/reorder', [LeadSettingsHubController::class, 'reorderStatuses'])->name('settings-leads.statuses.reorder');
     Route::post('leads/statuses', [LeadSettingsHubController::class, 'storeStatus'])->name('settings-leads.statuses.store');
     Route::put('leads/statuses/{status}', [LeadSettingsHubController::class, 'updateStatus'])->name('settings-leads.statuses.update');

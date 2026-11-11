@@ -25,6 +25,8 @@ export interface PageProps extends InertiaPageProps {
     currentRouteName: string;
     /** Null unless crm.agent-workspace is on (see HandleInertiaRequests). */
     agentWorkspace?: { url: string | null; manageUrl: string | null } | null;
+    /** Set only for members of the departments assigned to the marketing lead flow. */
+    marketingLeadIntake?: { url: string } | null;
     // Internationalization props
     locale?: string;
     isRtl?: boolean;

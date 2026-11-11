@@ -32,6 +32,7 @@ class LeadService
         'start_date',
         'end_date',
         'lead_source',
+        'lead_origin',
         'category_id',
         'lead_owner_id',
         'added_by_id',
@@ -591,6 +592,10 @@ class LeadService
 
         if ($request->filled('lead_source')) {
             $query->whereIn('leads.source_id', $this->toValueArray($request->get('lead_source')));
+        }
+
+        if ($request->filled('lead_origin')) {
+            $query->whereIn('leads.lead_origin_id', $this->toValueArray($request->get('lead_origin')));
         }
 
         if ($request->filled('category_id')) {
