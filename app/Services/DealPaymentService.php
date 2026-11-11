@@ -53,7 +53,7 @@ class DealPaymentService
         $active = $this->findActiveRequest($deal);
 
         $olPayload = null;
-        if ($active !== null && !empty($active->external_reference)) {
+        if ($active !== null && ! empty($active->external_reference)) {
             try {
                 $olPayload = $this->olProxy->getFromOl((string) $active->external_reference);
                 $this->syncFromOlPayload($active, $olPayload);
@@ -83,17 +83,18 @@ class DealPaymentService
             'active' => $activeId === null
                 ? null
                 : collect($requests)->first(fn (array $row) => $row['id'] === $activeId
-                    && !in_array($row['ui_state'], ['failed', 'invalidated'], true)),
+                    && ! in_array($row['ui_state'], ['failed', 'invalidated'], true)),
             'requests' => $requests,
         ];
     }
 
     /**
      * Issues a request in the chosen currency, converted from the deal's value
-     * in company currency at the live rate. The amount is computed here, never
-     * taken from the client, so the figure sent to OL is always the deal value.
+     * in company currency. The amount is the deal value times the rate the
+     * user confirmed (or the live rate, when they didn't send one) — never a
+     * free-typed amount — so the figure sent to OL stays tied to the deal.
      *
-     * @param  array<string, mixed>  $input  currency (ISO code), provider_key (optional)
+     * @param  array<string, mixed>  $input  currency (ISO code), exchange_rate (optional), provider_key (optional)
      * @return array<string, mixed>
      */
     public function createForDeal(Deal $deal, User $user, array $input): array
@@ -118,14 +119,13 @@ class DealPaymentService
             throw new HttpException(422, 'The deal has no value to request payment for.');
         }
 
-        $rate = $this->exchangeRates->rate($companyCode, $currencyCode);
-        if ($rate === null || $rate <= 0) {
-            throw new HttpException(422, "Live exchange rate {$companyCode} → {$currencyCode} is unavailable. Try again shortly.");
+        $rate = $this->resolveRequestRate($companyCode, $currencyCode, $input);
+        $amount = round($baseAmount * $rate, 2);
+        if ($amount <= 0) {
+            throw new HttpException(422, 'That exchange rate is too small for this deal value.');
         }
 
-        $amount = round($baseAmount * $rate, 2);
-
-        $providerKey = !empty($input['provider_key'])
+        $providerKey = ! empty($input['provider_key'])
             ? (string) $input['provider_key']
             : null;
 
@@ -152,7 +152,7 @@ class DealPaymentService
             ->without(['order'])
             ->where('company_id', $deal->company_id)
             ->where('external_reference', $paymentId)
-            ->first() ?? new Payment();
+            ->first() ?? new Payment;
 
         $payment->company_id = $deal->company_id;
         $payment->deal_id = $deal->id;
@@ -166,7 +166,7 @@ class DealPaymentService
         $payment->gateway = $resolvedProvider !== '' ? $resolvedProvider : null;
         $payment->status = 'pending';
         $payment->checkout_url = (string) ($olPayload['checkoutUrl'] ?? $olPayload['checkout_url'] ?? '');
-        $payment->expires_at = !empty($olPayload['expiresAt'] ?? $olPayload['expires_at'] ?? null)
+        $payment->expires_at = ! empty($olPayload['expiresAt'] ?? $olPayload['expires_at'] ?? null)
             ? Carbon::parse($olPayload['expiresAt'] ?? $olPayload['expires_at'])
             : null;
         $payment->ol_status = strtolower((string) ($olPayload['status'] ?? 'pending'));
@@ -356,7 +356,7 @@ class DealPaymentService
      */
     public function markConfirmed(Payment $payment): void
     {
-        if (!$payment->deal_id) {
+        if (! $payment->deal_id) {
             return;
         }
 
@@ -510,6 +510,38 @@ class DealPaymentService
             ->where('external_reference', '!=', '');
     }
 
+    /**
+     * Units of $currencyCode per 1 unit of $companyCode.
+     *
+     * A rate sent with the request is the one the user confirmed. Paying in
+     * the company currency is always 1:1, whatever was sent. With no rate
+     * supplied, fall back to the live reference rate.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    private function resolveRequestRate(string $companyCode, string $currencyCode, array $input): float
+    {
+        if ($currencyCode === $companyCode) {
+            return 1.0;
+        }
+
+        if (array_key_exists('exchange_rate', $input) && $input['exchange_rate'] !== null && $input['exchange_rate'] !== '') {
+            $supplied = $input['exchange_rate'];
+            if (! is_numeric($supplied) || (float) $supplied <= 0) {
+                throw new HttpException(422, 'Exchange rate must be greater than zero.');
+            }
+
+            return (float) $supplied;
+        }
+
+        $rate = $this->exchangeRates->rate($companyCode, $currencyCode);
+        if ($rate === null || $rate <= 0) {
+            throw new HttpException(422, "Live exchange rate {$companyCode} → {$currencyCode} is unavailable. Enter a rate to continue.");
+        }
+
+        return $rate;
+    }
+
     private function companyCurrency(Deal $deal): ?Currency
     {
         $currencyId = Company::withoutGlobalScopes()->whereKey($deal->company_id)->value('currency_id');
@@ -548,7 +580,7 @@ class DealPaymentService
         }
 
         $verifiedAt = $olPayload['verifiedAt'] ?? $olPayload['verified_at'] ?? null;
-        if (!empty($verifiedAt)) {
+        if (! empty($verifiedAt)) {
             $payment->verified_at = Carbon::parse($verifiedAt);
         }
 

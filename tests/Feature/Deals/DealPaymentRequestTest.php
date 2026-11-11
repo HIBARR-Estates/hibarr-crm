@@ -153,6 +153,124 @@ class DealPaymentRequestTest extends TestCase
         Http::assertNotSent(fn ($request) => str_starts_with($request->url(), 'https://ol.test/'));
     }
 
+    public function test_create_uses_the_exchange_rate_the_user_confirmed(): void
+    {
+        Http::fake([
+            'https://api.frankfurter.app/*' => Http::response(['rates' => ['USD' => 9.9]], 200),
+            'https://ol.test/v1/internal/payments/deal-requests' => Http::response([
+                'data' => [
+                    'paymentId' => '521',
+                    'status' => 'pending',
+                    'checkoutUrl' => 'https://checkout.test/pay/521',
+                ],
+            ], 201),
+        ]);
+
+        $result = app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+            'currency' => 'USD',
+            'exchange_rate' => 1.25,
+        ]);
+
+        // The confirmed rate wins over the live one: 2500 EUR × 1.25 = 3125 USD.
+        Http::assertSent(fn ($request) => $request->url() === 'https://ol.test/v1/internal/payments/deal-requests'
+            && (float) $request['amount'] === 3125.0
+            && $request['currency'] === 'USD');
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'frankfurter.app'));
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->where('external_reference', '521')->firstOrFail();
+        $this->assertEqualsWithDelta(1 / 1.25, (float) $payment->exchange_rate, 0.000001);
+        $this->assertEquals(3125.0, (float) $payment->amount);
+        $this->assertEquals(2500.0, (float) $payment->base_amount);
+        $this->assertEqualsWithDelta(1.25, $result['rate'], 0.000001);
+    }
+
+    public function test_create_accepts_a_confirmed_rate_when_the_live_rate_is_down(): void
+    {
+        Http::fake([
+            'https://api.frankfurter.app/*' => Http::response('down', 503),
+            'https://ol.test/v1/internal/payments/deal-requests' => Http::response([
+                'data' => [
+                    'paymentId' => '523',
+                    'status' => 'pending',
+                    'checkoutUrl' => 'https://checkout.test/pay/523',
+                ],
+            ], 201),
+        ]);
+
+        $result = app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+            'currency' => 'USD',
+            'exchange_rate' => '1.5',
+        ]);
+
+        $this->assertEquals(3750.0, (float) $result['amount']);
+        $this->assertEqualsWithDelta(1.5, $result['rate'], 0.000001);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'frankfurter.app'));
+    }
+
+    public function test_create_ignores_a_custom_rate_when_paying_in_company_currency(): void
+    {
+        Http::fake([
+            'https://ol.test/v1/internal/payments/deal-requests' => Http::response([
+                'data' => [
+                    'paymentId' => '522',
+                    'status' => 'pending',
+                    'checkoutUrl' => 'https://checkout.test/pay/522',
+                    'amount' => 2500,
+                ],
+            ], 201),
+        ]);
+
+        $result = app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+            'currency' => 'EUR',
+            'exchange_rate' => 4,
+        ]);
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://ol.test/v1/internal/payments/deal-requests'
+            && (float) $request['amount'] === 2500.0);
+        $this->assertEqualsWithDelta(1.0, $result['rate'], 0.000001);
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->where('external_reference', '522')->firstOrFail();
+        $this->assertEquals(1.0, (float) $payment->exchange_rate);
+        $this->assertEquals(2500.0, (float) $payment->amount);
+    }
+
+    public function test_create_rejects_a_non_positive_exchange_rate(): void
+    {
+        Http::fake();
+
+        foreach ([0, -2, 'nope'] as $rate) {
+            try {
+                app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+                    'currency' => 'USD',
+                    'exchange_rate' => $rate,
+                ]);
+                $this->fail('Expected a rejection for rate '.var_export($rate, true));
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+                $this->assertSame(422, $e->getStatusCode());
+            }
+        }
+
+        Http::assertNothingSent();
+    }
+
+    public function test_create_rejects_an_exchange_rate_that_rounds_the_amount_to_zero(): void
+    {
+        Http::fake();
+
+        try {
+            app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+                'currency' => 'USD',
+                'exchange_rate' => 0.0000001,
+            ]);
+            $this->fail('Expected a zero amount to be refused.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $this->assertSame(422, $e->getStatusCode());
+            $this->assertStringContainsString('too small', $e->getMessage());
+        }
+
+        Http::assertNotSent(fn ($request) => str_starts_with($request->url(), 'https://ol.test/'));
+    }
+
     public function test_create_is_refused_for_a_currency_the_company_does_not_have(): void
     {
         Http::fake();
@@ -448,7 +566,7 @@ class DealPaymentRequestTest extends TestCase
             $data = $request->data();
 
             return $request->url() === 'https://ol.test/v1/internal/payments/deal-requests'
-                && !array_key_exists('provider_key', $data);
+                && ! array_key_exists('provider_key', $data);
         });
 
         $this->assertSame('510', $result['payment_id']);
@@ -688,7 +806,7 @@ class DealPaymentRequestTest extends TestCase
 
     private function makeUser(): User
     {
-        $user = new User();
+        $user = new User;
         $user->forceFill([
             'id' => 99,
             'name' => 'Review Admin',

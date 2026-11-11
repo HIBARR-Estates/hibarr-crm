@@ -25,10 +25,30 @@ interface CurrencyOption {
     currency_symbol: string | null;
 }
 
+/** Up to 8 decimals, trailing zeros trimmed, no scientific notation. */
+function formatRate(rate: number): string {
+    if (!Number.isFinite(rate) || rate <= 0) return "";
+    return rate.toFixed(8).replace(/\.?0+$/, "");
+}
+
+function sanitizeRate(value: string): string {
+    const cleaned = value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
+    const [whole, decimals] = cleaned.split(".");
+    if (decimals === undefined) return cleaned;
+    return `${whole}.${decimals.slice(0, 8)}`;
+}
+
+function parseRate(value: string): number | null {
+    const trimmed = value.trim();
+    if (trimmed === "" || trimmed === ".") return null;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
 /**
- * "Create Payment Request": pick the currency the customer pays in, see the
- * converted amount, create it. Shared by the deal page's Payments panel and
- * the agent workspace's Payments card.
+ * "Create Payment Request": pick the currency the customer pays in, confirm
+ * or edit the exchange rate, see the converted amount, create it. Shared by
+ * the deal page's Payments panel and the agent workspace's Payments card.
  */
 export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaymentCreateModalProps) {
     const { td } = useTd();
@@ -47,17 +67,21 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
             || "",
     };
     const dealValue = Number(deal.value ?? 0);
+    const companyCode = companyCurrency.code;
 
-    const [currencyCode, setCurrencyCode] = useState(companyCurrency.code);
+    const [currencyCode, setCurrencyCode] = useState(companyCode);
+    const [rateInput, setRateInput] = useState("1");
+    const [rateEdited, setRateEdited] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
 
     // Each opening starts from the company currency with no stale error.
     useEffect(() => {
         if (!open) return;
-        setCurrencyCode(companyCurrency.code);
+        setCurrencyCode(companyCode);
+        setRateInput("1");
+        setRateEdited(false);
         setCreateError(null);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open]);
+    }, [open, companyCode]);
 
     const { data: currencyData } = useApiQuery<{ data: CurrencyOption[] }>({
         path: route("form-data.index", "currencies"),
@@ -68,23 +92,53 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
         const match = currencies.find((c) => c.currency_code === currencyCode);
         return match
             ? { code: match.currency_code, symbol: match.currency_symbol || match.currency_code }
-            : currencyCode === companyCurrency.code
+            : currencyCode === companyCode
               ? companyCurrency
               : { code: currencyCode, symbol: currencyCode };
-    }, [companyCurrency, currencies, currencyCode]);
+    }, [companyCode, companyCurrency, currencies, currencyCode]);
 
-    const { rate, loading: rateLoading, unavailable: rateUnavailable } = useExchangeRate(
-        companyCurrency.code,
-        currencyCode,
-        open,
-    );
-    // Preview only — the server recomputes this from the deal value at the
-    // same cached rate, so what the client is asked to pay can't be edited.
-    const convertedAmount = rate !== null ? Math.round(dealValue * rate * 100) / 100 : null;
+    const needsRate = currencyCode.toUpperCase() !== companyCode.toUpperCase();
+    const {
+        rate: liveRate,
+        loading: rateLoading,
+        unavailable: rateUnavailable,
+        reload: reloadLiveRate,
+    } = useExchangeRate(companyCode, currencyCode, open && needsRate);
+
+    // Prefill from the live rate until the user types their own. The hook
+    // clears `liveRate` before paint when the pair changes, so this never
+    // copies the previous currency's rate into the new field.
+    useEffect(() => {
+        if (!open || !needsRate || rateEdited || rateLoading || liveRate === null) return;
+        setRateInput(formatRate(liveRate));
+    }, [open, needsRate, rateEdited, rateLoading, liveRate]);
+
+    const parsedRate = needsRate ? parseRate(rateInput) : 1;
+    // The amount follows the rate on screen, which is what gets saved.
+    const convertedAmount = parsedRate !== null ? Math.round(dealValue * parsedRate * 100) / 100 : null;
+    const rateInvalid =
+        needsRate && rateInput.trim() !== "" && (parsedRate === null || convertedAmount === 0);
+
+    const handleCurrencyChange = (next: string) => {
+        setCurrencyCode(next);
+        setRateEdited(false);
+        setRateInput(next.toUpperCase() === companyCode.toUpperCase() ? "1" : "");
+        if (createError) setCreateError(null);
+    };
+
+    const handleUseLiveRate = () => {
+        // The next live rate replaces whatever is in the field, including an edit.
+        setRateEdited(false);
+        reloadLiveRate();
+    };
 
     const handleCreate = async () => {
+        if (parsedRate === null) return;
         setCreateError(null);
-        const result = await createPaymentRequest({ currency: currencyCode });
+        const result = await createPaymentRequest({
+            currency: currencyCode,
+            ...(needsRate ? { exchange_rate: parsedRate } : {}),
+        });
 
         if (result.ok) {
             onClose();
@@ -94,7 +148,8 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
         setCreateError(result.message);
     };
 
-    const canSubmit = dealValue > 0 && rate !== null && !rateLoading && !creating;
+    const canSubmit =
+        dealValue > 0 && parsedRate !== null && (convertedAmount ?? 0) > 0 && !creating;
 
     return (
         <DealModal
@@ -110,16 +165,13 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
                     <select
                         className="dr-input"
                         value={currencyCode}
-                        onChange={(e) => {
-                            setCurrencyCode(e.target.value);
-                            if (createError) setCreateError(null);
-                        }}
+                        onChange={(e) => handleCurrencyChange(e.target.value)}
                         aria-label={t("pages.deals.payment_request.currency")}
                     >
                         {/* The company currency is always offered, even
                             before the list loads. */}
-                        {!currencies.some((c) => c.currency_code === companyCurrency.code) && (
-                            <option value={companyCurrency.code}>{companyCurrency.code}</option>
+                        {!currencies.some((c) => c.currency_code === companyCode) && (
+                            <option value={companyCode}>{companyCode}</option>
                         )}
                         {currencies.map((currency) => (
                             <option key={currency.id} value={currency.currency_code}>
@@ -129,6 +181,57 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
                     </select>
                 </DealModalField>
 
+                {needsRate && (
+                    <DealModalField label={t("pages.deals.payment_request.exchange_rate")}>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs tabular-nums text-dr-text-muted">
+                                {`1 ${companyCode} =`}
+                            </span>
+                            <div className="w-32 shrink-0">
+                                <input
+                                    className="dr-input tabular-nums"
+                                    inputMode="decimal"
+                                    aria-label={t("pages.deals.payment_request.exchange_rate")}
+                                    aria-invalid={rateInvalid || undefined}
+                                    value={rateInput}
+                                    placeholder={
+                                        rateLoading
+                                            ? t("pages.deals.payment_request.rate_loading")
+                                            : "0"
+                                    }
+                                    onChange={(e) => {
+                                        setRateEdited(true);
+                                        setRateInput(sanitizeRate(e.target.value));
+                                        if (createError) setCreateError(null);
+                                    }}
+                                />
+                            </div>
+                            <span className="text-xs font-medium text-dr-text">{currencyCode}</span>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                loading={rateLoading}
+                                onClick={handleUseLiveRate}
+                            >
+                                {t("pages.deals.payment_request.use_live_rate")}
+                            </Button>
+                        </div>
+                        <p
+                            className={`mt-1.5 text-[11px] ${
+                                rateUnavailable && rateInput.trim() === ""
+                                    ? "text-[#b45309]"
+                                    : "text-dr-text-hint"
+                            }`}
+                        >
+                            {rateLoading
+                                ? t("pages.deals.payment_request.rate_loading")
+                                : rateUnavailable && rateInput.trim() === ""
+                                  ? t("pages.deals.payment_request.rate_unavailable")
+                                  : t("pages.deals.payment_request.rate_editable_hint")}
+                        </p>
+                    </DealModalField>
+                )}
+
                 <div className="space-y-1.5 rounded-md border border-dr-border-soft bg-[#fafbfc] p-3 text-xs">
                     <div className="flex justify-between gap-3 text-dr-text-muted">
                         <span>{t("pages.deals.payment_request.deal_value")}</span>
@@ -136,18 +239,6 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
                             {formatMoneyAmount(dealValue, companyCurrency)}
                         </span>
                     </div>
-                    {currencyCode !== companyCurrency.code && (
-                        <div className="flex justify-between gap-3 text-dr-text-muted">
-                            <span>{t("pages.deals.payment_request.exchange_rate")}</span>
-                            <span className="font-medium text-dr-text tabular-nums">
-                                {rateLoading
-                                    ? t("pages.deals.payment_request.rate_loading")
-                                    : rate !== null
-                                      ? `1 ${companyCurrency.code} = ${rate} ${currencyCode}`
-                                      : "—"}
-                            </span>
-                        </div>
-                    )}
                     <div className="flex justify-between gap-3 border-t border-dr-border-soft pt-1.5 text-sm">
                         <span className="font-semibold text-dr-text">
                             {t("pages.deals.payment_request.amount_to_request")}
@@ -164,9 +255,15 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
                     <p className="text-xs text-[#b45309]">
                         {t("pages.deals.payment_request.no_deal_value")}
                     </p>
-                ) : rateUnavailable ? (
+                ) : rateInvalid ? (
                     <p className="text-xs text-[#b45309]">
-                        {t("pages.deals.payment_request.rate_unavailable")}
+                        {t("pages.deals.payment_request.rate_required")}
+                    </p>
+                ) : needsRate ? (
+                    <p className="text-[11px] text-dr-text-hint">
+                        {t("pages.deals.payment_request.chosen_rate_hint", {
+                            currency: currencyCode,
+                        })}
                     </p>
                 ) : (
                     <p className="text-[11px] text-dr-text-hint">

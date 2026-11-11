@@ -38,10 +38,12 @@ class DealPaymentController extends AccountBaseController
         $this->assertCanCreatePaymentRequest($deal);
 
         // No amount: the service converts the deal's value into the chosen
-        // currency itself, so the figure sent to OL can't drift from the deal.
+        // currency. exchange_rate is optional and, when sent, is the rate the
+        // user confirmed (units of `currency` per 1 company-currency unit).
         $validated = $request->validate([
             'currency' => 'required|string|size:3|alpha',
             'provider_key' => 'nullable|string|in:manual-bank-transfer,nowpayments',
+            'exchange_rate' => 'nullable|numeric|gt:0',
         ]);
 
         try {
@@ -97,7 +99,7 @@ class DealPaymentController extends AccountBaseController
             'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
         ];
         $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
-        abort_403(!$access['canAccess']);
+        abort_403(! $access['canAccess']);
     }
 
     private function assertCanCreatePaymentRequest(Deal $deal): void
@@ -112,14 +114,14 @@ class DealPaymentController extends AccountBaseController
             'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
         ];
         $access = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules);
-        abort_403(!$access['canAccess']);
+        abort_403(! $access['canAccess']);
 
         // Watchers can see everything but never write — see DealNoteController::store.
         $isUnrestrictedWriter = in_array('admin', user_roles())
             || user()->permission('edit_deals') === 'all';
-        if (!$isUnrestrictedWriter
+        if (! $isUnrestrictedWriter
             && $deal->added_by != user()->id
-            && !$deal->hasTeamMemberAccess(user()->id)
+            && ! $deal->hasTeamMemberAccess(user()->id)
             && $deal->dealWatchers()->where('user_id', user()->id)->exists()
         ) {
             abort_403(true);

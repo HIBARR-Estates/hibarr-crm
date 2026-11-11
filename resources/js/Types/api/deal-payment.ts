@@ -48,8 +48,13 @@ export interface DealPaymentRequest {
 }
 
 export interface DealPaymentCreateInput {
-    /** ISO code; the server converts the deal value into it at the live rate. */
+    /** ISO code; the server converts the deal value into it. */
     currency: string;
+    /**
+     * Units of `currency` per 1 company-currency unit. Omit to use the live
+     * rate. Ignored when `currency` is already the company currency.
+     */
+    exchange_rate?: number;
     /** Optional. Omit so OL checkout lets the client choose how to pay. */
     provider_key?: "manual-bank-transfer" | "nowpayments";
 }
