@@ -3195,6 +3195,10 @@ return [
                 'deal' => 'Deal',
                 'close_date' => 'Close date {{date}}',
                 'budget_value' => 'Budget · value',
+                'qualification' => 'Qualification',
+                'qualification_answered' => '{{answered}} of {{total}} answered',
+                'qualification_next' => 'Step {{step}} is next',
+                'qualification_complete' => 'All questions answered',
             ],
             'ai' => [
                 'writing' => 'Writing a brief…',

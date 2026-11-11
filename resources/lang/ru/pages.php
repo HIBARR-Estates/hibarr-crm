@@ -3051,6 +3051,10 @@ return [
                 'deal' => 'Сделка',
                 'close_date' => 'Дата закрытия {{date}}',
                 'budget_value' => 'Бюджет · стоимость',
+                'qualification' => 'Квалификация',
+                'qualification_answered' => '{{answered}} из {{total}} отвечено',
+                'qualification_next' => 'Следующий шаг — {{step}}',
+                'qualification_complete' => 'На все вопросы получены ответы',
             ],
             'ai' => [
                 'writing' => 'Готовим сводку…',

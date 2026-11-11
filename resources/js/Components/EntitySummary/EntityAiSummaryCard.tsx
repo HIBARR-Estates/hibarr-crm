@@ -34,6 +34,7 @@ export default function EntityAiSummaryCard({
     onRequestDocuments,
     onAdvanceStage,
     onReviewStaleDeal,
+    onSummaryChange,
 }: EntityAiSummaryCardProps) {
     const { t } = useTranslation();
     const { td } = useTd();
@@ -53,6 +54,7 @@ export default function EntityAiSummaryCard({
             // Lead summaries write themselves on load when missing or stale (never over a
             // current one); deal summaries stay manual.
             autoGenerate: entityType === "lead",
+            onSummaryChange,
         });
 
     const wasLoadingRef = useRef(false);
