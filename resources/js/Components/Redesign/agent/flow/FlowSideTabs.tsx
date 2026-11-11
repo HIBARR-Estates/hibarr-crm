@@ -17,7 +17,8 @@ interface FlowSideTabsProps {
 /**
  * The right column of a flow under the dock (canvas L7-07, L7-12): two
  * button tabs, the person's facts and the answers so far, each with the
- * column's full height.
+ * column's full height. Every panel stays mounted, so switching tabs keeps
+ * a panel's own sub-tab, scroll and any field being edited.
  */
 export default function FlowSideTabs({ tabs, footer }: FlowSideTabsProps) {
     const [active, setActive] = useState(tabs[0]?.key);
@@ -36,7 +37,7 @@ export default function FlowSideTabs({ tabs, footer }: FlowSideTabsProps) {
                             role="tab"
                             id={`${id}-tab-${tab.key}`}
                             aria-selected={selected}
-                            aria-controls={`${id}-panel`}
+                            aria-controls={`${id}-panel-${tab.key}`}
                             className={`agent-flow__side-tab${selected ? " agent-flow__side-tab--active" : ""}`}
                             onClick={() => setActive(tab.key)}
                         >
@@ -45,14 +46,18 @@ export default function FlowSideTabs({ tabs, footer }: FlowSideTabsProps) {
                     );
                 })}
             </div>
-            <div
-                className="agent-flow__side-panel"
-                role="tabpanel"
-                id={`${id}-panel`}
-                aria-labelledby={current ? `${id}-tab-${current.key}` : undefined}
-            >
-                {current?.content}
-            </div>
+            {tabs.map((tab) => (
+                <div
+                    key={tab.key}
+                    className="agent-flow__side-panel"
+                    role="tabpanel"
+                    id={`${id}-panel-${tab.key}`}
+                    aria-labelledby={`${id}-tab-${tab.key}`}
+                    hidden={tab.key !== current?.key}
+                >
+                    {tab.content}
+                </div>
+            ))}
             {footer ? <div className="agent-flow__side-foot">{footer}</div> : null}
         </div>
     );

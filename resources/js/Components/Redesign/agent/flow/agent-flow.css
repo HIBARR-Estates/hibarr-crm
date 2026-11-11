@@ -298,6 +298,10 @@
     overflow-y: auto;
 }
 
+.agent-flow__side-panel[hidden] {
+    display: none;
+}
+
 .agent-flow__side-foot {
     flex-shrink: 0;
     padding: 12px 16px;

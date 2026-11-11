@@ -351,7 +351,7 @@ function TranslationGate({
 }
 
 /** Small "Translating…" hint beside the language picker (inside the provider). */
-function TranslatingIndicator({ language }: { language: string }) {
+function TranslatingIndicator({ language, onLight = false }: { language: string; onLight?: boolean }) {
     const pending = useDynamicTranslationPending();
 
     if (!pending) {
@@ -361,7 +361,8 @@ function TranslatingIndicator({ language }: { language: string }) {
     return (
         <span
             className="text-[11px] font-medium whitespace-nowrap"
-            style={{ color: "rgba(255,255,255,0.85)" }}
+            // Light on the classic navy header, muted text on the white one under the dock.
+            style={{ color: onLight ? T.TEXT_MUTED : "rgba(255,255,255,0.85)" }}
             role="status"
         >
             {TRANSLATING_LABEL[language] ?? TRANSLATING_LABEL.en}
@@ -928,6 +929,7 @@ function QualifyModalContent({
                     <span className="inline-flex items-center gap-2">
                         <TranslatingIndicator
                             language={agentLanguage}
+                            onLight={underDock}
                         />
                         <select
                             value={agentLanguage}

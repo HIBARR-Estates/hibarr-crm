@@ -466,7 +466,10 @@ export default function DealAnalysisModal({
         state:
             group.sectionId === activeSection
                 ? "current"
-                : group.steps.length > 0 && group.steps.every((step) => step.filled)
+                : // Questions never count as filled in the rail; an answered or
+                  // "no answer" question is settled all the same.
+                  group.steps.length > 0 &&
+                    group.steps.every((step) => step.filled || resolvedSteps.has(step.stepKey))
                   ? "done"
                   : "todo",
         locked: group.locked,
