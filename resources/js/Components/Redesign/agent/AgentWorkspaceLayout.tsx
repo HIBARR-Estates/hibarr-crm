@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useLayoutEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
@@ -33,12 +33,14 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
     const active = activeDestinationKey(url);
     const [slot, setSlot] = useState<HTMLElement | null>(null);
     const { t } = useTranslation();
+    const [top, setTop] = useState<HTMLElement | null>(null);
+    useChromeBottom(top, slot);
 
     return (
         <SecondRowSlot.Provider value={slot}>
             <div className="agent-ws agent-ws--with-tabs">
                 <div className="agent-ws__band" aria-hidden="true" />
-                <header className="agent-ws__top">
+                <header ref={setTop} className="agent-ws__top">
                     <div className="agent-ws__corner">
                         <span className="agent-ws__brand" aria-hidden="true">
                             {appName.charAt(0) || "H"}
@@ -71,6 +73,43 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
             </div>
         </SecondRowSlot.Provider>
     );
+}
+
+/**
+ * Publishes where the dock and its second row end, as --agent-chrome-bottom
+ * on the root, so a flow opened "under the dock" (qualification, analysis)
+ * starts right below them. Measured from the top of the page: those flows
+ * scroll the page back up when they open.
+ */
+function useChromeBottom(top: HTMLElement | null, secondRow: HTMLElement | null): void {
+    useLayoutEffect(() => {
+        if (!top) return;
+        const root = document.documentElement;
+        const measure = () => {
+            const bottoms = [top, secondRow]
+                .filter((el): el is HTMLElement => el !== null && el.offsetHeight > 0)
+                .map((el) => el.getBoundingClientRect().bottom + window.scrollY);
+            root.style.setProperty("--agent-chrome-bottom", `${Math.round(Math.max(0, ...bottoms))}px`);
+        };
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(top);
+        if (secondRow) {
+            observer.observe(secondRow);
+            // Pills come and go with the page; the row's size alone may not change.
+            const mutations = new MutationObserver(measure);
+            mutations.observe(secondRow, { childList: true, subtree: true });
+            return () => {
+                observer.disconnect();
+                mutations.disconnect();
+                root.style.removeProperty("--agent-chrome-bottom");
+            };
+        }
+        return () => {
+            observer.disconnect();
+            root.style.removeProperty("--agent-chrome-bottom");
+        };
+    }, [top, secondRow]);
 }
 
 /** Renders a page's pills (or other second-row controls) under the dock. */

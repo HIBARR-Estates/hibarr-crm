@@ -399,6 +399,7 @@ function ContactDealInner(props: ContactDealProps) {
                     fields={model.fields}
                     visibleLeadFieldKeys={props.visibleLeadFieldKeys}
                     analysisScript={props.analysisScript}
+                    placement="under-dock"
                 />
             ) : null}
             <DealAddTaskModal
