@@ -983,10 +983,12 @@ function QualifyModalContent({
                             templateTree.name,
                             inOutcome
                                 ? t("pages.agent_workspace.flow.outcome")
-                                : t("pages.agent_workspace.flow.step_of", {
-                                      current: Math.min(flow.walkIndex + 1, walkSegments.length),
-                                      total: walkSegments.length,
-                                  }),
+                                : walkSegments.length > 0
+                                  ? t("pages.agent_workspace.flow.step_of", {
+                                        current: Math.min(flow.walkIndex + 1, walkSegments.length),
+                                        total: walkSegments.length,
+                                    })
+                                  : "",
                             t("pages.agent_workspace.flow.saves"),
                         ]
                             .filter(Boolean)

@@ -526,12 +526,16 @@ export default function DealAnalysisModal({
                             // A script of plain questions has no fields to count.
                             totalFields > 0
                                 ? t("pages.agent_workspace.flow.answered_of", { done: totalFilled, total: totalFields })
-                                : t("pages.agent_workspace.flow.step_of", {
-                                      current: Math.max(1, flowSteps.findIndex((step) => step.state === "current") + 1),
-                                      total: flowSteps.length,
-                                  }),
+                                : flowSteps.length > 0
+                                  ? t("pages.agent_workspace.flow.step_of", {
+                                        current: Math.max(1, flowSteps.findIndex((step) => step.state === "current") + 1),
+                                        total: flowSteps.length,
+                                    })
+                                  : "",
                             t("pages.agent_workspace.flow.saves"),
-                        ].join(" · ")}
+                        ]
+                            .filter(Boolean)
+                            .join(" · ")}
                         subscribeSaving={subscribeSaving}
                         trailing={<FocusModeButton active={focusMode} onToggle={() => setFocusMode((v) => !v)} />}
                         onClose={requestClose}

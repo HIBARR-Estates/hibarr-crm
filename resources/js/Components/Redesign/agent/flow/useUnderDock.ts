@@ -1,12 +1,14 @@
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 
 /**
  * While a flow is open under the agent dock: bring the dock back into view
  * (the panel is pinned just under it) and keep the page behind from
  * scrolling. Off, it does nothing, so the classic pages are unchanged.
+ * A layout effect, so the scroll happens before the first paint and the
+ * panel never shows a frame at the old offset.
  */
 export default function useUnderDock(active: boolean): void {
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (!active) return;
         window.scrollTo({ top: 0 });
         const body = document.body;
