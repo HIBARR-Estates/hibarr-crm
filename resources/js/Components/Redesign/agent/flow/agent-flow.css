@@ -362,3 +362,107 @@
         display: none;
     }
 }
+
+/* ---------- footer ---------- */
+.agent-flow__foot {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 12px;
+    margin: 0 24px;
+    padding: 14px 0 16px;
+    border-top: 1px solid var(--dr-border);
+}
+
+.agent-flow__saved {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--dr-text-muted);
+    font-size: 12px;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-flow__btn {
+    display: inline-flex;
+    flex: 0 1 auto;
+    min-width: 0;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 16px;
+    border: 1px solid var(--dr-button-ghost-border);
+    border-radius: 10px;
+    background: var(--dr-button-ghost-bg);
+    color: var(--dr-button-ghost-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-flow__btn:hover:not(:disabled) {
+    background: var(--dr-button-ghost-hover-bg);
+    color: var(--dr-button-ghost-hover-text);
+}
+
+.agent-flow__btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.agent-flow__btn--navy,
+.agent-flow__btn--green {
+    font-weight: 600;
+}
+
+.agent-flow__btn--navy,
+.agent-flow__btn--navy:hover:not(:disabled) {
+    border-color: var(--dr-button-navy-bg);
+    background: var(--dr-button-navy-bg);
+    color: var(--dr-button-navy-text);
+}
+
+.agent-flow__btn--navy:hover:not(:disabled) {
+    background: var(--dr-button-navy-hover-bg);
+}
+
+.agent-flow__btn--green,
+.agent-flow__btn--green:hover:not(:disabled) {
+    border-color: var(--dr-button-call-bg);
+    background: var(--dr-button-call-bg);
+    color: var(--dr-button-call-text);
+}
+
+.agent-flow__btn--green:hover:not(:disabled) {
+    background: var(--dr-button-call-hover-bg);
+}
+
+.agent-flow__foot-name {
+    min-width: 0;
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 639px) {
+    .agent-flow__foot {
+        flex-wrap: wrap;
+        margin: 0 16px;
+        gap: 8px;
+    }
+
+    .agent-flow__saved {
+        order: 5;
+        flex: 1 0 100%;
+        text-align: left;
+    }
+
+    .agent-flow__foot-name {
+        max-width: 120px;
+    }
+}
