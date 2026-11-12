@@ -77,8 +77,8 @@ export default function useDealPayment(dealId: number) {
     const [retrying, setRetrying] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
-    // A confirmed payment wins the deal server-side (outcome, and commission
-    // lock once the job runs) — pull the fresh deal so the header reflects it.
+    // Pull the deal again after a payment is confirmed so the page matches
+    // the server. Confirmation does not change the deal's outcome.
     const refreshDeal = useCallback(async () => {
         try {
             const refreshed = await axios.get(route("deals.refresh", dealId));
@@ -213,8 +213,7 @@ export default function useDealPayment(dealId: number) {
         setRefreshing(true);
         try {
             await refreshPaymentRequest();
-            // An online payment may have completed since the last look,
-            // which wins the deal the same way a confirm does.
+            // An online payment may have completed since the last look.
             await refreshDeal();
         } finally {
             setRefreshing(false);

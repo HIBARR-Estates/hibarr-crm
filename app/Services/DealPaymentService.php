@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\OutcomeStatus;
 use App\Models\Company;
 use App\Models\Currency;
 use App\Models\Deal;
@@ -10,7 +9,6 @@ use App\Models\DealAutomation;
 use App\Models\Payment;
 use App\Models\User;
 use App\Scopes\CompanyScope;
-use App\Services\Deal\DealOutcomeService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
@@ -27,7 +25,6 @@ class DealPaymentService
         private readonly OlDealPaymentProxyService $olProxy,
         private readonly OlPaymentReviewDecisionService $reviewDecisionService,
         private readonly ExchangeRateService $exchangeRates,
-        private readonly DealOutcomeService $outcomes,
     ) {}
 
     /**
@@ -231,7 +228,7 @@ class DealPaymentService
         $olPayload = null;
         try {
             $olPayload = $this->olProxy->getFromOl((string) $payment->external_reference);
-            // Won is applied once, below — whatever OL reports back here.
+            // The payment is marked confirmed once, below — whatever OL reports back here.
             $this->syncFromOlPayload($payment, $olPayload, markConfirmed: false);
         } catch (HttpException $e) {
             if ($e->getStatusCode() >= 500) {
@@ -472,15 +469,11 @@ class DealPaymentService
     }
 
     /**
-     * A confirmed payment wins the deal — from any outcome, Lost included.
-     * Goes through DealOutcomeService like a manual Won, so DealWonEvent fires
-     * and ProcessDealWonJob distributes commission and sets commission_locked.
-     * commission_locked is deliberately NOT set here: the job skips any deal
-     * that already has it, so setting it first would mean no commission is
-     * ever paid out.
+     * A confirmed payment records that the money was received. It does not
+     * change the deal's outcome — marking the deal won stays a separate decision.
      *
-     * Idempotent; failures are logged rather than thrown because the payment
-     * itself is already confirmed at OL by the time this runs.
+     * Fires the payment-received automations once. Failures there are logged
+     * rather than thrown, because the payment itself is already confirmed.
      */
     public function markConfirmed(Payment $payment): void
     {
@@ -488,31 +481,13 @@ class DealPaymentService
             return;
         }
 
-        try {
-            $deal = Deal::withoutGlobalScope(CompanyScope::class)->find($payment->deal_id);
-
-            if ($deal === null) {
-                return;
-            }
-
-            if ($deal->outcome_status !== OutcomeStatus::Won) {
-                $this->outcomes->apply($deal, OutcomeStatus::Won, "Payment request #{$payment->id} confirmed");
-            }
-        } catch (\Throwable $e) {
-            Log::error('DealPaymentService: failed to mark deal won after payment confirmation', [
-                'payment_id' => $payment->id,
-                'deal_id' => $payment->deal_id,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
         $this->firePaymentReceivedAutomations($payment);
     }
 
     /**
      * Runs the deal_payment_received automations (e.g. the Meta "Purchase"
-     * conversion) — after the deal has been won, so they see its final state
-     * and value. Once per payment (durable `automations_dispatched_at` claim):
+     * conversion) for the deal as it stands. Once per payment (durable
+     * `automations_dispatched_at` claim):
      * markConfirmed() is documented idempotent and several paths can reach
      * it, but a conversion must be reported once.
      * Failures are logged, never thrown — the payment is already confirmed.
@@ -827,7 +802,7 @@ class DealPaymentService
 
     /**
      * @param  array<string, mixed>  $olPayload
-     * @param  bool  $markConfirmed  win the deal when this sync is what completes the payment
+     * @param  bool  $markConfirmed  record the payment as received when this sync is what completes it
      */
     private function syncFromOlPayload(Payment $payment, array $olPayload, bool $markConfirmed = true): void
     {

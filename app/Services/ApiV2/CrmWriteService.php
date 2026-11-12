@@ -438,7 +438,8 @@ class CrmWriteService
         }
 
         // OL pushing a completed payment (online payment settled, or a review
-        // decision) wins the deal, same as a confirm from the CRM side.
+        // decision) records it as received, same as a confirm from the CRM side.
+        // The deal's outcome is left unchanged.
         if (! $wasComplete && $payment->status === 'complete') {
             app(DealPaymentService::class)->markConfirmed($payment);
         }
