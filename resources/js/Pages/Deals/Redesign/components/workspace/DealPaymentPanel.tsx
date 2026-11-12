@@ -313,7 +313,7 @@ export default function DealPaymentPanel({
                 message={
                     cashPending
                         ? t("pages.deals.payment_request.confirm_cash_message")
-                        : td("Confirm that the customer's bank transfer proof has been reviewed and approved.")
+                        : td("Confirm that the customer's bank transfer proof has been reviewed and approved. The deal is marked as won only when confirmed payments add up to the deal value.")
                 }
                 confirmLabel={td("Yes, confirm")}
                 cancelLabel={td("Cancel")}

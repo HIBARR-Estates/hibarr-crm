@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\OutcomeStatus;
 use App\Models\Company;
 use App\Models\Currency;
 use App\Models\Deal;
@@ -9,6 +10,7 @@ use App\Models\DealAutomation;
 use App\Models\Payment;
 use App\Models\User;
 use App\Scopes\CompanyScope;
+use App\Services\Deal\DealOutcomeService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
@@ -25,6 +27,7 @@ class DealPaymentService
         private readonly OlDealPaymentProxyService $olProxy,
         private readonly OlPaymentReviewDecisionService $reviewDecisionService,
         private readonly ExchangeRateService $exchangeRates,
+        private readonly DealOutcomeService $outcomes,
     ) {}
 
     /**
@@ -469,11 +472,13 @@ class DealPaymentService
     }
 
     /**
-     * A confirmed payment records that the money was received. It does not
-     * change the deal's outcome — marking the deal won stays a separate decision.
+     * A confirmed payment records that the money was received. The deal is
+     * marked won only when the accepted payments, including this one, add up
+     * to the deal value. A partial confirmation leaves the outcome unchanged,
+     * including when the deal is Lost.
      *
-     * Fires the payment-received automations once. Failures there are logged
-     * rather than thrown, because the payment itself is already confirmed.
+     * Fires the payment-received automations once. Failures are logged rather
+     * than thrown, because the payment itself is already confirmed.
      */
     public function markConfirmed(Payment $payment): void
     {
@@ -481,7 +486,56 @@ class DealPaymentService
             return;
         }
 
+        try {
+            $deal = Deal::withoutGlobalScope(CompanyScope::class)->find($payment->deal_id);
+
+            if ($deal !== null && $deal->outcome_status !== OutcomeStatus::Won) {
+                $value = round((float) ($deal->value ?? 0), 2);
+                $accepted = $this->acceptedBaseTotal($deal, $payment);
+
+                if ($value > 0 && abs($accepted - $value) < 0.001) {
+                    $this->outcomes->apply($deal, OutcomeStatus::Won, "Payment request #{$payment->id} confirmed");
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::error('DealPaymentService: failed to mark deal won after payment confirmation', [
+                'payment_id' => $payment->id,
+                'deal_id' => $payment->deal_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         $this->firePaymentReceivedAutomations($payment);
+    }
+
+    /**
+     * Company-currency total of payments the customer has paid, counting
+     * $including even when its saved row is not accepted yet.
+     */
+    private function acceptedBaseTotal(Deal $deal, Payment $including): float
+    {
+        $total = 0.0;
+        $included = false;
+
+        foreach ($this->dealRequestsQuery($deal)->get() as $payment) {
+            $isThisPayment = (int) $payment->id === (int) $including->id;
+            if ($isThisPayment) {
+                $payment = $including;
+                $included = true;
+            }
+
+            if (! $isThisPayment && ! in_array(self::uiStateOf($payment), ['confirmed', 'paid_online'], true)) {
+                continue;
+            }
+
+            $total += self::companyAmount($payment);
+        }
+
+        if (! $included) {
+            $total += self::companyAmount($including);
+        }
+
+        return round($total, 2);
     }
 
     /**

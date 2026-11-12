@@ -77,8 +77,8 @@ export default function useDealPayment(dealId: number) {
     const [retrying, setRetrying] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
-    // Pull the deal again after a payment is confirmed so the page matches
-    // the server. Confirmation does not change the deal's outcome.
+    // Pull the deal again after a payment is confirmed. The outcome changes
+    // only when accepted payments add up to the deal value.
     const refreshDeal = useCallback(async () => {
         try {
             const refreshed = await axios.get(route("deals.refresh", dealId));

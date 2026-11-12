@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Scopes\CompanyScope;
 use App\Services\ApiV2\CrmWriteService;
+use App\Services\Deal\DealOutcomeService;
 use App\Services\Deal\DealPaymentValueGuard;
 use App\Services\DealPaymentDocumentService;
 use App\Services\DealPaymentService;
@@ -17,6 +18,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Mockery;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\Concerns\SetsFeatureFlags;
 use Tests\TestCase;
@@ -472,6 +474,26 @@ class DealPaymentRequestTest extends TestCase
         $this->assertSame('completed', $payment->ol_status);
         $this->assertNotNull($payment->paid_on);
         $this->assertNull(DB::table('deals')->where('id', $this->dealId)->value('outcome_status'));
+    }
+
+    public function test_confirm_cash_wins_the_deal_when_it_covers_the_value(): void
+    {
+        $this->insertPayment([
+            'external_reference' => 'cash-cover',
+            'gateway' => 'cash',
+            'ol_status' => 'pending',
+            'ol_payment_type' => 'cash',
+            'status' => 'pending',
+            'amount' => 2500,
+            'base_amount' => 2500,
+        ]);
+        Http::fake();
+        $this->expectDealWon();
+
+        $result = app(DealPaymentService::class)->confirmBankTransfer($this->makeDeal(), $this->makeUser());
+
+        $this->assertSame('confirmed', $result['ui_state']);
+        Http::assertNothingSent();
     }
 
     public function test_invalidate_cash_does_not_call_ol(): void
@@ -1034,12 +1056,80 @@ class DealPaymentRequestTest extends TestCase
         );
     }
 
+    public function test_mark_confirmed_wins_when_accepted_payments_equal_the_deal_value(): void
+    {
+        DB::table('deals')->where('id', $this->dealId)->update(['outcome_status' => OutcomeStatus::Lost->value]);
+        $first = Payment::withoutGlobalScope(CompanyScope::class)->findOrFail(
+            $this->insertPayment([
+                'external_reference' => '593',
+                'ol_status' => 'completed',
+                'ol_payment_type' => 'manual',
+                'verified_by_user_id' => 1,
+                'verified_at' => now(),
+                'status' => 'complete',
+                'amount' => 1000,
+                'base_amount' => 1000,
+                'exchange_rate' => 1,
+            ])
+        );
+
+        app(DealPaymentService::class)->markConfirmed($first);
+        $this->assertSame(
+            OutcomeStatus::Lost->value,
+            DB::table('deals')->where('id', $this->dealId)->value('outcome_status')
+        );
+
+        $second = Payment::withoutGlobalScope(CompanyScope::class)->findOrFail(
+            $this->insertPayment([
+                'external_reference' => '594',
+                'ol_status' => 'completed',
+                'ol_payment_type' => 'cash',
+                'verified_by_user_id' => 1,
+                'verified_at' => now(),
+                'status' => 'complete',
+                'amount' => 1500,
+                'base_amount' => 1500,
+                'exchange_rate' => 1,
+            ])
+        );
+
+        $this->expectDealWon();
+        app(DealPaymentService::class)->markConfirmed($second);
+    }
+
+    public function test_mark_confirmed_does_not_win_when_accepted_payments_exceed_the_deal_value(): void
+    {
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->findOrFail(
+            $this->insertPayment([
+                'external_reference' => '596',
+                'ol_status' => 'completed',
+                'status' => 'complete',
+                'amount' => 2600,
+                'base_amount' => 2600,
+            ])
+        );
+
+        $this->mock(DealOutcomeService::class, fn ($mock) => $mock->shouldNotReceive('apply'));
+
+        app(DealPaymentService::class)->markConfirmed($payment);
+
+        $this->assertNull(DB::table('deals')->where('id', $this->dealId)->value('outcome_status'));
+    }
+
     public function test_mark_confirmed_leaves_an_already_won_deal_alone(): void
     {
         DB::table('deals')->where('id', $this->dealId)->update(['outcome_status' => OutcomeStatus::Won->value]);
         $payment = Payment::withoutGlobalScope(CompanyScope::class)->findOrFail(
-            $this->insertPayment(['external_reference' => '591', 'ol_status' => 'completed', 'status' => 'complete'])
+            $this->insertPayment([
+                'external_reference' => '591',
+                'ol_status' => 'completed',
+                'status' => 'complete',
+                'amount' => 2500,
+                'base_amount' => 2500,
+            ])
         );
+
+        $this->mock(DealOutcomeService::class, fn ($mock) => $mock->shouldNotReceive('apply'));
 
         app(DealPaymentService::class)->markConfirmed($payment);
 
@@ -1067,6 +1157,38 @@ class DealPaymentRequestTest extends TestCase
         app(CrmWriteService::class)->upsertPayment($this->companyId, $push);
 
         $this->assertNull(DB::table('deals')->where('id', $this->dealId)->value('outcome_status'));
+    }
+
+    public function test_ol_completion_push_wins_once_when_the_amount_covers_the_deal(): void
+    {
+        $this->insertPayment(['external_reference' => '595', 'ol_status' => 'confirming', 'status' => 'pending']);
+        Http::fake();
+        $this->expectDealWon();
+
+        $push = [
+            'deal_id' => $this->dealId,
+            'external_reference' => '595',
+            'amount' => 2500,
+            'currency_id' => $this->currencyId,
+            'status' => 'complete',
+            'gateway' => 'nowpayments',
+        ];
+
+        app(CrmWriteService::class)->upsertPayment($this->companyId, $push);
+        app(CrmWriteService::class)->upsertPayment($this->companyId, $push);
+    }
+
+    /** DealOutcomeService is mocked: the real Won path (observer, commission job) is covered elsewhere. */
+    private function expectDealWon(): void
+    {
+        $this->mock(DealOutcomeService::class, fn ($mock) => $mock->shouldReceive('apply')
+            ->once()
+            ->with(
+                Mockery::on(fn ($deal) => $deal instanceof Deal && $deal->id === $this->dealId),
+                OutcomeStatus::Won,
+                Mockery::type('string'),
+            )
+            ->andReturn(['changed' => true]));
     }
 
     public function test_write_back_upsert_preserves_checkout_url(): void
