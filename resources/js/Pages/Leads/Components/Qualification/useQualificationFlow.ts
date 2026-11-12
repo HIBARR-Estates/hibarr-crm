@@ -27,7 +27,7 @@ import {
     validateSegmentAnswer,
 } from "./qualificationUtils";
 
-/** Told whether a save is running, and whether any answer's latest save failed. */
+/** Told whether a save is running, and whether the last save to settle failed. */
 export type SavingListener = (saving: boolean, failed?: boolean) => void;
 
 export interface UseQualificationFlowOptions {
@@ -90,13 +90,13 @@ export const useQualificationFlow = ({
     const saveChains = useRef(new Map<string, Promise<unknown>>());
     const inFlight = useRef(new Set<Promise<unknown>>());
     const savingListeners = useRef(new Set<SavingListener>());
-    /** Segments whose last save failed; cleared by the next successful save of that segment. */
-    const failedSaves = useRef(new Set<string>());
+    /** Whether the most recent answer save to settle failed; the next one to succeed clears it. */
+    const lastSaveFailed = useRef(false);
 
     const notifySaving = useCallback(() => {
         const saving =
             pendingTimers.current.size > 0 || inFlight.current.size > 0;
-        const failed = failedSaves.current.size > 0;
+        const failed = lastSaveFailed.current;
         savingListeners.current.forEach((listener) => listener(saving, failed));
     }, []);
 
@@ -104,7 +104,7 @@ export const useQualificationFlow = ({
         savingListeners.current.add(cb);
         cb(
             pendingTimers.current.size > 0 || inFlight.current.size > 0,
-            failedSaves.current.size > 0,
+            lastSaveFailed.current,
         );
         return () => {
             savingListeners.current.delete(cb);
@@ -140,10 +140,10 @@ export const useQualificationFlow = ({
                             ...buildAnswerLabelSnapshot(segment, values),
                         })
                         .then(() => {
-                            failedSaves.current.delete(segment.key);
+                            lastSaveFailed.current = false;
                         })
                         .catch(() => {
-                            failedSaves.current.add(segment.key);
+                            lastSaveFailed.current = true;
                             message.error("Failed to save answer");
                         }),
                 );

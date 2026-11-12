@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Segment } from "@/Types/qualification";
 import { DynamicTranslationProvider } from "@/contexts/DynamicTranslationContext";
 import { useDynamicTranslations } from "@/Hooks/useDynamicTranslation";
@@ -165,6 +165,10 @@ function NoteField({
     const { t } = useTranslation();
     // Typing stays local; the flow saves on every change like the classic note does.
     const [draft, setDraft] = useState(value);
+    // Follow the answer when it changes from outside this box (a reset, a restored value).
+    useEffect(() => {
+        setDraft(value);
+    }, [value]);
     return (
         <textarea
             className={`agent-qs__note${asAnswer ? " agent-qs__note--answer" : ""}`}

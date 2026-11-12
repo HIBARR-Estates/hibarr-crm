@@ -4,6 +4,13 @@ import type { FactRow } from "./SidePanels";
 
 type T = (key: string, params?: Record<string, string | number>) => string;
 
+/** An option's label, or the stored value as is when it has no label key (older or free-form data). */
+function optionLabel(t: T, value: string): string {
+    const key = `pages.agent_workspace.contact.edit.options.${value}`;
+    const text = t(key);
+    return text && text !== key ? text : value;
+}
+
 /**
  * The person's own details for the "Lead facts" tab: what the CRM already has
  * about them, from the same lead fields the lead page shows, so the agent can
@@ -30,7 +37,7 @@ export function leadFactRows(lead: Lead, t: T): FactRow[] {
         {
             key: "temperature",
             label: label("temperature"),
-            value: lead.temperature ? t(`pages.agent_workspace.contact.edit.options.${lead.temperature}`) : null,
+            value: lead.temperature ? optionLabel(t, lead.temperature) : null,
         },
     ];
 }
