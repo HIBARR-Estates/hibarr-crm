@@ -100,6 +100,7 @@ export default function PaymentDocumentSettingsPage({
                 { name: t("app.menu.settings"), url: route("settings-overview.index") },
                 { name: pageTitle },
             ]}
+            title={pageTitle}
             config={{ showTitle: true }}
         >
             <div className="mx-auto w-full max-w-screen-xl pb-24">
@@ -111,25 +112,25 @@ export default function PaymentDocumentSettingsPage({
                     <div className="flex min-w-0 flex-col gap-5">
                         <Section title={k("business.title")} description={k("business.description")}>
                             <Grid>
-                                <Field label={k("business.legal_name")} required error={errors.legal_name} wide>
+                                <Field htmlFor="pds-legal-name" label={k("business.legal_name")} required error={errors.legal_name} wide>
                                     <input id="pds-legal-name" className="dr-input" {...text("legal_name")} />
                                 </Field>
-                                <Field label={k("business.address")} required error={errors.address} wide>
+                                <Field htmlFor="pds-address" label={k("business.address")} required error={errors.address} wide>
                                     <textarea id="pds-address" className="dr-input" rows={2} {...text("address")} />
                                 </Field>
-                                <Field label={k("business.phone")} error={errors.phone}>
+                                <Field htmlFor="pds-phone" label={k("business.phone")} error={errors.phone}>
                                     <input id="pds-phone" className="dr-input" {...text("phone")} />
                                 </Field>
-                                <Field label={k("business.email")} error={errors.email}>
+                                <Field htmlFor="pds-email" label={k("business.email")} error={errors.email}>
                                     <input id="pds-email" className="dr-input" type="email" {...text("email")} />
                                 </Field>
-                                <Field label={k("business.tax_office")} hint={k("business.tax_office_hint")} required error={errors.tax_office}>
+                                <Field htmlFor="pds-tax-office" label={k("business.tax_office")} hint={k("business.tax_office_hint")} required error={errors.tax_office}>
                                     <input id="pds-tax-office" className="dr-input" {...text("tax_office")} />
                                 </Field>
-                                <Field label={k("business.tax_number")} hint={k("business.tax_number_hint")} required error={errors.tax_number}>
+                                <Field htmlFor="pds-tax-number" label={k("business.tax_number")} hint={k("business.tax_number_hint")} required error={errors.tax_number}>
                                     <input id="pds-tax-number" className="dr-input" {...text("tax_number")} />
                                 </Field>
-                                <Field label={k("business.registration_number")} error={errors.registration_number}>
+                                <Field htmlFor="pds-registration" label={k("business.registration_number")} error={errors.registration_number}>
                                     <input id="pds-registration" className="dr-input" {...text("registration_number")} />
                                 </Field>
                             </Grid>
@@ -235,13 +236,13 @@ export default function PaymentDocumentSettingsPage({
                                     example={formatNumber(form.invoice_series, form.invoice_number_start || 1, form.number_padding)}
                                     exampleLabel={k("numbering.first_number")}
                                 >
-                                    <Field label={k("numbering.series")} required error={errors.invoice_series}>
+                                    <Field htmlFor="pds-invoice-series" label={k("numbering.series")} required error={errors.invoice_series}>
                                         <input id="pds-invoice-series" className="dr-input font-mono" maxLength={10} {...text("invoice_series")} />
                                     </Field>
-                                    <Field label={k("numbering.range_start")} required error={errors.invoice_number_start}>
+                                    <Field htmlFor="pds-invoice-start" label={k("numbering.range_start")} required error={errors.invoice_number_start}>
                                         <input id="pds-invoice-start" className="dr-input" min={1} {...integer("invoice_number_start")} />
                                     </Field>
-                                    <Field label={k("numbering.range_end")} hint={k("numbering.range_end_hint")} error={errors.invoice_number_end}>
+                                    <Field htmlFor="pds-invoice-end" label={k("numbering.range_end")} hint={k("numbering.range_end_hint")} error={errors.invoice_number_end}>
                                         <input id="pds-invoice-end" className="dr-input" min={1} {...integer("invoice_number_end", true)} />
                                     </Field>
                                 </RangeBlock>
@@ -250,19 +251,19 @@ export default function PaymentDocumentSettingsPage({
                                     example={formatNumber(form.receipt_series, form.receipt_number_start || 1, form.number_padding)}
                                     exampleLabel={k("numbering.first_number")}
                                 >
-                                    <Field label={k("numbering.series")} required error={errors.receipt_series}>
+                                    <Field htmlFor="pds-receipt-series" label={k("numbering.series")} required error={errors.receipt_series}>
                                         <input id="pds-receipt-series" className="dr-input font-mono" maxLength={10} {...text("receipt_series")} />
                                     </Field>
-                                    <Field label={k("numbering.range_start")} required error={errors.receipt_number_start}>
+                                    <Field htmlFor="pds-receipt-start" label={k("numbering.range_start")} required error={errors.receipt_number_start}>
                                         <input id="pds-receipt-start" className="dr-input" min={1} {...integer("receipt_number_start")} />
                                     </Field>
-                                    <Field label={k("numbering.range_end")} hint={k("numbering.range_end_hint")} error={errors.receipt_number_end}>
+                                    <Field htmlFor="pds-receipt-end" label={k("numbering.range_end")} hint={k("numbering.range_end_hint")} error={errors.receipt_number_end}>
                                         <input id="pds-receipt-end" className="dr-input" min={1} {...integer("receipt_number_end", true)} />
                                     </Field>
                                 </RangeBlock>
                             </div>
                             <div className="mt-4 max-w-[220px]">
-                                <Field label={k("numbering.padding")} hint={k("numbering.padding_hint")} error={errors.number_padding}>
+                                <Field htmlFor="pds-padding" label={k("numbering.padding")} hint={k("numbering.padding_hint")} error={errors.number_padding}>
                                     <input id="pds-padding" className="dr-input" min={1} max={10} {...integer("number_padding")} />
                                 </Field>
                             </div>
@@ -270,7 +271,7 @@ export default function PaymentDocumentSettingsPage({
 
                         <Section title={k("tax.title")} description={k("tax.description")}>
                             <Grid>
-                                <Field label={k("tax.vat_rate")} hint={k("tax.vat_rate_hint")} required error={errors.vat_rate}>
+                                <Field htmlFor="pds-vat-rate" label={k("tax.vat_rate")} hint={k("tax.vat_rate_hint")} required error={errors.vat_rate}>
                                     <div className="relative">
                                         <input
                                             id="pds-vat-rate"
@@ -287,7 +288,7 @@ export default function PaymentDocumentSettingsPage({
                                         </span>
                                     </div>
                                 </Field>
-                                <Field label={k("tax.approval_number")} hint={k("tax.approval_number_hint")} error={errors.approval_number}>
+                                <Field htmlFor="pds-approval" label={k("tax.approval_number")} hint={k("tax.approval_number_hint")} error={errors.approval_number}>
                                     <input id="pds-approval" className="dr-input" {...text("approval_number")} />
                                 </Field>
                             </Grid>
@@ -309,19 +310,19 @@ export default function PaymentDocumentSettingsPage({
 
                         <Section title={k("payment.title")} description={k("payment.description")}>
                             <Grid>
-                                <Field label={k("payment.bank_name")} error={errors.bank_name}>
+                                <Field htmlFor="pds-bank" label={k("payment.bank_name")} error={errors.bank_name}>
                                     <input id="pds-bank" className="dr-input" {...text("bank_name")} />
                                 </Field>
-                                <Field label={k("payment.account_name")} error={errors.bank_account_name}>
+                                <Field htmlFor="pds-account" label={k("payment.account_name")} error={errors.bank_account_name}>
                                     <input id="pds-account" className="dr-input" {...text("bank_account_name")} />
                                 </Field>
-                                <Field label="IBAN" error={errors.iban}>
+                                <Field htmlFor="pds-iban" label="IBAN" error={errors.iban}>
                                     <input id="pds-iban" className="dr-input font-mono" {...text("iban")} />
                                 </Field>
-                                <Field label="SWIFT / BIC" error={errors.swift}>
+                                <Field htmlFor="pds-swift" label="SWIFT / BIC" error={errors.swift}>
                                     <input id="pds-swift" className="dr-input font-mono" {...text("swift")} />
                                 </Field>
-                                <Field label={k("payment.term_days")} hint={k("payment.term_days_hint")} required error={errors.payment_term_days}>
+                                <Field htmlFor="pds-term" label={k("payment.term_days")} hint={k("payment.term_days_hint")} required error={errors.payment_term_days}>
                                     <input id="pds-term" className="dr-input" min={0} max={365} {...integer("payment_term_days")} />
                                 </Field>
                             </Grid>
@@ -338,6 +339,7 @@ export default function PaymentDocumentSettingsPage({
                         <Section title={k("footer.title")} description={k("footer.description")}>
                             <textarea
                                 id="pds-footer"
+                                aria-label={k("footer.title")}
                                 className="dr-input"
                                 rows={3}
                                 placeholder={k("footer.placeholder")}
@@ -428,12 +430,20 @@ function Grid({ children }: { children: ReactNode }) {
     return <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">{children}</div>;
 }
 
-function FieldLabel({ children, required }: { children: ReactNode; required?: boolean }) {
-    return (
-        <div className="dr-label mb-1.5">
+function FieldLabel({ children, required, htmlFor }: { children: ReactNode; required?: boolean; htmlFor?: string }) {
+    const content = (
+        <>
             {children}
             {required && <span style={{ color: T.RED }}> *</span>}
-        </div>
+        </>
+    );
+
+    return htmlFor ? (
+        <label htmlFor={htmlFor} className="dr-label mb-1.5 block">
+            {content}
+        </label>
+    ) : (
+        <div className="dr-label mb-1.5">{content}</div>
     );
 }
 
@@ -446,6 +456,7 @@ function FieldError({ children }: { children: ReactNode }) {
 }
 
 function Field({
+    htmlFor,
     label,
     hint,
     error,
@@ -453,6 +464,7 @@ function Field({
     wide,
     children,
 }: {
+    htmlFor: string;
     label: string;
     hint?: string;
     error?: string;
@@ -462,7 +474,7 @@ function Field({
 }) {
     return (
         <div className={`min-w-0 ${wide ? "md:col-span-2" : ""}`}>
-            <FieldLabel required={required}>{label}</FieldLabel>
+            <FieldLabel htmlFor={htmlFor} required={required}>{label}</FieldLabel>
             {children}
             {error ? (
                 <FieldError>{error}</FieldError>

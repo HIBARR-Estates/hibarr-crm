@@ -166,7 +166,10 @@ class PaymentDocumentSettingsController extends AccountBaseController
     private function payload(PaymentDocumentSetting $settings): array
     {
         return [
-            'saved' => $settings->exists,
+            // A logo upload stores the row too, so "saved" also needs the
+            // seller fields the form requires before documents can be issued.
+            'saved' => $settings->exists && collect(['legal_name', 'address', 'tax_office', 'tax_number'])
+                ->every(fn (string $field) => filled($settings->{$field})),
             'legal_name' => $settings->legal_name,
             'address' => $settings->address,
             'phone' => $settings->phone,

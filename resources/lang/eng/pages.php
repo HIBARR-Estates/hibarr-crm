@@ -3859,7 +3859,7 @@ return [
         ],
         'numbering' => [
             'title' => 'Numbering',
-            'description' => 'Each document takes the next number in its series. Numbers are never skipped or reused, and a cancelled invoice keeps its number.',
+            'description' => 'Each document takes the next number after the last one issued in its series. Numbers are never reused, and a cancelled invoice keeps its number. Raising the first number continues the series from there.',
             'invoices' => 'Invoices',
             'receipts' => 'Receipts',
             'series' => 'Series',

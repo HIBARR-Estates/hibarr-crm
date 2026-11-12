@@ -73,7 +73,7 @@ export default function usePaymentDocumentSettings(
                     body,
                 );
                 const next = response.data?.data?.settings;
-                if (next) setSettings((prev) => ({ ...prev, logo_url: next.logo_url, saved: true }));
+                if (next) setSettings((prev) => ({ ...prev, logo_url: next.logo_url }));
                 return true;
             } catch (error) {
                 fail(error, fallbacks.uploadFailed);

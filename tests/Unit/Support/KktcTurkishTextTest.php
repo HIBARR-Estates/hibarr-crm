@@ -23,6 +23,8 @@ class KktcTurkishTextTest extends TestCase
         $this->assertSame('Yalnız: Dörtbinüçyüzelli İngiliz Sterlini', TurkishAmountInWords::format(4350, 'GBP'));
         $this->assertSame('Yalnız: Onikibin Türk Lirası Elli Kuruş', TurkishAmountInWords::format(12000.5, 'TRY'));
         $this->assertSame('Yalnız: İkiyüz Avro Bir Sent', TurkishAmountInWords::format(200.01, 'EUR'));
+        // A currency without a known subunit keeps the fraction as hundredths.
+        $this->assertSame('Yalnız: Oniki CAD 34/100', TurkishAmountInWords::format(12.34, 'CAD'));
     }
 
     public function test_ablative_suffix_follows_vowel_harmony(): void

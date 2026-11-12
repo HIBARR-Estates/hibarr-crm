@@ -320,7 +320,7 @@
         <table class="pay" style="margin-top:12px">
             <tr>
                 <td style="width:44%">
-                    <span class="label">ÇEK / NAKİT</span> {!! $en('Method') !!}<br>
+                    <span class="label">ÖDEME ŞEKLİ</span> {!! $en('Method') !!}<br>
                     @foreach ($methods as $key => $label)
                         <span class="chk {{ $method === $key ? 'on' : '' }}"><span class="b">{{ $method === $key ? '✓' : '' }}</span>{{ $label }}</span>
                     @endforeach
@@ -330,7 +330,7 @@
                     {{ in_array($method, ['transfer', 'cheque'], true) ? ($bank['name'] ?: '—') : '—' }}
                 </td>
                 <td>
-                    <span class="label">ÇEK NO / DEKONT NO</span> {!! $en('Ref.') !!}<br>
+                    <span class="label">ÇEK / DEKONT / İŞLEM NO</span> {!! $en('Ref.') !!}<br>
                     <span class="mono">{{ $transaction_reference ?: ($reference ?: '—') }}</span>
                 </td>
             </tr>

@@ -41,7 +41,11 @@ class TurkishAmountInWords
 
         $text = self::capitalize(self::words($whole)).($unit !== '' ? ' '.$unit : '');
         if ($fraction > 0) {
-            $text .= ' '.self::capitalize(self::words($fraction)).($subunit !== '' ? ' '.$subunit : '');
+            // Without a known subunit name, write the fraction as hundredths
+            // so it can't be read as a separate whole amount.
+            $text .= $subunit !== ''
+                ? ' '.self::capitalize(self::words($fraction)).' '.$subunit
+                : ' '.sprintf('%02d', $fraction).'/100';
         }
 
         return 'Yalnız: '.$text;

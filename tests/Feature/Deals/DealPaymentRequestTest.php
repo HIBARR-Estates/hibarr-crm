@@ -1258,6 +1258,45 @@ class DealPaymentRequestTest extends TestCase
         $this->assertSame('125.000,00', $data['try_display']['amount']);
     }
 
+    public function test_tl_equivalent_uses_the_ecb_publication_date_and_the_printed_rate(): void
+    {
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['date' => '2026-11-06', 'rates' => ['TRY' => 50.00004]], 200)]);
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])
+            ->findOrFail($this->insertPayment(['external_reference' => '885', 'ol_status' => 'pending', 'amount' => 4350, 'currency_id' => $this->currencyId]));
+        $data = app(DealPaymentDocumentService::class)->viewData($payment, 'invoice');
+
+        $this->assertSame('06.11.2026', $data['try_display']['date']);
+        $this->assertSame('50,0000', $data['try_display']['rate']);
+        $this->assertSame('217.500,00', $data['try_display']['amount']);
+    }
+
+    public function test_receipt_repeats_the_invoice_kdv_after_the_rate_setting_changes(): void
+    {
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
+
+        $id = $this->insertPayment([
+            'external_reference' => '886',
+            'ol_status' => 'pending',
+            'amount' => 2500,
+        ]);
+        $service = app(DealPaymentDocumentService::class);
+        $invoice = $service->viewData(Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id), 'invoice');
+        $this->assertSame('344,83', $invoice['vat_display']);
+
+        DB::table('payment_document_settings')->where('company_id', $this->companyId)->update(['vat_rate' => 20]);
+        DB::table('payments')->where('id', $id)->update(['ol_status' => 'completed', 'status' => 'complete', 'paid_on' => now()->subDays(3)]);
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+        $receipt = $service->viewData($payment, 'receipt');
+
+        $this->assertSame('344,83', $receipt['vat_display']);
+        $this->assertSame('16', $receipt['vat_rate_display']);
+        // Printed with the collection date; the row records when it was issued.
+        $this->assertSame(now()->subDays(3)->format('d.m.Y'), $receipt['issued_on']);
+        $this->assertTrue(DB::table('payment_documents')->where('kind', 'receipt')->value('issued_at') >= now()->subMinute()->toDateTimeString());
+    }
+
     public function test_invoice_numbers_follow_the_range_and_never_change_once_issued(): void
     {
         Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);

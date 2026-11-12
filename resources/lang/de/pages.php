@@ -3702,7 +3702,7 @@ return [
         ],
         'numbering' => [
             'title' => 'Nummerierung',
-            'description' => 'Jeder Beleg erhält die nächste Nummer seiner Serie. Nummern werden nie übersprungen oder wiederverwendet, eine stornierte Rechnung behält ihre Nummer.',
+            'description' => 'Jeder Beleg erhält die nächste Nummer nach dem zuletzt ausgestellten Beleg seiner Serie. Nummern werden nie wiederverwendet, eine stornierte Rechnung behält ihre Nummer. Wird die erste Nummer erhöht, läuft die Serie ab dort weiter.',
             'invoices' => 'Rechnungen',
             'receipts' => 'Quittungen',
             'series' => 'Serie',

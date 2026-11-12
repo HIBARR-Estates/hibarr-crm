@@ -3680,7 +3680,7 @@ return [
         ],
         'numbering' => [
             'title' => 'Numaralandırma',
-            'description' => 'Her belge kendi serisindeki bir sonraki numarayı alır. Numaralar atlanmaz veya tekrar kullanılmaz; iptal edilen fatura numarasını korur.',
+            'description' => 'Her belge, serisinde en son kesilen numaradan sonrakini alır. Numaralar tekrar kullanılmaz; iptal edilen fatura numarasını korur. İlk numara yükseltilirse seri oradan devam eder.',
             'invoices' => 'Faturalar',
             'receipts' => 'Makbuzlar',
             'series' => 'Seri',

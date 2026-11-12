@@ -159,13 +159,25 @@ class DealPaymentDocumentService
         // A receipt is always "karşılığı" an invoice, so the invoice is issued
         // first and its number printed on the receipt.
         $invoiceNumber = null;
+        $invoiceSnapshot = null;
         if ($kind === PaymentDocument::RECEIPT) {
             $invoice = $this->issued($payment, PaymentDocument::INVOICE) ?? $this->issue($payment, PaymentDocument::INVOICE);
-            $invoiceNumber = $invoice->snapshot['number'] ?? null;
+            $invoiceSnapshot = $invoice->snapshot;
+            $invoiceNumber = $invoiceSnapshot['number'] ?? null;
         }
 
         $companyId = (int) $payment->company_id;
         $paymentData = $this->paymentData($payment, $kind, $invoiceNumber);
+        if ($invoiceSnapshot) {
+            // The receipt settles that invoice, so it repeats the invoice's
+            // amounts and KDV even if the KDV rate setting changed since.
+            $paymentData['invoice_totals'] = [
+                'subtotal' => $invoiceSnapshot['subtotal'] ?? null,
+                'vat_rate' => $invoiceSnapshot['vat_rate'] ?? null,
+                'vat' => $invoiceSnapshot['vat'] ?? null,
+                'total' => $invoiceSnapshot['total'] ?? null,
+            ];
+        }
         // Look the TL rate up before taking the settings lock, so a slow rate
         // API never holds up other documents being issued for the company.
         $paymentData['try_rate'] = $this->tryRate(PaymentDocumentSetting::forCompany($companyId), $paymentData['currency_code']);
@@ -185,9 +197,7 @@ class DealPaymentDocumentService
                         : 'The receipt number range is used up. Add a new range in Invoices and receipts settings.');
                 }
 
-                $issuedAt = $kind === PaymentDocument::RECEIPT
-                    ? ($paymentData['collected_at'] ?? now())
-                    : now();
+                $issuedAt = now();
 
                 $snapshot = $this->snapshot($settings, $kind, array_merge($paymentData, [
                     'number' => PaymentDocument::formatNumber($series, $sequence, $settings->number_padding),
@@ -313,16 +323,31 @@ class DealPaymentDocumentService
     {
         /** @var CarbonInterface $issuedAt */
         $issuedAt = $data['issued_at'];
+        // A receipt is dated the day the money was collected; the moment it
+        // was issued is kept on the document row (issued_at).
+        $documentDate = $kind === PaymentDocument::RECEIPT && ($data['collected_at'] ?? null) instanceof CarbonInterface
+            ? $data['collected_at']
+            : $issuedAt;
         $amount = (float) $data['amount'];
-        $vatRate = (float) $settings->vat_rate;
-        // Request amounts are what the client pays, so KDV is included in them.
-        $net = round($amount / (1 + $vatRate / 100), 2);
-        $vat = round($amount - $net, 2);
+        $invoiceTotals = $data['invoice_totals'] ?? null;
+        if ($invoiceTotals && $invoiceTotals['total'] !== null && $invoiceTotals['vat_rate'] !== null) {
+            $amount = (float) $invoiceTotals['total'];
+            $vatRate = (float) $invoiceTotals['vat_rate'];
+            $net = (float) $invoiceTotals['subtotal'];
+            $vat = (float) $invoiceTotals['vat'];
+        } else {
+            $vatRate = (float) $settings->vat_rate;
+            // Request amounts are what the client pays, so KDV is included in them.
+            $net = round($amount / (1 + $vatRate / 100), 2);
+            $vat = round($amount - $net, 2);
+        }
         $code = $data['currency_code'] ? strtoupper((string) $data['currency_code']) : null;
 
-        $tryRate = array_key_exists('try_rate', $data)
+        $tryQuote = array_key_exists('try_rate', $data)
             ? ($settings->show_try_equivalent ? $data['try_rate'] : null)
             : $this->tryRate($settings, $code);
+        // Round the rate first, so the printed rate reproduces the printed TL amount.
+        $tryRate = $tryQuote ? round((float) $tryQuote['rate'], 4) : null;
 
         $seriesEnd = $this->rangeEndFor($settings, $kind);
         $seriesStart = (int) ($kind === PaymentDocument::INVOICE ? $settings->invoice_number_start : $settings->receipt_number_start);
@@ -331,7 +356,7 @@ class DealPaymentDocumentService
         return [
             'kind' => $kind,
             'number' => $data['number'],
-            'issued_on' => $issuedAt->format('d.m.Y'),
+            'issued_on' => $documentDate->format('d.m.Y'),
             'due_on' => $kind === PaymentDocument::INVOICE && $settings->payment_term_days > 0
                 ? $issuedAt->copy()->addDays($settings->payment_term_days)->format('d.m.Y')
                 : null,
@@ -379,9 +404,9 @@ class DealPaymentDocumentService
             'total' => $amount,
             'amount_in_words' => TurkishAmountInWords::format($amount, $code),
             'try' => $tryRate ? [
-                'rate' => round($tryRate, 4),
+                'rate' => $tryRate,
                 'amount' => round($amount * $tryRate, 2),
-                'date' => now()->format('d.m.Y'),
+                'date' => Carbon::parse($tryQuote['date'])->format('d.m.Y'),
             ] : null,
             'method' => $data['method'],
             'transaction_reference' => $data['transaction_reference'],
@@ -389,14 +414,17 @@ class DealPaymentDocumentService
         ];
     }
 
-    private function tryRate(PaymentDocumentSetting $settings, ?string $currencyCode): ?float
+    /**
+     * @return array{rate: float, date: string}|null
+     */
+    private function tryRate(PaymentDocumentSetting $settings, ?string $currencyCode): ?array
     {
         $code = $currencyCode ? strtoupper($currencyCode) : null;
         if (! $settings->show_try_equivalent || ! $code || in_array($code, ['TRY', 'TL'], true)) {
             return null;
         }
 
-        return $this->exchangeRates->rate($code, 'TRY');
+        return $this->exchangeRates->quote($code, 'TRY');
     }
 
     /**
