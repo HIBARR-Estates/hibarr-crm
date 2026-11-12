@@ -3,18 +3,18 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import Badge from "@/Components/Redesign/primitives/Badge";
 import Button from "@/Components/Redesign/primitives/Button";
-import CheckoutLinkActions from "@/Components/Redesign/primitives/CheckoutLinkActions";
 import Icon from "@/Components/Redesign/primitives/Icon";
-import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import { REDESIGN_TOKENS as T, REDESIGN_TYPE } from "@/Components/Redesign/tokens";
+import CheckoutLinkActions from "@/Components/Redesign/primitives/CheckoutLinkActions";
 import {
     paymentUiStateBadgeVariant,
     paymentUiStateLabel,
 } from "@/Components/Redesign/adapters/dealPaymentUiState";
 import {
-    formatMoneyAmount,
-    type CurrencyDisplay,
-} from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
-import { formatCompanyDateTime } from "@/lib/companyDateTime";
+    hasActiveCheckoutLink,
+    isCheckoutLinkExpired,
+} from "@/Pages/Deals/Redesign/adapters/mapDealPaymentUiState";
+import { formatMoneyAmount, type CurrencyDisplay } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import type { DealPaymentRequest } from "@/Types/api/deal-payment";
 
 export interface PaymentRequestListRow extends DealPaymentRequest {
@@ -22,54 +22,65 @@ export interface PaymentRequestListRow extends DealPaymentRequest {
     /** The deal's value now, in company currency. */
     deal_value: number | null;
     agent_name: string | null;
+    agent_user_id: number | null;
+    lead_id: number | null;
+    lead_name: string | null;
+    lead_company: string | null;
 }
 
 /**
- * Column widths, shared with the list's header row so the two line up — and
- * the responsive classes with them, so a column that drops out at a
- * breakpoint drops out of the header at the same one.
+ * Columns that stay on the row. When the request was created still lives
+ * in the modal. Deal value sits under the deal name, and a foreign-currency
+ * rate sits under the amount, so neither needs its own column.
  */
-export const PAYMENT_REQUEST_COLUMNS = {
-    dealValue: { width: 140, className: "hidden md:block" },
-    requested: { width: 170, className: "" },
-    status: { width: 190, className: "hidden sm:block" },
-    method: { width: 120, className: "hidden lg:block" },
-    created: { width: 140, className: "hidden xl:block" },
-    actions: { width: 240, className: "" },
-} as const;
-
-const C = PAYMENT_REQUEST_COLUMNS;
+/**
+ * One track list for the header and every row. The last track is reserved
+ * for Invoice and, only while a transfer is still waiting, Confirm.
+ */
+export const PAYMENT_REQUEST_GRID =
+    "minmax(0, 1.5fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr) 172px 320px";
 
 interface PaymentRequestRowProps {
     row: PaymentRequestListRow;
     companyCurrency: CurrencyDisplay;
     onConfirm: () => void;
+    onOpen: () => void;
+    onRetry: () => void;
 }
 
-/** When the row's current status was reached, for the line under the badge. */
-function statusTimestamp(row: PaymentRequestListRow): string | null {
-    const at =
-        row.ui_state === "confirmed"
-            ? row.verified_at
-            : row.ui_state === "invalidated"
-              ? row.invalidated_at
-              : row.updated_at;
-    return at ? formatCompanyDateTime(at) : null;
+function invoiceHref(row: PaymentRequestListRow): string | null {
+    if (row.deal_id == null) return null;
+    try {
+        return route("deals.payment-requests.document", {
+            deal: row.deal_id,
+            payment: row.id,
+            kind: "invoice",
+        });
+    } catch {
+        return null;
+    }
 }
+
+function leadHref(leadId: number): string | null {
+    try {
+        return route("lead-contact.show", leadId);
+    } catch {
+        return null;
+    }
+}
+
+const nameLinkClass = "text-sm text-dr-text no-underline hover:text-dr-blue";
 
 /**
- * One payment request as a list row.
- *
- * The two money columns answer different questions: what the deal is worth
- * (company currency, today) and what the client was asked to pay (in the
- * currency the request was issued in, with the rate it was converted at).
- * They only disagree for requests in another currency — or once the deal's
- * value has moved on, which is exactly when a request gets invalidated.
+ * One payment request. The row opens the request; the deal and lead names
+ * go to those records. Row actions are the invoice, confirm, a live checkout's share and copy, and retry when the link has expired.
  */
 export default function PaymentRequestRow({
     row,
     companyCurrency,
     onConfirm,
+    onOpen,
+    onRetry,
 }: PaymentRequestRowProps) {
     const { t } = useTranslation();
     const { td } = useTd();
@@ -78,67 +89,87 @@ export default function PaymentRequestRow({
         code: row.currency ?? "",
         symbol: row.currency_symbol || row.currency || "",
     };
-    const converted =
-        row.rate !== null && row.base_currency && row.base_currency !== row.currency;
-    const timestamp = statusTimestamp(row);
-
-    const methodLabel =
-        row.gateway === "cash" || row.ui_state === "cash_pending"
-            ? t("pages.payment_requests.method_cash")
-            : row.gateway === "manual-bank-transfer"
-              ? t("pages.payment_requests.method_bank_transfer")
-              : row.gateway === "nowpayments"
-                ? t("pages.payment_requests.method_crypto")
-                : t("pages.payment_requests.method_client_choice");
-
+    const leadLabel = [row.lead_name, row.lead_company].filter(Boolean).join(" · ");
+    const leadUrl = row.lead_id && leadLabel ? leadHref(row.lead_id) : null;
+    const invoiceUrl = invoiceHref(row);
+    const linkExpired = isCheckoutLinkExpired(row);
+    const activeLink = hasActiveCheckoutLink(row);
+    const foreignCurrency = Boolean(
+        row.rate != null && row.base_currency && row.currency && row.base_currency !== row.currency,
+    );
     return (
         <div
-            className="flex items-center gap-4 px-4 py-2.5"
+            className="cursor-pointer items-center px-4 py-3.5 hover:bg-dr-surface-hover"
             style={{
-                minHeight: 64,
+                display: "grid",
+                gridTemplateColumns: PAYMENT_REQUEST_GRID,
+                columnGap: 16,
+                minHeight: 72,
                 borderBottom: `1px solid ${T.BORDER_SOFT}`,
             }}
+            onClick={onOpen}
         >
-            {/* The deal leads — that's what a finance reviewer is scanning for. */}
-            <div className="min-w-0 flex-1">
+            <div style={{ minWidth: 0 }}>
                 {row.deal ? (
                     <Link
                         href={row.deal.url}
-                        className="block truncate font-semibold no-underline"
-                        style={{ fontSize: 13, color: T.TEXT }}
+                        className={`${nameLinkClass} font-semibold`}
+                        style={{ overflowWrap: "break-word", lineHeight: 1.4 }}
+                        onClick={(event) => event.stopPropagation()}
                     >
                         {row.deal.name}
                     </Link>
                 ) : (
-                    <span style={{ fontSize: 13, color: T.TEXT_HINT }}>—</span>
+                    <span className="text-sm text-dr-text-hint">—</span>
                 )}
-                <div className="truncate" style={{ fontSize: 11, color: T.TEXT_HINT }}>
-                    {row.agent_name ?? "—"}
-                </div>
+                {row.deal_value != null && (
+                    <div
+                        style={{
+                            marginTop: 4,
+                            fontSize: REDESIGN_TYPE.CAPTION,
+                            color: T.TEXT_MUTED,
+                            fontVariantNumeric: "tabular-nums",
+                            overflowWrap: "break-word",
+                            lineHeight: 1.4,
+                        }}
+                    >
+                        {`${t("pages.payment_requests.col_deal_value")} · ${formatMoneyAmount(row.deal_value, companyCurrency)}`}
+                    </div>
+                )}
+            </div>
+
+            <div style={{ minWidth: 0 }}>
+                {leadUrl ? (
+                    <Link
+                        href={leadUrl}
+                        className={`${nameLinkClass} font-medium`}
+                        style={{ overflowWrap: "break-word", lineHeight: 1.4 }}
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        {leadLabel}
+                    </Link>
+                ) : (
+                    <span className="text-sm text-dr-text-hint">—</span>
+                )}
             </div>
 
             <div
-                className={`shrink-0 ${C.dealValue.className}`}
                 style={{
-                    width: C.dealValue.width,
-                    fontSize: 13,
-                    color: T.TEXT_MUTED,
-                    fontVariantNumeric: "tabular-nums",
+                    minWidth: 0,
+                    fontSize: REDESIGN_TYPE.BODY,
+                    color: row.agent_name ? T.TEXT : T.TEXT_HINT,
+                    overflowWrap: "break-word",
+                    lineHeight: 1.4,
                 }}
             >
-                {row.deal_value !== null
-                    ? formatMoneyAmount(row.deal_value, companyCurrency)
-                    : "—"}
+                {row.agent_name || "—"}
             </div>
 
-            <div
-                className={`shrink-0 ${C.requested.className}`}
-                style={{ width: C.requested.width }}
-            >
+            <div style={{ minWidth: 0 }}>
                 <div
                     className="font-semibold"
                     style={{
-                        fontSize: 13,
+                        fontSize: REDESIGN_TYPE.BODY,
                         color: inactive ? T.TEXT_HINT : T.TEXT,
                         textDecoration: row.ui_state === "invalidated" ? "line-through" : undefined,
                         fontVariantNumeric: "tabular-nums",
@@ -146,57 +177,72 @@ export default function PaymentRequestRow({
                 >
                     {formatMoneyAmount(row.amount, requestCurrency)}
                 </div>
-                {converted && (
-                    <div style={{ fontSize: 11, color: T.TEXT_HINT }}>
+                {foreignCurrency && (
+                    <div
+                        style={{
+                            marginTop: 2,
+                            fontSize: REDESIGN_TYPE.CAPTION,
+                            color: T.TEXT_MUTED,
+                            fontVariantNumeric: "tabular-nums",
+                            overflowWrap: "break-word",
+                            lineHeight: 1.4,
+                        }}
+                    >
                         {`1 ${row.base_currency} = ${row.rate} ${row.currency}`}
                     </div>
                 )}
             </div>
 
-            <div
-                className={`shrink-0 ${C.status.className}`}
-                style={{ width: C.status.width }}
-            >
-                <Badge variant={paymentUiStateBadgeVariant(row.ui_state)}>
-                    {td(paymentUiStateLabel(row.ui_state), { source: "en" })}
+            <div style={{ minWidth: 0 }}>
+                <Badge
+                    variant={linkExpired ? "red" : paymentUiStateBadgeVariant(row.ui_state)}
+                    style={{ whiteSpace: "normal" }}
+                >
+                    {linkExpired
+                        ? t("pages.deals.payment_request.link_expired")
+                        : td(paymentUiStateLabel(row.ui_state), { source: "en" })}
                 </Badge>
-                {timestamp && (
-                    <div style={{ fontSize: 11, color: T.TEXT_HINT, marginTop: 3 }}>
-                        {timestamp}
+                {row.payment_id && (
+                    <div
+                        style={{
+                            marginTop: 6,
+                            fontSize: REDESIGN_TYPE.CAPTION,
+                            color: T.TEXT_MUTED,
+                            fontVariantNumeric: "tabular-nums",
+                            overflowWrap: "anywhere",
+                            lineHeight: 1.4,
+                        }}
+                    >
+                        {`#${row.payment_id}`}
                     </div>
                 )}
             </div>
 
             <div
-                className={`shrink-0 ${C.method.className}`}
-                style={{ width: C.method.width, fontSize: 12, color: T.TEXT_MUTED }}
+                className="flex shrink-0 items-center justify-end gap-2"
+                onClick={(event) => event.stopPropagation()}
             >
-                {methodLabel}
-            </div>
-
-            <div
-                className={`shrink-0 ${C.created.className}`}
-                style={{ width: C.created.width, fontSize: 12, color: T.TEXT_MUTED }}
-            >
-                {row.created_at ? formatCompanyDateTime(row.created_at) : "—"}
-            </div>
-
-            <div
-                className={`flex shrink-0 items-center justify-end gap-1.5 ${C.actions.className}`}
-                style={{ width: C.actions.width }}
-            >
-                {row.proof_url && (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={<Icon name="file-text" size={12} />}
-                        onClick={() => window.open(row.proof_url!, "_blank", "noreferrer")}
+                {invoiceUrl ? (
+                    <a
+                        className="dr-btn dr-btn-ghost dr-btn-sm"
+                        href={invoiceUrl}
+                        style={{ textDecoration: "none" }}
                     >
-                        {t("pages.payment_requests.action_proof")}
+                        <Icon name="download" size={14} />
+                        {t("pages.payment_requests.action_invoice")}
+                    </a>
+                ) : (
+                    <Button variant="ghost" size="sm" disabled icon={<Icon name="download" size={14} />}>
+                        {t("pages.payment_requests.action_invoice")}
                     </Button>
                 )}
-                {row.show_checkout_url && row.checkout_url && (
-                    <CheckoutLinkActions url={row.checkout_url} compact />
+                {activeLink && row.checkout_url && (
+                    <CheckoutLinkActions url={row.checkout_url} compact size="sm" />
+                )}
+                {linkExpired && (
+                    <Button variant="primary" size="sm" onClick={onRetry}>
+                        {t("pages.deals.payment_request.retry_action")}
+                    </Button>
                 )}
                 {row.can_confirm && (
                     <Button variant="primary" size="sm" onClick={onConfirm}>

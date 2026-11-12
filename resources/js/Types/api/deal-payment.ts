@@ -10,8 +10,8 @@ export type DealPaymentUiState =
 
 export interface DealPaymentVerifiedBy {
     id: number;
-    name: string;
-    email: string;
+    name: string | null;
+    email: string | null;
 }
 
 export interface DealPaymentRequest {
@@ -29,7 +29,10 @@ export interface DealPaymentRequest {
     base_currency_symbol: string | null;
     /** 1 base_currency = rate currency. */
     rate: number | null;
+    /** Worksuite rate stored on the payment (amount × exchange_rate = company amount). */
+    exchange_rate: number | null;
     gateway: string | null;
+    transaction_id: string | null;
     crm_status: string;
     ol_status: string | null;
     ol_payment_type: string | null;
@@ -41,8 +44,15 @@ export interface DealPaymentRequest {
     verified_by_user_id: number | null;
     verified_by: DealPaymentVerifiedBy | null;
     verified_at: string | null;
+    paid_on: string | null;
     invalidated_at: string | null;
+    invalidated_by: DealPaymentVerifiedBy | null;
     invalidation_reason: string | null;
+    added_by: DealPaymentVerifiedBy | null;
+    last_updated_by: DealPaymentVerifiedBy | null;
+    remarks: string | null;
+    /** Proof file name. `proof_url` is the link to open it. */
+    bill: string | null;
     proof_url: string | null;
     updated_at: string | null;
     created_at: string | null;

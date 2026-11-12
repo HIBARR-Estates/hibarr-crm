@@ -332,6 +332,62 @@ class DealPaymentService
     }
 
     /**
+     * Cancels an expired checkout link when it is still the deal's open
+     * request, then issues a new one in the same currency (and provider, when
+     * the original named one). The amount is the deal's current value.
+     *
+     * @return array<string, mixed>
+     */
+    public function reissueExpired(Deal $deal, Payment $payment, User $user): array
+    {
+        if ((int) $payment->deal_id !== (int) $deal->id || blank($payment->external_reference)) {
+            throw new NotFoundHttpException('No payment request found for this deal.');
+        }
+
+        if (! $this->linkHasExpired($payment)) {
+            throw new HttpException(409, 'This checkout link has not expired.');
+        }
+
+        // A confirmed batch is not "open": it must not block replacing an expired link.
+        $active = $this->findOpenRequest($deal);
+        if ($active !== null && (int) $active->id !== (int) $payment->id) {
+            throw new HttpException(409, 'Another payment request is still open for this deal.');
+        }
+
+        if ($active !== null && self::uiStateOf($payment) === 'pending_payment') {
+            $this->invalidatePending($deal, $user, 'Checkout link expired');
+        }
+
+        $payment->loadMissing('currency');
+        $currency = strtoupper(trim((string) ($payment->currency?->currency_code ?? '')));
+        if ($currency === '') {
+            throw new HttpException(422, 'This payment request has no currency to reissue.');
+        }
+
+        $provider = in_array($payment->gateway, ['manual-bank-transfer', 'nowpayments'], true)
+            ? $payment->gateway
+            : null;
+
+        return $this->createForDeal($deal, $user, array_filter([
+            'currency' => $currency,
+            'provider_key' => $provider,
+        ]));
+    }
+
+    private function linkHasExpired(Payment $payment): bool
+    {
+        if (strtolower((string) $payment->ol_status) === 'expired') {
+            return true;
+        }
+
+        if ($payment->expires_at === null || $payment->expires_at->isFuture()) {
+            return false;
+        }
+
+        return in_array(self::uiStateOf($payment), ['pending_payment', 'failed'], true);
+    }
+
+    /**
      * The deal's active request, or null. "Active" is anything not failed,
      * expired or invalidated — including confirmed/paid ones, which is what
      * freezes the deal value once money has been taken.
@@ -514,17 +570,8 @@ class DealPaymentService
             $verifiedAt = $olPayload['verifiedAt'] ?? $olPayload['verified_at'] ?? $verifiedAt;
         }
 
-        $verifiedBy = null;
-        if ($verifiedByUserId) {
-            $verifier = User::find($verifiedByUserId);
-            if ($verifier) {
-                $verifiedBy = [
-                    'id' => $verifier->id,
-                    'name' => $verifier->name,
-                    'email' => $verifier->email,
-                ];
-            }
-        }
+        $people = $this->paymentPeople($payment, $verifiedByUserId ? (int) $verifiedByUserId : null);
+        $verifiedBy = $people['verified_by'];
 
         $mapped = DealPaymentUiStateMapper::map(
             $payment->ol_status,
@@ -550,7 +597,11 @@ class DealPaymentService
             'base_currency_symbol' => $baseCurrency?->currency_symbol,
             // "1 base = rate currency" — the inverse of the stored Worksuite rate.
             'rate' => $payment->exchange_rate ? round(1 / (float) $payment->exchange_rate, 6) : null,
+            'exchange_rate' => $payment->exchange_rate !== null && $payment->exchange_rate !== ''
+                ? (float) $payment->exchange_rate
+                : null,
             'gateway' => $payment->gateway,
+            'transaction_id' => $payment->transaction_id,
             'crm_status' => $payment->status,
             'ol_status' => $payment->ol_status,
             'ol_payment_type' => $payment->ol_payment_type,
@@ -562,11 +613,54 @@ class DealPaymentService
             'verified_by_user_id' => $verifiedByUserId ?: null,
             'verified_by' => $verifiedBy,
             'verified_at' => $verifiedAt,
+            'paid_on' => $payment->paid_on?->toIso8601String(),
             'invalidated_at' => $payment->invalidated_at?->toIso8601String(),
+            'invalidated_by' => $people['invalidated_by'],
             'invalidation_reason' => $payment->invalidation_reason,
+            'added_by' => $people['added_by'],
+            'last_updated_by' => $people['last_updated_by'],
+            'remarks' => $payment->remarks,
+            'bill' => $payment->bill,
             'proof_url' => $payment->bill ? $payment->file_url : null,
             'updated_at' => $payment->updated_at?->toIso8601String(),
             'created_at' => $payment->created_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array{verified_by: ?array, invalidated_by: ?array, added_by: ?array, last_updated_by: ?array}
+     */
+    private function paymentPeople(Payment $payment, ?int $verifiedByUserId): array
+    {
+        $ids = array_values(array_unique(array_filter([
+            $verifiedByUserId,
+            $payment->invalidated_by_user_id ? (int) $payment->invalidated_by_user_id : null,
+            $payment->added_by ? (int) $payment->added_by : null,
+            $payment->last_updated_by ? (int) $payment->last_updated_by : null,
+        ])));
+
+        $users = $ids === []
+            ? collect()
+            : User::query()->whereIn('id', $ids)->get(['id', 'name', 'email'])->keyBy('id');
+
+        $person = function (?int $id) use ($users): ?array {
+            if (! $id) {
+                return null;
+            }
+            $user = $users->get($id);
+
+            return [
+                'id' => $id,
+                'name' => $user?->name,
+                'email' => $user?->email,
+            ];
+        };
+
+        return [
+            'verified_by' => $person($verifiedByUserId),
+            'invalidated_by' => $person($payment->invalidated_by_user_id ? (int) $payment->invalidated_by_user_id : null),
+            'added_by' => $person($payment->added_by ? (int) $payment->added_by : null),
+            'last_updated_by' => $person($payment->last_updated_by ? (int) $payment->last_updated_by : null),
         ];
     }
 

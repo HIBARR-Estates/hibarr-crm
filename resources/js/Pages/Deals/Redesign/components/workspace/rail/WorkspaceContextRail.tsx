@@ -8,7 +8,6 @@ import { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
 import ClickToCallButton from "@/Components/ClickToCallButton";
 import { usePage } from "@inertiajs/react";
 import { copyToClipboard, resolveLeadPhoneDisplay } from "@/lib/utils";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { DealTab } from "../../../types";
 import useDealDocuments from "../../../hooks/useDealDocuments";
 import useDealDocumentUpload from "../../../hooks/useDealDocumentUpload";
@@ -17,7 +16,6 @@ import Icon from "@/Components/Redesign/primitives/Icon";
 import DealDocumentSlotRow from "../DealDocumentSlotRow";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import PackagePropertyManager from "./PackagePropertyManager";
-import DealPaymentPanel from "../DealPaymentPanel";
 import { initialsFromName } from "../../../adapters/initials";
 
 interface WorkspaceContextRailProps {
@@ -38,15 +36,11 @@ interface WorkspaceContextRailProps {
     restrictPackageOrProperty?: boolean;
     onNavigateToSubTab: (tab: DealTab) => void;
     onSwitchToDealInfo: () => void;
-    showOnlinePayment?: boolean;
-    canCreatePaymentRequest?: boolean;
-    canConfirmPaymentTransfer?: boolean;
 }
 
 const SECTION_TITLE_KEYS: Record<string, string> = {
     Lead: "section_lead",
     "Deal details": "section_deal_details",
-    Payment: "section_payment",
     Documents: "section_documents",
 };
 
@@ -64,9 +58,6 @@ export default function WorkspaceContextRail({
     restrictPackageOrProperty = false,
     onNavigateToSubTab,
     onSwitchToDealInfo,
-    showOnlinePayment = false,
-    canCreatePaymentRequest = false,
-    canConfirmPaymentTransfer = false,
 }: WorkspaceContextRailProps) {
     const { t } = useTranslation();
     const { message: appMessage } = App.useApp();
@@ -89,7 +80,6 @@ export default function WorkspaceContextRail({
         () => slots.filter((doc) => doc.source !== "lead"),
         [slots],
     );
-    const { td } = useTd();
     const {
         uploadToSlot,
         deleteSlot,
@@ -261,21 +251,6 @@ export default function WorkspaceContextRail({
                     />
                 ),
             },
-            ...(showOnlinePayment
-                ? [
-                      {
-                          title: "Payment",
-                          summary: td("Payment request"),
-                          body: (
-                              <DealPaymentPanel
-                                  deal={deal}
-                                  canCreatePaymentRequest={canCreatePaymentRequest}
-                                  canConfirmPaymentTransfer={canConfirmPaymentTransfer}
-                              />
-                          ),
-                      },
-                  ]
-                : []),
             {
                 title: "Documents",
                 summary: `${documentSlots.filter((doc) => doc.uploaded).length}/${documentSlots.length}`,
@@ -320,10 +295,6 @@ export default function WorkspaceContextRail({
             canInitiateCall,
 
             restrictPackageOrProperty,
-            showOnlinePayment,
-            canCreatePaymentRequest,
-            canConfirmPaymentTransfer,
-            td,
         ],
     );
 

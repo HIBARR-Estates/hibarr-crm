@@ -1453,6 +1453,11 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('deals/{deal}/payment-request', [DealPaymentController::class, 'show'])->name('deals.payment-request.show');
     Route::post('deals/{deal}/payment-requests', [DealPaymentController::class, 'store'])->name('deals.payment-requests.store');
     Route::post('deals/{deal}/payment-request/confirm', [DealPaymentController::class, 'confirm'])->name('deals.payment-request.confirm');
+    Route::post('deals/{deal}/payment-request/cancel', [DealPaymentController::class, 'cancel'])->name('deals.payment-request.cancel');
+    Route::post('deals/{deal}/payment-requests/{payment}/retry', [DealPaymentController::class, 'retry'])->name('deals.payment-requests.retry');
+    Route::get('deals/{deal}/payment-requests/{payment}/documents/{kind}', [DealPaymentController::class, 'document'])
+        ->whereIn('kind', ['invoice', 'receipt'])
+        ->name('deals.payment-requests.document');
     Route::get('payment-requests', [App\Http\Controllers\PaymentRequestController::class, 'index'])->name('payment-requests.index');
 
     Route::post('telephony/calls', [TelephonyCallController::class, 'store'])->name('telephony.calls.store');

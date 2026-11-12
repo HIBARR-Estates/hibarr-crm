@@ -12,9 +12,9 @@ class DealPaymentUiStateMapper
         $status = strtolower(trim((string) $olStatus));
         $type = strtolower(trim((string) $olPaymentType));
 
-        // Only the CRM cancels a deal payment request — when the deal's value
-        // changed before the client paid — so an OL "cancelled" is always an
-        // invalidation, distinct from the payment itself failing or expiring.
+        // The CRM cancels a deal payment request (a manual cancel, or a deal
+        // value change before the client paid), so an OL "cancelled" is always
+        // an invalidation, distinct from the payment itself failing or expiring.
         if ($status === 'cancelled') {
             return [
                 'ui_state' => 'invalidated',
@@ -36,6 +36,17 @@ class DealPaymentUiStateMapper
             return [
                 'ui_state' => 'cash_pending',
                 'can_confirm' => true,
+                'show_checkout_url' => false,
+            ];
+        }
+
+        // A manual transfer the CRM has already verified is confirmed, even
+        // when OL still reports "confirming" because its write-back has not
+        // landed yet. Offering confirm again would double-charge the review.
+        if ($type === 'manual' && $verifiedByUserId && $verifiedAt && in_array($status, ['confirming', 'completed'], true)) {
+            return [
+                'ui_state' => 'confirmed',
+                'can_confirm' => false,
                 'show_checkout_url' => false,
             ];
         }
@@ -113,12 +124,25 @@ class DealPaymentUiStateMapper
                     ->orWhereNotIn('ol_status', ['failed', 'expired', 'cancelled', 'pending', 'confirming', 'completed']);
             }),
             'cash_pending' => fn ($q) => $q->where('ol_status', 'pending')->where('ol_payment_type', 'cash'),
-            'bank_transfer_pending' => fn ($q) => $q->where('ol_status', 'confirming')->where('ol_payment_type', 'manual'),
+            'bank_transfer_pending' => fn ($q) => $q->where('ol_status', 'confirming')
+                ->where('ol_payment_type', 'manual')
+                ->where(function ($q2) {
+                    $q2->whereNull('verified_by_user_id')->orWhereNull('verified_at');
+                }),
             'processing_online' => fn ($q) => $q->where('ol_status', 'confirming')->where('ol_payment_type', '!=', 'manual'),
-            'confirmed' => fn ($q) => $q->where('ol_status', 'completed')
-                ->whereIn('ol_payment_type', ['manual', 'cash'])
-                ->whereNotNull('verified_by_user_id')
-                ->whereNotNull('verified_at'),
+            'confirmed' => fn ($q) => $q->where(function ($q2) {
+                $q2->where(function ($manual) {
+                    $manual->whereIn('ol_status', ['confirming', 'completed'])
+                        ->where('ol_payment_type', 'manual')
+                        ->whereNotNull('verified_by_user_id')
+                        ->whereNotNull('verified_at');
+                })->orWhere(function ($cash) {
+                    $cash->where('ol_status', 'completed')
+                        ->where('ol_payment_type', 'cash')
+                        ->whereNotNull('verified_by_user_id')
+                        ->whereNotNull('verified_at');
+                });
+            }),
             'paid_online' => fn ($q) => $q->where('ol_status', 'completed')
                 ->where(function ($q2) {
                     $q2->where(function ($online) {

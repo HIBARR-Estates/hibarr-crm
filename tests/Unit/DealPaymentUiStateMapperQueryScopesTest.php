@@ -69,6 +69,7 @@ class DealPaymentUiStateMapperQueryScopesTest extends TestCase
             'pending cash' => ['pending', 'cash', null, null, 'cash_pending'],
             'completed cash verified' => ['completed', 'cash', 1, $now, 'confirmed'],
             'confirming manual' => ['confirming', 'manual', null, null, 'bank_transfer_pending'],
+            'confirming manual already verified' => ['confirming', 'manual', 1, $now, 'confirmed'],
             'confirming crypto' => ['confirming', 'crypto', null, null, 'processing_online'],
             'completed manual verified' => ['completed', 'manual', 1, $now, 'confirmed'],
             'completed crypto' => ['completed', 'crypto', null, null, 'paid_online'],

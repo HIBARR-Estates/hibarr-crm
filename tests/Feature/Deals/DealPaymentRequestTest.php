@@ -10,6 +10,7 @@ use App\Scopes\CompanyScope;
 use App\Services\ApiV2\CrmWriteService;
 use App\Services\Deal\DealOutcomeService;
 use App\Services\Deal\DealPaymentValueGuard;
+use App\Services\DealPaymentDocumentService;
 use App\Services\DealPaymentService;
 use App\Services\DealPaymentUiStateMapper;
 use App\Services\OlWebhook\OlPayloadMapper;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\Concerns\SetsFeatureFlags;
 use Tests\TestCase;
 
@@ -612,6 +614,99 @@ class DealPaymentRequestTest extends TestCase
         $this->assertSame($user->id, (int) $payment->invalidated_by_user_id);
     }
 
+    public function test_reissue_cancels_an_expired_pending_link_and_creates_another_in_the_same_currency(): void
+    {
+        $this->insertPayment([
+            'external_reference' => '560',
+            'ol_status' => 'pending',
+            'ol_payment_type' => 'manual',
+            'gateway' => 'manual-bank-transfer',
+            'checkout_url' => 'https://checkout.test/pay/560',
+            'expires_at' => now()->subHour(),
+        ]);
+
+        Http::fake([
+            'https://ol.test/v1/internal/payments/deal-requests/560/cancel' => Http::response([
+                'data' => ['id' => 560, 'status' => 'cancelled'],
+            ], 200),
+            'https://ol.test/v1/internal/payments/deal-requests' => Http::response([
+                'data' => [
+                    'paymentId' => '561',
+                    'status' => 'pending',
+                    'checkoutUrl' => 'https://checkout.test/pay/561',
+                    'amount' => 2500,
+                ],
+            ], 201),
+        ]);
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->where('external_reference', '560')->firstOrFail();
+        $result = app(DealPaymentService::class)->reissueExpired($this->makeDeal(), $payment, $this->makeUser());
+
+        $this->assertSame('561', $result['payment_id']);
+        $this->assertSame('pending_payment', $result['ui_state']);
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://ol.test/v1/internal/payments/deal-requests/560/cancel'
+            && $request['reason'] === 'Checkout link expired');
+        Http::assertSent(fn ($request) => $request->url() === 'https://ol.test/v1/internal/payments/deal-requests'
+            && $request['currency'] === 'EUR'
+            && $request['provider_key'] === 'manual-bank-transfer');
+
+        $expired = Payment::withoutGlobalScope(CompanyScope::class)->where('external_reference', '560')->firstOrFail();
+        $this->assertSame('cancelled', $expired->ol_status);
+        $this->assertNotNull($expired->invalidated_at);
+    }
+
+    public function test_reissue_of_an_already_expired_link_creates_a_new_request_without_cancelling(): void
+    {
+        $this->insertPayment([
+            'external_reference' => '570',
+            'ol_status' => 'expired',
+            'gateway' => 'nowpayments',
+            'expires_at' => now()->subDay(),
+        ]);
+
+        Http::fake([
+            'https://ol.test/v1/internal/payments/deal-requests' => Http::response([
+                'data' => [
+                    'paymentId' => '571',
+                    'status' => 'pending',
+                    'checkoutUrl' => 'https://checkout.test/pay/571',
+                    'amount' => 2500,
+                ],
+            ], 201),
+        ]);
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->where('external_reference', '570')->firstOrFail();
+        $result = app(DealPaymentService::class)->reissueExpired($this->makeDeal(), $payment, $this->makeUser());
+
+        $this->assertSame('571', $result['payment_id']);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), '/cancel'));
+        Http::assertSent(fn ($request) => $request->url() === 'https://ol.test/v1/internal/payments/deal-requests'
+            && $request['currency'] === 'EUR'
+            && $request['provider_key'] === 'nowpayments');
+        $this->assertSame('expired', Payment::withoutGlobalScope(CompanyScope::class)->find($payment->id)->ol_status);
+    }
+
+    public function test_reissue_is_refused_when_the_link_has_not_expired(): void
+    {
+        $this->insertPayment([
+            'external_reference' => '562',
+            'ol_status' => 'pending',
+            'expires_at' => now()->addDay(),
+        ]);
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->where('external_reference', '562')->firstOrFail();
+
+        try {
+            app(DealPaymentService::class)->reissueExpired($this->makeDeal(), $payment, $this->makeUser());
+            $this->fail('Expected a live checkout link to be refused.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+
+        $this->assertSame('pending', Payment::withoutGlobalScope(CompanyScope::class)->find($payment->id)->ol_status);
+    }
+
     public function test_invalidate_leaves_the_request_untouched_when_ol_is_unreachable(): void
     {
         $paymentId = $this->insertPayment(['external_reference' => '541', 'ol_status' => 'pending']);
@@ -916,6 +1011,10 @@ class DealPaymentRequestTest extends TestCase
         $this->assertFalse($cash['show_checkout_url']);
         $this->assertSame('confirmed', DealPaymentUiStateMapper::map('completed', 'cash', 1, now()->toIso8601String())['ui_state']);
         $this->assertSame('bank_transfer_pending', DealPaymentUiStateMapper::map('confirming', 'manual', null, null)['ui_state']);
+        $this->assertTrue(DealPaymentUiStateMapper::map('confirming', 'manual', null, null)['can_confirm']);
+        $alreadyVerified = DealPaymentUiStateMapper::map('confirming', 'manual', 1, now()->toIso8601String());
+        $this->assertSame('confirmed', $alreadyVerified['ui_state']);
+        $this->assertFalse($alreadyVerified['can_confirm']);
         $this->assertSame('processing_online', DealPaymentUiStateMapper::map('confirming', 'crypto', null, null)['ui_state']);
         $this->assertSame('confirmed', DealPaymentUiStateMapper::map('completed', 'manual', 1, now()->toIso8601String())['ui_state']);
         $this->assertSame('paid_online', DealPaymentUiStateMapper::map('completed', 'crypto', null, null)['ui_state']);
@@ -1016,6 +1115,64 @@ class DealPaymentRequestTest extends TestCase
         $this->assertSame('confirming', $payment?->ol_status);
         $this->assertSame('manual', $payment?->ol_payment_type);
         $this->assertNotNull($payment?->bill);
+    }
+
+    public function test_invoice_document_names_the_company_deal_and_amount(): void
+    {
+        $id = $this->insertPayment([
+            'external_reference' => '880',
+            'ol_status' => 'pending',
+            'amount' => 2500,
+            'base_amount' => 2500,
+            'currency_id' => $this->currencyId,
+            'gateway' => 'manual-bank-transfer',
+        ]);
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+        $data = app(DealPaymentDocumentService::class)->viewData($payment, 'invoice');
+        $html = view('payment-requests.document', $data)->render();
+
+        $this->assertSame('invoice', $data['kind']);
+        $this->assertStringStartsWith('INV-', $data['number']);
+        $this->assertStringContainsString('Test Co', $html);
+        $this->assertStringContainsString('Test Deal', $html);
+        $this->assertStringContainsString('2,500.00', $html);
+        $this->assertStringContainsString('INV-', $html);
+    }
+
+    public function test_receipt_is_refused_until_the_payment_is_collected(): void
+    {
+        $id = $this->insertPayment([
+            'external_reference' => '881',
+            'ol_status' => 'pending',
+        ]);
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+
+        try {
+            app(DealPaymentDocumentService::class)->viewData($payment, 'receipt');
+            $this->fail('Expected a receipt to be refused.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+    }
+
+    public function test_receipt_document_is_available_once_paid_online(): void
+    {
+        $id = $this->insertPayment([
+            'external_reference' => '882',
+            'ol_status' => 'completed',
+            'ol_payment_type' => 'crypto',
+            'status' => 'complete',
+            'amount' => 2500,
+            'paid_on' => now(),
+        ]);
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+        $data = app(DealPaymentDocumentService::class)->viewData($payment, 'receipt');
+
+        $this->assertSame('receipt', $data['kind']);
+        $this->assertStringStartsWith('RCT-', $data['number']);
+        $this->assertNull($data['stamp']);
     }
 
     private function makeDeal(): Deal
