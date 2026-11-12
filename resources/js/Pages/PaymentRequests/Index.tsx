@@ -30,6 +30,7 @@ import PaymentRequestFiltersModal, {
     type PaymentRequestSlice,
 } from "./components/PaymentRequestFiltersModal";
 import PaymentRequestRow, {
+    PAYMENT_REQUEST_GRID,
     type PaymentRequestListRow,
 } from "./components/PaymentRequestRow";
 import PaymentRequestsListHeader from "./components/PaymentRequestsListHeader";
@@ -586,6 +587,9 @@ const Index = ({ paymentRequests, filters, counts, stats, filterOptions }: Index
                         <>
                             <div
                                 style={{
+                                    display: "grid",
+                                    gridTemplateColumns: PAYMENT_REQUEST_GRID,
+                                    columnGap: 16,
                                     background: T.WHITE,
                                     border: `1px solid ${T.BORDER}`,
                                     borderRadius: "10px 10px 0 0",

@@ -1,6 +1,5 @@
 import useTranslation from "@/Hooks/useTranslation";
 import { REDESIGN_TOKENS as T, REDESIGN_TYPE } from "@/Components/Redesign/tokens";
-import { PAYMENT_REQUEST_GRID } from "./PaymentRequestRow";
 
 /** Column headings, aligned with the row. */
 export default function PaymentRequestsListHeader() {
@@ -8,11 +7,12 @@ export default function PaymentRequestsListHeader() {
 
     return (
         <div
-            className="items-center px-4 py-3 uppercase"
+            className="items-center py-3 uppercase"
             style={{
                 display: "grid",
-                gridTemplateColumns: PAYMENT_REQUEST_GRID,
-                columnGap: 16,
+                gridColumn: "1 / -1",
+                gridTemplateColumns: "subgrid",
+                alignItems: "center",
                 background: T.SURFACE_2,
                 borderBottom: `1px solid ${T.BORDER}`,
                 fontSize: REDESIGN_TYPE.CAPTION,
@@ -21,12 +21,12 @@ export default function PaymentRequestsListHeader() {
                 color: T.TEXT_MUTED,
             }}
         >
-            <span style={{ minWidth: 0 }}>{t("pages.payment_requests.col_deal")}</span>
+            <span style={{ minWidth: 0, paddingLeft: 16 }}>{t("pages.payment_requests.col_deal")}</span>
             <span style={{ minWidth: 0 }}>{t("pages.payment_requests.detail_lead")}</span>
             <span style={{ minWidth: 0 }}>{t("pages.payment_requests.detail_agent")}</span>
             <span style={{ minWidth: 0 }}>{t("pages.payment_requests.col_requested")}</span>
-            <span style={{ minWidth: 0 }}>{t("pages.payment_requests.col_status")}</span>
-            <span aria-hidden />
+            <span>{t("pages.payment_requests.col_status")}</span>
+            <span aria-hidden style={{ paddingRight: 16 }} />
         </div>
     );
 }

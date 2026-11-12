@@ -34,11 +34,12 @@ export interface PaymentRequestListRow extends DealPaymentRequest {
  * rate sits under the amount, so neither needs its own column.
  */
 /**
- * One track list for the header and every row. The last track is reserved
- * for Invoice and, only while a transfer is still waiting, Confirm.
+ * One track list for the header and every row, shared by a single parent
+ * grid. Status is max-content so a badge stays on one line, and the last
+ * track is the invoice / confirm actions (16px of end padding lives in it).
  */
 export const PAYMENT_REQUEST_GRID =
-    "minmax(0, 1.5fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr) max-content 320px";
+    "minmax(0, 1.5fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr) max-content 336px";
 
 interface PaymentRequestRowProps {
     row: PaymentRequestListRow;
@@ -99,17 +100,18 @@ export default function PaymentRequestRow({
     );
     return (
         <div
-            className="cursor-pointer items-center px-4 py-3.5 hover:bg-dr-surface-hover"
+            className="cursor-pointer items-center py-3.5 hover:bg-dr-surface-hover"
             style={{
                 display: "grid",
-                gridTemplateColumns: PAYMENT_REQUEST_GRID,
-                columnGap: 16,
+                gridColumn: "1 / -1",
+                gridTemplateColumns: "subgrid",
+                alignItems: "center",
                 minHeight: 72,
                 borderBottom: `1px solid ${T.BORDER_SOFT}`,
             }}
             onClick={onOpen}
         >
-            <div style={{ minWidth: 0 }}>
+            <div style={{ minWidth: 0, paddingLeft: 16 }}>
                 {row.deal ? (
                     <Link
                         href={row.deal.url}
@@ -193,7 +195,7 @@ export default function PaymentRequestRow({
                 )}
             </div>
 
-            <div>
+            <div style={{ width: "max-content", maxWidth: "100%" }}>
                 <Badge
                     variant={linkExpired ? "red" : paymentUiStateBadgeVariant(row.ui_state)}
                 >
@@ -204,6 +206,8 @@ export default function PaymentRequestRow({
                 {row.payment_id && (
                     <div
                         style={{
+                            contain: "inline-size",
+                            width: "100%",
                             marginTop: 6,
                             fontSize: REDESIGN_TYPE.CAPTION,
                             color: T.TEXT_MUTED,
@@ -219,6 +223,7 @@ export default function PaymentRequestRow({
 
             <div
                 className="flex shrink-0 items-center justify-end gap-2"
+                style={{ paddingRight: 16 }}
                 onClick={(event) => event.stopPropagation()}
             >
                 {invoiceUrl ? (
