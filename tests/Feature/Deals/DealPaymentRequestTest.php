@@ -47,6 +47,7 @@ class DealPaymentRequestTest extends TestCase
         $this->resetSchema();
         $this->createMinimalSchema();
         $this->seedBaseData();
+        $this->seedSellerSettings();
 
         Payment::flushEventListeners();
 
@@ -1262,7 +1263,7 @@ class DealPaymentRequestTest extends TestCase
     {
         Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
         if (getenv('DUMP_PDFS')) {
-            DB::table('payment_document_settings')->insert(['company_id' => $this->companyId, 'legal_name' => 'Örnek Emlak Ltd.', 'address' => "Ecevit Cad. 12\nGirne, KKTC", 'tax_office' => 'Girne', 'tax_number' => 'MŞ 23667', 'approval_number' => 'GVD/2026/0412', 'invoice_number_end' => 5000, 'receipt_number_end' => 5000, 'created_at' => now(), 'updated_at' => now()]);
+            $this->seedSellerSettings(['legal_name' => 'Örnek Emlak Ltd.', 'address' => "Ecevit Cad. 12\nGirne, KKTC", 'approval_number' => 'GVD/2026/0412', 'invoice_number_end' => 5000, 'receipt_number_end' => 5000]);
         }
         $service = app(DealPaymentDocumentService::class);
         $id = $this->insertPayment(['external_reference' => '899', 'ol_status' => 'pending', 'amount' => 4350, 'currency_id' => $this->currencyId]);
@@ -1318,20 +1319,70 @@ class DealPaymentRequestTest extends TestCase
         $this->assertTrue(DB::table('payment_documents')->where('kind', 'receipt')->value('issued_at') >= now()->subMinute()->toDateTimeString());
     }
 
+    public function test_documents_are_not_issued_without_the_seller_details(): void
+    {
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['date' => '2026-11-06', 'rates' => ['TRY' => 50]], 200)]);
+        DB::table('payment_document_settings')->delete();
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])
+            ->findOrFail($this->insertPayment(['external_reference' => '887', 'ol_status' => 'pending', 'amount' => 100]));
+
+        try {
+            app(DealPaymentDocumentService::class)->viewData($payment, 'invoice');
+            $this->fail('Expected issuing without seller details to be refused.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+
+        $this->assertSame(0, DB::table('payment_documents')->count());
+    }
+
+    public function test_tl_equivalent_leaves_out_an_unknown_publication_date(): void
+    {
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])
+            ->findOrFail($this->insertPayment(['external_reference' => '888', 'ol_status' => 'pending', 'amount' => 100, 'currency_id' => $this->currencyId]));
+        $data = app(DealPaymentDocumentService::class)->viewData($payment, 'invoice');
+
+        $this->assertNull($data['try_display']['date']);
+        $this->assertSame('5.000,00', $data['try_display']['amount']);
+    }
+
+    public function test_write_back_cannot_change_the_amount_once_a_document_is_issued(): void
+    {
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['date' => '2026-11-06', 'rates' => ['TRY' => 50]], 200)]);
+
+        $id = $this->insertPayment(['external_reference' => '889', 'ol_status' => 'pending', 'amount' => 100, 'currency_id' => $this->currencyId]);
+        app(DealPaymentDocumentService::class)->viewData(Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id), 'invoice');
+
+        try {
+            app(CrmWriteService::class)->upsertPayment($this->companyId, [
+                'deal_id' => $this->dealId,
+                'external_reference' => '889',
+                'amount' => 150,
+                'currency' => 'USD',
+                'currency_id' => $this->currencyId,
+                'status' => 'complete',
+                'gateway' => 'manual-bank-transfer',
+            ]);
+            $this->fail('Expected the amount change to be refused.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->assertArrayHasKey('amount', $e->errors());
+        }
+
+        $this->assertSame(100.0, (float) DB::table('payments')->where('id', $id)->value('amount'));
+    }
+
     public function test_invoice_numbers_follow_the_range_and_never_change_once_issued(): void
     {
         Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
 
-        DB::table('payment_document_settings')->insert([
-            'company_id' => $this->companyId,
+        $this->seedSellerSettings([
             'legal_name' => 'Örnek Emlak Ltd.',
-            'tax_office' => 'Girne',
-            'tax_number' => 'MŞ 23667',
             'invoice_series' => 'B',
             'invoice_number_start' => 240,
             'invoice_number_end' => 241,
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
         $service = app(DealPaymentDocumentService::class);
@@ -1549,6 +1600,24 @@ class DealPaymentRequestTest extends TestCase
         });
 
         (require base_path('database/migrations/2026_11_12_000002_create_payment_document_settings_tables.php'))->up();
+    }
+
+    /**
+     * Saves the seller details every issued document needs, plus any
+     * overrides for the test.
+     *
+     * @param  array<string, mixed>  $overrides
+     */
+    private function seedSellerSettings(array $overrides = []): void
+    {
+        DB::table('payment_document_settings')->updateOrInsert(['company_id' => $this->companyId], array_merge([
+            'legal_name' => 'Test Co',
+            'address' => 'Girne, KKTC',
+            'tax_office' => 'Girne',
+            'tax_number' => 'MŞ 23667',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], $overrides));
     }
 
     private function seedBaseData(): void

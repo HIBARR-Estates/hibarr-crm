@@ -87,6 +87,22 @@ class PaymentDocumentSetting extends Model
      * company profile so a fresh company still prints its own name and
      * address before anyone opens the settings page.
      */
+    /**
+     * The seller details every issued document must carry.
+     */
+    public const SELLER_FIELDS = ['legal_name', 'address', 'tax_office', 'tax_number'];
+
+    public function hasSellerDetails(): bool
+    {
+        foreach (self::SELLER_FIELDS as $field) {
+            if (! filled($this->{$field})) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public static function forCompany(int $companyId): self
     {
         $existing = self::query()->where('company_id', $companyId)->first();

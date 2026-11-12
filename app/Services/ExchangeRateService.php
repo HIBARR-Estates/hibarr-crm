@@ -53,7 +53,7 @@ class ExchangeRateService
      * The rate together with the date the ECB published it, which can be
      * older than today (weekends, holidays, before the daily publication).
      *
-     * @return array{rate: float, date: string}|null date as Y-m-d
+     * @return array{rate: float, date: string|null}|null date as Y-m-d
      */
     public function quote(string $from, string $to): ?array
     {
@@ -81,7 +81,7 @@ class ExchangeRateService
     }
 
     /**
-     * @return array{rate: float, date: string}|null
+     * @return array{rate: float, date: string|null}|null
      */
     private function fetchQuote(string $from, string $to): ?array
     {
@@ -101,11 +101,13 @@ class ExchangeRateService
                 return null;
             }
 
+            // The publication date is printed next to the rate, so when the
+            // response has none it stays unknown rather than becoming today.
             $date = $response->json('date');
 
             return [
                 'rate' => (float) $rate,
-                'date' => is_string($date) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : now()->toDateString(),
+                'date' => is_string($date) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : null,
             ];
         } catch (\Throwable $e) {
             Log::warning('Exchange rate lookup failed', [

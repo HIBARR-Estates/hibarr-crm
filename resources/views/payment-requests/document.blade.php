@@ -248,7 +248,7 @@
                     @if ($try_display)
                         <div class="faint" style="text-align:right;font-size:7.5px;margin-top:5px">
                             TL karşılığı: {{ $try_display['amount'] }} TL<br>
-                            1 {{ $currency_label }} = {{ $try_display['rate'] }} TL · ECB referans kuru {{ $try_display['date'] }}
+                            1 {{ $currency_label }} = {{ $try_display['rate'] }} TL · ECB referans kuru {{ $try_display['date'] ?? '' }}
                         </div>
                     @endif
                 </td>

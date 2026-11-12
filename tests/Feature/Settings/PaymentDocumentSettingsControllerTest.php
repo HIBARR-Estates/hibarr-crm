@@ -3,11 +3,13 @@
 namespace Tests\Feature\Settings;
 
 use App\Http\Controllers\PaymentDocumentSettingsController;
+use App\Models\PaymentDocumentSetting;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
@@ -119,9 +121,20 @@ class PaymentDocumentSettingsControllerTest extends TestCase
     {
         $this->withoutMiddleware();
         $this->actingAsUser('all');
+        config()->set('filesystems.default', 'local');
+        Schema::create('file_storage', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('filename')->nullable();
+            $table->timestamps();
+        });
+        $logoPath = \App\Helper\Files::resolveSafeUploadPath('test-existing-logo.png', PaymentDocumentSetting::LOGO_PATH);
+        File::ensureDirectoryExists(dirname($logoPath));
+        File::put($logoPath, 'png');
+
         DB::table('payment_document_settings')->insert(array_merge($this->validPayload(), [
             'company_id' => $this->companyId,
-            'logo' => null,
+            'logo' => 'test-existing-logo.png',
             'created_at' => now(),
             'updated_at' => now(),
         ]));
@@ -129,6 +142,9 @@ class PaymentDocumentSettingsControllerTest extends TestCase
         $this->deleteJson(route('payment-document-settings.api.logo.destroy'))
             ->assertOk()
             ->assertJsonPath('data.settings.logo_url', null);
+
+        $this->assertNull(DB::table('payment_document_settings')->where('company_id', $this->companyId)->value('logo'));
+        $this->assertFileDoesNotExist($logoPath);
     }
 
     public function test_preview_streams_a_sample_pdf_without_taking_a_number(): void
@@ -208,6 +224,7 @@ class PaymentDocumentSettingsControllerTest extends TestCase
 
     private function resetSchema(): void
     {
+        Schema::dropIfExists('file_storage');
         Schema::dropIfExists('payment_documents');
         Schema::dropIfExists('payment_document_settings');
         Schema::dropIfExists('companies');

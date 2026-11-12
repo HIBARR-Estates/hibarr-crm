@@ -190,6 +190,12 @@ class DealPaymentDocumentService
                 // two downloads at once can never take the same number.
                 $settings = $this->lockedSettings($companyId);
 
+                // An issued document is frozen, so it can never be issued
+                // without the seller details the law requires on it.
+                if (! $settings->hasSellerDetails()) {
+                    throw new HttpException(409, 'Add the legal name, address, tax office and tax number in Invoices and receipts settings before issuing invoices or receipts.');
+                }
+
                 $series = $this->seriesFor($settings, $kind);
                 $sequence = $this->nextSequence($settings, $kind, $series);
                 $end = $this->rangeEndFor($settings, $kind);
@@ -421,7 +427,7 @@ class DealPaymentDocumentService
             'try' => $tryRate ? [
                 'rate' => $tryRate,
                 'amount' => round($amount * $tryRate, 2),
-                'date' => Carbon::parse($tryQuote['date'])->format('d.m.Y'),
+                'date' => $tryQuote['date'] ? Carbon::parse($tryQuote['date'])->format('d.m.Y') : null,
             ] : null,
             'method' => $data['method'],
             'transaction_reference' => $data['transaction_reference'],
@@ -430,7 +436,7 @@ class DealPaymentDocumentService
     }
 
     /**
-     * @return array{rate: float, date: string}|null
+     * @return array{rate: float, date: string|null}|null
      */
     private function tryRate(PaymentDocumentSetting $settings, ?string $currencyCode): ?array
     {

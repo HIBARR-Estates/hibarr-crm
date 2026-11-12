@@ -1,4 +1,4 @@
-import React, { useMemo, useState, type ReactNode } from "react";
+import React, { cloneElement, isValidElement, useMemo, useState, type ReactElement, type ReactNode } from "react";
 import { Deferred, usePage } from "@inertiajs/react";
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
@@ -209,6 +209,7 @@ export default function PaymentDocumentSettingsPage({
                                                 id="pds-brand-color"
                                                 type="color"
                                                 aria-label={k("branding.custom_color")}
+                                                {...fieldA11y("pds-brand-color", { error: errors.brand_color })}
                                                 value={form.brand_color}
                                                 onChange={(e) => set("brand_color", e.target.value)}
                                                 className="h-7 w-10 cursor-pointer rounded border-0 bg-transparent p-0"
@@ -217,7 +218,7 @@ export default function PaymentDocumentSettingsPage({
                                                 {form.brand_color}
                                             </span>
                                         </div>
-                                        {errors.brand_color && <FieldError>{errors.brand_color}</FieldError>}
+                                        {errors.brand_color && <FieldError id="pds-brand-color-error">{errors.brand_color}</FieldError>}
                                     </div>
                                     <ToggleField
                                         checked={form.bilingual_labels}
@@ -275,6 +276,7 @@ export default function PaymentDocumentSettingsPage({
                                     <div className="relative">
                                         <input
                                             id="pds-vat-rate"
+                                            {...fieldA11y("pds-vat-rate", { required: true, error: errors.vat_rate, hint: k("tax.vat_rate_hint") })}
                                             className="dr-input pr-8"
                                             type="number"
                                             min={0}
@@ -340,12 +342,13 @@ export default function PaymentDocumentSettingsPage({
                             <textarea
                                 id="pds-footer"
                                 aria-label={k("footer.title")}
+                                {...fieldA11y("pds-footer", { error: errors.footer_note })}
                                 className="dr-input"
                                 rows={3}
                                 placeholder={k("footer.placeholder")}
                                 {...text("footer_note")}
                             />
-                            {errors.footer_note && <FieldError>{errors.footer_note}</FieldError>}
+                            {errors.footer_note && <FieldError id="pds-footer-error">{errors.footer_note}</FieldError>}
                         </Section>
                     </div>
 
@@ -447,12 +450,21 @@ function FieldLabel({ children, required, htmlFor }: { children: ReactNode; requ
     );
 }
 
-function FieldError({ children }: { children: ReactNode }) {
+function FieldError({ id, children }: { id?: string; children: ReactNode }) {
     return (
-        <div className="mt-1 text-xs" style={{ color: T.RED }}>
+        <div id={id} className="mt-1 text-xs" style={{ color: T.RED }}>
             {children}
         </div>
     );
+}
+
+/** Required and error state for a control that Field cannot reach. */
+function fieldA11y(id: string, { required, error, hint }: { required?: boolean; error?: string; hint?: string }) {
+    return {
+        "aria-required": required || undefined,
+        "aria-invalid": error ? true : undefined,
+        "aria-describedby": error ? `${id}-error` : hint ? `${id}-hint` : undefined,
+    } as const;
 }
 
 function Field({
@@ -472,14 +484,26 @@ function Field({
     wide?: boolean;
     children: ReactNode;
 }) {
+    const messageId = error ? `${htmlFor}-error` : hint ? `${htmlFor}-hint` : undefined;
+    // When the child is the control itself, give it its required and error
+    // state so screen readers announce them with the field. A wrapped control
+    // sets these itself (see fieldA11y).
+    const control = isValidElement(children) && ["input", "textarea", "select"].includes(children.type as string)
+        ? cloneElement(children as ReactElement<Record<string, unknown>>, {
+              "aria-required": required || undefined,
+              "aria-invalid": error ? true : undefined,
+              "aria-describedby": messageId,
+          })
+        : children;
+
     return (
         <div className={`min-w-0 ${wide ? "md:col-span-2" : ""}`}>
             <FieldLabel htmlFor={htmlFor} required={required}>{label}</FieldLabel>
-            {children}
+            {control}
             {error ? (
-                <FieldError>{error}</FieldError>
+                <FieldError id={messageId}>{error}</FieldError>
             ) : hint ? (
-                <div className="mt-1 text-xs" style={{ color: T.TEXT_HINT }}>
+                <div id={messageId} className="mt-1 text-xs" style={{ color: T.TEXT_HINT }}>
                     {hint}
                 </div>
             ) : null}
