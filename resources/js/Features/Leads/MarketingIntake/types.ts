@@ -42,6 +42,11 @@ export interface MarketingLeadOptions {
 export const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "utm_audience"] as const;
 export type UtmKey = (typeof UTM_KEYS)[number];
 
+/** UTM fields whose options OL manages (pick-only); the rest are free text. */
+export const OL_UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content"] as const;
+export type OlUtmKey = (typeof OL_UTM_KEYS)[number];
+export const isOlUtmKey = (key: UtmKey): key is OlUtmKey => (OL_UTM_KEYS as readonly string[]).includes(key);
+
 /** A UTM option managed on OL; `leadSourceId` links a source to a CRM lead source. */
 export interface UtmConfigOption {
     value: string;

@@ -5,7 +5,7 @@ import { Spin } from "antd";
 import SearchableSelect from "@/Components/Redesign/primitives/SearchableSelect";
 import useTranslation from "@/Hooks/useTranslation";
 import { matchChoice, sortChoices } from "./model";
-import type { UtmConfigOption, UtmKey } from "./types";
+import type { OlUtmKey, UtmConfigOption } from "./types";
 
 interface PageResponse {
     items: UtmConfigOption[];
@@ -24,7 +24,7 @@ const cache = new Map<string, ListState>();
 
 const EMPTY: ListState = { items: [], nextPage: 1, loaded: false };
 
-function fetchPage(field: UtmKey, page: number, search: string): Promise<PageResponse> {
+function fetchPage(field: OlUtmKey, page: number, search: string): Promise<PageResponse> {
     return axios
         .get(route("marketing-leads.utm-configs"), {
             params: { field, page, search: search || undefined },
@@ -39,7 +39,7 @@ function mergeItems(current: UtmConfigOption[], next: UtmConfigOption[]): UtmCon
 }
 
 interface Props {
-    field: UtmKey;
+    field: OlUtmKey;
     id: string;
     value: string;
     placeholder: string;
