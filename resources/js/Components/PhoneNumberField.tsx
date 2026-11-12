@@ -71,10 +71,9 @@ export default function PhoneNumberField({
             onChange={(val) => {
                 if (val && typeof val === "object" && "phoneNumber" in val) {
                     onValueChange(serializePhoneInputValue(val, value));
-                } else if (typeof val === "string") {
-                    onValueChange(val);
                 } else {
-                    onValueChange(val as unknown as string);
+                    // Cleared (null/undefined) or anything unexpected: an empty number.
+                    onValueChange(typeof val === "string" ? val : "");
                 }
             }}
             onPaste={(event) => {

@@ -254,7 +254,10 @@ export function buildPayload(
 ): Record<string, unknown> {
     const nullable = (value: string) => (value.trim() === "" ? null : value.trim());
     // A dial code on its own ("+49") is not a number yet.
-    const phone = (value: string) => (value.replace(/\D+/g, "").length < 6 ? null : value.trim());
+    const phone = (value: string | null | undefined) => {
+        const text = typeof value === "string" ? value.trim() : "";
+        return text.replace(/\D+/g, "").length < 6 ? null : text;
+    };
 
     const customFields: Record<string, unknown> = {};
     for (const field of options?.customFields ?? []) {
