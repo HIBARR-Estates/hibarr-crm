@@ -995,6 +995,7 @@ function QualifyModalContent({
                             .join(" · ")}
                         subscribeSaving={flow.subscribeSaving}
                         trailing={languageControls}
+                        leadId={lead.id}
                         onClose={requestClose}
                     />
                 ) : (

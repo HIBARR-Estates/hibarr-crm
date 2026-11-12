@@ -81,8 +81,12 @@ import CallFailedNotice from "./dock/components/CallFailedNotice";
  * auto-opens while a call is ringing/active and shows answer/decline or
  * mute/hold/hangup. Audio is browser ↔ sipgate; the CRM timeline is driven
  * by the OL call-bridge poll and is unaffected here.
+ *
+ * `liveCallInDock={false}` leaves the controls of a running call to the
+ * caller (the agent workspace shows them in its dock pill); everything else,
+ * including ringing, recording and lead matching, still runs here.
  */
-export default function SoftphoneDock() {
+export default function SoftphoneDock({ liveCallInDock = true }: { liveCallInDock?: boolean } = {}) {
     const { t } = useTranslation();
     const { props } = usePage();
     const isAdmin = (props.auth?.user?.roles ?? []).some(
@@ -1844,7 +1848,7 @@ export default function SoftphoneDock() {
             )}
 
             {/* Live / outbound call */}
-            {inCall && activeCall && (
+            {liveCallInDock && inCall && activeCall && (
                 <section className="sp sp--active" aria-label="Phone, in call">
                     <header className="sp__head">
                         <span className={statusDotClass} />

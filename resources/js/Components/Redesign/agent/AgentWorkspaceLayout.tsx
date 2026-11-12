@@ -10,6 +10,7 @@ import AgentAccountMenu from "./AgentAccountMenu";
 import AgentDock from "./AgentDock";
 import AgentDockSearch from "./AgentDockSearch";
 import AgentSoftphonePill from "./AgentSoftphonePill";
+import AgentCallSheet from "./call/AgentCallSheet";
 import AgentViewSwitch from "./AgentViewSwitch";
 import useTranslation from "@/Hooks/useTranslation";
 import { activeDestinationKey } from "./destinations";
@@ -85,7 +86,8 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
                         <AgentDock active={active} variant="tabs" />
                     </nav>
                 </div>
-                <SoftphoneDock />
+                <AgentCallSheet />
+                <SoftphoneDock liveCallInDock={false} />
             </div>
             </PinnedSlot.Provider>
         </SecondRowSlot.Provider>

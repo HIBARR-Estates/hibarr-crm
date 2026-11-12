@@ -538,6 +538,7 @@ export default function DealAnalysisModal({
                             .join(" · ")}
                         subscribeSaving={subscribeSaving}
                         trailing={<FocusModeButton active={focusMode} onToggle={() => setFocusMode((v) => !v)} />}
+                        leadId={deal.lead_id ?? deal.contact?.id}
                         onClose={requestClose}
                     />
                 ) : (
