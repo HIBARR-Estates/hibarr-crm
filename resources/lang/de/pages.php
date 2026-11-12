@@ -2477,6 +2477,7 @@ return [
         'confirm_failed' => 'Überweisung konnte nicht bestätigt werden.',
     ],
 
+
     'call_bridge' => [
         'title' => 'Call Bridge',
         'description' => 'Telefonleitungen, Anrufpool und Aufnahmen für Telefon.',
@@ -2606,7 +2607,7 @@ return [
         'to' => 'Bis',
         'today' => 'Heute',
         'unnamed_record' => 'Unbenannter Datensatz',
-        'failure_timeout' => 'Anruf-Zeitüberschreitung',
+                'failure_timeout' => 'Anruf-Zeitüberschreitung',
         'failure_user_busy' => 'Angerufener besetzt',
         'failure_rejected' => 'Anruf abgelehnt',
         'failure_declined' => 'Anruf abgelehnt',
@@ -2800,8 +2801,7 @@ return [
         'live_monitor' => 'Live über Kopfhörer mithören (Vorsicht Rückkopplung)',
         'mic_gain_boost' => 'Mikrofon-Verstärkung (Pre-Amp)',
         'mic_gain_desc' => 'Verstärkt leise Mikrofone und verbessert die Sprachverständlichkeit.',
-        'mic_gain_default' => 'Auf Standard zurücksetzen (2.5x / +8 dB)',
-
+        'mic_gain_default' => 'Auf Standard zurücksetzen (2.5x / +8 dB)',
         'reset_gain' => 'Zurücksetzen',
         'microphone' => 'Mikrofon',
         'incoming_calls_active' => 'Anrufe aktiv',

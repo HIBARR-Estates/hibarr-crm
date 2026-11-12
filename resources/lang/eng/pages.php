@@ -2634,6 +2634,7 @@ return [
         'confirm_failed' => 'Unable to confirm transfer.',
     ],
 
+
     'call_bridge' => [
         'title' => 'Call Bridge',
         'description' => 'Phone lines, call pool and recordings for Phone.',
@@ -2763,7 +2764,7 @@ return [
         'to' => 'To',
         'today' => 'Today',
         'unnamed_record' => 'Unnamed record',
-        'failure_timeout' => 'Call timed out',
+                'failure_timeout' => 'Call timed out',
         'failure_user_busy' => 'Callee busy',
         'failure_rejected' => 'Call declined',
         'failure_declined' => 'Call declined',
@@ -2957,8 +2958,7 @@ return [
         'live_monitor' => 'Hear live in headphones (avoid feedback)',
         'mic_gain_boost' => 'Mic Gain Boost (Pre-Amp)',
         'mic_gain_desc' => 'Boosts quiet microphone volume and sharpens vocal clarity before transmission.',
-        'mic_gain_default' => 'Reset to Default (2.5x / +8 dB)',
-
+        'mic_gain_default' => 'Reset to Default (2.5x / +8 dB)',
         'reset_gain' => 'Reset',
         'microphone' => 'Microphone',
         'incoming_calls_active' => 'Receiving Calls',

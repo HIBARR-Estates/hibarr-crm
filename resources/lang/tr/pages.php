@@ -1139,7 +1139,7 @@ return [
             'summary_placeholder' => 'Toplantı özetini ekleyin veya düzeltin...',
             'load_failed' => 'Sally özetleri yüklenemedi',
             'load_failed_hint' => 'İstek başarısız oldu. Bağlantınızı kontrol edip tekrar deneyin.',
-            'retry' => 'Tekrar dene',
+'retry' => 'Tekrar dene',
             'suggested_notes' => 'Önerilen notlar',
             'no_bullet_points' => 'Henüz önemli nokta yok.',
             'bullets_placeholder' => 'Her satırda bir önemli nokta...',
@@ -2455,6 +2455,7 @@ return [
         'confirm_failed' => 'Havale onaylanamadı.',
     ],
 
+
     'call_bridge' => [
         'title' => 'Call Bridge',
         'description' => 'Tarayıcı yazılım telefonu için hatlar, çağrı havuzu ve kayıtlar.',
@@ -2584,7 +2585,7 @@ return [
         'to' => 'Bitiş',
         'today' => 'Bugün',
         'unnamed_record' => 'Adsız kayıt',
-        'failure_timeout' => 'Arama zaman aşımı',
+                'failure_timeout' => 'Arama zaman aşımı',
         'failure_user_busy' => 'Aranan meşgul',
         'failure_rejected' => 'Arama reddedildi',
         'failure_declined' => 'Arama reddedildi',
@@ -2778,8 +2779,7 @@ return [
         'live_monitor' => 'Kulaklıkla canlı dinle (yankıya dikkat)',
         'mic_gain_boost' => 'Mikrofon Kazanç Artışı (Pre-Amp)',
         'mic_gain_desc' => 'Kısık mikrofon sesini yükseltir ve ses netliğini artırır.',
-        'mic_gain_default' => 'Varsayılana Sıfırla (2.5x / +8 dB)',
-
+        'mic_gain_default' => 'Varsayılana Sıfırla (2.5x / +8 dB)',
         'reset_gain' => 'Sıfırla',
         'microphone' => 'Mikrofon',
         'incoming_calls_active' => 'Aramalar Aktif',
