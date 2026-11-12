@@ -1261,6 +1261,9 @@ class DealPaymentRequestTest extends TestCase
     public function test_invoice_and_receipt_pdfs_render(): void
     {
         Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
+        if (getenv('DUMP_PDFS')) {
+            DB::table('payment_document_settings')->insert(['company_id' => $this->companyId, 'legal_name' => 'Örnek Emlak Ltd.', 'address' => "Ecevit Cad. 12\nGirne, KKTC", 'tax_office' => 'Girne', 'tax_number' => 'MŞ 23667', 'approval_number' => 'GVD/2026/0412', 'invoice_number_end' => 5000, 'receipt_number_end' => 5000, 'created_at' => now(), 'updated_at' => now()]);
+        }
         $service = app(DealPaymentDocumentService::class);
         $id = $this->insertPayment(['external_reference' => '899', 'ol_status' => 'pending', 'amount' => 4350, 'currency_id' => $this->currencyId]);
 

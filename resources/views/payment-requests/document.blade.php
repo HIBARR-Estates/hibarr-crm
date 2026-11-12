@@ -98,7 +98,8 @@
     // The stamp duty box and the tax office seal are images, drawn from
     // resources/pdf/kktc/marks-source.html: dompdf can't set text on a curve.
     $markImage = fn (string $file) => 'data:image/png;base64,' . base64_encode((string) @file_get_contents(resource_path('pdf/kktc/' . $file)));
-    // Sits top right, above the title: badges, then the approval number and range.
+    // Table cells set on the title row, left of FATURA / TAHSİLAT MAKBUZU:
+    // the stamp duty box and the seal.
     $marks = function (int $sealSize) use ($approval, $markImage) {
         $badges = '';
         if (! empty($approval['show_stamp_duty'])) {
@@ -108,20 +109,13 @@
         if (! empty($approval['show_seal'])) {
             $badges .= '<td style="padding-left:10px;vertical-align:middle"><img src="' . $markImage('kktc-approval-seal.png') . '" style="width:' . $sealSize . 'px;height:' . $sealSize . 'px" alt="Gelir ve Vergi Dairesi belge onayı"></td>';
         }
-        $lines = [];
-        if (! empty($approval['number'])) {
-            $lines[] = '<b>Belge onay no:</b><br>' . e($approval['number']);
-        }
-        if (! empty($approval['range'])) {
-            $lines[] = '<b>Seri aralığı:</b><br>' . e($approval['range']);
-        }
-        if ($badges === '' && ! $lines) {
-            return '';
-        }
-        $text = $lines ? '<td style="vertical-align:middle;text-align:right"><div class="approval">' . implode('<br>', $lines) . '</div></td>' : '';
-
-        return '<table style="width:auto;margin:0 0 0 auto"><tr>' . $text . $badges . '</tr></table>';
+        return $badges;
     };
+    // One line under the title row: approval number and the approved range.
+    $approvalLine = collect([
+        ! empty($approval['number']) ? '<b>Belge onay no:</b> ' . e($approval['number']) : null,
+        ! empty($approval['range']) ? '<b>Seri aralığı:</b> ' . e($approval['range']) : null,
+    ])->filter()->implode(' &nbsp;·&nbsp; ');
 @endphp
 
 @if ($isInvoice)
@@ -147,9 +141,13 @@
                     </div>
                 </td>
                 <td style="text-align:right">
-                    @php($marksHtml = $marks(66))
-                    @if ($marksHtml)<div style="margin-bottom:12px">{!! $marksHtml !!}</div>@endif
-                    <div class="title" style="font-size:26px">{{ $title }}@if ($bilingual)<span class="title-en">{{ strtoupper($title_en) }}</span>@endif</div>
+                    <table style="width:auto;margin:0 0 0 auto"><tr>
+                        {!! $marks(58) !!}
+                        <td style="vertical-align:middle;padding-left:14px;text-align:right">
+                            <div class="title" style="font-size:26px">{{ $title }}@if ($bilingual)<span class="title-en">{{ strtoupper($title_en) }}</span>@endif</div>
+                        </td>
+                    </tr></table>
+                    @if ($approvalLine)<div class="approval" style="margin-top:6px;white-space:nowrap">{!! $approvalLine !!}</div>@endif
                     <div style="margin-top:8px"><span class="copy-mark">{{ $copy_label['tr'] }}@if ($bilingual) · {{ strtoupper($copy_label['en']) }}@endif</span></div>
                     @if ($stamp)
                         <div style="margin-top:8px"><span class="stamp">{{ $stamp['tr'] }}</span></div>
@@ -298,10 +296,14 @@
                         </td>
                     </tr></table>
                 </td>
-                <td style="text-align:right;width:300px">
-                    @php($marksHtml = $marks(52))
-                    @if ($marksHtml)<div style="margin-bottom:8px">{!! $marksHtml !!}</div>@endif
-                    <div class="title" style="font-size:14px;letter-spacing:2px">{{ $title }}@if ($bilingual)<span class="title-en">{{ strtoupper($title_en) }}</span>@endif</div>
+                <td style="text-align:right;width:340px">
+                    <table style="width:auto;margin:0 0 0 auto"><tr>
+                        {!! $marks(48) !!}
+                        <td style="vertical-align:middle;padding-left:12px;text-align:right">
+                            <div class="title" style="font-size:14px;letter-spacing:2px;white-space:nowrap">{{ $title }}@if ($bilingual)<span class="title-en">{{ strtoupper($title_en) }}</span>@endif</div>
+                        </td>
+                    </tr></table>
+                    @if ($approvalLine)<div class="approval" style="margin-top:4px;white-space:nowrap">{!! $approvalLine !!}</div>@endif
                     <div class="serial" style="font-size:13px;margin-top:6px">№ {{ $number }}</div>
                     <div style="margin-top:3px"><span class="label">TARİH</span> {!! $en('Date') !!} &nbsp;{{ $issued_on }}</div>
                     @if ($stamp)
