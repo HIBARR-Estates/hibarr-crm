@@ -3449,6 +3449,8 @@ return [
             'delete_message_one' => '„{{name}}“ löschen? {{count}} Lead hat danach keine Herkunft mehr.',
             'delete_message_other' => '„{{name}}“ löschen? {{count}} Leads haben danach keine Herkunft mehr.',
             'in_use_by_marketing_flow' => 'Das Marketing-Lead-Formular verwendet diese Herkunft. Wählen Sie zuerst im Tab Marketing-Lead-Formular eine andere aus.',
+            'search' => 'Herkunft suchen…',
+            'not_found' => 'Diese Herkunft gibt es nicht mehr.',
         ],
         'marketing' => [
             'tab' => 'Marketing-Lead-Formular',

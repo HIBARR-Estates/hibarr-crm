@@ -31,6 +31,7 @@ use App\Models\LeadCategory;
 use App\Models\LeadCustomForm;
 use App\Models\LeadLifecycleStatus;
 use App\Models\LeadNote;
+use App\Models\LeadOrigin;
 use App\Models\LeadPipeline;
 use App\Models\LeadProduct;
 use App\Models\LeadSavedView;
@@ -1796,6 +1797,21 @@ class LeadContactController extends AccountBaseController
                     }
 
                     Lead::whereIn('id', $rowIds)->update(['source_id' => $sourceId]);
+                    break;
+
+                case 'lead_origin_id':
+                    $originId = $request->input('lead_origin_id');
+                    if ($originId === '' || $originId === false) {
+                        $originId = null;
+                    }
+                    if ($originId !== null) {
+                        $originId = (int) $originId;
+                        if (! LeadOrigin::whereKey($originId)->exists()) {
+                            return __('pages.lead_settings.origins.not_found');
+                        }
+                    }
+
+                    Lead::whereIn('id', $rowIds)->update(['lead_origin_id' => $originId]);
                     break;
 
                 case 'lead_owner':

@@ -3427,6 +3427,8 @@ return [
             'delete_message_one' => '“{{name}}” silinsin mi? {{count}} lead\'in kökeni kalmayacak.',
             'delete_message_other' => '“{{name}}” silinsin mi? {{count}} lead\'in kökeni kalmayacak.',
             'in_use_by_marketing_flow' => 'Pazarlama lead formu bu kökeni kullanıyor. Önce Pazarlama lead formu sekmesinde başka bir köken seçin.',
+            'search' => 'Köken ara…',
+            'not_found' => 'Bu köken artık mevcut değil.',
         ],
         'marketing' => [
             'tab' => 'Pazarlama lead formu',

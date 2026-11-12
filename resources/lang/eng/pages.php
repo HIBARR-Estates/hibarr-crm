@@ -3606,6 +3606,8 @@ return [
             'delete_message_one' => 'Delete “{{name}}”? {{count}} lead will have no origin.',
             'delete_message_other' => 'Delete “{{name}}”? {{count}} leads will have no origin.',
             'in_use_by_marketing_flow' => 'The marketing lead flow uses this origin. Pick another one on the Marketing lead flow tab first.',
+            'search' => 'Search origins…',
+            'not_found' => 'That origin no longer exists.',
         ],
         'marketing' => [
             'tab' => 'Marketing lead flow',
