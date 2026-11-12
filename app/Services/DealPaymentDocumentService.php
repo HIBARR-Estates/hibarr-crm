@@ -464,7 +464,8 @@ class DealPaymentDocumentService
             'logo_data_uri' => $this->logoDataUri($settings),
             'brand_color' => $this->safeColor($settings->brand_color),
             'bilingual' => (bool) $settings->bilingual_labels,
-            'copy_label' => $copy === 'copy' ? ['tr' => 'SURET', 'en' => 'Copy'] : ['tr' => 'ASIL', 'en' => 'Original'],
+            // Only a copy is marked; the original carries no label.
+            'copy_label' => $copy === 'copy' ? ['tr' => 'SURET', 'en' => 'Copy'] : null,
             'stamp' => $stamp,
             'currency_label' => $code ?: '',
             'currency_prefix' => $symbol && $symbol !== $code ? $symbol.' ' : '',

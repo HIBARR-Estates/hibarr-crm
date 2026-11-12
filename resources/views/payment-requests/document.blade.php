@@ -148,7 +148,9 @@
                         </td>
                     </tr></table>
                     @if ($approvalLine)<div class="approval" style="margin-top:6px;white-space:nowrap">{!! $approvalLine !!}</div>@endif
-                    <div style="margin-top:8px"><span class="copy-mark">{{ $copy_label['tr'] }}@if ($bilingual) · {{ strtoupper($copy_label['en']) }}@endif</span></div>
+                    @if ($copy_label)
+                        <div style="margin-top:8px"><span class="copy-mark">{{ $copy_label['tr'] }}@if ($bilingual) · {{ strtoupper($copy_label['en']) }}@endif</span></div>
+                    @endif
                     @if ($stamp)
                         <div style="margin-top:8px"><span class="stamp">{{ $stamp['tr'] }}</span></div>
                     @endif
@@ -365,7 +367,9 @@
         <table>
             <tr>
                 <td style="vertical-align:bottom">
-                    <span class="copy-mark">{{ $copy_label['tr'] }}@if ($bilingual) · {{ strtoupper($copy_label['en']) }}@endif</span>
+                    @if ($copy_label)
+                        <span class="copy-mark">{{ $copy_label['tr'] }}@if ($bilingual) · {{ strtoupper($copy_label['en']) }}@endif</span>
+                    @endif
                     @if ($footer_note)<div class="approval" style="margin-top:4px">{{ $footer_note }}</div>@endif
                 </td>
                 <td style="width:200px;vertical-align:bottom">
