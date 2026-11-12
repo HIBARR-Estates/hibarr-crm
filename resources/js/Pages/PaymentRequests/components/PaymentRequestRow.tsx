@@ -35,11 +35,11 @@ export interface PaymentRequestListRow extends DealPaymentRequest {
  */
 /**
  * One track list for the header and every row, shared by a single parent
- * grid. Status is max-content so a badge stays on one line, and the last
- * track is the invoice / confirm actions (16px of end padding lives in it).
+ * grid. Status has a wider floor so the badge stays on one line, and the
+ * last track is the invoice / confirm actions (16px of end padding lives in it).
  */
 export const PAYMENT_REQUEST_GRID =
-    "minmax(0, 1.5fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr) max-content 336px";
+    "minmax(0, 1.5fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr) minmax(240px, max-content) 336px";
 
 interface PaymentRequestRowProps {
     row: PaymentRequestListRow;
@@ -195,7 +195,7 @@ export default function PaymentRequestRow({
                 )}
             </div>
 
-            <div style={{ width: "max-content", maxWidth: "100%" }}>
+            <div>
                 <Badge
                     variant={linkExpired ? "red" : paymentUiStateBadgeVariant(row.ui_state)}
                 >
@@ -203,22 +203,6 @@ export default function PaymentRequestRow({
                         ? t("pages.deals.payment_request.link_expired")
                         : td(paymentUiStateLabel(row.ui_state), { source: "en" })}
                 </Badge>
-                {row.payment_id && (
-                    <div
-                        style={{
-                            contain: "inline-size",
-                            width: "100%",
-                            marginTop: 6,
-                            fontSize: REDESIGN_TYPE.CAPTION,
-                            color: T.TEXT_MUTED,
-                            fontVariantNumeric: "tabular-nums",
-                            overflowWrap: "anywhere",
-                            lineHeight: 1.4,
-                        }}
-                    >
-                        {`#${row.payment_id}`}
-                    </div>
-                )}
             </div>
 
             <div
