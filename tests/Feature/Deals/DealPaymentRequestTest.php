@@ -155,6 +155,124 @@ class DealPaymentRequestTest extends TestCase
         Http::assertNotSent(fn ($request) => str_starts_with($request->url(), 'https://ol.test/'));
     }
 
+    public function test_create_uses_the_exchange_rate_the_user_confirmed(): void
+    {
+        Http::fake([
+            'https://api.frankfurter.app/*' => Http::response(['rates' => ['USD' => 9.9]], 200),
+            'https://ol.test/v1/internal/payments/deal-requests' => Http::response([
+                'data' => [
+                    'paymentId' => '521',
+                    'status' => 'pending',
+                    'checkoutUrl' => 'https://checkout.test/pay/521',
+                ],
+            ], 201),
+        ]);
+
+        $result = app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+            'currency' => 'USD',
+            'exchange_rate' => 1.25,
+        ]);
+
+        // The confirmed rate wins over the live one: 2500 EUR × 1.25 = 3125 USD.
+        Http::assertSent(fn ($request) => $request->url() === 'https://ol.test/v1/internal/payments/deal-requests'
+            && (float) $request['amount'] === 3125.0
+            && $request['currency'] === 'USD');
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'frankfurter.app'));
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->where('external_reference', '521')->firstOrFail();
+        $this->assertEqualsWithDelta(1 / 1.25, (float) $payment->exchange_rate, 0.000001);
+        $this->assertEquals(3125.0, (float) $payment->amount);
+        $this->assertEquals(2500.0, (float) $payment->base_amount);
+        $this->assertEqualsWithDelta(1.25, $result['rate'], 0.000001);
+    }
+
+    public function test_create_accepts_a_confirmed_rate_when_the_live_rate_is_down(): void
+    {
+        Http::fake([
+            'https://api.frankfurter.app/*' => Http::response('down', 503),
+            'https://ol.test/v1/internal/payments/deal-requests' => Http::response([
+                'data' => [
+                    'paymentId' => '523',
+                    'status' => 'pending',
+                    'checkoutUrl' => 'https://checkout.test/pay/523',
+                ],
+            ], 201),
+        ]);
+
+        $result = app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+            'currency' => 'USD',
+            'exchange_rate' => '1.5',
+        ]);
+
+        $this->assertEquals(3750.0, (float) $result['amount']);
+        $this->assertEqualsWithDelta(1.5, $result['rate'], 0.000001);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'frankfurter.app'));
+    }
+
+    public function test_create_ignores_a_custom_rate_when_paying_in_company_currency(): void
+    {
+        Http::fake([
+            'https://ol.test/v1/internal/payments/deal-requests' => Http::response([
+                'data' => [
+                    'paymentId' => '522',
+                    'status' => 'pending',
+                    'checkoutUrl' => 'https://checkout.test/pay/522',
+                    'amount' => 2500,
+                ],
+            ], 201),
+        ]);
+
+        $result = app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+            'currency' => 'EUR',
+            'exchange_rate' => 4,
+        ]);
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://ol.test/v1/internal/payments/deal-requests'
+            && (float) $request['amount'] === 2500.0);
+        $this->assertEqualsWithDelta(1.0, $result['rate'], 0.000001);
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->where('external_reference', '522')->firstOrFail();
+        $this->assertEquals(1.0, (float) $payment->exchange_rate);
+        $this->assertEquals(2500.0, (float) $payment->amount);
+    }
+
+    public function test_create_rejects_a_non_positive_exchange_rate(): void
+    {
+        Http::fake();
+
+        foreach ([0, -2, 'nope'] as $rate) {
+            try {
+                app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+                    'currency' => 'USD',
+                    'exchange_rate' => $rate,
+                ]);
+                $this->fail('Expected a rejection for rate '.var_export($rate, true));
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+                $this->assertSame(422, $e->getStatusCode());
+            }
+        }
+
+        Http::assertNothingSent();
+    }
+
+    public function test_create_rejects_an_exchange_rate_that_rounds_the_amount_to_zero(): void
+    {
+        Http::fake();
+
+        try {
+            app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+                'currency' => 'USD',
+                'exchange_rate' => 0.0000001,
+            ]);
+            $this->fail('Expected a zero amount to be refused.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $this->assertSame(422, $e->getStatusCode());
+            $this->assertStringContainsString('too small', $e->getMessage());
+        }
+
+        Http::assertNotSent(fn ($request) => str_starts_with($request->url(), 'https://ol.test/'));
+    }
+
     public function test_create_is_refused_for_a_currency_the_company_does_not_have(): void
     {
         Http::fake();
@@ -175,6 +293,240 @@ class DealPaymentRequestTest extends TestCase
         } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
             $this->assertSame(409, $e->getStatusCode());
         }
+    }
+
+    public function test_create_requests_part_of_the_deal_value(): void
+    {
+        Http::fake([
+            'https://ol.test/v1/internal/payments/deal-requests' => Http::response([
+                'data' => [
+                    'paymentId' => '540',
+                    'status' => 'pending',
+                    'checkoutUrl' => 'https://checkout.test/pay/540',
+                    'amount' => 1000,
+                ],
+            ], 201),
+        ]);
+
+        $result = app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+            'currency' => 'EUR',
+            'base_amount' => 1000,
+        ]);
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://ol.test/v1/internal/payments/deal-requests'
+            && (float) $request['amount'] === 1000.0);
+        $this->assertEquals(1000.0, (float) $result['base_amount']);
+        $this->assertEquals(1000.0, (float) $result['amount']);
+    }
+
+    public function test_create_refuses_an_amount_above_the_remaining_deal_value(): void
+    {
+        Http::fake();
+
+        try {
+            app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+                'currency' => 'EUR',
+                'base_amount' => 3000,
+            ]);
+            $this->fail('Expected the amount to be refused.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $this->assertSame(422, $e->getStatusCode());
+            $this->assertStringContainsString('remaining', $e->getMessage());
+        }
+
+        Http::assertNothingSent();
+    }
+
+    public function test_create_allows_another_request_after_a_partial_confirmation(): void
+    {
+        $this->insertPayment([
+            'external_reference' => '541',
+            'ol_status' => 'completed',
+            'ol_payment_type' => 'manual',
+            'verified_by_user_id' => 99,
+            'verified_at' => now(),
+            'status' => 'complete',
+            'amount' => 1000,
+            'base_amount' => 1000,
+            'exchange_rate' => 1,
+        ]);
+
+        Http::fake([
+            'https://ol.test/v1/internal/payments/deal-requests' => Http::response([
+                'data' => [
+                    'paymentId' => '542',
+                    'status' => 'pending',
+                    'checkoutUrl' => 'https://checkout.test/pay/542',
+                    'amount' => 1500,
+                ],
+            ], 201),
+        ]);
+
+        $result = app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+            'currency' => 'EUR',
+        ]);
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://ol.test/v1/internal/payments/deal-requests'
+            && (float) $request['amount'] === 1500.0);
+        $this->assertEquals(1500.0, (float) $result['base_amount']);
+    }
+
+    public function test_create_is_refused_when_confirmed_payments_cover_the_deal(): void
+    {
+        $this->insertPayment([
+            'external_reference' => '543',
+            'ol_status' => 'completed',
+            'ol_payment_type' => 'crypto',
+            'status' => 'complete',
+            'amount' => 2500,
+            'base_amount' => 2500,
+            'exchange_rate' => 1,
+        ]);
+        Http::fake();
+
+        try {
+            app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), ['currency' => 'EUR']);
+            $this->fail('Expected a fully covered deal to refuse another request.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $this->assertSame(422, $e->getStatusCode());
+        }
+
+        Http::assertNothingSent();
+    }
+
+    public function test_create_cash_request_stays_in_the_crm(): void
+    {
+        Http::fake();
+
+        $result = app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+            'currency' => 'EUR',
+            'provider_key' => 'cash',
+            'base_amount' => 400,
+        ]);
+
+        Http::assertNothingSent();
+        $this->assertSame('cash_pending', $result['ui_state']);
+        $this->assertTrue($result['can_confirm']);
+        $this->assertFalse($result['show_checkout_url']);
+        $this->assertNull($result['checkout_url']);
+        $this->assertStringStartsWith('cash-', (string) $result['payment_id']);
+        $this->assertEquals(400.0, (float) $result['base_amount']);
+
+        $this->assertDatabaseHas('payments', [
+            'deal_id' => $this->dealId,
+            'gateway' => 'cash',
+            'ol_status' => 'pending',
+            'ol_payment_type' => 'cash',
+            'amount' => 400,
+            'base_amount' => 400,
+        ]);
+    }
+
+    public function test_open_cash_request_blocks_another_until_it_is_confirmed(): void
+    {
+        $this->insertPayment([
+            'external_reference' => 'cash-open',
+            'gateway' => 'cash',
+            'ol_status' => 'pending',
+            'ol_payment_type' => 'cash',
+            'amount' => 400,
+            'base_amount' => 400,
+        ]);
+        Http::fake();
+
+        try {
+            app(DealPaymentService::class)->createForDeal($this->makeDeal(), $this->makeUser(), [
+                'currency' => 'EUR',
+                'provider_key' => 'cash',
+            ]);
+            $this->fail('Expected an open cash request to block another.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+
+        Http::assertNothingSent();
+    }
+
+    public function test_confirm_cash_does_not_call_ol_or_win_the_deal(): void
+    {
+        $this->insertPayment([
+            'external_reference' => 'cash-confirm',
+            'gateway' => 'cash',
+            'ol_status' => 'pending',
+            'ol_payment_type' => 'cash',
+            'status' => 'pending',
+            'amount' => 400,
+            'base_amount' => 400,
+        ]);
+        Http::fake();
+
+        $result = app(DealPaymentService::class)->confirmBankTransfer($this->makeDeal(), $this->makeUser());
+
+        Http::assertNothingSent();
+        $this->assertSame('confirmed', $result['ui_state']);
+        $this->assertFalse($result['can_confirm']);
+        $this->assertSame(99, $result['verified_by_user_id']);
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)
+            ->where('external_reference', 'cash-confirm')
+            ->firstOrFail();
+        $this->assertSame('complete', $payment->status);
+        $this->assertSame('completed', $payment->ol_status);
+        $this->assertNotNull($payment->paid_on);
+        $this->assertNull(DB::table('deals')->where('id', $this->dealId)->value('outcome_status'));
+    }
+
+    public function test_confirm_cash_wins_the_deal_when_it_covers_the_value(): void
+    {
+        $this->insertPayment([
+            'external_reference' => 'cash-cover',
+            'gateway' => 'cash',
+            'ol_status' => 'pending',
+            'ol_payment_type' => 'cash',
+            'status' => 'pending',
+            'amount' => 2500,
+            'base_amount' => 2500,
+        ]);
+        Http::fake();
+        $this->expectDealWon();
+
+        $result = app(DealPaymentService::class)->confirmBankTransfer($this->makeDeal(), $this->makeUser());
+
+        $this->assertSame('confirmed', $result['ui_state']);
+        Http::assertNothingSent();
+    }
+
+    public function test_invalidate_cash_does_not_call_ol(): void
+    {
+        $this->insertPayment([
+            'external_reference' => 'cash-cancel',
+            'gateway' => 'cash',
+            'ol_status' => 'pending',
+            'ol_payment_type' => 'cash',
+        ]);
+        Http::fake();
+
+        $result = app(DealPaymentService::class)->invalidatePending($this->makeDeal(), $this->makeUser(), 'Deal value changed');
+
+        Http::assertNothingSent();
+        $this->assertSame('invalidated', $result['ui_state']);
+        $this->assertSame('cancelled', $result['ol_status']);
+    }
+
+    public function test_get_for_deal_does_not_refresh_a_cash_request_from_ol(): void
+    {
+        $this->insertPayment([
+            'external_reference' => 'cash-refresh',
+            'gateway' => 'cash',
+            'ol_status' => 'pending',
+            'ol_payment_type' => 'cash',
+        ]);
+        Http::fake();
+
+        $result = app(DealPaymentService::class)->getForDeal($this->makeDeal());
+
+        Http::assertNothingSent();
+        $this->assertSame('cash_pending', $result['active']['ui_state']);
     }
 
     public function test_create_propagates_ol_api_error_envelope_message(): void
@@ -543,7 +895,7 @@ class DealPaymentRequestTest extends TestCase
             $data = $request->data();
 
             return $request->url() === 'https://ol.test/v1/internal/payments/deal-requests'
-                && !array_key_exists('provider_key', $data);
+                && ! array_key_exists('provider_key', $data);
         });
 
         $this->assertSame('510', $result['payment_id']);
@@ -635,8 +987,6 @@ class DealPaymentRequestTest extends TestCase
             ], 200),
         ]);
 
-        $this->expectDealWon();
-
         $user = $this->makeUser();
         $result = app(DealPaymentService::class)->confirmBankTransfer($this->makeDeal(), $user);
 
@@ -649,6 +999,7 @@ class DealPaymentRequestTest extends TestCase
 
         $this->assertSame('confirmed', $result['ui_state']);
         $this->assertSame(99, $result['verified_by_user_id']);
+        $this->assertNull(DB::table('deals')->where('id', $this->dealId)->value('outcome_status'));
     }
 
     public function test_confirm_rejects_non_bank_transfer_pending_state(): void
@@ -673,6 +1024,11 @@ class DealPaymentRequestTest extends TestCase
     public function test_ui_state_mapper_maps_expected_states(): void
     {
         $this->assertSame('pending_payment', DealPaymentUiStateMapper::map('pending', 'manual', null, null)['ui_state']);
+        $cash = DealPaymentUiStateMapper::map('pending', 'cash', null, null);
+        $this->assertSame('cash_pending', $cash['ui_state']);
+        $this->assertTrue($cash['can_confirm']);
+        $this->assertFalse($cash['show_checkout_url']);
+        $this->assertSame('confirmed', DealPaymentUiStateMapper::map('completed', 'cash', 1, now()->toIso8601String())['ui_state']);
         $this->assertSame('bank_transfer_pending', DealPaymentUiStateMapper::map('confirming', 'manual', null, null)['ui_state']);
         $this->assertTrue(DealPaymentUiStateMapper::map('confirming', 'manual', null, null)['can_confirm']);
         $alreadyVerified = DealPaymentUiStateMapper::map('confirming', 'manual', 1, now()->toIso8601String());
@@ -685,36 +1041,108 @@ class DealPaymentRequestTest extends TestCase
         $this->assertSame('invalidated', DealPaymentUiStateMapper::map('cancelled', 'manual', null, null)['ui_state']);
     }
 
-    public function test_confirmed_payment_wins_a_lost_deal(): void
+    public function test_confirmed_payment_leaves_a_lost_deal_lost(): void
     {
         DB::table('deals')->where('id', $this->dealId)->update(['outcome_status' => OutcomeStatus::Lost->value]);
         $payment = Payment::withoutGlobalScope(CompanyScope::class)->findOrFail(
             $this->insertPayment(['external_reference' => '590', 'ol_status' => 'completed', 'status' => 'complete'])
         );
 
+        app(DealPaymentService::class)->markConfirmed($payment);
+
+        $this->assertSame(
+            OutcomeStatus::Lost->value,
+            DB::table('deals')->where('id', $this->dealId)->value('outcome_status')
+        );
+    }
+
+    public function test_mark_confirmed_wins_when_accepted_payments_equal_the_deal_value(): void
+    {
+        DB::table('deals')->where('id', $this->dealId)->update(['outcome_status' => OutcomeStatus::Lost->value]);
+        $first = Payment::withoutGlobalScope(CompanyScope::class)->findOrFail(
+            $this->insertPayment([
+                'external_reference' => '593',
+                'ol_status' => 'completed',
+                'ol_payment_type' => 'manual',
+                'verified_by_user_id' => 1,
+                'verified_at' => now(),
+                'status' => 'complete',
+                'amount' => 1000,
+                'base_amount' => 1000,
+                'exchange_rate' => 1,
+            ])
+        );
+
+        app(DealPaymentService::class)->markConfirmed($first);
+        $this->assertSame(
+            OutcomeStatus::Lost->value,
+            DB::table('deals')->where('id', $this->dealId)->value('outcome_status')
+        );
+
+        $second = Payment::withoutGlobalScope(CompanyScope::class)->findOrFail(
+            $this->insertPayment([
+                'external_reference' => '594',
+                'ol_status' => 'completed',
+                'ol_payment_type' => 'cash',
+                'verified_by_user_id' => 1,
+                'verified_at' => now(),
+                'status' => 'complete',
+                'amount' => 1500,
+                'base_amount' => 1500,
+                'exchange_rate' => 1,
+            ])
+        );
+
         $this->expectDealWon();
+        app(DealPaymentService::class)->markConfirmed($second);
+    }
+
+    public function test_mark_confirmed_does_not_win_when_accepted_payments_exceed_the_deal_value(): void
+    {
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->findOrFail(
+            $this->insertPayment([
+                'external_reference' => '596',
+                'ol_status' => 'completed',
+                'status' => 'complete',
+                'amount' => 2600,
+                'base_amount' => 2600,
+            ])
+        );
+
+        $this->mock(DealOutcomeService::class, fn ($mock) => $mock->shouldNotReceive('apply'));
 
         app(DealPaymentService::class)->markConfirmed($payment);
+
+        $this->assertNull(DB::table('deals')->where('id', $this->dealId)->value('outcome_status'));
     }
 
     public function test_mark_confirmed_leaves_an_already_won_deal_alone(): void
     {
         DB::table('deals')->where('id', $this->dealId)->update(['outcome_status' => OutcomeStatus::Won->value]);
         $payment = Payment::withoutGlobalScope(CompanyScope::class)->findOrFail(
-            $this->insertPayment(['external_reference' => '591', 'ol_status' => 'completed', 'status' => 'complete'])
+            $this->insertPayment([
+                'external_reference' => '591',
+                'ol_status' => 'completed',
+                'status' => 'complete',
+                'amount' => 2500,
+                'base_amount' => 2500,
+            ])
         );
 
         $this->mock(DealOutcomeService::class, fn ($mock) => $mock->shouldNotReceive('apply'));
 
         app(DealPaymentService::class)->markConfirmed($payment);
+
+        $this->assertSame(
+            OutcomeStatus::Won->value,
+            DB::table('deals')->where('id', $this->dealId)->value('outcome_status')
+        );
     }
 
-    public function test_ol_completion_push_wins_the_deal_once(): void
+    public function test_ol_completion_push_does_not_win_the_deal(): void
     {
         $this->insertPayment(['external_reference' => '592', 'ol_status' => 'confirming', 'status' => 'pending']);
         Http::fake();
-
-        $this->expectDealWon();
 
         $push = [
             'deal_id' => $this->dealId,
@@ -726,7 +1154,27 @@ class DealPaymentRequestTest extends TestCase
         ];
 
         app(CrmWriteService::class)->upsertPayment($this->companyId, $push);
-        // A redelivered push for an already-complete payment doesn't re-win.
+        app(CrmWriteService::class)->upsertPayment($this->companyId, $push);
+
+        $this->assertNull(DB::table('deals')->where('id', $this->dealId)->value('outcome_status'));
+    }
+
+    public function test_ol_completion_push_wins_once_when_the_amount_covers_the_deal(): void
+    {
+        $this->insertPayment(['external_reference' => '595', 'ol_status' => 'confirming', 'status' => 'pending']);
+        Http::fake();
+        $this->expectDealWon();
+
+        $push = [
+            'deal_id' => $this->dealId,
+            'external_reference' => '595',
+            'amount' => 2500,
+            'currency_id' => $this->currencyId,
+            'status' => 'complete',
+            'gateway' => 'nowpayments',
+        ];
+
+        app(CrmWriteService::class)->upsertPayment($this->companyId, $push);
         app(CrmWriteService::class)->upsertPayment($this->companyId, $push);
     }
 
@@ -845,7 +1293,7 @@ class DealPaymentRequestTest extends TestCase
 
     private function makeUser(): User
     {
-        $user = new User();
+        $user = new User;
         $user->forceFill([
             'id' => 99,
             'name' => 'Review Admin',

@@ -291,17 +291,20 @@ export default function PaymentRequestDetailModal({
     const when = (value: string | null | undefined) => (value ? formatCompanyDateTime(value) : DASH);
     const field = (key: string) => t(`pages.payment_requests.detail_fields.${key}`);
 
-    const gatewayLabel = !request.gateway
-        ? t("pages.payment_requests.method_client_choice")
-        : request.gateway === "manual-bank-transfer"
-            ? t("pages.payment_requests.method_bank_transfer")
-            : request.gateway === "nowpayments"
-                ? t("pages.payment_requests.method_crypto")
-                : td(request.gateway, { source: "en" });
+    const gatewayLabel = request.gateway === "cash" || request.ui_state === "cash_pending"
+        ? t("pages.payment_requests.method_cash")
+        : !request.gateway
+            ? t("pages.payment_requests.method_client_choice")
+            : request.gateway === "manual-bank-transfer"
+                ? t("pages.payment_requests.method_bank_transfer")
+                : request.gateway === "nowpayments"
+                    ? t("pages.payment_requests.method_crypto")
+                    : td(request.gateway, { source: "en" });
 
     const typeLabel = (type: string | null) => {
         if (!type) return DASH;
         if (type === "manual") return t("pages.payment_requests.method_bank_transfer");
+        if (type === "cash") return t("pages.payment_requests.method_cash");
         if (type === "crypto") return t("pages.payment_requests.method_crypto");
         if (type === "fiat") return field("type_fiat");
         return td(type, { source: "en" });
@@ -367,7 +370,9 @@ export default function PaymentRequestDetailModal({
                             )}
                             {onConfirm && (
                                 <Button variant="primary" onClick={onConfirm}>
-                                    {t("pages.payment_requests.action_confirm")}
+                                    {request.ui_state === "cash_pending"
+                                        ? t("pages.payment_requests.action_confirm_cash")
+                                        : t("pages.payment_requests.action_confirm")}
                                 </Button>
                             )}
                             {onRetry && linkExpired && (

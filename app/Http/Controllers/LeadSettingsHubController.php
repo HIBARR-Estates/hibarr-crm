@@ -69,6 +69,8 @@ class LeadSettingsHubController extends AccountBaseController
             'marketingIntake' => [
                 'department_ids' => MarketingLeadIntake::departmentIds(),
                 'origin_id' => MarketingLeadIntake::originId(),
+                'owner_id' => MarketingLeadIntake::ownerId(),
+                'owners' => MarketingLeadIntake::ownerOptions(),
                 'departments' => DB::table('teams')
                     ->where('company_id', company()->id)
                     ->orderBy('team_name')
@@ -166,6 +168,15 @@ class LeadSettingsHubController extends AccountBaseController
             'department_ids' => 'present|array',
             'department_ids.*' => ['integer', Rule::exists('teams', 'id')->where('company_id', $companyId)],
             'origin_id' => ['required', 'integer', Rule::exists('lead_origins', 'id')->where('company_id', $companyId)],
+            'owner_id' => [
+                'nullable',
+                'integer',
+                function (string $attribute, mixed $value, \Closure $fail) use ($companyId) {
+                    if (! MarketingLeadIntake::canOwn((int) $value, $companyId)) {
+                        $fail(__('pages.lead_settings.marketing.owner_invalid'));
+                    }
+                },
+            ],
         ]);
 
         MarketingLeadIntake::save(
@@ -173,12 +184,14 @@ class LeadSettingsHubController extends AccountBaseController
             (int) user()->id,
             $validated['department_ids'],
             (int) $validated['origin_id'],
+            isset($validated['owner_id']) ? (int) $validated['owner_id'] : null,
         );
 
         return response()->json(Reply::successWithData(__('messages.updateSuccess'), [
             'marketingIntake' => [
                 'department_ids' => MarketingLeadIntake::departmentIds($companyId),
                 'origin_id' => MarketingLeadIntake::originId($companyId),
+                'owner_id' => MarketingLeadIntake::ownerId($companyId),
             ],
         ]));
     }

@@ -30,6 +30,7 @@ import PaymentRequestFiltersModal, {
     type PaymentRequestSlice,
 } from "./components/PaymentRequestFiltersModal";
 import PaymentRequestRow, {
+    PAYMENT_REQUEST_GRID,
     type PaymentRequestListRow,
 } from "./components/PaymentRequestRow";
 import PaymentRequestsListHeader from "./components/PaymentRequestsListHeader";
@@ -291,7 +292,11 @@ const Index = ({ paymentRequests, filters, counts, stats, filterOptions }: Index
             );
             if (response.data?.status === "success" && response.data.data) {
                 patchRow(response.data.data as DealPaymentRequest);
-                message.success(t("pages.payment_requests.confirmed_toast"));
+                message.success(
+                    confirmingRow.ui_state === "cash_pending"
+                        ? t("pages.payment_requests.confirmed_cash_toast")
+                        : t("pages.payment_requests.confirmed_toast"),
+                );
                 setConfirmingRow(null);
             } else {
                 message.error(
@@ -582,6 +587,9 @@ const Index = ({ paymentRequests, filters, counts, stats, filterOptions }: Index
                         <>
                             <div
                                 style={{
+                                    display: "grid",
+                                    gridTemplateColumns: PAYMENT_REQUEST_GRID,
+                                    columnGap: 16,
                                     background: T.WHITE,
                                     border: `1px solid ${T.BORDER}`,
                                     borderRadius: "10px 10px 0 0",
@@ -654,8 +662,16 @@ const Index = ({ paymentRequests, filters, counts, stats, filterOptions }: Index
             <ConfirmDialog
                 open={!!confirmingRow}
                 zIndex={1400}
-                title={t("pages.payment_requests.confirm_title")}
-                message={t("pages.payment_requests.confirm_message")}
+                title={
+                    confirmingRow?.ui_state === "cash_pending"
+                        ? t("pages.payment_requests.confirm_cash_title")
+                        : t("pages.payment_requests.confirm_title")
+                }
+                message={
+                    confirmingRow?.ui_state === "cash_pending"
+                        ? t("pages.payment_requests.confirm_cash_message")
+                        : t("pages.payment_requests.confirm_message")
+                }
                 confirmLabel={t("pages.payment_requests.confirm_yes")}
                 cancelLabel={t("pages.payment_requests.cancel")}
                 confirmLoading={confirming}

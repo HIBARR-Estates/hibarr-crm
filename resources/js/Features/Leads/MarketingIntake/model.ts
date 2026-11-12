@@ -8,6 +8,7 @@ import type {
     StepId,
     StepModel,
 } from "./types";
+import { UTM_KEYS } from "./types";
 
 /** Custom field types this flow can enter. Others are added on the lead page after saving. */
 export const SUPPORTED_CUSTOM_FIELD_TYPES = new Set([
@@ -36,18 +37,25 @@ export function newNoteKey(): string {
     return `note-${Date.now()}-${noteSeq}`;
 }
 
-export function emptyDraft(): MarketingLeadDraft {
+/** A blank lead; the owner starts as the one picked in settings for this flow. */
+export function emptyDraft(defaultOwnerId: number | null = null): MarketingLeadDraft {
     return {
         salutation: "",
         client_name: "",
         client_email: "",
-        mobile_country: "",
-        mobile_number: "",
+        mobile: "",
         cell: "",
         office: "",
         preferred_contact_times: [],
         source_id: "",
         category_ids: [],
+        lead_owner: defaultOwnerId != null ? String(defaultOwnerId) : "",
+        utm_source: "",
+        utm_medium: "",
+        utm_campaign: "",
+        utm_content: "",
+        utm_term: "",
+        utm_audience: "",
         gender: "",
         date_of_birth: "",
         age: "",
@@ -114,12 +122,16 @@ const CONTACT_KEYS: Array<keyof MarketingLeadDraft> = [
     "salutation",
     "client_name",
     "client_email",
-    "mobile_number",
+    "mobile",
     "cell",
     "office",
     "preferred_contact_times",
+];
+const ATTRIBUTION_KEYS: Array<keyof MarketingLeadDraft> = [
     "source_id",
     "category_ids",
+    "lead_owner",
+    ...UTM_KEYS,
 ];
 const PROFILE_KEYS: Array<keyof MarketingLeadDraft> = [
     "gender",
@@ -147,10 +159,16 @@ export function buildSteps(
     draft: MarketingLeadDraft,
     options: MarketingLeadOptions | null,
     visibility: Record<number, boolean>,
-    labels: { contact: string; profile: string; address: string; other: string; notes: string },
+    labels: { contact: string; attribution: string; profile: string; address: string; other: string; notes: string },
 ): StepModel[] {
     const steps: StepModel[] = [
         { id: "contact", label: labels.contact, filled: countFilled(draft, CONTACT_KEYS), total: CONTACT_KEYS.length },
+        {
+            id: "attribution",
+            label: labels.attribution,
+            filled: countFilled(draft, ATTRIBUTION_KEYS),
+            total: ATTRIBUTION_KEYS.length,
+        },
         { id: "profile", label: labels.profile, filled: countFilled(draft, PROFILE_KEYS), total: PROFILE_KEYS.length },
         { id: "address", label: labels.address, filled: countFilled(draft, ADDRESS_KEYS), total: ADDRESS_KEYS.length },
     ];
@@ -199,6 +217,7 @@ export function buildSteps(
 /** Which step a server validation key belongs to, so the modal can jump there. */
 export function stepForErrorKey(key: string, steps: StepModel[]): StepId {
     if (key.startsWith("notes")) return "notes";
+    if (key.startsWith("utm") || ATTRIBUTION_KEYS.includes(key as keyof MarketingLeadDraft)) return "attribution";
     if (key.startsWith("custom_fields_data.")) {
         const id = Number(key.split(".")[1]?.replace("field_", ""));
         const step = steps.find((candidate) => candidate.fields?.some((field) => field.id === id));
@@ -234,8 +253,11 @@ export function buildPayload(
     visibility: Record<number, boolean>,
 ): Record<string, unknown> {
     const nullable = (value: string) => (value.trim() === "" ? null : value.trim());
-    const country = options?.countries.find((candidate) => candidate.iso === draft.mobile_country);
-    const digits = draft.mobile_number.replace(/\D+/g, "");
+    // A dial code on its own ("+49") is not a number yet.
+    const phone = (value: string | null | undefined) => {
+        const text = typeof value === "string" ? value.trim() : "";
+        return text.replace(/\D+/g, "").length < 6 ? null : text;
+    };
 
     const customFields: Record<string, unknown> = {};
     for (const field of options?.customFields ?? []) {
@@ -249,20 +271,14 @@ export function buildPayload(
         salutation: nullable(draft.salutation),
         client_name: draft.client_name.trim(),
         client_email: nullable(draft.client_email),
-        mobile:
-            digits === ""
-                ? null
-                : {
-                      countryCode: country?.phonecode != null ? Number(country.phonecode) : null,
-                      areaCode: "",
-                      phoneNumber: digits,
-                      isoCode: country?.iso?.toLowerCase() ?? null,
-                  },
-        cell: nullable(draft.cell),
-        office: nullable(draft.office),
+        mobile: phone(draft.mobile),
+        cell: phone(draft.cell),
+        office: phone(draft.office),
         preferred_contact_times: draft.preferred_contact_times,
         source_id: draft.source_id ? Number(draft.source_id) : null,
         category_ids: draft.category_ids.map(Number),
+        lead_owner: draft.lead_owner ? Number(draft.lead_owner) : null,
+        utm: Object.fromEntries(UTM_KEYS.map((key) => [key, nullable(draft[key])])),
         gender: nullable(draft.gender),
         date_of_birth: nullable(draft.date_of_birth),
         age: draft.age === "" ? null : Number(draft.age),
@@ -271,7 +287,7 @@ export function buildPayload(
         languages: draft.languages,
         occupation: nullable(draft.occupation),
         company_name: nullable(draft.company_name),
-        website: nullable(draft.website),
+        website: normalizeWebsite(draft.website),
         temperature: nullable(draft.temperature),
         address: nullable(draft.address),
         postal_code: nullable(draft.postal_code),
@@ -283,4 +299,88 @@ export function buildPayload(
             .filter((note) => note.details.trim() !== "")
             .map((note) => ({ title: nullable(note.title), details: note.details.trim() })),
     };
+}
+
+/**
+ * A website as typed ("hibarr.de", "www.x.com/path") with https:// added when
+ * no scheme was given; null when empty.
+ */
+export function normalizeWebsite(value: string): string | null {
+    const trimmed = value.trim();
+    if (trimmed === "") return null;
+    return /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+/** True for an empty value, or an http(s) address with a real domain and no spaces. */
+export function isValidWebsite(value: string): boolean {
+    const normalized = normalizeWebsite(value);
+    if (normalized === null) return true;
+    if (/\s/.test(normalized)) return false;
+    try {
+        const url = new URL(normalized);
+        if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+        const labels = url.hostname.split(".");
+        return (
+            labels.length >= 2 &&
+            labels.every((label) => /^[a-z0-9-]+$/i.test(label)) &&
+            /^(xn--[a-z0-9-]+|[a-z]{2,})$/i.test(labels[labels.length - 1])
+        );
+    } catch {
+        return false;
+    }
+}
+
+type Choice = { value: string; label: string };
+
+const normalizeQuery = (text: string) =>
+    text
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .toLowerCase()
+        .trim();
+
+/**
+ * Select search for the modal: an option matches when its label, or one of its
+ * words, starts with what was typed ("en" finds English, not Slovenian).
+ */
+export function matchChoice(input: string, option?: { label?: unknown }): boolean {
+    const query = normalizeQuery(input);
+    if (query === "") return true;
+    const label = normalizeQuery(String(option?.label ?? ""));
+    return label.startsWith(query) || label.split(/[\s()/,+-]+/).some((word) => word.startsWith(query));
+}
+
+/** Orders matches so labels that start with the query come first, then A–Z. */
+export function sortChoices(input: string) {
+    const query = normalizeQuery(input);
+    return (a: { label?: unknown }, b: { label?: unknown }): number => {
+        const la = normalizeQuery(String(a.label ?? ""));
+        const lb = normalizeQuery(String(b.label ?? ""));
+        const ra = query && la.startsWith(query) ? 0 : 1;
+        const rb = query && lb.startsWith(query) ? 0 : 1;
+        return ra - rb || la.localeCompare(lb);
+    };
+}
+
+/**
+ * Languages from settings, one option per name: settings can hold the same
+ * language under several codes (e.g. en, en-GB, eng), which showed English
+ * several times.
+ */
+export function languageChoices(
+    languages: Array<{ language_code: string; language_name: string }>,
+    selected: string[],
+): Choice[] {
+    const byName = new Map<string, Choice>();
+    for (const language of languages) {
+        const name = String(language.language_name ?? "").trim();
+        if (!name || !language.language_code) continue;
+        const key = name.toLowerCase();
+        const existing = byName.get(key);
+        // Keep a code the draft already uses, otherwise the first one listed.
+        if (!existing || (selected.includes(language.language_code) && !selected.includes(existing.value))) {
+            byName.set(key, { value: language.language_code, label: name });
+        }
+    }
+    return [...byName.values()].sort((a, b) => a.label.localeCompare(b.label));
 }
