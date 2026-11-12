@@ -39,6 +39,7 @@ interface PaymentRequestFiltersModalProps {
 
 const UI_STATES: DealPaymentUiState[] = [
     "pending_payment",
+    "cash_pending",
     "bank_transfer_pending",
     "processing_online",
     "paid_online",

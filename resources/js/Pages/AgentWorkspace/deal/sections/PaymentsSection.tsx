@@ -16,6 +16,7 @@ import {
     isCheckoutLinkExpired,
     isTerminalPaymentState,
     mapDealPaymentUiState,
+    remainingDealBalance,
 } from "@/Pages/Deals/Redesign/adapters/mapDealPaymentUiState";
 import DealPaymentCreateModal from "@/Pages/Deals/Redesign/components/workspace/DealPaymentCreateModal";
 import useDealPayment from "@/Pages/Deals/Redesign/hooks/useDealPayment";
@@ -87,6 +88,10 @@ export default function PaymentsSection({ deal, canCreate, canConfirmTransfer }:
         && newestExpired?.id === request.id
         && (paymentRequest == null || paymentRequest.id === request.id);
     const selected = newestFirst.find((request) => request.id === selectedId) ?? null;
+    const cashPending = mapped.uiState === "cash_pending";
+    const remaining = remainingDealBalance(Number(deal.value ?? 0), paymentRequests);
+    const hasOpenRequest = paymentRequest != null && !isTerminalPaymentState(mapped.uiState);
+    const canRequestMore = canCreate && !paymentRequestLoading && remaining > 0 && !hasOpenRequest;
     const stamp = (request: DealPaymentRequest) =>
         request.ui_state === "confirmed" && request.verified_at
             ? t("pages.agent_workspace.deal.payments.confirmed_on", { date: formatDateTime(request.verified_at) })
@@ -97,7 +102,7 @@ export default function PaymentsSection({ deal, canCreate, canConfirmTransfer }:
             id="deal-payments"
             title={t("pages.agent_workspace.deal.payments.title")}
             action={
-                canCreate ? (
+                canRequestMore ? (
                     <Button size="sm" className="agent-btn-soft" onClick={() => setCreateOpen(true)}>
                         <Icon name="plus" size={12} />
                         {t("pages.agent_workspace.deal.payments.request")}
@@ -154,10 +159,12 @@ export default function PaymentsSection({ deal, canCreate, canConfirmTransfer }:
                                     </Button>
                                     {live && mapped.canConfirm && canConfirmTransfer ? (
                                         <Button size="sm" variant="primary" onClick={() => setConfirmOpen(true)}>
-                                            {t("pages.agent_workspace.deal.payments.confirm_transfer")}
+                                            {cashPending
+                                                ? t("pages.agent_workspace.deal.payments.confirm_cash")
+                                                : t("pages.agent_workspace.deal.payments.confirm_transfer")}
                                         </Button>
                                     ) : null}
-                                    {live && !isTerminalPaymentState(mapped.uiState) ? (
+                                    {live && !isTerminalPaymentState(mapped.uiState) && !cashPending ? (
                                         <Button size="sm" loading={refreshing} onClick={() => void refreshStatus()}>
                                             <Icon name="refresh" size={12} />
                                             {t("pages.agent_workspace.deal.payments.refresh")}
@@ -194,8 +201,16 @@ export default function PaymentsSection({ deal, canCreate, canConfirmTransfer }:
             <ConfirmDialog
                 open={confirmOpen}
                 zIndex={1400}
-                title={td("Confirm bank transfer?")}
-                message={td("Confirm that the customer's bank transfer proof has been reviewed and approved.")}
+                title={
+                    cashPending
+                        ? t("pages.agent_workspace.deal.payments.confirm_cash_title")
+                        : td("Confirm bank transfer?")
+                }
+                message={
+                    cashPending
+                        ? t("pages.agent_workspace.deal.payments.confirm_cash_message")
+                        : td("Confirm that the customer's bank transfer proof has been reviewed and approved. The deal is marked as won only when confirmed payments add up to the deal value.")
+                }
                 confirmLabel={td("Yes, confirm")}
                 cancelLabel={td("Cancel")}
                 confirmLoading={confirming}

@@ -14,6 +14,7 @@ use App\Services\Deal\DealOutcomeService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -53,7 +54,8 @@ class DealPaymentService
         $active = $this->findActiveRequest($deal);
 
         $olPayload = null;
-        if ($active !== null && !empty($active->external_reference)) {
+        // Cash is recorded here and never exists at OL, so there is nothing to refresh.
+        if ($active !== null && ! empty($active->external_reference) && ! self::isCashPayment($active)) {
             try {
                 $olPayload = $this->olProxy->getFromOl((string) $active->external_reference);
                 $this->syncFromOlPayload($active, $olPayload);
@@ -83,22 +85,23 @@ class DealPaymentService
             'active' => $activeId === null
                 ? null
                 : collect($requests)->first(fn (array $row) => $row['id'] === $activeId
-                    && !in_array($row['ui_state'], ['failed', 'invalidated'], true)),
+                    && ! in_array($row['ui_state'], ['failed', 'invalidated'], true)),
             'requests' => $requests,
         ];
     }
 
     /**
-     * Issues a request in the chosen currency, converted from the deal's value
-     * in company currency at the live rate. The amount is computed here, never
-     * taken from the client, so the figure sent to OL is always the deal value.
+     * Issues a request in the chosen currency for part or all of the deal value
+     * that confirmed payments have not already covered. The company-currency
+     * amount is the one the user confirmed (or the remaining balance), converted
+     * at the rate they confirmed. Cash is stored here and never sent to OL.
      *
-     * @param  array<string, mixed>  $input  currency (ISO code), provider_key (optional)
+     * @param  array<string, mixed>  $input  currency, base_amount (optional), exchange_rate (optional), provider_key (optional; `cash` stays in the CRM)
      * @return array<string, mixed>
      */
     public function createForDeal(Deal $deal, User $user, array $input): array
     {
-        if ($this->findActiveRequest($deal) !== null) {
+        if ($this->findOpenRequest($deal) !== null) {
             throw new HttpException(409, 'An active payment request already exists for this deal.');
         }
 
@@ -112,22 +115,35 @@ class DealPaymentService
         }
 
         // deal.value is treated as company currency — the same assumption the
-        // deal page's display makes.
-        $baseAmount = round((float) ($deal->value ?? 0), 2);
-        if ($baseAmount <= 0) {
-            throw new HttpException(422, 'The deal has no value to request payment for.');
+        // deal page's display makes. Confirmed requests already count toward it.
+        $remaining = $this->remainingBaseAmount($deal);
+        if ($remaining <= 0) {
+            throw new HttpException(422, 'Confirmed payments already cover this deal\'s value.');
         }
 
-        $rate = $this->exchangeRates->rate($companyCode, $currencyCode);
-        if ($rate === null || $rate <= 0) {
-            throw new HttpException(422, "Live exchange rate {$companyCode} → {$currencyCode} is unavailable. Try again shortly.");
-        }
+        $baseAmount = $this->requestedBaseAmount($input, $remaining);
 
+        $rate = $this->resolveRequestRate($companyCode, $currencyCode, $input);
         $amount = round($baseAmount * $rate, 2);
+        if ($amount <= 0) {
+            throw new HttpException(422, 'That exchange rate is too small for this deal value.');
+        }
 
-        $providerKey = !empty($input['provider_key'])
+        $providerKey = ! empty($input['provider_key'])
             ? (string) $input['provider_key']
             : null;
+
+        if ($providerKey === 'cash') {
+            return $this->createCashRequest(
+                $deal,
+                $user,
+                $currency,
+                $companyCurrency,
+                $baseAmount,
+                $amount,
+                $rate,
+            );
+        }
 
         $olPayload = $this->olProxy->createForDeal($deal, array_filter([
             'amount' => $amount,
@@ -152,7 +168,7 @@ class DealPaymentService
             ->without(['order'])
             ->where('company_id', $deal->company_id)
             ->where('external_reference', $paymentId)
-            ->first() ?? new Payment();
+            ->first() ?? new Payment;
 
         $payment->company_id = $deal->company_id;
         $payment->deal_id = $deal->id;
@@ -166,7 +182,7 @@ class DealPaymentService
         $payment->gateway = $resolvedProvider !== '' ? $resolvedProvider : null;
         $payment->status = 'pending';
         $payment->checkout_url = (string) ($olPayload['checkoutUrl'] ?? $olPayload['checkout_url'] ?? '');
-        $payment->expires_at = !empty($olPayload['expiresAt'] ?? $olPayload['expires_at'] ?? null)
+        $payment->expires_at = ! empty($olPayload['expiresAt'] ?? $olPayload['expires_at'] ?? null)
             ? Carbon::parse($olPayload['expiresAt'] ?? $olPayload['expires_at'])
             : null;
         $payment->ol_status = strtolower((string) ($olPayload['status'] ?? 'pending'));
@@ -196,6 +212,10 @@ class DealPaymentService
             $payment->verified_at?->toIso8601String()
         );
 
+        if ($mapped['ui_state'] === 'cash_pending') {
+            return $this->confirmCash($payment, $user);
+        }
+
         if ($mapped['ui_state'] !== 'bank_transfer_pending') {
             throw new HttpException(409, 'This payment request cannot be confirmed in its current state.');
         }
@@ -211,7 +231,7 @@ class DealPaymentService
         $olPayload = null;
         try {
             $olPayload = $this->olProxy->getFromOl((string) $payment->external_reference);
-            // Won is applied once, below — whatever OL reports back here.
+            // The payment is marked confirmed once, below — whatever OL reports back here.
             $this->syncFromOlPayload($payment, $olPayload, markConfirmed: false);
         } catch (HttpException $e) {
             if ($e->getStatusCode() >= 500) {
@@ -245,8 +265,14 @@ class DealPaymentService
             return null;
         }
 
-        if (self::uiStateOf($payment) !== 'pending_payment') {
+        $state = self::uiStateOf($payment);
+        if (! in_array($state, ['pending_payment', 'cash_pending'], true)) {
             throw new HttpException(409, __('messages.dealValueLockedByPaymentRequest'));
+        }
+
+        // Cash never reached OL, so cancelling it is a local write.
+        if ($state === 'cash_pending' || self::isCashPayment($payment)) {
+            return $this->markInvalidated($payment, $user, $reason);
         }
 
         try {
@@ -318,11 +344,12 @@ class DealPaymentService
             throw new NotFoundHttpException('No payment request found for this deal.');
         }
 
-        if (!$this->linkHasExpired($payment)) {
+        if (! $this->linkHasExpired($payment)) {
             throw new HttpException(409, 'This checkout link has not expired.');
         }
 
-        $active = $this->findActiveRequest($deal);
+        // A confirmed batch is not "open": it must not block replacing an expired link.
+        $active = $this->findOpenRequest($deal);
         if ($active !== null && (int) $active->id !== (int) $payment->id) {
             throw new HttpException(409, 'Another payment request is still open for this deal.');
         }
@@ -363,7 +390,7 @@ class DealPaymentService
     /**
      * The deal's active request, or null. "Active" is anything not failed,
      * expired or invalidated — including confirmed/paid ones, which is what
-     * stops a second request being issued for an already-paid deal.
+     * freezes the deal value once money has been taken.
      */
     public function findActiveRequest(Deal $deal): ?Payment
     {
@@ -374,6 +401,52 @@ class DealPaymentService
             })
             ->orderByDesc('id')
             ->first();
+    }
+
+    /**
+     * A request the customer has not finished paying: pending checkout, a
+     * bank transfer or online payment in review, or cash not yet confirmed.
+     * A confirmed or paid request does not block the next batch.
+     */
+    public function findOpenRequest(Deal $deal): ?Payment
+    {
+        return $this->dealRequestsQuery($deal)
+            ->where(function (Builder $query) {
+                $query->whereNull('ol_status')
+                    ->orWhereNotIn('ol_status', array_merge(self::INACTIVE_OL_STATUSES, ['completed']));
+            })
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * Company-currency total of payments the customer has actually paid
+     * (confirmed transfer, completed online payment, or confirmed cash).
+     */
+    public function confirmedBaseTotal(Deal $deal): float
+    {
+        $total = $this->dealRequestsQuery($deal)
+            ->get()
+            ->sum(function (Payment $payment) {
+                $state = self::uiStateOf($payment);
+                if (! in_array($state, ['confirmed', 'paid_online'], true)) {
+                    return 0;
+                }
+
+                return self::companyAmount($payment);
+            });
+
+        return round((float) $total, 2);
+    }
+
+    /**
+     * How much of the deal value confirmed payments have not covered yet.
+     */
+    public function remainingBaseAmount(Deal $deal): float
+    {
+        $value = round((float) ($deal->value ?? 0), 2);
+
+        return round(max(0, $value - $this->confirmedBaseTotal($deal)), 2);
     }
 
     /**
@@ -399,31 +472,30 @@ class DealPaymentService
     }
 
     /**
-     * A confirmed payment wins the deal — from any outcome, Lost included.
-     * Goes through DealOutcomeService like a manual Won, so DealWonEvent fires
-     * and ProcessDealWonJob distributes commission and sets commission_locked.
-     * commission_locked is deliberately NOT set here: the job skips any deal
-     * that already has it, so setting it first would mean no commission is
-     * ever paid out.
+     * A confirmed payment records that the money was received. The deal is
+     * marked won only when the accepted payments, including this one, add up
+     * to the deal value. A partial confirmation leaves the outcome unchanged,
+     * including when the deal is Lost.
      *
-     * Idempotent; failures are logged rather than thrown because the payment
-     * itself is already confirmed at OL by the time this runs.
+     * Fires the payment-received automations once. Failures are logged rather
+     * than thrown, because the payment itself is already confirmed.
      */
     public function markConfirmed(Payment $payment): void
     {
-        if (!$payment->deal_id) {
+        if (! $payment->deal_id) {
             return;
         }
 
         try {
             $deal = Deal::withoutGlobalScope(CompanyScope::class)->find($payment->deal_id);
 
-            if ($deal === null) {
-                return;
-            }
+            if ($deal !== null && $deal->outcome_status !== OutcomeStatus::Won) {
+                $value = round((float) ($deal->value ?? 0), 2);
+                $accepted = $this->acceptedBaseTotal($deal, $payment);
 
-            if ($deal->outcome_status !== OutcomeStatus::Won) {
-                $this->outcomes->apply($deal, OutcomeStatus::Won, "Payment request #{$payment->id} confirmed");
+                if ($value > 0 && abs($accepted - $value) < 0.001) {
+                    $this->outcomes->apply($deal, OutcomeStatus::Won, "Payment request #{$payment->id} confirmed");
+                }
             }
         } catch (\Throwable $e) {
             Log::error('DealPaymentService: failed to mark deal won after payment confirmation', [
@@ -437,9 +509,39 @@ class DealPaymentService
     }
 
     /**
+     * Company-currency total of payments the customer has paid, counting
+     * $including even when its saved row is not accepted yet.
+     */
+    private function acceptedBaseTotal(Deal $deal, Payment $including): float
+    {
+        $total = 0.0;
+        $included = false;
+
+        foreach ($this->dealRequestsQuery($deal)->get() as $payment) {
+            $isThisPayment = (int) $payment->id === (int) $including->id;
+            if ($isThisPayment) {
+                $payment = $including;
+                $included = true;
+            }
+
+            if (! $isThisPayment && ! in_array(self::uiStateOf($payment), ['confirmed', 'paid_online'], true)) {
+                continue;
+            }
+
+            $total += self::companyAmount($payment);
+        }
+
+        if (! $included) {
+            $total += self::companyAmount($including);
+        }
+
+        return round($total, 2);
+    }
+
+    /**
      * Runs the deal_payment_received automations (e.g. the Meta "Purchase"
-     * conversion) — after the deal has been won, so they see its final state
-     * and value. Once per payment (durable `automations_dispatched_at` claim):
+     * conversion) for the deal as it stands. Once per payment (durable
+     * `automations_dispatched_at` claim):
      * markConfirmed() is documented idempotent and several paths can reach
      * it, but a conversion must be reported once.
      * Failures are logged, never thrown — the payment is already confirmed.
@@ -497,17 +599,8 @@ class DealPaymentService
             $verifiedAt = $olPayload['verifiedAt'] ?? $olPayload['verified_at'] ?? $verifiedAt;
         }
 
-        $verifiedBy = null;
-        if ($verifiedByUserId) {
-            $verifier = User::find($verifiedByUserId);
-            if ($verifier) {
-                $verifiedBy = [
-                    'id' => $verifier->id,
-                    'name' => $verifier->name,
-                    'email' => $verifier->email,
-                ];
-            }
-        }
+        $people = $this->paymentPeople($payment, $verifiedByUserId ? (int) $verifiedByUserId : null);
+        $verifiedBy = $people['verified_by'];
 
         $mapped = DealPaymentUiStateMapper::map(
             $payment->ol_status,
@@ -533,7 +626,11 @@ class DealPaymentService
             'base_currency_symbol' => $baseCurrency?->currency_symbol,
             // "1 base = rate currency" — the inverse of the stored Worksuite rate.
             'rate' => $payment->exchange_rate ? round(1 / (float) $payment->exchange_rate, 6) : null,
+            'exchange_rate' => $payment->exchange_rate !== null && $payment->exchange_rate !== ''
+                ? (float) $payment->exchange_rate
+                : null,
             'gateway' => $payment->gateway,
+            'transaction_id' => $payment->transaction_id,
             'crm_status' => $payment->status,
             'ol_status' => $payment->ol_status,
             'ol_payment_type' => $payment->ol_payment_type,
@@ -545,11 +642,54 @@ class DealPaymentService
             'verified_by_user_id' => $verifiedByUserId ?: null,
             'verified_by' => $verifiedBy,
             'verified_at' => $verifiedAt,
+            'paid_on' => $payment->paid_on?->toIso8601String(),
             'invalidated_at' => $payment->invalidated_at?->toIso8601String(),
+            'invalidated_by' => $people['invalidated_by'],
             'invalidation_reason' => $payment->invalidation_reason,
+            'added_by' => $people['added_by'],
+            'last_updated_by' => $people['last_updated_by'],
+            'remarks' => $payment->remarks,
+            'bill' => $payment->bill,
             'proof_url' => $payment->bill ? $payment->file_url : null,
             'updated_at' => $payment->updated_at?->toIso8601String(),
             'created_at' => $payment->created_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array{verified_by: ?array, invalidated_by: ?array, added_by: ?array, last_updated_by: ?array}
+     */
+    private function paymentPeople(Payment $payment, ?int $verifiedByUserId): array
+    {
+        $ids = array_values(array_unique(array_filter([
+            $verifiedByUserId,
+            $payment->invalidated_by_user_id ? (int) $payment->invalidated_by_user_id : null,
+            $payment->added_by ? (int) $payment->added_by : null,
+            $payment->last_updated_by ? (int) $payment->last_updated_by : null,
+        ])));
+
+        $users = $ids === []
+            ? collect()
+            : User::query()->whereIn('id', $ids)->get(['id', 'name', 'email'])->keyBy('id');
+
+        $person = function (?int $id) use ($users): ?array {
+            if (! $id) {
+                return null;
+            }
+            $user = $users->get($id);
+
+            return [
+                'id' => $id,
+                'name' => $user?->name,
+                'email' => $user?->email,
+            ];
+        };
+
+        return [
+            'verified_by' => $person($verifiedByUserId),
+            'invalidated_by' => $person($payment->invalidated_by_user_id ? (int) $payment->invalidated_by_user_id : null),
+            'added_by' => $person($payment->added_by ? (int) $payment->added_by : null),
+            'last_updated_by' => $person($payment->last_updated_by ? (int) $payment->last_updated_by : null),
         ];
     }
 
@@ -563,6 +703,138 @@ class DealPaymentService
             ->where('deal_id', $deal->id)
             ->whereNotNull('external_reference')
             ->where('external_reference', '!=', '');
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    private function requestedBaseAmount(array $input, float $remaining): float
+    {
+        $supplied = $input['base_amount'] ?? null;
+        if ($supplied === null || $supplied === '') {
+            return $remaining;
+        }
+
+        if (! is_numeric($supplied)) {
+            throw new HttpException(422, 'Enter an amount greater than zero.');
+        }
+
+        $amount = round((float) $supplied, 2);
+        if ($amount <= 0) {
+            throw new HttpException(422, 'Enter an amount greater than zero.');
+        }
+
+        // A cent of slack for float noise; anything more is a larger batch than is left.
+        if ($amount - $remaining > 0.009) {
+            throw new HttpException(422, 'The amount cannot be more than the remaining deal value.');
+        }
+
+        return $amount;
+    }
+
+    /**
+     * Cash never leaves the CRM: no checkout link, no OL payment id, and
+     * confirmation is a local "we received it" rather than an OL review.
+     */
+    private function createCashRequest(
+        Deal $deal,
+        User $user,
+        Currency $currency,
+        ?Currency $companyCurrency,
+        float $baseAmount,
+        float $amount,
+        float $rate,
+    ): array {
+        $payment = new Payment;
+        $payment->company_id = $deal->company_id;
+        $payment->deal_id = $deal->id;
+        $payment->external_reference = 'cash-'.Str::uuid()->toString();
+        $payment->amount = $amount;
+        $payment->base_amount = $baseAmount;
+        $payment->currency_id = $currency->id;
+        $payment->default_currency_id = $companyCurrency?->id;
+        $payment->exchange_rate = 1 / $rate;
+        $payment->gateway = 'cash';
+        $payment->status = 'pending';
+        $payment->checkout_url = null;
+        $payment->ol_status = 'pending';
+        $payment->ol_payment_type = 'cash';
+        $payment->added_by = $user->id;
+        $payment->save();
+        $payment->loadMissing('currency');
+
+        return $this->serializeDealPayment($payment);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function confirmCash(Payment $payment, User $user): array
+    {
+        $payment->status = 'complete';
+        $payment->ol_status = 'completed';
+        $payment->verified_by_user_id = $user->id;
+        $payment->verified_at = now();
+        $payment->paid_on = now();
+        $payment->save();
+
+        $this->markConfirmed($payment);
+
+        return $this->serializeDealPayment($payment->fresh(['currency']));
+    }
+
+    public static function isCashPayment(Payment $payment): bool
+    {
+        return $payment->gateway === 'cash'
+            || $payment->ol_payment_type === 'cash'
+            || str_starts_with((string) $payment->external_reference, 'cash-');
+    }
+
+    /**
+     * Company-currency figure this request covers. base_amount is that figure
+     * when the request was issued; older rows fall back to amount × rate.
+     */
+    private static function companyAmount(Payment $payment): float
+    {
+        if ($payment->base_amount !== null) {
+            return round((float) $payment->base_amount, 2);
+        }
+
+        $rate = (float) ($payment->exchange_rate ?? 0);
+
+        return round((float) $payment->amount * ($rate > 0 ? $rate : 1), 2);
+    }
+
+    /**
+     * Units of $currencyCode per 1 unit of $companyCode.
+     *
+     * A rate sent with the request is the one the user confirmed. Paying in
+     * the company currency is always 1:1, whatever was sent. With no rate
+     * supplied, fall back to the live reference rate.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    private function resolveRequestRate(string $companyCode, string $currencyCode, array $input): float
+    {
+        if ($currencyCode === $companyCode) {
+            return 1.0;
+        }
+
+        if (array_key_exists('exchange_rate', $input) && $input['exchange_rate'] !== null && $input['exchange_rate'] !== '') {
+            $supplied = $input['exchange_rate'];
+            if (! is_numeric($supplied) || (float) $supplied <= 0) {
+                throw new HttpException(422, 'Exchange rate must be greater than zero.');
+            }
+
+            return (float) $supplied;
+        }
+
+        $rate = $this->exchangeRates->rate($companyCode, $currencyCode);
+        if ($rate === null || $rate <= 0) {
+            throw new HttpException(422, "Live exchange rate {$companyCode} → {$currencyCode} is unavailable. Enter a rate to continue.");
+        }
+
+        return $rate;
     }
 
     private function companyCurrency(Deal $deal): ?Currency
@@ -584,7 +856,7 @@ class DealPaymentService
 
     /**
      * @param  array<string, mixed>  $olPayload
-     * @param  bool  $markConfirmed  win the deal when this sync is what completes the payment
+     * @param  bool  $markConfirmed  record the payment as received when this sync is what completes it
      */
     private function syncFromOlPayload(Payment $payment, array $olPayload, bool $markConfirmed = true): void
     {
@@ -603,7 +875,7 @@ class DealPaymentService
         }
 
         $verifiedAt = $olPayload['verifiedAt'] ?? $olPayload['verified_at'] ?? null;
-        if (!empty($verifiedAt)) {
+        if (! empty($verifiedAt)) {
             $payment->verified_at = Carbon::parse($verifiedAt);
         }
 
