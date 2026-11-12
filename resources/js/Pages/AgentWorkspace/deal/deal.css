@@ -826,6 +826,10 @@ button.agent-deal__row:disabled {
     color: var(--dr-text-muted);
 }
 
+.agent-deal__row--struck .agent-deal__row-title {
+    text-decoration: line-through;
+}
+
 /* Exposés and itinerary share one card: two blocks under one title. */
 .agent-deal__section--split {
     gap: 0;
