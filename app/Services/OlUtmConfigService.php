@@ -26,9 +26,10 @@ class OlUtmConfigService
         'utm_audience' => 'audience',
     ];
 
-    public const PAGE_SIZE = 50;
+    /** Shared by the picker and the save check so they reuse the same cached pages. */
+    public const PAGE_SIZE = 100;
 
-    /** Upper bound on pages walked when checking a saved value (100 per page). */
+    /** Upper bound on pages walked when OL's search doesn't find the value. */
     private const MAX_LOOKUP_PAGES = 50;
 
     private const CACHE_SECONDS = 300;
@@ -79,20 +80,25 @@ class OlUtmConfigService
     }
 
     /**
-     * Whether OL lists this value for the type. Walks pages until it finds
-     * it; the pages land in the same short cache the picker uses.
+     * Whether OL lists this value for the type. Asks OL's search first (one
+     * request); only if that misses, for example because OL ignores the
+     * search term, it walks the pages the picker already cached.
      *
      * @throws RequestException|\RuntimeException when OL can't be reached
      */
     public function has(string $type, string $value): bool
     {
+        $matches = fn (array $result) => collect($result['items'])->contains(fn ($item) => $item['value'] === $value);
+
+        if ($matches($this->page($type, 1, self::PAGE_SIZE, $value))) {
+            return true;
+        }
+
         $page = 1;
         for ($walked = 0; $walked < self::MAX_LOOKUP_PAGES; $walked++) {
-            $result = $this->page($type, $page, 100);
-            foreach ($result['items'] as $item) {
-                if ($item['value'] === $value) {
-                    return true;
-                }
+            $result = $this->page($type, $page);
+            if ($matches($result)) {
+                return true;
             }
             if ($result['nextPage'] === null || $result['nextPage'] <= $page) {
                 return false;
