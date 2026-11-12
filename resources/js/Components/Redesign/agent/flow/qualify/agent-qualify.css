@@ -157,10 +157,10 @@
 .agent-qs__chip {
     height: 38px;
     padding: 0 16px;
-    border: 1px solid var(--dr-navy-mid);
+    border: 1px solid var(--dr-button-ghost-border);
     border-radius: 10px;
-    background: var(--dr-white);
-    color: var(--dr-gray-darker);
+    background: var(--dr-button-ghost-bg);
+    color: var(--dr-button-ghost-text);
     font: inherit;
     font-size: 13px;
     font-weight: 500;
@@ -168,15 +168,15 @@
 }
 
 .agent-qs__chip:hover {
-    background: var(--dr-gray);
-    color: var(--dr-text);
+    background: var(--dr-button-ghost-hover-bg);
+    color: var(--dr-button-ghost-hover-text);
 }
 
 .agent-qs__chip--on,
 .agent-qs__chip--on:hover {
-    border-color: var(--dr-blue);
-    background: var(--dr-blue);
-    color: var(--dr-white);
+    border-color: var(--dr-button-primary-bg);
+    background: var(--dr-button-primary-bg);
+    color: var(--dr-button-primary-text);
     font-weight: 600;
 }
 
@@ -245,10 +245,10 @@
     justify-content: center;
     gap: 8px;
     padding: 0 16px;
-    border: 1px solid var(--dr-navy-mid);
+    border: 1px solid var(--dr-button-ghost-border);
     border-radius: 10px;
-    background: var(--dr-white);
-    color: var(--dr-gray-darker);
+    background: var(--dr-button-ghost-bg);
+    color: var(--dr-button-ghost-text);
     font: inherit;
     font-size: 13px;
     font-weight: 500;
@@ -257,8 +257,8 @@
 }
 
 .agent-qs__btn:hover:not(:disabled) {
-    background: var(--dr-gray);
-    color: var(--dr-text);
+    background: var(--dr-button-ghost-hover-bg);
+    color: var(--dr-button-ghost-hover-text);
 }
 
 .agent-qs__btn:disabled {
@@ -268,19 +268,18 @@
 
 .agent-qs__btn--navy,
 .agent-qs__btn--green {
-    color: var(--dr-white);
     font-weight: 600;
 }
 
 .agent-qs__btn--navy,
 .agent-qs__btn--navy:hover:not(:disabled) {
-    border-color: var(--dr-navy);
-    background: var(--dr-navy);
-    color: var(--dr-white);
+    border-color: var(--dr-button-navy-bg);
+    background: var(--dr-button-navy-bg);
+    color: var(--dr-button-navy-text);
 }
 
 .agent-qs__btn--navy:hover:not(:disabled) {
-    background: var(--dr-navy-pressed);
+    background: var(--dr-button-navy-hover-bg);
 }
 
 .agent-qs__btn--green,
@@ -526,4 +525,8 @@
     .agent-qo__tracks {
         grid-template-columns: minmax(0, 1fr);
     }
+}
+
+.agent-qo__card:disabled {
+    cursor: not-allowed;
 }

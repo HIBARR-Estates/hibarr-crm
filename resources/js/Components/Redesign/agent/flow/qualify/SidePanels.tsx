@@ -70,7 +70,10 @@ function AnswerRow({
     const question = stripHtmlTags(translateScript(rawLabel)) || segment.key;
     const rawAnswer = formatAnswerDisplay(segment, answer);
     const translated = useDynamicTranslation(stripHtmlTags(rawAnswer) || rawAnswer, { source: "en" });
-    const value = hasAnswerContent(answer) ? translateScript(translated) || "—" : "";
+    // A note written next to a chosen option is context for it; a text question's answer is the note itself.
+    const note = segment.answerType === "text" ? "" : (answer?.answer_text?.trim() ?? "");
+    const choice = rawAnswer ? translateScript(translated) : "";
+    const value = hasAnswerContent(answer) ? [choice, note].filter(Boolean).join(" · ") || "—" : "";
     return (
         <div className="agent-qs__row">
             <dt>

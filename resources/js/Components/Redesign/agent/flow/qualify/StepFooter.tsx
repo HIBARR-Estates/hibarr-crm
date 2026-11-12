@@ -34,7 +34,7 @@ export default function StepFooter({ flow, isLast, onNext }: StepFooterProps) {
 
     const previous = flow.walkIndex > 0 ? flow.walkSegments[flow.walkIndex - 1] : null;
     const next = !isLast ? flow.walkSegments[flow.walkIndex + 1] : null;
-    const blocked = !isLast && Boolean(flow.validationError);
+    const blocked = Boolean(flow.validationError);
 
     let nextLabel: ReactNode = t("pages.agent_workspace.flow.choose_outcome");
     if (next) {

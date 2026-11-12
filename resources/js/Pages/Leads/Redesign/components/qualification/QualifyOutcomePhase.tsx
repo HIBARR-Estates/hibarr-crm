@@ -531,8 +531,10 @@ export default function QualifyOutcomePhase({
         () => getAllOutcomeChoices(flow.templateTree),
         [flow.templateTree],
     );
-    const cards = agentLayout ? (
+    const renderCards = (disabled: boolean): ReactNode =>
+        agentLayout ? (
         <OutcomeCards
+            disabled={disabled}
             items={choices.map(
                 (choice): OutcomeCardItem => {
                     const status = lifecycleStatusFor(choice.key);
@@ -556,7 +558,7 @@ export default function QualifyOutcomePhase({
                 <div className="agent-qo__scroll">
                     <p className="agent-qs__cap">{t("pages.agent_workspace.flow.outcome")}</p>
                     <p className="agent-qs__hint">{t("pages.agent_workspace.flow.outcome_pick")}</p>
-                    {cards}
+                    {renderCards(false)}
                 </div>
                 <footer className="agent-qs__foot">
                     <button type="button" className="agent-qs__btn" onClick={onBack}>
@@ -618,7 +620,7 @@ export default function QualifyOutcomePhase({
             onCompleted={onCompleted}
             onDone={onDone}
             agentLayout={agentLayout}
-            cards={cards}
+            renderCards={renderCards}
             previousLabel={previousLabel}
         />
     );
@@ -636,11 +638,11 @@ function OutcomeDetail({
     onCompleted,
     onDone,
     agentLayout = false,
-    cards = null,
+    renderCards = null,
     previousLabel,
 }: {
     agentLayout?: boolean;
-    cards?: ReactNode;
+    renderCards?: ((disabled: boolean) => ReactNode) | null;
     previousLabel?: ReactNode;
     flow: QualificationFlow;
     lead: Lead;
@@ -1188,7 +1190,7 @@ function OutcomeDetail({
                                     <SayBar>
                                         <ScriptText text={bodyText} translateScript={flow.translateScript} />
                                     </SayBar>
-                                    {cards}
+                                    {renderCards?.(busy || flow.completing)}
                                 </>
                             ) : (
                                 <>
@@ -1259,8 +1261,8 @@ function OutcomeDetail({
                                     <div className="agent-qo__tracks" role="radiogroup">
                                         {(
                                             [
-                                                { key: "specialist" as const, title: "With an agent", subtitle: "Schedule it here in the CRM." },
-                                                { key: "ceo" as const, title: "With Mr. Rabih (CEO)", subtitle: "Opens Calendly in a new tab." },
+                                                { key: "specialist" as const, title: t("pages.agent_workspace.flow.book_agent_title"), subtitle: t("pages.agent_workspace.flow.book_agent_sub") },
+                                                { key: "ceo" as const, title: t("pages.agent_workspace.flow.book_ceo_title"), subtitle: t("pages.agent_workspace.flow.book_ceo_sub") },
                                             ]
                                         ).map((track) => (
                                             <button
@@ -1274,8 +1276,8 @@ function OutcomeDetail({
                                             >
                                                 <span className="agent-qo__radio" aria-hidden="true" />
                                                 <span className="agent-qo__track-text">
-                                                    <span className="agent-qo__track-title">{td(track.title, { source: "en" })}</span>
-                                                    <span className="agent-qo__track-sub">{td(track.subtitle, { source: "en" })}</span>
+                                                    <span className="agent-qo__track-title">{track.title}</span>
+                                                    <span className="agent-qo__track-sub">{track.subtitle}</span>
                                                 </span>
                                             </button>
                                         ))}

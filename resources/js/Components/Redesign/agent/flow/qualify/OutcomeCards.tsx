@@ -12,6 +12,8 @@ interface OutcomeCardsProps {
     items: OutcomeCardItem[];
     selected: string | null;
     onSelect: (key: string) => void;
+    /** Locks the choice while the outcome is being completed. */
+    disabled?: boolean;
 }
 
 /**
@@ -19,7 +21,7 @@ interface OutcomeCardsProps {
  * of cards: the outcome, what it means, and a solid tag with the status it
  * moves the lead to. The chosen one is outlined in its status colour.
  */
-export default function OutcomeCards({ items, selected, onSelect }: OutcomeCardsProps) {
+export default function OutcomeCards({ items, selected, onSelect, disabled = false }: OutcomeCardsProps) {
     return (
         <div className="agent-qo__cards" role="radiogroup">
             {items.map((item) => {
@@ -30,6 +32,7 @@ export default function OutcomeCards({ items, selected, onSelect }: OutcomeCards
                         type="button"
                         role="radio"
                         aria-checked={on}
+                        disabled={disabled}
                         className={`agent-qo__card${on ? " agent-qo__card--on" : ""}`}
                         style={item.status ? ({ "--outcome-color": item.status.color } as React.CSSProperties) : undefined}
                         onClick={() => onSelect(item.key)}
