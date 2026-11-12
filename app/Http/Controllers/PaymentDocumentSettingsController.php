@@ -122,7 +122,7 @@ class PaymentDocumentSettingsController extends AccountBaseController
      */
     private function rules(): array
     {
-        $series = ['required', 'string', 'max:10', 'regex:/^[A-Za-z0-9\-\/]+$/'];
+        $series = ['required', 'string', 'max:10', 'regex:/^[A-Za-z0-9\-]+$/'];
 
         return [
             'legal_name' => 'required|string|max:255',

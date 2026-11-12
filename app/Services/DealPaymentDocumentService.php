@@ -166,6 +166,9 @@ class DealPaymentDocumentService
 
         $companyId = (int) $payment->company_id;
         $paymentData = $this->paymentData($payment, $kind, $invoiceNumber);
+        // Look the TL rate up before taking the settings lock, so a slow rate
+        // API never holds up other documents being issued for the company.
+        $paymentData['try_rate'] = $this->tryRate(PaymentDocumentSetting::forCompany($companyId), $paymentData['currency_code']);
 
         try {
             return DB::transaction(function () use ($payment, $kind, $companyId, $paymentData) {
@@ -317,10 +320,9 @@ class DealPaymentDocumentService
         $vat = round($amount - $net, 2);
         $code = $data['currency_code'] ? strtoupper((string) $data['currency_code']) : null;
 
-        $tryRate = null;
-        if ($settings->show_try_equivalent && $code && ! in_array($code, ['TRY', 'TL'], true)) {
-            $tryRate = $this->exchangeRates->rate($code, 'TRY');
-        }
+        $tryRate = array_key_exists('try_rate', $data)
+            ? ($settings->show_try_equivalent ? $data['try_rate'] : null)
+            : $this->tryRate($settings, $code);
 
         $seriesEnd = $this->rangeEndFor($settings, $kind);
         $seriesStart = (int) ($kind === PaymentDocument::INVOICE ? $settings->invoice_number_start : $settings->receipt_number_start);
@@ -385,6 +387,16 @@ class DealPaymentDocumentService
             'transaction_reference' => $data['transaction_reference'],
             'received_by' => $data['received_by'],
         ];
+    }
+
+    private function tryRate(PaymentDocumentSetting $settings, ?string $currencyCode): ?float
+    {
+        $code = $currencyCode ? strtoupper($currencyCode) : null;
+        if (! $settings->show_try_equivalent || ! $code || in_array($code, ['TRY', 'TL'], true)) {
+            return null;
+        }
+
+        return $this->exchangeRates->rate($code, 'TRY');
     }
 
     /**
