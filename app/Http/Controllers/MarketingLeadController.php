@@ -11,6 +11,7 @@ use App\Services\FormDataService;
 use App\Services\LeadAutomationService;
 use App\Services\LeadCoreFieldsService;
 use App\Services\LeadService;
+use App\Services\LeadUtmService;
 use App\Support\MarketingLeadIntake;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,9 +22,21 @@ use Inertia\Inertia;
  * The marketing lead flow: a multi-step modal for members of the departments
  * picked in Lead settings. Every lead saved here gets the configured origin
  * (Marketing by default); the person entering it never sees or sets it.
+ * The lead owner defaults to the one picked in settings and can be changed
+ * per lead; UTM values entered here become the lead's first touch.
  */
 class MarketingLeadController extends AccountBaseController
 {
+    /** utm field => form-data type with the values leads already use, most used first. */
+    private const UTM_SUGGESTION_TYPES = [
+        'utm_source' => 'lead-utm-sources',
+        'utm_medium' => 'lead-utm-mediums',
+        'utm_campaign' => 'lead-utm-campaigns',
+        'utm_content' => 'lead-utm-contents',
+        'utm_term' => 'lead-utm-terms',
+        'utm_audience' => 'lead-utm-audiences',
+    ];
+
     public function __construct(
         private readonly LeadCoreFieldsService $coreFieldsService,
     ) {
@@ -71,6 +84,15 @@ class MarketingLeadController extends AccountBaseController
             'categories' => LeadCategory::query()->orderBy('category_name')->get(['id', 'category_name'])->values(),
             'customFields' => collect($customFields['customFields'] ?? [])->values(),
             'customFieldCategories' => collect($customFields['customFieldCategories'] ?? [])->values(),
+            'owners' => MarketingLeadIntake::ownerOptions(),
+            'defaultOwnerId' => MarketingLeadIntake::ownerId(),
+            'utmSuggestions' => collect(self::UTM_SUGGESTION_TYPES)
+                ->map(fn (string $type) => $formData->getData($type, $request)
+                    ->pluck('value')
+                    ->filter(fn ($value) => is_string($value) && $value !== '')
+                    ->take(50)
+                    ->values())
+                ->all(),
         ]);
     }
 
@@ -84,6 +106,8 @@ class MarketingLeadController extends AccountBaseController
             // Stamped before the first save, so lead_created automations can
             // already condition on it.
             $lead->lead_origin_id = MarketingLeadIntake::originId($companyId);
+            // Validated against the people who can own leads; empty = no owner.
+            $lead->lead_owner = $request->filled('lead_owner') ? (int) $request->lead_owner : null;
             $lead->salutation = $request->salutation ?: null;
             $lead->client_name = trim((string) $request->client_name);
             $lead->client_email = $request->client_email ?: null;
@@ -123,6 +147,9 @@ class MarketingLeadController extends AccountBaseController
                 );
                 $lead->updateCustomFieldData($filtered['custom_fields_data'] ?? []);
             }
+
+            // Entered on creation, so this is the lead's first UTM touch.
+            app(LeadUtmService::class)->record($lead, (array) $request->input('utm', []), 'marketing_flow');
 
             foreach ((array) $request->input('notes', []) as $entry) {
                 $details = trim((string) ($entry['details'] ?? ''));

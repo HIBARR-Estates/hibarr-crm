@@ -2,11 +2,13 @@
 
 namespace App\Http\Requests\Lead;
 
+use App\Support\MarketingLeadIntake;
+
 /**
  * The marketing lead flow's payload: the same personal-information and
  * custom-field rules as the regular lead form, plus attribution and notes.
- * No deal creation, status, owner or origin: the flow never sends those, and
- * origin is stamped server-side.
+ * No deal creation or status, and origin is stamped server-side. The owner
+ * must be someone who can own leads; UTM values become the first touch.
  */
 class StoreMarketingLeadRequest extends StoreRequest
 {
@@ -31,7 +33,7 @@ class StoreMarketingLeadRequest extends StoreRequest
             'cell' => 'nullable|string|max:50',
             'office' => 'nullable|string|max:50',
             'company_name' => 'nullable|string|max:255',
-            'website' => 'nullable|string|max:255',
+            'website' => ['nullable', 'string', 'max:255', 'url:http,https', 'regex:/^https?:\/\/[^\s\/?#:]+\.[a-z]{2,}(:\d+)?([\/?#]|$)/i'],
             'address' => 'nullable|string|max:1000',
             'city' => 'nullable|string|max:255',
             'state' => 'nullable|string|max:255',
@@ -41,9 +43,50 @@ class StoreMarketingLeadRequest extends StoreRequest
             'category_ids' => 'nullable|array',
             'category_ids.*' => 'integer|exists:lead_category,id',
             'custom_fields_data' => 'nullable|array',
+            'lead_owner' => [
+                'nullable',
+                'integer',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if (! MarketingLeadIntake::canOwn((int) $value)) {
+                        $fail(__('pages.marketing_leads.owner_invalid'));
+                    }
+                },
+            ],
+            'utm' => 'nullable|array',
+            'utm.utm_source' => 'nullable|string|max:255',
+            'utm.utm_medium' => 'nullable|string|max:255',
+            'utm.utm_campaign' => 'nullable|string|max:255',
+            'utm.utm_content' => 'nullable|string|max:255',
+            'utm.utm_term' => 'nullable|string|max:255',
+            'utm.utm_audience' => 'nullable|string|max:255',
             'notes' => 'nullable|array|max:20',
             'notes.*.title' => 'nullable|string|max:255',
             'notes.*.details' => 'required|string|max:20000',
+        ]);
+    }
+
+    /** "example.com" is how people type a website; store it as https://example.com. */
+    protected function prepareForValidation(): void
+    {
+        parent::prepareForValidation();
+
+        $website = trim((string) $this->input('website', ''));
+        if ($website === '') {
+            $this->merge(['website' => null]);
+
+            return;
+        }
+
+        if (! preg_match('#^[a-z][a-z0-9+.-]*://#i', $website)) {
+            $this->merge(['website' => 'https://'.$website]);
+        }
+    }
+
+    public function messages()
+    {
+        return array_merge(parent::messages(), [
+            'website.url' => __('pages.marketing_leads.website_invalid'),
+            'website.regex' => __('pages.marketing_leads.website_invalid'),
         ]);
     }
 

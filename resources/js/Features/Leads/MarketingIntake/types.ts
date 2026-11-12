@@ -33,7 +33,16 @@ export interface MarketingLeadOptions {
     categories: Array<{ id: number; category_name: string }>;
     customFields: MarketingCustomField[];
     customFieldCategories: MarketingCustomFieldCategory[];
+    /** People who can own a lead (user ids). */
+    owners: Array<{ id: number; name: string }>;
+    /** Owner picked in Lead settings for this flow; null = none. */
+    defaultOwnerId: number | null;
+    /** Values leads already use for each UTM field, most used first. */
+    utmSuggestions: Partial<Record<UtmKey, string[]>>;
 }
+
+export const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "utm_audience"] as const;
+export type UtmKey = (typeof UTM_KEYS)[number];
 
 export interface MarketingLeadNoteDraft {
     key: string;
@@ -46,13 +55,22 @@ export interface MarketingLeadDraft {
     salutation: string;
     client_name: string;
     client_email: string;
-    mobile_country: string;
-    mobile_number: string;
+    /** "+<country><number>", as the lead page phone input produces it. */
+    mobile: string;
     cell: string;
     office: string;
     preferred_contact_times: string[];
     source_id: string;
     category_ids: string[];
+    /** User id; starts as the owner picked in settings. */
+    lead_owner: string;
+    /** First-touch UTM values. */
+    utm_source: string;
+    utm_medium: string;
+    utm_campaign: string;
+    utm_content: string;
+    utm_term: string;
+    utm_audience: string;
     gender: string;
     date_of_birth: string;
     age: string;
@@ -80,7 +98,7 @@ export interface SavedMarketingLead {
     url: string;
 }
 
-export type StepId = "contact" | "profile" | "address" | "notes" | `custom_${number}` | "custom_other";
+export type StepId = "contact" | "attribution" | "profile" | "address" | "notes" | `custom_${number}` | "custom_other";
 
 export interface StepModel {
     id: StepId;

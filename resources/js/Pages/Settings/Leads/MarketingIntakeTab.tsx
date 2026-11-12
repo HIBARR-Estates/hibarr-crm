@@ -11,7 +11,8 @@ import type { LeadOriginRow, MarketingIntakeSettings } from "./types";
 
 /**
  * Who may use the marketing lead flow (members of the picked departments)
- * and which origin it stamps on every lead saved through it.
+ * which origin it stamps on every lead saved through it, and the lead owner
+ * it suggests (people can change it per lead in the flow).
  */
 export default function MarketingIntakeTab({
     settings,
@@ -20,23 +21,26 @@ export default function MarketingIntakeTab({
 }: {
     settings: MarketingIntakeSettings;
     origins: LeadOriginRow[];
-    onSaved: (next: Pick<MarketingIntakeSettings, "department_ids" | "origin_id">) => void;
+    onSaved: (next: Pick<MarketingIntakeSettings, "department_ids" | "origin_id" | "owner_id">) => void;
 }) {
     const { t } = useTranslation();
     const { td } = useTd();
     const { message } = App.useApp();
     const [departmentIds, setDepartmentIds] = useState<number[]>(settings.department_ids);
     const [originId, setOriginId] = useState<number>(settings.origin_id);
+    const [ownerId, setOwnerId] = useState<number | null>(settings.owner_id);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         setDepartmentIds(settings.department_ids);
         setOriginId(settings.origin_id);
-    }, [settings.department_ids, settings.origin_id]);
+        setOwnerId(settings.owner_id);
+    }, [settings.department_ids, settings.origin_id, settings.owner_id]);
 
     const dirty = useMemo(
         () =>
             originId !== settings.origin_id ||
+            ownerId !== settings.owner_id ||
             [...departmentIds].sort().join(",") !== [...settings.department_ids].sort().join(","),
         [departmentIds, originId, settings],
     );
@@ -53,7 +57,7 @@ export default function MarketingIntakeTab({
         try {
             const res = await axios.put(
                 route("settings-leads.marketing-intake.update"),
-                { department_ids: departmentIds, origin_id: originId },
+                { department_ids: departmentIds, origin_id: originId, owner_id: ownerId },
                 { headers: { Accept: "application/json" } },
             );
             onSaved(res.data.marketingIntake);
@@ -142,6 +146,25 @@ export default function MarketingIntakeTab({
                 </p>
             </section>
 
+            <section style={{ maxWidth: 360 }}>
+                <label htmlFor="marketing-intake-owner" style={label}>
+                    {t("pages.lead_settings.marketing.owner_label")}
+                </label>
+                <SearchableSelect<number>
+                    id="marketing-intake-owner"
+                    style={{ width: "100%" }}
+                    allowClear
+                    value={ownerId ?? undefined}
+                    placeholder={t("pages.lead_settings.marketing.owner_none")}
+                    options={settings.owners.map((owner) => ({ value: owner.id, label: owner.name }))}
+                    onChange={(next) => setOwnerId(next ?? null)}
+                    popupMatchSelectWidth
+                />
+                <p style={{ margin: "8px 0 0", fontSize: 12, color: T.TEXT_MUTED, lineHeight: 1.45 }}>
+                    {t("pages.lead_settings.marketing.owner_help")}
+                </p>
+            </section>
+
             <div className="flex justify-end" style={{ gap: 8, borderTop: `1px solid ${T.BORDER}`, paddingTop: 16 }}>
                 <Button
                     variant="ghost"
@@ -149,6 +172,7 @@ export default function MarketingIntakeTab({
                     onClick={() => {
                         setDepartmentIds(settings.department_ids);
                         setOriginId(settings.origin_id);
+                        setOwnerId(settings.owner_id);
                     }}
                 >
                     {t("app.cancel")}

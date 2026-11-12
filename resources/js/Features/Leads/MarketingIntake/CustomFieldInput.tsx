@@ -1,7 +1,7 @@
 import SearchableSelect from "@/Components/Redesign/primitives/SearchableSelect";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { customFieldOptions, SUPPORTED_CUSTOM_FIELD_TYPES } from "./model";
+import { customFieldOptions, matchChoice, sortChoices, SUPPORTED_CUSTOM_FIELD_TYPES } from "./model";
 import type { CountryOption, MarketingCustomField } from "./types";
 
 interface CustomFieldInputProps {
@@ -65,6 +65,8 @@ export default function CustomFieldInput({ field, value, error, countries, onCha
                     placeholder={t("pages.marketing_leads.choose")}
                     options={options.map((option) => ({ value: option, label: option }))}
                     onChange={(next) => onChange(next ?? "")}
+                    filterOption={matchChoice}
+                    filterSort={(a, b, info) => sortChoices(info.searchValue)(a, b)}
                     popupMatchSelectWidth
                 />
             );
@@ -78,6 +80,8 @@ export default function CustomFieldInput({ field, value, error, countries, onCha
                     placeholder={t("pages.marketing_leads.choose")}
                     options={countryOptions}
                     onChange={(next) => onChange(next ?? "")}
+                    filterOption={matchChoice}
+                    filterSort={(a, b, info) => sortChoices(info.searchValue)(a, b)}
                     popupMatchSelectWidth
                 />
             );
@@ -92,6 +96,8 @@ export default function CustomFieldInput({ field, value, error, countries, onCha
                     placeholder={t("pages.marketing_leads.choose")}
                     options={countryOptions}
                     onChange={(next) => onChange(next ?? [])}
+                    filterOption={matchChoice}
+                    filterSort={(a, b, info) => sortChoices(info.searchValue)(a, b)}
                     popupMatchSelectWidth
                 />
             );
