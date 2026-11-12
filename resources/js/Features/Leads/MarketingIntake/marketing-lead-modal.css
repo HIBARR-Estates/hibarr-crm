@@ -283,6 +283,13 @@
     width: 100%;
     box-sizing: border-box;
 }
+/* antd pins single selects to 32px on the root; match the 38px inputs */
+.mli-fld .ant-select-single:not(.ant-select-compact-item) {
+    height: 38px;
+}
+.mli-fld .ant-select-single:not(.ant-select-compact-item) .ant-select-selector {
+    height: 100%;
+}
 .mli-fld .ant-select-multiple .ant-select-selector {
     height: auto;
     min-height: 38px;
@@ -358,6 +365,7 @@ textarea.mli-inp {
 }
 .mli-fld .ant-phone-input-wrapper .ant-space-compact {
     height: 38px;
+    box-sizing: border-box;
     border: 1px solid var(--dr-border);
     border-radius: 9px;
     background: var(--dr-white);
