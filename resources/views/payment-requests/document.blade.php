@@ -70,9 +70,6 @@
         .words b { font-size: 9.5px; }
         .bank td { font-size: 8.5px; padding: 1px 10px 1px 0; }
         .mono { font-family: 'KktcMono', DejaVu Sans Mono, monospace; font-size: 8.5px; }
-        .stamp-duty { border: 1px solid #56606b; color: #56606b; font-size: 6.5px; font-weight: bold; text-align: center; letter-spacing: 0.4px; padding: 5px 4px; width: 64px; line-height: 1.3; }
-        .seal { width: 70px; height: 70px; border: 1.4px solid #56606b; border-radius: 36px; text-align: center; color: #56606b; font-size: 5.4px; font-weight: bold; letter-spacing: 0.2px; line-height: 1.3; }
-        .seal .inner { margin: 3px auto; border-top: 1px solid #56606b; border-bottom: 1px solid #56606b; width: 40px; padding: 1px 0; font-size: 8px; letter-spacing: 1px; }
         .approval { font-size: 7px; color: #8b949e; line-height: 1.45; }
         .approval b { color: #56606b; }
         .sig-line { border-bottom: 1px solid #56606b; height: 34px; }
@@ -98,13 +95,17 @@
 
 {{-- Approval marks: stamp duty box, tax office seal area, approval number and range. --}}
 @php
-    $marks = function () use ($approval) {
+    // The stamp duty box and the tax office seal are images, drawn from
+    // resources/pdf/kktc/marks-source.html: dompdf can't set text on a curve.
+    $markImage = fn (string $file) => 'data:image/png;base64,' . base64_encode((string) @file_get_contents(resource_path('pdf/kktc/' . $file)));
+    $marks = function (int $sealSize) use ($approval, $markImage) {
         $html = '<table style="width:auto"><tr>';
         if (! empty($approval['show_stamp_duty'])) {
-            $html .= '<td style="padding-right:8px;vertical-align:middle"><div class="stamp-duty">KKTC<br>DAMGA VERGİSİ<br>ÖDENMİŞTİR</div></td>';
+            $width = (int) round($sealSize * 1.22);
+            $html .= '<td style="padding-right:10px;vertical-align:middle"><img src="' . $markImage('kktc-stamp-duty.png') . '" style="width:' . $width . 'px;height:' . (int) round($width * 336 / 720) . 'px" alt="KKTC Damga Vergisi Ödenmiştir"></td>';
         }
         if (! empty($approval['show_seal'])) {
-            $html .= '<td style="padding-right:8px;vertical-align:middle"><div class="seal"><div style="padding-top:14px">GELİR VE VERGİ<br>DAİRESİ</div><div class="inner">KKTC</div><div>BELGE ONAYI</div></div></td>';
+            $html .= '<td style="padding-right:10px;vertical-align:middle"><img src="' . $markImage('kktc-approval-seal.png') . '" style="width:' . $sealSize . 'px;height:' . $sealSize . 'px" alt="Gelir ve Vergi Dairesi belge onayı"></td>';
         }
         $lines = [];
         if (! empty($approval['number'])) {
@@ -255,7 +256,7 @@
     <div style="position:absolute;left:40px;right:40px;bottom:26px">
         <table>
             <tr>
-                <td style="width:250px;vertical-align:bottom">{!! $marks() !!}</td>
+                <td style="width:270px;vertical-align:bottom">{!! $marks(74) !!}</td>
                 <td style="padding-left:24px;vertical-align:bottom">
                     <div class="sig-line"></div>
                     <span class="label">TESLİM EDEN</span> {!! $en('Issued by') !!}
@@ -264,7 +265,7 @@
                 <td style="padding-left:24px;vertical-align:bottom">
                     <div class="sig-line"></div>
                     <span class="label">TESLİM ALAN</span> {!! $en('Received by') !!}
-                    <div class="sig-who">{{ $buyer['name'] ?: '' }} · imza</div>
+                    <div class="sig-who">{{ $buyer['name'] ? $buyer['name'].' · ' : '' }}imza</div>
                 </td>
             </tr>
         </table>
@@ -356,7 +357,7 @@
     <div style="position:absolute;left:34px;right:30px;bottom:18px">
         <table>
             <tr>
-                <td style="width:210px;vertical-align:bottom">{!! $marks() !!}</td>
+                <td style="width:240px;vertical-align:bottom">{!! $marks(64) !!}</td>
                 <td style="vertical-align:bottom;padding-left:12px">
                     <span class="copy-mark">{{ $copy_label['tr'] }}@if ($bilingual) · {{ strtoupper($copy_label['en']) }}@endif</span>
                     @if ($footer_note)<div class="approval" style="margin-top:4px">{{ $footer_note }}</div>@endif

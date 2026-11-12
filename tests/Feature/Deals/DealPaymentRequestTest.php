@@ -1270,6 +1270,10 @@ class DealPaymentRequestTest extends TestCase
         DB::table('payments')->where('id', $id)->update(['ol_status' => 'completed', 'status' => 'complete', 'paid_on' => now()]);
         $receipt = $service->download(Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id), 'receipt');
         $this->assertStringStartsWith('%PDF', $receipt->getContent());
+        if (getenv('DUMP_PDFS')) {
+            file_put_contents(getenv('DUMP_PDFS').'/inv.pdf', $invoice->getContent());
+            file_put_contents(getenv('DUMP_PDFS').'/rec.pdf', $receipt->getContent());
+        }
     }
 
     public function test_tl_equivalent_uses_the_ecb_publication_date_and_the_printed_rate(): void
