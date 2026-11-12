@@ -6,6 +6,7 @@ import useDealPayment from "../../hooks/useDealPayment";
 import {
     isTerminalPaymentState,
     mapDealPaymentUiState,
+    remainingDealBalance,
 } from "../../adapters/mapDealPaymentUiState";
 import {
     paymentUiStateBadgeVariant,
@@ -71,6 +72,11 @@ export default function DealPaymentPanel({
         [paymentRequest?.id, paymentRequests],
     );
 
+    const remaining = remainingDealBalance(Number(deal.value ?? 0), paymentRequests);
+    const hasOpenRequest = paymentRequest !== null && !isTerminalPaymentState(mapped.uiState);
+    const canRequestMore = canCreatePaymentRequest && remaining > 0 && !hasOpenRequest;
+    const cashPending = mapped.uiState === "cash_pending";
+
     const statusTimestamp =
         paymentRequest?.ui_state === "confirmed"
             ? formatTimestamp(paymentRequest.verified_at)
@@ -93,7 +99,7 @@ export default function DealPaymentPanel({
                     <p className="text-xs text-dr-text-muted">
                         {td("Create a payment request to share a checkout link with the customer.")}
                     </p>
-                    {canCreatePaymentRequest && (
+                    {canRequestMore && (
                         <Button
                             variant="primary"
                             size="sm"
@@ -109,7 +115,7 @@ export default function DealPaymentPanel({
                         <Badge variant={paymentUiStateBadgeVariant(mapped.uiState!)}>
                             {td(paymentUiStateLabel(mapped.uiState!))}
                         </Badge>
-                        {!isTerminalPaymentState(mapped.uiState) && (
+                        {!isTerminalPaymentState(mapped.uiState) && !cashPending && (
                             <button
                                 type="button"
                                 onClick={() => void refreshStatus()}
@@ -187,7 +193,15 @@ export default function DealPaymentPanel({
                             size="sm"
                             onClick={() => setConfirmOpen(true)}
                         >
-                            {td("Confirm Transfer")}
+                            {cashPending
+                                ? t("pages.deals.payment_request.confirm_cash")
+                                : td("Confirm Transfer")}
+                        </Button>
+                    )}
+
+                    {canRequestMore && (
+                        <Button variant="primary" size="sm" onClick={openCreateModal}>
+                            {t("pages.deals.payment_request.request_another")}
                         </Button>
                     )}
                 </>
@@ -205,7 +219,13 @@ export default function DealPaymentPanel({
                                 className="flex items-center justify-between gap-2 text-xs text-dr-text-muted"
                             >
                                 <span className="min-w-0">
-                                    <span className="font-medium text-dr-text line-through decoration-dr-text-hint">
+                                    <span
+                                        className={
+                                            request.ui_state === "failed" || request.ui_state === "invalidated"
+                                                ? "font-medium text-dr-text line-through decoration-dr-text-hint"
+                                                : "font-medium text-dr-text"
+                                        }
+                                    >
                                         {requestMoney(request)}
                                     </span>
                                     {request.invalidated_at && (
@@ -233,10 +253,16 @@ export default function DealPaymentPanel({
 
             <ConfirmDialog
                 open={confirmOpen}
-                title={td("Confirm bank transfer?")}
-                message={td(
-                    "Confirm that the customer's bank transfer proof has been reviewed and approved.",
-                )}
+                title={
+                    cashPending
+                        ? t("pages.deals.payment_request.confirm_cash_title")
+                        : td("Confirm bank transfer?")
+                }
+                message={
+                    cashPending
+                        ? t("pages.deals.payment_request.confirm_cash_message")
+                        : td("Confirm that the customer's bank transfer proof has been reviewed and approved.")
+                }
                 confirmLabel={td("Yes, confirm")}
                 cancelLabel={td("Cancel")}
                 confirmLoading={confirming}

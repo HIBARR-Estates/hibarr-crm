@@ -1,5 +1,6 @@
 export type DealPaymentUiState =
     | "pending_payment"
+    | "cash_pending"
     | "bank_transfer_pending"
     | "processing_online"
     | "paid_online"
@@ -48,15 +49,23 @@ export interface DealPaymentRequest {
 }
 
 export interface DealPaymentCreateInput {
-    /** ISO code; the server converts the deal value into it. */
+    /** ISO code; the server converts the requested company-currency amount into it. */
     currency: string;
+    /**
+     * Company-currency slice of the deal to request. Omit to request whatever
+     * confirmed payments have not covered. Cannot exceed that remainder.
+     */
+    base_amount?: number;
     /**
      * Units of `currency` per 1 company-currency unit. Omit to use the live
      * rate. Ignored when `currency` is already the company currency.
      */
     exchange_rate?: number;
-    /** Optional. Omit so OL checkout lets the client choose how to pay. */
-    provider_key?: "manual-bank-transfer" | "nowpayments";
+    /**
+     * Optional. Omit so checkout lets the client choose how to pay.
+     * `cash` is recorded in the CRM and is not sent to the payment service.
+     */
+    provider_key?: "manual-bank-transfer" | "nowpayments" | "cash";
 }
 
 /** A deal's current request plus its full history, newest first. */

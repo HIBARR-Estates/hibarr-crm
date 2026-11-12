@@ -83,11 +83,13 @@ export default function PaymentRequestRow({
     const timestamp = statusTimestamp(row);
 
     const methodLabel =
-        row.gateway === "manual-bank-transfer"
-            ? t("pages.payment_requests.method_bank_transfer")
-            : row.gateway === "nowpayments"
-              ? t("pages.payment_requests.method_crypto")
-              : t("pages.payment_requests.method_client_choice");
+        row.gateway === "cash" || row.ui_state === "cash_pending"
+            ? t("pages.payment_requests.method_cash")
+            : row.gateway === "manual-bank-transfer"
+              ? t("pages.payment_requests.method_bank_transfer")
+              : row.gateway === "nowpayments"
+                ? t("pages.payment_requests.method_crypto")
+                : t("pages.payment_requests.method_client_choice");
 
     return (
         <div
@@ -198,7 +200,9 @@ export default function PaymentRequestRow({
                 )}
                 {row.can_confirm && (
                     <Button variant="primary" size="sm" onClick={onConfirm}>
-                        {t("pages.payment_requests.action_confirm")}
+                        {row.ui_state === "cash_pending"
+                            ? t("pages.payment_requests.action_confirm_cash")
+                            : t("pages.payment_requests.action_confirm")}
                     </Button>
                 )}
             </div>

@@ -37,13 +37,15 @@ class DealPaymentController extends AccountBaseController
         $this->assertCanViewDeal($deal);
         $this->assertCanCreatePaymentRequest($deal);
 
-        // No amount: the service converts the deal's value into the chosen
-        // currency. exchange_rate is optional and, when sent, is the rate the
-        // user confirmed (units of `currency` per 1 company-currency unit).
+        // base_amount is the company-currency slice of the deal to request
+        // (omit it to request whatever confirmed payments have not covered).
+        // exchange_rate is units of `currency` per 1 company-currency unit.
+        // provider_key `cash` is recorded here and is not sent to OL.
         $validated = $request->validate([
             'currency' => 'required|string|size:3|alpha',
-            'provider_key' => 'nullable|string|in:manual-bank-transfer,nowpayments',
+            'provider_key' => 'nullable|string|in:manual-bank-transfer,nowpayments,cash',
             'exchange_rate' => 'nullable|numeric|gt:0',
+            'base_amount' => 'nullable|numeric|gt:0',
         ]);
 
         try {

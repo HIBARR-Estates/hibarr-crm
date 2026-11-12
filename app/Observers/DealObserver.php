@@ -847,7 +847,7 @@ class DealObserver
             $payments = app(DealPaymentService::class);
             $active = $payments->findActiveRequest($deal);
 
-            if ($active !== null && DealPaymentService::uiStateOf($active) === 'pending_payment') {
+            if ($active !== null && in_array(DealPaymentService::uiStateOf($active), ['pending_payment', 'cash_pending'], true)) {
                 $payments->invalidatePending($deal, user() ?: null, 'Deal value changed outside the deal page');
             }
         } catch (\Throwable $e) {

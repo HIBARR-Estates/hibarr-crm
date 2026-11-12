@@ -40,6 +40,7 @@ interface IndexProps extends PageProps {
 
 const UI_STATES: DealPaymentUiState[] = [
     "pending_payment",
+    "cash_pending",
     "bank_transfer_pending",
     "processing_online",
     "paid_online",
@@ -115,7 +116,11 @@ const Index = ({ paymentRequests, filters, counts }: IndexProps) => {
                 setRows((prev) =>
                     prev.map((r) => (r.id === confirmingRow.id ? { ...r, ...updated } : r)),
                 );
-                message.success(t("pages.payment_requests.confirmed_toast"));
+                message.success(
+                    confirmingRow.ui_state === "cash_pending"
+                        ? t("pages.payment_requests.confirmed_cash_toast")
+                        : t("pages.payment_requests.confirmed_toast"),
+                );
                 setConfirmingRow(null);
             } else {
                 message.error(
@@ -248,8 +253,16 @@ const Index = ({ paymentRequests, filters, counts }: IndexProps) => {
 
             <ConfirmDialog
                 open={!!confirmingRow}
-                title={t("pages.payment_requests.confirm_title")}
-                message={t("pages.payment_requests.confirm_message")}
+                title={
+                    confirmingRow?.ui_state === "cash_pending"
+                        ? t("pages.payment_requests.confirm_cash_title")
+                        : t("pages.payment_requests.confirm_title")
+                }
+                message={
+                    confirmingRow?.ui_state === "cash_pending"
+                        ? t("pages.payment_requests.confirm_cash_message")
+                        : t("pages.payment_requests.confirm_message")
+                }
                 confirmLabel={t("pages.payment_requests.confirm_yes")}
                 cancelLabel={t("pages.payment_requests.cancel")}
                 confirmLoading={confirming}

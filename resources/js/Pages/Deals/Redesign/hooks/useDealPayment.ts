@@ -125,10 +125,12 @@ export default function useDealPayment(dealId: number) {
                 route("deals.payment-request.confirm", dealId),
             );
             if (response.data?.status === "success" && response.data.data) {
-                upsertPaymentRequest(response.data.data);
-                message.success("Bank transfer confirmed.");
+                const confirmed = response.data.data;
+                const cash = confirmed.gateway === "cash" || confirmed.ol_payment_type === "cash";
+                upsertPaymentRequest(confirmed);
+                message.success(cash ? "Cash payment confirmed." : "Bank transfer confirmed.");
                 void refreshDeal();
-                return { ok: true, data: response.data.data };
+                return { ok: true, data: confirmed };
             }
             const failMessage =
                 (response.data as { message?: string } | undefined)?.message

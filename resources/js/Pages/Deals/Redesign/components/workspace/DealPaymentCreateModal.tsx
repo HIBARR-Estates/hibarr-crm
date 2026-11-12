@@ -4,6 +4,7 @@ import { useApiQuery } from "@/lib/api/client";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import useExchangeRate from "@/Hooks/useExchangeRate";
+import { remainingDealBalance } from "../../adapters/mapDealPaymentUiState";
 import useDealPayment from "../../hooks/useDealPayment";
 import {
     formatMoneyAmount,
@@ -87,14 +88,15 @@ function parseRate(value: string): number | null {
 }
 
 /**
- * "Create Payment Request": pick the currency the customer pays in, confirm
- * or edit the exchange rate, see the converted amount, create it. Shared by
- * the deal page's Payments panel and the agent workspace's Payments card.
+ * "Create Payment Request": pick checkout or cash, the company-currency
+ * amount (the remainder by default, less when the customer pays in batches),
+ * the currency, and the exchange rate. Shared by the deal page's Payments
+ * panel and the agent workspace's Payments card.
  */
 export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaymentCreateModalProps) {
     const { td } = useTd();
     const { t } = useTranslation();
-    const { createPaymentRequest, creating } = useDealPayment(deal.id);
+    const { createPaymentRequest, creating, paymentRequests } = useDealPayment(deal.id);
 
     // Payment requests are always issued from the deal value in company
     // currency (the same currency the deal page presents it in).
@@ -110,19 +112,33 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
     const dealValue = Number(deal.value ?? 0);
     const companyCode = companyCurrency.code;
 
+    const remaining = remainingDealBalance(dealValue, paymentRequests);
+    const confirmedBase = Math.round((dealValue - remaining) * 100) / 100;
+
     const [currencyCode, setCurrencyCode] = useState(companyCode);
+    const [method, setMethod] = useState<"checkout" | "cash">("checkout");
+    const [amountInput, setAmountInput] = useState("");
+    const [amountEdited, setAmountEdited] = useState(false);
     const [rateInput, setRateInput] = useState("1");
     const [rateEdited, setRateEdited] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
 
-    // Each opening starts from the company currency with no stale error.
+    // Each opening starts from the company currency, the remaining balance,
+    // and checkout — with no stale error.
     useEffect(() => {
         if (!open) return;
         setCurrencyCode(companyCode);
+        setMethod("checkout");
+        setAmountEdited(false);
         setRateInput("1");
         setRateEdited(false);
         setCreateError(null);
     }, [open, companyCode]);
+
+    useEffect(() => {
+        if (!open || amountEdited) return;
+        setAmountInput(remaining > 0 ? formatRate(remaining) : "");
+    }, [open, amountEdited, remaining]);
 
     const { data: currencyData } = useApiQuery<{ data: CurrencyOption[] }>({
         path: route("form-data.index", "currencies"),
@@ -155,10 +171,15 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
     }, [open, needsRate, rateEdited, rateLoading, liveRate]);
 
     const parsedRate = needsRate ? parseRate(rateInput) : 1;
-    // The amount follows the rate on screen, which is what gets saved.
-    const convertedAmount = parsedRate !== null ? Math.round(dealValue * parsedRate * 100) / 100 : null;
+    const parsedBase = parseRate(amountInput);
+    const amountTooHigh = parsedBase !== null && parsedBase - remaining > 0.009;
+    // The customer pays this slice of the deal, converted at the rate on screen.
+    const convertedAmount =
+        parsedBase !== null && parsedRate !== null && !amountTooHigh
+            ? Math.round(parsedBase * parsedRate * 100) / 100
+            : null;
     const rateInvalid =
-        needsRate && rateInput.trim() !== "" && (parsedRate === null || convertedAmount === 0);
+        needsRate && rateInput.trim() !== "" && (parsedRate === null || (parsedBase !== null && convertedAmount === 0));
 
     const handleCurrencyChange = (next: string) => {
         setCurrencyCode(next);
@@ -174,11 +195,13 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
     };
 
     const handleCreate = async () => {
-        if (parsedRate === null) return;
+        if (parsedRate === null || parsedBase === null || amountTooHigh) return;
         setCreateError(null);
         const result = await createPaymentRequest({
             currency: currencyCode,
+            base_amount: parsedBase,
             ...(needsRate ? { exchange_rate: parsedRate } : {}),
+            ...(method === "cash" ? { provider_key: "cash" as const } : {}),
         });
 
         if (result.ok) {
@@ -190,7 +213,12 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
     };
 
     const canSubmit =
-        dealValue > 0 && parsedRate !== null && (convertedAmount ?? 0) > 0 && !creating;
+        remaining > 0
+        && parsedBase !== null
+        && !amountTooHigh
+        && parsedRate !== null
+        && (convertedAmount ?? 0) > 0
+        && !creating;
 
     return (
         <DealModal
@@ -199,9 +227,52 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
             onClose={onClose}
         >
             <div className="space-y-3">
-                <p className="text-xs text-[#5b6472]">
-                    {td("The customer will choose how to pay on the checkout page.")}
-                </p>
+                <DealModalField label={t("pages.deals.payment_request.method")}>
+                    <select
+                        className="dr-input"
+                        value={method}
+                        onChange={(e) => {
+                            setMethod(e.target.value === "cash" ? "cash" : "checkout");
+                            if (createError) setCreateError(null);
+                        }}
+                        aria-label={t("pages.deals.payment_request.method")}
+                    >
+                        <option value="checkout">{t("pages.deals.payment_request.method_checkout")}</option>
+                        <option value="cash">{t("pages.deals.payment_request.method_cash")}</option>
+                    </select>
+                    <p className="mt-1.5 text-[11px] text-dr-text-hint">
+                        {method === "cash"
+                            ? t("pages.deals.payment_request.cash_hint")
+                            : t("pages.deals.payment_request.checkout_hint")}
+                    </p>
+                </DealModalField>
+                <DealModalField label={t("pages.deals.payment_request.amount")}>
+                    <div className="flex items-center gap-2">
+                        <div className="min-w-0 flex-1">
+                            <input
+                                className="dr-input tabular-nums"
+                                inputMode="decimal"
+                                aria-label={t("pages.deals.payment_request.amount")}
+                                aria-invalid={amountTooHigh || undefined}
+                                value={amountInput}
+                                placeholder="0"
+                                onChange={(e) => {
+                                    setAmountEdited(true);
+                                    const next = sanitizeRate(e.target.value);
+                                    const [whole, decimals] = next.split(".");
+                                    setAmountInput(
+                                        decimals === undefined ? next : `${whole}.${decimals.slice(0, 2)}`,
+                                    );
+                                    if (createError) setCreateError(null);
+                                }}
+                            />
+                        </div>
+                        <span className="text-xs font-medium text-dr-text">{companyCode}</span>
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-dr-text-hint">
+                        {t("pages.deals.payment_request.amount_hint")}
+                    </p>
+                </DealModalField>
                 <DealModalField label={t("pages.deals.payment_request.currency")}>
                     <select
                         className="dr-input"
@@ -280,6 +351,20 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
                             {formatMoneyAmount(dealValue, companyCurrency)}
                         </span>
                     </div>
+                    {confirmedBase > 0 && (
+                        <div className="flex justify-between gap-3 text-dr-text-muted">
+                            <span>{t("pages.deals.payment_request.confirmed_so_far")}</span>
+                            <span className="font-medium text-dr-text tabular-nums">
+                                {formatMoneyAmount(confirmedBase, companyCurrency)}
+                            </span>
+                        </div>
+                    )}
+                    <div className="flex justify-between gap-3 text-dr-text-muted">
+                        <span>{t("pages.deals.payment_request.remaining")}</span>
+                        <span className="font-medium text-dr-text tabular-nums">
+                            {formatMoneyAmount(remaining, companyCurrency)}
+                        </span>
+                    </div>
                     <div className="flex justify-between gap-3 border-t border-dr-border-soft pt-1.5 text-sm">
                         <span className="font-semibold text-dr-text">
                             {t("pages.deals.payment_request.amount_to_request")}
@@ -295,6 +380,14 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
                 {dealValue <= 0 ? (
                     <p className="text-xs text-[#b45309]">
                         {t("pages.deals.payment_request.no_deal_value")}
+                    </p>
+                ) : remaining <= 0 ? (
+                    <p className="text-xs text-[#b45309]">
+                        {t("pages.deals.payment_request.fully_covered")}
+                    </p>
+                ) : amountTooHigh ? (
+                    <p className="text-xs text-[#b45309]">
+                        {t("pages.deals.payment_request.amount_too_high")}
                     </p>
                 ) : rateInvalid ? (
                     <p className="text-xs text-[#b45309]">
