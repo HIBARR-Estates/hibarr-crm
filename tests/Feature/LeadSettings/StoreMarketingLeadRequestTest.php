@@ -79,6 +79,21 @@ class StoreMarketingLeadRequestTest extends TestCase
         $this->assertFalse($errors->has('website'));
     }
 
+    public function test_a_punycode_domain_is_accepted(): void
+    {
+        [$request, $errors] = $this->validate(['website' => 'example.xn--p1ai']);
+
+        $this->assertSame('https://example.xn--p1ai', $request->input('website'));
+        $this->assertFalse($errors->has('website'));
+    }
+
+    public function test_a_non_string_website_is_a_validation_error(): void
+    {
+        [, $errors] = $this->validate(['website' => ['example.com']]);
+
+        $this->assertTrue($errors->has('website'));
+    }
+
     public function test_an_empty_website_becomes_null(): void
     {
         [$request, $errors] = $this->validate(['website' => '   ']);

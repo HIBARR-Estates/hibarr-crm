@@ -1761,6 +1761,16 @@ class LeadContactController extends AccountBaseController
     {
         $fields = array_values(array_unique(array_map('strval', $fields)));
 
+        // Checked before any write so a missing origin can't leave the
+        // other fields half-applied.
+        if (in_array('lead_origin_id', $fields, true)) {
+            $originId = $request->input('lead_origin_id');
+            if ($originId !== null && $originId !== '' && $originId !== false
+                && ! LeadOrigin::whereKey((int) $originId)->exists()) {
+                return __('pages.lead_settings.origins.not_found');
+            }
+        }
+
         foreach ($fields as $field) {
             switch ($field) {
                 case 'category_ids':
@@ -1806,9 +1816,6 @@ class LeadContactController extends AccountBaseController
                     }
                     if ($originId !== null) {
                         $originId = (int) $originId;
-                        if (! LeadOrigin::whereKey($originId)->exists()) {
-                            return __('pages.lead_settings.origins.not_found');
-                        }
                     }
 
                     Lead::whereIn('id', $rowIds)->update(['lead_origin_id' => $originId]);

@@ -18,9 +18,21 @@ interface ListState {
     loaded: boolean;
 }
 
-// Per field + search, kept for the page's lifetime so reopening the modal or
-// clearing a search paints at once.
-const cache = new Map<string, ListState>();
+// Per field + search, so reopening the modal or clearing a search paints at
+// once. Entries expire with the server's OL cache (5 minutes), after which
+// the next open asks again and picks up options added on OL.
+const CACHE_MS = 5 * 60 * 1000;
+const cache = new Map<string, { list: ListState; at: number }>();
+
+function cached(key: string): ListState | undefined {
+    const entry = cache.get(key);
+    if (!entry) return undefined;
+    if (Date.now() - entry.at > CACHE_MS) {
+        cache.delete(key);
+        return undefined;
+    }
+    return entry.list;
+}
 
 const EMPTY: ListState = { items: [], nextPage: 1, loaded: false };
 
@@ -57,7 +69,7 @@ export default function UtmConfigSelect({ field, id, value, placeholder, onChang
     const [search, setSearch] = useState("");
     const [query, setQuery] = useState("");
     const key = `${field}|${query}`;
-    const [list, setList] = useState<ListState>(() => cache.get(key) ?? EMPTY);
+    const [list, setList] = useState<ListState>(() => cached(key) ?? EMPTY);
     const [loading, setLoading] = useState(false);
     const [failed, setFailed] = useState(false);
     const [open, setOpen] = useState(false);
@@ -69,10 +81,22 @@ export default function UtmConfigSelect({ field, id, value, placeholder, onChang
         return () => window.clearTimeout(handle);
     }, [search]);
 
+    // A new search drops any request still running for the previous one.
     useEffect(() => {
-        setList(cache.get(key) ?? EMPTY);
+        request.current++;
+        setLoading(false);
+        setList(cached(key) ?? EMPTY);
         setFailed(false);
     }, [key]);
+
+    // Reopening after the cache window starts again from the first page.
+    useEffect(() => {
+        if (open && list.loaded && !cached(key)) {
+            request.current++;
+            setLoading(false);
+            setList(EMPTY);
+        }
+    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const loadNext = useCallback(() => {
         if (loading || list.nextPage === null) return;
@@ -88,7 +112,7 @@ export default function UtmConfigSelect({ field, id, value, placeholder, onChang
                     nextPage: res.nextPage && res.nextPage > page ? res.nextPage : null,
                     loaded: true,
                 };
-                cache.set(key, next);
+                cache.set(key, { list: next, at: Date.now() });
                 setList(next);
             })
             .catch(() => ticket === request.current && setFailed(true))

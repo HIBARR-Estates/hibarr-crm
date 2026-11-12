@@ -36,7 +36,7 @@ class StoreMarketingLeadRequest extends StoreRequest
             'cell' => 'nullable|string|max:50',
             'office' => 'nullable|string|max:50',
             'company_name' => 'nullable|string|max:255',
-            'website' => ['nullable', 'string', 'max:255', 'url:http,https', 'regex:/^https?:\/\/[^\s\/?#:]+\.[a-z]{2,}(:\d+)?([\/?#]|$)/i'],
+            'website' => ['nullable', 'string', 'max:255', 'url:http,https', 'regex:/^https?:\/\/[^\s\/?#:]+\.(?:[a-z]{2,}|xn--[a-z0-9-]+)(:\d+)?([\/?#]|$)/i'],
             'address' => 'nullable|string|max:1000',
             'city' => 'nullable|string|max:255',
             'state' => 'nullable|string|max:255',
@@ -73,7 +73,12 @@ class StoreMarketingLeadRequest extends StoreRequest
     {
         parent::prepareForValidation();
 
-        $website = trim((string) $this->input('website', ''));
+        $raw = $this->input('website');
+        // Anything but a string is left for the `string` rule to reject.
+        if (! is_string($raw) && $raw !== null) {
+            return;
+        }
+        $website = trim((string) $raw);
         if ($website === '') {
             $this->merge(['website' => null]);
 

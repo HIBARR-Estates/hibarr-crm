@@ -56,6 +56,8 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
     const defaultOwnerId = options?.defaultOwnerId ?? null;
     // Until someone picks an owner for this lead, it follows the settings default.
     const ownerTouchedRef = useRef(false);
+    // Lead source id last filled in from the UTM source; null once the person picks one.
+    const autoSourceRef = useRef<string | null>(null);
     const [stepId, setStepId] = useState<StepId>("contact");
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [formError, setFormError] = useState<string | null>(null);
@@ -122,6 +124,7 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
 
     const reset = useCallback(() => {
         ownerTouchedRef.current = false;
+        autoSourceRef.current = null;
         setDraft(emptyDraft(defaultOwnerId));
         setErrors({});
         setFormError(null);
@@ -139,6 +142,7 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
 
     const setField = useCallback((key: FieldKey, value: string | string[]) => {
         if (key === "lead_owner") ownerTouchedRef.current = true;
+        if (key === "source_id") autoSourceRef.current = null;
         setDraft((prev) => {
             const next = { ...prev, [key]: value } as MarketingLeadDraft;
             if (key === "date_of_birth" || key === "age") {
@@ -147,8 +151,11 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
             return next;
         });
         setErrors((prev) => {
-            if (!(key in prev)) return prev;
-            const { [key]: _removed, ...rest } = prev;
+            // Server errors for UTM fields come back as `utm.<field>`.
+            const keys = [key, `utm.${key}`].filter((k) => k in prev);
+            if (keys.length === 0) return prev;
+            const rest = { ...prev };
+            keys.forEach((k) => delete rest[k]);
             return rest;
         });
     }, []);
@@ -215,7 +222,8 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
         onClose();
     };
 
-    const canSave = draft.client_name.trim() !== "" && !saving;
+    // Waits for the options so the default owner is in the draft before a save.
+    const canSave = draft.client_name.trim() !== "" && !saving && !loading;
     const name = draft.client_name.trim();
 
     const field = (key: FieldKey, label: string, control: ReactNode, opts: { span?: 2 | 3; required?: boolean } = {}) => (
@@ -442,15 +450,18 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
                                     placeholder={t("pages.marketing_leads.choose")}
                                     onChange={(next, option) => {
                                         setField(key, next);
-                                        // A source linked to a CRM lead source fills Lead source when it's empty.
-                                        const linked = option?.leadSourceId;
-                                        if (
-                                            key === "utm_source" &&
-                                            linked != null &&
-                                            !draft.source_id &&
-                                            options.sources.some((source) => source.id === linked)
-                                        ) {
-                                            setField("source_id", String(linked));
+                                        if (key !== "utm_source") return;
+                                        // A UTM source linked to a CRM lead source fills Lead source,
+                                        // unless the person picked one themselves.
+                                        const linkedId = option?.leadSourceId;
+                                        const linked =
+                                            linkedId != null && options.sources.some((source) => source.id === linkedId)
+                                                ? String(linkedId)
+                                                : null;
+                                        const auto = autoSourceRef.current;
+                                        if (!draft.source_id || draft.source_id === auto) {
+                                            if (linked !== null || auto !== null) setField("source_id", linked ?? "");
+                                            autoSourceRef.current = linked;
                                         }
                                     }}
                                 />

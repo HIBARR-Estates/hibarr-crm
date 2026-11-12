@@ -6,6 +6,11 @@ import type { MarketingLeadOptions } from "./types";
 let cached: MarketingLeadOptions | null = null;
 let inflight: Promise<MarketingLeadOptions> | null = null;
 
+/** Drops the cached options, e.g. after Lead settings change the default owner. */
+export function invalidateMarketingLeadOptions(): void {
+    cached = null;
+}
+
 function load(): Promise<MarketingLeadOptions> {
     if (cached) return Promise.resolve(cached);
     inflight ??= axios

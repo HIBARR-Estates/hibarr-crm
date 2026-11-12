@@ -7,6 +7,7 @@ import SearchableSelect from "@/Components/Redesign/primitives/SearchableSelect"
 import { REDESIGN_TOKENS as T, REDESIGN_TYPE } from "@/Components/Redesign/tokens";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
+import { invalidateMarketingLeadOptions } from "@/Features/Leads/MarketingIntake/useMarketingLeadOptions";
 import type { LeadOriginRow, MarketingIntakeSettings } from "./types";
 
 /**
@@ -60,6 +61,7 @@ export default function MarketingIntakeTab({
                 { department_ids: departmentIds, origin_id: originId, owner_id: ownerId },
                 { headers: { Accept: "application/json" } },
             );
+            invalidateMarketingLeadOptions();
             onSaved(res.data.marketingIntake);
             message.success(t("messages.updateSuccess"));
         } catch (error) {
