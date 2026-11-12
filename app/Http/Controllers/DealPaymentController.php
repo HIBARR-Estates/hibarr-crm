@@ -130,6 +130,34 @@ class DealPaymentController extends AccountBaseController
         ]);
     }
 
+    /**
+     * Replaces an expired checkout link: the open request is cancelled, then
+     * a new one is created in the same currency from the deal's current value.
+     */
+    public function retry(Deal $deal, Payment $payment): JsonResponse
+    {
+        $this->assertFeatureEnabled();
+        if ($deal->isLocked()) {
+            abort_403(true);
+        }
+        $this->assertCanCancelPaymentRequest($deal);
+        abort_unless((int) $payment->deal_id === (int) $deal->id, 404);
+
+        try {
+            $data = $this->dealPaymentService->reissueExpired($deal, $payment, user());
+        } catch (HttpException $e) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => $e->getMessage(),
+            ], $e->getStatusCode());
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $data,
+        ]);
+    }
+
     public function document(Deal $deal, Payment $payment, string $kind)
     {
         $this->assertFeatureEnabled();

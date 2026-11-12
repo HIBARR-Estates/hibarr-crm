@@ -306,6 +306,61 @@ class DealPaymentService
     }
 
     /**
+     * Cancels an expired checkout link when it is still the deal's open
+     * request, then issues a new one in the same currency (and provider, when
+     * the original named one). The amount is the deal's current value.
+     *
+     * @return array<string, mixed>
+     */
+    public function reissueExpired(Deal $deal, Payment $payment, User $user): array
+    {
+        if ((int) $payment->deal_id !== (int) $deal->id || blank($payment->external_reference)) {
+            throw new NotFoundHttpException('No payment request found for this deal.');
+        }
+
+        if (!$this->linkHasExpired($payment)) {
+            throw new HttpException(409, 'This checkout link has not expired.');
+        }
+
+        $active = $this->findActiveRequest($deal);
+        if ($active !== null && (int) $active->id !== (int) $payment->id) {
+            throw new HttpException(409, 'Another payment request is still open for this deal.');
+        }
+
+        if ($active !== null && self::uiStateOf($payment) === 'pending_payment') {
+            $this->invalidatePending($deal, $user, 'Checkout link expired');
+        }
+
+        $payment->loadMissing('currency');
+        $currency = strtoupper(trim((string) ($payment->currency?->currency_code ?? '')));
+        if ($currency === '') {
+            throw new HttpException(422, 'This payment request has no currency to reissue.');
+        }
+
+        $provider = in_array($payment->gateway, ['manual-bank-transfer', 'nowpayments'], true)
+            ? $payment->gateway
+            : null;
+
+        return $this->createForDeal($deal, $user, array_filter([
+            'currency' => $currency,
+            'provider_key' => $provider,
+        ]));
+    }
+
+    private function linkHasExpired(Payment $payment): bool
+    {
+        if (strtolower((string) $payment->ol_status) === 'expired') {
+            return true;
+        }
+
+        if ($payment->expires_at === null || $payment->expires_at->isFuture()) {
+            return false;
+        }
+
+        return in_array(self::uiStateOf($payment), ['pending_payment', 'failed'], true);
+    }
+
+    /**
      * The deal's active request, or null. "Active" is anything not failed,
      * expired or invalidated — including confirmed/paid ones, which is what
      * stops a second request being issued for an already-paid deal.

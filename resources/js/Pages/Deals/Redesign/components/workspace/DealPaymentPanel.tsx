@@ -5,6 +5,8 @@ import useTranslation from "@/Hooks/useTranslation";
 import useDealPayment from "../../hooks/useDealPayment";
 import {
     canCancelPaymentRequest,
+    hasActiveCheckoutLink,
+    isCheckoutLinkExpired,
     isTerminalPaymentState,
 } from "../../adapters/mapDealPaymentUiState";
 import {
@@ -16,8 +18,11 @@ import { REDESIGN_RADIUS, REDESIGN_TOKENS as T, REDESIGN_TYPE } from "@/Componen
 import Badge from "@/Components/Redesign/primitives/Badge";
 import Button from "@/Components/Redesign/primitives/Button";
 import SectionLabel from "@/Components/Redesign/primitives/SectionLabel";
+import CheckoutLinkActions from "@/Components/Redesign/primitives/CheckoutLinkActions";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
-import PaymentRequestDetailModal from "@/Components/Redesign/payment/PaymentRequestDetailModal";
+import PaymentRequestDetailModal, {
+    type PaymentRequestDetail,
+} from "@/Components/Redesign/payment/PaymentRequestDetailModal";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import type { DealPaymentRequest } from "@/Types/api/deal-payment";
 import DealPaymentCreateModal from "./DealPaymentCreateModal";
@@ -26,6 +31,31 @@ interface DealPaymentPanelProps {
     deal: Deal;
     canCreatePaymentRequest: boolean;
     canConfirmPaymentTransfer: boolean;
+}
+
+function detailFromDeal(request: DealPaymentRequest, deal: Deal): PaymentRequestDetail {
+    const agent = deal.lead_agent ?? deal.agent;
+    let dealUrl = "";
+    try {
+        dealUrl = route("deals.show", deal.id);
+    } catch {
+        dealUrl = "";
+    }
+
+    return {
+        ...request,
+        deal: {
+            id: deal.id,
+            name: deal.name,
+            url: dealUrl,
+        },
+        deal_value: deal.value != null ? Number(deal.value) : null,
+        lead_id: deal.contact?.id ?? deal.lead_id ?? null,
+        lead_name: deal.contact?.client_name ?? null,
+        lead_company: deal.contact?.company_name ?? null,
+        agent_name: agent?.user?.name ?? agent?.name ?? null,
+        agent_user_id: agent?.user?.id ?? agent?.user_id ?? null,
+    };
 }
 
 function requestMoney(request: DealPaymentRequest): string {
@@ -54,15 +84,18 @@ export default function DealPaymentPanel({
         paymentRequestLoading,
         confirmTransfer,
         cancelRequest,
+        retryRequest,
         refreshStatus,
         confirming,
         cancelling,
+        retrying,
         refreshing,
     } = useDealPayment(deal.id);
 
     const [createOpen, setCreateOpen] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [cancelOpen, setCancelOpen] = useState(false);
+    const [retryTarget, setRetryTarget] = useState<DealPaymentRequest | null>(null);
     const [selectedId, setSelectedId] = useState<number | null>(null);
 
     const { newestFirst, sequence, total } = useMemo(() => {
@@ -80,6 +113,12 @@ export default function DealPaymentPanel({
     }, [paymentRequests]);
 
     const selected = newestFirst.find((request) => request.id === selectedId) ?? null;
+    const canReplace = canCreatePaymentRequest || canConfirmPaymentTransfer;
+    const newestExpired = newestFirst.find((request) => isCheckoutLinkExpired(request));
+    const canRetry = (request: DealPaymentRequest) =>
+        canReplace
+        && newestExpired?.id === request.id
+        && (paymentRequest == null || paymentRequest.id === request.id);
     const selectedIsActive = selected != null && selected.id === paymentRequest?.id;
     const showRefresh = paymentRequest != null && !isTerminalPaymentState(paymentRequest.ui_state);
 
@@ -139,21 +178,26 @@ export default function DealPaymentPanel({
                             const when = request.created_at
                                 ? formatCompanyDateTime(request.created_at)
                                 : null;
+                            const expired = isCheckoutLinkExpired(request);
+                            const activeLink = hasActiveCheckoutLink(request);
                             return (
                                 <li key={request.id}>
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedId(request.id)}
-                                        className="flex w-full cursor-pointer items-center gap-2.5 text-left"
+                                    <div
+                                        className="flex w-full items-center gap-2.5"
                                         style={{
                                             padding: "10px 12px",
                                             background: T.SURFACE,
                                             border: `1px solid ${active ? T.BLUE : T.BORDER}`,
                                             borderRadius: REDESIGN_RADIUS.MD,
                                             boxShadow: active ? `inset 3px 0 0 ${T.BLUE}` : undefined,
-                                            fontFamily: "inherit",
                                         }}
                                     >
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedId(request.id)}
+                                            className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-left"
+                                            style={{ fontFamily: "inherit", background: "transparent", border: 0, padding: 0 }}
+                                        >
                                         <span
                                             style={{
                                                 flex: "0 0 auto",
@@ -197,10 +241,25 @@ export default function DealPaymentPanel({
                                                 </span>
                                             )}
                                         </span>
-                                        <Badge variant={paymentUiStateBadgeVariant(request.ui_state)}>
-                                            {td(paymentUiStateLabel(request.ui_state))}
+                                        <Badge variant={expired ? "red" : paymentUiStateBadgeVariant(request.ui_state)}>
+                                            {expired
+                                                ? t("pages.deals.payment_request.link_expired")
+                                                : td(paymentUiStateLabel(request.ui_state))}
                                         </Badge>
-                                    </button>
+                                        </button>
+                                        {(activeLink || canRetry(request)) && (
+                                            <span className="flex shrink-0 items-center gap-1">
+                                                {activeLink && request.checkout_url && (
+                                                    <CheckoutLinkActions url={request.checkout_url} compact size="sm" />
+                                                )}
+                                                {canRetry(request) && (
+                                                    <Button size="sm" variant="primary" onClick={() => setRetryTarget(request)}>
+                                                        {t("pages.deals.payment_request.retry_action")}
+                                                    </Button>
+                                                )}
+                                            </span>
+                                        )}
+                                    </div>
                                 </li>
                             );
                         })}
@@ -209,7 +268,7 @@ export default function DealPaymentPanel({
             )}
 
             <PaymentRequestDetailModal
-                request={selected}
+                request={selected ? detailFromDeal(selected, deal) : null}
                 sequence={selected ? sequence.get(selected.id) : null}
                 sequenceTotal={total}
                 open={selected != null}
@@ -227,6 +286,7 @@ export default function DealPaymentPanel({
                         ? () => setConfirmOpen(true)
                         : undefined
                 }
+                onRetry={selected && canRetry(selected) ? () => setRetryTarget(selected) : undefined}
             />
 
             <DealPaymentCreateModal
@@ -251,6 +311,26 @@ export default function DealPaymentPanel({
                     });
                 }}
                 onCancel={() => setConfirmOpen(false)}
+            />
+
+            <ConfirmDialog
+                open={retryTarget != null}
+                zIndex={1400}
+                title={t("pages.deals.payment_request.retry_title")}
+                message={t("pages.deals.payment_request.retry_message")}
+                confirmLabel={t("pages.deals.payment_request.retry_confirm")}
+                cancelLabel={t("pages.deals.payment_request.cancel")}
+                confirmLoading={retrying}
+                onConfirm={() => {
+                    if (!retryTarget) return;
+                    void retryRequest(retryTarget.id).then((result) => {
+                        if (result.ok) {
+                            setRetryTarget(null);
+                            setSelectedId(null);
+                        }
+                    });
+                }}
+                onCancel={() => setRetryTarget(null)}
             />
 
             <ConfirmDialog

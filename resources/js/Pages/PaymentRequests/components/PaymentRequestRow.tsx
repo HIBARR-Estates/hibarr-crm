@@ -5,10 +5,15 @@ import Badge from "@/Components/Redesign/primitives/Badge";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { REDESIGN_TOKENS as T, REDESIGN_TYPE } from "@/Components/Redesign/tokens";
+import CheckoutLinkActions from "@/Components/Redesign/primitives/CheckoutLinkActions";
 import {
     paymentUiStateBadgeVariant,
     paymentUiStateLabel,
 } from "@/Components/Redesign/adapters/dealPaymentUiState";
+import {
+    hasActiveCheckoutLink,
+    isCheckoutLinkExpired,
+} from "@/Pages/Deals/Redesign/adapters/mapDealPaymentUiState";
 import { formatMoneyAmount, type CurrencyDisplay } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import type { DealPaymentRequest } from "@/Types/api/deal-payment";
 
@@ -17,6 +22,7 @@ export interface PaymentRequestListRow extends DealPaymentRequest {
     /** The deal's value now, in company currency. */
     deal_value: number | null;
     agent_name: string | null;
+    agent_user_id: number | null;
     lead_id: number | null;
     lead_name: string | null;
     lead_company: string | null;
@@ -39,6 +45,7 @@ interface PaymentRequestRowProps {
     companyCurrency: CurrencyDisplay;
     onConfirm: () => void;
     onOpen: () => void;
+    onRetry: () => void;
 }
 
 function invoiceHref(row: PaymentRequestListRow): string | null {
@@ -66,13 +73,14 @@ const nameLinkClass = "text-sm text-dr-text no-underline hover:text-dr-blue";
 
 /**
  * One payment request. The row opens the request; the deal and lead names
- * go to those records. Confirm and the invoice are the only row actions.
+ * go to those records. Row actions are the invoice, confirm, a live checkout's share and copy, and retry when the link has expired.
  */
 export default function PaymentRequestRow({
     row,
     companyCurrency,
     onConfirm,
     onOpen,
+    onRetry,
 }: PaymentRequestRowProps) {
     const { t } = useTranslation();
     const { td } = useTd();
@@ -84,6 +92,8 @@ export default function PaymentRequestRow({
     const leadLabel = [row.lead_name, row.lead_company].filter(Boolean).join(" · ");
     const leadUrl = row.lead_id && leadLabel ? leadHref(row.lead_id) : null;
     const invoiceUrl = invoiceHref(row);
+    const linkExpired = isCheckoutLinkExpired(row);
+    const activeLink = hasActiveCheckoutLink(row);
     const foreignCurrency = Boolean(
         row.rate != null && row.base_currency && row.currency && row.base_currency !== row.currency,
     );
@@ -112,20 +122,6 @@ export default function PaymentRequestRow({
                     </Link>
                 ) : (
                     <span className="text-sm text-dr-text-hint">—</span>
-                )}
-                {row.payment_id && (
-                    <div
-                        style={{
-                            marginTop: 4,
-                            fontSize: REDESIGN_TYPE.CAPTION,
-                            color: T.TEXT_MUTED,
-                            fontVariantNumeric: "tabular-nums",
-                            overflowWrap: "anywhere",
-                            lineHeight: 1.4,
-                        }}
-                    >
-                        {`${t("pages.payment_requests.detail_reference")} · ${row.payment_id}`}
-                    </div>
                 )}
                 {row.deal_value != null && (
                     <div
@@ -200,11 +196,27 @@ export default function PaymentRequestRow({
 
             <div style={{ minWidth: 0 }}>
                 <Badge
-                    variant={paymentUiStateBadgeVariant(row.ui_state)}
+                    variant={linkExpired ? "red" : paymentUiStateBadgeVariant(row.ui_state)}
                     style={{ whiteSpace: "normal" }}
                 >
-                    {td(paymentUiStateLabel(row.ui_state), { source: "en" })}
+                    {linkExpired
+                        ? t("pages.deals.payment_request.link_expired")
+                        : td(paymentUiStateLabel(row.ui_state), { source: "en" })}
                 </Badge>
+                {row.payment_id && (
+                    <div
+                        style={{
+                            marginTop: 6,
+                            fontSize: REDESIGN_TYPE.CAPTION,
+                            color: T.TEXT_MUTED,
+                            fontVariantNumeric: "tabular-nums",
+                            overflowWrap: "anywhere",
+                            lineHeight: 1.4,
+                        }}
+                    >
+                        {`#${row.payment_id}`}
+                    </div>
+                )}
             </div>
 
             <div
@@ -223,6 +235,14 @@ export default function PaymentRequestRow({
                 ) : (
                     <Button variant="ghost" size="sm" disabled icon={<Icon name="download" size={14} />}>
                         {t("pages.payment_requests.action_invoice")}
+                    </Button>
+                )}
+                {activeLink && row.checkout_url && (
+                    <CheckoutLinkActions url={row.checkout_url} compact size="sm" />
+                )}
+                {linkExpired && (
+                    <Button variant="primary" size="sm" onClick={onRetry}>
+                        {t("pages.deals.payment_request.retry_action")}
                     </Button>
                 )}
                 {row.can_confirm && (

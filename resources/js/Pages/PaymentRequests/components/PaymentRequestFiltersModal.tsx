@@ -1,23 +1,38 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Modal } from "antd";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { paymentUiStateLabel } from "@/Components/Redesign/adapters/dealPaymentUiState";
-import { DatePresets, fmt } from "@/Features/Filters/controls";
+import { CheckList, DatePresets, PillGroup, fmt } from "@/Features/Filters/controls";
 import "@/Features/Filters/entity-filter-modal.css";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 import type { DealPaymentUiState } from "@/Types/api/deal-payment";
+
+export interface PaymentRequestFilterOption {
+    value: number;
+    label: string;
+}
+
+export interface PaymentRequestFilterOptions {
+    leads: PaymentRequestFilterOption[];
+    agents: PaymentRequestFilterOption[];
+    currencies: PaymentRequestFilterOption[];
+}
 
 export interface PaymentRequestSlice {
     uiState: string;
     dateFrom: string;
     dateTo: string;
+    leadIds: number[];
+    agentIds: number[];
+    currencyIds: number[];
 }
 
 interface PaymentRequestFiltersModalProps {
     open: boolean;
     value: PaymentRequestSlice;
     counts?: Partial<Record<"all" | DealPaymentUiState, number>>;
+    options?: PaymentRequestFilterOptions;
     onClose: () => void;
     onApply: (next: PaymentRequestSlice) => void;
 }
@@ -32,9 +47,29 @@ const UI_STATES: DealPaymentUiState[] = [
     "invalidated",
 ];
 
-const SECTIONS = ["status", "dates"] as const;
+const SECTIONS = ["status", "dates", "lead", "agent", "currency"] as const;
 
-const EMPTY: PaymentRequestSlice = { uiState: "", dateFrom: "", dateTo: "" };
+function selectionChip(
+    key: string,
+    ids: number[],
+    choices: PaymentRequestFilterOption[] | undefined,
+    clear: () => void,
+): { key: string; label: string; clear: () => void } | null {
+    if (ids.length === 0) return null;
+    const labels = ids.map(
+        (id) => choices?.find((choice) => choice.value === id)?.label ?? `#${id}`,
+    );
+    return { key, label: labels.join(", "), clear };
+}
+
+const EMPTY: PaymentRequestSlice = {
+    uiState: "",
+    dateFrom: "",
+    dateTo: "",
+    leadIds: [],
+    agentIds: [],
+    currencyIds: [],
+};
 
 /**
  * Same workbench as the lead and deal filter modals: a section rail, the
@@ -45,6 +80,7 @@ export default function PaymentRequestFiltersModal({
     open,
     value,
     counts,
+    options,
     onClose,
     onApply,
 }: PaymentRequestFiltersModalProps) {
@@ -83,11 +119,23 @@ export default function PaymentRequestFiltersModal({
                   clear: () => setDraft((prev) => ({ ...prev, dateFrom: "", dateTo: "" })),
               }
             : null,
+        selectionChip("lead", draft.leadIds, options?.leads, () =>
+            setDraft((prev) => ({ ...prev, leadIds: [] })),
+        ),
+        selectionChip("agent", draft.agentIds, options?.agents, () =>
+            setDraft((prev) => ({ ...prev, agentIds: [] })),
+        ),
+        selectionChip("currency", draft.currencyIds, options?.currencies, () =>
+            setDraft((prev) => ({ ...prev, currencyIds: [] })),
+        ),
     ].filter((chip): chip is { key: string; label: string; clear: () => void } => chip != null);
 
     const sectionCount = {
         status: draft.uiState ? 1 : 0,
         dates: draft.dateFrom || draft.dateTo ? 1 : 0,
+        lead: draft.leadIds.length,
+        agent: draft.agentIds.length,
+        currency: draft.currencyIds.length,
     };
 
     const apply = () => {
@@ -100,7 +148,18 @@ export default function PaymentRequestFiltersModal({
             uiState: draft.uiState,
             dateFrom: from,
             dateTo: to,
+            leadIds: draft.leadIds,
+            agentIds: draft.agentIds,
+            currencyIds: draft.currencyIds,
         });
+    };
+
+    const sectionLabel = (section: (typeof SECTIONS)[number]) => {
+        if (section === "status") return t("pages.payment_requests.col_status");
+        if (section === "dates") return t("pages.payment_requests.filter_dates");
+        if (section === "lead") return t("pages.payment_requests.detail_lead");
+        if (section === "agent") return t("pages.payment_requests.detail_agent");
+        return t("pages.payment_requests.filter_currency");
     };
 
     return (
@@ -114,7 +173,7 @@ export default function PaymentRequestFiltersModal({
             destroyOnClose
             className="lfm-modal"
         >
-            <div className="lfm" style={{ height: "auto", minHeight: 380 }}>
+            <div className="lfm">
                 <header className="lfm-header">
                     <div>
                         <h2 className="lfm-header__title">{t("pages.payment_requests.filters_title")}</h2>
@@ -149,11 +208,7 @@ export default function PaymentRequestFiltersModal({
                                         ?.scrollIntoView({ behavior: "smooth", block: "start" });
                                 }}
                             >
-                                <span>
-                                    {section === "status"
-                                        ? t("pages.payment_requests.col_status")
-                                        : t("pages.payment_requests.filter_dates")}
-                                </span>
+                                <span>{sectionLabel(section)}</span>
                                 {sectionCount[section] > 0 && (
                                     <span className="lfm-rail__badge">{sectionCount[section]}</span>
                                 )}
@@ -206,6 +261,56 @@ export default function PaymentRequestFiltersModal({
                                 }
                             />
                         </section>
+
+                        <OptionSection
+                            id="lead"
+                            title={t("pages.payment_requests.detail_lead")}
+                            choices={options?.leads}
+                            emptyLabel={t("pages.payment_requests.filter_none")}
+                            loadingLabel={t("pages.payment_requests.filter_loading")}
+                        >
+                            <CheckList
+                                options={options?.leads ?? []}
+                                value={draft.leadIds}
+                                onChange={(leadIds) =>
+                                    setDraft((prev) => ({ ...prev, leadIds: leadIds.map(Number) }))
+                                }
+                                searchPlaceholder={t("pages.payment_requests.filter_search_leads")}
+                            />
+                        </OptionSection>
+
+                        <OptionSection
+                            id="agent"
+                            title={t("pages.payment_requests.detail_agent")}
+                            choices={options?.agents}
+                            emptyLabel={t("pages.payment_requests.filter_none")}
+                            loadingLabel={t("pages.payment_requests.filter_loading")}
+                        >
+                            <CheckList
+                                options={options?.agents ?? []}
+                                value={draft.agentIds}
+                                onChange={(agentIds) =>
+                                    setDraft((prev) => ({ ...prev, agentIds: agentIds.map(Number) }))
+                                }
+                                searchPlaceholder={t("pages.payment_requests.filter_search_agents")}
+                            />
+                        </OptionSection>
+
+                        <OptionSection
+                            id="currency"
+                            title={t("pages.payment_requests.filter_currency")}
+                            choices={options?.currencies}
+                            emptyLabel={t("pages.payment_requests.filter_none")}
+                            loadingLabel={t("pages.payment_requests.filter_loading")}
+                        >
+                            <PillGroup
+                                options={options?.currencies ?? []}
+                                value={draft.currencyIds}
+                                onChange={(currencyIds) =>
+                                    setDraft((prev) => ({ ...prev, currencyIds: currencyIds.map(Number) }))
+                                }
+                            />
+                        </OptionSection>
                     </div>
                 </div>
 
@@ -238,5 +343,35 @@ export default function PaymentRequestFiltersModal({
                 </footer>
             </div>
         </Modal>
+    );
+}
+
+function OptionSection({
+    id,
+    title,
+    choices,
+    emptyLabel,
+    loadingLabel,
+    children,
+}: {
+    id: string;
+    title: string;
+    choices?: PaymentRequestFilterOption[];
+    emptyLabel: string;
+    loadingLabel: string;
+    children: ReactNode;
+}) {
+    return (
+        <section data-section={id} className="lfm-section">
+            <div className="lfm-divider" />
+            <h3 className="lfm-section__title">{title}</h3>
+            {choices == null ? (
+                <div className="lfm-loading">{loadingLabel}</div>
+            ) : choices.length === 0 ? (
+                <div className="lfm-empty">{emptyLabel}</div>
+            ) : (
+                children
+            )}
+        </section>
     );
 }

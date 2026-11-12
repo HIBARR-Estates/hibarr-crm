@@ -72,6 +72,7 @@ class PaymentRequestListTest extends TestCase
         $response->assertJsonPath('props.paymentRequests.total', 2);
         $response->assertJsonPath('props.paymentRequests.data.0.deal.name', 'Test Deal');
         $response->assertJsonPath('props.paymentRequests.data.0.agent_name', 'Agent Smith');
+        $response->assertJsonPath('props.paymentRequests.data.0.agent_user_id', $this->agentUserId);
         $response->assertJsonPath('props.paymentRequests.data.0.lead_name', 'Ada Lovelace');
     }
 
@@ -273,6 +274,99 @@ class PaymentRequestListTest extends TestCase
         $response->assertJsonPath('props.paymentRequests.data.0.payment_id', '710');
         $response->assertJsonPath('props.paymentRequests.data.0.lead_name', 'Bob Stone');
         $response->assertJsonPath('props.filters.search', 'Bob');
+    }
+
+    public function test_index_filters_by_lead_agent_and_currency(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        DB::table('currencies')->insert([
+            'id' => 6,
+            'company_id' => $this->companyId,
+            'currency_code' => 'USD',
+            'currency_symbol' => '$',
+            'exchange_rate' => 1.1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('users')->insert([
+            'id' => 21,
+            'company_id' => $this->companyId,
+            'name' => 'Priya Shah',
+            'email' => 'priya@example.com',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('lead_agents')->insert([
+            'id' => 21,
+            'company_id' => $this->companyId,
+            'user_id' => 21,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('leads')->insert([
+            'id' => 4,
+            'company_id' => $this->companyId,
+            'client_name' => 'Bob Stone',
+            'company_name' => 'Stone Co',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('deals')->insert([
+            'id' => 11,
+            'company_id' => $this->companyId,
+            'currency_id' => 6,
+            'agent_id' => 21,
+            'lead_id' => 4,
+            'name' => 'Bob Deal',
+            'value' => 800,
+            'added_by' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->insertPayment([
+            'external_reference' => '720',
+            'ol_status' => 'pending',
+            'deal_id' => 11,
+            'currency_id' => 6,
+            'base_amount' => 800,
+        ]);
+        $this->insertPayment([
+            'external_reference' => '721',
+            'ol_status' => 'pending',
+            'base_amount' => 2500,
+        ]);
+
+        $lead = $this->withHeaders(['X-Inertia' => 'true'])->get('/account/payment-requests?lead_id=4');
+        $lead->assertOk();
+        $lead->assertJsonCount(1, 'props.paymentRequests.data');
+        $lead->assertJsonPath('props.paymentRequests.data.0.payment_id', '720');
+        $lead->assertJsonPath('props.filters.lead_id.0', 4);
+
+        $agent = $this->withHeaders(['X-Inertia' => 'true'])->get('/account/payment-requests?agent_id=7');
+        $agent->assertOk();
+        $agent->assertJsonCount(1, 'props.paymentRequests.data');
+        $agent->assertJsonPath('props.paymentRequests.data.0.payment_id', '721');
+
+        $currency = $this->withHeaders(['X-Inertia' => 'true'])->get('/account/payment-requests?currency_id=6');
+        $currency->assertOk();
+        $currency->assertJsonCount(1, 'props.paymentRequests.data');
+        $currency->assertJsonPath('props.paymentRequests.data.0.payment_id', '720');
+
+        $slice = $this->withHeaders([
+            'X-Inertia' => 'true',
+            'X-Inertia-Partial-Component' => 'PaymentRequests/Index',
+            'X-Inertia-Partial-Data' => 'stats,filterOptions',
+        ])->get('/account/payment-requests?lead_id=4');
+        $slice->assertOk();
+        $this->assertSame(1, $slice->json('props.stats.count'));
+
+        $options = $slice->json('props.filterOptions');
+        $this->assertEqualsCanonicalizing([3, 4], array_column($options['leads'], 'value'));
+        $this->assertEqualsCanonicalizing([7, 21], array_column($options['agents'], 'value'));
+        $this->assertEqualsCanonicalizing([5, 6], array_column($options['currencies'], 'value'));
     }
 
     public function test_index_search_matches_deal_agent_and_reference(): void

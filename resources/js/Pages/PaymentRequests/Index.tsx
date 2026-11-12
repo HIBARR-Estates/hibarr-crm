@@ -15,7 +15,10 @@ import Pagination from "@/Components/Redesign/primitives/Pagination";
 import PaymentRequestDetailModal from "@/Components/Redesign/payment/PaymentRequestDetailModal";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { paymentUiStateLabel } from "@/Components/Redesign/adapters/dealPaymentUiState";
-import { canCancelPaymentRequest } from "@/Pages/Deals/Redesign/adapters/mapDealPaymentUiState";
+import {
+    canCancelPaymentRequest,
+    isCheckoutLinkExpired,
+} from "@/Pages/Deals/Redesign/adapters/mapDealPaymentUiState";
 import { formatMoneyAmount, useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -23,6 +26,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 import type { DealPaymentRequest, DealPaymentUiState } from "@/Types/api/deal-payment";
 import PaymentRequestFiltersModal, {
+    type PaymentRequestFilterOptions,
     type PaymentRequestSlice,
 } from "./components/PaymentRequestFiltersModal";
 import PaymentRequestRow, {
@@ -49,6 +53,9 @@ interface ListFilters {
     date_from?: string | null;
     date_to?: string | null;
     search?: string | null;
+    lead_id?: number[] | null;
+    agent_id?: number[] | null;
+    currency_id?: number[] | null;
 }
 
 type StatusTab = "" | DealPaymentUiState;
@@ -59,8 +66,10 @@ interface IndexProps extends PageProps {
     filters: ListFilters;
     /** Deferred: absent on first paint, filled in right after. */
     counts?: Partial<Record<"all" | DealPaymentUiState, number>>;
-    /** Deferred with the counts. Totals for the date range and search, not the status tab. */
+    /** Deferred with the counts. Totals for the date range, search, lead, agent, and currency — not the status tab. */
     stats?: PaymentRequestStats;
+    /** Deferred. Leads, agents, and currencies that appear on a payment request. */
+    filterOptions?: PaymentRequestFilterOptions;
 }
 
 function apiErrorMessage(error: unknown, fallback: string): string {
@@ -165,10 +174,11 @@ function StatCardSkeleton({ label }: { label: string }) {
 
 /**
  * Deal payment requests across the company. Status and date live in the
- * filter workbench. Lead search sits on the toolbar, and together with the
- * date range it narrows the accountant totals. Status narrows only the list.
+ * filter workbench, with the lead, agent, and currency. Search sits on the
+ * toolbar. The date range, search, lead, agent, and currency narrow the
+ * accountant totals. Status narrows only the list.
  */
-const Index = ({ paymentRequests, filters, counts, stats }: IndexProps) => {
+const Index = ({ paymentRequests, filters, counts, stats, filterOptions }: IndexProps) => {
     const { t } = useTranslation();
     const { td } = useTd();
     const { message } = App.useApp();
@@ -182,6 +192,8 @@ const Index = ({ paymentRequests, filters, counts, stats }: IndexProps) => {
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [cancelOpen, setCancelOpen] = useState(false);
     const [cancelling, setCancelling] = useState(false);
+    const [retryingRow, setRetryingRow] = useState<PaymentRequestListRow | null>(null);
+    const [retrying, setRetrying] = useState(false);
 
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState(filters.search ?? "");
@@ -189,7 +201,12 @@ const Index = ({ paymentRequests, filters, counts, stats }: IndexProps) => {
     const activeTab = (filters.ui_state ?? "") as StatusTab;
     const selected = rows.find((row) => row.id === selectedId) ?? null;
     const searchFromServer = filters.search ?? "";
-    const hasSlice = Boolean(activeTab || filters.date_from || filters.date_to);
+    const leadIds = filters.lead_id ?? [];
+    const agentIds = filters.agent_id ?? [];
+    const currencyIds = filters.currency_id ?? [];
+    const hasSlice = Boolean(
+        activeTab || filters.date_from || filters.date_to || leadIds.length || agentIds.length || currencyIds.length,
+    );
     const listFiltered = Boolean(hasSlice || searchFromServer);
 
     const searchField = useRef(false);
@@ -203,6 +220,9 @@ const Index = ({ paymentRequests, filters, counts, stats }: IndexProps) => {
                 date_from: filters.date_from || undefined,
                 date_to: filters.date_to || undefined,
                 search: filters.search || undefined,
+                lead_id: leadIds.length ? leadIds : undefined,
+                agent_id: agentIds.length ? agentIds : undefined,
+                currency_id: currencyIds.length ? currencyIds : undefined,
                 per_page: paymentRequests.per_page,
                 ...params,
             },
@@ -238,11 +258,15 @@ const Index = ({ paymentRequests, filters, counts, stats }: IndexProps) => {
             ui_state: next.uiState || undefined,
             date_from: next.dateFrom || undefined,
             date_to: next.dateTo || undefined,
+            lead_id: next.leadIds.length ? next.leadIds : undefined,
+            agent_id: next.agentIds.length ? next.agentIds : undefined,
+            currency_id: next.currencyIds.length ? next.currencyIds : undefined,
             page: 1,
         });
     };
 
-    const clearSlice = () => applySlice({ uiState: "", dateFrom: "", dateTo: "" });
+    const clearSlice = () =>
+        applySlice({ uiState: "", dateFrom: "", dateTo: "", leadIds: [], agentIds: [], currencyIds: [] });
 
     const { refresh, isRefreshing } = usePageRefresh({
         onRefresh: () =>
@@ -304,12 +328,53 @@ const Index = ({ paymentRequests, filters, counts, stats }: IndexProps) => {
         }
     };
 
+    const handleRetry = async () => {
+        if (!retryingRow) return;
+        setRetrying(true);
+        try {
+            const response = await axios.post(
+                route("deals.payment-requests.retry", {
+                    deal: retryingRow.deal_id,
+                    payment: retryingRow.id,
+                }),
+            );
+            if (response.data?.status === "success") {
+                message.success(t("pages.deals.payment_request.retry_toast"));
+                setRetryingRow(null);
+                setSelectedId(null);
+                visit({ page: 1 });
+            } else {
+                message.error(response.data?.message ?? t("pages.deals.payment_request.retry_failed"));
+            }
+        } catch (error) {
+            message.error(apiErrorMessage(error, t("pages.deals.payment_request.retry_failed")));
+        } finally {
+            setRetrying(false);
+        }
+    };
+
     const statusLabel = activeTab
         ? td(paymentUiStateLabel(activeTab), { source: "en" })
         : null;
 
+    const selectionNote = (
+        ids: number[],
+        choices: { value: number; label: string }[] | undefined,
+        countKey: string,
+    ) => {
+        if (ids.length === 0) return null;
+        if (ids.length === 1) {
+            return choices?.find((choice) => choice.value === ids[0])?.label ?? `#${ids[0]}`;
+        }
+        return t(countKey, { count: ids.length });
+    };
+
     const sliceCount =
-        (activeTab ? 1 : 0) + (filters.date_from || filters.date_to ? 1 : 0);
+        (activeTab ? 1 : 0)
+        + (filters.date_from || filters.date_to ? 1 : 0)
+        + (leadIds.length ? 1 : 0)
+        + (agentIds.length ? 1 : 0)
+        + (currencyIds.length ? 1 : 0);
 
     const sliceSentence = [
         statusLabel,
@@ -319,6 +384,9 @@ const Index = ({ paymentRequests, filters, counts, stats }: IndexProps) => {
                   .map((value) => formatCompanyDate(value as string))
                   .join(" – ")
             : null,
+        selectionNote(leadIds, filterOptions?.leads, "pages.payment_requests.filter_leads_count"),
+        selectionNote(agentIds, filterOptions?.agents, "pages.payment_requests.filter_agents_count"),
+        selectionNote(currencyIds, filterOptions?.currencies, "pages.payment_requests.filter_currencies_count"),
     ]
         .filter(Boolean)
         .join(" · ");
@@ -343,8 +411,16 @@ const Index = ({ paymentRequests, filters, counts, stats }: IndexProps) => {
     const searchScope = filters.search?.trim()
         ? t("pages.payment_requests.stats_note_search", { search: filters.search.trim() })
         : null;
+    const filterScope = [
+        searchScope,
+        selectionNote(leadIds, filterOptions?.leads, "pages.payment_requests.filter_leads_count"),
+        selectionNote(agentIds, filterOptions?.agents, "pages.payment_requests.filter_agents_count"),
+        selectionNote(currencyIds, filterOptions?.currencies, "pages.payment_requests.filter_currencies_count"),
+    ]
+        .filter(Boolean)
+        .join(" · ");
     const scopeNote = (definition: string) =>
-        searchScope ? `${definition} · ${searchScope}` : definition;
+        filterScope ? `${definition} · ${filterScope}` : definition;
 
     const statCards = [
         {
@@ -521,6 +597,7 @@ const Index = ({ paymentRequests, filters, counts, stats }: IndexProps) => {
                                         companyCurrency={companyCurrency}
                                         onConfirm={() => setConfirmingRow(row)}
                                         onOpen={() => setSelectedId(row.id)}
+                                        onRetry={() => setRetryingRow(row)}
                                     />
                                 ))}
                             </div>
@@ -551,6 +628,11 @@ const Index = ({ paymentRequests, filters, counts, stats }: IndexProps) => {
                 onConfirm={
                     selected?.can_confirm ? () => setConfirmingRow(selected) : undefined
                 }
+                onRetry={
+                    selected && isCheckoutLinkExpired(selected)
+                        ? () => setRetryingRow(selected)
+                        : undefined
+                }
             />
 
             <PaymentRequestFiltersModal
@@ -559,8 +641,12 @@ const Index = ({ paymentRequests, filters, counts, stats }: IndexProps) => {
                     uiState: filters.ui_state ?? "",
                     dateFrom: filters.date_from ?? "",
                     dateTo: filters.date_to ?? "",
+                    leadIds,
+                    agentIds,
+                    currencyIds,
                 }}
                 counts={counts}
+                options={filterOptions}
                 onClose={() => setFiltersOpen(false)}
                 onApply={applySlice}
             />
@@ -575,6 +661,18 @@ const Index = ({ paymentRequests, filters, counts, stats }: IndexProps) => {
                 confirmLoading={confirming}
                 onConfirm={() => void handleConfirm()}
                 onCancel={() => setConfirmingRow(null)}
+            />
+
+            <ConfirmDialog
+                open={!!retryingRow}
+                zIndex={1400}
+                title={t("pages.deals.payment_request.retry_title")}
+                message={t("pages.deals.payment_request.retry_message")}
+                confirmLabel={t("pages.deals.payment_request.retry_confirm")}
+                cancelLabel={t("pages.deals.payment_request.cancel")}
+                confirmLoading={retrying}
+                onConfirm={() => void handleRetry()}
+                onCancel={() => setRetryingRow(null)}
             />
 
             <ConfirmDialog

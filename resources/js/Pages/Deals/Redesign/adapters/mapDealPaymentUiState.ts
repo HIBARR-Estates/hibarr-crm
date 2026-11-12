@@ -46,3 +46,20 @@ export function isCollectedPaymentState(uiState: DealPaymentUiState | null): boo
 export function canCancelPaymentRequest(uiState: DealPaymentUiState | null): boolean {
     return uiState === "pending_payment";
 }
+
+/** OL marked the link expired, or the checkout expiry has passed while it was still unpaid. */
+export function isCheckoutLinkExpired(
+    payment: Pick<DealPaymentRequest, "ui_state" | "expires_at" | "ol_status">,
+): boolean {
+    if ((payment.ol_status ?? "").toLowerCase() === "expired") return true;
+    if (!payment.expires_at) return false;
+    const expires = Date.parse(payment.expires_at);
+    if (Number.isNaN(expires) || expires > Date.now()) return false;
+
+    return payment.ui_state === "pending_payment" || payment.ui_state === "failed";
+}
+
+/** A checkout URL the customer can still use. */
+export function hasActiveCheckoutLink(payment: DealPaymentRequest): boolean {
+    return Boolean(payment.show_checkout_url && payment.checkout_url) && !isCheckoutLinkExpired(payment);
+}

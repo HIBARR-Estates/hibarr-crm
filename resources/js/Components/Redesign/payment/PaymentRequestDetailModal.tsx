@@ -16,6 +16,8 @@ import {
     type CurrencyDisplay,
 } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import {
+    hasActiveCheckoutLink,
+    isCheckoutLinkExpired,
     isCollectedPaymentState,
     isTerminalPaymentState,
 } from "@/Pages/Deals/Redesign/adapters/mapDealPaymentUiState";
@@ -26,6 +28,8 @@ export interface PaymentRequestDetail extends DealPaymentRequest {
     deal?: { id: number; name: string | null; url: string } | null;
     deal_value?: number | null;
     agent_name?: string | null;
+    agent_user_id?: number | null;
+    lead_id?: number | null;
     lead_name?: string | null;
     lead_company?: string | null;
 }
@@ -41,6 +45,8 @@ interface PaymentRequestDetailModalProps {
     onCancel?: () => void;
     /** Present when the viewer may confirm this bank transfer. */
     onConfirm?: () => void;
+    /** Present when this request's checkout link has expired and can be replaced. */
+    onRetry?: () => void;
     companyCurrency?: CurrencyDisplay | null;
 }
 
@@ -67,10 +73,18 @@ function documentHref(request: DealPaymentRequest, kind: "invoice" | "receipt"):
     }
 }
 
+function safeRoute(name: string, param: string | number): string | null {
+    try {
+        return route(name, param);
+    } catch {
+        return null;
+    }
+}
+
 function DocumentLink({ href, label, external = false }: { href: string; label: string; external?: boolean }) {
     return (
         <a
-            className="dr-btn dr-btn-ghost dr-btn-sm"
+            className="dr-btn dr-btn-ghost"
             href={href}
             {...(external ? { target: "_blank", rel: "noreferrer" } : {})}
             style={{ textDecoration: "none" }}
@@ -81,12 +95,66 @@ function DocumentLink({ href, label, external = false }: { href: string; label: 
     );
 }
 
-const captionStyle = {
-    marginTop: 6,
-    fontSize: REDESIGN_TYPE.CAPTION,
-    color: T.TEXT_MUTED,
-    lineHeight: 1.4,
-} as const;
+function PartyLink({
+    icon,
+    role,
+    name,
+    href,
+    detail,
+}: {
+    icon: "briefcase" | "user" | "users";
+    role: string;
+    name: string;
+    href: string | null;
+    detail?: string | null;
+}) {
+    const body = (
+        <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+            <Icon name={icon} size={16} color={T.TEXT_MUTED} />
+            <span style={{ flex: "0 0 auto", fontSize: REDESIGN_TYPE.BODY, color: T.TEXT_MUTED }}>
+                {role}
+            </span>
+            <span style={{ minWidth: 0 }}>
+                <span
+                    style={{
+                        display: "block",
+                        fontSize: REDESIGN_TYPE.BODY_LG,
+                        fontWeight: 600,
+                        color: href ? T.NAVY : T.TEXT,
+                        textDecoration: href ? "underline" : "none",
+                        lineHeight: 1.35,
+                        overflowWrap: "anywhere",
+                    }}
+                >
+                    {name}
+                </span>
+                {detail && (
+                    <span
+                        style={{
+                            display: "block",
+                            marginTop: 2,
+                            fontSize: REDESIGN_TYPE.BODY,
+                            color: T.TEXT_MUTED,
+                            lineHeight: 1.35,
+                        }}
+                    >
+                        {detail}
+                    </span>
+                )}
+            </span>
+        </span>
+    );
+
+    if (!href) {
+        return <div style={{ padding: "8px 0" }}>{body}</div>;
+    }
+
+    return (
+        <Link href={href} style={{ display: "block", padding: "8px 0", textDecoration: "none" }}>
+            {body}
+        </Link>
+    );
+}
 
 /**
  * One payment request, read as a short story: what is owed, what state it
@@ -101,6 +169,7 @@ export default function PaymentRequestDetailModal({
     onClose,
     onCancel,
     onConfirm,
+    onRetry,
     companyCurrency,
 }: PaymentRequestDetailModalProps) {
     const { t } = useTranslation();
@@ -125,14 +194,18 @@ export default function PaymentRequestDetailModal({
                   total: sequenceTotal,
               })
             : undefined;
-    const lead = [request.lead_name, request.lead_company].filter(Boolean).join(" · ");
-    const who = [lead, request.agent_name].filter(Boolean).join(" · ");
+    const leadName = [request.lead_name, request.lead_company].filter(Boolean).join(" · ");
+    const leadHref = request.lead_id ? safeRoute("lead-contact.show", request.lead_id) : null;
+    const agentHref = request.agent_user_id ? safeRoute("employees.show", request.agent_user_id) : null;
     const invoiceUrl = documentHref(request, "invoice");
     const receiptUrl = collected ? documentHref(request, "receipt") : null;
-    const showCheckout = Boolean(request.show_checkout_url && request.checkout_url);
+    const linkExpired = isCheckoutLinkExpired(request);
+    const activeLink = hasActiveCheckoutLink(request);
+    const showCheckout = activeLink && Boolean(request.checkout_url);
     const showExpires = Boolean(request.expires_at) && !isTerminalPaymentState(request.ui_state);
-    const summary =
-        request.ui_state === "invalidated" && request.invalidation_reason
+    const summary = linkExpired
+        ? t("pages.deals.payment_request.retry_message")
+        : request.ui_state === "invalidated" && request.invalidation_reason
             ? request.invalidation_reason
             : t(SUMMARY_KEY[request.ui_state]);
 
@@ -162,17 +235,18 @@ export default function PaymentRequestDetailModal({
                     {(onCancel || onConfirm) && (
                         <div className="ml-auto flex items-center gap-2">
                             {onCancel && (
-                                <button
-                                    type="button"
-                                    className="dr-btn dr-btn-danger dr-btn-sm"
-                                    onClick={onCancel}
-                                >
+                                <Button variant="ghost" style={{ color: T.RED }} onClick={onCancel}>
                                     {t("pages.deals.payment_request.cancel_action")}
-                                </button>
+                                </Button>
                             )}
                             {onConfirm && (
-                                <Button variant="primary" size="sm" onClick={onConfirm}>
+                                <Button variant="primary" onClick={onConfirm}>
                                     {t("pages.payment_requests.action_confirm")}
+                                </Button>
+                            )}
+                            {onRetry && linkExpired && (
+                                <Button variant="primary" onClick={onRetry}>
+                                    {t("pages.deals.payment_request.retry_action")}
                                 </Button>
                             )}
                         </div>
@@ -193,13 +267,22 @@ export default function PaymentRequestDetailModal({
                 >
                     {formatMoneyAmount(request.amount, requestCurrency)}
                 </div>
-                <Badge variant={paymentUiStateBadgeVariant(request.ui_state)}>
-                    {td(paymentUiStateLabel(request.ui_state), { source: "en" })}
+                <Badge variant={linkExpired ? "red" : paymentUiStateBadgeVariant(request.ui_state)}>
+                    {linkExpired
+                        ? t("pages.deals.payment_request.link_expired")
+                        : td(paymentUiStateLabel(request.ui_state), { source: "en" })}
                 </Badge>
             </div>
 
             {converted && (
-                <div style={captionStyle}>
+                <div
+                    style={{
+                        marginTop: 8,
+                        fontSize: REDESIGN_TYPE.BODY,
+                        color: T.TEXT_MUTED,
+                        lineHeight: 1.4,
+                    }}
+                >
                     {`≈ ${formatMoneyAmount(request.base_amount as number, {
                         code: request.base_currency ?? "",
                         symbol: request.base_currency_symbol || request.base_currency || "",
@@ -207,57 +290,81 @@ export default function PaymentRequestDetailModal({
                 </div>
             )}
             {request.payment_id && (
-                <div style={{ ...captionStyle, fontVariantNumeric: "tabular-nums" }}>
-                    {`${t("pages.payment_requests.detail_reference")} · ${request.payment_id}`}
+                <div
+                    style={{
+                        marginTop: 8,
+                        fontSize: REDESIGN_TYPE.BODY,
+                        color: T.TEXT_MUTED,
+                        fontVariantNumeric: "tabular-nums",
+                        lineHeight: 1.4,
+                    }}
+                >
+                    {`#${request.payment_id}`}
                 </div>
             )}
 
-            <p style={{ margin: "12px 0 0", fontSize: REDESIGN_TYPE.BODY, color: T.TEXT, lineHeight: 1.45 }}>
+            <p style={{ margin: "14px 0 0", fontSize: REDESIGN_TYPE.BODY_LG, color: T.TEXT, lineHeight: 1.45 }}>
                 {request.ui_state === "invalidated" && request.invalidation_reason
                     ? td(summary, { source: "en" })
                     : summary}
             </p>
 
-            {(request.deal?.name || who || (request.deal_value != null && companyCurrency)) && (
-                <div style={{ marginTop: 16 }}>
+            {(request.deal?.name || leadName || request.agent_name) && (
+                <div style={{ marginTop: 8 }}>
                     {request.deal?.name && (
-                        request.deal.url ? (
-                            <Link href={request.deal.url} className="text-sm font-semibold text-dr-text no-underline hover:text-dr-blue">
-                                {request.deal.name}
-                            </Link>
-                        ) : (
-                            <div style={{ fontSize: REDESIGN_TYPE.BODY, fontWeight: 600, color: T.TEXT }}>
-                                {request.deal.name}
-                            </div>
-                        )
+                        <PartyLink
+                            icon="briefcase"
+                            role={t("pages.payment_requests.detail_deal")}
+                            name={request.deal.name}
+                            href={request.deal.url || null}
+                            detail={
+                                request.deal_value != null && companyCurrency
+                                    ? formatMoneyAmount(request.deal_value, companyCurrency)
+                                    : null
+                            }
+                        />
                     )}
-                    {who && <div style={captionStyle}>{who}</div>}
-                    {request.deal_value != null && companyCurrency && (
-                        <div style={{ ...captionStyle, fontVariantNumeric: "tabular-nums" }}>
-                            {`${t("pages.payment_requests.col_deal_value")} · ${formatMoneyAmount(request.deal_value, companyCurrency)}`}
-                        </div>
+                    {leadName && (
+                        <PartyLink
+                            icon="user"
+                            role={t("pages.payment_requests.detail_lead")}
+                            name={leadName}
+                            href={leadHref}
+                        />
+                    )}
+                    {request.agent_name && (
+                        <PartyLink
+                            icon="users"
+                            role={t("pages.payment_requests.detail_agent")}
+                            name={request.agent_name}
+                            href={agentHref}
+                        />
                     )}
                 </div>
             )}
 
             {(request.created_at || showExpires || request.verified_by || request.invalidated_at) && (
-                <div style={{ ...captionStyle, marginTop: 14 }}>
-                    {request.created_at && (
-                        <div>{`${t("pages.payment_requests.detail_created")} · ${formatCompanyDateTime(request.created_at)}`}</div>
-                    )}
+                <div
+                    style={{
+                        marginTop: 12,
+                        fontSize: REDESIGN_TYPE.BODY,
+                        color: T.TEXT_MUTED,
+                        lineHeight: 1.5,
+                    }}
+                >
+                    {request.created_at && <div>{formatCompanyDateTime(request.created_at)}</div>}
                     {showExpires && request.expires_at && (
-                        <div>{`${t("pages.payment_requests.detail_expires")} · ${formatCompanyDateTime(request.expires_at)}`}</div>
+                        <div>
+                            {`${t("pages.payment_requests.detail_expires")} ${formatCompanyDateTime(request.expires_at)}`}
+                        </div>
                     )}
                     {request.verified_by && (
                         <div>
-                            {`${t("pages.payment_requests.detail_confirmed_by")} · ${request.verified_by.name}${
-                                request.verified_at ? ` · ${formatCompanyDateTime(request.verified_at)}` : ""
-                            }`}
+                            {request.verified_by.name}
+                            {request.verified_at ? ` · ${formatCompanyDateTime(request.verified_at)}` : ""}
                         </div>
                     )}
-                    {request.invalidated_at && (
-                        <div>{`${t("pages.payment_requests.detail_cancelled")} · ${formatCompanyDateTime(request.invalidated_at)}`}</div>
-                    )}
+                    {request.invalidated_at && <div>{formatCompanyDateTime(request.invalidated_at)}</div>}
                 </div>
             )}
 
@@ -271,10 +378,10 @@ export default function PaymentRequestDetailModal({
                         gap: 12,
                     }}
                 >
-                    <span style={{ fontSize: REDESIGN_TYPE.BODY, color: T.TEXT }}>
+                    <span style={{ fontSize: REDESIGN_TYPE.BODY_LG, color: T.TEXT }}>
                         {t("pages.deals.payment_request.checkout_link")}
                     </span>
-                    <CheckoutLinkActions url={request.checkout_url} />
+                    <CheckoutLinkActions url={request.checkout_url} size="base" />
                 </div>
             )}
         </Modal>

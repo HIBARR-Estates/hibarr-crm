@@ -74,6 +74,7 @@ export default function useDealPayment(dealId: number) {
     const [creating, setCreating] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const [cancelling, setCancelling] = useState(false);
+    const [retrying, setRetrying] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
     // A confirmed payment wins the deal server-side (outcome, and commission
@@ -178,6 +179,34 @@ export default function useDealPayment(dealId: number) {
         }
     }, [dealId, message, t, upsertPaymentRequest]);
 
+    const retryRequest = useCallback(async (paymentId: number): Promise<DealPaymentActionResult> => {
+        setRetrying(true);
+        try {
+            const response = await axios.post<DealPaymentResponse>(
+                route("deals.payment-requests.retry", { deal: dealId, payment: paymentId }),
+            );
+            if (response.data?.status === "success") {
+                await refreshPaymentRequest();
+                message.success(t("pages.deals.payment_request.retry_toast"));
+                return { ok: true, data: response.data.data };
+            }
+            const failMessage =
+                (response.data as { message?: string } | undefined)?.message
+                ?? t("pages.deals.payment_request.retry_failed");
+            message.error(failMessage);
+            return { ok: false, message: failMessage };
+        } catch (error: unknown) {
+            const failMessage = apiErrorMessage(
+                error,
+                t("pages.deals.payment_request.retry_failed"),
+            );
+            message.error(failMessage);
+            return { ok: false, message: failMessage };
+        } finally {
+            setRetrying(false);
+        }
+    }, [dealId, message, refreshPaymentRequest, t]);
+
     const refreshStatus = useCallback(async () => {
         setRefreshing(true);
         try {
@@ -197,10 +226,12 @@ export default function useDealPayment(dealId: number) {
         createPaymentRequest,
         confirmTransfer,
         cancelRequest,
+        retryRequest,
         refreshStatus,
         creating,
         confirming,
         cancelling,
+        retrying,
         refreshing,
     };
 }

@@ -11,6 +11,7 @@ use App\Support\FeatureFlags;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PaymentRequestController extends AccountBaseController
@@ -30,7 +31,7 @@ class PaymentRequestController extends AccountBaseController
 
     public function index(Request $request)
     {
-        foreach (['ui_state', 'date_from', 'date_to', 'search', 'lead'] as $key) {
+        foreach (['ui_state', 'date_from', 'date_to', 'search', 'lead', 'lead_id', 'agent_id', 'currency_id'] as $key) {
             if ($request->input($key) === '') {
                 $request->merge([$key => null]);
             }
@@ -56,6 +57,9 @@ class PaymentRequestController extends AccountBaseController
             'date_from' => $filters['date_from'] ?? null,
             'date_to' => $filters['date_to'] ?? null,
             'search' => $search !== '' ? $search : null,
+            'lead_id' => $this->idList($request->input('lead_id')),
+            'agent_id' => $this->idList($request->input('agent_id')),
+            'currency_id' => $this->idList($request->input('currency_id')),
         ];
 
         $query = $this->scopedQuery($slice);
@@ -85,17 +89,21 @@ class PaymentRequestController extends AccountBaseController
                 'date_from' => $slice['date_from'],
                 'date_to' => $slice['date_to'],
                 'search' => $slice['search'],
+                'lead_id' => $slice['lead_id'],
+                'agent_id' => $slice['agent_id'],
+                'currency_id' => $slice['currency_id'],
             ],
-            // Counts and the accountant totals follow the date range and search.
-            // The status tab only narrows the list, so the cards stay a picture
-            // of the whole slice.
+            // Counts and the accountant totals follow the date range, search,
+            // and the lead, agent, and currency filters. Status only narrows
+            // the list, so the cards stay a picture of the whole slice.
             'counts' => Inertia::defer(fn () => $this->stateCounts($slice)),
             'stats' => Inertia::defer(fn () => $this->stats($slice)),
+            'filterOptions' => Inertia::defer(fn () => $this->filterOptions()),
         ]);
     }
 
     /**
-     * @param  array{date_from: ?string, date_to: ?string, search: ?string}  $slice
+     * @param  array{date_from: ?string, date_to: ?string, search: ?string, lead_id: array<int, int>, agent_id: array<int, int>, currency_id: array<int, int>}  $slice
      * @return Builder<Payment>
      */
     private function scopedQuery(array $slice): Builder
@@ -108,10 +116,93 @@ class PaymentRequestController extends AccountBaseController
         if (!empty($slice['date_to'])) {
             $query->where('payments.created_at', '<=', Carbon::parse($slice['date_to'])->endOfDay());
         }
+        if ($slice['lead_id'] !== []) {
+            $query->whereHas('deal', fn ($deal) => $deal->whereIn('deals.lead_id', $slice['lead_id']));
+        }
+        if ($slice['agent_id'] !== []) {
+            $query->whereHas('deal.leadAgent', fn ($agent) => $agent->whereIn('lead_agents.user_id', $slice['agent_id']));
+        }
+        if ($slice['currency_id'] !== []) {
+            $query->whereIn('payments.currency_id', $slice['currency_id']);
+        }
 
         $this->applySearch($query, $slice['search'] ?? null);
 
         return $query;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function idList(mixed $value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        $items = is_array($value) ? $value : explode(',', (string) $value);
+        $ids = [];
+        foreach ($items as $item) {
+            if (is_int($item) || (is_string($item) && preg_match('/^\d+$/', $item) === 1)) {
+                $ids[] = (int) $item;
+            }
+        }
+
+        return array_slice(array_values(array_unique($ids)), 0, 50);
+    }
+
+    /**
+     * Leads, agents, and currencies that actually appear on a payment request.
+     *
+     * @return array{leads: array<int, array{value: int, label: string}>, agents: array<int, array{value: int, label: string}>, currencies: array<int, array{value: int, label: string}>}
+     */
+    private function filterOptions(): array
+    {
+        $deals = DB::table('deals')
+            ->whereIn('id', $this->baseQuery()->whereNotNull('payments.deal_id')->distinct()->pluck('payments.deal_id'))
+            ->get(['lead_id', 'agent_id']);
+
+        $leads = DB::table('leads')
+            ->whereIn('id', $deals->pluck('lead_id')->filter()->unique()->values())
+            ->whereNull('deleted_at')
+            ->orderBy('client_name')
+            ->get(['id', 'client_name', 'company_name']);
+
+        $agents = DB::table('lead_agents')
+            ->join('users', 'users.id', '=', 'lead_agents.user_id')
+            ->whereIn('lead_agents.id', $deals->pluck('agent_id')->filter()->unique()->values())
+            ->orderBy('users.name')
+            ->get(['users.id as id', 'users.name as name'])
+            ->unique('id')
+            ->values();
+
+        $currencies = DB::table('currencies')
+            ->whereIn('id', $this->baseQuery()->whereNotNull('payments.currency_id')->distinct()->pluck('payments.currency_id'))
+            ->orderBy('currency_code')
+            ->get(['id', 'currency_code', 'currency_symbol']);
+
+        return [
+            'leads' => $leads->map(function ($lead) {
+                $name = trim((string) $lead->client_name);
+                $company = trim((string) $lead->company_name);
+                $label = $name !== '' && $company !== '' ? $name.' · '.$company : ($name !== '' ? $name : $company);
+
+                return ['value' => (int) $lead->id, 'label' => $label !== '' ? $label : '#'.$lead->id];
+            })->values()->all(),
+            'agents' => $agents->map(fn ($agent) => [
+                'value' => (int) $agent->id,
+                'label' => trim((string) $agent->name) !== '' ? trim((string) $agent->name) : '#'.$agent->id,
+            ])->values()->all(),
+            'currencies' => $currencies->map(function ($currency) {
+                $code = trim((string) $currency->currency_code);
+                $symbol = trim((string) $currency->currency_symbol);
+
+                return [
+                    'value' => (int) $currency->id,
+                    'label' => $symbol !== '' ? trim($code.' '.$symbol) : ($code !== '' ? $code : '#'.$currency->id),
+                ];
+            })->values()->all(),
+        ];
     }
 
     /**
@@ -155,7 +246,7 @@ class PaymentRequestController extends AccountBaseController
     }
 
     /**
-     * @param  array{date_from: ?string, date_to: ?string, search: ?string}  $slice
+     * @param  array{date_from: ?string, date_to: ?string, search: ?string, lead_id: array<int, int>, agent_id: array<int, int>, currency_id: array<int, int>}  $slice
      * @return array<string, int>
      */
     private function stateCounts(array $slice): array
@@ -175,7 +266,7 @@ class PaymentRequestController extends AccountBaseController
      * Money is summed in company currency (base_amount), the figure the
      * request was converted from, so a mixed-currency list still adds up.
      *
-     * @param  array{date_from: ?string, date_to: ?string, search: ?string}  $slice
+     * @param  array{date_from: ?string, date_to: ?string, search: ?string, lead_id: array<int, int>, agent_id: array<int, int>, currency_id: array<int, int>}  $slice
      * @return array<string, mixed>
      */
     private function stats(array $slice): array
@@ -194,7 +285,7 @@ class PaymentRequestController extends AccountBaseController
     }
 
     /**
-     * @param  array{date_from: ?string, date_to: ?string, search: ?string}  $slice
+     * @param  array{date_from: ?string, date_to: ?string, search: ?string, lead_id: array<int, int>, agent_id: array<int, int>, currency_id: array<int, int>}  $slice
      * @param  array<int, string>  $states
      */
     private function sumBase(array $slice, array $states = []): float
@@ -260,6 +351,7 @@ class PaymentRequestController extends AccountBaseController
             // value changes and the request is invalidated.
             'deal_value' => $payment->deal?->value !== null ? (float) $payment->deal->value : null,
             'agent_name' => $payment->deal?->leadAgent?->user?->name,
+            'agent_user_id' => $payment->deal?->leadAgent?->user?->id,
             'lead_name' => $lead?->client_name,
             'lead_company' => $lead?->company_name,
             'lead_id' => $lead?->id,
