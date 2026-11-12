@@ -42,7 +42,7 @@ export default function MarketingIntakeTab({
             originId !== settings.origin_id ||
             ownerId !== settings.owner_id ||
             [...departmentIds].sort().join(",") !== [...settings.department_ids].sort().join(","),
-        [departmentIds, originId, settings],
+        [departmentIds, originId, ownerId, settings],
     );
 
     const memberCount = settings.departments
