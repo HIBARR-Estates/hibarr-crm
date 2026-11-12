@@ -1063,6 +1063,8 @@ return [
             'amount_hint' => 'Şirket para birimindeki talep tutarı. Kalanı bırakın veya müşteri taksitler halinde ödeyecekse daha az girin.',
             'remaining' => 'Talep edilecek kalan',
             'confirmed_so_far' => 'Şimdiye kadar onaylanan',
+            'paid_total' => 'Ödenen',
+            'balance_remaining' => 'Kalan',
             'amount_too_high' => 'Tutar, kalan anlaşma değerinden fazla olamaz.',
             'fully_covered' => 'Onaylanan ödemeler bu anlaşmanın değerini zaten karşılıyor.',
             'method' => 'Yöntem',

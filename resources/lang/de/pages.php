@@ -1082,6 +1082,8 @@ return [
             'amount_hint' => 'Betrag in der Unternehmenswährung. Den Rest stehen lassen oder weniger eingeben, wenn der Kunde in Raten zahlt.',
             'remaining' => 'Noch anzufordern',
             'confirmed_so_far' => 'Bereits bestätigt',
+            'paid_total' => 'Bezahlt',
+            'balance_remaining' => 'Restbetrag',
             'amount_too_high' => 'Der Betrag darf den verbleibenden Deal-Wert nicht übersteigen.',
             'fully_covered' => 'Bestätigte Zahlungen decken den Deal-Wert bereits ab.',
             'method' => 'Methode',

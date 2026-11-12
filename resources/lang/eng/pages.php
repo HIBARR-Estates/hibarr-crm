@@ -1099,6 +1099,8 @@ return [
             'amount_hint' => 'Company-currency amount to request. Leave the remainder, or enter less when the customer pays in batches.',
             'remaining' => 'Still to request',
             'confirmed_so_far' => 'Confirmed so far',
+            'paid_total' => 'Paid',
+            'balance_remaining' => 'Remaining',
             'amount_too_high' => 'The amount cannot be more than the remaining deal value.',
             'fully_covered' => 'Confirmed payments already cover this deal\'s value.',
             'method' => 'Method',

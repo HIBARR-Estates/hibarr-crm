@@ -5,6 +5,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import useDealPayment from "../../hooks/useDealPayment";
 import {
     canCancelPaymentRequest,
+    coveredBaseAmount,
     hasActiveCheckoutLink,
     isCheckoutLinkExpired,
     isTerminalPaymentState,
@@ -14,7 +15,10 @@ import {
     paymentUiStateBadgeVariant,
     paymentUiStateLabel,
 } from "@/Components/Redesign/adapters/dealPaymentUiState";
-import { formatMoneyAmount } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
+import {
+    formatMoneyAmount,
+    useCompanyCurrency,
+} from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import { REDESIGN_RADIUS, REDESIGN_TOKENS as T, REDESIGN_TYPE } from "@/Components/Redesign/tokens";
 import Badge from "@/Components/Redesign/primitives/Badge";
 import Button from "@/Components/Redesign/primitives/Button";
@@ -122,6 +126,16 @@ export default function DealPaymentPanel({
         && (paymentRequest == null || paymentRequest.id === request.id);
     const selectedIsActive = selected != null && selected.id === paymentRequest?.id;
     const cashPending = paymentRequest?.ui_state === "cash_pending";
+    const companyFallback = useCompanyCurrency();
+    const breakdownCurrency = deal.value_breakdown?.currency;
+    const companyCurrency = {
+        code: breakdownCurrency?.company_code || companyFallback.code,
+        symbol:
+            breakdownCurrency?.company_symbol ||
+            companyFallback.symbol ||
+            companyFallback.code,
+    };
+    const paid = coveredBaseAmount(paymentRequests);
     const remaining = remainingDealBalance(Number(deal.value ?? 0), paymentRequests);
     const hasOpenRequest = paymentRequest != null && !isTerminalPaymentState(paymentRequest.ui_state);
     const canRequestMore = canCreatePaymentRequest && !paymentRequestLoading && remaining > 0 && !hasOpenRequest;
@@ -165,6 +179,49 @@ export default function DealPaymentPanel({
                         </Button>
                     )}
                 </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+                {(
+                    [
+                        [t("pages.deals.payment_request.paid_total"), paid],
+                        [t("pages.deals.payment_request.balance_remaining"), remaining],
+                    ] as const
+                ).map(([label, amount]) => (
+                    <div
+                        key={label}
+                        style={{
+                            padding: "10px 12px",
+                            background: T.SURFACE,
+                            border: `1px solid ${T.BORDER}`,
+                            borderRadius: REDESIGN_RADIUS.MD,
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontSize: REDESIGN_TYPE.CAPTION,
+                                fontWeight: 600,
+                                letterSpacing: "0.04em",
+                                textTransform: "uppercase",
+                                color: T.TEXT_HINT,
+                            }}
+                        >
+                            {label}
+                        </div>
+                        <div
+                            className="tabular-nums"
+                            style={{
+                                marginTop: 2,
+                                fontSize: REDESIGN_TYPE.DISPLAY,
+                                fontWeight: 700,
+                                color: T.TEXT,
+                                lineHeight: 1.2,
+                            }}
+                        >
+                            {formatMoneyAmount(amount, companyCurrency)}
+                        </div>
+                    </div>
+                ))}
             </div>
 
             {total === 0 ? (
