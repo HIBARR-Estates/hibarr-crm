@@ -1298,12 +1298,14 @@ function OutcomeDetail({
                                         className="text-sm font-semibold mb-4"
                                         style={{ color: T.TEXT }}
                                     >
-                                        {td(
-                                            outcome === "callback"
-                                                ? "Schedule the callback"
-                                                : "Book the consultation",
-                                            { source: "en" },
-                                        )}
+                                        {agentLayout && usesCeoCalendly
+                                            ? t("pages.agent_workspace.flow.calendly_title")
+                                            : td(
+                                                  outcome === "callback"
+                                                      ? "Schedule the callback"
+                                                      : "Book the consultation",
+                                                  { source: "en" },
+                                              )}
                                     </p>
 
                                     {outcome === "bookMeeting" && !agentLayout && (
@@ -1394,7 +1396,49 @@ function OutcomeDetail({
                                             ))}
                                         </div>
                                     )}
-                                    {usesCeoCalendly ? (
+                                    {usesCeoCalendly && agentLayout ? (
+                                        <div className="agent-qo__calendly">
+                                            <p className="agent-qo__calendly-lead">
+                                                {t("pages.agent_workspace.flow.calendly_prefilled")}
+                                            </p>
+                                            <div className="agent-qo__chips">
+                                                {[
+                                                    {
+                                                        key: "name",
+                                                        label: t("pages.agent_workspace.contact.edit.fields.name"),
+                                                        value: lead.client_name,
+                                                    },
+                                                    {
+                                                        key: "email",
+                                                        label: t("pages.agent_workspace.contact.edit.fields.email"),
+                                                        value: lead.client_email,
+                                                    },
+                                                    {
+                                                        key: "phone",
+                                                        label: t("pages.agent_workspace.contact.edit.fields.mobile"),
+                                                        value:
+                                                            resolveLeadPhoneDisplay(lead.mobile, lead.mobile_with_phonecode) ||
+                                                            resolveLeadPhoneDisplay(lead.cell),
+                                                    },
+                                                    {
+                                                        key: "guest",
+                                                        label: t("pages.agent_workspace.flow.guest"),
+                                                        value: calendlyGuestEmail,
+                                                    },
+                                                ]
+                                                    .filter((chip) => chip.value)
+                                                    .map((chip) => (
+                                                        <span className="agent-qo__chip" key={chip.key}>
+                                                            <span className="agent-qo__chip-label">{chip.label}</span>
+                                                            <strong>{chip.value}</strong>
+                                                        </span>
+                                                    ))}
+                                            </div>
+                                            <p className="agent-qo__calendly-note">
+                                                {t("pages.agent_workspace.flow.calendly_note")}
+                                            </p>
+                                        </div>
+                                    ) : usesCeoCalendly ? (
                                         <div
                                             className="rounded-lg p-3"
                                             style={{

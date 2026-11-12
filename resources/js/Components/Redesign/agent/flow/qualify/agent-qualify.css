@@ -530,3 +530,46 @@
 .agent-qo__card:disabled {
     cursor: not-allowed;
 }
+
+/* Calendly track (canvas L7-25): what the link is prefilled with. */
+.agent-qo__calendly {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.agent-qo__calendly-lead,
+.agent-qo__calendly-note {
+    margin: 0;
+    font-size: 13px;
+    color: var(--dr-text-muted);
+}
+
+.agent-qo__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.agent-qo__chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--dr-border);
+    border-radius: 8px;
+    background: var(--dr-white);
+    font-size: 13px;
+    color: var(--dr-text);
+}
+
+.agent-qo__chip strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-weight: 600;
+}
+
+.agent-qo__chip-label {
+    color: var(--dr-text-muted);
+}
