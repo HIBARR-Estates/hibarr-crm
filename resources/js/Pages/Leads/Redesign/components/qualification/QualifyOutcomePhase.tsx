@@ -662,8 +662,9 @@ function OutcomeDetail({
     const { props: pageProps } = usePage();
     const userId = pageProps.auth?.user?.id;
     const userEmail = pageProps.auth?.user?.email;
-    // Calendly guest: the lead's assigned agent, or whoever is qualifying.
-    const calendlyGuestEmail = lead.lead_owner?.email || userEmail;
+    // Calendly guest: the agent doing the booking (signed-in user), so the
+    // invite lands on their calendar. Lead owner is only a fallback.
+    const calendlyGuestEmail = userEmail || lead.lead_owner?.email;
     const meetingCreate = useLeadMeetingCreate(lead);
     const { updateField } = useLeadFieldUpdate();
     const [busy, setBusy] = useState(false);
