@@ -242,12 +242,14 @@ const Index = ({
         () => ({
             categories: formData.categories || [],
             sources: formData.sources || [],
+            origins: formData["lead-origins"] || [],
+            originSearchPlaceholder: t("pages.lead_settings.origins.search"),
             employees: formData.employees || [],
             temperatures: formData.temperatures || [],
             leadAgents: formData["lead-agents"] || [],
             leadLifecycleStatuses,
         }),
-        [formData, leadLifecycleStatuses],
+        [formData, leadLifecycleStatuses, t],
     );
 
     // Setup search and filter contexts
