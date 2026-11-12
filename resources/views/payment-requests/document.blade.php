@@ -23,10 +23,19 @@
 <head>
     <meta charset="utf-8">
     <title>{{ $title }} {{ $number }}</title>
+    {{-- This app's dompdf only reads font metrics from storage/fonts, so the
+         bundled DejaVu fonts are registered here (dompdf copies them there on
+         first use). Without this every render fails on the first glyph. --}}
     <style>
+        @font-face { font-family: 'KktcSans'; font-weight: normal; font-style: normal; src: url("{{ base_path('vendor/dompdf/dompdf/lib/fonts/DejaVuSans.ttf') }}") format('truetype'); }
+        @font-face { font-family: 'KktcSans'; font-weight: bold; font-style: normal; src: url("{{ base_path('vendor/dompdf/dompdf/lib/fonts/DejaVuSans-Bold.ttf') }}") format('truetype'); }
+        @font-face { font-family: 'KktcSans'; font-weight: normal; font-style: italic; src: url("{{ base_path('vendor/dompdf/dompdf/lib/fonts/DejaVuSans-Oblique.ttf') }}") format('truetype'); }
+        @font-face { font-family: 'KktcSans'; font-weight: bold; font-style: italic; src: url("{{ base_path('vendor/dompdf/dompdf/lib/fonts/DejaVuSans-BoldOblique.ttf') }}") format('truetype'); }
+        @font-face { font-family: 'KktcMono'; font-weight: normal; font-style: normal; src: url("{{ base_path('vendor/dompdf/dompdf/lib/fonts/DejaVuSansMono.ttf') }}") format('truetype'); }
+        @font-face { font-family: 'KktcMono'; font-weight: bold; font-style: normal; src: url("{{ base_path('vendor/dompdf/dompdf/lib/fonts/DejaVuSansMono-Bold.ttf') }}") format('truetype'); }
         @page { margin: 0; }
         * { box-sizing: border-box; }
-        body { margin: 0; color: #1a2129; font-family: DejaVu Sans, sans-serif; font-size: 9.5px; line-height: 1.4; }
+        body { margin: 0; color: #1a2129; font-family: 'KktcSans', DejaVu Sans, sans-serif; font-size: 9.5px; line-height: 1.4; }
         table { border-collapse: collapse; width: 100%; }
         td, th { vertical-align: top; padding: 0; }
         .band { background: {{ $brand }}; height: 6px; }
@@ -44,7 +53,7 @@
         .seller-lines b { color: #1a2129; }
         .title { color: {{ $brand }}; font-weight: bold; letter-spacing: 3px; line-height: 1; }
         .title-en { display: block; font-size: 7.5px; letter-spacing: 1.5px; color: #8b949e; font-weight: normal; margin-top: 4px; }
-        .serial { font-family: DejaVu Sans Mono, monospace; font-weight: bold; letter-spacing: 1px; }
+        .serial { font-family: 'KktcMono', DejaVu Sans Mono, monospace; font-weight: bold; letter-spacing: 1px; }
         .copy-mark { display: inline-block; border: 1px solid {{ $brand }}; color: {{ $brand }}; font-size: 7.5px; font-weight: bold; letter-spacing: 1.2px; padding: 2px 6px; }
         .stamp { display: inline-block; border: 2px solid #a3341f; color: #a3341f; font-size: 12px; font-weight: bold; letter-spacing: 3px; padding: 3px 10px; }
         .box { border: 1px solid #c9d0d7; padding: 8px 10px; }
@@ -60,10 +69,10 @@
         .words { background: #f3f5f7; padding: 7px 10px; font-size: 9px; }
         .words b { font-size: 9.5px; }
         .bank td { font-size: 8.5px; padding: 1px 10px 1px 0; }
-        .mono { font-family: DejaVu Sans Mono, monospace; font-size: 8.5px; }
+        .mono { font-family: 'KktcMono', DejaVu Sans Mono, monospace; font-size: 8.5px; }
         .stamp-duty { border: 1px solid #56606b; color: #56606b; font-size: 6.5px; font-weight: bold; text-align: center; letter-spacing: 0.4px; padding: 5px 4px; width: 64px; line-height: 1.3; }
-        .seal { width: 66px; height: 66px; border: 1.4px solid #56606b; border-radius: 33px; text-align: center; color: #56606b; font-size: 5.6px; font-weight: bold; letter-spacing: 0.3px; line-height: 1.25; }
-        .seal .inner { display: inline-block; margin: 4px 0; border: 1.2px solid #56606b; border-radius: 13px; width: 26px; height: 26px; line-height: 26px; font-size: 7px; }
+        .seal { width: 70px; height: 70px; border: 1.4px solid #56606b; border-radius: 36px; text-align: center; color: #56606b; font-size: 5.4px; font-weight: bold; letter-spacing: 0.2px; line-height: 1.3; }
+        .seal .inner { margin: 3px auto; border-top: 1px solid #56606b; border-bottom: 1px solid #56606b; width: 40px; padding: 1px 0; font-size: 8px; letter-spacing: 1px; }
         .approval { font-size: 7px; color: #8b949e; line-height: 1.45; }
         .approval b { color: #56606b; }
         .sig-line { border-bottom: 1px solid #56606b; height: 34px; }
@@ -76,10 +85,13 @@
         .statement { font-size: 10px; line-height: 1.75; }
         .fill { border-bottom: 1px solid #c9d0d7; font-weight: bold; }
         .pay td { border: 1px solid #c9d0d7; padding: 6px 10px; font-size: 9px; }
-        .chk { display: inline-block; margin-right: 8px; font-size: 8.5px; color: #56606b; }
-        .chk .b { display: inline-block; width: 8px; height: 8px; border: 1px solid #56606b; margin-right: 3px; vertical-align: -1px; text-align: center; font-size: 6px; line-height: 8px; }
-        .chk.on { color: #1a2129; font-weight: bold; }
-        .chk.on .b { background: {{ $brand }}; border-color: {{ $brand }}; color: #ffffff; }
+        .chks { width: auto; margin-top: 4px; }
+        .pay .chks td { vertical-align: middle; border: 0; padding: 0; }
+        .pay .chks td.chk { width: 11px; }
+        .chk .b { width: 9px; height: 9px; border: 1px solid #56606b; text-align: center; font-size: 7px; line-height: 9px; color: #ffffff; }
+        .chk.on .b { background: {{ $brand }}; border-color: {{ $brand }}; }
+        .pay .chks td.chk-label { padding: 0 9px 0 3px; font-size: 8.5px; color: #56606b; white-space: nowrap; }
+        .chk-label.on { color: #1a2129; font-weight: bold; }
     </style>
 </head>
 <body class="{{ $isInvoice ? 'inv' : 'rct' }}">
@@ -92,7 +104,7 @@
             $html .= '<td style="padding-right:8px;vertical-align:middle"><div class="stamp-duty">KKTC<br>DAMGA VERGİSİ<br>ÖDENMİŞTİR</div></td>';
         }
         if (! empty($approval['show_seal'])) {
-            $html .= '<td style="padding-right:8px;vertical-align:middle"><div class="seal"><div style="padding-top:9px">GELİR VE VERGİ<br>DAİRESİ</div><span class="inner">KKTC</span><div>BELGE ONAYI</div></div></td>';
+            $html .= '<td style="padding-right:8px;vertical-align:middle"><div class="seal"><div style="padding-top:14px">GELİR VE VERGİ<br>DAİRESİ</div><div class="inner">KKTC</div><div>BELGE ONAYI</div></div></td>';
         }
         $lines = [];
         if (! empty($approval['number'])) {
@@ -320,10 +332,14 @@
         <table class="pay" style="margin-top:12px">
             <tr>
                 <td style="width:44%">
-                    <span class="label">ÖDEME ŞEKLİ</span> {!! $en('Method') !!}<br>
-                    @foreach ($methods as $key => $label)
-                        <span class="chk {{ $method === $key ? 'on' : '' }}"><span class="b">{{ $method === $key ? '✓' : '' }}</span>{{ $label }}</span>
-                    @endforeach
+                    <span class="label">ÖDEME ŞEKLİ</span> {!! $en('Method') !!}
+                    {{-- A table, not inline-blocks: dompdf misplaces inline-block boxes. --}}
+                    <table class="chks"><tr>
+                        @foreach ($methods as $key => $label)
+                            <td class="chk {{ $method === $key ? 'on' : '' }}"><div class="b">{{ $method === $key ? '✓' : '' }}</div></td>
+                            <td class="chk-label {{ $method === $key ? 'on' : '' }}">{{ $label }}</td>
+                        @endforeach
+                    </tr></table>
                 </td>
                 <td>
                     <span class="label">BANKA</span> {!! $en('Bank') !!}<br>

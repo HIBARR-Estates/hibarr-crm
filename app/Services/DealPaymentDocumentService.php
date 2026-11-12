@@ -575,6 +575,8 @@ class DealPaymentDocumentService
     private function pdf(array $data)
     {
         $pdf = app('dompdf.wrapper');
+        // Embed only the glyphs used, or every PDF carries the full DejaVu fonts (~1 MB).
+        $pdf->setOption('isFontSubsettingEnabled', true);
         $pdf->setPaper($data['kind'] === PaymentDocument::RECEIPT ? 'a5' : 'a4', $data['kind'] === PaymentDocument::RECEIPT ? 'landscape' : 'portrait');
         $pdf->loadView('payment-requests.document', $data);
 

@@ -1258,6 +1258,20 @@ class DealPaymentRequestTest extends TestCase
         $this->assertSame('125.000,00', $data['try_display']['amount']);
     }
 
+    public function test_invoice_and_receipt_pdfs_render(): void
+    {
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
+        $service = app(DealPaymentDocumentService::class);
+        $id = $this->insertPayment(['external_reference' => '899', 'ol_status' => 'pending', 'amount' => 4350, 'currency_id' => $this->currencyId]);
+
+        $invoice = $service->download(Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id), 'invoice');
+        $this->assertStringStartsWith('%PDF', $invoice->getContent());
+
+        DB::table('payments')->where('id', $id)->update(['ol_status' => 'completed', 'status' => 'complete', 'paid_on' => now()]);
+        $receipt = $service->download(Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id), 'receipt');
+        $this->assertStringStartsWith('%PDF', $receipt->getContent());
+    }
+
     public function test_tl_equivalent_uses_the_ecb_publication_date_and_the_printed_rate(): void
     {
         Http::fake(['https://api.frankfurter.app/*' => Http::response(['date' => '2026-11-06', 'rates' => ['TRY' => 50.00004]], 200)]);
