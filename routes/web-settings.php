@@ -25,6 +25,7 @@ use App\Http\Controllers\CustomModuleController;
 use App\Http\Controllers\DatabaseBackupSettingController;
 use App\Http\Controllers\DealAutomationController;
 use App\Http\Controllers\EmailTemplateController;
+use App\Http\Controllers\EmployeeDirectoryController;
 use App\Http\Controllers\EmployeeShiftController;
 use App\Http\Controllers\EntityReminderDefaultController;
 use App\Http\Controllers\GoogleAuthController;
@@ -95,6 +96,14 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
     /* Admin-only React settings hub (entity setting cards) */
     Route::get('overview', [SettingsOverviewController::class, 'index'])->name('settings-overview.index');
+
+    /* Employee directory and impersonation. The directory is admin-only;
+       leaving impersonation is available to the signed-in employee. */
+    Route::get('employees', [EmployeeDirectoryController::class, 'index'])->name('settings-employees.index');
+    Route::post('employees/{user}/impersonate', [EmployeeDirectoryController::class, 'store'])
+        ->whereNumber('user')
+        ->name('settings-employees.impersonate');
+    Route::post('impersonation/leave', [EmployeeDirectoryController::class, 'leave'])->name('impersonation.leave');
 
     /* Leads settings hub — sources, statuses, first-contact SLA, and related defaults */
     Route::get('leads', [LeadSettingsHubController::class, 'page'])->name('settings-leads.index');

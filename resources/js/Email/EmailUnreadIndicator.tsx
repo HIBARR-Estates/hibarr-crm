@@ -1,5 +1,5 @@
 import { Link } from "@inertiajs/react";
-import { Icon } from "@/Components/Redesign";
+import { Mail } from "lucide-react";
 import useTranslation from "@/Hooks/useTranslation";
 import useEmailUnreadCount from "@/Email/hooks/useEmailUnreadCount";
 
@@ -7,6 +7,8 @@ import useEmailUnreadCount from "@/Email/hooks/useEmailUnreadCount";
  * Global new-mail badge for the signed-in mailbox owner. Visible even when
  * they are not the Lead Owner of any linked record. Two agents who each
  * received the same message both see their own indicator.
+ *
+ * Spec: 44×44 round icon button, transparent, 18px stroke icon (stroke 1.8, color #4b5563), with aria-label.
  */
 export default function EmailUnreadIndicator() {
     const { t } = useTranslation();
@@ -25,16 +27,21 @@ export default function EmailUnreadIndicator() {
     return (
         <Link
             href="/email/inbox"
-            className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-dr-text no-underline hover:bg-dr-surface-2"
+            className="relative inline-flex items-center justify-center rounded-full bg-transparent hover:bg-gray-100 text-[#4b5563] transition-colors no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            style={{
+                width: "44px",
+                height: "44px",
+                borderRadius: "9999px",
+            }}
             aria-label={label}
             title={label}
             data-tour="email-unread-indicator"
             data-unread={unread}
         >
-            <Icon name="mail" size={16} />
+            <Mail size={18} strokeWidth={1.8} color="#4b5563" aria-hidden="true" />
             {unread > 0 ? (
                 <span
-                    className="absolute -right-0.5 -top-0.5 flex min-w-[16px] items-center justify-center rounded-full bg-dr-red px-1 text-[10px] font-semibold leading-4 text-white"
+                    className="absolute top-1 right-1 flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white shadow-sm"
                     aria-hidden="true"
                     data-testid="email-unread-badge"
                 >
