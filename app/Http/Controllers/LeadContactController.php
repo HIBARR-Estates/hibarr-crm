@@ -31,6 +31,7 @@ use App\Models\LeadCategory;
 use App\Models\LeadCustomForm;
 use App\Models\LeadLifecycleStatus;
 use App\Models\LeadNote;
+use App\Models\LeadOrigin;
 use App\Models\LeadPipeline;
 use App\Models\LeadProduct;
 use App\Models\LeadSavedView;
@@ -1760,6 +1761,16 @@ class LeadContactController extends AccountBaseController
     {
         $fields = array_values(array_unique(array_map('strval', $fields)));
 
+        // Checked before any write so a missing origin can't leave the
+        // other fields half-applied.
+        if (in_array('lead_origin_id', $fields, true)) {
+            $originId = $request->input('lead_origin_id');
+            if ($originId !== null && $originId !== '' && $originId !== false
+                && ! LeadOrigin::whereKey((int) $originId)->exists()) {
+                return __('pages.lead_settings.origins.not_found');
+            }
+        }
+
         foreach ($fields as $field) {
             switch ($field) {
                 case 'category_ids':
@@ -1796,6 +1807,18 @@ class LeadContactController extends AccountBaseController
                     }
 
                     Lead::whereIn('id', $rowIds)->update(['source_id' => $sourceId]);
+                    break;
+
+                case 'lead_origin_id':
+                    $originId = $request->input('lead_origin_id');
+                    if ($originId === '' || $originId === false) {
+                        $originId = null;
+                    }
+                    if ($originId !== null) {
+                        $originId = (int) $originId;
+                    }
+
+                    Lead::whereIn('id', $rowIds)->update(['lead_origin_id' => $originId]);
                     break;
 
                 case 'lead_owner':

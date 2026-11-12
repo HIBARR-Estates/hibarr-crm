@@ -11,6 +11,9 @@ export { groupBulkUpdateFieldsBySection } from "@/Features/BulkActions/bulkUpdat
 export interface BulkUpdateOptionsInput {
     categories?: Array<{ id: number; category_name?: string; name?: string }>;
     sources?: Array<{ id: number; type: string }>;
+    origins?: Array<{ id: number; name: string }>;
+    /** Placeholder for the origin search box (already translated). */
+    originSearchPlaceholder?: string;
     employees?: Array<{ id: number; name: string }>;
     leadAgents?: Array<{
         id: number;
@@ -45,6 +48,11 @@ export function createLeadBulkUpdateFields(
     const sources = (props.sources ?? []).map((source) => ({
         value: source.id,
         label: source.type,
+    }));
+
+    const origins = (props.origins ?? []).map((origin) => ({
+        value: origin.id,
+        label: origin.name,
     }));
 
     const employees = (props.employees ?? []).map((employee) => ({
@@ -102,6 +110,16 @@ export function createLeadBulkUpdateFields(
             clearable: true,
             options: sources,
             toPayload: (value) => ({ source_id: numberOrNull(value) }),
+        },
+        {
+            key: "lead_origin_id",
+            label: "Origin",
+            section: "Assignment",
+            control: "checklist-single",
+            clearable: true,
+            options: origins,
+            searchPlaceholder: props.originSearchPlaceholder,
+            toPayload: (value) => ({ lead_origin_id: numberOrNull(value) }),
         },
         {
             key: "lead_owner",

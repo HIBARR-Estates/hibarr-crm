@@ -55,5 +55,9 @@ export interface MarketingIntakeDepartment {
 export interface MarketingIntakeSettings {
     department_ids: number[];
     origin_id: number;
+    /** Default lead owner (user id) for leads saved through the flow; null = none. */
+    owner_id: number | null;
+    /** People who can own a lead (enabled lead agents). */
+    owners: Array<{ id: number; name: string }>;
     departments: MarketingIntakeDepartment[];
 }

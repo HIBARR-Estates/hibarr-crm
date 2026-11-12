@@ -100,6 +100,38 @@
     box-shadow: 0 0 0 2px var(--dr-blue-light);
 }
 
+/* antd range picker matched to a modal field. It stays outside `.modal-field`
+   because that rule restyles every input inside it, including the picker's. */
+.dr-range.ant-picker {
+    width: 100%;
+    border: 1px solid var(--dr-border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: var(--dr-white);
+    font-family: var(--dr-font-sans);
+    box-shadow: none;
+}
+.dr-range.ant-picker:hover {
+    border-color: var(--dr-border);
+}
+.dr-range.ant-picker-focused {
+    border-color: var(--dr-blue-mid);
+    box-shadow: 0 0 0 2px var(--dr-blue-light);
+}
+.dr-range .ant-picker-input > input {
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--dr-text);
+}
+.dr-range .ant-picker-input > input::placeholder {
+    color: var(--dr-text-hint);
+}
+.dr-range .ant-picker-separator,
+.dr-range .ant-picker-suffix,
+.dr-range .ant-picker-clear {
+    color: var(--dr-text-muted);
+}
+
 .meeting-form-fields {
     font-family: var(--dr-font-sans);
     color: var(--dr-text);

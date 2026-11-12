@@ -283,6 +283,13 @@
     width: 100%;
     box-sizing: border-box;
 }
+/* antd pins single selects to 32px on the root; match the 38px inputs */
+.mli-fld .ant-select-single:not(.ant-select-compact-item) {
+    height: 38px;
+}
+.mli-fld .ant-select-single:not(.ant-select-compact-item) .ant-select-selector {
+    height: 100%;
+}
 .mli-fld .ant-select-multiple .ant-select-selector {
     height: auto;
     min-height: 38px;
@@ -324,10 +331,88 @@ textarea.mli-inp {
     font-size: 12px;
     color: var(--dr-text-muted);
 }
-.mli-phone {
+/* group headings inside a step (Contact: phone numbers, attribution) */
+.mli-group {
+    grid-column: 1 / -1;
+    margin: 6px 0 -4px;
+    padding-top: 12px;
+    border-top: 1px solid var(--dr-border);
+}
+
+/* helper text that sits beside a field, level with its input */
+.mli-hint {
+    align-self: end;
+    margin: 0 0 10px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--dr-text-muted);
+}
+
+/* the three numbers wrap at a width that fits a full international number */
+.mli-phone-grid {
+    grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: 116px minmax(0, 1fr);
-    gap: 6px;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px 14px;
+}
+
+/* phone numbers: the lead page's antd-phone-input (flag picker + masked
+   number), joined into one field with the redesign border and focus ring */
+.mli-fld .ant-phone-input-wrapper,
+.mli-fld .ant-phone-input-wrapper .ant-space-compact {
+    display: flex;
+    width: 100%;
+}
+.mli-fld .ant-phone-input-wrapper .ant-space-compact {
+    height: 38px;
+    box-sizing: border-box;
+    border: 1px solid var(--dr-border);
+    border-radius: 9px;
+    background: var(--dr-white);
+    overflow: hidden;
+}
+.mli-fld .ant-phone-input-wrapper .ant-space-compact:focus-within {
+    border-color: var(--dr-blue);
+    box-shadow: 0 0 0 1px var(--dr-blue);
+}
+.mli-fld.has-error .ant-phone-input-wrapper .ant-space-compact {
+    border-color: var(--dr-time-late-solid);
+}
+.mli-fld .ant-phone-input-wrapper .ant-select {
+    flex: 0 0 48px;
+    width: 48px !important;
+    height: 36px;
+}
+.mli-fld .ant-phone-input-wrapper .ant-select .ant-select-selector {
+    height: 36px;
+    padding: 0 0 0 12px;
+    border: 0 !important;
+    border-right: 1px solid var(--dr-border) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: var(--dr-surface-subtle);
+}
+.mli-fld .ant-phone-input-wrapper .ant-select .ant-select-selection-item {
+    display: flex;
+    align-items: center;
+    line-height: 36px;
+    height: 36px;
+}
+.mli-fld .ant-phone-input-wrapper .mli-phone-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 36px;
+    padding: 0 10px;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent;
+}
+.mli-fld .ant-phone-input-wrapper .mli-phone-input .ant-input {
+    font: inherit;
+    font-size: 13px;
+    color: var(--dr-text);
+    font-variant-numeric: tabular-nums;
 }
 
 /* chip choices (preferred contact time, categories, radio/checkbox fields) */
@@ -543,4 +628,27 @@ textarea.mli-inp {
     .mli-foot__actions > * {
         flex: 1;
     }
+}
+
+/* UTM pickers: loading / empty / OL-unavailable states inside the list */
+.mli-utm-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    color: var(--dr-text-muted);
+    text-align: center;
+}
+.mli-utm-retry {
+    border: 1px solid var(--dr-border);
+    border-radius: 7px;
+    background: var(--dr-white);
+    padding: 3px 10px;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--dr-blue);
+    cursor: pointer;
 }

@@ -161,6 +161,40 @@ class MarketingLeadIntakeTest extends TestCase
         $this->assertSame($eventsId, MarketingLeadIntake::originId($this->companyId));
     }
 
+    public function test_a_default_owner_must_be_someone_who_can_own_leads(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $this->addEmployee(5, 10);
+        $this->addEmployee(6, 10);
+        DB::table('lead_agents')->insert([
+            ['company_id' => $this->companyId, 'user_id' => 5, 'status' => 'enabled', 'created_at' => now(), 'updated_at' => now()],
+            ['company_id' => $this->companyId, 'user_id' => 6, 'status' => 'disabled', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        $originId = MarketingLeadIntake::originId($this->companyId);
+
+        $this->putJson('/account/settings/leads/marketing-intake', [
+            'department_ids' => [10],
+            'origin_id' => $originId,
+            'owner_id' => 6,
+        ])->assertStatus(422);
+
+        $this->putJson('/account/settings/leads/marketing-intake', [
+            'department_ids' => [10],
+            'origin_id' => $originId,
+            'owner_id' => 5,
+        ])->assertOk()
+            ->assertJsonPath('marketingIntake.owner_id', 5);
+
+        $this->assertSame(5, MarketingLeadIntake::ownerId($this->companyId));
+        $this->assertSame([['id' => 5, 'name' => 'User 5']], MarketingLeadIntake::ownerOptions($this->companyId));
+
+        // An owner who stops being an enabled agent is no longer suggested.
+        DB::table('lead_agents')->where('user_id', 5)->update(['status' => 'disabled']);
+        $this->assertNull(MarketingLeadIntake::ownerId($this->companyId));
+    }
+
     public function test_an_unknown_department_is_rejected(): void
     {
         $this->withoutMiddleware();
@@ -226,7 +260,7 @@ class MarketingLeadIntakeTest extends TestCase
 
     private function resetSchema(): void
     {
-        foreach (['employee_teams', 'employee_details', 'teams', 'leads', 'lead_origins', 'lead_setting', 'users', 'companies'] as $table) {
+        foreach (['lead_agents', 'employee_teams', 'employee_details', 'teams', 'leads', 'lead_origins', 'lead_setting', 'users', 'companies'] as $table) {
             Schema::dropIfExists($table);
         }
     }
@@ -244,6 +278,15 @@ class MarketingLeadIntakeTest extends TestCase
             $table->unsignedInteger('company_id')->nullable();
             $table->string('name')->nullable();
             $table->string('email')->nullable();
+            $table->string('status')->default('active');
+            $table->timestamps();
+        });
+
+        Schema::create('lead_agents', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->unsignedInteger('user_id');
+            $table->string('status')->default('enabled');
             $table->timestamps();
         });
 
@@ -255,6 +298,7 @@ class MarketingLeadIntakeTest extends TestCase
             $table->unsignedSmallInteger('first_contact_sla_hours')->default(24);
             $table->json('marketing_intake_department_ids')->nullable();
             $table->unsignedBigInteger('marketing_intake_origin_id')->nullable();
+            $table->unsignedInteger('marketing_intake_owner_id')->nullable();
             $table->timestamps();
         });
 
