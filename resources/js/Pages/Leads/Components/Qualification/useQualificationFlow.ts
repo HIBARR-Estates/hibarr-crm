@@ -186,9 +186,11 @@ export const useQualificationFlow = ({
                       : 0;
 
             const timer = setTimeout(() => {
+                // Start the save before dropping the timer so the saving
+                // signal never reads idle between the two.
+                void persistAnswer(segment, values, text);
                 pendingTimers.current.delete(segment.key);
                 notifySaving();
-                void persistAnswer(segment, values, text);
             }, delay);
 
             pendingTimers.current.set(segment.key, timer);
