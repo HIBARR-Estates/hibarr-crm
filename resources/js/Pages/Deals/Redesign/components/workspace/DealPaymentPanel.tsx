@@ -305,7 +305,10 @@ export default function DealPaymentPanel({
                                                 </span>
                                             )}
                                         </span>
-                                        <Badge variant={expired ? "red" : paymentUiStateBadgeVariant(request.ui_state)}>
+                                        <Badge
+                                            variant={expired ? "red" : paymentUiStateBadgeVariant(request.ui_state)}
+                                            style={{ flex: "0 0 auto" }}
+                                        >
                                             {expired
                                                 ? t("pages.deals.payment_request.link_expired")
                                                 : td(paymentUiStateLabel(request.ui_state))}

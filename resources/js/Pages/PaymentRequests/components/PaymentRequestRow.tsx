@@ -38,7 +38,7 @@ export interface PaymentRequestListRow extends DealPaymentRequest {
  * for Invoice and, only while a transfer is still waiting, Confirm.
  */
 export const PAYMENT_REQUEST_GRID =
-    "minmax(0, 1.5fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr) 172px 320px";
+    "minmax(0, 1.5fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr) max-content 320px";
 
 interface PaymentRequestRowProps {
     row: PaymentRequestListRow;
@@ -193,10 +193,9 @@ export default function PaymentRequestRow({
                 )}
             </div>
 
-            <div style={{ minWidth: 0 }}>
+            <div>
                 <Badge
                     variant={linkExpired ? "red" : paymentUiStateBadgeVariant(row.ui_state)}
-                    style={{ whiteSpace: "normal" }}
                 >
                     {linkExpired
                         ? t("pages.deals.payment_request.link_expired")
