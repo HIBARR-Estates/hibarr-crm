@@ -43,7 +43,7 @@ export const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_conten
 export type UtmKey = (typeof UTM_KEYS)[number];
 
 /** UTM fields whose options OL manages (pick-only); the rest are free text. */
-export const OL_UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content"] as const;
+export const OL_UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign"] as const;
 export type OlUtmKey = (typeof OL_UTM_KEYS)[number];
 export const isOlUtmKey = (key: UtmKey): key is OlUtmKey => (OL_UTM_KEYS as readonly string[]).includes(key);
 

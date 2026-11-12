@@ -17,14 +17,13 @@ use Illuminate\Support\Facades\Http;
 class OlUtmConfigService
 {
     /**
-     * utm field => OL config type. OL manages these four; utm_term and
-     * utm_audience have no OL options and stay free text.
+     * utm field => OL config type. OL manages these three; utm_content,
+     * utm_term and utm_audience stay free text.
      */
     public const TYPES = [
         'utm_source' => 'source',
         'utm_medium' => 'medium',
         'utm_campaign' => 'campaign',
-        'utm_content' => 'format',
     ];
 
     /** Shared by the picker and the save check so they reuse the same cached pages. */
