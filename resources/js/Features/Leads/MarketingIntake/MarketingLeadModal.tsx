@@ -9,6 +9,7 @@ import { initialsFromName } from "@/Components/Redesign/adapters/initials";
 import "@/Components/Redesign/redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import UtmConfigSelect from "./UtmConfigSelect";
 import CustomFieldInput from "./CustomFieldInput";
 import {
     buildPayload,
@@ -433,12 +434,25 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
                     {UTM_KEYS.map((key) => (
                         <div key={key} className={`mli-fld${errors[`utm.${key}`] ? " has-error" : ""}`}>
                             <label htmlFor={`mli-${key}`}>{utmLabels[key]}</label>
-                            {textInput(key, "text", { autoComplete: "off", list: `mli-${key}-suggestions` })}
-                            <datalist id={`mli-${key}-suggestions`}>
-                                {(options.utmSuggestions[key] ?? []).map((value) => (
-                                    <option key={value} value={value} />
-                                ))}
-                            </datalist>
+                            <UtmConfigSelect
+                                field={key}
+                                id={`mli-${key}`}
+                                value={draft[key]}
+                                placeholder={t("pages.marketing_leads.choose")}
+                                onChange={(next, option) => {
+                                    setField(key, next);
+                                    // A source linked to a CRM lead source fills Lead source when it's empty.
+                                    const linked = option?.leadSourceId;
+                                    if (
+                                        key === "utm_source" &&
+                                        linked != null &&
+                                        !draft.source_id &&
+                                        options.sources.some((source) => source.id === linked)
+                                    ) {
+                                        setField("source_id", String(linked));
+                                    }
+                                }}
+                            />
                             {errors[`utm.${key}`] && <span className="mli-fld__error">{errors[`utm.${key}`]}</span>}
                         </div>
                     ))}

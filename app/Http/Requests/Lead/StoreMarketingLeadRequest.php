@@ -2,13 +2,16 @@
 
 namespace App\Http\Requests\Lead;
 
+use App\Services\OlUtmConfigService;
 use App\Support\MarketingLeadIntake;
+use Illuminate\Validation\Validator;
 
 /**
  * The marketing lead flow's payload: the same personal-information and
  * custom-field rules as the regular lead form, plus attribution and notes.
  * No deal creation or status, and origin is stamped server-side. The owner
- * must be someone who can own leads; UTM values become the first touch.
+ * must be someone who can own leads; UTM values must be options OL lists and
+ * become the first touch.
  */
 class StoreMarketingLeadRequest extends StoreRequest
 {
@@ -80,6 +83,37 @@ class StoreMarketingLeadRequest extends StoreRequest
         if (! preg_match('#^[a-z][a-z0-9+.-]*://#i', $website)) {
             $this->merge(['website' => 'https://'.$website]);
         }
+    }
+
+    /** Each UTM value has to be one of the options OL manages for that field. */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $configs = app(OlUtmConfigService::class);
+            foreach (OlUtmConfigService::TYPES as $field => $type) {
+                $value = $this->input("utm.{$field}");
+                if (! is_string($value) || trim($value) === '') {
+                    continue;
+                }
+
+                try {
+                    $listed = $configs->has($type, $value);
+                } catch (\Throwable $e) {
+                    report($e);
+                    $validator->errors()->add("utm.{$field}", __('pages.marketing_leads.utm_unavailable'));
+
+                    continue;
+                }
+
+                if (! $listed) {
+                    $validator->errors()->add("utm.{$field}", __('pages.marketing_leads.utm_not_listed'));
+                }
+            }
+        });
     }
 
     public function messages()

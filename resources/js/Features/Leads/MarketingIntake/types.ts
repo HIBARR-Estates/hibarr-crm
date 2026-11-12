@@ -37,12 +37,17 @@ export interface MarketingLeadOptions {
     owners: Array<{ id: number; name: string }>;
     /** Owner picked in Lead settings for this flow; null = none. */
     defaultOwnerId: number | null;
-    /** Values leads already use for each UTM field, most used first. */
-    utmSuggestions: Partial<Record<UtmKey, string[]>>;
 }
 
 export const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "utm_audience"] as const;
 export type UtmKey = (typeof UTM_KEYS)[number];
+
+/** A UTM option managed on OL; `leadSourceId` links a source to a CRM lead source. */
+export interface UtmConfigOption {
+    value: string;
+    label: string;
+    leadSourceId: number | null;
+}
 
 export interface MarketingLeadNoteDraft {
     key: string;

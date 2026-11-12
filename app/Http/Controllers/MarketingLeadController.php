@@ -12,10 +12,12 @@ use App\Services\LeadAutomationService;
 use App\Services\LeadCoreFieldsService;
 use App\Services\LeadService;
 use App\Services\LeadUtmService;
+use App\Services\OlUtmConfigService;
 use App\Support\MarketingLeadIntake;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 /**
@@ -27,16 +29,6 @@ use Inertia\Inertia;
  */
 class MarketingLeadController extends AccountBaseController
 {
-    /** utm field => form-data type with the values leads already use, most used first. */
-    private const UTM_SUGGESTION_TYPES = [
-        'utm_source' => 'lead-utm-sources',
-        'utm_medium' => 'lead-utm-mediums',
-        'utm_campaign' => 'lead-utm-campaigns',
-        'utm_content' => 'lead-utm-contents',
-        'utm_term' => 'lead-utm-terms',
-        'utm_audience' => 'lead-utm-audiences',
-    ];
-
     public function __construct(
         private readonly LeadCoreFieldsService $coreFieldsService,
     ) {
@@ -86,14 +78,38 @@ class MarketingLeadController extends AccountBaseController
             'customFieldCategories' => collect($customFields['customFieldCategories'] ?? [])->values(),
             'owners' => MarketingLeadIntake::ownerOptions(),
             'defaultOwnerId' => MarketingLeadIntake::ownerId(),
-            'utmSuggestions' => collect(self::UTM_SUGGESTION_TYPES)
-                ->map(fn (string $type) => $formData->getData($type, $request)
-                    ->pluck('value')
-                    ->filter(fn ($value) => is_string($value) && $value !== '')
-                    ->take(50)
-                    ->values())
-                ->all(),
         ]);
+    }
+
+    /**
+     * One page of the UTM options OL manages for a field, loaded as the
+     * picker scrolls or searches. The flow only accepts values from here.
+     */
+    public function utmConfigs(Request $request, OlUtmConfigService $configs): JsonResponse
+    {
+        $validated = $request->validate([
+            'field' => ['required', 'string', Rule::in(array_keys(OlUtmConfigService::TYPES))],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'search' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        try {
+            $result = $configs->page(
+                OlUtmConfigService::TYPES[$validated['field']],
+                (int) ($validated['page'] ?? 1),
+                OlUtmConfigService::PAGE_SIZE,
+                $validated['search'] ?? null,
+            );
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => __('pages.marketing_leads.utm_unavailable'),
+            ], 503);
+        }
+
+        return response()->json(['status' => 'success'] + $result);
     }
 
     public function store(StoreMarketingLeadRequest $request): JsonResponse
