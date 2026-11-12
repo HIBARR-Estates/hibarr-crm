@@ -415,6 +415,12 @@
     cursor: not-allowed;
 }
 
+.agent-flow__btn:focus-visible {
+    border-color: var(--dr-blue);
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 1px;
+}
+
 .agent-flow__btn--navy,
 .agent-flow__btn--green {
     font-weight: 600;

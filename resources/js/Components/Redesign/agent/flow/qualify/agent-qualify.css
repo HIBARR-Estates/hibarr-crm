@@ -206,7 +206,6 @@
 
 .agent-qs__note:focus,
 .agent-qs__chip:focus-visible,
-.agent-flow__btn:focus-visible,
 .agent-qo__card:focus-visible,
 .agent-qs__row-link:focus-visible {
     border-color: var(--dr-blue);
