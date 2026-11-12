@@ -182,6 +182,8 @@ class DealPaymentDocumentService
         // API never holds up other documents being issued for the company.
         $paymentData['try_rate'] = $this->tryRate(PaymentDocumentSetting::forCompany($companyId), $paymentData['currency_code']);
 
+        $this->ensureSettingsRow($companyId);
+
         try {
             return DB::transaction(function () use ($payment, $kind, $companyId, $paymentData) {
                 // Locking the settings row serialises issuing per company, so
@@ -237,15 +239,28 @@ class DealPaymentDocumentService
 
     private function lockedSettings(int $companyId): PaymentDocumentSetting
     {
-        $settings = PaymentDocumentSetting::query()->where('company_id', $companyId)->lockForUpdate()->first();
-        if ($settings) {
-            return $settings;
+        return PaymentDocumentSetting::query()->where('company_id', $companyId)->lockForUpdate()->firstOrFail();
+    }
+
+    /**
+     * Saves the company's default settings row if it has none yet, outside
+     * the issuing transaction, so there is always a row to lock. When two
+     * requests create it at once the unique index refuses one; that one
+     * simply uses the row the other saved.
+     */
+    private function ensureSettingsRow(int $companyId): void
+    {
+        if (PaymentDocumentSetting::query()->where('company_id', $companyId)->exists()) {
+            return;
         }
 
-        $settings = PaymentDocumentSetting::forCompany($companyId);
-        $settings->save();
-
-        return PaymentDocumentSetting::query()->whereKey($settings->id)->lockForUpdate()->firstOrFail();
+        try {
+            PaymentDocumentSetting::forCompany($companyId)->save();
+        } catch (QueryException $e) {
+            if (! PaymentDocumentSetting::query()->where('company_id', $companyId)->exists()) {
+                throw $e;
+            }
+        }
     }
 
     private function seriesFor(PaymentDocumentSetting $settings, string $kind): string
