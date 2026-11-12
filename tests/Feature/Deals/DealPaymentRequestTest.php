@@ -782,6 +782,8 @@ class DealPaymentRequestTest extends TestCase
 
     public function test_invoice_document_names_the_company_deal_and_amount(): void
     {
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
+
         $id = $this->insertPayment([
             'external_reference' => '880',
             'ol_status' => 'pending',
@@ -796,11 +798,79 @@ class DealPaymentRequestTest extends TestCase
         $html = view('payment-requests.document', $data)->render();
 
         $this->assertSame('invoice', $data['kind']);
-        $this->assertStringStartsWith('INV-', $data['number']);
+        $this->assertSame('A 000001', $data['number']);
         $this->assertStringContainsString('Test Co', $html);
         $this->assertStringContainsString('Test Deal', $html);
-        $this->assertStringContainsString('2,500.00', $html);
-        $this->assertStringContainsString('INV-', $html);
+        $this->assertStringContainsString('2.500,00', $html);
+        $this->assertStringContainsString('FATURA', $html);
+        // 16% KDV is inside the amount: 2500 / 1.16 = 2155.17, KDV 344.83.
+        $this->assertSame('2.155,17', $data['subtotal_display']);
+        $this->assertSame('344,83', $data['vat_display']);
+        $this->assertSame('Yalnız: İkibinbeşyüz Avro', $data['amount_in_words']);
+        $this->assertSame('125.000,00', $data['try_display']['amount']);
+    }
+
+    public function test_invoice_numbers_follow_the_range_and_never_change_once_issued(): void
+    {
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
+
+        DB::table('payment_document_settings')->insert([
+            'company_id' => $this->companyId,
+            'legal_name' => 'Örnek Emlak Ltd.',
+            'tax_office' => 'Girne',
+            'tax_number' => 'MŞ 23667',
+            'invoice_series' => 'B',
+            'invoice_number_start' => 240,
+            'invoice_number_end' => 241,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $service = app(DealPaymentDocumentService::class);
+        $first = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])
+            ->findOrFail($this->insertPayment(['external_reference' => '890', 'ol_status' => 'pending', 'amount' => 100]));
+        $second = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])
+            ->findOrFail($this->insertPayment(['external_reference' => '891', 'ol_status' => 'pending', 'amount' => 100]));
+        $third = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])
+            ->findOrFail($this->insertPayment(['external_reference' => '892', 'ol_status' => 'pending', 'amount' => 100]));
+
+        $this->assertSame('B 000240', $service->viewData($first, 'invoice')['number']);
+        $this->assertSame('B 000241', $service->viewData($second, 'invoice')['number']);
+
+        // Settings changes never rewrite an issued invoice.
+        DB::table('payment_document_settings')->update(['legal_name' => 'Renamed Ltd.']);
+        $again = $service->viewData($first, 'invoice');
+        $this->assertSame('B 000240', $again['number']);
+        $this->assertSame('Örnek Emlak Ltd.', $again['seller']['legal_name']);
+
+        // The range is used up.
+        try {
+            $service->viewData($third, 'invoice');
+            $this->fail('Expected the used-up range to be refused.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+
+        $this->assertSame(2, DB::table('payment_documents')->count());
+    }
+
+    public function test_settings_preview_shows_the_next_number_without_taking_it(): void
+    {
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 56.2]], 200)]);
+
+        $settings = \App\Models\PaymentDocumentSetting::forCompany($this->companyId);
+        $this->assertSame('Test Co', $settings->legal_name);
+
+        $data = app(DealPaymentDocumentService::class)->previewData($settings, 'invoice');
+        $html = view('payment-requests.document', $data)->render();
+
+        $this->assertSame('A 000001', $data['number']);
+        $this->assertSame('Yalnız: Dörtbinüçyüzelli İngiliz Sterlini', $data['amount_in_words']);
+        $this->assertStringContainsString('ÖRNEK', $html);
+        $this->assertSame(0, DB::table('payment_documents')->count());
+
+        $receipt = app(DealPaymentDocumentService::class)->previewData($settings, 'receipt');
+        $this->assertSame("Markus Weber'den", $receipt['payer_ablative']);
     }
 
     public function test_receipt_is_refused_until_the_payment_is_collected(): void
@@ -830,11 +900,18 @@ class DealPaymentRequestTest extends TestCase
             'paid_on' => now(),
         ]);
 
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
+
         $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
         $data = app(DealPaymentDocumentService::class)->viewData($payment, 'receipt');
+        $html = view('payment-requests.document', $data)->render();
 
         $this->assertSame('receipt', $data['kind']);
-        $this->assertStringStartsWith('RCT-', $data['number']);
+        $this->assertSame('T 000001', $data['number']);
+        // The receipt is issued against the request's invoice.
+        $this->assertSame('A 000001', $data['invoice_number']);
+        $this->assertStringContainsString('TAHSİLAT MAKBUZU', $html);
+        $this->assertStringContainsString('A 000001 no.lu fatura', $html);
         $this->assertNull($data['stamp']);
     }
 
@@ -887,6 +964,8 @@ class DealPaymentRequestTest extends TestCase
 
     private function resetSchema(): void
     {
+        Schema::dropIfExists('payment_documents');
+        Schema::dropIfExists('payment_document_settings');
         Schema::dropIfExists('payments');
         Schema::dropIfExists('deals');
         Schema::dropIfExists('currencies');
@@ -960,6 +1039,8 @@ class DealPaymentRequestTest extends TestCase
             $table->unsignedInteger('last_updated_by')->nullable();
             $table->timestamps();
         });
+
+        (require base_path('database/migrations/2026_11_12_000001_create_payment_document_settings_tables.php'))->up();
     }
 
     private function seedBaseData(): void

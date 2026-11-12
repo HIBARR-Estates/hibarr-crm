@@ -50,6 +50,7 @@ use App\Http\Controllers\NotificationSettingsApiController;
 use App\Http\Controllers\OfflinePaymentSettingController;
 use App\Http\Controllers\PackageController;
 use App\Http\Controllers\PackageSettingsController;
+use App\Http\Controllers\PaymentDocumentSettingsController;
 use App\Http\Controllers\PaymentGatewayCredentialController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProfileSettingController;
@@ -426,6 +427,18 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
         Route::put('packages/{package}/agents/{agent}', [PackageSettingsController::class, 'upsertOverride'])->name('overrides.upsert');
         Route::delete('packages/{package}/agents/{agent}', [PackageSettingsController::class, 'destroyOverride'])->name('overrides.destroy');
         Route::get('packages/{package}/routing-triggers', [PackageSettingsController::class, 'routingTriggers'])->name('routing_triggers.index');
+    });
+
+    // Invoices and receipts settings: seller details, number ranges, KDV and
+    // bank details printed on deal payment Fatura and Tahsilat Makbuzu PDFs.
+    Route::get('payment-document-settings', [PaymentDocumentSettingsController::class, 'index'])->name('payment-document-settings.index');
+    Route::prefix('payment-document-settings/api')->name('payment-document-settings.api.')->group(function () {
+        Route::put('settings', [PaymentDocumentSettingsController::class, 'update'])->name('update');
+        Route::post('logo', [PaymentDocumentSettingsController::class, 'uploadLogo'])->name('logo.store');
+        Route::delete('logo', [PaymentDocumentSettingsController::class, 'removeLogo'])->name('logo.destroy');
+        Route::get('preview/{kind}', [PaymentDocumentSettingsController::class, 'preview'])
+            ->whereIn('kind', ['invoice', 'receipt'])
+            ->name('preview');
     });
 
     Route::post('employee-shifts/set-default', [EmployeeShiftController::class, 'setDefaultShift'])->name('employee-shifts.set_default');

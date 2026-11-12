@@ -166,7 +166,9 @@ class DealPaymentController extends AccountBaseController
         abort_unless(filled($payment->external_reference), 404);
 
         try {
-            return $this->documents->download($payment, $kind);
+            $copy = request()->query('copy') === 'copy' ? 'copy' : 'original';
+
+            return $this->documents->download($payment, $kind, $copy);
         } catch (HttpException $e) {
             abort($e->getStatusCode(), $e->getMessage());
         }
