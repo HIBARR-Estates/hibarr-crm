@@ -46,7 +46,6 @@ import QualifyRightRail, {
 } from "./QualifyRightRail";
 import QualifyOutcomePhase from "./QualifyOutcomePhase";
 import QualifyContextNote from "./QualifyContextNote";
-import QualifyAnswersPanel from "./QualifyAnswersPanel";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTranslatedScriptLabel } from "@/Pages/Leads/Components/Qualification/useTranslatedScriptLabel";
 import FlowPanelHeader from "@/Components/Redesign/agent/flow/FlowPanelHeader";
@@ -54,6 +53,10 @@ import FlowSideTabs from "@/Components/Redesign/agent/flow/FlowSideTabs";
 import FlowStepList, { type FlowStep } from "@/Components/Redesign/agent/flow/FlowStepList";
 import useUnderDock, { flowOverlayClass } from "@/Components/Redesign/agent/flow/useUnderDock";
 import type { Segment } from "@/Types/qualification";
+import StepBody from "@/Components/Redesign/agent/flow/qualify/StepBody";
+import StepFooter, { StepName } from "@/Components/Redesign/agent/flow/qualify/StepFooter";
+import { AnswerRows, FactRows } from "@/Components/Redesign/agent/flow/qualify/SidePanels";
+import { leadFactRows } from "@/Components/Redesign/agent/flow/qualify/leadFacts";
 
 const LANGUAGE_OPTIONS = [
     { value: "en", label: "English" },
@@ -924,6 +927,53 @@ function QualifyModalContent({
         },
     ];
 
+    // Under the agent dock the step, its footer and the outcome are the boards' own
+    // screens (canvas L7-07, L7-08), built on the same flow state as the classic ones.
+    const lastWalkSegment = walkSegments[walkSegments.length - 1];
+    const agentCenter = inOutcome ? (
+        <QualifyOutcomePhase
+            flow={flow}
+            lead={lead}
+            agentLanguage={agentLanguage}
+            qualificationService={qualificationService}
+            registrationService={registrationService}
+            meetingTypes={meetingTypes ?? []}
+            selectedOutcome={selectedOutcome}
+            onSelectOutcome={setSelectedOutcome}
+            onBack={handleBackFromOutcome}
+            onCompleted={(updated) => {
+                setCompletedQualification(updated);
+                onCompleted(updated);
+            }}
+            onDone={(updated) => void doClose(updated)}
+            agentLayout
+            previousLabel={
+                lastWalkSegment ? <StepName segment={lastWalkSegment} translateScript={flow.translateScript} /> : undefined
+            }
+        />
+    ) : (
+        <div className="agent-qs__panel">
+            <div className="agent-qs__scroll">
+                {segment ? (
+                    <StepBody
+                        flow={flow}
+                        segment={segment}
+                        agentLanguage={agentLanguage}
+                        questionNumber={Math.max(questionNumber, 1)}
+                        questionTotal={Math.max(totalFields, 1)}
+                    />
+                ) : (
+                    <p className="agent-qs__hint">{td("No steps available for this template.", { source: "en" })}</p>
+                )}
+            </div>
+            <StepFooter
+                flow={flow}
+                isLast={flow.walkIndex === walkSegments.length - 1 || flow.isLastWalkSegment}
+                onNext={handleNextFromScript}
+            />
+        </div>
+    );
+
     const languageControls =
                 !isCompleted ? (
                     <span className="inline-flex items-center gap-2">
@@ -1033,35 +1083,25 @@ function QualifyModalContent({
                                 }}
                             />
                         </div>
-                        <div className="analysis-3col-center">{centerColumn}</div>
+                        <div className="analysis-3col-center agent-qs__center">{agentCenter}</div>
                         <div className="agent-flow__right">
                             <FlowSideTabs
                                 tabs={[
                                     {
                                         key: "facts",
                                         label: t("pages.agent_workspace.flow.lead_facts"),
-                                        content: (
-                                            <QualifyLeadContextPanel
-                                                lead={lead}
-                                                fields={fields}
-                                                customFieldCategories={customFieldCategories}
-                                                editLeadPermission={editLeadPermission}
-                                                showProfile={false}
-                                            />
-                                        ),
+                                        content: <FactRows rows={leadFactRows(lead, t)} />,
                                     },
                                     {
                                         key: "answers",
                                         label: t("pages.agent_workspace.flow.answers"),
                                         count: totalFilled,
                                         content: (
-                                            <QualifyAnswersPanel
+                                            <AnswerRows
                                                 segments={walkSegments}
                                                 answers={flow.answers}
-                                                currentSegmentKey={inOutcome ? undefined : segment?.key}
-                                                onJump={handleJump}
                                                 translateScript={flow.translateScript}
-                                                hideHeading
+                                                onJump={handleJump}
                                             />
                                         ),
                                     },
