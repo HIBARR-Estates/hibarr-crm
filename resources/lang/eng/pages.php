@@ -3492,7 +3492,6 @@ return [
     ],
     'marketing_leads' => [
         'page_title' => 'Marketing leads',
-        'nav_label' => 'Marketing leads',
         'page_intro' => 'Add leads your team collected. Each one you save is marked as a marketing lead automatically.',
         'open_button' => 'Marketing lead',
         'title' => 'New marketing lead',

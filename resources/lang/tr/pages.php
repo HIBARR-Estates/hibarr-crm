@@ -3313,7 +3313,6 @@ return [
     ],
     'marketing_leads' => [
         'page_title' => 'Pazarlama lead\'leri',
-        'nav_label' => 'Pazarlama lead\'leri',
         'page_intro' => 'Ekibinizin topladığı lead\'leri ekleyin. Kaydettiğiniz her lead otomatik olarak pazarlama lead\'i olarak işaretlenir.',
         'open_button' => 'Pazarlama lead\'i',
         'title' => 'Yeni pazarlama lead\'i',
