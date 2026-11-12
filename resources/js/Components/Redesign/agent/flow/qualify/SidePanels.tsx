@@ -2,8 +2,8 @@ import { useMemo } from "react";
 import type { Segment, SegmentAnswerState } from "@/Types/qualification";
 import { useDynamicTranslation } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
-import { formatAnswerDisplay, hasAnswerContent, stripHtmlTags } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
-import { useTranslatedScriptLabel } from "@/Pages/Leads/Components/Qualification/useTranslatedScriptLabel";
+import { formatAnswerDisplay, hasAnswerContent, stripHtmlTags } from "@/Components/Redesign/qualification/qualificationUtils";
+import { useTranslatedScriptLabel } from "@/Components/Redesign/qualification/useTranslatedScriptLabel";
 import "./agent-qualify.css";
 
 export interface FactRow {

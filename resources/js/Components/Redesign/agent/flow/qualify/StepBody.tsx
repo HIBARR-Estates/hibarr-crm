@@ -4,7 +4,7 @@ import { DynamicTranslationProvider } from "@/contexts/DynamicTranslationContext
 import { useDynamicTranslations } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type useQualificationFlow from "@/Pages/Leads/Components/Qualification/useQualificationFlow";
-import { stripHtmlTags } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
+import { stripHtmlTags } from "@/Components/Redesign/qualification/qualificationUtils";
 import SayBar from "./SayBar";
 import ScriptText from "./ScriptText";
 import "./agent-qualify.css";

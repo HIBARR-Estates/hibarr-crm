@@ -1,5 +1,5 @@
 import QualificationScriptHtml from "@/Pages/Leads/Components/Qualification/QualificationScriptHtml";
-import { useTranslatedScriptLabel } from "@/Pages/Leads/Components/Qualification/useTranslatedScriptLabel";
+import { useTranslatedScriptLabel } from "@/Components/Redesign/qualification/useTranslatedScriptLabel";
 
 /** A script line in the agent's language with {{tokens}} filled in, as the classic script shows it. */
 export default function ScriptText({

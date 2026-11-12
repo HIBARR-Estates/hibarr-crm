@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import type { Segment } from "@/Types/qualification";
 import useTranslation from "@/Hooks/useTranslation";
 import type useQualificationFlow from "@/Pages/Leads/Components/Qualification/useQualificationFlow";
-import { stripHtmlTags } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
-import { useTranslatedScriptLabel } from "@/Pages/Leads/Components/Qualification/useTranslatedScriptLabel";
+import { stripHtmlTags } from "@/Components/Redesign/qualification/qualificationUtils";
+import { useTranslatedScriptLabel } from "@/Components/Redesign/qualification/useTranslatedScriptLabel";
 import useSavedAgo from "./useSavedAgo";
 import "./agent-qualify.css";
 
