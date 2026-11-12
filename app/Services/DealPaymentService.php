@@ -497,17 +497,8 @@ class DealPaymentService
             $verifiedAt = $olPayload['verifiedAt'] ?? $olPayload['verified_at'] ?? $verifiedAt;
         }
 
-        $verifiedBy = null;
-        if ($verifiedByUserId) {
-            $verifier = User::find($verifiedByUserId);
-            if ($verifier) {
-                $verifiedBy = [
-                    'id' => $verifier->id,
-                    'name' => $verifier->name,
-                    'email' => $verifier->email,
-                ];
-            }
-        }
+        $people = $this->paymentPeople($payment, $verifiedByUserId ? (int) $verifiedByUserId : null);
+        $verifiedBy = $people['verified_by'];
 
         $mapped = DealPaymentUiStateMapper::map(
             $payment->ol_status,
@@ -533,7 +524,11 @@ class DealPaymentService
             'base_currency_symbol' => $baseCurrency?->currency_symbol,
             // "1 base = rate currency" — the inverse of the stored Worksuite rate.
             'rate' => $payment->exchange_rate ? round(1 / (float) $payment->exchange_rate, 6) : null,
+            'exchange_rate' => $payment->exchange_rate !== null && $payment->exchange_rate !== ''
+                ? (float) $payment->exchange_rate
+                : null,
             'gateway' => $payment->gateway,
+            'transaction_id' => $payment->transaction_id,
             'crm_status' => $payment->status,
             'ol_status' => $payment->ol_status,
             'ol_payment_type' => $payment->ol_payment_type,
@@ -545,11 +540,54 @@ class DealPaymentService
             'verified_by_user_id' => $verifiedByUserId ?: null,
             'verified_by' => $verifiedBy,
             'verified_at' => $verifiedAt,
+            'paid_on' => $payment->paid_on?->toIso8601String(),
             'invalidated_at' => $payment->invalidated_at?->toIso8601String(),
+            'invalidated_by' => $people['invalidated_by'],
             'invalidation_reason' => $payment->invalidation_reason,
+            'added_by' => $people['added_by'],
+            'last_updated_by' => $people['last_updated_by'],
+            'remarks' => $payment->remarks,
+            'bill' => $payment->bill,
             'proof_url' => $payment->bill ? $payment->file_url : null,
             'updated_at' => $payment->updated_at?->toIso8601String(),
             'created_at' => $payment->created_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array{verified_by: ?array, invalidated_by: ?array, added_by: ?array, last_updated_by: ?array}
+     */
+    private function paymentPeople(Payment $payment, ?int $verifiedByUserId): array
+    {
+        $ids = array_values(array_unique(array_filter([
+            $verifiedByUserId,
+            $payment->invalidated_by_user_id ? (int) $payment->invalidated_by_user_id : null,
+            $payment->added_by ? (int) $payment->added_by : null,
+            $payment->last_updated_by ? (int) $payment->last_updated_by : null,
+        ])));
+
+        $users = $ids === []
+            ? collect()
+            : User::query()->whereIn('id', $ids)->get(['id', 'name', 'email'])->keyBy('id');
+
+        $person = function (?int $id) use ($users): ?array {
+            if (!$id) {
+                return null;
+            }
+            $user = $users->get($id);
+
+            return [
+                'id' => $id,
+                'name' => $user?->name,
+                'email' => $user?->email,
+            ];
+        };
+
+        return [
+            'verified_by' => $person($verifiedByUserId),
+            'invalidated_by' => $person($payment->invalidated_by_user_id ? (int) $payment->invalidated_by_user_id : null),
+            'added_by' => $person($payment->added_by ? (int) $payment->added_by : null),
+            'last_updated_by' => $person($payment->last_updated_by ? (int) $payment->last_updated_by : null),
         ];
     }
 
