@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Head, router, usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
 import { AgentPillRow, AgentSecondRow, AgentWorkspaceLayout, agentPillPanelProps, useMinuteClock } from "@/Components/Redesign/agent";
@@ -10,6 +10,7 @@ import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdap
 import { getDossierFieldValue } from "@/Pages/Leads/Redesign/adapters/dossierAdapter";
 import { canEditLead } from "@/Pages/Leads/Redesign/adapters/leadEditAccess";
 import { resolveLifecycle } from "@/Pages/Leads/Redesign/adapters/lifecycleAdapter";
+import { useResumeQualificationRequest } from "@/Components/Redesign/agent/call/agentCallBridge";
 import LeadMissionModals from "@/Pages/Leads/Redesign/components/qualification/LeadMissionModals";
 import DuplicateLeadsCard from "@/Pages/Leads/Redesign/components/workspace/DuplicateLeadsCard";
 import LeadCreateModals, { type LeadCreateKind } from "@/Pages/Leads/Redesign/components/workspace/LeadCreateModals";
@@ -120,6 +121,13 @@ function ContactLead(props: LeadRedesignProps) {
     // A person with a deal is shown in the deal's state, so deals open there.
     const dealHref = useCallback((dealId: number) => route("agent.people.deal", { lead: lead.id, deal: dealId }), [lead.id]);
     const mission = useLeadMissionFlow({ qualification, deals, changeStatus, setQualificationOpen, dealHref });
+    // "Continue qualification" on the call card, from any page, lands here and opens the running one.
+    const resumeRequest = useResumeQualificationRequest(lead.id);
+    useEffect(() => {
+        if (!resumeRequest.requested) return;
+        resumeRequest.consume();
+        if (showQualification) mission.handleMissionAction("qualify_resume");
+    }, [mission, resumeRequest, showQualification]);
     const dealCreate = useLeadDealCreate(lead);
     const deleteLead = useLeadDelete(lead);
     const duplicates = useLeadDuplicates(lead.id);

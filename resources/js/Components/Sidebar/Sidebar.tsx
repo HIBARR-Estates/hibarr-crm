@@ -17,7 +17,6 @@ import {
     ApartmentOutlined,
     TeamOutlined,
     UsergroupAddOutlined,
-    UserAddOutlined,
     HistoryOutlined,
     GiftOutlined,
     AppstoreOutlined,
@@ -261,13 +260,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             icon: <BankOutlined />,
             href: "/account/payment-requests",
             hidden: !canViewPaymentRequests,
-        },
-        {
-            key: "marketing-leads",
-            label: t("pages.marketing_leads.nav_label"),
-            icon: <UserAddOutlined />,
-            href: props.marketingLeadIntake?.url ?? "/account/marketing-leads",
-            hidden: !props.marketingLeadIntake,
         },
         {
             key: "partner-leads",

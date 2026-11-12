@@ -11,16 +11,21 @@ use App\Services\FormDataService;
 use App\Services\LeadAutomationService;
 use App\Services\LeadCoreFieldsService;
 use App\Services\LeadService;
+use App\Services\LeadUtmService;
+use App\Services\OlUtmConfigService;
 use App\Support\MarketingLeadIntake;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 /**
  * The marketing lead flow: a multi-step modal for members of the departments
  * picked in Lead settings. Every lead saved here gets the configured origin
  * (Marketing by default); the person entering it never sees or sets it.
+ * The lead owner defaults to the one picked in settings and can be changed
+ * per lead; UTM values entered here become the lead's first touch.
  */
 class MarketingLeadController extends AccountBaseController
 {
@@ -71,7 +76,40 @@ class MarketingLeadController extends AccountBaseController
             'categories' => LeadCategory::query()->orderBy('category_name')->get(['id', 'category_name'])->values(),
             'customFields' => collect($customFields['customFields'] ?? [])->values(),
             'customFieldCategories' => collect($customFields['customFieldCategories'] ?? [])->values(),
+            'owners' => MarketingLeadIntake::ownerOptions(),
+            'defaultOwnerId' => MarketingLeadIntake::ownerId(),
         ]);
+    }
+
+    /**
+     * One page of the UTM options OL manages for a field, loaded as the
+     * picker scrolls or searches. The flow only accepts values from here.
+     */
+    public function utmConfigs(Request $request, OlUtmConfigService $configs): JsonResponse
+    {
+        $validated = $request->validate([
+            'field' => ['required', 'string', Rule::in(array_keys(OlUtmConfigService::TYPES))],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'search' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        try {
+            $result = $configs->page(
+                OlUtmConfigService::TYPES[$validated['field']],
+                (int) ($validated['page'] ?? 1),
+                OlUtmConfigService::PAGE_SIZE,
+                $validated['search'] ?? null,
+            );
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => __('pages.marketing_leads.utm_unavailable'),
+            ], 503);
+        }
+
+        return response()->json(['status' => 'success'] + $result);
     }
 
     public function store(StoreMarketingLeadRequest $request): JsonResponse
@@ -84,6 +122,8 @@ class MarketingLeadController extends AccountBaseController
             // Stamped before the first save, so lead_created automations can
             // already condition on it.
             $lead->lead_origin_id = MarketingLeadIntake::originId($companyId);
+            // Validated against the people who can own leads; empty = no owner.
+            $lead->lead_owner = $request->filled('lead_owner') ? (int) $request->lead_owner : null;
             $lead->salutation = $request->salutation ?: null;
             $lead->client_name = trim((string) $request->client_name);
             $lead->client_email = $request->client_email ?: null;
@@ -123,6 +163,9 @@ class MarketingLeadController extends AccountBaseController
                 );
                 $lead->updateCustomFieldData($filtered['custom_fields_data'] ?? []);
             }
+
+            // Entered on creation, so this is the lead's first UTM touch.
+            app(LeadUtmService::class)->record($lead, (array) $request->input('utm', []), 'marketing_flow');
 
             foreach ((array) $request->input('notes', []) as $entry) {
                 $details = trim((string) ($entry['details'] ?? ''));

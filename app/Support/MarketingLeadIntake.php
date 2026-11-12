@@ -2,13 +2,15 @@
 
 namespace App\Support;
 
+use App\Models\LeadAgent;
 use App\Models\LeadOrigin;
 use App\Models\LeadSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Who may use the marketing lead flow, and which origin it stamps.
+ * Who may use the marketing lead flow, which origin it stamps, and which
+ * lead owner it suggests.
  *
  * Access is department based: an admin picks departments in Lead settings,
  * and anyone whose department (employee_details.department_id) or extra team
@@ -66,6 +68,58 @@ final class MarketingLeadIntake
         return (int) LeadOrigin::marketingFor($companyId)->id;
     }
 
+    /**
+     * People who can own a lead: active users with an enabled lead agent
+     * record (the lead page's owner picker lists the same people), by name.
+     *
+     * @return array<int, array{id: int, name: string}>
+     */
+    public static function ownerOptions(?int $companyId = null): array
+    {
+        $companyId ??= (int) company()->id;
+
+        return LeadAgent::withoutGlobalScopes()
+            ->join('users', 'users.id', '=', 'lead_agents.user_id')
+            ->where('lead_agents.company_id', $companyId)
+            ->where('lead_agents.status', 'enabled')
+            ->where('users.status', 'active')
+            ->orderBy('users.name')
+            ->get(['users.id', 'users.name'])
+            ->unique('id')
+            ->map(fn ($row) => ['id' => (int) $row->id, 'name' => (string) $row->name])
+            ->values()
+            ->all();
+    }
+
+    /** The configured default owner (a user id) while they can still own leads, else null. */
+    public static function ownerId(?int $companyId = null): ?int
+    {
+        $companyId ??= (int) company()->id;
+
+        $configured = LeadSetting::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->value('marketing_intake_owner_id');
+
+        if ($configured === null) {
+            return null;
+        }
+
+        return self::canOwn((int) $configured, $companyId) ? (int) $configured : null;
+    }
+
+    public static function canOwn(int $userId, ?int $companyId = null): bool
+    {
+        $companyId ??= (int) company()->id;
+
+        return LeadAgent::withoutGlobalScopes()
+            ->join('users', 'users.id', '=', 'lead_agents.user_id')
+            ->where('lead_agents.company_id', $companyId)
+            ->where('lead_agents.status', 'enabled')
+            ->where('users.status', 'active')
+            ->where('users.id', $userId)
+            ->exists();
+    }
+
     public static function allows(?User $user): bool
     {
         if ($user === null || $user->company_id === null) {
@@ -88,11 +142,11 @@ final class MarketingLeadIntake
     }
 
     /**
-     * Persist the access departments and stamped origin for a company.
+     * Persist the access departments, stamped origin and default owner for a company.
      *
      * @param  array<int, int>  $departmentIds
      */
-    public static function save(int $companyId, int $userId, array $departmentIds, ?int $originId): void
+    public static function save(int $companyId, int $userId, array $departmentIds, ?int $originId, ?int $ownerId = null): void
     {
         $row = LeadSetting::withoutGlobalScopes()->where('company_id', $companyId)->first();
 
@@ -104,6 +158,7 @@ final class MarketingLeadIntake
 
         $row->marketing_intake_department_ids = json_encode(array_values(array_unique(array_map('intval', $departmentIds))));
         $row->marketing_intake_origin_id = $originId;
+        $row->marketing_intake_owner_id = $ownerId;
         $row->save();
     }
 

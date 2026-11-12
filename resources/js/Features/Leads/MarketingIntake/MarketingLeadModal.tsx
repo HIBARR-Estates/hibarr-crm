@@ -4,21 +4,28 @@ import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import ModalShell from "@/Components/Redesign/primitives/ModalShell";
 import SearchableSelect from "@/Components/Redesign/primitives/SearchableSelect";
+import PhoneNumberField from "@/Components/PhoneNumberField";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
 import "@/Components/Redesign/redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import UtmConfigSelect from "./UtmConfigSelect";
 import CustomFieldInput from "./CustomFieldInput";
 import {
     buildPayload,
     buildSteps,
     customFieldVisibility,
     emptyDraft,
+    isValidWebsite,
+    languageChoices,
+    matchChoice,
     newNoteKey,
+    sortChoices,
     stepForErrorKey,
     withDerivedAge,
 } from "./model";
-import type { MarketingLeadDraft, SavedMarketingLead, StepId, StepModel } from "./types";
+import type { MarketingLeadDraft, SavedMarketingLead, StepId, StepModel, UtmKey } from "./types";
+import { isOlUtmKey, UTM_KEYS } from "./types";
 import useMarketingLeadOptions from "./useMarketingLeadOptions";
 import useMarketingLeadSave from "./useMarketingLeadSave";
 import "./marketing-lead-modal.css";
@@ -45,7 +52,12 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
     const { options, loading, failed, retry } = useMarketingLeadOptions(open);
     const { save, saving } = useMarketingLeadSave();
 
-    const [draft, setDraft] = useState<MarketingLeadDraft>(emptyDraft);
+    const [draft, setDraft] = useState<MarketingLeadDraft>(() => emptyDraft());
+    const defaultOwnerId = options?.defaultOwnerId ?? null;
+    // Until someone picks an owner for this lead, it follows the settings default.
+    const ownerTouchedRef = useRef(false);
+    // Lead source id last filled in from the UTM source; null once the person picks one.
+    const autoSourceRef = useRef<string | null>(null);
     const [stepId, setStepId] = useState<StepId>("contact");
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [formError, setFormError] = useState<string | null>(null);
@@ -57,7 +69,12 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
     const railRef = useRef<HTMLElement>(null);
 
     const dirty = useMemo(() => JSON.stringify({ ...draft, notes: draft.notes.map((n) => [n.title, n.details]) }) !==
-        JSON.stringify({ ...emptyDraft(), notes: [["", ""]] }), [draft]);
+        JSON.stringify({ ...emptyDraft(defaultOwnerId), notes: [["", ""]] }), [draft, defaultOwnerId]);
+
+    useEffect(() => {
+        if (defaultOwnerId == null || ownerTouchedRef.current) return;
+        setDraft((prev) => (prev.lead_owner === "" ? { ...prev, lead_owner: String(defaultOwnerId) } : prev));
+    }, [defaultOwnerId]);
 
     const visibility = useMemo(
         () => customFieldVisibility(options?.customFields ?? [], draft.custom_fields_data),
@@ -68,6 +85,7 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
         () =>
             buildSteps(draft, options, visibility, {
                 contact: t("pages.marketing_leads.steps.contact"),
+                attribution: t("pages.marketing_leads.steps.attribution"),
                 profile: t("pages.marketing_leads.steps.profile"),
                 address: t("pages.marketing_leads.steps.address"),
                 other: t("pages.marketing_leads.steps.more_details"),
@@ -105,12 +123,14 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
     }, []);
 
     const reset = useCallback(() => {
-        setDraft(emptyDraft());
+        ownerTouchedRef.current = false;
+        autoSourceRef.current = null;
+        setDraft(emptyDraft(defaultOwnerId));
         setErrors({});
         setFormError(null);
         setStepId("contact");
         paneRef.current?.scrollTo({ top: 0 });
-    }, []);
+    }, [defaultOwnerId]);
 
     useEffect(() => {
         if (!open) {
@@ -121,6 +141,8 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
     }, [open, reset]);
 
     const setField = useCallback((key: FieldKey, value: string | string[]) => {
+        if (key === "lead_owner") ownerTouchedRef.current = true;
+        if (key === "source_id") autoSourceRef.current = null;
         setDraft((prev) => {
             const next = { ...prev, [key]: value } as MarketingLeadDraft;
             if (key === "date_of_birth" || key === "age") {
@@ -129,8 +151,11 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
             return next;
         });
         setErrors((prev) => {
-            if (!(key in prev)) return prev;
-            const { [key]: _removed, ...rest } = prev;
+            // Server errors for UTM fields come back as `utm.<field>`.
+            const keys = [key, `utm.${key}`].filter((k) => k in prev);
+            if (keys.length === 0) return prev;
+            const rest = { ...prev };
+            keys.forEach((k) => delete rest[k]);
             return rest;
         });
     }, []);
@@ -151,6 +176,13 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
             setErrors((prev) => ({ ...prev, client_name: t("pages.marketing_leads.name_required") }));
             goTo("contact");
             nameRef.current?.focus();
+            return;
+        }
+
+        if (!isValidWebsite(draft.website)) {
+            setErrors((prev) => ({ ...prev, website: t("pages.marketing_leads.website_invalid") }));
+            goTo("profile");
+            requestAnimationFrame(() => document.getElementById("mli-website")?.focus());
             return;
         }
 
@@ -190,7 +222,8 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
         onClose();
     };
 
-    const canSave = draft.client_name.trim() !== "" && !saving;
+    // Waits for the options so the default owner is in the draft before a save.
+    const canSave = draft.client_name.trim() !== "" && !saving && !loading;
     const name = draft.client_name.trim();
 
     const field = (key: FieldKey, label: string, control: ReactNode, opts: { span?: 2 | 3; required?: boolean } = {}) => (
@@ -221,7 +254,11 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
         />
     );
 
-    const select = (key: FieldKey, choices: Array<{ value: string; label: string }>, opts: { multiple?: boolean } = {}) =>
+    const select = (
+        key: FieldKey,
+        choices: Array<{ value: string; label: string }>,
+        opts: { multiple?: boolean; placeholder?: string } = {},
+    ) =>
         opts.multiple ? (
             <SearchableSelect<string[]>
                 id={`mli-${key}`}
@@ -230,6 +267,8 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
                 value={draft[key] as string[]}
                 placeholder={t("pages.marketing_leads.choose")}
                 options={choices}
+                filterOption={matchChoice}
+                filterSort={(a, b, info) => sortChoices(info.searchValue)(a, b)}
                 onChange={(next) => setField(key, next ?? [])}
                 popupMatchSelectWidth
             />
@@ -238,8 +277,10 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
                 id={`mli-${key}`}
                 allowClear
                 value={(draft[key] as string) || undefined}
-                placeholder={t("pages.marketing_leads.choose")}
+                placeholder={opts.placeholder ?? t("pages.marketing_leads.choose")}
                 options={choices}
+                filterOption={matchChoice}
+                filterSort={(a, b, info) => sortChoices(info.searchValue)(a, b)}
                 onChange={(next) => setField(key, next ?? "")}
                 popupMatchSelectWidth
             />
@@ -299,12 +340,19 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
 
     const renderStep = () => {
         if (step.id === "contact") {
-            const dialChoices = countries
-                .filter((country) => country.iso && country.phonecode)
-                .map((country) => ({
-                    value: String(country.iso),
-                    label: `${country.iso} +${country.phonecode}`,
-                }));
+            const phoneField = (key: "mobile" | "cell" | "office", label: string) => (
+                <div className={`mli-fld${errors[key] ? " has-error" : ""}`}>
+                    <label htmlFor={`mli-${key}`}>{label}</label>
+                    <PhoneNumberField
+                        id={`mli-${key}`}
+                        className="mli-phone-input"
+                        value={draft[key] || undefined}
+                        countries={countries}
+                        onValueChange={(next) => setField(key, next)}
+                    />
+                    {errors[key] && <span className="mli-fld__error">{errors[key]}</span>}
+                </div>
+            );
             return (
                 <div className="mli-grid">
                     {field("salutation", t("pages.marketing_leads.fields.salutation"), select("salutation", options?.salutations ?? []))}
@@ -314,46 +362,19 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
                         textInput("client_name", "text", { ref: nameRef, autoComplete: "off", autoFocus: true }),
                         { span: 2, required: true },
                     )}
-                    {field("client_email", t("pages.marketing_leads.fields.email"), textInput("client_email", "email", { autoComplete: "off" }))}
-                    <div className={`mli-fld${errors.mobile ? " has-error" : ""}`}>
-                        <label htmlFor="mli-mobile_number">{t("pages.marketing_leads.fields.mobile")}</label>
-                        <div className="mli-phone">
-                            <SearchableSelect<string>
-                                aria-label={t("pages.marketing_leads.fields.dial_code")}
-                                allowClear
-                                value={draft.mobile_country || undefined}
-                                placeholder="+"
-                                options={dialChoices}
-                                onChange={(next) => setField("mobile_country", next ?? "")}
-                                popupMatchSelectWidth={220}
-                            />
-                            {textInput("mobile_number", "tel", { inputMode: "tel", autoComplete: "off" })}
-                        </div>
-                        {errors.mobile && <span className="mli-fld__error">{errors.mobile}</span>}
-                    </div>
-                    {field("cell", t("pages.marketing_leads.fields.alternate_phone"), textInput("cell", "tel"))}
-                    {field("office", t("pages.marketing_leads.fields.office_phone"), textInput("office", "tel"))}
                     {field(
-                        "source_id",
-                        t("pages.marketing_leads.fields.source"),
-                        select(
-                            "source_id",
-                            (options?.sources ?? []).map((source) => ({ value: String(source.id), label: td(source.type, { source: "en" }) })),
-                        ),
-                    )}
-                    {field(
-                        "category_ids",
-                        t("pages.marketing_leads.fields.categories"),
-                        select(
-                            "category_ids",
-                            (options?.categories ?? []).map((category) => ({
-                                value: String(category.id),
-                                label: td(category.category_name, { source: "en" }),
-                            })),
-                            { multiple: true },
-                        ),
+                        "client_email",
+                        t("pages.marketing_leads.fields.email"),
+                        textInput("client_email", "email", { autoComplete: "off" }),
                         { span: 2 },
                     )}
+
+                    <h4 className="mli-cap mli-group">{t("pages.marketing_leads.groups.phone_numbers")}</h4>
+                    <div className="mli-phone-grid">
+                        {phoneField("mobile", t("pages.marketing_leads.fields.mobile"))}
+                        {phoneField("cell", t("pages.marketing_leads.fields.alternate_phone"))}
+                        {phoneField("office", t("pages.marketing_leads.fields.office_phone"))}
+                    </div>
                     {options
                         ? chipField(
                               "preferred_contact_times",
@@ -361,12 +382,97 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
                               chips("preferred_contact_times", options.preferredContactTimes),
                           )
                         : null}
+
                 </div>
             );
         }
 
         if (!options) {
             return <div className="mli-grid">{loadingGrid}</div>;
+        }
+
+        if (step.id === "attribution") {
+            const utmLabels: Record<UtmKey, string> = {
+                utm_source: t("pages.marketing_leads.fields.utm_source"),
+                utm_medium: t("pages.marketing_leads.fields.utm_medium"),
+                utm_campaign: t("pages.marketing_leads.fields.utm_campaign"),
+                utm_content: t("pages.marketing_leads.fields.utm_content"),
+                utm_term: t("pages.marketing_leads.fields.utm_term"),
+                utm_audience: t("pages.marketing_leads.fields.utm_audience"),
+            };
+            return (
+                <div className="mli-grid">
+                    {field(
+                        "source_id",
+                        t("pages.marketing_leads.fields.source"),
+                        select(
+                            "source_id",
+                            options.sources.map((source) => ({ value: String(source.id), label: td(source.type, { source: "en" }) })),
+                        ),
+                    )}
+                    {field(
+                        "category_ids",
+                        t("pages.marketing_leads.fields.categories"),
+                        select(
+                            "category_ids",
+                            options.categories.map((category) => ({
+                                value: String(category.id),
+                                label: td(category.category_name, { source: "en" }),
+                            })),
+                            { multiple: true },
+                        ),
+                        { span: 2 },
+                    )}
+                    {field(
+                        "lead_owner",
+                        t("pages.marketing_leads.fields.owner"),
+                        select(
+                            "lead_owner",
+                            options.owners.map((owner) => ({ value: String(owner.id), label: owner.name })),
+                            { placeholder: t("pages.marketing_leads.owner_none") },
+                        ),
+                    )}
+                    <p className="mli-hint mli-span-2">
+                        {options.defaultOwnerId != null && draft.lead_owner === String(options.defaultOwnerId)
+                            ? t("pages.marketing_leads.owner_default_hint")
+                            : t("pages.marketing_leads.owner_hint")}
+                    </p>
+
+                    <h4 className="mli-cap mli-group">{t("pages.marketing_leads.groups.utm")}</h4>
+                    {UTM_KEYS.map((key) => (
+                        <div key={key} className={`mli-fld${errors[`utm.${key}`] ? " has-error" : ""}`}>
+                            <label htmlFor={`mli-${key}`}>{utmLabels[key]}</label>
+                            {isOlUtmKey(key) ? (
+                                <UtmConfigSelect
+                                    field={key}
+                                    id={`mli-${key}`}
+                                    value={draft[key]}
+                                    placeholder={t("pages.marketing_leads.choose")}
+                                    onChange={(next, option) => {
+                                        setField(key, next);
+                                        if (key !== "utm_source") return;
+                                        // A UTM source linked to a CRM lead source fills Lead source,
+                                        // unless the person picked one themselves.
+                                        const linkedId = option?.leadSourceId;
+                                        const linked =
+                                            linkedId != null && options.sources.some((source) => source.id === linkedId)
+                                                ? String(linkedId)
+                                                : null;
+                                        const auto = autoSourceRef.current;
+                                        if (!draft.source_id || draft.source_id === auto) {
+                                            if (linked !== null || auto !== null) setField("source_id", linked ?? "");
+                                            autoSourceRef.current = linked;
+                                        }
+                                    }}
+                                />
+                            ) : (
+                                textInput(key, "text", { autoComplete: "off" })
+                            )}
+                            {errors[`utm.${key}`] && <span className="mli-fld__error">{errors[`utm.${key}`]}</span>}
+                        </div>
+                    ))}
+                </div>
+            );
         }
 
         if (step.id === "profile") {
@@ -400,14 +506,16 @@ export default function MarketingLeadModal({ open, onClose, onSaved }: Marketing
                         t("pages.marketing_leads.fields.languages"),
                         select(
                             "languages",
-                            options.languages.map((language) => ({ value: language.language_code, label: language.language_name })),
+                            languageChoices(options.languages, draft.languages),
                             { multiple: true },
                         ),
                         { span: 2 },
                     )}
                     {field("occupation", t("pages.marketing_leads.fields.occupation"), textInput("occupation"))}
                     {field("company_name", t("pages.marketing_leads.fields.company"), textInput("company_name"))}
-                    {field("website", t("pages.marketing_leads.fields.website"), textInput("website", "url"))}
+                    {field("website", t("pages.marketing_leads.fields.website"), textInput("website", "text", { inputMode: "url", autoComplete: "url", placeholder: "example.com", onBlur: () => {
+                        if (!isValidWebsite(draft.website)) setErrors((prev) => ({ ...prev, website: t("pages.marketing_leads.website_invalid") }));
+                    } }))}
                 </div>
             );
         }
