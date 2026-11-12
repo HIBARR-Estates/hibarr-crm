@@ -4,19 +4,21 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import useDealPayment from "../../hooks/useDealPayment";
 import {
+    canCancelPaymentRequest,
     isTerminalPaymentState,
-    mapDealPaymentUiState,
 } from "../../adapters/mapDealPaymentUiState";
 import {
     paymentUiStateBadgeVariant,
     paymentUiStateLabel,
 } from "@/Components/Redesign/adapters/dealPaymentUiState";
 import { formatMoneyAmount } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
+import { REDESIGN_RADIUS, REDESIGN_TOKENS as T, REDESIGN_TYPE } from "@/Components/Redesign/tokens";
 import Badge from "@/Components/Redesign/primitives/Badge";
 import Button from "@/Components/Redesign/primitives/Button";
-import CheckoutLinkActions from "@/Components/Redesign/primitives/CheckoutLinkActions";
+import SectionLabel from "@/Components/Redesign/primitives/SectionLabel";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
-import Icon from "@/Components/Redesign/primitives/Icon";
+import PaymentRequestDetailModal from "@/Components/Redesign/payment/PaymentRequestDetailModal";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import type { DealPaymentRequest } from "@/Types/api/deal-payment";
 import DealPaymentCreateModal from "./DealPaymentCreateModal";
 
@@ -26,14 +28,6 @@ interface DealPaymentPanelProps {
     canConfirmPaymentTransfer: boolean;
 }
 
-function formatTimestamp(value: string | null | undefined): string | null {
-    if (!value) return null;
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return null;
-    return date.toLocaleString();
-}
-
-/** A request's amount in the currency it was issued in. */
 function requestMoney(request: DealPaymentRequest): string {
     return formatMoneyAmount(request.amount, {
         code: request.currency ?? "",
@@ -41,6 +35,12 @@ function requestMoney(request: DealPaymentRequest): string {
     });
 }
 
+/**
+ * Every request on the deal, newest first, numbered in the order they were
+ * created. The number is what makes a cancelled request and the one that
+ * replaced it readable as a sequence. Opening a row shows the checkout link,
+ * the cancel / confirm actions, and the invoice or receipt.
+ */
 export default function DealPaymentPanel({
     deal,
     canCreatePaymentRequest,
@@ -53,32 +53,37 @@ export default function DealPaymentPanel({
         paymentRequests,
         paymentRequestLoading,
         confirmTransfer,
+        cancelRequest,
         refreshStatus,
         confirming,
+        cancelling,
         refreshing,
     } = useDealPayment(deal.id);
 
     const [createOpen, setCreateOpen] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [cancelOpen, setCancelOpen] = useState(false);
+    const [selectedId, setSelectedId] = useState<number | null>(null);
 
-    const mapped = useMemo(
-        () => mapDealPaymentUiState(paymentRequest),
-        [paymentRequest],
-    );
+    const { newestFirst, sequence, total } = useMemo(() => {
+        const chronological = [...paymentRequests].sort((a, b) => {
+            const aTime = a.created_at ? Date.parse(a.created_at) : 0;
+            const bTime = b.created_at ? Date.parse(b.created_at) : 0;
+            if (aTime !== bTime) return aTime - bTime;
+            return a.id - b.id;
+        });
+        return {
+            newestFirst: [...chronological].reverse(),
+            sequence: new Map(chronological.map((request, index) => [request.id, index + 1])),
+            total: chronological.length,
+        };
+    }, [paymentRequests]);
 
-    const history = useMemo(
-        () => paymentRequests.filter((r) => r.id !== paymentRequest?.id),
-        [paymentRequest?.id, paymentRequests],
-    );
+    const selected = newestFirst.find((request) => request.id === selectedId) ?? null;
+    const selectedIsActive = selected != null && selected.id === paymentRequest?.id;
+    const showRefresh = paymentRequest != null && !isTerminalPaymentState(paymentRequest.ui_state);
 
-    const statusTimestamp =
-        paymentRequest?.ui_state === "confirmed"
-            ? formatTimestamp(paymentRequest.verified_at)
-            : formatTimestamp(paymentRequest?.updated_at ?? paymentRequest?.created_at);
-
-    const openCreateModal = () => setCreateOpen(true);
-
-    if (paymentRequestLoading) {
+    if (paymentRequestLoading && total === 0) {
         return (
             <p className="py-2 text-xs italic text-dr-text-hint">
                 {td("Loading payment status...")}
@@ -87,143 +92,142 @@ export default function DealPaymentPanel({
     }
 
     return (
-        <div className="space-y-3">
-            {!mapped.hasPaymentRequest ? (
-                <>
-                    <p className="text-xs text-dr-text-muted">
-                        {td("Create a payment request to share a checkout link with the customer.")}
-                    </p>
-                    {canCreatePaymentRequest && (
+        <div className="space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+                <SectionLabel style={{ marginBottom: 0 }}>
+                    {t("pages.deals.payment_request.sequence_title")}
+                    {total > 0 && (
+                        <span style={{ marginLeft: 6, fontWeight: 500, letterSpacing: 0, textTransform: "none", color: T.TEXT_HINT }}>
+                            {total}
+                        </span>
+                    )}
+                </SectionLabel>
+                <div className="flex items-center gap-2">
+                    {showRefresh && (
                         <Button
-                            variant="primary"
+                            variant="ghost"
                             size="sm"
-                            onClick={openCreateModal}
+                            loading={refreshing}
+                            onClick={() => void refreshStatus()}
                         >
+                            {td("Refresh")}
+                        </Button>
+                    )}
+                    {!paymentRequest && canCreatePaymentRequest && (
+                        <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
                             {td("Create Payment Request")}
                         </Button>
                     )}
-                </>
+                </div>
+            </div>
+
+            {total === 0 ? (
+                <p className="text-xs text-dr-text-muted">
+                    {td("Create a payment request to share a checkout link with the customer.")}
+                </p>
             ) : (
                 <>
-                    <div className="flex items-start justify-between gap-2">
-                        <Badge variant={paymentUiStateBadgeVariant(mapped.uiState!)}>
-                            {td(paymentUiStateLabel(mapped.uiState!))}
-                        </Badge>
-                        {!isTerminalPaymentState(mapped.uiState) && (
-                            <button
-                                type="button"
-                                onClick={() => void refreshStatus()}
-                                disabled={refreshing}
-                                className="cursor-pointer border-none bg-transparent p-0 text-xs font-semibold text-dr-blue disabled:opacity-50"
-                            >
-                                {refreshing ? td("Refreshing...") : td("Refresh")}
-                            </button>
-                        )}
-                    </div>
-
-                    {paymentRequest && (
-                        <p className="text-sm font-semibold text-dr-text">
-                            {requestMoney(paymentRequest)}
-                            {paymentRequest.base_amount !== null
-                                && paymentRequest.base_currency
-                                && paymentRequest.base_currency !== paymentRequest.currency && (
-                                    <span className="ml-1.5 text-xs font-normal text-dr-text-muted">
-                                        {`≈ ${formatMoneyAmount(paymentRequest.base_amount, {
-                                            code: paymentRequest.base_currency,
-                                            symbol:
-                                                paymentRequest.base_currency_symbol
-                                                || paymentRequest.base_currency,
-                                        })}`}
-                                    </span>
-                                )}
-                        </p>
-                    )}
-
-                    {statusTimestamp && (
-                        <p className="text-xs text-dr-text-muted">
-                            {td("Updated")}: {statusTimestamp}
-                        </p>
-                    )}
-
-                    {paymentRequest?.verified_by && (
-                        <p className="text-xs text-dr-text-muted">
-                            {td("Confirmed by")} {paymentRequest.verified_by.name}
-                            {paymentRequest.verified_at
-                                ? ` · ${formatTimestamp(paymentRequest.verified_at)}`
-                                : ""}
-                        </p>
-                    )}
-
-                    {mapped.showCheckoutUrl && paymentRequest?.checkout_url && (
-                        <div className="rounded-md border border-dr-border-soft bg-[#fafbfc] p-2.5">
-                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-dr-text-muted">
-                                {t("pages.deals.payment_request.checkout_link")}
-                            </p>
-                            <CheckoutLinkActions url={paymentRequest.checkout_url} />
-                        </div>
-                    )}
-
-                    {mapped.showCheckoutUrl && !paymentRequest?.checkout_url && (
-                        <p className="text-xs text-[#b45309]">
-                            {td("Checkout link is not available yet. Refresh status or try again.")}
-                        </p>
-                    )}
-
-                    {paymentRequest?.proof_url && (
-                        <a
-                            href={paymentRequest.proof_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-dr-blue no-underline"
-                        >
-                            <Icon name="file-text" size={12} />
-                            {td("View payment proof")}
-                        </a>
-                    )}
-
-                    {mapped.canConfirm && canConfirmPaymentTransfer && (
-                        <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => setConfirmOpen(true)}
-                        >
-                            {td("Confirm Transfer")}
-                        </Button>
-                    )}
+                    <p className="text-xs leading-snug text-dr-text-hint">
+                        {t("pages.deals.payment_request.sequence_hint")}
+                    </p>
+                    <ol className="m-0 list-none space-y-2 p-0">
+                        {newestFirst.map((request) => {
+                            const number = sequence.get(request.id) ?? 0;
+                            const cancelled = request.ui_state === "invalidated";
+                            const failed = request.ui_state === "failed";
+                            const active = request.id === paymentRequest?.id;
+                            const when = request.created_at
+                                ? formatCompanyDateTime(request.created_at)
+                                : null;
+                            return (
+                                <li key={request.id}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedId(request.id)}
+                                        className="flex w-full cursor-pointer items-center gap-2.5 text-left"
+                                        style={{
+                                            padding: "10px 12px",
+                                            background: T.SURFACE,
+                                            border: `1px solid ${active ? T.BLUE : T.BORDER}`,
+                                            borderRadius: REDESIGN_RADIUS.MD,
+                                            boxShadow: active ? `inset 3px 0 0 ${T.BLUE}` : undefined,
+                                            fontFamily: "inherit",
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                flex: "0 0 auto",
+                                                minWidth: 28,
+                                                height: 28,
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                borderRadius: REDESIGN_RADIUS.SM,
+                                                background: active ? T.BLUE_LIGHT : T.SURFACE_2,
+                                                color: active ? T.BLUE_DARK : T.TEXT_MUTED,
+                                                fontSize: REDESIGN_TYPE.CAPTION,
+                                                fontWeight: 700,
+                                                fontVariantNumeric: "tabular-nums",
+                                            }}
+                                        >
+                                            {number}
+                                        </span>
+                                        <span className="min-w-0 flex-1">
+                                            <span
+                                                className="block tabular-nums"
+                                                style={{
+                                                    fontSize: REDESIGN_TYPE.BODY_LG,
+                                                    fontWeight: 600,
+                                                    color: cancelled || failed ? T.TEXT_HINT : T.NAVY,
+                                                    textDecoration: cancelled ? "line-through" : undefined,
+                                                }}
+                                            >
+                                                {requestMoney(request)}
+                                            </span>
+                                            {when && (
+                                                <span
+                                                    className="block"
+                                                    style={{
+                                                        marginTop: 2,
+                                                        fontSize: REDESIGN_TYPE.CAPTION,
+                                                        color: T.TEXT_HINT,
+                                                    }}
+                                                >
+                                                    {when}
+                                                </span>
+                                            )}
+                                        </span>
+                                        <Badge variant={paymentUiStateBadgeVariant(request.ui_state)}>
+                                            {td(paymentUiStateLabel(request.ui_state))}
+                                        </Badge>
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ol>
                 </>
             )}
 
-            {history.length > 0 && (
-                <div className="border-t border-dr-border-soft pt-2.5">
-                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-dr-text-muted">
-                        {t("pages.deals.payment_request.history_title")}
-                    </p>
-                    <ul className="m-0 list-none space-y-1.5 p-0">
-                        {history.map((request) => (
-                            <li
-                                key={request.id}
-                                className="flex items-center justify-between gap-2 text-xs text-dr-text-muted"
-                            >
-                                <span className="min-w-0">
-                                    <span className="font-medium text-dr-text line-through decoration-dr-text-hint">
-                                        {requestMoney(request)}
-                                    </span>
-                                    {request.invalidated_at && (
-                                        <span className="block text-[11px] text-dr-text-hint">
-                                            {t("pages.deals.payment_request.invalidated_on", {
-                                                date: formatTimestamp(request.invalidated_at) ?? "",
-                                            })}
-                                        </span>
-                                    )}
-                                </span>
-                                <Badge variant={paymentUiStateBadgeVariant(request.ui_state)}>
-                                    {td(paymentUiStateLabel(request.ui_state))}
-                                </Badge>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
+            <PaymentRequestDetailModal
+                request={selected}
+                sequence={selected ? sequence.get(selected.id) : null}
+                sequenceTotal={total}
+                open={selected != null}
+                onClose={() => setSelectedId(null)}
+                onCancel={
+                    selected
+                    && selectedIsActive
+                    && canCancelPaymentRequest(selected.ui_state)
+                    && (canCreatePaymentRequest || canConfirmPaymentTransfer)
+                        ? () => setCancelOpen(true)
+                        : undefined
+                }
+                onConfirm={
+                    selected && selectedIsActive && selected.can_confirm && canConfirmPaymentTransfer
+                        ? () => setConfirmOpen(true)
+                        : undefined
+                }
+            />
 
             <DealPaymentCreateModal
                 deal={deal}
@@ -233,6 +237,7 @@ export default function DealPaymentPanel({
 
             <ConfirmDialog
                 open={confirmOpen}
+                zIndex={1400}
                 title={td("Confirm bank transfer?")}
                 message={td(
                     "Confirm that the customer's bank transfer proof has been reviewed and approved.",
@@ -246,6 +251,23 @@ export default function DealPaymentPanel({
                     });
                 }}
                 onCancel={() => setConfirmOpen(false)}
+            />
+
+            <ConfirmDialog
+                open={cancelOpen}
+                zIndex={1400}
+                danger
+                title={t("pages.deals.payment_request.cancel_title")}
+                message={t("pages.deals.payment_request.cancel_message")}
+                confirmLabel={t("pages.deals.payment_request.cancel_confirm")}
+                cancelLabel={t("pages.deals.payment_request.cancel")}
+                confirmLoading={cancelling}
+                onConfirm={() => {
+                    void cancelRequest().then((result) => {
+                        if (result.ok) setCancelOpen(false);
+                    });
+                }}
+                onCancel={() => setCancelOpen(false)}
             />
         </div>
     );

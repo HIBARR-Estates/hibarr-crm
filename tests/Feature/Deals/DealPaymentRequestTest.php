@@ -10,6 +10,7 @@ use App\Scopes\CompanyScope;
 use App\Services\ApiV2\CrmWriteService;
 use App\Services\Deal\DealOutcomeService;
 use App\Services\Deal\DealPaymentValueGuard;
+use App\Services\DealPaymentDocumentService;
 use App\Services\DealPaymentService;
 use App\Services\DealPaymentUiStateMapper;
 use App\Services\OlWebhook\OlPayloadMapper;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\Concerns\SetsFeatureFlags;
 use Tests\TestCase;
 
@@ -579,6 +581,10 @@ class DealPaymentRequestTest extends TestCase
     {
         $this->assertSame('pending_payment', DealPaymentUiStateMapper::map('pending', 'manual', null, null)['ui_state']);
         $this->assertSame('bank_transfer_pending', DealPaymentUiStateMapper::map('confirming', 'manual', null, null)['ui_state']);
+        $this->assertTrue(DealPaymentUiStateMapper::map('confirming', 'manual', null, null)['can_confirm']);
+        $alreadyVerified = DealPaymentUiStateMapper::map('confirming', 'manual', 1, now()->toIso8601String());
+        $this->assertSame('confirmed', $alreadyVerified['ui_state']);
+        $this->assertFalse($alreadyVerified['can_confirm']);
         $this->assertSame('processing_online', DealPaymentUiStateMapper::map('confirming', 'crypto', null, null)['ui_state']);
         $this->assertSame('confirmed', DealPaymentUiStateMapper::map('completed', 'manual', 1, now()->toIso8601String())['ui_state']);
         $this->assertSame('paid_online', DealPaymentUiStateMapper::map('completed', 'crypto', null, null)['ui_state']);
@@ -679,6 +685,64 @@ class DealPaymentRequestTest extends TestCase
         $this->assertSame('confirming', $payment?->ol_status);
         $this->assertSame('manual', $payment?->ol_payment_type);
         $this->assertNotNull($payment?->bill);
+    }
+
+    public function test_invoice_document_names_the_company_deal_and_amount(): void
+    {
+        $id = $this->insertPayment([
+            'external_reference' => '880',
+            'ol_status' => 'pending',
+            'amount' => 2500,
+            'base_amount' => 2500,
+            'currency_id' => $this->currencyId,
+            'gateway' => 'manual-bank-transfer',
+        ]);
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+        $data = app(DealPaymentDocumentService::class)->viewData($payment, 'invoice');
+        $html = view('payment-requests.document', $data)->render();
+
+        $this->assertSame('invoice', $data['kind']);
+        $this->assertStringStartsWith('INV-', $data['number']);
+        $this->assertStringContainsString('Test Co', $html);
+        $this->assertStringContainsString('Test Deal', $html);
+        $this->assertStringContainsString('2,500.00', $html);
+        $this->assertStringContainsString('INV-', $html);
+    }
+
+    public function test_receipt_is_refused_until_the_payment_is_collected(): void
+    {
+        $id = $this->insertPayment([
+            'external_reference' => '881',
+            'ol_status' => 'pending',
+        ]);
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+
+        try {
+            app(DealPaymentDocumentService::class)->viewData($payment, 'receipt');
+            $this->fail('Expected a receipt to be refused.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+    }
+
+    public function test_receipt_document_is_available_once_paid_online(): void
+    {
+        $id = $this->insertPayment([
+            'external_reference' => '882',
+            'ol_status' => 'completed',
+            'ol_payment_type' => 'crypto',
+            'status' => 'complete',
+            'amount' => 2500,
+            'paid_on' => now(),
+        ]);
+
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+        $data = app(DealPaymentDocumentService::class)->viewData($payment, 'receipt');
+
+        $this->assertSame('receipt', $data['kind']);
+        $this->assertStringStartsWith('RCT-', $data['number']);
+        $this->assertNull($data['stamp']);
     }
 
     private function makeDeal(): Deal

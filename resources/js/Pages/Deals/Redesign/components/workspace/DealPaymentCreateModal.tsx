@@ -103,7 +103,7 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
             onClose={onClose}
         >
             <div className="space-y-3">
-                <p className="text-xs text-[#5b6472]">
+                <p className="text-xs text-dr-text-muted">
                     {td("The customer will choose how to pay on the checkout page.")}
                 </p>
                 <DealModalField label={t("pages.deals.payment_request.currency")}>
@@ -129,7 +129,7 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
                     </select>
                 </DealModalField>
 
-                <div className="space-y-1.5 rounded-md border border-dr-border-soft bg-[#fafbfc] p-3 text-xs">
+                <div className="space-y-1.5 rounded-lg border border-dr-border-soft bg-dr-surface-2 p-3 text-xs">
                     <div className="flex justify-between gap-3 text-dr-text-muted">
                         <span>{t("pages.deals.payment_request.deal_value")}</span>
                         <span className="font-medium text-dr-text tabular-nums">
@@ -161,15 +161,15 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
                 </div>
 
                 {dealValue <= 0 ? (
-                    <p className="text-xs text-[#b45309]">
+                    <p className="text-xs text-dr-amber-text">
                         {t("pages.deals.payment_request.no_deal_value")}
                     </p>
                 ) : rateUnavailable ? (
-                    <p className="text-xs text-[#b45309]">
+                    <p className="text-xs text-dr-amber-text">
                         {t("pages.deals.payment_request.rate_unavailable")}
                     </p>
                 ) : (
-                    <p className="text-[11px] text-dr-text-hint">
+                    <p className="text-xs text-dr-text-hint">
                         {t("pages.deals.payment_request.conversion_hint", {
                             currency: currencyCode,
                         })}
@@ -179,7 +179,7 @@ export default function DealPaymentCreateModal({ deal, open, onClose }: DealPaym
                 {createError && (
                     <p
                         role="alert"
-                        className="rounded-md border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-xs text-[#b91c1c]"
+                        className="rounded-lg border border-dr-red-mid bg-dr-red-soft px-3 py-2 text-xs text-dr-red"
                     >
                         {createError}
                     </p>

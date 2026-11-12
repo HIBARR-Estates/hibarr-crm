@@ -36,3 +36,13 @@ export function isTerminalPaymentState(uiState: DealPaymentUiState | null): bool
         || uiState === "invalidated"
     );
 }
+
+/** Confirmed bank transfer or a completed online payment. */
+export function isCollectedPaymentState(uiState: DealPaymentUiState | null): boolean {
+    return uiState === "confirmed" || uiState === "paid_online";
+}
+
+/** Only a request the client has not started paying can be cancelled. */
+export function canCancelPaymentRequest(uiState: DealPaymentUiState | null): boolean {
+    return uiState === "pending_payment";
+}

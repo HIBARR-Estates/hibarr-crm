@@ -49,6 +49,8 @@ class PaymentRequestListTest extends TestCase
     public function test_route_is_registered(): void
     {
         $this->assertTrue(Route::has('payment-requests.index'));
+        $this->assertTrue(Route::has('deals.payment-request.cancel'));
+        $this->assertTrue(Route::has('deals.payment-requests.document'));
     }
 
     public function test_index_returns_expected_pagination_shape_and_excludes_rows_without_external_reference(): void
@@ -70,6 +72,7 @@ class PaymentRequestListTest extends TestCase
         $response->assertJsonPath('props.paymentRequests.total', 2);
         $response->assertJsonPath('props.paymentRequests.data.0.deal.name', 'Test Deal');
         $response->assertJsonPath('props.paymentRequests.data.0.agent_name', 'Agent Smith');
+        $response->assertJsonPath('props.paymentRequests.data.0.lead_name', 'Ada Lovelace');
     }
 
     public function test_index_filters_by_bank_transfer_pending(): void
@@ -184,6 +187,162 @@ class PaymentRequestListTest extends TestCase
         $response->assertJsonPath('props.paymentRequests.data.0.payment_id', '630');
     }
 
+    public function test_index_filters_by_created_date_and_sums_that_slice(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $this->insertPayment([
+            'external_reference' => '700',
+            'ol_status' => 'pending',
+            'base_amount' => 100,
+            'created_at' => now(),
+        ]);
+        $this->insertPayment([
+            'external_reference' => '701',
+            'ol_status' => 'cancelled',
+            'status' => 'failed',
+            'base_amount' => 40,
+            'created_at' => now()->subDays(10),
+        ]);
+        $this->insertPayment([
+            'external_reference' => '702',
+            'ol_status' => 'completed',
+            'ol_payment_type' => 'crypto',
+            'status' => 'complete',
+            'base_amount' => 250,
+            'created_at' => now(),
+        ]);
+
+        $today = now()->toDateString();
+        $listed = $this->withHeaders(['X-Inertia' => 'true'])
+            ->get('/account/payment-requests?date_from=' . $today . '&date_to=' . $today);
+
+        $listed->assertOk();
+        $listed->assertJsonCount(2, 'props.paymentRequests.data');
+
+        $stats = $this->withHeaders([
+            'X-Inertia' => 'true',
+            'X-Inertia-Partial-Component' => 'PaymentRequests/Index',
+            'X-Inertia-Partial-Data' => 'stats',
+        ])->get('/account/payment-requests?date_from=' . $today . '&date_to=' . $today);
+
+        $stats->assertOk();
+        $this->assertSame(2, $stats->json('props.stats.count'));
+        $this->assertEquals(350, $stats->json('props.stats.requested'));
+        $this->assertEquals(250, $stats->json('props.stats.collected'));
+        $this->assertEquals(100, $stats->json('props.stats.outstanding'));
+        $this->assertEquals(0, $stats->json('props.stats.cancelled'));
+        $this->assertSame('EUR', $stats->json('props.stats.currency'));
+    }
+
+    public function test_index_filters_by_lead_name(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        DB::table('leads')->insert([
+            'id' => 4,
+            'company_id' => $this->companyId,
+            'client_name' => 'Bob Stone',
+            'company_name' => 'Stone Co',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('deals')->insert([
+            'id' => 11,
+            'company_id' => $this->companyId,
+            'currency_id' => 5,
+            'agent_id' => 20,
+            'lead_id' => 4,
+            'name' => 'Bob Deal',
+            'value' => 800,
+            'added_by' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->insertPayment(['external_reference' => '710', 'ol_status' => 'pending', 'deal_id' => 11]);
+        $this->insertPayment(['external_reference' => '711', 'ol_status' => 'pending']);
+
+        $response = $this->withHeaders(['X-Inertia' => 'true'])
+            ->get('/account/payment-requests?lead=Bob');
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'props.paymentRequests.data');
+        $response->assertJsonPath('props.paymentRequests.data.0.payment_id', '710');
+        $response->assertJsonPath('props.paymentRequests.data.0.lead_name', 'Bob Stone');
+        $response->assertJsonPath('props.filters.search', 'Bob');
+    }
+
+    public function test_index_search_matches_deal_agent_and_reference(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        DB::table('users')->insert([
+            'id' => 21,
+            'company_id' => $this->companyId,
+            'name' => 'Priya Shah',
+            'email' => 'priya@example.com',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('lead_agents')->insert([
+            'id' => 21,
+            'company_id' => $this->companyId,
+            'user_id' => 21,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('deals')->insert([
+            'id' => 12,
+            'company_id' => $this->companyId,
+            'currency_id' => 5,
+            'agent_id' => 21,
+            'lead_id' => 3,
+            'name' => 'Cedar House',
+            'value' => 900,
+            'added_by' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->insertPayment([
+            'external_reference' => 'REF-CEDAR-9',
+            'ol_status' => 'pending',
+            'deal_id' => 12,
+        ]);
+        $this->insertPayment(['external_reference' => '711', 'ol_status' => 'pending']);
+
+        $deal = $this->withHeaders(['X-Inertia' => 'true'])
+            ->get('/account/payment-requests?search=Cedar');
+        $deal->assertOk();
+        $deal->assertJsonCount(1, 'props.paymentRequests.data');
+        $deal->assertJsonPath('props.paymentRequests.data.0.payment_id', 'REF-CEDAR-9');
+
+        $agent = $this->withHeaders(['X-Inertia' => 'true'])
+            ->get('/account/payment-requests?search=Priya');
+        $agent->assertOk();
+        $agent->assertJsonCount(1, 'props.paymentRequests.data');
+        $agent->assertJsonPath('props.paymentRequests.data.0.payment_id', 'REF-CEDAR-9');
+
+        $reference = $this->withHeaders(['X-Inertia' => 'true'])
+            ->get('/account/payment-requests?search=REF-CEDAR');
+        $reference->assertOk();
+        $reference->assertJsonCount(1, 'props.paymentRequests.data');
+        $reference->assertJsonPath('props.paymentRequests.data.0.payment_id', 'REF-CEDAR-9');
+    }
+
+    public function test_index_rejects_a_reversed_date_range(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $this->withHeaders(['X-Inertia' => 'true'])
+            ->get('/account/payment-requests?date_from=2026-12-31&date_to=2026-01-01')
+            ->assertStatus(422);
+    }
+
     /**
      * Full HTTP-level 404/403 assertions would require reproducing
      * AccountBaseController's whole authenticated-request environment
@@ -260,6 +419,7 @@ class PaymentRequestListTest extends TestCase
     private function resetSchema(): void
     {
         Schema::dropIfExists('payments');
+        Schema::dropIfExists('leads');
         Schema::dropIfExists('lead_agents');
         Schema::dropIfExists('deals');
         Schema::dropIfExists('currencies');
@@ -299,9 +459,19 @@ class PaymentRequestListTest extends TestCase
             $table->unsignedInteger('company_id')->nullable();
             $table->unsignedInteger('currency_id')->nullable();
             $table->unsignedInteger('agent_id')->nullable();
+            $table->unsignedInteger('lead_id')->nullable();
             $table->string('name')->nullable();
             $table->double('value', 30, 2)->default(0);
             $table->unsignedInteger('added_by')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('leads', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('client_name')->nullable();
+            $table->string('company_name')->nullable();
+            $table->softDeletes();
             $table->timestamps();
         });
 
@@ -327,6 +497,7 @@ class PaymentRequestListTest extends TestCase
             $table->unsignedBigInteger('verified_by_user_id')->nullable();
             $table->timestamp('verified_at')->nullable();
             $table->unsignedInteger('currency_id')->nullable();
+            $table->decimal('base_amount', 16, 2)->nullable();
             $table->dateTime('paid_on')->nullable();
             $table->string('bill')->nullable();
             $table->unsignedInteger('added_by')->nullable();
@@ -369,11 +540,21 @@ class PaymentRequestListTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        DB::table('leads')->insert([
+            'id' => 3,
+            'company_id' => $this->companyId,
+            'client_name' => 'Ada Lovelace',
+            'company_name' => 'Analytical Engines',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         DB::table('deals')->insert([
             'id' => 10,
             'company_id' => $this->companyId,
             'currency_id' => 5,
             'agent_id' => 20,
+            'lead_id' => 3,
             'name' => 'Test Deal',
             'value' => 2500,
             'added_by' => 1,

@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { App } from "antd";
 import axios from "axios";
+import useTranslation from "@/Hooks/useTranslation";
 import type {
     DealPaymentCreateInput,
     DealPaymentRequest,
@@ -60,6 +61,7 @@ export type DealPaymentActionResult =
     | { ok: false; message: string };
 
 export default function useDealPayment(dealId: number) {
+    const { t } = useTranslation();
     const { message } = App.useApp();
     const {
         paymentRequest,
@@ -71,6 +73,7 @@ export default function useDealPayment(dealId: number) {
     } = useDealWorkspace();
     const [creating, setCreating] = useState(false);
     const [confirming, setConfirming] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
     // A confirmed payment wins the deal server-side (outcome, and commission
@@ -147,6 +150,34 @@ export default function useDealPayment(dealId: number) {
         }
     }, [dealId, message, refreshDeal, upsertPaymentRequest]);
 
+    const cancelRequest = useCallback(async (): Promise<DealPaymentActionResult> => {
+        setCancelling(true);
+        try {
+            const response = await axios.post<DealPaymentResponse>(
+                route("deals.payment-request.cancel", dealId),
+            );
+            if (response.data?.status === "success" && response.data.data) {
+                upsertPaymentRequest(response.data.data);
+                message.success(t("pages.deals.payment_request.cancelled_toast"));
+                return { ok: true, data: response.data.data };
+            }
+            const failMessage =
+                (response.data as { message?: string } | undefined)?.message
+                ?? t("pages.deals.payment_request.cancel_failed");
+            message.error(failMessage);
+            return { ok: false, message: failMessage };
+        } catch (error: unknown) {
+            const failMessage = apiErrorMessage(
+                error,
+                t("pages.deals.payment_request.cancel_failed"),
+            );
+            message.error(failMessage);
+            return { ok: false, message: failMessage };
+        } finally {
+            setCancelling(false);
+        }
+    }, [dealId, message, t, upsertPaymentRequest]);
+
     const refreshStatus = useCallback(async () => {
         setRefreshing(true);
         try {
@@ -165,9 +196,11 @@ export default function useDealPayment(dealId: number) {
         paymentRequestLoading,
         createPaymentRequest,
         confirmTransfer,
+        cancelRequest,
         refreshStatus,
         creating,
         confirming,
+        cancelling,
         refreshing,
     };
 }
