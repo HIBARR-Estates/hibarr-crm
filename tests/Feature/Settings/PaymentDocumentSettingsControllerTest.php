@@ -105,6 +105,23 @@ class PaymentDocumentSettingsControllerTest extends TestCase
         $this->assertSame(99, (int) $row->updated_by);
     }
 
+    public function test_a_first_save_that_loses_a_race_updates_the_other_row(): void
+    {
+        $calls = 0;
+        $settings = PaymentDocumentSetting::saveForCompany($this->companyId, function (PaymentDocumentSetting $settings) use (&$calls) {
+            if ($calls++ === 0) {
+                // Another request saves the company's first row in between.
+                DB::table('payment_document_settings')->insert(['company_id' => $this->companyId, 'legal_name' => 'Other Ltd.', 'created_at' => now(), 'updated_at' => now()]);
+            }
+            $settings->tax_office = 'Girne';
+        });
+
+        $this->assertSame(2, $calls);
+        $this->assertSame(1, DB::table('payment_document_settings')->count());
+        $this->assertSame('Other Ltd.', $settings->legal_name);
+        $this->assertSame('Girne', DB::table('payment_document_settings')->value('tax_office'));
+    }
+
     public function test_logo_upload_accepts_only_png_and_jpeg(): void
     {
         $this->withoutMiddleware();

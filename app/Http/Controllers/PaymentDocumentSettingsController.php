@@ -51,10 +51,10 @@ class PaymentDocumentSettingsController extends AccountBaseController
     {
         $validated = $request->validate($this->rules());
 
-        $settings = PaymentDocumentSetting::forCompany(company()->id);
-        $settings->fill($validated);
-        $settings->updated_by = user()->id;
-        $settings->save();
+        $settings = PaymentDocumentSetting::saveForCompany(company()->id, function (PaymentDocumentSetting $settings) use ($validated) {
+            $settings->fill($validated);
+            $settings->updated_by = user()->id;
+        });
 
         return response()->json([
             'status' => 'success',
@@ -73,12 +73,14 @@ class PaymentDocumentSettingsController extends AccountBaseController
             'logo' => 'required|file|mimes:png,jpg,jpeg|max:2048',
         ]);
 
-        $settings = PaymentDocumentSetting::forCompany(company()->id);
-        $previous = $settings->logo;
+        $logo = Files::uploadLocalOrS3($request->file('logo'), PaymentDocumentSetting::LOGO_PATH);
+        $previous = null;
 
-        $settings->logo = Files::uploadLocalOrS3($request->file('logo'), PaymentDocumentSetting::LOGO_PATH);
-        $settings->updated_by = user()->id;
-        $settings->save();
+        $settings = PaymentDocumentSetting::saveForCompany(company()->id, function (PaymentDocumentSetting $settings) use ($logo, &$previous) {
+            $previous = $settings->logo;
+            $settings->logo = $logo;
+            $settings->updated_by = user()->id;
+        });
 
         if ($previous) {
             Files::deleteFile($previous, PaymentDocumentSetting::LOGO_PATH);

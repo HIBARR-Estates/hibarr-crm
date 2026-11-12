@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -118,6 +119,35 @@ class PaymentDocumentSetting extends Model
         }
 
         return $setting;
+    }
+
+    /**
+     * Applies a change to the company's settings and saves it. When two
+     * first saves race, the unique index refuses one insert; that change is
+     * then applied to the row the other request saved.
+     *
+     * @param  callable(self): void  $apply
+     */
+    public static function saveForCompany(int $companyId, callable $apply): self
+    {
+        $settings = self::forCompany($companyId);
+        $apply($settings);
+
+        try {
+            $settings->save();
+        } catch (QueryException $e) {
+            $existing = $settings->exists ? null : self::query()->where('company_id', $companyId)->first();
+            if ($existing === null) {
+                throw $e;
+            }
+
+            $apply($existing);
+            $existing->save();
+
+            return $existing;
+        }
+
+        return $settings;
     }
 
     public function getLogoUrlAttribute(): ?string
