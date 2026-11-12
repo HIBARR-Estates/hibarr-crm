@@ -98,14 +98,15 @@
     // The stamp duty box and the tax office seal are images, drawn from
     // resources/pdf/kktc/marks-source.html: dompdf can't set text on a curve.
     $markImage = fn (string $file) => 'data:image/png;base64,' . base64_encode((string) @file_get_contents(resource_path('pdf/kktc/' . $file)));
+    // Sits top right, above the title: badges, then the approval number and range.
     $marks = function (int $sealSize) use ($approval, $markImage) {
-        $html = '<table style="width:auto"><tr>';
+        $badges = '';
         if (! empty($approval['show_stamp_duty'])) {
             $width = (int) round($sealSize * 1.22);
-            $html .= '<td style="padding-right:10px;vertical-align:middle"><img src="' . $markImage('kktc-stamp-duty.png') . '" style="width:' . $width . 'px;height:' . (int) round($width * 336 / 720) . 'px" alt="KKTC Damga Vergisi Ödenmiştir"></td>';
+            $badges .= '<td style="padding-left:10px;vertical-align:middle"><img src="' . $markImage('kktc-stamp-duty.png') . '" style="width:' . $width . 'px;height:' . (int) round($width * 336 / 720) . 'px" alt="KKTC Damga Vergisi Ödenmiştir"></td>';
         }
         if (! empty($approval['show_seal'])) {
-            $html .= '<td style="padding-right:10px;vertical-align:middle"><img src="' . $markImage('kktc-approval-seal.png') . '" style="width:' . $sealSize . 'px;height:' . $sealSize . 'px" alt="Gelir ve Vergi Dairesi belge onayı"></td>';
+            $badges .= '<td style="padding-left:10px;vertical-align:middle"><img src="' . $markImage('kktc-approval-seal.png') . '" style="width:' . $sealSize . 'px;height:' . $sealSize . 'px" alt="Gelir ve Vergi Dairesi belge onayı"></td>';
         }
         $lines = [];
         if (! empty($approval['number'])) {
@@ -114,11 +115,12 @@
         if (! empty($approval['range'])) {
             $lines[] = '<b>Seri aralığı:</b><br>' . e($approval['range']);
         }
-        if ($lines) {
-            $html .= '<td style="vertical-align:middle"><div class="approval">' . implode('<br>', $lines) . '</div></td>';
+        if ($badges === '' && ! $lines) {
+            return '';
         }
+        $text = $lines ? '<td style="vertical-align:middle;text-align:right"><div class="approval">' . implode('<br>', $lines) . '</div></td>' : '';
 
-        return $html . '</tr></table>';
+        return '<table style="width:auto;margin:0 0 0 auto"><tr>' . $text . $badges . '</tr></table>';
     };
 @endphp
 
@@ -145,6 +147,8 @@
                     </div>
                 </td>
                 <td style="text-align:right">
+                    @php($marksHtml = $marks(66))
+                    @if ($marksHtml)<div style="margin-bottom:12px">{!! $marksHtml !!}</div>@endif
                     <div class="title" style="font-size:26px">{{ $title }}@if ($bilingual)<span class="title-en">{{ strtoupper($title_en) }}</span>@endif</div>
                     <div style="margin-top:8px"><span class="copy-mark">{{ $copy_label['tr'] }}@if ($bilingual) · {{ strtoupper($copy_label['en']) }}@endif</span></div>
                     @if ($stamp)
@@ -256,13 +260,12 @@
     <div style="position:absolute;left:40px;right:40px;bottom:26px">
         <table>
             <tr>
-                <td style="width:270px;vertical-align:bottom">{!! $marks(74) !!}</td>
-                <td style="padding-left:24px;vertical-align:bottom">
+                <td style="vertical-align:bottom">
                     <div class="sig-line"></div>
                     <span class="label">TESLİM EDEN</span> {!! $en('Issued by') !!}
                     <div class="sig-who">{{ $seller['legal_name'] }} · kaşe / imza</div>
                 </td>
-                <td style="padding-left:24px;vertical-align:bottom">
+                <td style="padding-left:40px;vertical-align:bottom">
                     <div class="sig-line"></div>
                     <span class="label">TESLİM ALAN</span> {!! $en('Received by') !!}
                     <div class="sig-who">{{ $buyer['name'] ? $buyer['name'].' · ' : '' }}imza</div>
@@ -295,7 +298,9 @@
                         </td>
                     </tr></table>
                 </td>
-                <td style="text-align:right;width:230px">
+                <td style="text-align:right;width:300px">
+                    @php($marksHtml = $marks(52))
+                    @if ($marksHtml)<div style="margin-bottom:8px">{!! $marksHtml !!}</div>@endif
                     <div class="title" style="font-size:14px;letter-spacing:2px">{{ $title }}@if ($bilingual)<span class="title-en">{{ strtoupper($title_en) }}</span>@endif</div>
                     <div class="serial" style="font-size:13px;margin-top:6px">№ {{ $number }}</div>
                     <div style="margin-top:3px"><span class="label">TARİH</span> {!! $en('Date') !!} &nbsp;{{ $issued_on }}</div>
@@ -357,8 +362,7 @@
     <div style="position:absolute;left:34px;right:30px;bottom:18px">
         <table>
             <tr>
-                <td style="width:240px;vertical-align:bottom">{!! $marks(64) !!}</td>
-                <td style="vertical-align:bottom;padding-left:12px">
+                <td style="vertical-align:bottom">
                     <span class="copy-mark">{{ $copy_label['tr'] }}@if ($bilingual) · {{ strtoupper($copy_label['en']) }}@endif</span>
                     @if ($footer_note)<div class="approval" style="margin-top:4px">{{ $footer_note }}</div>@endif
                 </td>
