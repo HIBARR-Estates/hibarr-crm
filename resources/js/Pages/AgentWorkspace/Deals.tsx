@@ -93,11 +93,11 @@ export default function Deals({ pageTitle, userId, pipelines, pipelineId, filter
             if (id === pipelineId) return;
             // Another pipeline's stages are not this one's, so the stage filter does not carry over.
             const { pipeline_stage_id: _stage, ...rest } = filters;
-            const data: Record<string, string> = { lead_pipeline_id: String(id) };
-            for (const [key, value] of Object.entries(rest)) if (key !== "lead_pipeline_id" && value) data[key] = value;
+            const data: Record<string, string> = { lead_pipeline_id: String(id), layout };
+            for (const [key, value] of Object.entries(rest)) if (key !== "lead_pipeline_id" && key !== "layout" && value) data[key] = value;
             router.get(route("agent.deals"), data, { preserveState: true, preserveScroll: true, replace: true });
         },
-        [filters, pipelineId],
+        [filters, pipelineId, layout],
     );
 
     const views = useMemo(() => (deals ? dealViews(deals, dealExtras, nowMs, timezone) : undefined), [deals, dealExtras, nowMs, timezone]);

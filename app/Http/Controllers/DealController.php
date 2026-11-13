@@ -694,7 +694,8 @@ class DealController extends AccountBaseController
                     : null,
             ])->values(), 'deals'),
             'dealExtras' => Inertia::defer(fn () => $pulse->forDeals(
-                $mapDeals()->with(['hibarrFields', 'contact'])->get()
+                // Every deal column, so the automation conditions can read native fields too.
+                $mapDeals()->addSelect('deals.*')->with(['hibarrFields', 'contact'])->get()
             ), 'extras'),
         ]);
     }

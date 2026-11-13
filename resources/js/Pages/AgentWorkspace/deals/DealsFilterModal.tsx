@@ -2,6 +2,8 @@ import { useEffect, useMemo } from "react";
 import createDealFilterConfig from "@/configs/dealFilterConfig";
 import { useFilter } from "@/contexts/FilterContext";
 import EntityFilterModal from "@/Features/Filters/EntityFilterModal";
+import Button from "@/Components/Redesign/primitives/Button";
+import useTranslation from "@/Hooks/useTranslation";
 import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 
@@ -21,7 +23,8 @@ interface DealsFilterModalProps {
  * first time Filters is pressed, so the page never pays for it up front.
  */
 export default function DealsFilterModal({ pipelines, pipelineId, total, appliedKey }: DealsFilterModalProps) {
-    const { data: formData, loading } = useFormDataBatch(FORM_DATA_TYPES);
+    const { t } = useTranslation();
+    const { data: formData, loading, error, refetch } = useFormDataBatch(FORM_DATA_TYPES);
     const { openDrawer } = useFilter();
 
     const filterConfig = useMemo(() => {
@@ -60,5 +63,17 @@ export default function DealsFilterModal({ pipelines, pipelineId, total, applied
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    return <EntityFilterModal config={filterConfig} optionsLoading={loading} entityLabel="deals" currentCount={total} savedViews={false} />;
+    return (
+        <>
+            {error && !loading ? (
+                <div role="alert" className="agent-dp__filters-error">
+                    <span>{t("pages.agent_workspace.deals.filters_error")}</span>
+                    <Button size="sm" variant="ghost" onClick={() => void refetch()}>
+                        {t("pages.agent_workspace.deals.filters_retry")}
+                    </Button>
+                </div>
+            ) : null}
+            <EntityFilterModal config={filterConfig} optionsLoading={loading} entityLabel="deals" currentCount={total} savedViews={false} />
+        </>
+    );
 }

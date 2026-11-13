@@ -756,8 +756,17 @@
         min-width: 96px;
     }
 
+    /* Column titles stay for screen readers; the row cards carry their own labels. */
     .agent-dp__head {
-        display: none;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
     }
 
     .agent-dp__row {
@@ -799,4 +808,24 @@
     .agent-dp__skeleton-row > :nth-child(n + 3) {
         display: none;
     }
+}
+
+/* The filter options could not load: sits above the filter drawer with a retry. */
+.agent-dp__filters-error {
+    position: fixed;
+    inset: auto 16px 16px;
+    z-index: 1400;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    max-width: 420px;
+    margin-inline: auto;
+    padding: 10px 12px 10px 16px;
+    border: 1px solid var(--dr-border);
+    border-radius: 12px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font-size: 13px;
+    font-weight: 600;
 }

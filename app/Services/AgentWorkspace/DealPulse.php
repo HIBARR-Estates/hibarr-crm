@@ -184,10 +184,21 @@ class DealPulse
             ->whereIn('custom_field_id', array_keys($fieldIds))
             ->get(['model_id', 'custom_field_id', 'value'])
             ->each(function ($row) use (&$values) {
-                $values[$row->model_id.':'.$row->custom_field_id] = $row->value;
+                $values[$row->model_id.':'.$row->custom_field_id] = $this->decodeList($row->value);
             });
 
         return $values;
+    }
+
+    /** Multi-select custom fields are stored as a JSON list; the evaluator wants the list itself. */
+    private function decodeList(mixed $value): mixed
+    {
+        if (! is_string($value) || ! str_starts_with(ltrim($value), '[')) {
+            return $value;
+        }
+        $decoded = json_decode($value, true);
+
+        return is_array($decoded) ? $decoded : $value;
     }
 
     /** @param array<string, mixed> $customValues */

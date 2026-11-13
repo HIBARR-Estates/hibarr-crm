@@ -3137,6 +3137,8 @@ return [
             'pipelines' => 'Pipeline’lar',
             'filters' => 'Filtreler',
             'filters_count' => 'Filtreler · {{count}}',
+            'filters_error' => 'Filtreler yüklenemedi.',
+            'filters_retry' => 'Tekrar dene',
             'layout' => [
                 'label' => 'Görünüm',
                 'board' => 'Pano',

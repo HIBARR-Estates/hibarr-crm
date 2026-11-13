@@ -3159,6 +3159,8 @@ return [
             'pipelines' => 'Pipelines',
             'filters' => 'Filter',
             'filters_count' => 'Filter · {{count}}',
+            'filters_error' => 'Die Filter konnten nicht geladen werden.',
+            'filters_retry' => 'Erneut versuchen',
             'layout' => [
                 'label' => 'Ansicht',
                 'board' => 'Board',

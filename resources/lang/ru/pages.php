@@ -3172,6 +3172,8 @@ return [
             'pipelines' => 'Воронки',
             'filters' => 'Фильтры',
             'filters_count' => 'Фильтры · {{count}}',
+            'filters_error' => 'Не удалось загрузить фильтры.',
+            'filters_retry' => 'Повторить',
             'layout' => [
                 'label' => 'Вид',
                 'board' => 'Доска',

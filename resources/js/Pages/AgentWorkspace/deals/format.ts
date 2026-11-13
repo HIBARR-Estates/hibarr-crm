@@ -46,7 +46,7 @@ export interface MeetingView {
 export function meetingView(iso: string | null, nowMs: number, timeZone: string, locale: string, t: Translate): MeetingView | null {
     if (!iso) return null;
     const at = Date.parse(iso);
-    if (Number.isNaN(at)) return null;
+    if (Number.isNaN(at) || at < nowMs) return null;
 
     const today = dayKeyIn(nowMs, timeZone);
     const day = dayKeyIn(at, timeZone);
@@ -75,7 +75,9 @@ export function dealViews(deals: DealItem[], extras: Record<number, DealExtras> 
     const today = dayKeyIn(nowMs, timeZone);
     return deals.map((deal) => {
         const own = extras?.[deal.id];
-        const meetingDay = deal.next_meeting_at ? dayKeyIn(Date.parse(deal.next_meeting_at), timeZone) : null;
+        const meetingAt = deal.next_meeting_at ? Date.parse(deal.next_meeting_at) : Number.NaN;
+        // A meeting that has already started is no longer "coming up".
+        const meetingDay = !Number.isNaN(meetingAt) && meetingAt >= nowMs ? dayKeyIn(meetingAt, timeZone) : null;
         const ahead = meetingDay ? dayDiff(today, meetingDay) : null;
         return {
             deal,
