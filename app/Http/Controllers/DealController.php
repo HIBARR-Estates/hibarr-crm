@@ -1309,14 +1309,29 @@ class DealController extends AccountBaseController
             ->orderBy('next_follow_up_date', 'desc')
             ->get();
 
-        // Someone who may see the deal but not its lead (the agent workspace's
-        // deal-only view) keeps the meetings, without the lead's phone numbers.
-        $dealLead = $deal->lead_id ? Lead::query()->whereKey($deal->lead_id)->first() : null;
-        if ($dealLead !== null && ! LeadVisibility::canView(user(), $dealLead)) {
+        // Someone who may see the deal but not a lead on it (the agent workspace's
+        // deal-only view) keeps the meetings, without that lead's phone numbers.
+        // Each lead is checked on its own: a meeting can keep a lead other than
+        // the deal's current one.
+        $leadIds = $dealFollowUps
+            ->flatMap(fn ($f) => [$f->lead?->id, $f->deal?->contact?->id])
+            ->filter()
+            ->unique()
+            ->values();
+        $hiddenLeadIds = $leadIds->isEmpty()
+            ? collect()
+            : Lead::query()->whereIn('id', $leadIds)->get()
+                ->reject(fn (Lead $lead) => LeadVisibility::canView(user(), $lead))
+                ->pluck('id');
+        if ($hiddenLeadIds->isNotEmpty()) {
             $phoneFields = ['mobile', 'cell', 'office'];
-            $dealFollowUps->each(function ($f) use ($phoneFields) {
-                $f->lead?->makeHidden($phoneFields);
-                $f->deal?->contact?->makeHidden($phoneFields);
+            $dealFollowUps->each(function ($f) use ($hiddenLeadIds, $phoneFields) {
+                if ($f->lead && $hiddenLeadIds->contains($f->lead->id)) {
+                    $f->lead->makeHidden($phoneFields);
+                }
+                if ($f->deal?->contact && $hiddenLeadIds->contains($f->deal->contact->id)) {
+                    $f->deal->contact->makeHidden($phoneFields);
+                }
             });
         }
 

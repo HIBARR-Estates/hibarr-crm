@@ -114,6 +114,24 @@ class AgentWorkspaceDealOnlyTest extends TestCase
         }
     }
 
+    /**
+     * The meetings endpoint feeds the deal-only page too. A source check, as the
+     * test database cannot run migrations for a full request: each lead a
+     * meeting carries is checked on its own, so a meeting that kept an earlier
+     * lead does not leak that lead's phone numbers.
+     */
+    public function test_the_meetings_endpoint_hides_phones_per_lead(): void
+    {
+        $source = (string) file_get_contents((new \ReflectionClass(DealController::class))->getFileName());
+        $start = strpos($source, 'function dealMeetings(');
+        $this->assertNotFalse($start);
+        $body = substr($source, $start, 3500);
+
+        $this->assertStringContainsString('LeadVisibility::canView', $body);
+        $this->assertMatchesRegularExpression("/whereIn\('id', \\\$leadIds\)/", $body);
+        $this->assertStringContainsString("'mobile', 'cell', 'office'", $body);
+    }
+
     private function viewer(int $id, string $scope): User
     {
         $user = new class extends User
