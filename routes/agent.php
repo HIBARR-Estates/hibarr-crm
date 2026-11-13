@@ -29,6 +29,8 @@ Route::middleware(['auth', 'partner.restrict', EnsureAgentWorkspaceAccess::class
         Route::get('people/{lead}/deals/{deal}', [DealController::class, 'agentShow'])
             ->whereNumber(['lead', 'deal'])
             ->name('people.deal');
+        // The deals board and list: runs on the Deals index's own filters and scope.
+        Route::get('deals', [DealController::class, 'agentIndex'])->name('deals');
         // A deal by id alone: redirects to its person's page in the deal state.
         Route::get('deals/{deal}', [DealController::class, 'agentOpen'])
             ->whereNumber('deal')
