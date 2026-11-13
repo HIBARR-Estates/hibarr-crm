@@ -3420,6 +3420,7 @@ return [
                 'of' => '{{current}} / {{target}}',
                 'days_left' => 'Döngüde kalan gün',
                 'and' => 've',
+                'or' => 'veya',
                 'operator' => [
                     'gt' => 'daha fazla',
                     'lte' => 'en fazla',

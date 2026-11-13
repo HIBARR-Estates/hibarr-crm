@@ -117,3 +117,12 @@ export function criterionAmount(metric: LevelCriterion["metric"], value: number,
     if (metric === "vsa" || metric === "vsd" || metric === "vsa_vsd") return money(value);
     return Math.round(value).toLocaleString(!locale || locale === "en" || locale === "eng" ? "en-US" : locale);
 }
+
+/**
+ * A commission amount with its cents: "€ 123.45". The ledger has to reconcile to the cent,
+ * so unlike the Deals figures these are never rounded to whole units.
+ */
+export function formatCommission(value: number, symbol: string, locale: string): string {
+    const numberLocale = isEnglish(locale) ? "en-US" : locale;
+    return `${symbol} ${value.toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}

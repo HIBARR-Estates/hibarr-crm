@@ -3442,6 +3442,7 @@ return [
                 'of' => '{{current}} von {{target}}',
                 'days_left' => 'Verbleibende Tage im Zyklus',
                 'and' => 'und',
+                'or' => 'oder',
                 'operator' => [
                     'gt' => 'mehr als',
                     'lte' => 'höchstens',

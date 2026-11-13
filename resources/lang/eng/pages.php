@@ -3599,6 +3599,7 @@ return [
                 'of' => '{{current}} of {{target}}',
                 'days_left' => 'Days left in cycle',
                 'and' => 'and',
+                'or' => 'or',
                 'operator' => [
                     'gt' => 'more than',
                     'lte' => 'at most',

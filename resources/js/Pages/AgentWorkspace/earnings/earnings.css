@@ -344,10 +344,10 @@
 }
 
 .agent-ea__card-value {
-    font-family: ui-monospace, "IBM Plex Mono", monospace;
     font-size: 32px;
     line-height: 1.2;
     white-space: nowrap;
+    font-variant-numeric: tabular-nums;
 }
 
 .agent-ea__card-note {
@@ -510,8 +510,8 @@
 .agent-ea__name {
     overflow: hidden;
     color: var(--dr-text);
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 14px;
+    font-weight: 500;
     line-height: 1.25;
     text-decoration: none;
     text-overflow: ellipsis;
@@ -539,7 +539,7 @@ a.agent-ea__name:focus-visible {
 .agent-ea__package {
     overflow: hidden;
     color: var(--dr-text);
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 500;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -548,25 +548,26 @@ a.agent-ea__name:focus-visible {
 .agent-ea__amount,
 .agent-ea__num,
 .agent-ea__mono {
-    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-variant-numeric: tabular-nums;
 }
 
 .agent-ea__amount {
     color: var(--dr-text);
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 500;
     white-space: nowrap;
 }
 
 .agent-ea__num {
     color: var(--dr-text);
-    font-size: 13px;
+    font-size: 14px;
+    font-weight: 500;
 }
 
 .agent-ea__month {
     color: var(--dr-text);
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 500;
     white-space: nowrap;
 }
 
@@ -708,8 +709,8 @@ a.agent-ea__name:focus-visible {
 }
 
 .agent-ea__bar-line b {
-    font-family: ui-monospace, "IBM Plex Mono", monospace;
     white-space: nowrap;
+    font-variant-numeric: tabular-nums;
 }
 
 .agent-ea__track {

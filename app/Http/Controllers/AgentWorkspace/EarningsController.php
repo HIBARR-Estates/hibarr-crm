@@ -253,6 +253,8 @@ class EarningsController extends AccountBaseController
                 $target = (float) $criterion->threshold;
                 $criteria[] = [
                     'metric' => $criterion->metric->value,
+                    // Conditions of one group are alternatives (any one passes it); every group has to pass.
+                    'group' => (int) $criterion->logic_group,
                     'operator' => $criterion->operator,
                     'current' => $value,
                     'target' => $target,
