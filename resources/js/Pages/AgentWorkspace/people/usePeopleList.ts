@@ -93,11 +93,17 @@ export default function usePeopleList(url: string) {
                 // Counts ignore the page, so paging leaves them as they are unless
                 // an earlier reload for this query never finished.
                 const withCounts = countsStale.current;
+                let reloadGeneration = -1;
                 const extras = withCounts ? ["counts", "rowExtras"] : ["rowExtras"];
                 router.reload({
                     only: extras,
+                    // Taken after this request's own "before"; a newer visit moves it on.
+                    onStart: () => {
+                        reloadGeneration = generation.current;
+                    },
                     onSuccess: () => {
-                        if (withCounts) countsStale.current = false;
+                        // A reload for a superseded query must not mark the new one fresh.
+                        if (withCounts && reloadGeneration === generation.current) countsStale.current = false;
                     },
                     onCancelToken: (token) => {
                         background.current = token;
