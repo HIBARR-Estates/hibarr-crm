@@ -321,6 +321,12 @@ function ContactDealInner(props: ContactDealProps) {
         });
         const list: SectionPill[] = [pill("agent-deal-top", "summary")];
         if (activityPermissions.viewTasks || activityPermissions.viewMeetings) list.push(pill("agent-activity-coming_up", "coming_up"));
+        // The deal-only view draws just the activity strip (coming up, notes, files); every other section is left out, so it has no pill.
+        if (restricted) {
+            if (activityPermissions.viewNotes) list.push(pill("agent-activity-notes", "notes", notes.length));
+            if (viewFiles) list.push(pill("deal-files", "files", uploadedFiles));
+            return list;
+        }
         list.push(pill("agent-activity-touches", "conversation"));
         if (activityPermissions.viewNotes) list.push(pill("deal-notes", "notes", notes.length));
         if (viewFiles) list.push(pill("deal-files", "files", uploadedFiles));
@@ -332,7 +338,7 @@ function ContactDealInner(props: ContactDealProps) {
         list.push(pill("deal-marketing", "marketing"), pill("deal-history", "history"));
         return list;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [t, notes.length, uploadedFiles, viewFiles, viewExposes, showQualification, showAnalysis, props.showOnlinePayment, permissions.view_tasks, permissions.view_lead_follow_up, permissions.view_deal_note]);
+    }, [t, restricted, notes.length, uploadedFiles, viewFiles, viewExposes, showQualification, showAnalysis, props.showOnlinePayment, permissions.view_tasks, permissions.view_lead_follow_up, permissions.view_deal_note]);
     const [activeSection, setActiveSection] = useSectionSpy(
         sectionPills.map((pill) => pill.id),
         scrolledPast,
@@ -340,8 +346,10 @@ function ContactDealInner(props: ContactDealProps) {
     const jump = (id: string) => {
         setActiveSection(id);
         // In the deal-only view the files are a card of the activity strip, a tab on a phone: show it first.
-        if (id === "deal-files" && restricted) {
-            window.dispatchEvent(new CustomEvent(SHOW_ACTIVITY_CARD, { detail: "files" }));
+        // The same goes for any pill that points at a card of that strip.
+        const card = restricted ? (id === "deal-files" ? "files" : id.startsWith("agent-activity-") ? id.slice("agent-activity-".length) : null) : null;
+        if (card) {
+            window.dispatchEvent(new CustomEvent(SHOW_ACTIVITY_CARD, { detail: card }));
             window.requestAnimationFrame(() => scrollToSection(id));
             return;
         }

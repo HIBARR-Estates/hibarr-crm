@@ -563,7 +563,7 @@ class DealController extends AccountBaseController
 
         // A deal can be visible to someone the lead is not: they get the deal
         // only, with nothing of the lead's own details sent.
-        $person = Lead::query()->with('leadOwner:id,name')->find((int) $lead);
+        $person = Lead::query()->with('leadOwner:id,name')->whereKey((int) $lead)->first();
         $restricted = $person === null || ! LeadVisibility::canView(user(), $person);
         if ($restricted) {
             $props = LeadVisibility::withoutLeadDetails($props, $person?->leadOwner?->name, (int) user()->id);
@@ -1308,6 +1308,17 @@ class DealController extends AccountBaseController
             ->where('deal_id', $id)
             ->orderBy('next_follow_up_date', 'desc')
             ->get();
+
+        // Someone who may see the deal but not its lead (the agent workspace's
+        // deal-only view) keeps the meetings, without the lead's phone numbers.
+        $dealLead = $deal->lead_id ? Lead::query()->whereKey($deal->lead_id)->first() : null;
+        if ($dealLead !== null && ! LeadVisibility::canView(user(), $dealLead)) {
+            $phoneFields = ['mobile', 'cell', 'office'];
+            $dealFollowUps->each(function ($f) use ($phoneFields) {
+                $f->lead?->makeHidden($phoneFields);
+                $f->deal?->contact?->makeHidden($phoneFields);
+            });
+        }
 
         $allParticipantIds = $dealFollowUps->flatMap(fn ($f) => $f->participants ?? [])->unique()->values();
         $participantUsersMap = $allParticipantIds->isEmpty()
