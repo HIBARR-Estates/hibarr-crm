@@ -412,12 +412,13 @@ export default function Today({
                         }}
                     />
                 ) : null}
-                {adding === "meeting" ? (
+                {/* The deals and leads arrive as a deferred group; opening before they do would offer nothing to schedule on, so the dialog waits for them. */}
+                {adding === "meeting" && userDeals !== undefined && userLeads !== undefined ? (
                     <MeetingScheduleModal
                         open
                         onClose={() => setAdding(null)}
-                        userDeals={userDeals ?? []}
-                        userLeads={userLeads ?? []}
+                        userDeals={userDeals}
+                        userLeads={userLeads}
                         onSuccess={() => {
                             setAdding(null);
                             void agenda.refresh();

@@ -60,8 +60,8 @@ export function hasDialablePhone(phone: string | null | undefined): phone is str
 
 /**
  * Whether the card may offer a call. Only a task wired to the call action (its
- * category's quick-action is "call") or a qualification call on a lead that is
- * still being qualified, and only when the person has a number to dial. A task
+ * category's quick-action is "call") or a qualification call (the heading says so) on a lead
+ * that is still being qualified, and only when the person has a number to dial. A task
  * about anything else never shows a call button.
  */
 export function offersCall(task: QueueTask): boolean {
@@ -69,7 +69,7 @@ export function offersCall(task: QueueTask): boolean {
     if (!related || !hasDialablePhone(related.phone)) return false;
     if (task.category?.action === "call") return true;
     const mode = related.type === "lead" && related.status_key ? LIFECYCLE_BANNER_MODE[related.status_key] : undefined;
-    return (mode === "qualify_start" || mode === "qualify_resume") && /qualif/i.test(task.heading);
+    return (mode === "qualify_start" || mode === "qualify_resume") && /qualif/i.test(task.heading) && /\bcall\b/i.test(task.heading);
 }
 
 /**
