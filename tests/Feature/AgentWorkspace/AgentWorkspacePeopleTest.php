@@ -51,11 +51,18 @@ class AgentWorkspacePeopleTest extends TestCase
         $this->assertStringContainsString('segment: "people", href: "/agent/people"', $destinations);
     }
 
+    private bool $createdLifecycleTable = false;
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        Schema::dropIfExists('lead_lifecycle_statuses');
+        // Only a fixture when the suite has no such table; a migrated one stays.
+        $this->createdLifecycleTable = ! Schema::hasTable('lead_lifecycle_statuses');
+        if (! $this->createdLifecycleTable) {
+            return;
+        }
+
         Schema::create('lead_lifecycle_statuses', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('company_id')->nullable();
@@ -70,7 +77,9 @@ class AgentWorkspacePeopleTest extends TestCase
 
     protected function tearDown(): void
     {
-        Schema::dropIfExists('lead_lifecycle_statuses');
+        if ($this->createdLifecycleTable) {
+            Schema::dropIfExists('lead_lifecycle_statuses');
+        }
         session()->forget('user');
 
         parent::tearDown();

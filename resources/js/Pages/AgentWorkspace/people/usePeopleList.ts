@@ -123,6 +123,10 @@ export default function usePeopleList(url: string) {
 export function useListSearch(applied: string, onSearch: (query: string) => void, delay = 300) {
     const [text, setText] = useState(applied);
     const sent = useRef(applied);
+    // The latest callback, read when the timer fires, so a re-render with a new
+    // closure never restarts the debounce.
+    const latest = useRef(onSearch);
+    latest.current = onSearch;
 
     useEffect(() => {
         if (applied !== sent.current) {
@@ -136,10 +140,10 @@ export function useListSearch(applied: string, onSearch: (query: string) => void
         if (next === sent.current) return;
         const handle = window.setTimeout(() => {
             sent.current = next;
-            onSearch(next);
+            latest.current(next);
         }, delay);
         return () => window.clearTimeout(handle);
-    }, [text, delay, onSearch]);
+    }, [text, delay]);
 
     return { text, setText };
 }
