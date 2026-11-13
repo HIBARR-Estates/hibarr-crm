@@ -12,7 +12,8 @@ export default function useReportKpi(initialRange: ReportRange, initial: ReportK
     const [range, setRangeState] = useState<ReportRange>(initialRange);
     const [byRange, setByRange] = useState<Partial<Record<ReportRange, ReportKpi>>>({});
     const [failed, setFailed] = useState<ReportRange | null>(null);
-    const asked = useRef(new Set<ReportRange>());
+    // The page's own deferred request already covers the first period, so it is not asked for again here.
+    const asked = useRef(new Set<ReportRange>([initialRange]));
 
     // The deferred props land after the first paint.
     useEffect(() => {

@@ -105,6 +105,32 @@ class AgentWorkspaceEarningsTest extends TestCase
         $this->assertStringEndsWith('/agent/earnings/report', route('agent.earnings.report', [], false));
     }
 
+    public function test_the_period_endpoint_is_for_agents_and_known_periods_only(): void
+    {
+        $controller = new class extends MyReportController
+        {
+            public function __construct() {}
+        };
+        $status = function (string $range) use ($controller): int {
+            try {
+                $controller->kpiFor(Request::create('/agent/earnings/report/kpi', 'GET', ['range' => $range]));
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+                return $e->getStatusCode();
+            }
+
+            return 200;
+        };
+
+        // A signed-in user with no agent profile has no report of their own.
+        $this->signIn(false);
+        $this->assertSame(403, $status('month'));
+
+        // An agent asking for a period the page does not offer.
+        $this->signIn();
+        $this->assertSame(422, $status('decade'));
+        $this->assertSame(422, $status(''));
+    }
+
     public function test_the_dock_opens_earnings_on_the_agent_page(): void
     {
         $destinations = file_get_contents(base_path('resources/js/Components/Redesign/agent/destinations.ts'));

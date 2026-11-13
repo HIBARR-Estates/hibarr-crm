@@ -71,6 +71,7 @@ export default function ReportView({ range: initialRange, windows, agentId, agen
                 periodName={blurb}
                 summary={summary.summaries[range]}
                 loading={summary.loading === range}
+                busy={summary.loading !== null}
                 error={summary.error?.range === range ? summary.error.kind : null}
                 save={summary.saves[range] ?? "idle"}
                 onGenerate={(refresh) => summary.generate(window, refresh)}

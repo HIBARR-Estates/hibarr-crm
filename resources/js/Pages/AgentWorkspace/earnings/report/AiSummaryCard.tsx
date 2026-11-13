@@ -12,6 +12,8 @@ interface AiSummaryCardProps {
     periodName: string;
     summary: string | undefined;
     loading: boolean;
+    /** Any period is being generated: one request at a time, so every Generate waits. */
+    busy: boolean;
     error: "timeout" | "failed" | null;
     save: SaveState;
     onGenerate: (refresh: boolean) => void;
@@ -24,7 +26,7 @@ interface AiSummaryCardProps {
  * the classic Agent Reports screen uses; "Save AI Summary as Note" files it
  * with the other saved summaries.
  */
-export default function AiSummaryCard({ periodName, summary, loading, error, save, onGenerate, onSave }: AiSummaryCardProps) {
+export default function AiSummaryCard({ periodName, summary, loading, busy, error, save, onGenerate, onSave }: AiSummaryCardProps) {
     const { t } = useTranslation();
     const html = useMemo(() => (summary ? DOMPurify.sanitize(marked.parse(summary, { breaks: true, gfm: true }) as string) : ""), [summary]);
 
@@ -40,17 +42,17 @@ export default function AiSummaryCard({ periodName, summary, loading, error, sav
                 <span className="agent-ea__ai-actions">
                     {summary ? (
                         <>
-                            <button type="button" className="agent-ea__btn" disabled={loading} onClick={() => onGenerate(true)}>
+                            <button type="button" className="agent-ea__btn" disabled={busy} onClick={() => onGenerate(true)}>
                                 <Icon name="refresh" size={13} />
                                 {t("pages.agent_workspace.earnings.report.ai.regenerate")}
                             </button>
-                            <button type="button" className="agent-ea__btn agent-ea__btn--ghost" disabled={loading || save === "saving" || save === "saved"} onClick={onSave}>
+                            <button type="button" className="agent-ea__btn agent-ea__btn--ghost" disabled={busy || save === "saving" || save === "saved"} onClick={onSave}>
                                 <Icon name={save === "saved" ? "check" : "file-text"} size={13} />
                                 {save === "saved" ? t("pages.agent_workspace.earnings.report.ai.saved") : t("pages.agent_workspace.earnings.report.ai.save")}
                             </button>
                         </>
                     ) : (
-                        <button type="button" className="agent-ea__btn" disabled={loading} onClick={() => onGenerate(false)}>
+                        <button type="button" className="agent-ea__btn" disabled={busy} onClick={() => onGenerate(false)}>
                             <Icon name="spark" size={13} />
                             {loading ? t("pages.agent_workspace.earnings.report.ai.generating") : t("pages.agent_workspace.earnings.report.ai.generate")}
                         </button>
