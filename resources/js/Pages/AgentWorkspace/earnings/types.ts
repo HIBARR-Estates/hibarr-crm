@@ -43,6 +43,8 @@ export interface EarningsSummary {
 
 export interface LevelCriterion {
     metric: "nsa" | "nsd" | "vsa" | "vsd" | "nsa_nsd" | "vsa_vsd";
+    /** Criteria sharing a group are alternatives; every group has to pass. */
+    group: number;
     operator: string;
     current: number;
     target: number;

@@ -6,6 +6,7 @@ use App\Http\Controllers\AgentWorkspace\MyReportController;
 use App\Http\Controllers\AgentWorkspace\PortfolioController;
 use App\Http\Controllers\DealController;
 use App\Http\Controllers\LeadContactController;
+use App\Http\Controllers\TaskController;
 use App\Http\Middleware\EnsureAgentWorkspaceAccess;
 use Illuminate\Support\Facades\Route;
 
@@ -36,6 +37,8 @@ Route::middleware(['auth', 'partner.restrict', EnsureAgentWorkspaceAccess::class
         Route::get('people/{lead}/deals/{deal}', [DealController::class, 'agentShow'])
             ->whereNumber(['lead', 'deal'])
             ->name('people.deal');
+        // The task list: runs on the Tasks index's own permission check and filters.
+        Route::get('tasks', [TaskController::class, 'agentIndex'])->name('tasks');
         // The deals board and list: runs on the Deals index's own filters and scope.
         Route::get('deals', [DealController::class, 'agentIndex'])->name('deals');
         // Earnings: the MLM module's own commissions, disputes, levels, cycles and network.

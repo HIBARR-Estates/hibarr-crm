@@ -12,6 +12,7 @@ use App\Models\LeadAgent;
 use App\Models\MlmCommission;
 use App\Models\MlmLevel;
 use App\Services\AgentWorkspace\EarningsPresenter;
+use App\Services\CycleLevelSnapshotService;
 use App\Services\CycleService;
 use App\Services\LevelService;
 use App\Support\PartnerRole;
@@ -230,15 +231,30 @@ class EarningsController extends AccountBaseController
 
         // A hidden level is never named to an agent, and nothing is measured against the next one.
         $hidden = (bool) $current?->is_hidden;
-        $next = $hidden ? null : $levels->getNextVisibleLevel($agent->company_id, $current?->rank ?? -1);
+        $next = null;
+        $nextCriteria = collect();
+        if (! $hidden) {
+            // The target and its criteria come from the same source the promotion check reads: the cycle's
+            // snapshots when it has them (an admin editing a threshold mid-cycle changes nothing), else the live levels.
+            $snapshots = $cycle && $cycle->hasSnapshots() ? app(CycleLevelSnapshotService::class)->getSnapshotLevels($cycle) : collect();
+            if ($snapshots->isNotEmpty()) {
+                $next = $snapshots->where('is_hidden', false)->where('rank', '>', $current?->rank ?? -1)->sortBy('rank')->first();
+                $nextCriteria = $next?->criteriaSnapshots ?? collect();
+            } else {
+                $next = $levels->getNextVisibleLevel($agent->company_id, $current?->rank ?? -1);
+                $nextCriteria = $next?->criteria ?? collect();
+            }
+        }
 
         $criteria = [];
         if ($next && $metrics) {
-            foreach ($next->criteria as $criterion) {
+            foreach ($nextCriteria as $criterion) {
                 $value = $criterion->metric->resolveValue($metrics);
                 $target = (float) $criterion->threshold;
                 $criteria[] = [
                     'metric' => $criterion->metric->value,
+                    // Conditions of one group are alternatives (any one passes it); every group has to pass.
+                    'group' => (int) $criterion->logic_group,
                     'operator' => $criterion->operator,
                     'current' => $value,
                     'target' => $target,
@@ -315,7 +331,9 @@ class EarningsController extends AccountBaseController
         $count = 0;
         $truncated = false;
         for ($depth = 1; $depth <= self::NETWORK_DEPTH && $ids && ! $truncated; $depth++) {
-            $children = LeadAgent::query()->with($with)->whereIn('parent_agent_id', $ids)->orderBy('created_at')->orderBy('id')->get();
+            // One row past what is left, so a longer generation still reads as truncated without loading all of it.
+            $children = LeadAgent::query()->with($with)->whereIn('parent_agent_id', $ids)->orderBy('created_at')->orderBy('id')
+                ->limit(self::NETWORK_LIMIT - $count + 1)->get();
             $ids = [];
             foreach ($children as $child) {
                 if ($count >= self::NETWORK_LIMIT) {

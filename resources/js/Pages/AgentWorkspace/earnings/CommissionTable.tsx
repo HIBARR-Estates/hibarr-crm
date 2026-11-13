@@ -3,8 +3,7 @@ import { Link } from "@inertiajs/react";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
 import useTranslation from "@/Hooks/useTranslation";
 import { avatarFill } from "../people/format";
-import { formatMoney } from "../deals/format";
-import { dealSubline, monthLabel, packageLine } from "./format";
+import { dealSubline, formatCommission, monthLabel, packageLine } from "./format";
 import type { CommissionLine } from "./types";
 
 interface CommissionTableProps {
@@ -64,7 +63,7 @@ const Row = memo(function Row({ line, currencySymbol, active, year, onDispute, o
                     {packageLine(line, t)}
                 </span>
                 <span role="cell" className="agent-ea__amount">
-                    {formatMoney(line.amount, currencySymbol, locale)}
+                    {formatCommission(line.amount, currencySymbol, locale)}
                 </span>
                 <span role="cell" className="agent-ea__c-status">
                     <span className={`agent-ea__status agent-ea__status--${status}`}>{t(`pages.agent_workspace.earnings.status.${status}`)}</span>
@@ -73,11 +72,12 @@ const Row = memo(function Row({ line, currencySymbol, active, year, onDispute, o
                     {monthLabel(line.created_at, locale, year)}
                 </span>
                 <span role="cell" className="agent-ea__act">
-                    {line.disputed ? (
+                    {line.dispute ? (
                         <button type="button" className="agent-ea__btn" onClick={() => onViewDispute(line)}>
                             {t("pages.agent_workspace.earnings.actions.view_dispute")}
                         </button>
-                    ) : line.can_dispute ? (
+                    ) : null}
+                    {line.can_dispute ? (
                         <button type="button" className="agent-ea__btn" onClick={() => onDispute(line)}>
                             {t("pages.agent_workspace.earnings.actions.dispute")}
                         </button>

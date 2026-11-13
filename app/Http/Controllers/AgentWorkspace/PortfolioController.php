@@ -39,7 +39,13 @@ class PortfolioController extends AccountBaseController
     /** The properties list's own check: someone who cannot view properties does not get the Portfolio. */
     private function authorizeView(): void
     {
-        abort_unless(in_array(user()->permission('view_products'), ['all', 'added', 'owned', 'both'], true), 403);
+        $view = user()->permission('view_product');
+
+        abort_unless(
+            PermissionGates::canManageProperties(user())
+                || in_array($view, ['all', 'added', 'owned', 'both', 4, 1], true),
+            403
+        );
     }
 
     /** For my deals (L7-18): the agent's open deals on the left, matches for the picked one on the right. */

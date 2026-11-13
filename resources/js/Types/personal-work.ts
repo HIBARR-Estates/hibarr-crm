@@ -14,6 +14,8 @@ export interface RelatedRecord {
     name: string;
     /** The lead's lifecycle status, or the deal's stage. */
     status?: string | null;
+    /** The status's own colour (the lifecycle status's or the stage's), when it has one. */
+    status_color?: string | null;
     /** The person: the lead itself, or the deal's contact. */
     person?: string | null;
     /** The person's mobile with its country code, when there is one. */

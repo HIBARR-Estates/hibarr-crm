@@ -3,6 +3,9 @@ import { formatMoney } from "../deals/format";
 import { criterionAmount, criterionLabel, dayMonth } from "./format";
 import type { LevelCard as LevelCardData } from "./types";
 
+/** The wording key for each operator the criteria accept besides ">=". */
+const OPERATOR_KEYS: Record<string, "gt" | "lte" | "lt" | "eq"> = { ">": "gt", "<=": "lte", "<": "lt", "=": "eq" };
+
 interface LevelCardProps {
     card: LevelCardData;
     currencySymbol: string;
@@ -17,7 +20,13 @@ export default function LevelCard({ card, currencySymbol }: LevelCardProps) {
     const { t, locale } = useTranslation();
     const money = (value: number) => formatMoney(value, currencySymbol, locale);
     const year = new Date().getFullYear();
-    const unmet = card.criteria.filter((criterion) => !criterion.met);
+    // A group is met when any one of its criteria is; only the groups still open are named in the hint,
+    // each as alternatives ("5 downline sales or 2 own sales"), and every open group is still required.
+    const openGroups = (() => {
+        const groups = new Map<number, typeof card.criteria>();
+        for (const criterion of card.criteria) groups.set(criterion.group ?? 0, [...(groups.get(criterion.group ?? 0) ?? []), criterion]);
+        return [...groups.values()].filter((group) => !group.some((criterion) => criterion.met));
+    })();
     const endDate = card.cycle?.end_date ? dayMonth(card.cycle.end_date, locale, year) : null;
     const days = card.enrollment?.days_remaining ?? null;
 
@@ -27,10 +36,16 @@ export default function LevelCard({ card, currencySymbol }: LevelCardProps) {
     let hint: string;
     if (!card.enrollment) hint = t("pages.agent_workspace.earnings.level.hint_none");
     else if (!card.next_level) hint = t("pages.agent_workspace.earnings.level.hint_top");
-    else if (unmet.length === 0) hint = t("pages.agent_workspace.earnings.level.hint_met", { level: card.next_level });
+    else if (openGroups.length === 0) hint = t("pages.agent_workspace.earnings.level.hint_met", { level: card.next_level });
     else {
-        const needs = unmet
-            .map((criterion) => `${criterionAmount(criterion.metric, criterion.target, money, locale)} ${criterionLabel(criterion.metric, t).toLowerCase()}`)
+        const describe = (criterion: (typeof card.criteria)[number]) => {
+            const amount = `${criterionAmount(criterion.metric, criterion.target, money, locale)} ${criterionLabel(criterion.metric, t).toLowerCase()}`;
+            // ">=" reads as before; the other operators say what the number must be, so the hint matches the check.
+            const words = OPERATOR_KEYS[criterion.operator];
+            return words ? `${t(`pages.agent_workspace.earnings.level.operator.${words}`)} ${amount}` : amount;
+        };
+        const needs = openGroups
+            .map((group) => group.map(describe).join(` ${t("pages.agent_workspace.earnings.level.or")} `))
             .join(` ${t("pages.agent_workspace.earnings.level.and")} `);
         hint = endDate
             ? t("pages.agent_workspace.earnings.level.hint_next", { needs, date: endDate, level: card.next_level })

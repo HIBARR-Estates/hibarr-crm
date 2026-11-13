@@ -11,6 +11,7 @@ interface DisputeBarProps {
     /** "send" asks for the text; "view" shows the dispute already sent. */
     mode: "send" | "view";
     onClose: () => void;
+    /** Records the sent dispute on its line; the page closes the bar itself only if that line is still the one open. */
     onSent: (commissionId: number, dispute: DisputeView) => void;
 }
 
@@ -41,7 +42,6 @@ export default function DisputeBar({ line, mode, onClose, onSent }: DisputeBarPr
         if (outcome.ok) {
             message.success(t("pages.agent_workspace.earnings.dispute.sent"));
             onSent(line.id, outcome.dispute);
-            onClose();
         } else {
             setError(outcome.message || t("pages.agent_workspace.earnings.dispute.failed"));
         }
