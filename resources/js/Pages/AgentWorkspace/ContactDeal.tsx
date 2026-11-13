@@ -344,7 +344,7 @@ function ContactDealInner(props: ContactDealProps) {
     const openDetails = dealPermissions.canEdit ? () => setDetails({ section: "general" }) : undefined;
 
     const newActivityScope = useMemo(
-        () => ({ person: contact?.client_name ?? deal.name ?? "", deal: deal.name ?? null, meetingTypes: meetingTypes.map((type) => type.name) }),
+        () => ({ person: contact?.client_name ?? "", deal: deal.name ?? null, meetingTypes: meetingTypes.map((type) => type.name) }),
         [contact, deal.name, meetingTypes],
     );
 
