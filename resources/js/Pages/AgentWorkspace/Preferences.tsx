@@ -14,7 +14,7 @@ interface PreferencesProps {
     timezone: string | null;
     timezoneLocked: boolean;
     /** Where the classic settings that stay classic live; left out when the person may not open them. */
-    links: { notificationSettings: string | null; mailbox: string | null };
+    links: { notificationSettings: string | null };
     reminders?: ReminderPreferencesData;
     notifications?: NotificationPreferencesData;
 }
@@ -35,7 +35,6 @@ export default function Preferences({ pageTitle, timezone, timezoneLocked, links
         ...(links.notificationSettings
             ? [{ key: "notifications", label: t("pages.agent_workspace.prefs.pills.notifications"), href: links.notificationSettings, current: false }]
             : []),
-        ...(links.mailbox ? [{ key: "mailbox", label: t("pages.agent_workspace.prefs.pills.mailbox"), href: links.mailbox, current: false }] : []),
     ];
 
     return (

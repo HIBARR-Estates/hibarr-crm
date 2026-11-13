@@ -3865,7 +3865,6 @@ return [
                 'label' => 'Preferences and related settings',
                 'preferences' => 'Preferences',
                 'notifications' => 'Notification settings',
-                'mailbox' => 'Mailbox',
             ],
             'timezone' => [
                 'title' => 'Timezone',

@@ -3708,7 +3708,6 @@ return [
                 'label' => 'Einstellungen und verwandte Bereiche',
                 'preferences' => 'Einstellungen',
                 'notifications' => 'Benachrichtigungseinstellungen',
-                'mailbox' => 'Postfach',
             ],
             'timezone' => [
                 'title' => 'Zeitzone',

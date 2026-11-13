@@ -3686,7 +3686,6 @@ return [
                 'label' => 'Tercihler ve ilgili ayarlar',
                 'preferences' => 'Tercihler',
                 'notifications' => 'Bildirim ayarları',
-                'mailbox' => 'Posta kutusu',
             ],
             'timezone' => [
                 'title' => 'Saat dilimi',

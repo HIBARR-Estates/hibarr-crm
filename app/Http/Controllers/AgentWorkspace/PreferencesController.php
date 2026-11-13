@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\AgentWorkspace;
 
-use App\Email\EmailFeature;
 use App\Http\Controllers\AccountBaseController;
 use App\Models\UserReminderPreference;
 use App\Support\FeatureFlags;
@@ -42,7 +41,6 @@ class PreferencesController extends AccountBaseController
                 'notificationSettings' => $user->permission('manage_notification_setting') === 'all'
                     ? route('notification-settings-manager.index')
                     : null,
-                'mailbox' => EmailFeature::enabledFor($user) ? route('mailbox-settings.show') : null,
             ],
             'reminders' => Inertia::defer(fn () => $this->reminders((int) $user->id), 'reminders'),
             'notifications' => Inertia::defer(fn () => $this->notifications((int) $user->id), 'notifications'),

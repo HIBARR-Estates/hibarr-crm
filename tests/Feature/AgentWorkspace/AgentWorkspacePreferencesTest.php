@@ -50,7 +50,7 @@ class AgentWorkspacePreferencesTest extends TestCase
             foreach ($keys as $key) {
                 $this->assertNotEmpty($prefs[$key] ?? null, "{$locale} is missing prefs.{$key}");
             }
-            foreach (['timezone' => ['title', 'uses', 'uses_text', 'sync', 'sync_text'], 'notifications' => ['title', 'alerts', 'alerts_text', 'customise', 'events', 'events_text', 'events_hint', 'open'], 'reminders' => ['title', 'reset', 'reset_title', 'reset_message', 'reset_done', 'enable', 'enable_text', 'before', 'before_meeting', 'remove', 'add', 'limits', 'off'], 'pills' => ['label', 'preferences', 'notifications', 'mailbox']] as $group => $groupKeys) {
+            foreach (['timezone' => ['title', 'uses', 'uses_text', 'sync', 'sync_text'], 'notifications' => ['title', 'alerts', 'alerts_text', 'customise', 'events', 'events_text', 'events_hint', 'open'], 'reminders' => ['title', 'reset', 'reset_title', 'reset_message', 'reset_done', 'enable', 'enable_text', 'before', 'before_meeting', 'remove', 'add', 'limits', 'off'], 'pills' => ['label', 'preferences', 'notifications']] as $group => $groupKeys) {
                 foreach ($groupKeys as $key) {
                     $this->assertNotEmpty($prefs[$group][$key] ?? null, "{$locale} is missing prefs.{$group}.{$key}");
                 }
