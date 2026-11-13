@@ -693,7 +693,7 @@ button .agent-new-tag {
     background: var(--dr-blue-mid);
 }
 
-/* ---------- in-list search, under the title on the band ---------- */
+/* ---------- in-list search, in the title block on the band ---------- */
 .agent-list-head {
     display: flex;
     flex-direction: column;
@@ -702,7 +702,8 @@ button .agent-new-tag {
 
 .agent-list-search-row {
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start;
+    margin-top: 14px;
 }
 
 .agent-list-search {

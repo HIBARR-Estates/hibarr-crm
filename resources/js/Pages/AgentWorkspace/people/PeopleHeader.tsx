@@ -39,6 +39,12 @@ export default function PeopleHeader({ total, bucket, counts, onBucket, searchTe
                             ? t("pages.agent_workspace.people.subtitle_one")
                             : t("pages.agent_workspace.people.subtitle", { count: total })}
                     </p>
+                    <AgentListSearch
+                        value={searchText}
+                        onChange={onSearchText}
+                        placeholder={t("pages.agent_workspace.people.search_placeholder")}
+                        label={t("pages.agent_workspace.people.search_label")}
+                    />
                 </div>
 
                 <div className="agent-pp__tools">
@@ -66,12 +72,6 @@ export default function PeopleHeader({ total, bucket, counts, onBucket, searchTe
                     </ul>
                 </div>
             </div>
-            <AgentListSearch
-                value={searchText}
-                onChange={onSearchText}
-                placeholder={t("pages.agent_workspace.people.search_placeholder")}
-                label={t("pages.agent_workspace.people.search_label")}
-            />
         </div>
     );
 }

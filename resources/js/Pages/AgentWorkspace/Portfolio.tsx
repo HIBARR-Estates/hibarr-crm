@@ -58,11 +58,11 @@ export default function Portfolio({ pageTitle, view, deals = [], dealId = null, 
                         <div className="agent-pf__heading">
                             <h1>{t("pages.agent_workspace.portfolio.title")}</h1>
                             <p aria-live="polite">{subtitle}</p>
+                            {view === "browse" ? (
+                                <AgentListSearch value={text} onChange={setText} placeholder={t("pages.agent_workspace.portfolio.browse.search")} />
+                            ) : null}
                         </div>
                     </div>
-                    {view === "browse" ? (
-                        <AgentListSearch value={text} onChange={setText} placeholder={t("pages.agent_workspace.portfolio.browse.search")} />
-                    ) : null}
                 </div>
 
                 {view === "deals" ? <ForDealsView deals={deals} dealId={dealId} recommendations={recommendations} /> : null}

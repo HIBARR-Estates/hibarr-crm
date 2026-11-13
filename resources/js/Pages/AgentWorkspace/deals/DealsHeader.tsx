@@ -36,6 +36,12 @@ export default function DealsHeader({ title, subtitle, layout, onLayout, counts,
                 <div className="agent-dp__heading">
                     <h1>{title}</h1>
                     <p aria-live="polite">{subtitle}</p>
+                    <AgentListSearch
+                        value={searchText}
+                        onChange={onSearchText}
+                        placeholder={t("pages.agent_workspace.deals.search_placeholder")}
+                        label={t("pages.agent_workspace.deals.search_label")}
+                    />
                 </div>
 
                 <div className="agent-dp__tools">
@@ -73,12 +79,6 @@ export default function DealsHeader({ title, subtitle, layout, onLayout, counts,
                     </div>
                 </div>
             </div>
-            <AgentListSearch
-                value={searchText}
-                onChange={onSearchText}
-                placeholder={t("pages.agent_workspace.deals.search_placeholder")}
-                label={t("pages.agent_workspace.deals.search_label")}
-            />
         </div>
     );
 }

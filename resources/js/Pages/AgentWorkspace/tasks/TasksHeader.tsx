@@ -30,6 +30,12 @@ export default function TasksHeader({ subtitle, counts, chip, onChip, searchText
                 <div className="agent-tk__heading">
                     <h1>{t("pages.agent_workspace.tasks.title")}</h1>
                     <p aria-live="polite">{subtitle}</p>
+                    <AgentListSearch
+                        value={searchText}
+                        onChange={onSearchText}
+                        placeholder={t("pages.agent_workspace.tasks.search_placeholder")}
+                        label={t("pages.agent_workspace.tasks.search_label")}
+                    />
                 </div>
 
                 <ul className="agent-tk__chip-row" aria-label={t("pages.agent_workspace.tasks.chips.label")}>
@@ -55,12 +61,6 @@ export default function TasksHeader({ subtitle, counts, chip, onChip, searchText
                     })}
                 </ul>
             </div>
-            <AgentListSearch
-                value={searchText}
-                onChange={onSearchText}
-                placeholder={t("pages.agent_workspace.tasks.search_placeholder")}
-                label={t("pages.agent_workspace.tasks.search_label")}
-            />
         </div>
     );
 }

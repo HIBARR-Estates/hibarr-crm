@@ -31,7 +31,7 @@
 .agent-dp__top {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     gap: 14px 16px;
     min-height: 62px;
