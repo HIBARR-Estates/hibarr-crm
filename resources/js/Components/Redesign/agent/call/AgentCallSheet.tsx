@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useIncomingCall } from "@/Components/Softphone/dock/incomingCallBridge";
 import useMediaQuery from "@/Hooks/useMediaQuery";
 import useSoftphone from "@/Hooks/useSoftphone";
 import useTranslation from "@/Hooks/useTranslation";
 import AgentCallCard from "./AgentCallCard";
+import AgentIncomingCard from "./AgentIncomingCard";
 import { useFlowOpen } from "./agentCallBridge";
 import useAgentCall from "./useAgentCall";
 import "./agent-call.css";
@@ -20,6 +22,8 @@ export default function AgentCallSheet() {
     const { isEnabled } = useSoftphone();
     const { call, connected, elapsed } = useAgentCall();
     const flowOpen = useFlowOpen();
+    const incoming = useIncomingCall();
+    const incomingId = incoming?.id ?? null;
     const phone = useMediaQuery(AGENT_PHONE_QUERY);
     const [open, setOpen] = useState(false);
     const callId = call?.id ?? null;
@@ -29,12 +33,40 @@ export default function AgentCallSheet() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [callId]);
 
+    // A call that rings in opens its card at once.
+    useEffect(() => {
+        if (incomingId !== null) setOpen(true);
+    }, [incomingId]);
+
     // A flow that opens carries the call controls in its own header; the card gets out of its way.
     useEffect(() => {
         if (flowOpen) setOpen(false);
     }, [flowOpen]);
 
-    if (!phone || !isEnabled || !call) return null;
+    if (!phone || !isEnabled) return null;
+
+    if (incoming) {
+        return (
+            <div className="agent-call-sheet">
+                {open ? (
+                    <AgentIncomingCard variant="sheet" />
+                ) : (
+                    <button
+                        type="button"
+                        className="agent-call-sheet__bar agent-call-sheet__bar--incoming"
+                        aria-expanded={false}
+                        onClick={() => setOpen(true)}
+                    >
+                        <span className="agent-call-strip__dot" aria-hidden="true" />
+                        {t("pages.agent_workspace.incoming.pill")}
+                        <span aria-hidden="true">▴</span>
+                    </button>
+                )}
+            </div>
+        );
+    }
+
+    if (!call) return null;
 
     return (
         <div className="agent-call-sheet">

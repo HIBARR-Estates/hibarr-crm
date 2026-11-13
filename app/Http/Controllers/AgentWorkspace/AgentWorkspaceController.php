@@ -4,9 +4,12 @@ namespace App\Http\Controllers\AgentWorkspace;
 
 use App\Http\Controllers\AccountBaseController;
 use App\Models\Company;
+use App\Models\Lead;
 use App\Models\TaskboardColumn;
 use App\Models\TaskCategory;
+use App\Services\AgentWorkspace\CallerGlance;
 use App\Services\Dashboard\DashboardMetricsService;
+use App\Services\PermissionService;
 use App\Support\UserTimezone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -126,5 +129,20 @@ class AgentWorkspaceController extends AccountBaseController
         $company = company();
 
         return UserTimezone::forViewer(user(), $company instanceof Company ? $company : null);
+    }
+
+    /**
+     * The incoming-call card's facts about a caller that is a known lead: its
+     * status, open deal, next meeting and last touch. Only for a lead the
+     * viewer may open; for any other the card shows no lead facts at all.
+     */
+    public function caller(int $lead, CallerGlance $glance): JsonResponse
+    {
+        $person = Lead::query()->with('lifecycleStatus:id,key,label,label_color')->findOrFail($lead);
+        // The lead page's own rule: the caller's name and facts go only to someone who may open the lead.
+        $access = PermissionService::checkAccess(user(), 'view_lead', $person, ['added' => 'added_by', 'owned' => 'lead_owner']);
+        abort_unless($access['canAccess'] ?? false, 403);
+
+        return response()->json(['status' => 'success', 'data' => $glance->forLead($person, user())]);
     }
 }

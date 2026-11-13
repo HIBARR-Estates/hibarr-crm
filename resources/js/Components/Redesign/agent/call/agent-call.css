@@ -345,3 +345,224 @@ a.agent-call__name:hover {
         justify-content: flex-start;
     }
 }
+
+/* ---------- incoming call (L7-13, hidden caller L7-31) ---------- */
+.agent-dock__phone--incoming,
+button.agent-dock__phone--incoming {
+    background: var(--dr-blue);
+}
+
+.agent-dock__phone--incoming:hover {
+    background: var(--dr-blue-pressed);
+}
+
+.agent-dock__phone--incoming::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--dr-green-mid);
+    flex: 0 0 7px;
+}
+
+@media (max-width: 1023px) {
+    .agent-dock__phone--incoming::before {
+        display: none;
+    }
+}
+
+.agent-call--incoming {
+    width: 430px;
+    border-color: var(--dr-blue);
+}
+
+.agent-incoming__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.agent-incoming__cap {
+    color: var(--dr-blue);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.agent-incoming__clock {
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+.agent-incoming__line {
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+.agent-incoming__avatar {
+    display: inline-flex;
+    flex: 0 0 42px;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--dr-green);
+    color: var(--dr-white);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.agent-incoming__avatar--anon {
+    background: var(--dr-gray-mid);
+    color: var(--dr-gray-dark);
+    font-size: 16px;
+}
+
+.agent-call--incoming .agent-call__name {
+    font-size: 16px;
+}
+
+.agent-incoming__number {
+    font-variant-numeric: tabular-nums;
+    word-spacing: 0.15em;
+}
+
+.agent-incoming__chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.agent-incoming__status {
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--tag, var(--dr-green));
+    color: var(--dr-white);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-incoming__deal {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--dr-surface-hover);
+    color: var(--dr-gray-darker);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.agent-incoming__deal-mark {
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 2px;
+    background: var(--stage, var(--dr-navy));
+}
+
+.agent-incoming__chip-skeleton {
+    width: 120px;
+    height: 24px;
+    border-radius: 6px;
+    background: var(--dr-skeleton);
+}
+
+.agent-incoming__why {
+    margin: 0;
+    padding: 9px 11px;
+    border-radius: 10px;
+    background: var(--dr-surface-2);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.agent-incoming__lock {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    padding: 9px 11px;
+    border: 1px dashed var(--dr-gray-mid);
+    border-radius: 10px;
+    background: var(--dr-surface-2);
+    color: var(--dr-gray-darker);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.agent-incoming__lock svg {
+    margin-top: 2px;
+    color: var(--dr-text-muted);
+}
+
+.agent-incoming__actions {
+    display: flex;
+    gap: 8px;
+}
+
+.agent-incoming__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding: 0 16px;
+    border: 1px solid var(--dr-ghost-border, var(--dr-border));
+    border-radius: 10px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-incoming__btn:hover {
+    background: var(--dr-gray);
+}
+
+.agent-incoming__btn--answer,
+.agent-incoming__btn--answer:hover {
+    flex: 1;
+    border-color: var(--dr-green);
+    background: var(--dr-green);
+    color: var(--dr-white);
+    font-weight: 600;
+}
+
+.agent-incoming__btn--answer:hover {
+    background: var(--dr-green-pressed);
+}
+
+.agent-incoming__btn--decline {
+    border-color: var(--dr-red-mid);
+    color: var(--dr-red);
+    font-weight: 600;
+}
+
+.agent-incoming__btn--decline:hover {
+    background: var(--dr-red-soft);
+}
+
+.agent-call--incoming button:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+/* Phone: the sheet is the card, with a one-line blue bar when folded. */
+@media (max-width: 639px) {
+    .agent-call--incoming.agent-call--sheet {
+        width: auto;
+    }
+
+    .agent-call-sheet__bar--incoming {
+        background: var(--dr-blue);
+    }
+}

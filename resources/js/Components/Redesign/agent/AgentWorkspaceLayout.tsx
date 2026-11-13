@@ -87,7 +87,7 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
                     </nav>
                 </div>
                 <AgentCallSheet />
-                <SoftphoneDock liveCallInDock={false} />
+                <SoftphoneDock liveCallInDock={false} incomingInDock />
             </div>
             </PinnedSlot.Provider>
         </SecondRowSlot.Provider>
