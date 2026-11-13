@@ -40,6 +40,18 @@ export default function usePeopleList(url: string) {
         query.current = queryOf(url);
     }, [url]);
 
+    // Any other visit (the filter modal's Apply, a saved view) supersedes a
+    // counts/extras request still in flight. The request's own "before" fires
+    // before its token is stored here, so it never cancels itself.
+    useEffect(
+        () =>
+            router.on("before", () => {
+                background.current?.cancel();
+                background.current = null;
+            }),
+        [],
+    );
+
     const visit = useCallback((changes: Record<string, Value>, options: { replaceAll?: boolean } = {}) => {
         const params: Record<string, string> = options.replaceAll ? {} : { ...query.current };
         for (const [key, value] of Object.entries(changes)) {
