@@ -1,6 +1,7 @@
 import { dayKeyIn } from "@/Components/Redesign/agent";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import useTranslation from "@/Hooks/useTranslation";
+import AddActivityMenu, { type ActivityKind } from "../today/AddActivityMenu";
 import { instantTime } from "../today/format";
 import type { AgendaData } from "./useAgendaData";
 import { meetingState } from "./model";
@@ -18,6 +19,8 @@ interface AgendaHeaderProps {
     timeZone: string;
     onNavigate: (view: AgendaView, date: string) => void;
     onStep: (direction: -1 | 1) => void;
+    /** Opens the task or meeting form to put something on the agenda. */
+    onAdd: (kind: ActivityKind) => void;
 }
 
 function dayLabel(key: string, locale: string, options: Intl.DateTimeFormatOptions): string {
@@ -40,6 +43,7 @@ export default function AgendaHeader({
     timeZone,
     onNavigate,
     onStep,
+    onAdd,
 }: AgendaHeaderProps) {
     const { t, locale } = useTranslation();
     const key = "pages.agent_workspace.agenda";
@@ -108,6 +112,7 @@ export default function AgendaHeader({
                 </p>
             </div>
             <div className="agent-agenda__controls">
+                <AddActivityMenu onAdd={onAdd} tone="band" />
                 <button
                     type="button"
                     className="agent-band-btn agent-band-btn--icon"

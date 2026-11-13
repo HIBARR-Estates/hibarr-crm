@@ -20,7 +20,7 @@ const DealsFilterModal = lazy(() => import("./deals/DealsFilterModal"));
 interface DealsProps {
     pageTitle: string;
     userId: number;
-    pipelines: Array<{ id: number; name: string }>;
+    pipelines: Array<{ id: number; name: string; visible?: boolean }>;
     pipelineId: number;
     filters: Record<string, string | undefined>;
     stages: DealStage[];
@@ -106,7 +106,7 @@ export default function Deals({ pageTitle, userId, pipelines, pipelineId, filter
     const shown = useMemo(() => {
         if (!views) return undefined;
         return views.filter((view) => {
-            if (layout === "board" && needle) {
+            if (needle) {
                 const haystack = `${view.deal.person ?? ""} ${view.deal.name ?? ""}`.toLowerCase();
                 if (!haystack.includes(needle)) return false;
             }
@@ -119,7 +119,7 @@ export default function Deals({ pageTitle, userId, pipelines, pipelineId, filter
         });
     }, [views, layout, needle, chip]);
 
-    const narrowed = (layout === "board" && needle !== "") || (layout === "list" && chip !== null);
+    const narrowed = needle !== "" || (layout === "list" && chip !== null);
 
     const chipCounts = useMemo(() => {
         const pool = views ?? [];

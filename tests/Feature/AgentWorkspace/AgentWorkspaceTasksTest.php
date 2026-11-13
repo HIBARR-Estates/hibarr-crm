@@ -35,6 +35,18 @@ class AgentWorkspaceTasksTest extends TestCase
         $this->assertContains('auth', $route->gatherMiddleware());
     }
 
+    public function test_a_task_can_be_fetched_by_id_for_the_people_preview(): void
+    {
+        $route = Route::getRoutes()->getByName('agent.tasks.show');
+
+        $this->assertSame(TaskController::class.'@agentShow', $route->getActionName());
+        $this->assertContains(EnsureAgentWorkspaceAccess::class, $route->gatherMiddleware());
+        $this->assertTrue($route->matches(Request::create('/agent/tasks/42')));
+        // The list page is not shadowed by it, and a non-numeric segment is not a task.
+        $this->assertFalse($route->matches(Request::create('/agent/tasks')));
+        $this->assertFalse($route->matches(Request::create('/agent/tasks/abc')));
+    }
+
     public function test_the_dock_opens_tasks_on_the_agent_page(): void
     {
         $destinations = file_get_contents(base_path('resources/js/Components/Redesign/agent/destinations.ts'));

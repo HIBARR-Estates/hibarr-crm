@@ -15,6 +15,7 @@ use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionClass;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 /**
@@ -50,6 +51,27 @@ class AgentWorkspaceAgendaTest extends TestCase
     {
         $this->assertTrue(Route::has('agent.today.agenda'));
         $this->assertStringEndsWith('/agent/today/agenda', route('agent.today.agenda', [], false));
+    }
+
+    public function test_a_meeting_can_be_fetched_by_id_only_through_the_metrics_service(): void
+    {
+        $route = Route::getRoutes()->getByName('agent.meetings.show');
+        $this->assertSame(AgentWorkspaceController::class.'@meeting', $route->getActionName());
+        $this->assertTrue($route->matches(Request::create('/agent/meetings/7')));
+
+        $metrics = Mockery::mock(DashboardMetricsService::class);
+        $metrics->shouldReceive('meetingById')->once()->with(self::USER, 7)->andReturn(['id' => 7, 'title' => 'Kick Off']);
+        $metrics->shouldReceive('meetingById')->once()->with(self::USER, 8)->andReturn(null);
+        $controller = new AgentWorkspaceController;
+
+        $this->assertSame(['meeting' => ['id' => 7, 'title' => 'Kick Off']], $controller->meeting(7, $metrics)->getData(true));
+        // A meeting the viewer may not see is a 404, never an empty 200.
+        try {
+            $controller->meeting(8, $metrics);
+            $this->fail('A meeting that is not the viewer\'s must abort.');
+        } catch (HttpException $e) {
+            $this->assertSame(404, $e->getStatusCode());
+        }
     }
 
     public function test_a_range_reads_meetings_and_tasks_over_the_viewers_own_days(): void

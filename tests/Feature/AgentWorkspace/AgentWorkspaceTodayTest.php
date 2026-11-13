@@ -76,7 +76,7 @@ class AgentWorkspaceTodayTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_the_first_paint_carries_no_panel_data_and_names_three_groups(): void
+    public function test_the_first_paint_carries_no_panel_data_and_names_four_groups(): void
     {
         $metrics = Mockery::mock(DashboardMetricsService::class);
         $metrics->shouldNotReceive('personalQueue', 'personalStats', 'commissionSummary', 'openDealsByPipeline', 'meetingsBetween', 'personalTasksBetween');
@@ -86,12 +86,13 @@ class AgentWorkspaceTodayTest extends TestCase
         $this->assertSame('AgentWorkspace/Today', $page['component']);
         $this->assertSame('Selin Kaya', $page['props']['userName']);
         $this->assertSame(self::USER, $page['props']['userId']);
-        foreach (['queue', 'taskBoardColumns', 'taskCategories', 'stats', 'commission', 'openDeals', 'schedule'] as $key) {
+        foreach (['queue', 'taskBoardColumns', 'taskCategories', 'userDeals', 'userLeads', 'stats', 'commission', 'openDeals', 'schedule'] as $key) {
             $this->assertArrayNotHasKey($key, $page['props']);
         }
         $this->assertSame(
             [
                 'queue' => ['queue', 'taskBoardColumns', 'taskCategories'],
+                'meetingOptions' => ['userDeals', 'userLeads'],
                 'stats' => ['stats', 'commission', 'openDeals'],
                 'schedule' => ['schedule'],
             ],

@@ -1,17 +1,17 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Deferred, router } from "@inertiajs/react";
+import { lazy, Suspense, useCallback, useMemo, useState } from "react";
+import { Deferred } from "@inertiajs/react";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import MenuSelect, { type MenuOption } from "@/Components/Redesign/primitives/MenuSelect";
 import useTranslation from "@/Hooks/useTranslation";
 import PropertyCard from "./PropertyCard";
+import { STEP, visitBrowse } from "./browseVisit";
 import type { ExposeTarget } from "./PortfolioExposeModal";
 import type { BrowseFilters, BrowseOptions, NamedOption, PortfolioProperty, PropertiesPayload } from "./types";
 
 const PortfolioExposeModal = lazy(() => import("./PortfolioExposeModal"));
 
 const ALL = "";
-const STEP = 24;
 const PRICES = [150000, 200000, 250000, 350000, 500000, 750000, 1000000];
 const BEDROOMS = [1, 2, 3, 4];
 
@@ -81,30 +81,10 @@ const toOptions = (list: NamedOption[] | undefined): MenuOption[] => (list ?? []
 export default function BrowseView({ filters, limit, properties, options }: BrowseViewProps) {
     const { t } = useTranslation();
     const [expose, setExpose] = useState<ExposeTarget | null>(null);
-    const [text, setText] = useState(filters.search ?? "");
-    const debounce = useRef<number | null>(null);
 
-    const visit = useCallback((next: BrowseFilters, nextLimit = STEP) => {
-        const data: Record<string, string> = {};
-        for (const [key, value] of Object.entries(next)) if (value) data[key] = value;
-        if (nextLimit > STEP) data.limit = String(nextLimit);
-        router.get(route("agent.portfolio.browse"), data, {
-            preserveState: true,
-            preserveScroll: true,
-            replace: true,
-            only: ["properties", "filters", "limit"],
-        });
-    }, []);
+    const visit = visitBrowse;
 
     const set = useCallback((key: keyof BrowseFilters, value: string) => visit({ ...filters, [key]: value }), [filters, visit]);
-
-    useEffect(() => {
-        if (text === (filters.search ?? "")) return;
-        debounce.current = window.setTimeout(() => visit({ ...filters, search: text }), 300);
-        return () => {
-            if (debounce.current) window.clearTimeout(debounce.current);
-        };
-    }, [text, filters, visit]);
 
     const statusLabels = useMemo(() => new Map((options?.construction_statuses ?? []).map((item) => [item.name, item.label])), [options]);
 
@@ -136,16 +116,6 @@ export default function BrowseView({ filters, limit, properties, options }: Brow
                 />
                 <FilterMenu label={t("pages.agent_workspace.portfolio.browse.deed")} value={filters.deed_status ?? ALL} options={toOptions(options?.deed_statuses)} onChange={(v) => set("deed_status", v)} />
                 <FilterMenu label={t("pages.agent_workspace.portfolio.browse.developer")} value={filters.developer_id ?? ALL} options={developerOptions} onChange={(v) => set("developer_id", v)} searchable />
-                <label className="agent-pf__search">
-                    <Icon name="search" size={14} />
-                    <input
-                        type="search"
-                        value={text}
-                        placeholder={t("pages.agent_workspace.portfolio.browse.search")}
-                        aria-label={t("pages.agent_workspace.portfolio.browse.search")}
-                        onChange={(event) => setText(event.target.value)}
-                    />
-                </label>
             </div>
 
             <Deferred data="properties" fallback={<GridSkeleton />}>

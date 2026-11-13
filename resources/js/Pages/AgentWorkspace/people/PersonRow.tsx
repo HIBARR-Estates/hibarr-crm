@@ -5,6 +5,8 @@ import { initialsFromName } from "@/Components/Redesign/adapters/initials";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { formatMobileForDisplay } from "@/lib/utils";
+import type { ActivityKind } from "../today/AddActivityMenu";
+import NextActionCell from "./NextActionCell";
 import { avatarFill, lastTouchText, nextActionDue } from "./format";
 import type { Lead, LifecycleStatus, RowExtras } from "./types";
 
@@ -16,6 +18,8 @@ interface PersonRowProps {
     userId: number;
     nowMs: number;
     timeZone: string;
+    onOpenAction: (lead: Lead, action: NonNullable<Lead["next_action"]>) => void;
+    onAddAction: (lead: Lead, kind: ActivityKind) => void;
 }
 
 /** Phone number, then city: what an agent needs to place the person at a glance. */
@@ -31,7 +35,7 @@ function contactLine(lead: Lead): string {
  * (agent-pp__name::after), so the whole row opens the person's page and a
  * keyboard stops once per person.
  */
-function PersonRow({ lead, status, extras, userId, nowMs, timeZone }: PersonRowProps) {
+function PersonRow({ lead, status, extras, userId, nowMs, timeZone, onOpenAction, onAddAction }: PersonRowProps) {
     const { t, locale } = useTranslation();
     const { td } = useTd();
 
@@ -76,11 +80,7 @@ function PersonRow({ lead, status, extras, userId, nowMs, timeZone }: PersonRowP
                 </div>
 
                 <div role="cell" className="agent-pp__c--action">
-                    {action ? (
-                        <span className="agent-pp__action">{action.title}</span>
-                    ) : (
-                        <span className="agent-pp__action agent-pp__action--none">{t("pages.agent_workspace.people.row.no_next_step")}</span>
-                    )}
+                    <NextActionCell lead={lead} action={action} onOpen={onOpenAction} onAdd={onAddAction} />
                 </div>
 
                 <div role="cell" className="agent-pp__c--due">

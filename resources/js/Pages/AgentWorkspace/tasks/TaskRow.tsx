@@ -68,7 +68,15 @@ function Linked({ task }: { task: QueueTask }) {
 
     const property = task.properties?.[0]?.title;
     const project = task.project?.project_name;
-    return <span className="agent-tk__linked-name agent-tk__linked-name--plain">{property || project || t("pages.agent_workspace.tasks.row.standalone")}</span>;
+    const name = property || project;
+    if (!name) {
+        return (
+            <span className="agent-tk__muted" aria-label={t("pages.agent_workspace.tasks.row.standalone")}>
+                —
+            </span>
+        );
+    }
+    return <span className="agent-tk__linked-name agent-tk__linked-name--plain">{name}</span>;
 }
 
 /**

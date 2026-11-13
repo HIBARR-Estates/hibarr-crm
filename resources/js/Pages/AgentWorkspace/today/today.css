@@ -292,6 +292,23 @@
     flex: none;
 }
 
+/* The card is about the action, so its mark is the action's icon, not the person. */
+.agent-next__icon {
+    display: flex;
+    width: 60px;
+    height: 60px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    background: var(--ts-bg);
+    color: var(--ts-text);
+}
+
+.agent-next__person {
+    color: var(--dr-text);
+    font-weight: 600;
+}
+
 .agent-next__body {
     display: flex;
     min-width: 0;
@@ -776,6 +793,12 @@
         font-size: 17px;
     }
 
+    .agent-next__icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+    }
+
     .agent-next__actions {
         flex-direction: column;
     }
@@ -842,4 +865,13 @@
         width: 44px;
         height: 44px;
     }
+}
+
+/* The panel header's actions: Add and Open agenda, side by side. */
+.agent-panel__head-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
 }

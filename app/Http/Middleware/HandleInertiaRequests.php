@@ -79,6 +79,10 @@ class HandleInertiaRequests extends Middleware
             'appName' => fn () => function_exists('companyOrGlobalSetting')
                 ? (companyOrGlobalSetting()->app_name ?? config('app.name'))
                 : config('app.name'),
+            // The company logo made for dark backgrounds (the agent workspace's navy band); null until one is uploaded.
+            'companyLogoOnDark' => fn () => function_exists('companyOrGlobalSetting') && companyOrGlobalSetting()?->logo
+                ? companyOrGlobalSetting()->dark_logo_url
+                : null,
             'appTheme' => fn () => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
             'notificationAlertSettings' => fn () => $request->user()
                 ? Inertia::defer(fn () => UserNotificationAlertSetting::forUser((int) $request->user()->id))

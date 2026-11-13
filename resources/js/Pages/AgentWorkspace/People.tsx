@@ -5,11 +5,14 @@ import { AgentSecondRow, AgentWorkspaceLayout, useMinuteClock } from "@/Componen
 import { useFilter } from "@/contexts/FilterContext";
 import type { LeadSavedView } from "@/Features/Filters/useLeadSavedViews";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
+import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
+import NextActionModals, { type NextActionRequest } from "./people/NextActionModals";
 import PeopleHeader from "./people/PeopleHeader";
 import PeopleTable from "./people/PeopleTable";
 import PeopleViewPills from "./people/PeopleViewPills";
 import { viewSignature } from "./people/format";
-import type { LifecycleStatus, PeopleBucket, PeopleCounts, PeopleFilters, PeoplePage, RowExtrasMap } from "./people/types";
+import type { ActivityKind } from "./today/AddActivityMenu";
+import type { Lead, LifecycleStatus, PeopleBucket, PeopleCounts, PeopleFilters, PeoplePage, RowExtrasMap } from "./people/types";
 import usePeopleList, { queryOf, useListSearch } from "./people/usePeopleList";
 import "./people/people.css";
 
@@ -30,6 +33,7 @@ interface PeopleProps {
     counts?: PeopleCounts;
     rowExtras?: RowExtrasMap;
     savedViews?: LeadSavedView[];
+    taskBoardColumns?: TaskboardColumn[];
     preferredContactTimes?: Array<{ value: string; label: string }>;
 }
 
@@ -64,6 +68,7 @@ export default function People({
     counts,
     rowExtras,
     savedViews,
+    taskBoardColumns,
     preferredContactTimes,
 }: PeopleProps) {
     const { timezone } = useUserDateTime();
@@ -96,6 +101,11 @@ export default function People({
         });
         return match ? match.id : null;
     }, [filterCount, savedViews, signature]);
+
+    // A row's next step: preview its task or meeting, or give the person a first one.
+    const [actionRequest, setActionRequest] = useState<NextActionRequest | null>(null);
+    const openAction = useCallback((lead: Lead, action: NonNullable<Lead["next_action"]>) => setActionRequest({ mode: "preview", lead, action }), []);
+    const addAction = useCallback((lead: Lead, kind: ActivityKind) => setActionRequest({ mode: "create", lead, kind }), []);
 
     // The modal mounts on first use and opens itself; later presses just open it.
     const [filtersMounted, setFiltersMounted] = useState(false);
@@ -145,8 +155,12 @@ export default function People({
                     sortDirection={sortDirection}
                     onToggleSort={toggleSort}
                     onPage={(page) => visit({ page })}
+                    onOpenAction={openAction}
+                    onAddAction={addAction}
                 />
             </div>
+
+            <NextActionModals request={actionRequest} onClose={() => setActionRequest(null)} taskBoardColumns={taskBoardColumns} />
 
             {filtersMounted ? (
                 <Suspense fallback={null}>

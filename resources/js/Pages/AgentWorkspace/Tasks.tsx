@@ -78,6 +78,7 @@ export default function Tasks({
     const { openDrawer } = useFilter();
 
     const [chip, setChip] = useState<TaskChip | null>(null);
+    const [search, setSearch] = useState("");
     const [openTask, setOpenTask] = useState<QueueTask | null>(null);
     const [snoozeTask, setSnoozeTask] = useState<QueueTask | null>(null);
 
@@ -99,7 +100,18 @@ export default function Tasks({
     const work = useTaskListWork(tasks?.items);
     const views = useMemo(() => (work.rows ? taskViews(work.rows, nowMs, timezone) : undefined), [work.rows, nowMs, timezone]);
     const counts = useMemo(() => (views ? countViews(views) : undefined), [views]);
-    const shown = useMemo(() => (views && chip ? views.filter((view) => view.chip === chip) : views), [views, chip]);
+    const needle = search.trim().toLowerCase();
+    const shown = useMemo(() => {
+        if (!views) return views;
+        if (!chip && !needle) return views;
+        return views.filter((view) => {
+            if (chip && view.chip !== chip) return false;
+            if (!needle) return true;
+            const { task } = view;
+            const haystack = `${task.heading ?? ""} ${task.related?.name ?? ""} ${task.related?.person ?? ""}`.toLowerCase();
+            return haystack.includes(needle);
+        });
+    }, [views, chip, needle]);
 
     // A chip that has just emptied (the last overdue task ticked) would leave a blank list.
     useEffect(() => {
@@ -146,7 +158,7 @@ export default function Tasks({
             </AgentSecondRow>
 
             <div className="agent-tk">
-                <TasksHeader subtitle={subtitle} counts={counts} chip={chip} onChip={setChip} />
+                <TasksHeader subtitle={subtitle} counts={counts} chip={chip} onChip={setChip} searchText={search} onSearchText={setSearch} />
 
                 <Deferred data="tasks" fallback={<TasksTableSkeleton />}>
                     {shown ? <TasksTable views={shown} handlers={handlers} /> : <TasksTableSkeleton />}

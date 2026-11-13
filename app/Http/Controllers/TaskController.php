@@ -472,6 +472,22 @@ class TaskController extends AccountBaseController
      * the Tasks index's own permission check and filters. The rows arrive after
      * the page, so first paint never waits on them.
      */
+    /**
+     * One task as the agent workspace's task modal opens it, for a row that only
+     * carries the task's id (People's next action). Runs on the same permission
+     * scope as the Tasks list, so a task the viewer cannot see is a 404.
+     */
+    public function agentShow(int $task, DashboardMetricsService $metrics): \Illuminate\Http\JsonResponse
+    {
+        $row = $this->filteredTasksQuery(applyQuickFilter: false)
+            ->with(TaskPresenter::RELATIONS)
+            ->withCount(TaskPresenter::COUNTS)
+            ->whereKey($task)
+            ->firstOrFail();
+
+        return response()->json(['task' => $metrics->presentTasks(collect([$row]))[0]]);
+    }
+
     public function agentIndex(Request $request, DashboardMetricsService $metrics)
     {
         $viewPermission = user()->permission('view_tasks');
