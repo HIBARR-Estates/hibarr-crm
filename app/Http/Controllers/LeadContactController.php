@@ -239,7 +239,7 @@ class LeadContactController extends AccountBaseController
                     $id => [
                         'deals' => $deals[$id] ?? [],
                         'last_touch_at' => isset($touches[$id])
-                            ? \Carbon\Carbon::parse($touches[$id], 'UTC')->toIso8601String()
+                            ? \Carbon\Carbon::parse($touches[$id], config('app.timezone'))->toIso8601String()
                             : null,
                     ],
                 ])->all();
