@@ -206,98 +206,11 @@
 
 .agent-qs__note:focus,
 .agent-qs__chip:focus-visible,
-.agent-qs__btn:focus-visible,
 .agent-qo__card:focus-visible,
 .agent-qs__row-link:focus-visible {
     border-color: var(--dr-blue);
     outline: 2px solid var(--dr-blue);
     outline-offset: 1px;
-}
-
-/* ---------- footer ---------- */
-.agent-qs__foot {
-    display: flex;
-    flex-shrink: 0;
-    align-items: center;
-    gap: 12px;
-    margin: 0 24px;
-    padding: 14px 0 16px;
-    border-top: 1px solid var(--dr-border);
-}
-
-.agent-qs__saved {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    color: var(--dr-text-muted);
-    font-size: 12px;
-    text-align: right;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.agent-qs__btn {
-    display: inline-flex;
-    flex: 0 1 auto;
-    min-width: 0;
-    height: 40px;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 0 16px;
-    border: 1px solid var(--dr-button-ghost-border);
-    border-radius: 10px;
-    background: var(--dr-button-ghost-bg);
-    color: var(--dr-button-ghost-text);
-    font: inherit;
-    font-size: 13px;
-    font-weight: 500;
-    white-space: nowrap;
-    cursor: pointer;
-}
-
-.agent-qs__btn:hover:not(:disabled) {
-    background: var(--dr-button-ghost-hover-bg);
-    color: var(--dr-button-ghost-hover-text);
-}
-
-.agent-qs__btn:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-}
-
-.agent-qs__btn--navy,
-.agent-qs__btn--green {
-    font-weight: 600;
-}
-
-.agent-qs__btn--navy,
-.agent-qs__btn--navy:hover:not(:disabled) {
-    border-color: var(--dr-button-navy-bg);
-    background: var(--dr-button-navy-bg);
-    color: var(--dr-button-navy-text);
-}
-
-.agent-qs__btn--navy:hover:not(:disabled) {
-    background: var(--dr-button-navy-hover-bg);
-}
-
-.agent-qs__btn--green,
-.agent-qs__btn--green:hover:not(:disabled) {
-    border-color: var(--dr-button-call-bg);
-    background: var(--dr-button-call-bg);
-    color: var(--dr-button-call-text);
-}
-
-.agent-qs__btn--green:hover:not(:disabled) {
-    background: var(--dr-button-call-hover-bg);
-}
-
-.agent-qs__foot-name {
-    min-width: 0;
-    max-width: 260px;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 /* ---------- outcome ---------- */
@@ -428,22 +341,6 @@
     .agent-qs__scroll,
     .agent-qo__scroll {
         padding: 18px 16px 14px;
-    }
-
-    .agent-qs__foot {
-        flex-wrap: wrap;
-        margin: 0 16px;
-        gap: 8px;
-    }
-
-    .agent-qs__saved {
-        order: 5;
-        flex: 1 0 100%;
-        text-align: left;
-    }
-
-    .agent-qs__foot-name {
-        max-width: 120px;
     }
 
     .agent-qo__cards {

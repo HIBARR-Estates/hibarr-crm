@@ -11,8 +11,11 @@ import type { UseDealAnalysisReturn } from "../../hooks/useDealAnalysis";
 import AnalysisLeadContextPanel from "./AnalysisLeadContextPanel";
 import AnalysisHeaderBar from "./AnalysisHeaderBar";
 import AnalysisScrollPanel, { type ScrollPanelHandle } from "./AnalysisScrollPanel";
-import AnalysisRightRail, { AnalysisCompleteButton, type AnalysisRailTab } from "./AnalysisRightRail";
+import AnalysisRightRail, { type AnalysisRailTab } from "./AnalysisRightRail";
 import AnalysisAnswersPanel from "./AnalysisAnswersPanel";
+import AgentAnalysisScreen from "./agent/AgentAnalysisScreen";
+import AgentAnalysisFacts from "./agent/AgentAnalysisFacts";
+import useDealHeaderData from "../../hooks/useDealHeaderData";
 import FlowPanelHeader from "@/Components/Redesign/agent/flow/FlowPanelHeader";
 import FlowSideTabs from "@/Components/Redesign/agent/flow/FlowSideTabs";
 import FlowStepList, { type FlowStep } from "@/Components/Redesign/agent/flow/FlowStepList";
@@ -68,6 +71,7 @@ export default function DealAnalysisModal({
     placement,
 }: Props) {
     const { deal, setDeal } = useDealWorkspace();
+    const dealHeader = useDealHeaderData(deal);
     const { props } = usePage<any>();
     const { t } = useTranslation();
     const { td } = useTd();
@@ -215,14 +219,24 @@ export default function DealAnalysisModal({
 
     /** Step keys revealed so far — what the right rail locks against. */
     const unlockedStepKeys = useMemo(
-        () => new Set(visibleSteps.map((s) => s.key)),
-        [visibleSteps],
+        () => new Set((underDock ? steps : visibleSteps).map((s) => s.key)),
+        [underDock, steps, visibleSteps],
     );
 
     const goToStep = useCallback((index: number) => {
         if (steps.length === 0) return;
         setCurrentKey(steps[Math.max(0, Math.min(index, steps.length - 1))].key);
     }, [steps]);
+
+    // Under the agent dock the script runs one section at a time: opening a
+    // section lands on its first question.
+    const goToSection = useCallback(
+        (sectionId: string) => {
+            const first = steps.find((s) => s.sectionId === sectionId);
+            if (first) setCurrentKey(first.key);
+        },
+        [steps],
+    );
 
     // On open, resume at the first step not settled yet, so a part-filled analysis
     // is not walked through from the beginning again.
@@ -332,11 +346,15 @@ export default function DealAnalysisModal({
 
     const handleJump = useCallback(
         (id: string) => {
+            if (underDock) {
+                goToSection(id);
+                return;
+            }
             // A section no step has reached yet is not rendered — ignore the jump.
             if (!visibleSteps.some((s) => s.sectionId === id)) return;
             scrollPanelRef.current?.scrollToSection(id);
         },
-        [visibleSteps],
+        [underDock, goToSection, visibleSteps],
     );
 
     const handleKeyDown = useCallback(
@@ -359,7 +377,13 @@ export default function DealAnalysisModal({
                 const active = document.activeElement as HTMLElement | null;
                 if (active?.closest("[data-option-group]")) return;
                 e.preventDefault();
-                goToStep(currentStep + (e.key === "ArrowRight" ? 1 : -1));
+                if (underDock) {
+                    const ids = steps.map((s) => s.sectionId).filter((id, i, all) => all.indexOf(id) === i);
+                    const target = ids[ids.indexOf(activeSection) + (e.key === "ArrowRight" ? 1 : -1)];
+                    if (target) goToSection(target);
+                } else {
+                    goToStep(currentStep + (e.key === "ArrowRight" ? 1 : -1));
+                }
                 return;
             }
 
@@ -376,16 +400,19 @@ export default function DealAnalysisModal({
                 if (document.activeElement === last) { e.preventDefault(); first.focus(); }
             }
         },
-        [confirmIntent, requestClose, goToStep, currentStep],
+        [confirmIntent, requestClose, goToStep, currentStep, underDock, steps, activeSection, goToSection],
     );
 
     useEffect(() => {
         if (analysis.isOpen) {
             const panel = panelRef.current;
-            const first = panel?.querySelector<HTMLElement>(FOCUSABLE);
+            // Under the agent dock the cursor goes to the question, not the close button.
+            const first =
+                (underDock && panel?.querySelector<HTMLElement>(".agent-an input:not([disabled]), .agent-an textarea:not([disabled]), .agent-an button")) ||
+                panel?.querySelector<HTMLElement>(FOCUSABLE);
             first?.focus({ preventScroll: true });
         }
-    }, [analysis.isOpen]);
+    }, [analysis.isOpen, underDock]);
 
     const leadName = (deal as any).client_name || deal.contact?.client_name || "";
 
@@ -474,18 +501,6 @@ export default function DealAnalysisModal({
                   : "todo",
         locked: group.locked,
     }));
-    const answeredCount = railGroups.reduce((n, g) => n + g.steps.filter((step) => step.filled && step.value).length, 0);
-    const completeButton = (
-        <AnalysisCompleteButton
-            totalFilled={totalFilled}
-            totalFields={totalFields}
-            allFilled={allFilled}
-            requiredMissing={requiredMissing}
-            reachedEnd={currentStep >= steps.length - 1}
-            isCompleting={analysis.isCompleting}
-            onComplete={handleCompleteClick}
-        />
-    );
     const leadContext = (
         <AnalysisLeadContextPanel
             leadCustomFields={leadCustomFields}
@@ -523,21 +538,18 @@ export default function DealAnalysisModal({
                         name={leadName}
                         title={flowTitle}
                         subtitle={[
-                            // A script of plain questions has no fields to count.
-                            totalFields > 0
-                                ? t("pages.agent_workspace.flow.answered_of", { done: totalFilled, total: totalFields })
-                                : flowSteps.length > 0
-                                  ? t("pages.agent_workspace.flow.step_of", {
-                                        current: Math.max(1, flowSteps.findIndex((step) => step.state === "current") + 1),
-                                        total: flowSteps.length,
-                                    })
-                                  : "",
+                            // Counted in sections, as the steps on the left are.
+                            flowSteps.length > 0
+                                ? t("pages.agent_workspace.flow.answered_of", {
+                                      done: flowSteps.filter((step) => step.state === "done").length,
+                                      total: flowSteps.length,
+                                  })
+                                : "",
                             t("pages.agent_workspace.flow.saves"),
                         ]
                             .filter(Boolean)
                             .join(" · ")}
                         subscribeSaving={subscribeSaving}
-                        trailing={<FocusModeButton active={focusMode} onToggle={() => setFocusMode((v) => !v)} />}
                         leadId={deal.lead_id ?? deal.contact?.id}
                         onClose={requestClose}
                     />
@@ -569,6 +581,30 @@ export default function DealAnalysisModal({
 
                     {/* Center — scroll panel with all sections */}
                     <div className="analysis-3col-center">
+                        {underDock ? (
+                            <AgentAnalysisScreen
+                                sections={sections}
+                                steps={steps}
+                                activeSection={activeSection}
+                                onGoToSection={goToSection}
+                                values={dealFieldValues}
+                                canEdit={canEdit}
+                                unanswered={unanswered}
+                                filledSteps={filledSteps}
+                                answeredQuestions={answeredQuestions}
+                                onFieldUpdate={handleScriptFieldSave}
+                                onFieldChange={handleFieldChange}
+                                onToggleUnanswered={toggleUnanswered}
+                                onQuestionAnswered={handleQuestionAnswered}
+                                onQuestionCleared={handleQuestionCleared}
+                                subscribeSaving={subscribeSaving}
+                                hasFailedSaves={failedKeys.length > 0}
+                                requiredMissing={requiredMissing}
+                                totalMissing={unfilledCount}
+                                isCompleting={analysis.isCompleting}
+                                onComplete={handleCompleteClick}
+                            />
+                        ) : (
                         <AnalysisScrollPanel
                             ref={scrollPanelRef}
                             sections={sections}
@@ -596,17 +632,28 @@ export default function DealAnalysisModal({
                             onQuestionAnswered={handleQuestionAnswered}
                             onQuestionCleared={handleQuestionCleared}
                         />
+                        )}
                     </div>
 
                     {underDock ? (
                         <div className="agent-flow__right">
                             <FlowSideTabs
                                 tabs={[
-                                    { key: "context", label: t("pages.agent_workspace.flow.lead_context"), content: leadContext },
+                                    {
+                                        key: "context",
+                                        label: t("pages.agent_workspace.flow.lead_context"),
+                                        content: (
+                                            <AgentAnalysisFacts
+                                                deal={deal}
+                                                railGroups={railGroups}
+                                                valueText={deal.value != null || deal.value_breakdown?.final_value != null ? dealHeader.value : ""}
+                                                onJump={handleJump}
+                                            />
+                                        ),
+                                    },
                                     {
                                         key: "answers",
-                                        label: t("pages.agent_workspace.flow.answers"),
-                                        count: answeredCount,
+                                        label: t("pages.agent_workspace.flow.steps_tab"),
                                         content: (
                                             <AnalysisAnswersPanel
                                                 groups={railGroups}
@@ -617,7 +664,6 @@ export default function DealAnalysisModal({
                                         ),
                                     },
                                 ]}
-                                footer={completeButton}
                             />
                         </div>
                     ) : (

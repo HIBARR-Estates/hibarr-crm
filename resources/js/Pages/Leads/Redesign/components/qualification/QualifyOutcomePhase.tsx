@@ -560,10 +560,10 @@ export default function QualifyOutcomePhase({
                     <p className="agent-qs__hint">{t("pages.agent_workspace.flow.outcome_pick")}</p>
                     {renderCards(false)}
                 </div>
-                <footer className="agent-qs__foot">
-                    <button type="button" className="agent-qs__btn" onClick={onBack}>
+                <footer className="agent-flow__foot">
+                    <button type="button" className="agent-flow__btn" onClick={onBack}>
                         <span aria-hidden="true">←</span>
-                        <span className="agent-qs__foot-name">{previousLabel ?? t("pages.agent_workspace.flow.previous")}</span>
+                        <span className="agent-flow__foot-name">{previousLabel ?? t("pages.agent_workspace.flow.previous")}</span>
                     </button>
                 </footer>
             </div>
@@ -2019,12 +2019,12 @@ function OutcomeDetail({
                 </div>
 
                 {agentLayout ? (
-                    <footer className="agent-qs__foot">
-                        <button type="button" className="agent-qs__btn" onClick={onBack}>
+                    <footer className="agent-flow__foot">
+                        <button type="button" className="agent-flow__btn" onClick={onBack}>
                             <span aria-hidden="true">←</span>
-                            <span className="agent-qs__foot-name">{previousLabel ?? t("pages.agent_workspace.flow.previous")}</span>
+                            <span className="agent-flow__foot-name">{previousLabel ?? t("pages.agent_workspace.flow.previous")}</span>
                         </button>
-                        <span className="agent-qs__saved">
+                        <span className="agent-flow__saved">
                             {lifecycleStatusFor(outcome)
                                 ? t("pages.agent_workspace.flow.status_becomes", {
                                       status: td(lifecycleStatusFor(outcome)!.label, { source: "en" }),
@@ -2033,7 +2033,7 @@ function OutcomeDetail({
                         </span>
                         <button
                             type="button"
-                            className="agent-qs__btn agent-qs__btn--green"
+                            className="agent-flow__btn agent-flow__btn--green"
                             disabled={
                                 busy ||
                                 flow.completing ||

@@ -42,7 +42,7 @@ export default function StepFooter({ flow, isLast, onNext }: StepFooterProps) {
             <>
                 {t("pages.agent_workspace.flow.next")}
                 {": "}
-                <span className="agent-qs__foot-name">
+                <span className="agent-flow__foot-name">
                     <StepName segment={next} translateScript={flow.translateScript} />
                 </span>
             </>
@@ -50,15 +50,15 @@ export default function StepFooter({ flow, isLast, onNext }: StepFooterProps) {
     }
 
     return (
-        <footer className="agent-qs__foot">
+        <footer className="agent-flow__foot">
             <button
                 type="button"
-                className="agent-qs__btn"
+                className="agent-flow__btn"
                 disabled={!previous}
                 onClick={() => previous && void flow.jumpToSegment(previous.key)}
             >
                 <span aria-hidden="true">←</span>
-                <span className="agent-qs__foot-name">
+                <span className="agent-flow__foot-name">
                     {previous ? (
                         <StepName segment={previous} translateScript={flow.translateScript} />
                     ) : (
@@ -66,21 +66,21 @@ export default function StepFooter({ flow, isLast, onNext }: StepFooterProps) {
                     )}
                 </span>
             </button>
-            <span className="agent-qs__saved" aria-live="polite">
+            <span className="agent-flow__saved" aria-live="polite">
                 {saved}
             </span>
             {blocked ? (
-                <button type="button" className="agent-qs__btn" onClick={() => void onNext({ skipValidation: true })}>
+                <button type="button" className="agent-flow__btn" onClick={() => void onNext({ skipValidation: true })}>
                     {t("pages.agent_workspace.flow.skip")}
                 </button>
             ) : null}
             <button
                 type="button"
-                className="agent-qs__btn agent-qs__btn--navy"
+                className="agent-flow__btn agent-flow__btn--navy"
                 disabled={blocked}
                 onClick={() => void onNext()}
             >
-                <span className="agent-qs__foot-name">{nextLabel}</span>
+                <span className="agent-flow__foot-name">{nextLabel}</span>
                 <span aria-hidden="true">→</span>
             </button>
         </footer>
