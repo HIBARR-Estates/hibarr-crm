@@ -1,0 +1,308 @@
+/* Agent search: the dock's dropdown (L7-23) and the rows it shares with the
+   results page (L7-24). Colours come from the --dr-* tokens. Nothing here
+   casts a shadow or edges a card with a side border. */
+
+.agent-sq {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* ---------- dropdown ---------- */
+.agent-sm {
+    position: absolute;
+    top: calc(100% + 9px);
+    left: -35px;
+    z-index: 60;
+    width: min(468px, calc(100vw - 32px));
+    padding: 8px 8px 0;
+    border: 1px solid var(--dr-border);
+    border-radius: 16px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+}
+
+.agent-sm__groups {
+    display: flex;
+    max-height: calc(100vh - 190px);
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+}
+
+.agent-sm__heading {
+    margin: 0;
+    padding: 10px 12px 6px;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.agent-sm__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 8px 0 0;
+    border-radius: 10px;
+}
+
+.agent-sm__row.is-active {
+    background: var(--dr-blue-light);
+}
+
+.agent-sm__main {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 8px 8px 10px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.agent-sm__text,
+.agent-sr__text {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.agent-sm__title,
+.agent-sr__title {
+    overflow: hidden;
+    color: var(--dr-text);
+    font-size: 14px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-sm__meta,
+.agent-sr__meta {
+    overflow: hidden;
+    color: var(--dr-text-muted);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-sm__call.dr-btn {
+    flex: none;
+}
+
+.agent-sm__enter {
+    flex: none;
+    color: var(--dr-text-muted);
+    font-size: 13px;
+}
+
+.agent-sm__note {
+    margin: 0;
+    padding: 18px 14px;
+    color: var(--dr-text-muted);
+    font-size: 14px;
+}
+
+.agent-sm__link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--dr-blue-dark);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.agent-sm__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 8px -8px 0;
+    padding: 10px 14px;
+    border-top: 1px solid var(--dr-border);
+}
+
+.agent-sm__hint {
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+.agent-sm__all {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--dr-blue-mid);
+    border-radius: 8px;
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-sm__all:hover {
+    background: var(--dr-blue-mid);
+}
+
+.agent-sm__all:focus-visible,
+.agent-sm__link:focus-visible,
+.agent-sm__main:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+/* ---------- shared result visuals ---------- */
+.agent-sr__mark {
+    padding: 0;
+    border-radius: 3px;
+    background: var(--dr-blue-mid);
+    color: inherit;
+}
+
+.agent-sr__avatar,
+.agent-sr__glyph {
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    color: var(--dr-white);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.agent-sr__avatar {
+    border-radius: 50%;
+}
+
+.agent-sr__avatar--blue {
+    background: var(--dr-blue);
+}
+
+.agent-sr__avatar--navy {
+    background: var(--dr-navy);
+}
+
+.agent-sr__avatar--green {
+    background: var(--dr-green);
+}
+
+.agent-sr__avatar--slate {
+    background: var(--dr-gray-dark);
+}
+
+.agent-sr__glyph {
+    border-radius: 9px;
+}
+
+.agent-sr__glyph--deal {
+    background: var(--dr-blue);
+}
+
+.agent-sr__glyph--property,
+.agent-sr__glyph--note {
+    background: var(--dr-navy);
+}
+
+.agent-sr__glyph--task,
+.agent-sr__glyph--muted {
+    background: var(--dr-gray-dark);
+}
+
+.agent-sr__glyph--meeting {
+    background: var(--dr-green);
+}
+
+/* ---------- phone: a search button in the top bar and a sheet under it ---------- */
+.agent-sq__toggle {
+    display: inline-flex;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--dr-navy-line);
+    border-radius: 50%;
+    background: var(--dr-navy-pressed);
+    color: var(--dr-navy-mid);
+    cursor: pointer;
+}
+
+.agent-sq__toggle:focus-visible {
+    outline: 2px solid var(--dr-blue-mid);
+    outline-offset: 2px;
+}
+
+.agent-sq--phone .agent-sq__sheet {
+    position: fixed;
+    top: 62px;
+    right: 12px;
+    left: 12px;
+    z-index: 60;
+}
+
+.agent-sq__field {
+    display: flex;
+    height: 46px;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px;
+    border: 2px solid var(--dr-blue-mid);
+    border-radius: 14px;
+    background: var(--dr-white);
+    color: var(--dr-text-muted);
+}
+
+.agent-sq__input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 16px;
+}
+
+.agent-sq--phone .agent-sm {
+    position: fixed;
+    top: 118px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+}
+
+.agent-sq--phone .agent-sm__groups {
+    max-height: calc(100dvh - 300px);
+}
+
+@media (min-width: 640px) {
+    .agent-sq--phone {
+        display: none;
+    }
+}
+
+/* In the dock the field keeps its own look; the wrapper only anchors the dropdown. */
+@media (max-width: 1099px) {
+    .agent-sq--dock .agent-sm {
+        right: -8px;
+        left: auto;
+    }
+}
+
+@media (max-width: 639px) {
+    .agent-sm__hint {
+        display: none;
+    }
+}

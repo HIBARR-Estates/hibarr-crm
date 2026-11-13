@@ -71,6 +71,7 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
                         </nav>
                     </div>
                     <div className="agent-ws__actions">
+                        <AgentDockSearch variant="phone" />
                         <div className="agent-ws__bell">
                             <AgentNotificationBell />
                         </div>
