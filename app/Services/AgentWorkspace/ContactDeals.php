@@ -57,7 +57,9 @@ class ContactDeals
         Deal::query()
             ->whereIn('lead_id', $leadIds)
             ->whereNull('outcome_status')
-            ->with(['leadStage:id,name,label_color'])
+            // leadAgent is read by the view check for narrower scopes; loading it
+            // here keeps that to one query for the page instead of one per deal.
+            ->with(['leadStage:id,name,label_color', 'leadAgent'])
             ->orderBy('id')
             ->get()
             ->filter(fn (Deal $deal) => self::canView($viewer, $deal))

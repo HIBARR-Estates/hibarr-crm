@@ -13,8 +13,9 @@ export const PEOPLE_RELOAD_KEYS = [...LIST_KEYS, "counts", "rowExtras", "savedVi
 
 type Value = string | number | null | undefined;
 
-function currentQuery(): Record<string, string> {
-    return Object.fromEntries(new URLSearchParams(typeof window === "undefined" ? "" : window.location.search));
+/** The query string of an Inertia page url ("/agent/people?x=1") as plain values. */
+export function queryOf(url: string): Record<string, string> {
+    return Object.fromEntries(new URLSearchParams(url.split("?")[1] ?? ""));
 }
 
 /**
@@ -24,18 +25,34 @@ function currentQuery(): Record<string, string> {
  * rows; the counts and each row's deals and last touch follow in a second,
  * background request, so the list never waits on them. `busy` is true while
  * the rows are in flight so the table can dim instead of blanking.
+ *
+ * `url` is the page's current url. The hook keeps the latest requested query
+ * itself, so a control used while an earlier visit is still pending builds on
+ * that request rather than on the older url; it re-reads the url whenever it
+ * changes (a view, the filter modal).
  */
-export default function usePeopleList() {
+export default function usePeopleList(url: string) {
     const [busy, setBusy] = useState(false);
+    const query = useRef<Record<string, string>>(queryOf(url));
+    const background = useRef<{ cancel: () => void } | null>(null);
+
+    useEffect(() => {
+        query.current = queryOf(url);
+    }, [url]);
 
     const visit = useCallback((changes: Record<string, Value>, options: { replaceAll?: boolean } = {}) => {
-        const params: Record<string, string> = options.replaceAll ? {} : currentQuery();
+        const params: Record<string, string> = options.replaceAll ? {} : { ...query.current };
         for (const [key, value] of Object.entries(changes)) {
             if (value === null || value === undefined || value === "") delete params[key];
             else params[key] = String(value);
         }
         // Anything but a page change starts again from the first page.
         if (!("page" in changes)) delete params.page;
+        query.current = params;
+
+        // A counts/extras request for the previous query must not land on this one.
+        background.current?.cancel();
+        background.current = null;
 
         router.get(route("agent.people"), params, {
             only: LIST_KEYS,
@@ -47,7 +64,12 @@ export default function usePeopleList() {
             onSuccess: () => {
                 // Counts ignore the page, so paging leaves them as they are.
                 const extras = "page" in changes ? ["rowExtras"] : ["counts", "rowExtras"];
-                router.reload({ only: extras });
+                router.reload({
+                    only: extras,
+                    onCancelToken: (token) => {
+                        background.current = token;
+                    },
+                });
             },
         });
     }, []);

@@ -10,7 +10,7 @@ import PeopleTable from "./people/PeopleTable";
 import PeopleViewPills from "./people/PeopleViewPills";
 import { viewSignature } from "./people/format";
 import type { LifecycleStatus, PeopleBucket, PeopleCounts, PeopleFilters, PeoplePage, RowExtrasMap } from "./people/types";
-import usePeopleList, { useListSearch } from "./people/usePeopleList";
+import usePeopleList, { queryOf, useListSearch } from "./people/usePeopleList";
 import "./people/people.css";
 
 // The Leads list's own filter modal: its code and form data load the first
@@ -68,21 +68,18 @@ export default function People({
 }: PeopleProps) {
     const { timezone } = useUserDateTime();
     const nowMs = useMinuteClock();
-    const { props } = usePage<PageProps>();
+    const { props, url } = usePage<PageProps>();
     const filterV2 = props.featureFlags?.["crm.leads-filter-v2"] === true;
     const { openDrawer } = useFilter();
-    const { visit, busy } = usePeopleList();
+    const { visit, busy } = usePeopleList(url);
 
     const rawBucket = first(filters.next_action);
     const bucket = (BUCKETS as string[]).includes(rawBucket) ? (rawBucket as PeopleBucket) : null;
 
-    const [sortDirection, setSortDirection] = useState<"asc" | "desc">(() =>
-        typeof window !== "undefined" && new URLSearchParams(window.location.search).get("sort_direction") === "desc" ? "desc" : "asc",
-    );
+    // Straight from the applied query, so a view that sets its own sort is reflected.
+    const sortDirection: "asc" | "desc" = queryOf(url).sort_direction === "desc" ? "desc" : "asc";
     const toggleSort = useCallback(() => {
-        const next = sortDirection === "asc" ? "desc" : "asc";
-        setSortDirection(next);
-        visit({ sort_by: "next_action", sort_direction: next });
+        visit({ sort_by: "next_action", sort_direction: sortDirection === "asc" ? "desc" : "asc" });
     }, [sortDirection, visit]);
 
     const onSearch = useCallback((query: string) => visit({ search: query }), [visit]);
