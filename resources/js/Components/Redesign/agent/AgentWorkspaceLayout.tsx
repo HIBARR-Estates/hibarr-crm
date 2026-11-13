@@ -2,7 +2,7 @@ import { createContext, useContext, useLayoutEffect, useMemo, useState, type Rea
 import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
-import NotificationDropdown from "@/Components/NotificationDropdown";
+import AgentNotificationBell from "./notifications/AgentNotificationBell";
 import SoftphoneDock from "@/Components/Softphone/SoftphoneDock";
 import "../redesign.css";
 import "./agent-workspace.css";
@@ -72,7 +72,7 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
                     </div>
                     <div className="agent-ws__actions">
                         <div className="agent-ws__bell">
-                            <NotificationDropdown pollingInterval={30000} />
+                            <AgentNotificationBell />
                         </div>
                         <AgentAccountMenu name={user?.name ?? ""} image={user?.image_url} />
                     </div>
