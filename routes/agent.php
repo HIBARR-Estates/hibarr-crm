@@ -32,6 +32,8 @@ Route::middleware(['auth', 'partner.restrict', EnsureAgentWorkspaceAccess::class
             ->name('people.deal');
         // The task list: runs on the Tasks index's own permission check and filters.
         Route::get('tasks', [TaskController::class, 'agentIndex'])->name('tasks');
+        // The deals board and list: runs on the Deals index's own filters and scope.
+        Route::get('deals', [DealController::class, 'agentIndex'])->name('deals');
         // A deal by id alone: redirects to its person's page in the deal state.
         Route::get('deals/{deal}', [DealController::class, 'agentOpen'])
             ->whereNumber('deal')
