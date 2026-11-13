@@ -429,6 +429,21 @@ class LeadService
     }
 
     /**
+     * Count of leads matching the current filters and the viewer's scope, with
+     * no next-action bucket applied. The People list's "All" chip.
+     */
+    public function countMatching(Request $request): int
+    {
+        $viewPermission = user()->permission('view_lead');
+
+        $query = Lead::query()->select('leads.id');
+        $this->applyPermissionScope($query, $viewPermission);
+        $this->applyFilters($query, $request);
+
+        return $query->count();
+    }
+
+    /**
      * Count of leads (current filters + permission scope) at the given
      * temperature. Same shape as countNextActionBucket() — one indexed COUNT.
      */
