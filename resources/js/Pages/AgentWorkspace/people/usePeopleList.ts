@@ -39,6 +39,9 @@ export default function usePeopleList(url: string) {
     // queued when another visit begins; its onSuccess then sees a newer number
     // and does not start a counts/extras reload for a superseded query.
     const generation = useRef(0);
+    // True from the moment the query changes until a counts reload for it has
+    // finished, so a page change after a cancelled reload still refreshes them.
+    const countsStale = useRef(false);
 
     useEffect(() => {
         query.current = queryOf(url);
@@ -66,6 +69,7 @@ export default function usePeopleList(url: string) {
         // Anything but a page change starts again from the first page.
         if (!("page" in changes)) delete params.page;
         query.current = params;
+        if (!("page" in changes)) countsStale.current = true;
 
         // A counts/extras request for the previous query must not land on this one.
         background.current?.cancel();
@@ -86,10 +90,15 @@ export default function usePeopleList(url: string) {
             onFinish: () => setBusy(false),
             onSuccess: () => {
                 if (mine !== generation.current) return;
-                // Counts ignore the page, so paging leaves them as they are.
-                const extras = "page" in changes ? ["rowExtras"] : ["counts", "rowExtras"];
+                // Counts ignore the page, so paging leaves them as they are unless
+                // an earlier reload for this query never finished.
+                const withCounts = countsStale.current;
+                const extras = withCounts ? ["counts", "rowExtras"] : ["rowExtras"];
                 router.reload({
                     only: extras,
+                    onSuccess: () => {
+                        if (withCounts) countsStale.current = false;
+                    },
                     onCancelToken: (token) => {
                         background.current = token;
                     },
