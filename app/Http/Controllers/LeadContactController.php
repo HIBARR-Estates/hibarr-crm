@@ -181,9 +181,9 @@ class LeadContactController extends AccountBaseController
     public function agentIndex(Request $request, ContactDeals $contactDeals)
     {
         $viewPermission = user()->permission('view_lead');
-        if (! in_array($viewPermission, ['all', 'added', 'owned', 'both'])) {
-            return redirect()->back()->with('error', __('messages.permissionDenied'));
-        }
+        // A bookmarkable page: a denial is a 403, not a redirect back (which
+        // has nowhere to go without a referrer).
+        abort_unless(in_array($viewPermission, ['all', 'added', 'owned', 'both']), 403);
 
         $request->merge([
             'sort_by' => $request->input('sort_by', 'next_action'),
