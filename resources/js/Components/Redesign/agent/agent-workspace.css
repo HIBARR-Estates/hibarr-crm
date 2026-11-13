@@ -341,6 +341,45 @@
     opacity: 0.6;
 }
 
+/* In a row of pills or inside a button the tag centres on the label. */
+.agent-pills__pill .agent-new-tag,
+button .agent-new-tag {
+    align-self: center;
+}
+
+/* A pill whose page is not built yet: held in place, not clickable. */
+.agent-pills__pill--held {
+    border-style: dashed;
+    color: var(--dr-navy-mid);
+    cursor: default;
+}
+
+/* The dashed purple "New" tag: something the approved screen shows that the CRM has no data for yet. */
+.agent-new-tag {
+    display: inline-block;
+    align-self: flex-start;
+    padding: 3px 6px;
+    border: 1px dashed var(--dr-purple);
+    border-radius: 4px;
+    background: var(--dr-purple-soft);
+    color: var(--dr-purple);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.agent-new-tag__hint {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
 .agent-pills__dot {
     width: 8px;
     height: 8px;
