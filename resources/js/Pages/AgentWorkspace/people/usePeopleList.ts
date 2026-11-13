@@ -35,6 +35,10 @@ export default function usePeopleList(url: string) {
     const [busy, setBusy] = useState(false);
     const query = useRef<Record<string, string>>(queryOf(url));
     const background = useRef<{ cancel: () => void } | null>(null);
+    // Bumped by every Inertia visit that starts. A list response can already be
+    // queued when another visit begins; its onSuccess then sees a newer number
+    // and does not start a counts/extras reload for a superseded query.
+    const generation = useRef(0);
 
     useEffect(() => {
         query.current = queryOf(url);
@@ -46,6 +50,7 @@ export default function usePeopleList(url: string) {
     useEffect(
         () =>
             router.on("before", () => {
+                generation.current += 1;
                 background.current?.cancel();
                 background.current = null;
             }),
@@ -66,14 +71,21 @@ export default function usePeopleList(url: string) {
         background.current?.cancel();
         background.current = null;
 
+        let mine = -1;
         router.get(route("agent.people"), params, {
             only: LIST_KEYS,
             preserveState: true,
             preserveScroll: true,
             replace: true,
-            onStart: () => setBusy(true),
+            // The visit's own onBefore runs ahead of the global "before" event,
+            // so the number is taken here, once both have fired.
+            onStart: () => {
+                mine = generation.current;
+                setBusy(true);
+            },
             onFinish: () => setBusy(false),
             onSuccess: () => {
+                if (mine !== generation.current) return;
                 // Counts ignore the page, so paging leaves them as they are.
                 const extras = "page" in changes ? ["rowExtras"] : ["counts", "rowExtras"];
                 router.reload({
