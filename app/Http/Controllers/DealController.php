@@ -54,6 +54,7 @@ use App\Notifications\MeetingLinkGenerationFailed;
 use App\Scopes\ActiveScope;
 use App\Services\AgentWorkspace\ContactDeals;
 use App\Services\AgentWorkspace\DealPulse;
+use App\Services\AgentWorkspace\LeadVisibility;
 use App\Services\CalendarSyncDispatcher;
 use App\Services\Deal\DealOutcomeService;
 use App\Services\Deal\DealPaymentValueGuard;
@@ -558,6 +559,13 @@ class DealController extends AccountBaseController
         $props = $this->showProps($deal);
         if (! is_array($props)) {
             return $props;
+        }
+
+        // A deal can be visible to someone the lead is not: they get the deal
+        // only, with nothing of the lead's own details sent.
+        $person = Lead::query()->with('leadOwner:id,name')->find((int) $lead);
+        if ($person === null || ! LeadVisibility::canView(user(), $person)) {
+            $props = LeadVisibility::withoutLeadDetails($props, $person?->leadOwner?->name, (int) user()->id);
         }
 
         return Inertia::render('AgentWorkspace/ContactDeal', array_merge(

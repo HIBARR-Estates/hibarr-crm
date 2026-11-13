@@ -732,7 +732,8 @@
 
     .agent-activity[data-active="coming_up"] .agent-activity__slot[data-card="coming_up"],
     .agent-activity[data-active="touches"] .agent-activity__slot[data-card="touches"],
-    .agent-activity[data-active="notes"] .agent-activity__slot[data-card="notes"] {
+    .agent-activity[data-active="notes"] .agent-activity__slot[data-card="notes"],
+    .agent-activity[data-active="files"] .agent-activity__slot[data-card="files"] {
         display: block;
     }
 
