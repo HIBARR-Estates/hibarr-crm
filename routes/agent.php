@@ -3,6 +3,7 @@
 use App\Http\Controllers\AgentWorkspace\AgentWorkspaceController;
 use App\Http\Controllers\AgentWorkspace\EarningsController;
 use App\Http\Controllers\AgentWorkspace\PortfolioController;
+use App\Http\Controllers\AgentWorkspace\PreferencesController;
 use App\Http\Controllers\DealController;
 use App\Http\Controllers\LeadContactController;
 use App\Http\Controllers\TaskController;
@@ -47,6 +48,8 @@ Route::middleware(['auth', 'partner.restrict', EnsureAgentWorkspaceAccess::class
         Route::get('earnings/network/{agent}', [EarningsController::class, 'agentPanel'])
             ->whereNumber('agent')
             ->name('earnings.network.agent');
+        // Preferences: the classic Preferences and Reminder preferences pages on one screen.
+        Route::get('preferences', [PreferencesController::class, 'show'])->name('preferences');
         // A deal by id alone: redirects to its person's page in the deal state.
         Route::get('deals/{deal}', [DealController::class, 'agentOpen'])
             ->whereNumber('deal')
