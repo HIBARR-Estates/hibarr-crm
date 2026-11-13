@@ -3,6 +3,7 @@
 use App\Http\Controllers\AgentWorkspace\AgentWorkspaceController;
 use App\Http\Controllers\AgentWorkspace\EarningsController;
 use App\Http\Controllers\AgentWorkspace\PortfolioController;
+use App\Http\Controllers\AgentWorkspace\SearchController;
 use App\Http\Controllers\DealController;
 use App\Http\Controllers\LeadContactController;
 use App\Http\Controllers\TaskController;
@@ -50,6 +51,9 @@ Route::middleware(['auth', 'partner.restrict', EnsureAgentWorkspaceAccess::class
         Route::get('earnings/network/{agent}', [EarningsController::class, 'agentPanel'])
             ->whereNumber('agent')
             ->name('earnings.network.agent');
+        // Search: the dock's dropdown (JSON) and the results page. Each source keeps its own visibility rules.
+        Route::get('search', [SearchController::class, 'results'])->name('search');
+        Route::get('search/suggest', [SearchController::class, 'suggest'])->middleware('throttle:60,1')->name('search.suggest');
         // A deal by id alone: redirects to its person's page in the deal state.
         Route::get('deals/{deal}', [DealController::class, 'agentOpen'])
             ->whereNumber('deal')
