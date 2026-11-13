@@ -3191,6 +3191,13 @@ return [
                 'expose' => 'Proje ekspozesi',
                 'ask' => 'Müsaitlik sor',
                 'ask_held' => 'Yeni: tüm proje için müsaitlik sorma henüz yok. Müsaitlik talepleri mülk başınadır.',
+                'unit_types' => 'Birim tipleri',
+                'status' => [
+                    'pre_construction' => 'İnşaat öncesi',
+                    'active_construction' => 'İnşaat halinde',
+                    'post_construction' => 'İnşaat sonrası',
+                    'complete' => 'Teslime hazır',
+                ],
                 'empty_title' => 'Proje yok',
                 'empty_description' => 'Geliştirici projeleri birim müsaitliğiyle burada görünür.',
             ],

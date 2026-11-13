@@ -3213,6 +3213,13 @@ return [
                 'expose' => 'Projekt-Exposé',
                 'ask' => 'Verfügbarkeit anfragen',
                 'ask_held' => 'Neu: Anfragen zu einem ganzen Projekt gibt es noch nicht. Verfügbarkeitsanfragen gelten pro Immobilie.',
+                'unit_types' => 'Einheitentypen',
+                'status' => [
+                    'pre_construction' => 'Vor Baubeginn',
+                    'active_construction' => 'Im Bau',
+                    'post_construction' => 'Nach Fertigstellung',
+                    'complete' => 'Bezugsfertig',
+                ],
                 'empty_title' => 'Keine Projekte',
                 'empty_description' => 'Bauprojekte erscheinen hier mit ihrer Verfügbarkeit.',
             ],

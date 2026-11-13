@@ -78,5 +78,6 @@ export interface PortfolioProject {
     starting_price: number | null;
     currency: string;
     completion_date: string | null;
+    thumbnail: string | null;
     unit_types: PortfolioUnitType[];
 }

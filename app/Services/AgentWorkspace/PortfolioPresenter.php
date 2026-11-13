@@ -70,6 +70,7 @@ class PortfolioPresenter
             'starting_price' => $project->starting_price !== null ? (float) $project->starting_price : null,
             'currency' => $project->currencyCode(),
             'completion_date' => $project->completion_date?->toDateString(),
+            'thumbnail' => $project->relationLoaded('thumbnail') ? $project->thumbnail?->url : null,
             'unit_types' => $unitTypes->map(function ($unit) {
                 $total = (int) ($unit->quantity ?? 0);
                 $sold = (int) ($unit->total_sold ?? 0);

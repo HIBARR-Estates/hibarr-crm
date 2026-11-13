@@ -3370,6 +3370,13 @@ return [
                 'expose' => 'Project exposé',
                 'ask' => 'Ask availability',
                 'ask_held' => 'New: asking about a whole project does not exist yet. Availability requests are per property.',
+                'unit_types' => 'Unit types',
+                'status' => [
+                    'pre_construction' => 'Pre-construction',
+                    'active_construction' => 'Under construction',
+                    'post_construction' => 'Post-construction',
+                    'complete' => 'Ready to move in',
+                ],
                 'empty_title' => 'No projects',
                 'empty_description' => 'Developer projects will show here with their unit availability.',
             ],

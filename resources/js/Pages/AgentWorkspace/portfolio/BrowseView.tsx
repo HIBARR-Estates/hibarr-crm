@@ -4,7 +4,6 @@ import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import MenuSelect, { type MenuOption } from "@/Components/Redesign/primitives/MenuSelect";
 import useTranslation from "@/Hooks/useTranslation";
-import { intlLocale } from "./format";
 import PropertyCard from "./PropertyCard";
 import type { ExposeTarget } from "./PortfolioExposeModal";
 import type { BrowseFilters, BrowseOptions, NamedOption, PortfolioProperty, PropertiesPayload } from "./types";
@@ -65,6 +64,7 @@ function FilterMenu({
                 placeholder={label}
                 searchable={searchable}
                 size="sm"
+                width={240}
                 triggerClassName="agent-pf__filter"
             />
         </span>
@@ -79,7 +79,7 @@ const toOptions = (list: NamedOption[] | undefined): MenuOption[] => (list ?? []
  * keep the page; the cards and the filter options follow the shell.
  */
 export default function BrowseView({ filters, limit, properties, options }: BrowseViewProps) {
-    const { t, locale } = useTranslation();
+    const { t } = useTranslation();
     const [expose, setExpose] = useState<ExposeTarget | null>(null);
     const [text, setText] = useState(filters.search ?? "");
     const debounce = useRef<number | null>(null);
@@ -111,10 +111,7 @@ export default function BrowseView({ filters, limit, properties, options }: Brow
     const cityOptions = useMemo(() => toOptions(options?.cities), [options]);
     const areaOptions = useMemo<MenuOption[]>(() => (options?.areas ?? []).map((area) => ({ value: area, label: area })), [options]);
     const developerOptions = useMemo<MenuOption[]>(() => (options?.developers ?? []).map((item) => ({ value: String(item.id), label: item.name })), [options]);
-    const priceOptions = useMemo<MenuOption[]>(
-        () => PRICES.map((price) => ({ value: String(price), label: new Intl.NumberFormat(intlLocale(locale)).format(price) })),
-        [locale],
-    );
+    const priceOptions = useMemo<MenuOption[]>(() => PRICES.map((price) => ({ value: String(price), label: price >= 1000000 ? `${price / 1000000}M` : `${price / 1000}k` })), []);
     const bedroomOptions = useMemo<MenuOption[]>(() => BEDROOMS.map((count) => ({ value: String(count), label: `${count}+` })), []);
 
     const openExpose = useCallback(

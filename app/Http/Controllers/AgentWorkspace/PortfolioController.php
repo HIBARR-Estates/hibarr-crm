@@ -101,7 +101,7 @@ class PortfolioController extends AccountBaseController
             'projects' => Inertia::defer(function () {
                 $query = DeveloperProject::query()
                     ->where('company_id', user()->company_id)
-                    ->with(['developer:id,name', 'location:id,name', 'unitTypes' => fn ($q) => $q->orderBy('bedrooms')->orderBy('id')]);
+                    ->with(['developer:id,name', 'location:id,name', 'thumbnail', 'unitTypes' => fn ($q) => $q->orderBy('bedrooms')->orderBy('id')]);
 
                 DeveloperProjectVisibility::scopeVisibleProjects($query);
 

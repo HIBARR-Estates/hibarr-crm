@@ -10,6 +10,9 @@ import type { ExposeTarget } from "./PortfolioExposeModal";
 import type { PortfolioDeal, PortfolioProperty, RecommendationsPayload } from "./types";
 import usePortfolioActions from "./usePortfolioActions";
 
+/** Deals get a stable avatar colour by position, from the navy and teal tones of the design. */
+const AVATAR_TONES = ["#16294d", "#0f5f73", "#177a5b", "#475569", "#3d5a80"];
+
 const PortfolioExposeModal = lazy(() => import("./PortfolioExposeModal"));
 
 interface ForDealsViewProps {
@@ -130,10 +133,10 @@ export default function ForDealsView({ deals, dealId, recommendations }: ForDeal
             <section className="agent-pf__panel agent-pf__rail" aria-label={t("pages.agent_workspace.portfolio.deals.rail")}>
                 <span className="agent-pf__cap">{t("pages.agent_workspace.portfolio.deals.rail")}</span>
                 <ul className="agent-pf__deals">
-                    {deals.map((item) => (
+                    {deals.map((item, index) => (
                         <li key={item.id}>
                             <button type="button" className="agent-pf__deal" aria-pressed={item.id === deal.id} onClick={() => pick(item.id)}>
-                                <Avatar initials={initialsFromName(item.person || item.name)} size={30} />
+                                <Avatar initials={initialsFromName(item.person || item.name)} size={30} tone={{ bg: AVATAR_TONES[index % AVATAR_TONES.length], fg: "#ffffff" }} />
                                 <span className="agent-pf__deal-text">
                                     <b>{item.person ? `${item.person} · ${item.name}` : item.name}</b>
                                     <span>{wants(item) || t("pages.agent_workspace.portfolio.deals.no_wants")}</span>

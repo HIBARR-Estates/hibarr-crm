@@ -1,8 +1,9 @@
 import { lazy, Suspense, useState } from "react";
 import { Deferred } from "@inertiajs/react";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import useTranslation from "@/Hooks/useTranslation";
-import { formatFrom, humanize, intlLocale } from "./format";
+import { formatFrom, intlLocale } from "./format";
 import type { ExposeTarget } from "./PortfolioExposeModal";
 import type { PortfolioProject } from "./types";
 
@@ -20,12 +21,6 @@ function ProjectsSkeleton() {
             ))}
         </div>
     );
-}
-
-/** A unit type's stock reads grey at none left and amber when few are left (a fifth or fewer). */
-function stockTone(available: number, total: number): "out" | "low" | "ok" {
-    if (available <= 0) return "out";
-    return total > 0 && available / total <= 0.2 ? "low" : "ok";
 }
 
 /**
@@ -53,34 +48,49 @@ export default function ProjectsView({ projects }: { projects?: PortfolioProject
 
                         return (
                             <article key={project.id} className="agent-pf__panel agent-pf__project">
-                                <header className="agent-pf__project-head">
-                                    <h2>{project.name}</h2>
-                                    {project.construction_status ? <span className="agent-pf__status">{humanize(project.construction_status)}</span> : null}
-                                </header>
-                                <p className="agent-pf__line">{meta.join(" · ")}</p>
-                                <ul className="agent-pf__units">
-                                    {project.unit_types.map((unit) => (
-                                        <li key={unit.id} className={`agent-pf__unit agent-pf__unit--${stockTone(unit.available, unit.total)}`}>
-                                            <b>{unit.label}</b>
-                                            <span>{t("pages.agent_workspace.portfolio.projects.available", { available: unit.available, total: unit.total })}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                                <footer className="agent-pf__project-foot">
-                                    <button
-                                        type="button"
-                                        className="dr-btn dr-btn-sm dr-btn-ghost"
-                                        onClick={() => setExpose({ kind: "developer_project", id: project.id, title: project.name, subtitle: project.developer ?? undefined })}
-                                    >
-                                        {t("pages.agent_workspace.portfolio.projects.expose")}
-                                    </button>
-                                    <span className="agent-pf__held">
-                                        <button type="button" className="dr-btn dr-btn-sm dr-btn-ghost" disabled title={t("pages.agent_workspace.portfolio.projects.ask_held")}>
-                                            {t("pages.agent_workspace.portfolio.projects.ask")}
+                                <span className="agent-pf__thumb" aria-hidden="true">
+                                    {project.thumbnail ? <img src={project.thumbnail} alt="" loading="lazy" decoding="async" /> : <Icon name="building" size={32} />}
+                                </span>
+                                <div className="agent-pf__project-body">
+                                    <header className="agent-pf__project-head">
+                                        <h2>{project.name}</h2>
+                                        {project.construction_status ? (
+                                            <span className={`agent-pf__status agent-pf__status--${project.construction_status === "complete" ? "ready" : "building"}`}>
+                                                {t(`pages.agent_workspace.portfolio.projects.status.${project.construction_status}`)}
+                                            </span>
+                                        ) : null}
+                                    </header>
+                                    <p className="agent-pf__line">{meta.join(" · ")}</p>
+                                    <ul className="agent-pf__units">
+                                        {project.unit_types.map((unit) => (
+                                            <li key={unit.id} className={`agent-pf__unit${unit.available <= 0 ? " is-out" : ""}`}>
+                                                <b>{unit.label}</b>
+                                                <span className="agent-pf__bar" aria-hidden="true">
+                                                    <span style={{ width: `${unit.total > 0 ? Math.round((unit.available / unit.total) * 100) : 0}%` }} />
+                                                </span>
+                                                <span className="agent-pf__stock">{t("pages.agent_workspace.portfolio.projects.available", { available: unit.available, total: unit.total })}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <footer className="agent-pf__project-foot">
+                                        <a className="agent-pf__chipbtn" href={route("developer-projects.show", project.id)}>
+                                            {t("pages.agent_workspace.portfolio.projects.unit_types")}
+                                        </a>
+                                        <button
+                                            type="button"
+                                            className="agent-pf__chipbtn"
+                                            onClick={() => setExpose({ kind: "developer_project", id: project.id, title: project.name, subtitle: project.developer ?? undefined })}
+                                        >
+                                            {t("pages.agent_workspace.portfolio.projects.expose")}
                                         </button>
-                                        <span className="agent-pf__new">{t("pages.agent_workspace.portfolio.new")}</span>
-                                    </span>
-                                </footer>
+                                        <span className="agent-pf__held">
+                                            <button type="button" className="agent-pf__chipbtn" disabled title={t("pages.agent_workspace.portfolio.projects.ask_held")}>
+                                                {t("pages.agent_workspace.portfolio.projects.ask")}
+                                            </button>
+                                            <span className="agent-pf__new">{t("pages.agent_workspace.portfolio.new")}</span>
+                                        </span>
+                                    </footer>
+                                </div>
                             </article>
                         );
                     })}
