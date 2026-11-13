@@ -26,7 +26,9 @@ interface NewActivityButtonProps {
 }
 
 /**
- * One "New activity" button for every kind of record (L7-42). The panel says
+ * One "New activity" button for every kind of record (L7-42). The panel is a
+ * small popover of buttons (Tab through them, Escape closes), not an ARIA menu
+ * with arrow keys. It says
  * who it is for and offers the two things an agent schedules, a task or a
  * meeting, each opening the lead page's own form; notes and logged activities
  * are added from their cards. Extra entries such as Email follow.
@@ -72,12 +74,12 @@ export function NewActivityButton({ onCreate, allowed, size = "base", extra = []
     };
 
     const panel = (
-        <div className="agent-na" role="menu" aria-label={t("pages.agent_workspace.contact.new_activity")}>
+        <div className="agent-na" role="dialog" aria-label={t("pages.agent_workspace.contact.new_activity")}>
             <p className="agent-na__eyebrow">
                 {[t("pages.agent_workspace.new_activity.eyebrow"), scope?.person, scope?.deal].filter(Boolean).join(" · ")}
             </p>
             {rows.map((row) => (
-                <button key={row.key} type="button" role="menuitem" className="agent-na__row" onClick={() => choose(row.onSelect)}>
+                <button key={row.key} type="button" className="agent-na__row" onClick={() => choose(row.onSelect)}>
                     <span className="agent-na__icon" aria-hidden="true">
                         {row.icon}
                     </span>
@@ -100,7 +102,7 @@ export function NewActivityButton({ onCreate, allowed, size = "base", extra = []
         <Dropdown open={open} onOpenChange={setOpen} popupRender={() => panel} trigger={["click"]} placement="bottomRight">
             {/* antd positions the panel from a DOM node; the span gives it one. */}
             <span className="agent-contact__menu-anchor">
-                <Button size={size} className="agent-btn-soft" aria-haspopup="menu" aria-expanded={open}>
+                <Button size={size} className="agent-btn-soft" aria-haspopup="dialog" aria-expanded={open}>
                     <Icon name="plus" size={size === "sm" ? 12 : 14} />
                     {t("pages.agent_workspace.contact.new_activity")}
                     <Icon name="chevron-down" size={size === "sm" ? 12 : 14} />

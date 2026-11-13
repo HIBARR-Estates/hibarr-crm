@@ -30,7 +30,8 @@ class AgentWorkspaceNewActivityTest extends TestCase
         foreach (['Contact', 'ContactDeal'] as $page) {
             $source = file_get_contents(base_path("resources/js/Pages/AgentWorkspace/{$page}.tsx"));
 
-            $this->assertStringContainsString('<NewActivityProvider value={newActivityScope}>', $source, "{$page} must provide the New activity scope");
+            // Tolerant of formatting: the provider is rendered with some scope value.
+            $this->assertMatchesRegularExpression('/<NewActivityProvider\s+value=\{\w+\}\s*>/', $source, "{$page} must provide the New activity scope");
         }
     }
 }
