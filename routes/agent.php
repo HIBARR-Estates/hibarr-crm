@@ -3,6 +3,7 @@
 use App\Http\Controllers\AgentWorkspace\AgentWorkspaceController;
 use App\Http\Controllers\DealController;
 use App\Http\Controllers\LeadContactController;
+use App\Http\Controllers\TaskController;
 use App\Http\Middleware\EnsureAgentWorkspaceAccess;
 use Illuminate\Support\Facades\Route;
 
@@ -29,6 +30,8 @@ Route::middleware(['auth', 'partner.restrict', EnsureAgentWorkspaceAccess::class
         Route::get('people/{lead}/deals/{deal}', [DealController::class, 'agentShow'])
             ->whereNumber(['lead', 'deal'])
             ->name('people.deal');
+        // The task list: runs on the Tasks index's own permission check and filters.
+        Route::get('tasks', [TaskController::class, 'agentIndex'])->name('tasks');
         // A deal by id alone: redirects to its person's page in the deal state.
         Route::get('deals/{deal}', [DealController::class, 'agentOpen'])
             ->whereNumber('deal')

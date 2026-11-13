@@ -22,7 +22,7 @@ export const AGENT_DESTINATIONS: AgentDestination[] = [
     { key: "today", labelKey: "pages.agent_workspace.nav.today", icon: "home", segment: "today", href: "/agent/today" },
     { key: "people", labelKey: "pages.agent_workspace.nav.people", icon: "users", segment: "people", href: "/agent/people" },
     { key: "deals", labelKey: "pages.agent_workspace.nav.deals", icon: "briefcase", segment: "deals", classicRoute: "deals.index" },
-    { key: "tasks", labelKey: "pages.agent_workspace.nav.tasks", icon: "check-square", segment: "tasks", classicRoute: "tasks.index" },
+    { key: "tasks", labelKey: "pages.agent_workspace.nav.tasks", icon: "check-square", segment: "tasks", href: "/agent/tasks" },
     { key: "portfolio", labelKey: "pages.agent_workspace.nav.portfolio", icon: "building", segment: "portfolio", classicRoute: "properties.index" },
     { key: "earnings", labelKey: "pages.agent_workspace.nav.earnings", icon: "wallet", segment: "earnings", classicRoute: "mlm.agent.dashboard" },
 ];

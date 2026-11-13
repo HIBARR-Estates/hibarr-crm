@@ -1,0 +1,544 @@
+/* Tasks: the list (L7-17). Colours come from the --dr-* tokens; due chips use
+   the shared time states (.agent-ts--*). Nothing here casts a shadow and no
+   card is edged with a side border. */
+
+/* ---------- band ---------- */
+.agent-ws:has(.agent-tk) {
+    --agent-band-height: 300px;
+}
+
+/* Below 1100px the chips no longer fit beside the title, so they stack under it. */
+@media (max-width: 1099px) {
+    .agent-ws:has(.agent-tk) {
+        --agent-band-height: 348px;
+    }
+}
+
+@media (max-width: 639px) {
+    .agent-ws:has(.agent-tk) {
+        --agent-band-height: 330px;
+    }
+}
+
+.agent-tk {
+    display: flex;
+    flex-direction: column;
+    gap: 38px;
+}
+
+/* ---------- header on the band ---------- */
+.agent-tk__top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px 16px;
+    min-height: 62px;
+}
+
+.agent-tk__heading {
+    min-width: 0;
+    flex: 1 1 240px;
+}
+
+.agent-tk__heading h1 {
+    margin: 0;
+    color: var(--dr-white);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.agent-tk__heading p {
+    min-height: 21px;
+    margin: 4px 0 0;
+    color: var(--dr-navy-mid);
+    font-size: 14px;
+}
+
+.agent-tk__chip-row {
+    display: flex;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-tk__chip {
+    display: flex;
+    min-width: 104px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 9px 14px;
+    border: 1px solid var(--dr-navy-raised-line);
+    border-radius: 12px;
+    background: var(--dr-navy-raised);
+    color: var(--dr-white);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.agent-tk__chip:hover {
+    border-color: var(--dr-navy-mid);
+}
+
+.agent-tk__chip[aria-pressed="true"] {
+    border-color: var(--dr-white);
+    background: var(--dr-white);
+    color: var(--dr-navy);
+}
+
+.agent-tk__chip:focus-visible {
+    outline: 2px solid var(--dr-white);
+    outline-offset: 2px;
+}
+
+.agent-tk__chip-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--dr-navy-soft);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-tk__chip[aria-pressed="true"] .agent-tk__chip-label {
+    color: var(--dr-navy);
+}
+
+.agent-tk__chip-mark {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    border-radius: 2px;
+    background: var(--mark, var(--dr-time-none-solid));
+}
+
+.agent-tk__chip-value {
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.agent-tk__chip--loading .agent-tk__chip-value {
+    border-radius: 4px;
+    background: var(--dr-navy-raised-line);
+    color: transparent;
+}
+
+/* ---------- list ---------- */
+.agent-tk__table {
+    --cols: minmax(0, 2.2fr) minmax(0, 1.8fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr) 20px;
+
+    overflow: hidden;
+    border: 1px solid var(--dr-border);
+    border-radius: 14px;
+    background: var(--dr-white);
+}
+
+.agent-tk__head,
+.agent-tk__row,
+.agent-tk__skeleton-row {
+    display: grid;
+    grid-template-columns: var(--cols);
+    align-items: center;
+    gap: 14px;
+    padding: 9px 16px;
+}
+
+.agent-tk__head {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--dr-border);
+    background: var(--dr-surface-hover);
+}
+
+.agent-tk__th {
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.agent-tk__th[aria-sort] {
+    color: var(--dr-navy);
+}
+
+.agent-tk__row {
+    border-top: 1px solid var(--dr-border);
+}
+
+.agent-tk__row:first-of-type {
+    border-top: 0;
+}
+
+.agent-tk__row:hover,
+.agent-tk__row:focus-within {
+    background: var(--dr-blue-light);
+}
+
+/* On a phone the cells after the task wrap on one line; elsewhere they are plain grid cells. */
+.agent-tk__line {
+    display: contents;
+}
+
+.agent-tk__c--task {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+}
+
+.agent-tk__c--linked {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+}
+
+.agent-tk__c--actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.agent-tk__action.dr-btn {
+    border-color: var(--dr-blue-mid);
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+    font-weight: 600;
+}
+
+.agent-tk__action.dr-btn:hover:not(:disabled) {
+    background: var(--dr-blue-mid);
+}
+
+.agent-tk__tick {
+    display: inline-flex;
+    width: 18px;
+    height: 18px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1.5px solid var(--dr-gray-dark);
+    border-radius: 5px;
+    background: var(--dr-white);
+    color: transparent;
+    cursor: pointer;
+}
+
+.agent-tk__tick:hover:not(:disabled) {
+    border-color: var(--dr-green);
+    background: var(--dr-green-light);
+    color: var(--dr-green);
+}
+
+.agent-tk__tick:focus-visible,
+.agent-tk__title:focus-visible,
+.agent-tk__linked-name:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+.agent-tk__tick:disabled {
+    cursor: default;
+    opacity: 0.5;
+}
+
+.agent-tk__title {
+    min-width: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    background: none;
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-tk__title:hover {
+    text-decoration: underline;
+}
+
+.agent-tk__linked-name {
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--dr-text);
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+a.agent-tk__linked-name:hover {
+    text-decoration: underline;
+}
+
+.agent-tk__status {
+    display: inline-block;
+    max-width: 100%;
+    padding: 4px 10px;
+    overflow: hidden;
+    border-radius: 6px;
+    background: var(--tag, var(--dr-gray-dark));
+    color: var(--dr-white);
+    font-size: 10px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-tk__stage {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.agent-tk__stage-mark {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    border-radius: 2px;
+    background: var(--stage, var(--dr-time-none-solid));
+}
+
+.agent-tk__priority {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-tk__priority-dot {
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--dr-time-done-solid);
+}
+
+.agent-tk__priority--high .agent-tk__priority-dot {
+    background: var(--dr-time-late-solid);
+}
+
+.agent-tk__priority--medium .agent-tk__priority-dot {
+    background: var(--dr-time-later-solid);
+}
+
+.agent-tk__due {
+    display: inline-flex;
+    max-width: 100%;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border: 1px solid var(--ts-border);
+    border-radius: 999px;
+    background: var(--ts-bg);
+    color: var(--ts-text);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-tk__due-dot {
+    width: 7px;
+    height: 7px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--ts-solid);
+}
+
+.agent-tk__assignee {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+}
+
+.agent-tk__avatar {
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--dr-blue);
+    color: var(--dr-white);
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.agent-tk__avatar--other {
+    background: var(--dr-gray-dark);
+}
+
+.agent-tk__assignee-text {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.agent-tk__assignee-text small,
+.agent-tk__muted {
+    color: var(--dr-text-muted);
+    font-size: 11px;
+}
+
+.agent-tk__muted {
+    font-size: 12px;
+}
+
+.agent-tk__chevron {
+    justify-self: end;
+    color: var(--dr-text-muted);
+}
+
+.agent-tk__skeleton-row > span {
+    height: 12px;
+    border-radius: 6px;
+    background: var(--dr-skeleton);
+}
+
+.agent-tk__skeleton-row {
+    padding: 14px 16px;
+    border-top: 1px solid var(--dr-border);
+}
+
+.agent-tk__skeleton-row:first-child {
+    border-top: 0;
+}
+
+.agent-tk__truncated {
+    margin: 0;
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+/* ---------- narrower screens ---------- */
+@media (max-width: 1099px) {
+    .agent-tk__top {
+        align-items: stretch;
+    }
+
+    .agent-tk__chip-row {
+        width: 100%;
+    }
+
+    .agent-tk__chip-row > li {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .agent-tk__chip {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .agent-tk__table {
+        --cols: minmax(0, 1.8fr) minmax(0, 1.4fr) minmax(0, 0.8fr) minmax(0, 1.1fr) minmax(0, 1.2fr) 140px 20px;
+    }
+}
+
+/* ---------- tablet portrait and phone: one card per task ---------- */
+@media (max-width: 899px) {
+    .agent-tk__head {
+        display: none;
+    }
+
+    .agent-tk__row {
+        grid-template-columns: minmax(0, 1fr) 20px;
+        grid-template-areas:
+            "task chevron"
+            "line line";
+        gap: 8px 10px;
+        padding: 12px 14px;
+    }
+
+    .agent-tk__c--task {
+        grid-area: task;
+    }
+
+    .agent-tk__chevron {
+        grid-area: chevron;
+    }
+
+    .agent-tk__title {
+        white-space: normal;
+    }
+
+    .agent-tk__line {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+        grid-area: line;
+        padding-left: 28px;
+    }
+
+    .agent-tk__c--linked {
+        flex-basis: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 8px;
+    }
+
+    .agent-tk__c--actions {
+        display: flex;
+        margin-left: auto;
+        gap: 6px;
+    }
+
+    .agent-tk__skeleton-row {
+        grid-template-columns: 1fr;
+    }
+
+    .agent-tk__skeleton-row > :nth-child(n + 3) {
+        display: none;
+    }
+}
+
+@media (max-width: 639px) {
+    .agent-tk__chip-row {
+        margin: 0 -16px;
+        padding: 0 16px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .agent-tk__chip-row::-webkit-scrollbar {
+        display: none;
+    }
+
+    .agent-tk__chip-row > li {
+        flex: none;
+    }
+
+    .agent-tk__chip {
+        width: auto;
+        min-width: 96px;
+    }
+}
