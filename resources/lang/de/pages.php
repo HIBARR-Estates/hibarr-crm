@@ -3382,6 +3382,12 @@ return [
                 'of' => '{{current}} von {{target}}',
                 'days_left' => 'Verbleibende Tage im Zyklus',
                 'and' => 'und',
+                'operator' => [
+                    'gt' => 'mehr als',
+                    'lte' => 'höchstens',
+                    'lt' => 'weniger als',
+                    'eq' => 'genau',
+                ],
                 'hint_next' => 'Erreichen Sie {{needs}} bis {{date}}, um auf {{level}} aufzusteigen.',
                 'hint_next_open' => 'Erreichen Sie {{needs}}, um auf {{level}} aufzusteigen.',
                 'hint_met' => 'Sie erfüllen die Kriterien für {{level}}.',

@@ -19,6 +19,8 @@ export default function useCommissionLines(items: CommissionLine[]) {
 
     const markDisputed = useCallback((commissionId: number, dispute: DisputeView) => {
         setLines((current) => current.map((line) => (line.id === commissionId ? { ...line, disputed: true, can_dispute: false, dispute } : line)));
+        // The bar closes only if it is still this line's: another line opened while the request ran keeps its draft.
+        setOpen((now) => (now?.id === commissionId ? null : now));
     }, []);
 
     const current = open ? (lines.find((line) => line.id === open.id) ?? null) : null;

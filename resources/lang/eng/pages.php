@@ -3539,6 +3539,12 @@ return [
                 'of' => '{{current}} of {{target}}',
                 'days_left' => 'Days left in cycle',
                 'and' => 'and',
+                'operator' => [
+                    'gt' => 'more than',
+                    'lte' => 'at most',
+                    'lt' => 'fewer than',
+                    'eq' => 'exactly',
+                ],
                 'hint_next' => 'Reach {{needs}} by {{date}} to move up to {{level}}.',
                 'hint_next_open' => 'Reach {{needs}} to move up to {{level}}.',
                 'hint_met' => 'You meet the criteria for {{level}}.',

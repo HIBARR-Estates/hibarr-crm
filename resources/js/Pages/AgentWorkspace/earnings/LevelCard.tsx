@@ -3,6 +3,9 @@ import { formatMoney } from "../deals/format";
 import { criterionAmount, criterionLabel, dayMonth } from "./format";
 import type { LevelCard as LevelCardData } from "./types";
 
+/** The wording key for each operator the criteria accept besides ">=". */
+const OPERATOR_KEYS: Record<string, "gt" | "lte" | "lt" | "eq"> = { ">": "gt", "<=": "lte", "<": "lt", "=": "eq" };
+
 interface LevelCardProps {
     card: LevelCardData;
     currencySymbol: string;
@@ -30,7 +33,12 @@ export default function LevelCard({ card, currencySymbol }: LevelCardProps) {
     else if (unmet.length === 0) hint = t("pages.agent_workspace.earnings.level.hint_met", { level: card.next_level });
     else {
         const needs = unmet
-            .map((criterion) => `${criterionAmount(criterion.metric, criterion.target, money, locale)} ${criterionLabel(criterion.metric, t).toLowerCase()}`)
+            .map((criterion) => {
+                const amount = `${criterionAmount(criterion.metric, criterion.target, money, locale)} ${criterionLabel(criterion.metric, t).toLowerCase()}`;
+                // ">=" reads as before; the other operators say what the number must be, so the hint matches the check.
+                const words = OPERATOR_KEYS[criterion.operator];
+                return words ? `${t(`pages.agent_workspace.earnings.level.operator.${words}`)} ${amount}` : amount;
+            })
             .join(` ${t("pages.agent_workspace.earnings.level.and")} `);
         hint = endDate
             ? t("pages.agent_workspace.earnings.level.hint_next", { needs, date: endDate, level: card.next_level })

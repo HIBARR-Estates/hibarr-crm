@@ -73,11 +73,12 @@ const Row = memo(function Row({ line, currencySymbol, active, year, onDispute, o
                     {monthLabel(line.created_at, locale, year)}
                 </span>
                 <span role="cell" className="agent-ea__act">
-                    {line.disputed ? (
+                    {line.dispute ? (
                         <button type="button" className="agent-ea__btn" onClick={() => onViewDispute(line)}>
                             {t("pages.agent_workspace.earnings.actions.view_dispute")}
                         </button>
-                    ) : line.can_dispute ? (
+                    ) : null}
+                    {line.can_dispute ? (
                         <button type="button" className="agent-ea__btn" onClick={() => onDispute(line)}>
                             {t("pages.agent_workspace.earnings.actions.dispute")}
                         </button>

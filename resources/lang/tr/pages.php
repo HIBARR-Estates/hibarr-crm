@@ -3360,6 +3360,12 @@ return [
                 'of' => '{{current}} / {{target}}',
                 'days_left' => 'Döngüde kalan gün',
                 'and' => 've',
+                'operator' => [
+                    'gt' => 'daha fazla',
+                    'lte' => 'en fazla',
+                    'lt' => 'daha az',
+                    'eq' => 'tam olarak',
+                ],
                 'hint_next' => '{{level}} seviyesine çıkmak için {{date}} tarihine kadar {{needs}} ulaşın.',
                 'hint_next_open' => '{{level}} seviyesine çıkmak için {{needs}} ulaşın.',
                 'hint_met' => '{{level}} kriterlerini karşılıyorsunuz.',
