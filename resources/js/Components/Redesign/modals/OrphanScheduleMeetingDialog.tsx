@@ -141,8 +141,13 @@ export default function OrphanScheduleMeetingDialog({
             initialForm={initialForm}
             // A record is being fetched — seeding now would lock in a form
             // built from `source` before it arrived, and this modal only
-            // seeds once per mount.
-            readyToSeed={!selectedKey || !loading}
+            // seeds once per mount. `loading` is still false on the first
+            // render with a record (the fetch starts in an effect), so wait
+            // until the fetch has actually produced a result or an error.
+            readyToSeed={
+                !selectedKey ||
+                (!loading && (source !== null || error !== null))
+            }
             onSubmit={handleSubmit}
             mustIncludeOwner={mustIncludeOwner}
             labels={{

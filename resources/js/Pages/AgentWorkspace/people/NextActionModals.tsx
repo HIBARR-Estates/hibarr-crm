@@ -73,6 +73,15 @@ export default function NextActionModals({ request, onClose, taskBoardColumns }:
 
     if (!request) return null;
 
+    // A reschedule changes the meeting the modal is showing, so read it again
+    // rather than leaving the old time on screen until the modal is reopened.
+    const refreshMeeting = (id: number) => {
+        axios
+            .get(route("agent.meetings.show", id))
+            .then(({ data }) => setMeeting(data.meeting))
+            .catch(() => undefined);
+    };
+
     const close = () => {
         setTask(null);
         setMeeting(null);
@@ -110,7 +119,10 @@ export default function NextActionModals({ request, onClose, taskBoardColumns }:
                     }}
                     markingHeld={isHeldPending(meeting.id)}
                     reloadKeys={RELOAD_KEYS}
-                    onRescheduled={refresh}
+                    onRescheduled={() => {
+                        refresh();
+                        refreshMeeting(meeting.id);
+                    }}
                 />
             ) : null}
             {request.mode === "create" && request.kind === "task" ? (

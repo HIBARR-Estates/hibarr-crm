@@ -389,7 +389,7 @@ class DashboardMetricsService
 
         $tasksQuery = $pending()
             ->where('due_date', '<=', $until)
-            ->with($useRedesignedTasks ? TaskPresenter::RELATIONS : ['users:id,name,image', 'boardColumn:id,slug,column_name'])
+            ->with($useRedesignedTasks ? TaskPresenter::RELATIONS : ['users:id,name,image', 'boardColumn:id,slug,column_name', 'category:id,category_name,action'])
             ->orderBy('due_date')
             ->limit($limit);
 
@@ -443,7 +443,7 @@ class DashboardMetricsService
             ->pending()
             ->visibleToUser($userId)
             ->whereBetween('due_date', $this->storageWindow($from, $to))
-            ->with($useRedesignedTasks ? TaskPresenter::RELATIONS : ['users:id,name,image', 'boardColumn:id,slug,column_name'])
+            ->with($useRedesignedTasks ? TaskPresenter::RELATIONS : ['users:id,name,image', 'boardColumn:id,slug,column_name', 'category:id,category_name,action'])
             ->orderBy('due_date')
             ->limit($limit);
 
