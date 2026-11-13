@@ -547,8 +547,9 @@ button .agent-new-tag {
         justify-content: center;
     }
 
+    /* Typing opens a dropdown, so the field needs little room of its own; the dock must not push into the corner. */
     .agent-dock__search:focus-within {
-        width: 180px;
+        width: 128px;
         padding: 0 10px;
     }
 
