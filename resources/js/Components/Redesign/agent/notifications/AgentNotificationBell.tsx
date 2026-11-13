@@ -76,8 +76,20 @@ export default function AgentNotificationBell() {
     };
     const openNotification = (notification: Notification) => {
         setOpen(false);
-        read(notification);
-        if (notification.link && isSafeHttpUrl(notification.link)) window.location.href = notification.link;
+        const link = notification.link && isSafeHttpUrl(notification.link) ? notification.link : null;
+        if (notification.is_read) {
+            if (link) window.location.href = link;
+            return;
+        }
+        // Leaving the page cancels a request still in flight, so the link waits for the read mark to settle (with a short cap so a slow network never blocks the click).
+        let left = false;
+        const go = () => {
+            if (left || !link) return;
+            left = true;
+            window.location.href = link;
+        };
+        markAsRead({ id: notification.id }, { ...quiet, onSettled: go });
+        if (link) window.setTimeout(go, 1500);
     };
 
     const groups = groupByDay(list.notifications, nowMs, timezone);

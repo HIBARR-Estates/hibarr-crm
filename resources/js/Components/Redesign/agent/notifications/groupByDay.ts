@@ -7,13 +7,19 @@ export interface DayGroup<T> {
     items: T[];
 }
 
+/** The calendar day before a "YYYY-MM-DD" key. Plain date arithmetic, so a 23 or 25 hour day around a clock change cannot skip or repeat a day. */
+function previousDayKey(dayKey: string): string {
+    const [year, month, day] = dayKey.split("-").map(Number);
+    return new Date(Date.UTC(year, month - 1, day - 1)).toISOString().slice(0, 10);
+}
+
 /**
  * Splits newest-first items into Today, Yesterday and Earlier, by the day in
  * the viewer's own time zone. Empty groups are left out and the order kept.
  */
 export function groupByDay<T extends { created_at: string }>(items: T[], nowMs: number, timeZone: string): Array<DayGroup<T>> {
     const today = dayKeyIn(nowMs, timeZone);
-    const yesterday = dayKeyIn(nowMs - 86_400_000, timeZone);
+    const yesterday = previousDayKey(today);
     const groups: Record<DayGroupKey, T[]> = { today: [], yesterday: [], earlier: [] };
 
     for (const item of items) {
