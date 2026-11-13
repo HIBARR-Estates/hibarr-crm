@@ -35,7 +35,7 @@ import useDealWorkspaceModel from "@/Pages/Deals/Redesign/hooks/useDealWorkspace
 import type { DealShowProps } from "@/Pages/Deals/Redesign/types";
 import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import type { LeadCreateKind } from "@/Pages/Leads/Redesign/components/workspace/LeadCreateModals";
-import ActivityCards, { type ActivityPermissions, type ActivitySource } from "./contact/ActivityCards";
+import ActivityCards, { SHOW_ACTIVITY_CARD, type ActivityPermissions, type ActivitySource } from "./contact/ActivityCards";
 import AiBriefStrip from "./contact/AiBriefStrip";
 import ContactHeader, { leadPhone, type ExtraActivity } from "./contact/ContactHeader";
 import KeyFacts from "./contact/KeyFacts";
@@ -339,6 +339,12 @@ function ContactDealInner(props: ContactDealProps) {
     );
     const jump = (id: string) => {
         setActiveSection(id);
+        // In the deal-only view the files are a card of the activity strip, a tab on a phone: show it first.
+        if (id === "deal-files" && restricted) {
+            window.dispatchEvent(new CustomEvent(SHOW_ACTIVITY_CARD, { detail: "files" }));
+            window.requestAnimationFrame(() => scrollToSection(id));
+            return;
+        }
         scrollToSection(id);
     };
 

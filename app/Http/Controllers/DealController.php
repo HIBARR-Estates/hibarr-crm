@@ -564,13 +564,20 @@ class DealController extends AccountBaseController
         // A deal can be visible to someone the lead is not: they get the deal
         // only, with nothing of the lead's own details sent.
         $person = Lead::query()->with('leadOwner:id,name')->find((int) $lead);
-        if ($person === null || ! LeadVisibility::canView(user(), $person)) {
+        $restricted = $person === null || ! LeadVisibility::canView(user(), $person);
+        if ($restricted) {
             $props = LeadVisibility::withoutLeadDetails($props, $person?->leadOwner?->name, (int) user()->id);
+        }
+
+        $siblings = $contactDeals->forLead((int) $lead, user());
+        if ($restricted) {
+            // The lead's other deals are part of the lead: only this deal is sent.
+            $siblings = array_values(array_filter($siblings, fn (array $summary) => (int) $summary['id'] === (int) $deal));
         }
 
         return Inertia::render('AgentWorkspace/ContactDeal', array_merge(
             Arr::except($props, self::AGENT_CONTACT_UNUSED_PROPS),
-            ['contactDeals' => $contactDeals->forLead((int) $lead, user())],
+            ['contactDeals' => $siblings],
         ));
     }
 

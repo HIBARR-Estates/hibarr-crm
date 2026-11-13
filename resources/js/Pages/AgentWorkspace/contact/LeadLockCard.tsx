@@ -9,18 +9,17 @@ import type { LeadRestriction } from "./RestrictedDealHeader";
 export default function LeadLockCard({ name, restriction }: { name: string; restriction: LeadRestriction }) {
     const { t } = useTranslation();
     const owner = restriction.owner_name;
+    const title = owner
+        ? t("pages.agent_workspace.deal.restricted.lock_title", { owner })
+        : t("pages.agent_workspace.deal.restricted.lock_title_no_owner");
 
     return (
-        <section className="agent-restricted__lock" aria-label={t("pages.agent_workspace.deal.restricted.lock_title_no_owner")}>
+        <section className="agent-restricted__lock" aria-label={title}>
             <span className="agent-restricted__lock-icon" aria-hidden="true">
                 <Icon name="lock" size={16} />
             </span>
             <div>
-                <h2>
-                    {owner
-                        ? t("pages.agent_workspace.deal.restricted.lock_title", { owner })
-                        : t("pages.agent_workspace.deal.restricted.lock_title_no_owner")}
-                </h2>
+                <h2>{title}</h2>
                 <p>
                     {owner
                         ? t("pages.agent_workspace.deal.restricted.lock_text", { name, owner })

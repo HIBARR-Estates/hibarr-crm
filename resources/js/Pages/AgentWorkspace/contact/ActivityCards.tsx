@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
@@ -62,6 +62,9 @@ interface ActivityCardsProps {
     dealOnly?: { notesTitle: string; extraCards: Array<{ id: string; label: string; node: ReactNode }> };
 }
 
+/** Window event that switches the strip to the card named in `detail` (matters where the cards are tabs). */
+export const SHOW_ACTIVITY_CARD = "agent-activity:show";
+
 /**
  * Coming up, Last touches and Notes, side by side; tabs on a phone. Coming
  * up and Notes read the page's workspace context (the record page's own
@@ -87,6 +90,18 @@ export default function ActivityCards(props: ActivityCardsProps) {
         cards.push({ id: "notes", label: t("pages.agent_workspace.contact.notes.title"), node: <NotesCard {...props} /> });
     }
     if (props.dealOnly) cards.push(...props.dealOnly.extraCards);
+    // Something outside the cards (a button in the AI strip) can ask for one to be shown.
+    useEffect(() => {
+        const show = (event: Event) => {
+            const id = (event as CustomEvent<string>).detail;
+            if (typeof id === "string") setTab(id);
+        };
+        window.addEventListener(SHOW_ACTIVITY_CARD, show);
+        return () => window.removeEventListener(SHOW_ACTIVITY_CARD, show);
+    }, []);
+
+    // A viewer who may see none of the cards gets no strip at all.
+    if (cards.length === 0) return null;
     const active = cards.some((card) => card.id === tab) ? tab : cards[0].id;
 
     return (
