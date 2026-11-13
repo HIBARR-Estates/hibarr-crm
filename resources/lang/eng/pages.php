@@ -2943,6 +2943,7 @@ return [
 
     'lead_merge' => [
         'title' => 'Merge leads',
+        'close' => 'Close',
         'subtitle' => 'Everything on the duplicate moves to the kept lead. Where the two differ, choose the value to keep.',
         'kept_lead' => 'Kept lead',
         'duplicate_archived' => 'Duplicate · archived after merge',
@@ -3890,6 +3891,7 @@ return [
                 'duplicate_title' => 'Possible duplicate: {{name}}',
                 'duplicate_more' => '+{{count}} more possible duplicates',
                 'review_merge' => 'Review and merge',
+                'merge_unsaved' => 'Save or undo your changes first, then review the merge. Merging refreshes this lead.',
                 'not_same' => 'Not the same person',
                 'unnamed' => 'Unnamed lead',
                 'sections_cap' => 'Sections · {{filled}} of {{total}} filled',

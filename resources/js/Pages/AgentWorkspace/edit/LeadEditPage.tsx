@@ -29,6 +29,8 @@ interface LeadEditPageProps {
     /** The lead's lifecycle status as it reads now, shown locked while editing. */
     statusLabel: string;
     duplicates: ReturnType<typeof useLeadDuplicates>;
+    /** After a merge: refreshes this lead, or opens the one that was kept. */
+    onMergedInto: (keptId: number) => void;
     onClose: () => void;
 }
 
@@ -39,7 +41,7 @@ const PREFIX = "pages.agent_workspace.contact.edit";
  * mode, section by section, with the changes and what the key facts will read
  * after saving always in view. The lifecycle status is never a field here.
  */
-export default function LeadEditPage({ options, statusLabel, duplicates, onClose }: LeadEditPageProps) {
+export default function LeadEditPage({ options, statusLabel, duplicates, onMergedInto, onClose }: LeadEditPageProps) {
     const { t, locale } = useTranslation();
     const { td } = useTd();
     const { lead } = useLeadWorkspace();
@@ -50,10 +52,15 @@ export default function LeadEditPage({ options, statusLabel, duplicates, onClose
     const [sectionId, setSectionId] = useState<EditSection["id"]>("profile");
     const [confirmDiscard, setConfirmDiscard] = useState(false);
     const [reviewId, setReviewId] = useState<number | null>(null);
+    // A merge rewrites this lead's fields, so unsaved edits are saved or undone first.
+    const [mergeBlocked, setMergeBlocked] = useState(false);
     // "Not the same person" is remembered per candidate, so a different duplicate still shows.
     const [notSame, setNotSame] = useState<number[]>([]);
 
     const dirty = changed.length > 0;
+    useEffect(() => {
+        if (!dirty) setMergeBlocked(false);
+    }, [dirty]);
 
     // Leaving the page by closing the tab, with changes not saved.
     useEffect(() => {
@@ -294,8 +301,13 @@ export default function LeadEditPage({ options, statusLabel, duplicates, onClose
                                     ? ` · ${t(`${PREFIX}.duplicate_more`, { count: open.length - 1 })}`
                                     : ""}
                             </span>
+                            {mergeBlocked ? <span className="agent-edit__dup-note">{t(`${PREFIX}.merge_unsaved`)}</span> : null}
                         </div>
-                        <Button variant="navy" size="sm" onClick={() => setReviewId(candidate.id)}>
+                        <Button
+                            variant="navy"
+                            size="sm"
+                            onClick={() => (dirty ? setMergeBlocked(true) : setReviewId(candidate.id))}
+                        >
                             {t(`${PREFIX}.review_merge`)}
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => setNotSame((previous) => [...previous, candidate.id])}>
@@ -431,8 +443,14 @@ export default function LeadEditPage({ options, statusLabel, duplicates, onClose
             {reviewId !== null ? (
                 <LeadMergeReviewModal
                     open
+                    variant="agent"
                     primaryId={lead.id}
                     duplicateId={reviewId}
+                    onMerged={(keptId) => {
+                        // Nothing unsaved is left here, so the page closes and shows the merged lead.
+                        onClose();
+                        onMergedInto(keptId);
+                    }}
                     onClose={(merged) => {
                         setReviewId(null);
                         if (merged) void duplicates.invalidate();

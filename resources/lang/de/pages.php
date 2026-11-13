@@ -2786,6 +2786,7 @@ return [
 
     'lead_merge' => [
         'title' => 'Leads zusammenführen',
+        'close' => 'Schließen',
         'subtitle' => 'Alles vom Duplikat geht auf den behaltenen Lead über. Wo sich die beiden unterscheiden, wählen Sie den Wert, der bleibt.',
         'kept_lead' => 'Behaltener Lead',
         'duplicate_archived' => 'Duplikat · wird nach dem Zusammenführen archiviert',
@@ -3733,6 +3734,7 @@ return [
                 'duplicate_title' => 'Mögliches Duplikat: {{name}}',
                 'duplicate_more' => '+{{count}} weitere mögliche Duplikate',
                 'review_merge' => 'Prüfen und zusammenführen',
+                'merge_unsaved' => 'Speichern oder verwerfen Sie zuerst Ihre Änderungen und prüfen Sie dann die Zusammenführung. Beim Zusammenführen wird dieser Lead neu geladen.',
                 'not_same' => 'Nicht dieselbe Person',
                 'unnamed' => 'Lead ohne Namen',
                 'sections_cap' => 'Bereiche · {{filled}} von {{total}} ausgefüllt',
