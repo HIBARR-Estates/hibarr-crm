@@ -19,6 +19,8 @@ Route::middleware(['auth', 'partner.restrict', EnsureAgentWorkspaceAccess::class
         Route::redirect('/', '/agent/today')->name('home');
         Route::get('today', [AgentWorkspaceController::class, 'today'])->name('today');
         Route::get('today/agenda', [AgentWorkspaceController::class, 'agenda'])->name('today.agenda');
+        // The lead list: runs on the Leads index's own query and checks.
+        Route::get('people', [LeadContactController::class, 'agentIndex'])->name('people');
         // One page for a person. Runs on the lead page's own props and checks.
         Route::get('people/{lead}', [LeadContactController::class, 'agentShow'])
             ->whereNumber('lead')

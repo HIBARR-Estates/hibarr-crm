@@ -1,0 +1,631 @@
+/* People: the lead list (L7-14). Colours come from the --dr-* tokens; due
+   pills use the shared time states (.agent-ts--*). Cards are filled, never
+   edged with a side border, and nothing here casts a shadow. */
+
+/* ---------- band ---------- */
+.agent-ws:has(.agent-pp) {
+    --agent-band-height: 300px;
+}
+
+/* Below 1280px the chips and search no longer fit beside the title, so they stack under it. */
+@media (max-width: 1279px) {
+    .agent-ws:has(.agent-pp) {
+        --agent-band-height: 348px;
+    }
+}
+
+@media (max-width: 639px) {
+    .agent-ws:has(.agent-pp) {
+        --agent-band-height: 330px;
+    }
+}
+
+.agent-pp {
+    display: flex;
+    flex-direction: column;
+    gap: 38px;
+}
+
+/* ---------- header on the band ---------- */
+.agent-pp__top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px 16px;
+    min-height: 62px;
+}
+
+.agent-pp__heading {
+    min-width: 0;
+    flex: 1 1 280px;
+}
+
+.agent-pp__heading h1 {
+    margin: 0;
+    color: var(--dr-white);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.agent-pp__heading p {
+    margin: 4px 0 0;
+    color: var(--dr-navy-mid);
+    font-size: 14px;
+}
+
+.agent-pp__tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px 6px;
+    min-width: 0;
+}
+
+.agent-pp__chips {
+    display: flex;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-pp__chip {
+    display: flex;
+    min-width: 104px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 9px 14px;
+    border: 1px solid var(--dr-navy-raised-line);
+    border-radius: 12px;
+    background: var(--dr-navy-raised);
+    color: var(--dr-white);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.agent-pp__chip:hover {
+    border-color: var(--dr-navy-mid);
+}
+
+.agent-pp__chip[aria-pressed="true"] {
+    border-color: var(--dr-white);
+    background: var(--dr-white);
+    color: var(--dr-navy);
+}
+
+.agent-pp__chip:focus-visible {
+    outline: 2px solid var(--dr-white);
+    outline-offset: 2px;
+}
+
+.agent-pp__chip-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--dr-navy-soft);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-pp__chip[aria-pressed="true"] .agent-pp__chip-label {
+    color: var(--dr-navy);
+}
+
+.agent-pp__chip-mark {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    border-radius: 2px;
+    background: var(--mark, var(--dr-time-none-solid));
+}
+
+.agent-pp__chip-value {
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.agent-pp__chip--loading .agent-pp__chip-value {
+    border-radius: 4px;
+    background: var(--dr-navy-raised-line);
+    color: transparent;
+}
+
+.agent-pp__chip[aria-pressed="true"].agent-pp__chip--loading .agent-pp__chip-value {
+    background: var(--dr-skeleton);
+}
+
+.agent-pp__search {
+    position: relative;
+    display: flex;
+    width: 220px;
+    height: 38px;
+    align-items: center;
+}
+
+.agent-pp__search svg {
+    position: absolute;
+    left: 11px;
+    color: var(--dr-text-hint);
+    pointer-events: none;
+}
+
+.agent-pp__search input {
+    width: 100%;
+    height: 100%;
+    padding: 0 11px 0 32px;
+    border: 1px solid var(--dr-white);
+    border-radius: 9px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 13px;
+}
+
+.agent-pp__search input::placeholder {
+    color: var(--dr-text-hint);
+}
+
+.agent-pp__search input:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 1px;
+}
+
+/* ---------- table ---------- */
+.agent-pp__table {
+    --cols: 2.3fr 1fr 1.3fr 1.05fr 1.5fr 1.2fr 0.9fr 20px;
+
+    overflow: hidden;
+    border: 1px solid var(--dr-border);
+    border-radius: 14px;
+    background: var(--dr-white);
+    transition: opacity 0.12s ease;
+}
+
+.agent-pp__table[aria-busy="true"] {
+    opacity: 0.6;
+}
+
+.agent-pp__head,
+.agent-pp__row {
+    display: grid;
+    grid-template-columns: var(--cols);
+    align-items: center;
+    gap: 14px;
+    padding: 9px 16px;
+}
+
+.agent-pp__head {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--dr-border);
+    background: var(--dr-surface-hover);
+}
+
+.agent-pp__th {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--dr-text-muted);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+button.agent-pp__th {
+    cursor: pointer;
+}
+
+.agent-pp__th[aria-sort] {
+    color: var(--dr-navy);
+}
+
+.agent-pp__th:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 3px;
+}
+
+.agent-pp__row {
+    position: relative;
+    border-top: 1px solid var(--dr-border);
+    cursor: pointer;
+}
+
+.agent-pp__row:first-of-type {
+    border-top: 0;
+}
+
+.agent-pp__row:hover,
+.agent-pp__row:focus-within {
+    background: var(--dr-blue-light);
+}
+
+/* On a phone the cells after the person wrap on one line; elsewhere they are plain grid cells. */
+.agent-pp__line {
+    display: contents;
+}
+
+.agent-pp__person {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+}
+
+.agent-pp__avatar {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--fill, var(--dr-blue));
+    color: var(--dr-white);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.agent-pp__who {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.agent-pp__name {
+    overflow: hidden;
+    color: var(--dr-text);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.25;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-pp__name:hover {
+    color: var(--dr-blue);
+}
+
+.agent-pp__name:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* The whole row opens the person; the name link carries the keyboard focus. */
+.agent-pp__name::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+}
+
+.agent-pp__sub {
+    overflow: hidden;
+    line-height: 1.25;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-pp__status {
+    width: max-content;
+    max-width: 100%;
+    overflow: hidden;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--tag, var(--dr-gray-dark));
+    color: var(--dr-white);
+    font-size: 12px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-pp__action {
+    overflow: hidden;
+    color: var(--dr-text);
+    font-size: 13px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-pp__action--none {
+    color: var(--dr-text-muted);
+    font-weight: 400;
+}
+
+.agent-pp__due {
+    display: inline-flex;
+    width: max-content;
+    max-width: 100%;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border: 1px solid var(--ts-border);
+    border-radius: 999px;
+    background: var(--ts-bg);
+    color: var(--ts-text);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-pp__due-dot {
+    width: 7px;
+    height: 7px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--ts-solid);
+}
+
+.agent-pp__deals {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.agent-pp__deal {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.agent-pp__deal span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.agent-pp__deal-mark {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    border-radius: 2px;
+    background: var(--mark, var(--dr-blue));
+}
+
+.agent-pp__muted {
+    color: var(--dr-text-muted);
+    font-size: 12px;
+    font-weight: 400;
+    white-space: nowrap;
+}
+
+.agent-pp__owner {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+}
+
+.agent-pp__owner-avatar {
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--dr-blue);
+    color: var(--dr-white);
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.agent-pp__owner-avatar--other {
+    background: var(--dr-gray-dark);
+}
+
+.agent-pp__owner-text {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.agent-pp__owner-text small {
+    color: var(--dr-text-muted);
+    font-size: 11px;
+}
+
+.agent-pp__chevron {
+    justify-self: end;
+    color: var(--dr-text-muted);
+}
+
+.agent-pp__cell-loading {
+    display: inline-block;
+    width: 64px;
+    height: 10px;
+    border-radius: 4px;
+    background: var(--dr-skeleton);
+}
+
+/* ---------- empty, pager ---------- */
+.agent-pp__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 40px 16px;
+    text-align: center;
+}
+
+.agent-pp__empty strong {
+    color: var(--dr-text);
+    font-size: 14px;
+}
+
+.agent-pp__empty span {
+    color: var(--dr-text-muted);
+    font-size: 13px;
+}
+
+.agent-pp__pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--dr-border);
+    background: var(--dr-surface-hover);
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+.agent-pp__pager-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+/* ---------- skeleton rows ---------- */
+.agent-pp__skeleton-row {
+    display: grid;
+    grid-template-columns: var(--cols);
+    align-items: center;
+    gap: 14px;
+    padding: 9px 16px;
+    border-top: 1px solid var(--dr-border);
+}
+
+.agent-pp__skeleton-row:first-child {
+    border-top: 0;
+}
+
+.agent-pp__skeleton-bar {
+    height: 12px;
+    border-radius: 6px;
+    background: var(--dr-skeleton);
+}
+
+/* ---------- compact header: chips and search under the title ---------- */
+@media (max-width: 1279px) {
+    .agent-pp__top {
+        align-items: stretch;
+    }
+
+    .agent-pp__tools {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 8px;
+    }
+
+    .agent-pp__chips > li {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .agent-pp__chip {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .agent-pp__search {
+        width: 100%;
+    }
+}
+
+/* ---------- tablet: Deals and Last touch step aside ---------- */
+@media (max-width: 1099px) {
+    .agent-pp__table {
+        --cols: 2.2fr 1fr 1.3fr 1.1fr 1.1fr 20px;
+    }
+
+    .agent-pp__c--deals,
+    .agent-pp__c--touch {
+        display: none;
+    }
+}
+
+/* ---------- phone: one card per person ---------- */
+@media (max-width: 639px) {
+    .agent-pp__chips {
+        margin: 0 -16px;
+        padding: 0 16px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .agent-pp__chips::-webkit-scrollbar {
+        display: none;
+    }
+
+    .agent-pp__chips > li {
+        flex: none;
+    }
+
+    .agent-pp__chip {
+        width: auto;
+        min-width: 96px;
+    }
+
+    .agent-pp__head {
+        display: none;
+    }
+
+    .agent-pp__row {
+        grid-template-columns: minmax(0, 1fr) 20px;
+        grid-template-areas:
+            "person chevron"
+            "line line";
+        gap: 8px 10px;
+        padding: 12px 14px;
+    }
+
+    .agent-pp__c--person {
+        grid-area: person;
+    }
+
+    .agent-pp__chevron {
+        grid-area: chevron;
+    }
+
+    /* Status, next action and due share one wrapping line under the person. */
+    .agent-pp__line {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 8px;
+        grid-area: line;
+        padding-left: 42px;
+    }
+
+    .agent-pp__c--owner.agent-pp__c--you {
+        display: none;
+    }
+
+    .agent-pp__skeleton-row {
+        grid-template-columns: 1fr;
+    }
+
+    .agent-pp__skeleton-row > :nth-child(n + 3) {
+        display: none;
+    }
+
+    .agent-pp__pager {
+        flex-wrap: wrap;
+    }
+}

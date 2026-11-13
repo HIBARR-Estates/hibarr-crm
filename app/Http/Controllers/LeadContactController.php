@@ -19,6 +19,7 @@ use App\Http\Requests\Lead\StoreRequest;
 use App\Http\Requests\Lead\UpdateRequest;
 use App\Imports\LeadImport;
 use App\Jobs\ImportLeadJob;
+use App\Models\CrmEvent;
 use App\Models\CustomField;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
@@ -168,6 +169,98 @@ class LeadContactController extends AccountBaseController
         }
 
         return Inertia::render('Leads/Index', $props);
+    }
+
+    /**
+     * People: the agent workspace's lead list. Runs on the Leads index's own
+     * query (permission scope, filters, next-action buckets), opening sorted
+     * by next action like the design. The page itself only needs the rows;
+     * the counts, the per-row deals and last touch, and the filter modal's
+     * support data arrive deferred so the list paints first.
+     */
+    public function agentIndex(Request $request, ContactDeals $contactDeals)
+    {
+        $viewPermission = user()->permission('view_lead');
+        if (! in_array($viewPermission, ['all', 'added', 'owned', 'both'])) {
+            return redirect()->back()->with('error', __('messages.permissionDenied'));
+        }
+
+        $request->merge([
+            'sort_by' => $request->input('sort_by', 'next_action'),
+            'sort_direction' => $request->input('sort_direction', 'asc'),
+            'per_page' => min(100, max(10, (int) $request->input('per_page', 25))),
+        ]);
+
+        $leads = $this->leadService->getPaginatedLeads($request);
+
+        // Counts ignore the next-action chip itself, so picking one never
+        // changes the numbers on the others.
+        $countRequest = Request::create('/', 'GET', $request->except(['next_action', 'page']));
+
+        $props = [
+            'pageTitle' => __('pages.agent_workspace.people.title'),
+            'userId' => (int) user()->id,
+            // 'all' sees everyone, so the default view is "All leads"; anyone
+            // narrower already only sees their own.
+            'scope' => $viewPermission === 'all' ? 'all' : 'mine',
+            'filters' => LeadService::filtersFromRequest($request),
+            'leads' => [
+                'data' => $leads->items(),
+                'current_page' => $leads->currentPage(),
+                'last_page' => $leads->lastPage(),
+                'per_page' => $leads->perPage(),
+                'total' => $leads->total(),
+                'from' => $leads->firstItem(),
+                'to' => $leads->lastItem(),
+            ],
+            'leadLifecycleStatuses' => LeadLifecycleStatus::query()
+                ->orderBy('sort_order')
+                ->get(['id', 'key', 'label', 'label_color']),
+            'counts' => Inertia::defer(fn () => [
+                'all' => $this->leadService->countMatching($countRequest),
+                'overdue' => $this->leadService->countNextActionBucket($countRequest, 'overdue'),
+                'today' => $this->leadService->countNextActionBucket($countRequest, 'today'),
+                'week' => $this->leadService->countNextActionBucket($countRequest, 'week'),
+                'none' => $this->leadService->countNextActionBucket($countRequest, 'none'),
+            ], 'counts'),
+            // Keyed by lead id: open deals, and the latest CRM event on the
+            // person (the contact page's Last touches stream).
+            'rowExtras' => Inertia::defer(function () use ($leads, $contactDeals) {
+                $ids = collect($leads->items())->pluck('id')->map(fn ($id) => (int) $id)->all();
+                $deals = $contactDeals->openForLeads($ids, user());
+                $touches = $ids === [] ? collect() : CrmEvent::query()
+                    ->where('model_type', Lead::class)
+                    ->whereIn('model_id', $ids)
+                    ->selectRaw('model_id, MAX(occurred_at) as last_at')
+                    ->groupBy('model_id')
+                    ->pluck('last_at', 'model_id');
+
+                return collect($ids)->mapWithKeys(fn (int $id) => [
+                    $id => [
+                        'deals' => $deals[$id] ?? [],
+                        'last_touch_at' => isset($touches[$id])
+                            ? \Carbon\Carbon::parse($touches[$id], 'UTC')->toIso8601String()
+                            : null,
+                    ],
+                ])->all();
+            }, 'extras'),
+            'preferredContactTimes' => Inertia::defer(
+                fn () => collect(PreferredContactTime::cases())->map(
+                    fn (PreferredContactTime $time) => [
+                        'value' => $time->value,
+                        'label' => $time->label(),
+                    ]
+                )->values()->all(),
+                'filters'
+            ),
+        ];
+
+        if (FeatureFlags::enabled('crm.leads-filter-v2')) {
+            $props['filterFacets'] = Inertia::defer(fn () => app(LeadFilterFacetsService::class)->facets(), 'filters');
+            $props['savedViews'] = Inertia::defer(fn () => $this->savedViewsForUser(), 'filters');
+        }
+
+        return Inertia::render('AgentWorkspace/People', $props);
     }
 
     /**
