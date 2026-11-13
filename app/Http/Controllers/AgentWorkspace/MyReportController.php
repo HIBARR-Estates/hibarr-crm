@@ -39,6 +39,9 @@ class MyReportController extends AccountBaseController
             'pageTitle' => __('pages.agent_workspace.nav.earnings'),
             'currencySymbol' => EarningsPresenter::currencySymbol(),
             'isAgent' => $agent !== null,
+            // The lists and the AI summary below the cards are the classic Agent Reports endpoints, asked for this agent.
+            'agentId' => $agent?->id,
+            'agentName' => user()->name,
             'range' => $range,
             'windows' => ReportWindows::all($this->now()),
             'kpi' => Inertia::defer(fn () => $agent ? $this->kpi($range) : null, 'kpi'),

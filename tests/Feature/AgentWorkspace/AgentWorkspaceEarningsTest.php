@@ -5,6 +5,7 @@ namespace Tests\Feature\AgentWorkspace;
 use App\Enums\MlmCommissionStatus;
 use App\Enums\MlmCommissionType;
 use App\Http\Controllers\AgentWorkspace\EarningsController;
+use App\Http\Controllers\AgentWorkspace\MyReportController;
 use App\Http\Middleware\EnsureAgentWorkspaceAccess;
 use App\Models\Deal;
 use App\Models\Lead;
@@ -86,6 +87,22 @@ class AgentWorkspaceEarningsTest extends TestCase
         }
 
         $this->assertStringEndsWith('/agent/earnings/network/12', route('agent.earnings.network.agent', 12, false));
+    }
+
+    public function test_my_report_and_its_period_endpoint_are_registered_behind_the_workspace_gate(): void
+    {
+        $actions = ['earnings.report' => 'show', 'earnings.report.kpi' => 'kpiFor'];
+
+        foreach ($actions as $name => $action) {
+            $route = Route::getRoutes()->getByName('agent.'.$name);
+
+            $this->assertNotNull($route, "agent.{$name} is missing");
+            $this->assertSame(MyReportController::class.'@'.$action, $route->getActionName());
+            $this->assertContains(EnsureAgentWorkspaceAccess::class, $route->gatherMiddleware());
+            $this->assertContains('auth', $route->gatherMiddleware());
+        }
+
+        $this->assertStringEndsWith('/agent/earnings/report', route('agent.earnings.report', [], false));
     }
 
     public function test_the_dock_opens_earnings_on_the_agent_page(): void
