@@ -24,7 +24,7 @@ export const AGENT_DESTINATIONS: AgentDestination[] = [
     { key: "deals", labelKey: "pages.agent_workspace.nav.deals", icon: "briefcase", segment: "deals", href: "/agent/deals" },
     { key: "tasks", labelKey: "pages.agent_workspace.nav.tasks", icon: "check-square", segment: "tasks", classicRoute: "tasks.index" },
     { key: "portfolio", labelKey: "pages.agent_workspace.nav.portfolio", icon: "building", segment: "portfolio", classicRoute: "properties.index" },
-    { key: "earnings", labelKey: "pages.agent_workspace.nav.earnings", icon: "wallet", segment: "earnings", classicRoute: "mlm.agent.dashboard" },
+    { key: "earnings", labelKey: "pages.agent_workspace.nav.earnings", icon: "wallet", segment: "earnings", href: "/agent/earnings" },
 ];
 
 /** Where a destination opens: its agent screen, else its classic screen (null if that route is missing). */
