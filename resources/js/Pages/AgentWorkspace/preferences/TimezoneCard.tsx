@@ -49,7 +49,7 @@ export default function TimezoneCard({ timezone: initialTimezone, locked: initia
                 <Switch
                     checked={!locked}
                     loading={saving === "browser"}
-                    disabled={busy && saving !== "browser"}
+                    disabled={busy}
                     onChange={() => void (locked ? save(browserZone, false, "browser") : save(timezone, true, "browser"))}
                     aria-label={t("pages.agent_workspace.prefs.timezone.sync")}
                 />

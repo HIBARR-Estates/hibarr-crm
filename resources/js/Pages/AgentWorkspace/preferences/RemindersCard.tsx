@@ -11,6 +11,9 @@ import useReminderPreferences, { MAX_REMINDERS, type ReminderPreferencesData, ty
 
 const UNITS: ReminderUnit[] = ["day", "hour", "minute"];
 
+/** The server allows up to 7 days (10080 minutes); the limit in each unit. */
+const MAX_BY_UNIT: Record<ReminderUnit, number> = { day: 7, hour: 168, minute: 10080 };
+
 /**
  * Meeting reminders: when to be notified before a meeting. Edits stay in a
  * draft until the save bar's Save changes; Reset to defaults asks first and
@@ -57,20 +60,23 @@ export default function RemindersCard({ data, barSlot }: { data: ReminderPrefere
                             <input
                                 type="number"
                                 min={0}
-                                max={10080}
+                                max={MAX_BY_UNIT[reminder.type]}
                                 className="agent-pr__number"
                                 value={reminder.time}
                                 disabled={off || busy}
                                 aria-label={t("pages.agent_workspace.prefs.reminders.before")}
                                 onChange={(event) => {
                                     const next = Number(event.target.value);
-                                    prefs.change(index, { time: Number.isFinite(next) ? Math.max(0, Math.min(10080, next)) : 0 });
+                                    prefs.change(index, { time: Number.isFinite(next) ? Math.max(0, Math.min(MAX_BY_UNIT[reminder.type], next)) : 0 });
                                 }}
                             />
                             <MenuSelect
                                 value={reminder.type}
                                 options={unitOptions}
-                                onChange={(value) => prefs.change(index, { type: value as ReminderUnit })}
+                                onChange={(value) => {
+                                    const type = value as ReminderUnit;
+                                    prefs.change(index, { type, time: Math.min(reminder.time, MAX_BY_UNIT[type]) });
+                                }}
                                 disabled={off || busy}
                                 width={128}
                                 size="sm"
@@ -124,7 +130,7 @@ export default function RemindersCard({ data, barSlot }: { data: ReminderPrefere
                 cancelLabel={t("pages.agent_workspace.prefs.cancel")}
                 confirmLoading={prefs.resetting}
                 onCancel={() => setResetOpen(false)}
-                onConfirm={() => void prefs.reset().then(() => setResetOpen(false))}
+                onConfirm={() => void prefs.reset().then((done) => done && setResetOpen(false))}
             />
         </>
     );

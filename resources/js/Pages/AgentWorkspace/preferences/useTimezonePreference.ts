@@ -24,6 +24,8 @@ export default function useTimezonePreference(initialTimezone: string | null, in
     const [saving, setSaving] = useState<Source | null>(null);
 
     const save = async (nextTimezone: string, nextLocked: boolean, source: Source) => {
+        // One save at a time: a second one would roll back to the first one's optimistic state.
+        if (saving !== null) return;
         const previous = { timezone, locked };
         setTimezone(nextTimezone);
         setLocked(nextLocked);
