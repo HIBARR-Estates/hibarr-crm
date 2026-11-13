@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AgentWorkspace\AgentWorkspaceController;
+use App\Http\Controllers\AgentWorkspace\EarningsController;
 use App\Http\Controllers\AgentWorkspace\PortfolioController;
 use App\Http\Controllers\DealController;
 use App\Http\Controllers\LeadContactController;
@@ -39,6 +40,13 @@ Route::middleware(['auth', 'partner.restrict', EnsureAgentWorkspaceAccess::class
         Route::get('tasks', [TaskController::class, 'agentIndex'])->name('tasks');
         // The deals board and list: runs on the Deals index's own filters and scope.
         Route::get('deals', [DealController::class, 'agentIndex'])->name('deals');
+        // Earnings: the MLM module's own commissions, disputes, levels, cycles and network.
+        Route::get('earnings', [EarningsController::class, 'overview'])->name('earnings');
+        Route::get('earnings/ledger', [EarningsController::class, 'ledger'])->name('earnings.ledger');
+        Route::get('earnings/network', [EarningsController::class, 'network'])->name('earnings.network');
+        Route::get('earnings/network/{agent}', [EarningsController::class, 'agentPanel'])
+            ->whereNumber('agent')
+            ->name('earnings.network.agent');
         // A deal by id alone: redirects to its person's page in the deal state.
         Route::get('deals/{deal}', [DealController::class, 'agentOpen'])
             ->whereNumber('deal')
