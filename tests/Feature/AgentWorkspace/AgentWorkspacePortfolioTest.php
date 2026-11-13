@@ -61,6 +61,13 @@ class AgentWorkspacePortfolioTest extends TestCase
         }
     }
 
+    public function test_a_property_manager_can_open_portfolio_without_view_product(): void
+    {
+        $page = $this->visit('none', 'browse', Request::create('/agent/portfolio/browse'), 'all');
+
+        $this->assertSame('browse', $page['props']['view']);
+    }
+
     public function test_browse_sends_a_light_shell_and_defers_the_cards_and_options(): void
     {
         $page = $this->visit('all', 'browse', Request::create('/agent/portfolio/browse', 'GET', ['city' => 'iskele', 'bogus' => 'x', 'max_price' => '350000']));
@@ -139,19 +146,30 @@ class AgentWorkspacePortfolioTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function visit(string $level, string $action, Request $request): array
+    private function visit(string $level, string $action, Request $request, string|false $manageProperties = false): array
     {
         $user = new class extends User
         {
             public string $level = 'none';
 
+            public string|false $manageProperties = false;
+
             public function permission($permission)
             {
-                return $permission === 'view_products' ? $this->level : false;
+                if ($permission === 'view_product') {
+                    return $this->level;
+                }
+
+                if ($permission === 'manage_properties') {
+                    return $this->manageProperties;
+                }
+
+                return false;
             }
         };
         $user->id = 5;
         $user->level = $level;
+        $user->manageProperties = $manageProperties;
         session(['user' => $user]);
 
         $request->headers->set('X-Inertia', 'true');
