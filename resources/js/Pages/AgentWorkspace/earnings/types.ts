@@ -1,4 +1,4 @@
-export type EarningsView = "overview" | "ledger" | "network";
+export type EarningsView = "overview" | "ledger" | "network" | "report";
 
 export type CommissionStatus = "pending" | "paid" | "reverted";
 

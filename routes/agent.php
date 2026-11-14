@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AgentWorkspace\AgentWorkspaceController;
 use App\Http\Controllers\AgentWorkspace\EarningsController;
+use App\Http\Controllers\AgentWorkspace\MyReportController;
 use App\Http\Controllers\AgentWorkspace\PortfolioController;
 use App\Http\Controllers\AgentWorkspace\PreferencesController;
 use App\Http\Controllers\AgentWorkspace\SearchController;
@@ -46,6 +47,8 @@ Route::middleware(['auth', 'partner.restrict', EnsureAgentWorkspaceAccess::class
         Route::get('earnings', [EarningsController::class, 'overview'])->name('earnings');
         Route::get('earnings/ledger', [EarningsController::class, 'ledger'])->name('earnings.ledger');
         Route::get('earnings/network', [EarningsController::class, 'network'])->name('earnings.network');
+        Route::get('earnings/report', [MyReportController::class, 'show'])->name('earnings.report');
+        Route::get('earnings/report/kpi', [MyReportController::class, 'kpiFor'])->name('earnings.report.kpi');
         Route::get('earnings/network/{agent}', [EarningsController::class, 'agentPanel'])
             ->whereNumber('agent')
             ->name('earnings.network.agent');
