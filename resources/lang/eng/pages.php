@@ -4031,6 +4031,16 @@ return [
             'alerts_off' => 'Mute sound and desktop alerts',
             'manage' => 'Notification settings',
         ],
+        'new_activity' => [
+            'eyebrow' => 'New activity',
+            'task' => 'Task',
+            'task_text' => 'Call, send, prepare. Set a due date and who it is for.',
+            'meeting' => 'Meeting',
+            'meeting_text' => 'Set a time, a type and who joins.',
+            'meeting_types_more' => '{{types}} and more',
+            'foot_deal' => 'Linked to the deal you have selected · same forms as today',
+            'foot_person' => 'Linked to this person · same forms as today',
+        ],
         'contact' => [
             'views_aria' => 'Lead and deals',
             'lead_pill' => 'Lead · {{status}}',
