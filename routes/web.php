@@ -1121,7 +1121,7 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
         Route::get('/meetings', [AgentReportController::class, 'meetings'])->name('meetings');
         Route::get('/deal-notes', [AgentReportController::class, 'dealNotes'])->name('deal-notes');
         Route::get('/lead-notes', [AgentReportController::class, 'leadNotes'])->name('lead-notes');
-        Route::post('/ai-summary', [AgentReportController::class, 'aiSummary'])->name('ai-summary');
+        Route::post('/ai-summary', [AgentReportController::class, 'aiSummary'])->middleware('throttle:10,1')->name('ai-summary');
         Route::get('/saved-summaries', [AgentReportController::class, 'savedSummaries'])->name('saved-summaries.index');
         Route::post('/saved-summaries', [AgentReportController::class, 'saveSummary'])->name('saved-summaries.store');
         Route::delete('/saved-summaries/{summary}', [AgentReportController::class, 'destroySummary'])->name('saved-summaries.destroy');
