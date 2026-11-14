@@ -436,7 +436,7 @@ function ContactDealInner(props: ContactDealProps) {
                                             onCreateTask={() => setCreateKind("task")}
                                             onScheduleCall={() => setCreateKind("meeting")}
                                             onRequestDocuments={() => jump("deal-files")}
-                                            onReviewStaleDeal={() => jump("deal-history")}
+                                            onReviewStaleDeal={() => jump(restricted ? "agent-activity-notes" : "deal-history")}
                                             onAdvanceStage={model.advanceToNextStage}
                                         />
                                     ) : null}
