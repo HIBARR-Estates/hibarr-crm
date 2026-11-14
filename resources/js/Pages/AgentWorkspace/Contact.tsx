@@ -33,6 +33,7 @@ import useAgentMerge from "./contact/useAgentMerge";
 import type { EditOptions } from "./edit/leadEditForm";
 import ActivityCards, { type ActivityPermissions, type ActivitySource } from "./contact/ActivityCards";
 import AiBriefStrip from "./contact/AiBriefStrip";
+import { NewActivityProvider } from "./contact/NewActivityContext";
 import ContactHeader, { leadPhone } from "./contact/ContactHeader";
 import GoalPanel from "./contact/GoalPanel";
 import KeyFacts from "./contact/KeyFacts";
@@ -202,8 +203,13 @@ function ContactLead(props: LeadRedesignProps) {
     const name = lead.client_name || td("Lead", { source: "en" });
     const pills = [{ key: "lead" as const, label: t("pages.agent_workspace.contact.lead_pill", { status: td(lifecycle.statusLabel, { source: "en" }) }) }];
 
+    const newActivityScope = useMemo(
+        () => ({ person: lead.client_name ?? "", deal: null, meetingTypes: (props.meetingTypes ?? []).map((type) => type.name) }),
+        [lead.client_name, props.meetingTypes],
+    );
+
     return (
-        <>
+        <NewActivityProvider value={newActivityScope}>
             <Head title={name} />
             <AgentSecondRow>
                 <AgentPillRow
@@ -357,7 +363,7 @@ function ContactLead(props: LeadRedesignProps) {
                 onCancel={() => setConfirmLost(false)}
             />
             <ConfirmDialog {...deleteLead.dialogProps} />
-        </>
+        </NewActivityProvider>
     );
 }
 

@@ -3827,6 +3827,16 @@ return [
                 'next_days' => 'Sonraki günler:',
             ],
         ],
+        'new_activity' => [
+            'eyebrow' => 'Yeni aktivite',
+            'task' => 'Görev',
+            'task_text' => 'Ara, gönder, hazırla. Bitiş tarihini ve sorumluyu belirle.',
+            'meeting' => 'Toplantı',
+            'meeting_text' => 'Zamanı, türü ve katılanları belirle.',
+            'meeting_types_more' => '{{types}} ve diğerleri',
+            'foot_deal' => 'Seçili fırsata bağlanır · formlar şimdiki gibi',
+            'foot_person' => 'Bu kişiye bağlanır · formlar şimdiki gibi',
+        ],
         'contact' => [
             'views_aria' => 'Lead ve anlaşmalar',
             'lead_pill' => 'Lead · {{status}}',
