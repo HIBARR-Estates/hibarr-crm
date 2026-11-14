@@ -9,6 +9,8 @@ import LedgerView from "./earnings/LedgerView";
 import NetworkView from "./earnings/NetworkView";
 import OverviewView from "./earnings/OverviewView";
 import { longMonth } from "./earnings/format";
+import ReportView from "./earnings/report/ReportView";
+import type { ReportKpi, ReportRange, ReportWindows } from "./earnings/report/types";
 import type { CommissionLine, EarningsSummary, EarningsView, LedgerPayload, LevelCard, NetworkPayload } from "./earnings/types";
 import "./earnings/earnings.css";
 
@@ -25,15 +27,20 @@ interface EarningsProps {
     ledger?: LedgerPayload;
     selfId?: number | null;
     network?: NetworkPayload;
+    range?: ReportRange;
+    windows?: ReportWindows;
+    agentId?: number | null;
+    agentName?: string;
+    kpi?: ReportKpi | null;
 }
 
 /**
- * Earnings: Overview, Ledger and Network (approved layouts L7-21, L7-22 and
- * L7-37) on one page component, so switching between them keeps the shell.
+ * Earnings: Overview, Ledger, Network and My report (approved layouts L7-21,
+ * L7-22, L7-37 and L7-38) on one page component, so switching between them keeps the shell.
  * Everything is the Affiliate module's own data: commissions, disputes,
  * levels, cycles and the agent hierarchy.
  */
-export default function Earnings({ pageTitle, view, isAgent, currencySymbol, month, summary, latest, level, year, ledger, selfId = null, network }: EarningsProps) {
+export default function Earnings({ pageTitle, view, isAgent, currencySymbol, month, summary, latest, level, year, ledger, selfId = null, network, range = "month", windows, agentId = null, agentName = "", kpi }: EarningsProps) {
     const { t, locale } = useTranslation();
 
     return (
@@ -56,9 +63,11 @@ export default function Earnings({ pageTitle, view, isAgent, currencySymbol, mon
                     </>
                 ) : view === "ledger" ? (
                     <LedgerView year={year ?? new Date().getFullYear()} currencySymbol={currencySymbol} ledger={ledger} />
-                ) : (
+                ) : view === "network" ? (
                     <NetworkView selfId={selfId} currencySymbol={currencySymbol} network={network} />
-                )}
+                ) : windows ? (
+                    <ReportView range={range} windows={windows} agentId={agentId} agentName={agentName} currencySymbol={currencySymbol} kpi={kpi} />
+                ) : null}
             </div>
         </>
     );
