@@ -479,6 +479,8 @@ class TaskController extends AccountBaseController
      */
     public function agentShow(int $task, DashboardMetricsService $metrics): \Illuminate\Http\JsonResponse
     {
+        abort_unless(in_array(user()->permission('view_tasks'), ['all', 'added', 'owned', 'both'], true), 403);
+
         $row = $this->filteredTasksQuery(applyQuickFilter: false)
             ->with(TaskPresenter::RELATIONS)
             ->withCount(TaskPresenter::COUNTS)
