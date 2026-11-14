@@ -57,7 +57,7 @@ function NetworkControls() {
 function TableSkeleton() {
     return (
         <div className="agent-ea__split agent-ea__split--network" aria-busy="true">
-            <div className="agent-ea__table">
+            <div className="agent-table agent-ea__table">
                 {Array.from({ length: 4 }).map((_, index) => (
                     <div key={index} className="agent-ea__row agent-ea__row--skeleton">
                         <div className="dr-skeleton" style={{ height: 32, borderRadius: 16 }} />
@@ -104,14 +104,14 @@ function NetworkBody({ selfId, currencySymbol, network }: BodyProps) {
                 <EmptyState icon="users" title={t("pages.agent_workspace.earnings.network.empty_title")} description={t("pages.agent_workspace.earnings.network.empty_description")} />
             ) : (
                 <div className="agent-ea__split agent-ea__split--network">
-                    <div role="table" aria-label={t("pages.agent_workspace.earnings.network.table.label")} className="agent-ea__table agent-ea__table--network">
+                    <div role="table" aria-label={t("pages.agent_workspace.earnings.network.table.label")} className="agent-table agent-ea__table agent-ea__table--network">
                         <div role="row" className="agent-ea__head">
-                            <span role="columnheader" className="agent-ea__th">{t("pages.agent_workspace.earnings.network.table.agent")}</span>
+                            <span role="columnheader" className="agent-table__th agent-ea__th">{t("pages.agent_workspace.earnings.network.table.agent")}</span>
                             <span className="agent-ea__line">
-                                <span role="columnheader" className="agent-ea__th">{t("pages.agent_workspace.earnings.network.table.level")}</span>
-                                <span role="columnheader" className="agent-ea__th">{t("pages.agent_workspace.earnings.network.table.direct")}</span>
-                                <span role="columnheader" className="agent-ea__th">{t("pages.agent_workspace.earnings.network.table.individual")}</span>
-                                <span role="columnheader" className="agent-ea__th">{t("pages.agent_workspace.earnings.network.table.team")}</span>
+                                <span role="columnheader" className="agent-table__th agent-ea__th">{t("pages.agent_workspace.earnings.network.table.level")}</span>
+                                <span role="columnheader" className="agent-table__th agent-ea__th">{t("pages.agent_workspace.earnings.network.table.direct")}</span>
+                                <span role="columnheader" className="agent-table__th agent-ea__th">{t("pages.agent_workspace.earnings.network.table.individual")}</span>
+                                <span role="columnheader" className="agent-table__th agent-ea__th">{t("pages.agent_workspace.earnings.network.table.team")}</span>
                             </span>
                         </div>
                         {rows.map((row) => (
