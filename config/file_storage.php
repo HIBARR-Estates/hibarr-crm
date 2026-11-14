@@ -13,9 +13,10 @@ return [
     |
     */
 
-    'base_url' => env('FILE_UPLOAD_BASE_URL', ''),
+    // Same OL credential as services.ol — the upload gateway is an OL endpoint.
+    'base_url' => env('FILE_UPLOAD_BASE_URL', env('OL_BASE_URL', '')),
 
-    'api_key' => env('FILE_UPLOAD_API_KEY', ''),
+    'api_key' => env('FILE_UPLOAD_API_KEY', env('OL_API_KEY')),
 
     /*
     |--------------------------------------------------------------------------

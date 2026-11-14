@@ -35,21 +35,22 @@ const hasProcessEnv = typeof process !== "undefined" && !!process.env;
 // Vite define (vite.config.mjs) and Mix DefinePlugin both inline these
 // identifiers as string literals — do not gate on `process` existing, or
 // the Vite-stamped URL/key is skipped in the browser.
+//
+// Every OL-bound client (file upload, agent invitation, qualification) reads the
+// same pair, so a key is rotated in one place. The literal `OL_*` names are what
+// vite.config.mjs stamps at build time.
 const DEFAULT_FILE_UPLOAD_BASE_URL =
-    process.env.MIX_FILE_UPLOAD_BASE_URL ||
-    "https://develop-api.hibarr.org/v1";
+    process.env.OL_BASE_URL || "https://develop-api.hibarr.org/v1";
 const DEFAULT_AGENT_INVITATION_BASE_URL =
-    (hasProcessEnv && process.env.MIX_AGENT_INVITATION_BASE_URL) ||
+    (hasProcessEnv && process.env.OL_BASE_URL) ||
     "https://develop-api.hibarr.org/v1";
-const DEFAULT_FILE_UPLOAD_API_KEY =
-    process.env.MIX_FILE_UPLOAD_API_KEY || "";
+const DEFAULT_FILE_UPLOAD_API_KEY = process.env.OL_API_KEY || "";
 const DEFAULT_AGENT_INVITATION_API_KEY =
-    (hasProcessEnv && process.env.MIX_AGENT_INVITATION_API_KEY) || "";
+    (hasProcessEnv && process.env.OL_API_KEY) || "";
 const DEFAULT_OL_BASE_URL =
-    (hasProcessEnv && process.env.MIX_OL_BASE_URL) ||
+    (hasProcessEnv && process.env.OL_BASE_URL) ||
     "https://develop-api.hibarr.org/v1";
-const DEFAULT_OL_API_KEY =
-    (hasProcessEnv && process.env.MIX_OL_API_KEY) || DEFAULT_FILE_UPLOAD_API_KEY;
+const DEFAULT_OL_API_KEY = (hasProcessEnv && process.env.OL_API_KEY) || "";
 
 // ============================================================================
 // Configuration Getters
@@ -150,11 +151,11 @@ export const getInvitationConfig = (
 // ============================================================================
 
 export const getOlBaseUrl = (): string => {
-    return (hasProcessEnv && process.env.MIX_OL_BASE_URL) || DEFAULT_OL_BASE_URL;
+    return (hasProcessEnv && process.env.OL_BASE_URL) || DEFAULT_OL_BASE_URL;
 };
 
 export const getOlApiKey = (): string => {
-    return (hasProcessEnv && process.env.MIX_OL_API_KEY) || DEFAULT_OL_API_KEY;
+    return (hasProcessEnv && process.env.OL_API_KEY) || DEFAULT_OL_API_KEY;
 };
 
 export const clampOlRetryCount = (retryCount: number): number => {
