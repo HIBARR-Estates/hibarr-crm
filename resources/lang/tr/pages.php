@@ -2764,6 +2764,7 @@ return [
 
     'lead_merge' => [
         'title' => 'Lead\'leri birleştir',
+        'close' => 'Kapat',
         'subtitle' => 'Kopyadaki her şey korunan lead\'e taşınır. İkisi farklıysa, korunacak değeri seçin.',
         'kept_lead' => 'Korunan lead',
         'duplicate_archived' => 'Kopya · birleştirmeden sonra arşivlenir',
@@ -3969,6 +3970,7 @@ return [
                 'duplicate_title' => 'Olası kopya: {{name}}',
                 'duplicate_more' => '+{{count}} olası kopya daha',
                 'review_merge' => 'İncele ve birleştir',
+                'merge_unsaved' => 'Önce değişikliklerinizi kaydedin veya geri alın, sonra birleştirmeyi inceleyin. Birleştirme bu lead\'i yeniler.',
                 'not_same' => 'Aynı kişi değil',
                 'unnamed' => 'Adsız aday',
                 'sections_cap' => 'Bölümler · {{filled}}/{{total}} dolu',
