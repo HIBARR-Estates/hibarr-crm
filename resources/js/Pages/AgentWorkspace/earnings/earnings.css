@@ -33,11 +33,13 @@
     min-width: 0;
 }
 
-.agent-ea--overview {
+.agent-ea--overview,
+.agent-ea--report {
     gap: 28px;
 }
 
-.agent-ea--overview .agent-ea__top {
+.agent-ea--overview .agent-ea__top,
+.agent-ea--report .agent-ea__top {
     margin-bottom: 10px;
 }
 
@@ -1079,5 +1081,346 @@ a.agent-ea__name:focus-visible {
 
     .agent-ea__deal {
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+}
+
+/* ---------- My report (L7-38) ---------- */
+/* The six white cards straddle the edge of the band, so the band is the same as the Overview's. */
+.agent-ea__kpis {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-ea__kpi {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    border: 1px solid var(--dr-border);
+    border-radius: 14px;
+    background: var(--dr-white);
+}
+
+.agent-ea__kpi-label {
+    color: var(--dr-text-muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.agent-ea__kpi-value {
+    color: var(--dr-text);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+}
+
+.agent-ea__kpi-note {
+    color: var(--dr-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.agent-ea__kpi-note.is-up {
+    color: var(--dr-green);
+}
+
+.agent-ea__kpi-note.is-down {
+    color: var(--dr-time-late-solid);
+}
+
+.agent-ea__kpi.is-loading .agent-ea__kpi-value,
+.agent-ea__kpi.is-loading .agent-ea__kpi-note {
+    width: max-content;
+    max-width: 100%;
+    border-radius: 6px;
+    background: var(--dr-surface-hover);
+    color: transparent;
+}
+
+.agent-ea__kpi-error {
+    grid-column: 1 / -1;
+    color: var(--dr-time-late-solid);
+    font-size: 13px;
+}
+
+.agent-ea__link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--dr-blue);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* The AI summary: the board's indigo, shared with the brief strip on the deal page. */
+.agent-ea__ai {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    border: 1px solid var(--agent-ai-border, #e1dff4);
+    border-radius: 14px;
+    background: var(--agent-ai-bg, #f8f7fd);
+}
+
+.agent-ea__ai-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.agent-ea__ai-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+}
+
+.agent-ea__ai-badge {
+    display: inline-flex;
+    height: 20px;
+    align-items: center;
+    padding: 0 6px;
+    border-radius: 5px;
+    background: var(--agent-ai, #4c4f8f);
+    color: var(--dr-white);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.agent-ea__ai-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.agent-ea__ai-actions .agent-ea__btn {
+    height: 32px;
+}
+
+.agent-ea__ai-body,
+.agent-ea__ai-empty {
+    margin: 0;
+    color: var(--dr-text);
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+.agent-ea__ai-empty {
+    color: var(--dr-text-muted);
+}
+
+.agent-ea__ai-body p {
+    margin: 0 0 8px;
+}
+
+.agent-ea__ai-body p:last-child {
+    margin-bottom: 0;
+}
+
+.agent-ea__ai-body ul,
+.agent-ea__ai-body ol {
+    margin: 0 0 8px;
+    padding-left: 20px;
+}
+
+.agent-ea__ai-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.agent-ea__ai-skeleton i {
+    height: 12px;
+    border-radius: 6px;
+    background: var(--dr-surface-hover);
+}
+
+.agent-ea__ai-skeleton i:last-child {
+    width: 60%;
+}
+
+.agent-ea__ai-error {
+    margin: 0;
+    color: var(--dr-time-late-solid);
+    font-size: 13px;
+}
+
+/* The lists: a white panel with the tabs on top and the Earnings table inside. */
+.agent-ea__lists {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 14px;
+    padding: 14px;
+    border: 1px solid var(--dr-border);
+    border-radius: 16px;
+    background: var(--dr-white);
+}
+
+.agent-ea__list-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+.agent-ea__list-tab {
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--dr-text-muted);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.agent-ea__list-tab[aria-selected="true"] {
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+    font-weight: 600;
+}
+
+.agent-ea__list-tab:focus-visible,
+.agent-ea__list-switch button:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+.agent-ea__list-switch {
+    display: inline-flex;
+    margin-left: auto;
+    padding: 3px;
+    border-radius: 9px;
+    background: var(--dr-surface-hover);
+}
+
+.agent-ea__list-switch button {
+    padding: 5px 12px;
+    border: 0;
+    border-radius: 7px;
+    background: none;
+    color: var(--dr-text-muted);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.agent-ea__list-switch button[aria-pressed="true"] {
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font-weight: 600;
+}
+
+.agent-ea__table--report .agent-ea__row {
+    padding: 11px 16px;
+}
+
+.agent-ea__cell {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--dr-text);
+    font-size: 14px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+}
+
+.agent-ea__muted {
+    color: var(--dr-text-muted);
+}
+
+.agent-ea__stage {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 14px;
+}
+
+.agent-ea__stage i {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    border-radius: 2px;
+}
+
+.agent-ea__sub--clamp {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+}
+
+.agent-ea__skeleton-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--dr-surface-hover);
+}
+
+.agent-ea__skeleton-line {
+    height: 12px;
+    width: 50%;
+    border-radius: 6px;
+    background: var(--dr-surface-hover);
+}
+
+.agent-ea__list-foot {
+    display: flex;
+    padding: 10px 2px 0;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--dr-text-muted);
+    font-size: 13px;
+}
+
+@media (max-width: 1279px) {
+    .agent-ea__kpis {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 1023px) {
+    /* A list row is its first cell, then the rest beneath it on one wrapping line, each with its label. */
+    .agent-ea__table--report .agent-ea__row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 14px;
+        padding: 12px 14px;
+    }
+
+    .agent-ea__table--report .agent-ea__cell:first-child {
+        flex: 1 1 100%;
+    }
+
+    .agent-ea__table--report .agent-ea__cell:not(:first-child)::before {
+        color: var(--dr-text-muted);
+        content: attr(data-label) " ";
+        font-size: 11px;
+        font-weight: 400;
+    }
+}
+
+@media (max-width: 639px) {
+    .agent-ea__kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .agent-ea__list-switch {
+        margin-left: 0;
     }
 }

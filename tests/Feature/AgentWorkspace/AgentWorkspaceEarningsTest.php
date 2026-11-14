@@ -5,6 +5,7 @@ namespace Tests\Feature\AgentWorkspace;
 use App\Enums\MlmCommissionStatus;
 use App\Enums\MlmCommissionType;
 use App\Http\Controllers\AgentWorkspace\EarningsController;
+use App\Http\Controllers\AgentWorkspace\MyReportController;
 use App\Http\Middleware\EnsureAgentWorkspaceAccess;
 use App\Models\Deal;
 use App\Models\Lead;
@@ -86,6 +87,48 @@ class AgentWorkspaceEarningsTest extends TestCase
         }
 
         $this->assertStringEndsWith('/agent/earnings/network/12', route('agent.earnings.network.agent', 12, false));
+    }
+
+    public function test_my_report_and_its_period_endpoint_are_registered_behind_the_workspace_gate(): void
+    {
+        $actions = ['earnings.report' => 'show', 'earnings.report.kpi' => 'kpiFor'];
+
+        foreach ($actions as $name => $action) {
+            $route = Route::getRoutes()->getByName('agent.'.$name);
+
+            $this->assertNotNull($route, "agent.{$name} is missing");
+            $this->assertSame(MyReportController::class.'@'.$action, $route->getActionName());
+            $this->assertContains(EnsureAgentWorkspaceAccess::class, $route->gatherMiddleware());
+            $this->assertContains('auth', $route->gatherMiddleware());
+        }
+
+        $this->assertStringEndsWith('/agent/earnings/report', route('agent.earnings.report', [], false));
+    }
+
+    public function test_the_period_endpoint_is_for_agents_and_known_periods_only(): void
+    {
+        $controller = new class extends MyReportController
+        {
+            public function __construct() {}
+        };
+        $status = function (string $range) use ($controller): int {
+            try {
+                $controller->kpiFor(Request::create('/agent/earnings/report/kpi', 'GET', ['range' => $range]));
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+                return $e->getStatusCode();
+            }
+
+            return 200;
+        };
+
+        // A signed-in user with no agent profile has no report of their own.
+        $this->signIn(false);
+        $this->assertSame(403, $status('month'));
+
+        // An agent asking for a period the page does not offer.
+        $this->signIn();
+        $this->assertSame(422, $status('decade'));
+        $this->assertSame(422, $status(''));
     }
 
     public function test_the_dock_opens_earnings_on_the_agent_page(): void

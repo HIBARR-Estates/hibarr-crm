@@ -45,7 +45,11 @@ export default function LevelCard({ card, currencySymbol }: LevelCardProps) {
             return words ? `${t(`pages.agent_workspace.earnings.level.operator.${words}`)} ${amount}` : amount;
         };
         const needs = openGroups
-            .map((group) => group.map(describe).join(` ${t("pages.agent_workspace.earnings.level.or")} `))
+            .map((group) => {
+                const alternatives = group.map(describe).join(` ${t("pages.agent_workspace.earnings.level.or")} `);
+                // With several open groups, bracket the alternatives so "(A or B) and (C or D)" is not read as "A or B and C or D".
+                return openGroups.length > 1 && group.length > 1 ? `(${alternatives})` : alternatives;
+            })
             .join(` ${t("pages.agent_workspace.earnings.level.and")} `);
         hint = endDate
             ? t("pages.agent_workspace.earnings.level.hint_next", { needs, date: endDate, level: card.next_level })
