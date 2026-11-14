@@ -318,6 +318,172 @@
     margin-bottom: 10px;
 }
 
+/* Lead summary (prompt v2): takeaway, one written paragraph with marked
+   facts, then an icon row of facts. */
+.entity-ai-summary-takeaway {
+    margin: 4px 0 10px;
+    font-size: 19px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--dr-navy, #16294d);
+}
+
+.entity-ai-summary-prose {
+    margin: 0 0 14px;
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--dr-text, #1a1f2e);
+}
+
+.entity-ai-summary-prose__mark {
+    font-weight: 600;
+    border-radius: 4px;
+    padding: 1px 4px;
+}
+
+.entity-ai-summary-prose__mark--fact {
+    background: var(--dr-blue-light, #e8f1fb);
+    color: var(--dr-blue-dark, #14538c);
+}
+
+.entity-ai-summary-prose__mark--open {
+    background: var(--dr-amber-banner, #fef3c7);
+    color: var(--dr-amber, #92400e);
+}
+
+.entity-ai-summary-facts {
+    list-style: none;
+    margin: 0 0 14px;
+    padding: 12px 0 0;
+    border-top: 1px solid var(--dr-border-soft, #eef0f3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+}
+
+.entity-ai-summary-facts__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--dr-gray-darker, #374151);
+}
+
+.entity-ai-summary-facts__icon {
+    flex: none;
+    color: var(--dr-text-muted, #5b6472);
+}
+
+/* Lead brief header: [spark  Title · 2 minutes ago]  ......  [Confidence] [Regenerate] [v]
+   The generated time is part of the label; the accordion arrow is furthest right. */
+.entity-ai-summary-lead-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px 12px;
+    padding: 12px 16px;
+    border-radius: 12px 12px 0 0;
+    background: #ffffff;
+}
+
+.entity-ai-summary-lead-header__main {
+    flex: 1 1 260px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 7px;
+    cursor: pointer;
+}
+
+.entity-ai-summary-lead-header__label {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--dr-text-muted, #5b6472);
+}
+
+.entity-ai-summary-lead-header__spark {
+    flex: none;
+    color: var(--dr-blue, #1a6bb5);
+}
+
+.entity-ai-summary-lead-header__actions {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.entity-ai-summary-lead-header__chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--dr-text-muted, #5b6472);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+
+.entity-ai-summary-lead-header__chevron:hover {
+    background: var(--dr-gray, #f5f6f8);
+    color: var(--dr-text, #1a1f2e);
+}
+
+.entity-ai-summary-lead-header__chevron:focus-visible {
+    outline: 2px solid var(--dr-blue, #1a6bb5);
+    outline-offset: 2px;
+}
+
+.entity-ai-summary-lead-header__chevron svg {
+    transition: transform 0.15s ease;
+}
+
+.entity-ai-summary-lead-header__chevron[aria-expanded="true"] svg {
+    transform: rotate(180deg);
+}
+
+/* Confidence is about how much the summary had to go on, not a warning: green when
+   there is plenty, amber when it is partial, neutral when it is thin. */
+.entity-ai-summary-confidence-pill {
+    display: inline-flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.entity-ai-summary-confidence-pill--high {
+    background: #e1f5ee;
+    color: #177a5b;
+    border-color: #9fe1cb;
+}
+
+.entity-ai-summary-confidence-pill--medium {
+    background: #fff7ed;
+    color: #92400e;
+    border-color: #fed7aa;
+}
+
+.entity-ai-summary-confidence-pill--low {
+    background: #f5f6f8;
+    color: #5b6472;
+    border-color: #e2e5ea;
+}
+
 .entity-ai-summary-regenerate-btn {
     display: inline-flex;
     align-items: center;

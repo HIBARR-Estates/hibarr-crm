@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { usePage } from "@inertiajs/react";
+import { canPlayCallRecording } from "@/Hooks/useSoftphone";
 import { Tooltip, Typography } from "antd";
 import {
     UserOutlined,
@@ -25,9 +27,11 @@ import type {
     CrmEventDirection,
 } from "@/Types/api/crm-event";
 import getEventIcon from "./crmEvent";
+import { onBehalfOfName } from "./onBehalfOf";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
-import { describeCallEvent } from "@/lib/crmEvents/callSummary";
+import { describeCallEvent, isCallStartedEvent } from "@/lib/crmEvents/callSummary";
+import RecordingPlayer from "@/Components/CallRecordingPlayer";
 
 dayjs.extend(relativeTime);
 
@@ -173,6 +177,16 @@ interface Props {
 export default function CrmEventItem({ event, compact = false }: Props) {
     const [expanded, setExpanded] = useState(false);
     const { t } = useTranslation();
+    const { props } = usePage<any>();
+    const authUser = props.auth?.user;
+    const eventOwnerId = event.user_id ?? event.user?.id;
+    const behalfName = onBehalfOfName(event.metadata);
+    // The agent on the call or a call manager; the server enforces the same rule.
+    const canPlayRecording = canPlayCallRecording(
+        authUser,
+        props.auth?.permissions,
+        eventOwnerId,
+    );
 
     const catSlug = event.event_type?.category?.slug ?? "";
     const colors = CATEGORY_COLORS[catSlug] || DEFAULT_CAT;
@@ -183,12 +197,28 @@ export default function CrmEventItem({ event, compact = false }: Props) {
     const directionCfg = event.direction
         ? DIRECTION_CONFIG[event.direction]
         : null;
+    const meta = (event.metadata ?? {}) as Record<string, unknown>;
+    const recordingId =
+        typeof meta.recording_id === "number" ? meta.recording_id : null;
+    const recordingPlayUrl =
+        recordingId !== null
+            ? route("call-recordings.play", recordingId)
+            : null;
+    const recordingDownloadUrl =
+        recordingId !== null
+            ? route("call-recordings.download", recordingId)
+            : null;
+    const recordingDuration =
+        typeof meta.duration === "number" ? meta.duration : null;
+    const recordingFilename =
+        typeof meta.filename === "string" ? meta.filename : undefined;
+
     const message = event.metadata?.comment as string | undefined;
     const callSummary = buildCallSummary(event, t);
     // `call_started` is mapped to a "completed" status by the call bridge even
     // though it only marks the beginning of a call — the summary carries that
     // nuance, so the bare "Completed" chip would just be misleading.
-    const hideStatusChip = event.event_type?.slug === "call_started";
+    const hideStatusChip = isCallStartedEvent(event);
 
     const { td } = useTd();
 
@@ -224,7 +254,9 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                             strong
                             className="text-[14px] text-gray-900 tracking-tight truncate leading-none"
                         >
-                            {td(event.event_type?.name ?? "Unknown Event", { source: "en" })}
+                            {td(event.event_type?.name ?? "Unknown Event", {
+                                source: "en",
+                            })}
                         </Text>
                         {callSummary && (
                             <span className="text-[12px] font-normal text-gray-500 truncate">
@@ -292,7 +324,12 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                             <UserOutlined className="text-[9px] text-gray-500" />
                         </div>
                         <span className="text-[11px] font-semibold text-gray-700">
-                            {event.user.name}
+                            {behalfName
+                                ? t("app.impersonation.onBehalfOf", {
+                                      admin: event.user.name,
+                                      name: behalfName,
+                                  })
+                                : event.user.name}
                         </span>
                     </div>
                 )}
@@ -304,6 +341,18 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                     <div className="border-l-4 border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-600 whitespace-pre-wrap break-words rounded-r-md">
                         {td(message)}
                     </div>
+                </div>
+            )}
+
+            {/* Call recording playback */}
+            {recordingPlayUrl && canPlayRecording && (
+                <div className="cb-timeline-player-card">
+                    <RecordingPlayer
+                        playUrl={recordingPlayUrl}
+                        downloadUrl={recordingDownloadUrl}
+                        durationSeconds={recordingDuration}
+                        filename={recordingFilename}
+                    />
                 </div>
             )}
 

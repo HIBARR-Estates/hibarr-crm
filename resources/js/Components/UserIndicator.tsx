@@ -106,7 +106,12 @@ const UserIndicator: React.FC<UserIndicatorProps> = ({
     colorful = false,
 }) => {
     const sizeConfig = sizeMap[size];
-    const avatarImage = data?.image_url || data?.image;
+    const rawAvatarImage = data?.image_url || data?.image;
+    const avatarImage =
+        rawAvatarImage &&
+        !/^(https?:\/\/|\/|data:|blob:)/i.test(rawAvatarImage)
+            ? `/user-uploads/avatar/${rawAvatarImage}`
+            : rawAvatarImage;
     const userName = data?.name || "Unknown User";
 
     const effectiveMaxLength = maxNameLength || sizeConfig.maxLength;

@@ -33,6 +33,9 @@ return [
                 'api.v2.payments.index' => 'List payments',
                 'api.v2.payments.upsert' => 'Create or update payments',
                 'api.v2.payments.show' => 'Read payment',
+                'api.v2.sally-meetings.index' => 'List Sally meeting insights',
+                'api.v2.sally-meetings.show' => 'Read Sally meeting insight',
+                'api.v2.sally-meetings.upsert' => 'Create or update Sally meeting insights',
             ],
         ],
         'employees' => [

@@ -1,0 +1,791 @@
+/* Deals: the board (L7-15) and list (L7-16). Colours come from the --dr-*
+   tokens; chips and pills use the shared time states (.agent-ts--*). Cards
+   are filled, never edged with a side border, and nothing here casts a
+   shadow. */
+
+/* ---------- band ---------- */
+.agent-ws:has(.agent-dp) {
+    --agent-band-height: 352px;
+}
+
+/* Below 1280px the chips, switch and search no longer fit beside the title, so they stack under it. */
+@media (max-width: 1279px) {
+    .agent-ws:has(.agent-dp) {
+        --agent-band-height: 348px;
+    }
+}
+
+@media (max-width: 639px) {
+    .agent-ws:has(.agent-dp) {
+        --agent-band-height: 330px;
+    }
+}
+
+.agent-dp {
+    display: flex;
+    flex-direction: column;
+    gap: 38px;
+}
+
+/* ---------- header on the band ---------- */
+.agent-dp__top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px 16px;
+    min-height: 62px;
+}
+
+.agent-dp__heading {
+    min-width: 0;
+    flex: 1 1 280px;
+}
+
+.agent-dp__heading h1 {
+    margin: 0;
+    color: var(--dr-white);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.agent-dp__heading p {
+    margin: 4px 0 0;
+    color: var(--dr-navy-mid);
+    font-size: 14px;
+}
+
+.agent-dp__tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px 6px;
+    min-width: 0;
+}
+
+.agent-dp__chip-row {
+    display: flex;
+    gap: 8px;
+    margin: 0 8px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-dp__chip {
+    display: flex;
+    min-width: 104px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 9px 14px;
+    border: 1px solid var(--dr-navy-raised-line);
+    border-radius: 12px;
+    background: var(--dr-navy-raised);
+    color: var(--dr-white);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.agent-dp__chip:hover {
+    border-color: var(--dr-navy-mid);
+}
+
+.agent-dp__chip[aria-pressed="true"] {
+    border-color: var(--dr-white);
+    background: var(--dr-white);
+    color: var(--dr-navy);
+}
+
+.agent-dp__chip:focus-visible,
+.agent-dp__switch button:focus-visible {
+    outline: 2px solid var(--dr-white);
+    outline-offset: 2px;
+}
+
+.agent-dp__chip-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--dr-navy-soft);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-dp__chip[aria-pressed="true"] .agent-dp__chip-label {
+    color: var(--dr-navy);
+}
+
+.agent-dp__chip-mark {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    border-radius: 2px;
+    background: var(--mark, var(--dr-time-none-solid));
+}
+
+.agent-dp__chip-value {
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.agent-dp__chip--loading .agent-dp__chip-value {
+    border-radius: 4px;
+    background: var(--dr-navy-raised-line);
+    color: transparent;
+}
+
+.agent-dp__chip[aria-pressed="true"].agent-dp__chip--loading .agent-dp__chip-value {
+    background: var(--dr-skeleton);
+}
+
+/* The Board | List switch */
+.agent-dp__switch {
+    display: flex;
+    padding: 3px;
+    border: 1px solid var(--dr-navy-line);
+    border-radius: 10px;
+    background: var(--dr-navy-pressed);
+}
+
+.agent-dp__switch button {
+    padding: 7px 13px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--dr-navy-mid);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.agent-dp__switch button[aria-pressed="true"] {
+    background: var(--dr-white);
+    color: var(--dr-navy);
+    font-weight: 600;
+}
+
+/* ---------- shared bits ---------- */
+.agent-dp__avatar {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--fill, var(--dr-blue));
+    color: var(--dr-white);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.agent-dp__avatar--sm {
+    width: 26px;
+    height: 26px;
+    font-size: 10px;
+}
+
+.agent-dp__name {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    color: var(--dr-text);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.25;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-dp__name:hover {
+    color: var(--dr-blue);
+}
+
+.agent-dp__name:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* The whole card or row opens the deal; the name link carries the keyboard focus. */
+.agent-dp__name::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+}
+
+.agent-dp__sub {
+    overflow: hidden;
+    color: var(--dr-text-muted);
+    font-size: 12px;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-dp__value {
+    color: var(--dr-text);
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.agent-dp__muted {
+    color: var(--dr-text-muted);
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.agent-dp__idle {
+    color: var(--dr-time-late-solid);
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.agent-dp__loading {
+    display: inline-block;
+    width: 56px;
+    height: 10px;
+    border-radius: 4px;
+    background: var(--dr-skeleton);
+}
+
+.agent-dp__conditions {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.agent-dp__bars {
+    display: flex;
+    width: 44px;
+    gap: 2px;
+}
+
+.agent-dp__bar {
+    height: 5px;
+    flex: 1;
+    border-radius: 2px;
+    background: var(--dr-time-none-border);
+}
+
+.agent-dp__bar--met {
+    background: var(--dr-green);
+}
+
+.agent-dp__count {
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.agent-dp__pill {
+    display: inline-flex;
+    width: max-content;
+    max-width: 100%;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border: 1px solid var(--ts-border);
+    border-radius: 999px;
+    background: var(--ts-bg);
+    color: var(--ts-text);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-dp__pill-dot {
+    width: 7px;
+    height: 7px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--ts-solid);
+}
+
+.agent-dp__truncated {
+    margin: -22px 0 0;
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+/* ---------- board ---------- */
+.agent-dp__board {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.agent-dp__column {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.agent-dp__column-head {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 9px 12px;
+    border: 1px solid var(--dr-border);
+    border-top: 4px solid var(--stage, var(--dr-time-none-solid));
+    border-radius: 12px;
+    background: var(--dr-white);
+}
+
+.agent-dp__column-head b {
+    overflow: hidden;
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-dp__column-figures {
+    color: var(--dr-text-muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.agent-dp__card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 11px 12px;
+    border: 1px solid var(--dr-border);
+    border-radius: 12px;
+    background: var(--dr-white);
+}
+
+.agent-dp__card:hover,
+.agent-dp__card:focus-within {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: -1px;
+}
+
+.agent-dp__card--loading {
+    min-height: 96px;
+    background: var(--dr-skeleton);
+}
+
+.agent-dp__card--loading:hover {
+    outline: 0;
+}
+
+.agent-dp__card-person {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.agent-dp__lock {
+    flex: none;
+    font-size: 12px;
+}
+
+.agent-dp__card-figures {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.agent-dp__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+/* Won and lost this month: tiles on the navy, not columns. */
+.agent-dp__outcomes {
+    display: flex;
+    flex: 0 0 150px;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.agent-dp__tile {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 12px;
+    border: 1px solid var(--dr-navy-raised-line);
+    border-radius: 12px;
+    background: var(--dr-navy-raised);
+    color: var(--dr-white);
+}
+
+.agent-dp__tile-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.agent-dp__tile b {
+    font-size: 22px;
+    font-variant-numeric: tabular-nums;
+}
+
+.agent-dp__tile > span:last-child {
+    font-size: 11px;
+    opacity: 0.85;
+}
+
+.agent-dp__tile-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.agent-dp__tile-dot--won {
+    background: #7ee2b8;
+}
+
+.agent-dp__tile-dot--lost {
+    background: #f19a8f;
+}
+
+.agent-dp__note {
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+/* ---------- list ---------- */
+.agent-dp__table {
+    --cols: minmax(0, 2.2fr) minmax(0, 1.4fr) minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 1.2fr) minmax(0, 0.9fr) 20px;
+
+    overflow: hidden;
+    border: 1px solid var(--dr-border);
+    border-radius: 14px;
+    background: var(--dr-white);
+}
+
+.agent-dp__head,
+.agent-dp__row {
+    display: grid;
+    grid-template-columns: var(--cols);
+    align-items: center;
+    gap: 14px;
+    padding: 8px 16px;
+}
+
+.agent-dp__head {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--dr-border);
+    background: var(--dr-surface-hover);
+}
+
+.agent-dp__th {
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.agent-dp__th[aria-sort] {
+    color: var(--dr-navy);
+}
+
+.agent-dp__row {
+    position: relative;
+    border-top: 1px solid var(--dr-border);
+    cursor: pointer;
+}
+
+.agent-dp__row:first-of-type {
+    border-top: 0;
+}
+
+.agent-dp__row:hover,
+.agent-dp__row:focus-within {
+    background: var(--dr-blue-light);
+}
+
+/* On a phone the cells after the person wrap on one line; elsewhere they are plain grid cells. */
+.agent-dp__line {
+    display: contents;
+}
+
+.agent-dp__person {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+}
+
+.agent-dp__who {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.agent-dp__name--row {
+    flex: none;
+}
+
+.agent-dp__who .agent-dp__sub {
+    font-size: 11px;
+}
+
+.agent-dp__stage {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.agent-dp__stage span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.agent-dp__stage-mark {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    border-radius: 2px;
+    background: var(--stage, var(--dr-time-none-solid));
+}
+
+.agent-dp__agent {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 7px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.agent-dp__agent-avatar {
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--dr-blue);
+    color: var(--dr-white);
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.agent-dp__agent-avatar--other {
+    background: var(--dr-gray-dark);
+}
+
+.agent-dp__agent-text {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.agent-dp__agent-text small {
+    color: var(--dr-text-muted);
+    font-size: 11px;
+}
+
+.agent-dp__chevron {
+    justify-self: end;
+    color: var(--dr-text-muted);
+}
+
+.agent-dp__skeleton-row {
+    display: grid;
+    grid-template-columns: var(--cols);
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--dr-border);
+}
+
+.agent-dp__skeleton-bar {
+    height: 12px;
+    border-radius: 6px;
+    background: var(--dr-skeleton);
+}
+
+/* ---------- compact header: chips, switch and search under the title ---------- */
+@media (max-width: 1279px) {
+    .agent-dp__top {
+        align-items: stretch;
+    }
+
+    .agent-dp__tools {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .agent-dp__chip-row {
+        width: 100%;
+        margin: 0;
+    }
+
+    .agent-dp__chip-row > li {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .agent-dp__chip {
+        width: 100%;
+        min-width: 0;
+    }
+
+}
+
+/* ---------- tablet and below: the board scrolls sideways; the list drops Conditions ---------- */
+@media (max-width: 1099px) {
+    .agent-dp__board {
+        margin: 0 -24px;
+        padding: 0 24px 6px;
+        scroll-padding-inline: 24px;
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+    }
+
+    .agent-dp__column {
+        flex: 0 0 248px;
+        scroll-snap-align: start;
+    }
+
+    .agent-dp__outcomes {
+        flex: 0 0 168px;
+    }
+
+    .agent-dp__table {
+        --cols: minmax(0, 1.8fr) minmax(0, 1.3fr) minmax(0, 1.25fr) minmax(0, 0.8fr) minmax(0, 0.95fr) minmax(0, 0.9fr) 20px;
+    }
+
+    .agent-dp__c--conditions {
+        display: none;
+    }
+}
+
+/* ---------- phone: one card per deal ---------- */
+@media (max-width: 639px) {
+    .agent-dp__board {
+        margin: 0 -16px;
+        padding: 0 16px 6px;
+        scroll-padding-inline: 16px;
+    }
+
+    .agent-dp__column {
+        flex-basis: 78vw;
+    }
+
+    .agent-dp__chip-row {
+        margin: 0 -16px;
+        padding: 0 16px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .agent-dp__chip-row::-webkit-scrollbar {
+        display: none;
+    }
+
+    .agent-dp__chip-row > li {
+        flex: none;
+    }
+
+    .agent-dp__chip {
+        width: auto;
+        min-width: 96px;
+    }
+
+    /* Column titles stay for screen readers; the row cards carry their own labels. */
+    .agent-dp__head {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .agent-dp__row {
+        grid-template-columns: minmax(0, 1fr) 20px;
+        grid-template-areas:
+            "person chevron"
+            "line line";
+        gap: 8px 10px;
+        padding: 12px 14px;
+    }
+
+    .agent-dp__c--person {
+        grid-area: person;
+    }
+
+    .agent-dp__chevron {
+        grid-area: chevron;
+    }
+
+    /* Stage, meeting, value and agent share one wrapping line under the person. */
+    .agent-dp__line {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 10px;
+        grid-area: line;
+        padding-left: 42px;
+    }
+
+    .agent-dp__c--activity {
+        margin-left: auto;
+        font-size: 12px;
+    }
+
+    .agent-dp__skeleton-row {
+        grid-template-columns: 1fr;
+    }
+
+    .agent-dp__skeleton-row > :nth-child(n + 3) {
+        display: none;
+    }
+}
+
+/* The filter options could not load: sits above the filter drawer with a retry. */
+.agent-dp__filters-error {
+    position: fixed;
+    inset: auto 16px 16px;
+    z-index: 1400;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    max-width: 420px;
+    margin-inline: auto;
+    padding: 10px 12px 10px 16px;
+    border: 1px solid var(--dr-border);
+    border-radius: 12px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font-size: 13px;
+    font-weight: 600;
+}

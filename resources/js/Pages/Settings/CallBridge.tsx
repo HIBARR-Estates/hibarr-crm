@@ -8,14 +8,17 @@ import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { SoftphoneDeviceSummary } from "@/Types/api/softphone";
 import SoftphoneDeviceManager from "./SoftphoneDeviceManager";
 import SoftphoneCallPoolManager from "./SoftphoneCallPoolManager";
+import SoftphoneTimingManager from "./SoftphoneTimingManager";
 import SoftphoneRecordingsPanel from "./SoftphoneRecordingsPanel";
+import SoftphoneCallLogPanel from "./SoftphoneCallLogPanel";
+import { canManageCalls } from "@/Hooks/useSoftphone";
 
 import "@/Components/Redesign/redesign.css";
 import "@/Components/CallRecordingPlayer.css";
 import "./CallBridgeSettings.css";
 
-type TabKey = "lines" | "pool" | "recordings";
-export const CALL_BRIDGE_TABS = ["lines", "pool", "recordings"] as const;
+type TabKey = "lines" | "routing" | "calls" | "recordings";
+export const CALL_BRIDGE_TABS = ["lines", "routing", "timing", "calls", "recordings"] as const;
 export type CallBridgeTab = (typeof CALL_BRIDGE_TABS)[number];
 
 interface DevicesResponse {
@@ -28,7 +31,13 @@ interface DevicesResponse {
  * per settings group. Styling lives in CallBridgeSettings.css (`cb-*` classes,
  * scoped to `.cb-spec-page`) and resolves to the CRM design tokens.
  */
-export default function CallBridge({ pageTitle }: { pageTitle?: string }) {
+export default function CallBridge({
+    pageTitle,
+    fallbackSeconds,
+}: {
+    pageTitle?: string;
+    fallbackSeconds?: number;
+}) {
     const { t } = useTranslation();
     const { td } = useTd();
     const { props } = usePage();
@@ -36,6 +45,8 @@ export default function CallBridge({ pageTitle }: { pageTitle?: string }) {
     const isAdmin = (props.auth?.user?.roles ?? []).some(
         (role: { name?: string }) => role?.name === "admin",
     );
+    // Call managers see the company-wide call log (manage_calls).
+    const canManage = canManageCalls(props.auth?.user, props.auth?.permissions);
 
     const [tab, setTab] = useState<CallBridgeTab>("lines");
 
@@ -52,8 +63,22 @@ export default function CallBridge({ pageTitle }: { pageTitle?: string }) {
         ...(isAdmin
             ? [
                   {
-                      key: "pool" as const,
-                      label: td("Call pool", { source: "en" }),
+                      key: "routing" as const,
+                      label: td("Routing", { source: "en" }),
+                      count: null as number | null,
+                  },
+                  {
+                      key: "timing" as const,
+                      label: td("Call rotation & timing", { source: "en" }),
+                      count: null as number | null,
+                  },
+              ]
+            : []),
+        ...(canManage
+            ? [
+                  {
+                      key: "calls" as const,
+                      label: td("Calls", { source: "en" }),
                       count: null as number | null,
                   },
               ]
@@ -63,7 +88,7 @@ export default function CallBridge({ pageTitle }: { pageTitle?: string }) {
             label: td("Recordings", { source: "en" }),
             count: null as number | null,
         },
-    ].filter((t) => t.key !== "pool" || isAdmin);
+    ].filter((t) => t.key !== "routing" || isAdmin);
 
     const activeTab = tabs.some((t) => t.key === tab) ? tab : "lines";
 
@@ -80,7 +105,7 @@ export default function CallBridge({ pageTitle }: { pageTitle?: string }) {
                     <h1 className="cb-title">{pageTitle ?? td("Call Bridge", { source: "en" })}</h1>
                     <p className="cb-lede">
                         {td(
-                            "Phone lines, call routing and recordings for the browser softphone. Each group of settings lives on its own tab.",
+                            "Phone lines, call routing, the call log and recordings for Phone. Each group of settings lives on its own tab.",
                             { source: "en" },
                         )}
                     </p>
@@ -110,8 +135,22 @@ export default function CallBridge({ pageTitle }: { pageTitle?: string }) {
                         <div className="cb-panel" id="lines" hidden={activeTab !== "lines"}>
                             <SoftphoneDeviceManager />
                         </div>
-                        <div className="cb-panel" id="pool" hidden={activeTab !== "pool"}>
-                            {isAdmin && <SoftphoneCallPoolManager devices={devices} />}
+                        <div className="cb-panel" id="routing" hidden={activeTab !== "routing"}>
+                            {isAdmin && (
+                                <SoftphoneCallPoolManager
+                                    devices={devices}
+                                />
+                            )}
+                        </div>
+                        <div className="cb-panel" id="timing" hidden={activeTab !== "timing"}>
+                            {isAdmin && (
+                                <SoftphoneTimingManager
+                                    initialFallbackSeconds={fallbackSeconds ?? 20}
+                                />
+                            )}
+                        </div>
+                        <div className="cb-panel" id="calls" hidden={activeTab !== "calls"}>
+                            {canManage && activeTab === "calls" && <SoftphoneCallLogPanel />}
                         </div>
                         <div
                             className="cb-panel"

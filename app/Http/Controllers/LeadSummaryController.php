@@ -8,6 +8,7 @@ use App\Services\EntitySummary\LeadSummaryService;
 use App\Services\PermissionService;
 use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class LeadSummaryController extends AccountBaseController
 {
@@ -30,13 +31,18 @@ class LeadSummaryController extends AccountBaseController
         ]);
     }
 
-    public function regenerate(Lead $lead): JsonResponse
+    /**
+     * `if_needed=1` is what the page sends on load: generate only when there is no summary or it
+     * is stale, otherwise answer with the stored one. Without it this always regenerates
+     * (the Regenerate / Refresh buttons).
+     */
+    public function regenerate(Request $request, Lead $lead): JsonResponse
     {
         $this->assertFeatureEnabled();
         $this->assertCanViewLead($lead);
 
         try {
-            $summary = $this->leadSummaryService->regenerate($lead);
+            $summary = $this->leadSummaryService->regenerate($lead, $request->boolean('if_needed'));
         } catch (EntityAiSummaryGenerationException $e) {
             return response()->json([
                 'message' => $e->getMessage(),

@@ -15,6 +15,21 @@ import type {
     SoftphoneConfig,
     SoftphoneState,
 } from "@/Types/api/softphone";
+import {
+    buildExplicitMicConstraints,
+    createBoostedMicStream,
+    ensureAudioSenderBitrateUncapped,
+    inspectAndLogRawTrackSettings,
+    preferOpusG722AndApplyFmtp,
+    readStoredMicGain,
+    readStoredMicProfile,
+    readStoredRnnoiseEnabled,
+    storeMicGain,
+    storeMicProfile,
+    storeRnnoiseEnabled,
+    type BoostedMicProcessor,
+    type MicProfileName,
+} from "./micAudioProcessor";
 
 /**
  * Thin SIP.js wrapper that turns sipgate Neo into an in-browser softphone.
@@ -25,6 +40,17 @@ import type {
  * class only manages registration + a single active call and publishes a
  * plain state object the UI subscribes to.
  */
+
+export interface OutboundAudioDiagnostics {
+    trackSettings: MediaTrackSettings | null;
+    trackLabel: string | null;
+    enabled: boolean;
+    muted: boolean;
+    bytesSent: number;
+    packetsSent: number;
+    audioLevel: number | null;
+    codec: string | null;
+}
 
 interface SDHLike {
     peerConnection?: RTCPeerConnection | null;
@@ -44,7 +70,14 @@ type Listener = () => void;
  * counterparty's phone number) is never logged, not even here.
  */
 const trace = (...args: unknown[]): void => {
-    if (import.meta.env.DEV) {
+    // `import.meta.env` only exists under Vite. The Mix/webpack bundle leaves
+    // it undefined, and reading `.DEV` off it threw inside beginCall() — before
+    // the INVITE was sent (outbound never rang) and before an inbound call
+    // could be answered.
+    const dev =
+        (typeof process !== "undefined" && process.env?.NODE_ENV !== "production") ||
+        (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV === true;
+    if (dev) {
         console.log(...args);
     }
 };
@@ -122,10 +155,14 @@ class SoftphoneClient {
     private endedByUser = false;
     /** A reason is already on record for this attempt (don't overwrite it). */
     private failureRecorded = false;
+    /** Tracks whether an inbound INVITE was canceled due to answer elsewhere. */
+    private inboundCanceledReason: "answered_elsewhere" | "caller_canceled" | null = null;
     private remoteAudio: HTMLAudioElement | null = null;
     private listeners = new Set<Listener>();
     private callSeq = 0;
     private state: SoftphoneState = EMPTY_STATE;
+    private outboundMicProcessor: BoostedMicProcessor | null = null;
+    private rawSenderTrack: MediaStreamTrack | null = null;
 
     subscribe(listener: Listener): () => void {
         this.listeners.add(listener);
@@ -169,109 +206,195 @@ class SoftphoneClient {
     }
 
     async start(config: SoftphoneConfig): Promise<void> {
-        // Device switch: tear down any current registration/call first.
-        if (this.userAgent) {
-            this.session = null;
-            await this.teardown();
-            this.setState(EMPTY_STATE);
-        }
-        this.config = config;
-        this.setState({ ...EMPTY_STATE, registration: "registering" });
+        const run = async (): Promise<void> => {
+            // Cancel any previous in-flight start before tearing down.
+            this.startCancels.forEach((cancel) => cancel());
+            this.startCancels.clear();
 
-        // Cancellation flag: if stop() is called while start() is in flight,
-        // this prevents the locally created UserAgent/Registerer from being
-        // assigned to this.userAgent/this.registerer after stop() has run.
-        let cancelled = false;
-        const cancel = () => { cancelled = true; };
-        // Track all in-flight start attempts so stop() can cancel them all
-        this.startCancels.add(cancel);
-
-        try {
-            const uri = UserAgent.makeURI(config.uri);
-            if (!uri) {
-                throw new Error(`Invalid SIP URI: ${config.uri}`);
-            }
-
-            const userAgent = new UserAgent({
-                uri,
-                transportOptions: { server: config.wss_url },
-                authorizationUsername: config.authorization_username || undefined,
-                authorizationPassword: config.authorization_password || undefined,
-                displayName: config.display_name || undefined,
-                sessionDescriptionHandlerFactoryOptions: {
-                    peerConnectionConfiguration: {
-                        iceServers: [
-                            { urls: "stun:stun.l.google.com:19302" },
-                            { urls: "stun:stun.sipgate.de:3478" },
-                        ],
-                    },
-                },
-                logLevel: "error",
-            });
-
-            userAgent.delegate = {
-                onInvite: (invitation) => this.onIncoming(invitation),
+            // Cancellation flag: if stop() or another start() is called while
+            // start() is in flight, this prevents the locally created
+            // UserAgent/Registerer from taking over after cancellation.
+            let cancelled = false;
+            const cancel = () => {
+                cancelled = true;
             };
+            this.startCancels.add(cancel);
 
-            await userAgent.start();
-
-            // Check for cancellation after async operations
-            if (cancelled) {
-                await userAgent.stop();
-                return;
-            }
-
-            const registerer = new Registerer(userAgent);
-            registerer.stateChange.addListener((state) => {
-                // Check cancellation before applying state changes
-                if (cancelled) return;
-                if (state === RegistererState.Registered) {
-                    this.setState({
-                        registration: "registered",
-                        registrationError: null,
-                    });
-                } else if (state === RegistererState.Unregistered) {
-                    // Only meaningful if we didn't intentionally stop.
-                    if (this.userAgent) {
-                        this.setState({ registration: "unregistered" });
+            try {
+                // Device switch: tear down any current registration/call first.
+                if (this.userAgent) {
+                    this.session = null;
+                    await this.teardown();
+                    if (cancelled) {
+                        return;
                     }
+                    this.setState(EMPTY_STATE);
                 }
-            });
-            await registerer.register();
 
-            // Check for cancellation again before assigning
-            if (cancelled) {
-                await registerer.unregister();
-                await userAgent.stop();
-                return;
-            }
+                if (cancelled) {
+                    return;
+                }
 
-            this.userAgent = userAgent;
-            this.registerer = registerer;
-        } catch (error: unknown) {
-            // A cancelled start is not a failure: a newer attempt owns the
-            // resources now, so don't tear them down and don't report a
-            // failure state for a start nobody is waiting for.
-            if (cancelled) {
-                return;
+                this.config = config;
+                this.setState({ ...EMPTY_STATE, registration: "registering" });
+                const rawUri = (config.uri || "").trim();
+                const normalizedUri = /^sips?:/i.test(rawUri)
+                    ? rawUri
+                    : rawUri.includes("@")
+                        ? `sip:${rawUri}`
+                        : config.authorization_username
+                            ? `sip:${config.authorization_username}@sipgate.de`
+                            : `sip:${rawUri}`;
+                const uri = UserAgent.makeURI(normalizedUri);
+                if (!uri) {
+                    throw new Error(`Invalid SIP URI: ${config.uri}`);
+                }
+
+                const userAgent = new UserAgent({
+                    uri,
+                    transportOptions: { server: config.wss_url },
+                    authorizationUsername:
+                        config.authorization_username || undefined,
+                    authorizationPassword:
+                        config.authorization_password || undefined,
+                    displayName: config.display_name || undefined,
+                    sessionDescriptionHandlerFactoryOptions: {
+                        peerConnectionConfiguration: {
+                            iceServers: [
+                                { urls: "stun:stun.l.google.com:19302" },
+                                { urls: "stun:stun.sipgate.de:3478" },
+                            ],
+                        },
+                    },
+                    logLevel: "error",
+                });
+
+                userAgent.delegate = {
+                    onInvite: (invitation) => this.onIncoming(invitation),
+                };
+
+                await userAgent.start();
+
+                if (cancelled) {
+                    await userAgent.stop();
+                    return;
+                }
+
+                const registerer = new Registerer(userAgent);
+                this.userAgent = userAgent;
+                this.registerer = registerer;
+
+                await new Promise<void>((resolve, reject) => {
+                    const timer = window.setTimeout(() => {
+                        cleanup();
+                        reject(
+                            new Error(
+                                "The line did not answer the registration in time.",
+                            ),
+                        );
+                    }, 10_000);
+
+                    const cancelWait = () => {
+                        cleanup();
+                        resolve();
+                    };
+                    this.startCancels.add(cancelWait);
+
+                    const cleanup = () => {
+                        window.clearTimeout(timer);
+                        this.startCancels.delete(cancelWait);
+                    };
+
+                    registerer.stateChange.addListener((state) => {
+                        if (cancelled) {
+                            cleanup();
+                            resolve();
+                            return;
+                        }
+                        if (state === RegistererState.Registered) {
+                            this.setState({
+                                registration: "registered",
+                                registrationError: null,
+                            });
+                            cleanup();
+                            resolve();
+                        } else if (state === RegistererState.Unregistered) {
+                            // Only meaningful if we didn't intentionally stop.
+                            if (this.userAgent === userAgent) {
+                                this.setState({ registration: "unregistered" });
+                            }
+                        }
+                    });
+
+                    registerer
+                        .register({
+                            requestDelegate: {
+                                onReject: (response) => {
+                                    const status = response?.message?.statusCode;
+                                    cleanup();
+                                    reject(
+                                        new Error(
+                                            status === 401 || status === 403
+                                                ? "The line rejected the username or password."
+                                                : `The line rejected the registration (${status ?? "unknown"}).`,
+                                        ),
+                                    );
+                                },
+                            },
+                        })
+                        .catch((err) => {
+                            cleanup();
+                            reject(err);
+                        });
+                });
+
+                if (cancelled) {
+                    await registerer.unregister().catch(() => undefined);
+                    await userAgent.stop().catch(() => undefined);
+                    if (this.userAgent === userAgent) {
+                        this.userAgent = null;
+                        this.registerer = null;
+                    }
+                    return;
+                }
+            } catch (error: unknown) {
+                // A cancelled start is not a failure: a newer attempt owns the
+                // resources now, so don't tear them down and don't report a
+                // failure state for a start nobody is waiting for.
+                if (cancelled) {
+                    return;
+                }
+                await this.teardown();
+                this.setState({
+                    registration: "failed",
+                    registrationError:
+                        error instanceof Error
+                            ? error.message
+                            : "Registration failed",
+                });
+            } finally {
+                this.startCancels.delete(cancel);
             }
-            await this.teardown();
-            this.setState({
-                registration: "failed",
-                registrationError:
-                    error instanceof Error ? error.message : "Registration failed",
-            });
+        };
+
+        const promise = run();
+        this.startPromise = promise;
+        try {
+            await promise;
         } finally {
-            this.startCancels.delete(cancel);
+            if (this.startPromise === promise) {
+                this.startPromise = null;
+            }
         }
     }
 
-    private startCancel: (() => void) | null = null;
+    private startPromise: Promise<void> | null = null;
 
     async stop(): Promise<void> {
         // Cancel all in-flight start attempts before tearing down
         this.startCancels.forEach((cancel) => cancel());
         this.startCancels.clear();
+        this.startPromise = null;
         await this.hangup();
         await this.teardown();
         this.config = null;
@@ -294,6 +417,10 @@ class SoftphoneClient {
             return;
         }
 
+        if (this.startPromise) {
+            await this.startPromise;
+        }
+
         // Every reason a call cannot be placed has to reach the agent. These
         // paths used to return quietly, leaving the dock closed with nothing to
         // explain the miss.
@@ -305,13 +432,15 @@ class SoftphoneClient {
             );
             throw new Error("No phone line is registered for this browser.");
         }
-        if (!this.userAgent) {
-            this.reportSetupFailure(
-                target,
-                "The softphone is not registered with sipgate. Pick a line in the softphone, then retry.",
-                context,
+        if (!this.userAgent || this.state.registration !== "registered") {
+            const reason =
+                this.state.registrationError ||
+                "Your phone line isn't connected to sipgate. Pick a line in the phone panel, then retry.";
+            this.reportSetupFailure(target, reason, context);
+            throw new Error(
+                this.state.registrationError ||
+                "Your phone line isn't connected.",
             );
-            throw new Error("The softphone is not registered.");
         }
         if (this.session) {
             // One call at a time in v1 — a second dial replaces nothing; say so.
@@ -324,7 +453,16 @@ class SoftphoneClient {
         }
 
         const domain = domainOf(this.config.uri);
-        const sipUri = domain ? `sip:${target}@${domain}` : `sip:${target}`;
+        const dialTarget = normalizePhoneForSip(target, domain);
+        if (!dialTarget) {
+            this.reportSetupFailure(
+                target,
+                `"${target}" is not a number this line can dial.`,
+                context,
+            );
+            throw new Error(`Invalid phone number: ${target}`);
+        }
+        const sipUri = domain ? `sip:${dialTarget}@${domain}` : `sip:${dialTarget}`;
         const targetUri = UserAgent.makeURI(sipUri);
         if (!targetUri) {
             this.reportSetupFailure(
@@ -335,32 +473,42 @@ class SoftphoneClient {
             throw new Error(`Could not build SIP target: ${sipUri}`);
         }
 
+        const sdpModifier = (desc: RTCSessionDescriptionInit): Promise<RTCSessionDescriptionInit> =>
+            Promise.resolve({
+                ...desc,
+                sdp: preferOpusG722AndApplyFmtp(desc.sdp ?? ""),
+            });
+
         const inviter = new Inviter(this.userAgent, targetUri, {
             sessionDescriptionHandlerOptions: {
-                constraints: { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false }, video: false },
+                constraints: {
+                    audio: buildExplicitMicConstraints(),
+                    video: false,
+                },
             },
+            sessionDescriptionHandlerModifiers: [sdpModifier],
         }) as unknown as ManagedSession;
 
         this.beginCall(inviter, "outbound", target, context);
 
         try {
+            // Same identity header as before the regressions: the line's own
+            // SIP URI (this is what sipgate accepted when calls last worked).
             const extraHeaders = this.config.uri
                 ? [`P-Preferred-Identity: ${this.config.uri.startsWith("sip:") ? `<${this.config.uri}>` : `<sip:${this.config.authorization_username || this.config.uri}@${domain || "sipgate.de"}>`}`]
                 : [];
+            trace("softphone INVITE sent", dialTarget.startsWith("+") ? "e164+" : "digits");
             await (inviter as unknown as Inviter).invite({
+                requestDelegate: this.inviteDelegate(),
                 requestOptions: {
                     extraHeaders,
-                    // The only place sip.js 0.21 hands us the call's outcome:
-                    // provisional responses (180 Ringing) and the negative final
-                    // response. Without it an outbound call sat on "Calling…"
-                    // until it ended, with no reason shown for a failed call.
-                    delegate: this.inviteDelegate(),
                 },
             } as never);
             // SessionDescriptionHandler exists only after invite() — attach remote audio now.
             if (this.session) {
                 this.attachRemoteFromSession(this.session);
                 this.refreshRemoteAudio();
+                this.watchMediaPath(this.session);
             }
         } catch (error: unknown) {
             console.error("[softphone] INVITE failed");
@@ -384,6 +532,11 @@ class SoftphoneClient {
         if (!session || this.state.call?.phase !== "inbound" || this.answering) {
             return;
         }
+        if (session.state === SessionState.Terminated) {
+            // The caller (or the network) already ended this leg.
+            this.failCall("disconnected", "The caller hung up before the call could be answered.");
+            return;
+        }
         this.answering = true;
         const answeringCallId = this.state.call?.id ?? null;
         trace("softphone answer() start", answeringCallId);
@@ -391,10 +544,20 @@ class SoftphoneClient {
             if (this.state.call?.id !== answeringCallId) {
                 throw new Error("active call changed during answer");
             }
+            const sdpModifier = (desc: RTCSessionDescriptionInit): Promise<RTCSessionDescriptionInit> =>
+                Promise.resolve({
+                    ...desc,
+                    sdp: preferOpusG722AndApplyFmtp(desc.sdp ?? ""),
+                });
+
             await session.accept({
                 sessionDescriptionHandlerOptions: {
-                    constraints: { audio: true, video: false },
+                    constraints: {
+                        audio: buildExplicitMicConstraints(),
+                        video: false,
+                    },
                 },
+                sessionDescriptionHandlerModifiers: [sdpModifier],
             });
             this.attachRemoteFromSession(session);
             this.refreshRemoteAudio();
@@ -467,6 +630,31 @@ class SoftphoneClient {
         this.endCall();
     }
 
+    /**
+     * Terminate the session and immediately surface an informative call notice
+     * (e.g. "Answered on another device") without presenting an alarming error.
+     */
+    notifyCallNotice(code: SoftphoneCallFailureCode, reason: string): void {
+        const call = this.state.call;
+        const session = this.session;
+        if (!call) {
+            return;
+        }
+        this.endedByUser = true;
+        // An inbound leg is never rejected from here: reject() sends a final
+        // 603 that can end the forked call for every other device too. Another
+        // device already won (or sipgate will CANCEL this leg itself), so just
+        // drop it locally.
+        if (session && call.phase !== "inbound") {
+            try {
+                void session.cancel();
+            } catch {
+                // ignore
+            }
+        }
+        this.failCall(code, reason);
+    }
+
     setMuted(muted: boolean): void {
         const call = this.state.call;
         if (!call) {
@@ -477,7 +665,63 @@ class SoftphoneClient {
                 sender.track.enabled = !muted;
             }
         });
+        if (this.outboundMicProcessor) {
+            this.outboundMicProcessor.track.enabled = !muted;
+        }
+        if (this.rawSenderTrack) {
+            this.rawSenderTrack.enabled = !muted;
+        }
         this.setState({ call: { ...call, muted } });
+    }
+
+    getMicGain(): number {
+        return this.outboundMicProcessor ? this.outboundMicProcessor.getGain() : readStoredMicGain();
+    }
+
+    setMicGain(gain: number): void {
+        storeMicGain(gain);
+        if (this.outboundMicProcessor) {
+            this.outboundMicProcessor.setGain(gain);
+        }
+    }
+
+    getMicProfile(): MicProfileName {
+        return this.outboundMicProcessor ? this.outboundMicProcessor.getProfile() : readStoredMicProfile();
+    }
+
+    setMicProfile(profile: MicProfileName, overrideManualGain?: number): void {
+        storeMicProfile(profile);
+        if (this.outboundMicProcessor) {
+            this.outboundMicProcessor.setProfile(profile, overrideManualGain);
+        }
+    }
+
+    getRnnoiseEnabled(): boolean {
+        return this.outboundMicProcessor
+            ? this.outboundMicProcessor.getRnnoiseEnabled()
+            : readStoredRnnoiseEnabled();
+    }
+
+    setRnnoiseEnabled(enabled: boolean): void {
+        storeRnnoiseEnabled(enabled);
+        if (this.outboundMicProcessor) {
+            this.outboundMicProcessor.setRnnoiseEnabled(enabled);
+        }
+    }
+
+    getRawSendStream(): MediaStream | null {
+        if (!this.rawSenderTrack) {
+            return null;
+        }
+        try {
+            return new MediaStream([this.rawSenderTrack.clone()]);
+        } catch {
+            return null;
+        }
+    }
+
+    getActiveMicProcessor(): BoostedMicProcessor | null {
+        return this.outboundMicProcessor;
     }
 
     setHold(onHold: boolean): void {
@@ -522,26 +766,152 @@ class SoftphoneClient {
         }
     }
 
+    /**
+     * Clones the active outbound audio WebRTC sender track sent to sipgate.
+     * Returning a clone ensures diagnostic recording or level meters can be
+     * stopped or inspected without stopping or mutating the live call track.
+     */
+    getLocalSendStream(): MediaStream | null {
+        if (!this.session) {
+            return null;
+        }
+        const pc = this.peerConnectionOf(this.session);
+        if (!pc) {
+            return null;
+        }
+        const senders = pc.getSenders();
+        const audioSender = senders.find(
+            (sender) => sender.track && sender.track.kind === "audio",
+        );
+        if (!audioSender || !audioSender.track) {
+            return null;
+        }
+        try {
+            return new MediaStream([audioSender.track.clone()]);
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Inspects the outbound audio RTCRtpSender track and pc.getStats()
+     * for WebRTC outbound-rtp / media-source statistics.
+     */
+    async getOutboundAudioDiagnostics(): Promise<OutboundAudioDiagnostics | null> {
+        if (!this.session) {
+            return null;
+        }
+        const pc = this.peerConnectionOf(this.session);
+        if (!pc) {
+            return null;
+        }
+        const senders = pc.getSenders();
+        const audioSender = senders.find(
+            (sender) => sender.track && sender.track.kind === "audio",
+        );
+        const track = audioSender?.track ?? null;
+        const trackSettings = track ? track.getSettings() : null;
+        const trackLabel = track ? track.label : null;
+        const enabled = track ? track.enabled : false;
+        const muted = track ? track.muted : false;
+
+        let bytesSent = 0;
+        let packetsSent = 0;
+        let audioLevel: number | null = null;
+        let codecId: string | null = null;
+        let codec: string | null = null;
+
+        try {
+            const stats = await pc.getStats();
+            stats.forEach((report: Record<string, unknown>) => {
+                if (
+                    report.type === "outbound-rtp" &&
+                    (report.kind === "audio" || report.mediaType === "audio")
+                ) {
+                    bytesSent = Number(report.bytesSent || 0);
+                    packetsSent = Number(report.packetsSent || 0);
+                    if (report.codecId && typeof report.codecId === "string") {
+                        codecId = report.codecId;
+                    }
+                    if (typeof report.audioLevel === "number") {
+                        audioLevel = report.audioLevel;
+                    }
+                }
+                if (
+                    report.type === "media-source" &&
+                    (report.kind === "audio" || report.mediaType === "audio")
+                ) {
+                    if (typeof report.audioLevel === "number") {
+                        audioLevel = report.audioLevel;
+                    }
+                }
+            });
+
+            if (codecId && stats.has(codecId)) {
+                const codecReport = stats.get(codecId) as
+                    | Record<string, unknown>
+                    | undefined;
+                if (codecReport && typeof codecReport.mimeType === "string") {
+                    codec = codecReport.mimeType;
+                }
+            }
+            if (!codec) {
+                stats.forEach((report: Record<string, unknown>) => {
+                    if (
+                        report.type === "codec" &&
+                        typeof report.mimeType === "string" &&
+                        report.mimeType.toLowerCase().includes("audio")
+                    ) {
+                        codec = report.mimeType;
+                    }
+                });
+            }
+            if (codec && this.outboundMicProcessor) {
+                this.outboundMicProcessor.setNegotiatedCodec(codec);
+            }
+        } catch {
+            // stats query error or pc closing
+        }
+
+        return {
+            trackSettings,
+            trackLabel,
+            enabled,
+            muted,
+            bytesSent,
+            packetsSent,
+            audioLevel,
+            codec,
+        };
+    }
+
     // --- internals -------------------------------------------------------
 
-/**
-     * INVITE progress. sip.js 0.21 has no session state for either of these, so
-     * this is where an outbound call learns that the far end started ringing and
-     * — when it never connects — why.
-     */
+    /**
+         * INVITE progress. sip.js 0.21 has no session state for either of these, so
+         * this is where an outbound call learns that the far end started ringing and
+         * — when it never connects — why.
+         */
     private inviteDelegate() {
         return {
-            onProgress: (response: { statusCode?: number }) => {
-                // 180 Ringing: the callee's phone is buzzing.
-                if (response.statusCode === 180) {
+            onProgress: (response: { statusCode?: number; message?: { statusCode?: number } }) => {
+                const code = response.message?.statusCode ?? response.statusCode;
+                console.info("[softphone] INVITE progress", code);
+                // 180 Ringing or 183 Session Progress with early media
+                if (code === 180 || code === 183) {
                     this.setStage("ringing");
                 }
             },
-            onRedirect: (response: { statusCode?: number; reasonPhrase?: string }) => {
-                this.failFromStatus(response.statusCode, response.reasonPhrase);
+            onRedirect: (response: { statusCode?: number; reasonPhrase?: string; message?: { statusCode?: number; reasonPhrase?: string } }) => {
+                const code = response.message?.statusCode ?? response.statusCode;
+                const phrase = response.message?.reasonPhrase ?? response.reasonPhrase;
+                this.failFromStatus(code, phrase);
             },
-            onReject: (response: { statusCode?: number; reasonPhrase?: string }) => {
-                this.failFromStatus(response.statusCode, response.reasonPhrase);
+            onReject: (response: { statusCode?: number; reasonPhrase?: string; message?: { statusCode?: number; reasonPhrase?: string } }) => {
+                const code = response.message?.statusCode ?? response.statusCode;
+                const phrase = response.message?.reasonPhrase ?? response.reasonPhrase;
+                console.warn("[softphone] INVITE rejected", code, phrase);
+                this.failFromStatus(code, phrase);
             },
         };
     }
@@ -551,7 +921,7 @@ class SoftphoneClient {
      * call live). There is no session to tear down, so this writes the notice
      * straight into state — otherwise the agent gets no explanation.
      */
-    private reportSetupFailure(
+    public reportSetupFailure(
         peer: string,
         reason: string,
         context: SoftphoneCallContext | null,
@@ -626,6 +996,25 @@ class SoftphoneClient {
             return;
         }
 
+        this.inboundCanceledReason = null;
+        try {
+            (invitation as unknown as { delegate?: unknown }).delegate = {
+                onCancel: (cancel: unknown) => {
+                    try {
+                        const req = (cancel as { request?: { getHeader?: (name: string) => string | undefined } })?.request;
+                        const reason = req?.getHeader ? req.getHeader("reason") : "";
+                        if (reason && /cause=200|completed elsewhere|answered/i.test(reason)) {
+                            this.inboundCanceledReason = "answered_elsewhere";
+                        }
+                    } catch {
+                        // ignore
+                    }
+                },
+            };
+        } catch {
+            // ignore
+        }
+
         const peer =
             invitation.remoteIdentity?.uri?.user ?? "Unknown caller";
         const managed = invitation as unknown as ManagedSession;
@@ -640,7 +1029,11 @@ class SoftphoneClient {
     ): void {
         this.session = session;
         this.callSeq += 1;
-        const id = `call-${this.callSeq}`;
+        const sipCallId =
+            (session as unknown as { incomingInviteRequest?: { message?: { callId?: string } } })?.incomingInviteRequest?.message?.callId ??
+            (session as unknown as { outgoingRequestMessage?: { callId?: string } })?.outgoingRequestMessage?.callId ??
+            (session as unknown as { id?: string })?.id;
+        const id = sipCallId && sipCallId.trim() !== "" ? sipCallId.trim() : `call-${this.callSeq}`;
         // A fresh attempt starts from a clean slate: no stale failure notice,
         // and nothing here counts as "the agent hung up".
         this.endedByUser = false;
@@ -700,21 +1093,42 @@ class SoftphoneClient {
             } else if (state === SessionState.Terminated) {
                 trace("softphone session terminated", this.state.call?.id);
                 const call = this.state.call;
-                // A call that never reached media and did not end by the agent's
-                // own hand is a failed connection — say so instead of closing.
-                if (
-                    call &&
-                    call.connectedAt === null &&
-                    !this.endedByUser &&
-                    !this.failureRecorded
-                ) {
-                    this.failCall(
-                        "terminated",
-                        call.direction === "inbound"
-                            ? "The caller hung up before connecting."
-                            : "The call ended before it connected.",
-                    );
-                    return;
+                if (call && !this.endedByUser && !this.failureRecorded) {
+                    if (call.connectedAt === null) {
+                        if (call.direction === "inbound") {
+                            const isAnsweredElsewhere = this.inboundCanceledReason === "answered_elsewhere";
+                            this.failCall(
+                                isAnsweredElsewhere ? "answered_elsewhere" : "disconnected",
+                                isAnsweredElsewhere
+                                    ? "This call was answered on another device."
+                                    : "The caller disconnected before the call was answered.",
+                            );
+                            return;
+                        }
+                        // Outbound call that never connected:
+                        // SIP.js transitions the session to Terminated before calling onReject/onRedirect delegates.
+                        // Defer fallback termination to allow the final-response delegate to record the specific status first.
+                        setTimeout(() => {
+                            if (!this.failureRecorded && !this.endedByUser && this.state.call) {
+                                this.failCall(
+                                    "terminated",
+                                    "The call ended before it connected.",
+                                );
+                            } else if (!this.state.call) {
+                                // Already cleaned up
+                            } else {
+                                this.endCall();
+                            }
+                        }, 0);
+                        return;
+                    } else if (call.direction === "inbound") {
+                        // The inbound call was active, but disconnected from the caller's end
+                        this.failCall(
+                            "disconnected",
+                            "The call was disconnected from the client's end.",
+                        );
+                        return;
+                    }
                 }
                 this.endCall();
             }
@@ -730,6 +1144,17 @@ class SoftphoneClient {
         const call = this.state.call;
         if (!call || call.stage === stage) {
             return;
+        }
+        if (stage === "connected" && this.outboundMicProcessor) {
+            const ctxState = this.outboundMicProcessor.audioContext.state;
+            if (ctxState !== "running") {
+                console.warn(
+                    `[softphone] WARNING: Outbound mic AudioContext state is "${ctxState}" (not "running") when call connected. Attempting resume...`,
+                );
+                void this.outboundMicProcessor.ensureRunning();
+            }
+            // Step 2: Check negotiated codec from getStats() when connected so PCMU/PCMA switches lowpass to 3600 Hz
+            void this.getOutboundAudioDiagnostics();
         }
         this.setState({
             call: {
@@ -777,6 +1202,11 @@ class SoftphoneClient {
 
     private endCall(): void {
         this.session = null;
+        if (this.outboundMicProcessor) {
+            this.outboundMicProcessor.dispose();
+            this.outboundMicProcessor = null;
+        }
+        this.rawSenderTrack = null;
         if (this.remoteAudio) {
             const audio = this.remoteAudio;
             try {
@@ -805,6 +1235,7 @@ class SoftphoneClient {
             trace("softphone attachRemoteFromSession: no peer connection");
             return;
         }
+        void this.applyOutboundMicBoost(session);
         trace("softphone attachRemoteFromSession: pc", pc.connectionState, pc.iceConnectionState);
         pc.addEventListener("iceconnectionstatechange", () => {
             trace("softphone iceConnectionState", pc.iceConnectionState);
@@ -877,7 +1308,64 @@ class SoftphoneClient {
             .forEach(fn);
     }
 
+    private async applyOutboundMicBoost(session: ManagedSession): Promise<void> {
+        const pc = this.peerConnectionOf(session);
+        if (!pc) {
+            return;
+        }
+
+        let isBoosting = false;
+        const findAndBoost = async () => {
+            if (this.session !== session || isBoosting) {
+                return;
+            }
+            const sender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
+            if (!sender || !sender.track) {
+                return;
+            }
+
+            // Already boosted this sender track
+            if (this.outboundMicProcessor && this.outboundMicProcessor.track.id === sender.track.id) {
+                return;
+            }
+
+            isBoosting = true;
+            try {
+                const rawTrack = sender.track;
+                this.rawSenderTrack = rawTrack;
+                const rawStream = new MediaStream([rawTrack]);
+
+                const processor = createBoostedMicStream(rawStream);
+                if (this.outboundMicProcessor) {
+                    this.outboundMicProcessor.dispose();
+                }
+                this.outboundMicProcessor = processor;
+                await processor.ensureRunning();
+                inspectAndLogRawTrackSettings(rawTrack, undefined, processor.audioContext.state);
+
+                try {
+                    await sender.replaceTrack(processor.track);
+                    await ensureAudioSenderBitrateUncapped(sender);
+                    trace("softphone outbound mic boost applied to sender");
+                } catch (err) {
+                    console.warn("[softphone] replaceTrack with boosted mic failed:", err);
+                }
+            } finally {
+                isBoosting = false;
+            }
+        };
+
+        void findAndBoost();
+        setTimeout(() => void findAndBoost(), 250);
+        setTimeout(() => void findAndBoost(), 1000);
+    }
+
     private async teardown(): Promise<void> {
+        if (this.outboundMicProcessor) {
+            this.outboundMicProcessor.dispose();
+            this.outboundMicProcessor = null;
+        }
+        this.rawSenderTrack = null;
         try {
             await this.registerer?.unregister();
         } catch {
@@ -901,6 +1389,25 @@ class SoftphoneClient {
 function domainOf(uri: string): string {
     const at = uri.indexOf("@");
     return at >= 0 ? uri.slice(at + 1).trim() : "";
+}
+
+export function uriUserOf(uri: string): string {
+    const withoutScheme = uri.replace(/^sip:/i, "");
+    const at = withoutScheme.indexOf("@");
+    return at >= 0 ? withoutScheme.slice(0, at).trim() : withoutScheme.trim();
+}
+
+/**
+ * Clean a dial target: drop spaces/brackets/hyphens but keep a leading "+",
+ * exactly as the number was dialled before the regression. The number itself
+ * is not rewritten.
+ */
+export function normalizePhoneForSip(phone: string, _domain?: string): string {
+    const trimmed = phone.trim();
+    if (/(?:\b(?:ext\.?|extension)\b|\bx\b|\bx(?=\d)|[#;])/i.test(trimmed)) {
+        return "";
+    }
+    return trimmed.replace(/[^\d+]/g, "").replace(/(?!^)\+/g, "");
 }
 
 export const softphone = new SoftphoneClient();

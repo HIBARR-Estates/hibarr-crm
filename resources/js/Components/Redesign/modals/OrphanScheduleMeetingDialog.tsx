@@ -30,6 +30,8 @@ export interface OrphanScheduleMeetingDialogProps {
     meetingTypes: Array<{ id: number; name: string; color?: string }>;
     /** Slot the calendar was clicked on, when the dialog was opened that way. */
     initialStart?: { date: string; startTime: string };
+    /** Opens on this record instead of asking for one (a person's next-step button). */
+    initialRecord?: { type: ScheduleRecordType; id: number };
 }
 
 /**
@@ -45,6 +47,7 @@ export default function OrphanScheduleMeetingDialog({
     userLeads,
     meetingTypes,
     initialStart,
+    initialRecord,
 }: OrphanScheduleMeetingDialogProps) {
     const { t } = useTranslation();
     const { td } = useTd();
@@ -55,9 +58,11 @@ export default function OrphanScheduleMeetingDialog({
     // Which kind of record this meeting is for. A tab rather than one mixed
     // list: picking the wrong entity type is the mistake worth preventing,
     // and a deal and a lead of the same client read almost identically.
-    const [recordType, setRecordType] = useState<ScheduleRecordType>("deal");
+    const [recordType, setRecordType] = useState<ScheduleRecordType>(
+        initialRecord?.type ?? "deal",
+    );
     const [selectedKey, setSelectedKey] = useState<ScheduleRecordKey | null>(
-        null,
+        initialRecord ? recordKey(initialRecord.type, initialRecord.id) : null,
     );
     const { source, loading, error } = useScheduleRecordSource(selectedKey);
     const { createMeeting, isCreating, errors, clearErrors } =
@@ -67,11 +72,15 @@ export default function OrphanScheduleMeetingDialog({
     // would silently book against the wrong deal.
     useEffect(() => {
         if (!open) {
-            setRecordType("deal");
-            setSelectedKey(null);
+            setRecordType(initialRecord?.type ?? "deal");
+            setSelectedKey(
+                initialRecord
+                    ? recordKey(initialRecord.type, initialRecord.id)
+                    : null,
+            );
             clearErrors();
         }
-    }, [open, clearErrors]);
+    }, [open, clearErrors, initialRecord?.type, initialRecord?.id]);
 
     const initialForm = useMemo(
         () => buildEmptyMeetingForm(source, currentUserId, currentUserEmail),
@@ -132,8 +141,13 @@ export default function OrphanScheduleMeetingDialog({
             initialForm={initialForm}
             // A record is being fetched — seeding now would lock in a form
             // built from `source` before it arrived, and this modal only
-            // seeds once per mount.
-            readyToSeed={!selectedKey || !loading}
+            // seeds once per mount. `loading` is still false on the first
+            // render with a record (the fetch starts in an effect), so wait
+            // until the fetch has actually produced a result or an error.
+            readyToSeed={
+                !selectedKey ||
+                (!loading && (source !== null || error !== null))
+            }
             onSubmit={handleSubmit}
             mustIncludeOwner={mustIncludeOwner}
             labels={{

@@ -43,6 +43,7 @@ class NotificationBypassCatalog
             'NewLeadCreated' => 'New lead created',
             'LeadImported' => 'Lead imported',
             'LeadDeleted' => 'Lead deleted',
+            'LeadMerged' => 'Lead merged',
             'LeadOwnerAssigned' => 'Lead owner assigned',
             'LeadAgentAssigned' => 'Lead agent assigned',
             'LeadFollowUpOverdue' => 'Lead follow-up overdue',

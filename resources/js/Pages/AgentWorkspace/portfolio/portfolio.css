@@ -1,0 +1,673 @@
+/* Portfolio: For my deals, Browse, Projects (L7-18 to L7-20). Colours come
+   from the --dr-* tokens. Cards are filled or edged all round, never with a
+   side border, and nothing here casts a shadow. */
+
+/* ---------- band ---------- */
+.agent-ws:has(.agent-pf) {
+    --agent-band-height: 300px;
+}
+
+/* Browse has the search on its own row under the title. */
+.agent-ws:has(.agent-pf--search) {
+    --agent-band-height: 352px;
+}
+
+.agent-pf {
+    display: flex;
+    flex-direction: column;
+    gap: 38px;
+}
+
+.agent-pf__top {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    min-height: 62px;
+}
+
+.agent-pf__heading h1 {
+    margin: 0;
+    color: var(--dr-white);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.agent-pf__heading p {
+    margin: 4px 0 0;
+    color: var(--dr-navy-mid);
+    font-size: 14px;
+}
+
+.agent-pf__panel {
+    min-width: 0;
+    padding: 14px 16px;
+    border: 1px solid var(--dr-border);
+    border-radius: 16px;
+    background: var(--dr-white);
+}
+
+.agent-pf__cap {
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+/* ---------- For my deals ---------- */
+.agent-pf__split {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.agent-pf__rail {
+    display: flex;
+    flex: 0 0 330px;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px;
+}
+
+.agent-pf__deals {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-pf__deal {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--dr-border);
+    border-radius: 12px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.agent-pf__deal[aria-pressed="true"] {
+    padding: 9px 11px;
+    border: 2px solid var(--dr-blue);
+    background: var(--dr-blue-light);
+}
+
+.agent-pf__deal:focus-visible,
+.agent-pf__pick:focus-visible {
+    outline: 2px solid var(--dr-blue-mid);
+    outline-offset: 2px;
+}
+
+.agent-pf__deal-text {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.agent-pf__deal-text b {
+    overflow: hidden;
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-pf__deal-text span {
+    overflow: hidden;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-pf__note {
+    margin: 0;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.agent-pf__main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.agent-pf__main-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+}
+
+.agent-pf__main-head h2 {
+    min-width: 0;
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.agent-pf__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* ---------- cards ---------- */
+.agent-pf__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-pf__grid--browse {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.agent-pf__card {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 7px;
+    padding: 8px;
+    border: 1px solid var(--dr-border);
+    border-radius: 14px;
+    background: var(--dr-white);
+}
+
+.agent-pf__card.is-selected {
+    padding: 7px;
+    border: 2px solid var(--dr-blue);
+}
+
+.agent-pf__pick {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.agent-pf__pick--static {
+    cursor: default;
+}
+
+.agent-pf__photo {
+    position: relative;
+    display: flex;
+    height: 118px;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 12px;
+    background: var(--dr-surface-hover);
+    color: var(--dr-text-hint);
+}
+
+.agent-pf__photo img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.agent-pf__photo-tag {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    padding: 3px 7px;
+    border-radius: 5px;
+    background: rgb(15 28 56 / 75%);
+    color: var(--dr-white);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.agent-pf__body {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 4px;
+}
+
+.agent-pf__title {
+    overflow: hidden;
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-pf__line {
+    margin: 0;
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+.agent-pf__body .agent-pf__line,
+.agent-pf__body > span:last-child {
+    overflow: hidden;
+    color: var(--dr-text-muted);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-pf__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 4px;
+}
+
+.agent-pf__price {
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.agent-pf__expose {
+    display: inline-flex;
+    height: 26px;
+    align-items: center;
+    gap: 6px;
+    padding: 0 11px;
+    border: 1px solid var(--dr-blue-mid);
+    border-radius: 8px;
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-pf__expose:hover {
+    background: var(--dr-blue-mid);
+}
+
+.agent-pf__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 0;
+    padding: 0 4px 4px;
+    list-style: none;
+}
+
+.agent-pf__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border: 1px solid var(--dr-border);
+    border-radius: 999px;
+    background: var(--dr-white);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-pf__chip-dot {
+    width: 7px;
+    height: 7px;
+    flex: 0 0 7px;
+    border-radius: 50%;
+}
+
+.agent-pf__chip-dot--high {
+    background: var(--dr-green);
+}
+
+.agent-pf__chip-dot--mid {
+    background: var(--dr-blue);
+}
+
+.agent-pf__chip-dot--low {
+    background: var(--dr-text-hint);
+}
+
+.agent-pf__chip-dot--factor {
+    background: var(--dr-navy);
+}
+
+/* ---------- Browse ---------- */
+.agent-pf__browse {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.agent-pf__filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border: 1px solid var(--dr-border);
+    border-radius: 16px;
+    background: var(--dr-white);
+}
+
+.agent-pf__filter-wrap {
+    display: inline-flex;
+    max-width: 100%;
+    align-items: center;
+    gap: 4px;
+}
+
+.agent-pf__filter-wrap.is-set {
+    padding-left: 10px;
+    border: 1px solid var(--dr-blue-mid);
+    border-radius: 8px;
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+    font-size: 13px;
+}
+
+.agent-pf__filter-label {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-pf__filter-wrap.is-set .agent-pf__filter {
+    border-color: transparent !important;
+    background: transparent !important;
+    color: var(--dr-blue-dark) !important;
+    font-weight: 600;
+}
+
+.agent-pf__filter {
+    min-height: 34px;
+    padding: 0 10px;
+    font: inherit;
+    font-size: 13px;
+}
+
+.agent-pf__more {
+    display: flex;
+    justify-content: center;
+}
+
+/* ---------- Projects ---------- */
+.agent-pf__projects {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.agent-pf__project {
+    display: flex;
+    gap: 14px;
+    padding: 12px;
+    border-radius: 16px;
+}
+
+.agent-pf__thumb {
+    display: flex;
+    width: 200px;
+    flex: 0 0 200px;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    min-height: 150px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+    background: var(--dr-surface-hover);
+    color: var(--dr-text-hint);
+}
+
+.agent-pf__thumb img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.agent-pf__project-body {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.agent-pf__project-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.agent-pf__project-head h2 {
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    font-size: 16px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-pf__status {
+    padding: 4px 10px;
+    border-radius: 6px;
+    color: var(--dr-white);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.agent-pf__status--building {
+    background: #475569;
+}
+
+.agent-pf__status--ready {
+    background: var(--dr-green);
+}
+
+.agent-pf__units {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 2px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-pf__unit {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+}
+
+.agent-pf__unit b {
+    flex: 0 0 64px;
+    overflow: hidden;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-pf__bar {
+    display: block;
+    height: 6px;
+    min-width: 40px;
+    flex: 1;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--dr-border);
+}
+
+.agent-pf__bar > span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--dr-green);
+}
+
+.agent-pf__stock {
+    flex: 0 0 118px;
+    text-align: right;
+    color: var(--dr-green);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.agent-pf__unit.is-out .agent-pf__stock {
+    color: var(--dr-text-muted);
+    font-weight: 500;
+}
+
+.agent-pf__project-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.agent-pf__chipbtn {
+    display: inline-flex;
+    height: 34px;
+    align-items: center;
+    padding: 0 12px;
+    border: 1px solid var(--dr-blue-mid);
+    border-radius: 10px;
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-pf__chipbtn:hover:not(:disabled) {
+    background: var(--dr-blue-mid);
+    color: var(--dr-blue-dark);
+}
+
+.agent-pf__chipbtn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.agent-pf__held {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.agent-pf__new {
+    padding: 3px 6px;
+    border: 1px dashed var(--dr-purple);
+    border-radius: 4px;
+    background: var(--dr-purple-soft);
+    color: #6d28d9;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+/* ---------- narrower screens ---------- */
+@media (max-width: 1279px) {
+    .agent-pf__grid--browse {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 1023px) {
+    .agent-pf__split {
+        flex-direction: column;
+    }
+
+    .agent-pf__rail {
+        width: 100%;
+        flex: none;
+    }
+
+    /* Deals sit in a row you can swipe, so the matches stay close to the top. */
+    .agent-pf__deals {
+        flex-direction: row;
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+    }
+
+    .agent-pf__deals > li {
+        flex: 0 0 min(280px, 80%);
+        scroll-snap-align: start;
+    }
+
+    .agent-pf__main {
+        width: 100%;
+    }
+
+    .agent-pf__grid,
+    .agent-pf__grid--browse {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .agent-pf__projects {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 639px) {
+    .agent-pf__grid,
+    .agent-pf__grid--browse {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .agent-pf__filters {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .agent-pf__filters > * {
+        flex: none;
+    }
+}
+
+@media (max-width: 639px) {
+    .agent-pf__project {
+        flex-direction: column;
+    }
+
+    .agent-pf__thumb {
+        width: 100%;
+        flex: none;
+        min-height: 120px;
+    }
+}

@@ -168,6 +168,8 @@
         </div>
 
 
+        @include('sections.impersonation-banner')
+
         @yield('filter-section')
 
         <x-app-title class="d-block d-lg-none" :pageTitle="$pageTitle"></x-app-title>

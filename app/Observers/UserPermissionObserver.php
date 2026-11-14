@@ -14,14 +14,16 @@ class UserPermissionObserver
         \Illuminate\Support\Facades\Cache::forget('permission-id-' . $permission->permission->name . '-' . $permission->user_id);
     }
 
-    public function created(UserPermission $permission): void
+    public function saved(UserPermission $permission): void
+    {
+        if ($permission->wasRecentlyCreated || $permission->wasChanged('permission_type_id')) {
+            $this->syncSoftphoneCallPool($permission);
+        }
+    }
+
+    private function syncSoftphoneCallPool(UserPermission $permission): void
     {
         if ($permission->permission?->name !== 'make_softphone_calls') {
-            return;
-        }
-
-        $companyId = $permission->user?->company_id;
-        if (empty($companyId)) {
             return;
         }
 
@@ -29,6 +31,22 @@ class UserPermissionObserver
         // write. During a fresh migrate the table is already present but not
         // yet altered, so writing the column would abort the migration.
         if (! Schema::hasColumn('softphone_call_agents', 'device_id')) {
+            return;
+        }
+
+        $granted = in_array((int) $permission->permission_type_id, [
+            \App\Models\PermissionType::ALL,
+            \App\Models\PermissionType::ADDED,
+        ], true);
+
+        if (! $granted) {
+            SoftphoneCallPoolAgent::query()->where('user_id', $permission->user_id)->update(['active' => false]);
+
+            return;
+        }
+
+        $companyId = $permission->user?->company_id;
+        if (empty($companyId)) {
             return;
         }
 
@@ -45,17 +63,30 @@ class UserPermissionObserver
             ->orderByDesc('is_default')
             ->value('id');
 
-        SoftphoneCallPoolAgent::firstOrCreate(
-            [
-                'device_id' => $defaultDeviceId,
-                'user_id' => $permission->user_id,
-            ],
-            [
-                'company_id' => $companyId,
-                'priority' => 100,
-                'active' => true,
-                'added_by' => $permission->user_id,
-            ]
-        );
+        // No line yet: a row without a line would be read as an admin
+        // fallback entry, so only seed once a line exists.
+        if ($defaultDeviceId === null) {
+            return;
+        }
+
+        $hasExistingPoolEntry = SoftphoneCallPoolAgent::query()
+            ->where('company_id', $companyId)
+            ->where('user_id', $permission->user_id)
+            ->exists();
+
+        if (! $hasExistingPoolEntry) {
+            SoftphoneCallPoolAgent::query()->firstOrCreate(
+                [
+                    'device_id' => $defaultDeviceId,
+                    'user_id' => $permission->user_id,
+                ],
+                [
+                    'company_id' => $companyId,
+                    'priority' => 100,
+                    'active' => true,
+                    'added_by' => $permission->user_id,
+                ]
+            );
+        }
     }
 }

@@ -6,6 +6,7 @@ import useTasksWorkspaceMutations from "@/Pages/Tasks/Redesign/hooks/useTasksWor
 import {
     formLinksPayload,
     type TaskFormValues,
+    type TaskLinkRef,
 } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
 
 interface CategoryOption {
@@ -19,6 +20,8 @@ interface PersonalTaskCreateModalProps {
     onClose: () => void;
     /** Fires after a successful create — the caller decides how to refresh. */
     onCreated: () => void;
+    /** Pins the task to a record (a person's page in the agent workspace); none for a free-standing task. */
+    lockedLinks?: TaskLinkRef[];
 }
 
 /**
@@ -27,7 +30,7 @@ interface PersonalTaskCreateModalProps {
  * The same TaskRedesignFormModal every other embed uses, in create mode with
  * no locked link — this page isn't scoped to one lead or deal, so unlike the
  * Deal/Lead workspace tabs there's nothing to pre-attach. Behind
- * crm.tasks-workspace-redesign only; see PersonalTaskModal's own note on why
+ * crm.tasks-workspace-redesign only; see QueueTaskModal's own note on why
  * the older SaveTaskModal fallback isn't wired here — it needs labels/
  * projects/a full user list this page doesn't fetch, for a page whose whole
  * task-modal integration already assumes the flag everywhere else.
@@ -41,6 +44,7 @@ export default function PersonalTaskCreateModal({
     taskBoardColumns,
     onClose,
     onCreated,
+    lockedLinks,
 }: PersonalTaskCreateModalProps) {
     const { props } = usePage();
     const noopSetTasks = useCallback(() => {}, []);
@@ -53,6 +57,7 @@ export default function PersonalTaskCreateModal({
                 open={open}
                 mode="create"
                 columns={taskBoardColumns}
+                lockedLinks={lockedLinks}
                 categories={
                     (props.taskCategories as unknown as
                         | CategoryOption[]

@@ -3,6 +3,7 @@ import { usePage } from "@inertiajs/react";
 import type { Lead } from "@/Types/api/leads";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import ClickToCallButton from "@/Components/ClickToCallButton";
+import { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
 import { useLeadWorkspace } from "../../context/LeadWorkspaceContext";
 import useLeadNoteCreate from "../../hooks/useLeadNoteCreate";
 import useLeadInfoFieldUpdate from "../../hooks/useLeadInfoFieldUpdate";
@@ -20,6 +21,12 @@ interface QualifyLeadContextPanelProps {
     fields?: any[];
     customFieldCategories?: Array<{ id: number; name: string }>;
     editLeadPermission?: string;
+    /**
+     * The name, contact lines and Call/Email buttons on top. Off under the
+     * agent dock, where the flow's header names the person and calls go
+     * through the softphone.
+     */
+    showProfile?: boolean;
 }
 
 type Tab = "lead" | "notes";
@@ -164,6 +171,7 @@ export default function QualifyLeadContextPanel({
     fields = [],
     customFieldCategories = [],
     editLeadPermission = "all",
+    showProfile = true,
 }: QualifyLeadContextPanelProps) {
     const { td } = useTd();
     const { props } = usePage();
@@ -176,7 +184,7 @@ export default function QualifyLeadContextPanel({
     // ClickToCallButton which has its own permission check, so it doesn't need
     // make_softphone_calls here.
     const softphoneEnabled =
-        props.auth?.permissions?.make_softphone_calls === "all" &&
+        canMakeSoftphoneCalls(props.auth?.user, props.auth?.permissions) &&
         props.featureFlags?.["crm.softphone"] === true;
     const threeCxEnabled = props.featureFlags?.["shared.3cx-calling"] === true;
     const telephonyEnabled = softphoneEnabled || threeCxEnabled;
@@ -369,6 +377,7 @@ export default function QualifyLeadContextPanel({
             style={{ background: T.SURFACE }}
         >
             {/* Profile — same shape as AnalysisLeadContextPanel ProfileCard */}
+            {showProfile ? (
             <div className="p-4 border-b border-dr-border">
                 <div className="flex items-center gap-3 mb-3">
                     {lead.image_url && !imgError ? (
@@ -443,6 +452,7 @@ export default function QualifyLeadContextPanel({
                     ) : null}
                 </div>
             </div>
+            ) : null}
 
             {/* Tabs — AnalysisLeadContextPanel tab strip */}
             <div

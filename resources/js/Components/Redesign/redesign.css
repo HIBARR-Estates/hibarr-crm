@@ -100,6 +100,38 @@
     box-shadow: 0 0 0 2px var(--dr-blue-light);
 }
 
+/* antd range picker matched to a modal field. It stays outside `.modal-field`
+   because that rule restyles every input inside it, including the picker's. */
+.dr-range.ant-picker {
+    width: 100%;
+    border: 1px solid var(--dr-border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: var(--dr-white);
+    font-family: var(--dr-font-sans);
+    box-shadow: none;
+}
+.dr-range.ant-picker:hover {
+    border-color: var(--dr-border);
+}
+.dr-range.ant-picker-focused {
+    border-color: var(--dr-blue-mid);
+    box-shadow: 0 0 0 2px var(--dr-blue-light);
+}
+.dr-range .ant-picker-input > input {
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--dr-text);
+}
+.dr-range .ant-picker-input > input::placeholder {
+    color: var(--dr-text-hint);
+}
+.dr-range .ant-picker-separator,
+.dr-range .ant-picker-suffix,
+.dr-range .ant-picker-clear {
+    color: var(--dr-text-muted);
+}
+
 .meeting-form-fields {
     font-family: var(--dr-font-sans);
     color: var(--dr-text);
@@ -190,6 +222,14 @@
 .dr-btn-danger {
     background: var(--dr-button-danger-bg);
     color: var(--dr-button-danger-text);
+}
+/* Call: dialling a person (the softphone's green). */
+.dr-btn-call {
+    background: var(--dr-button-call-bg);
+    color: var(--dr-button-call-text);
+}
+.dr-btn-call:hover:not(:disabled) {
+    background: var(--dr-button-call-hover-bg);
 }
 
 .dr-pill {
@@ -516,5 +556,38 @@
 
     .dr-press:active:not(:disabled) {
         transform: none;
+    }
+}
+
+/* TaskSnoozeModal's date options. Unscoped: Modal portals to document.body. */
+.dr-snooze-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--dr-border);
+    border-radius: 8px;
+    background: var(--dr-surface);
+    cursor: pointer;
+    text-align: left;
+    transition:
+        background 0.12s,
+        border-color 0.12s;
+}
+
+.dr-snooze-option:hover {
+    background: var(--dr-bg);
+    border-color: var(--dr-navy-mid);
+}
+
+.dr-snooze-option:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 1px;
+}
+
+@media (max-width: 639px) {
+    .dr-snooze-option {
+        min-height: 44px;
     }
 }

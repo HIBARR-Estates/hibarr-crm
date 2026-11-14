@@ -9,7 +9,7 @@
     @foreach($leadFields as $key => $label)
         @php
             $type = 'string';
-            if (in_array($key, ['age', 'category_id', 'source_id', 'lead_lifecycle_status_id', 'lead_owner', 'referred_by_agent_id'])) $type = 'number';
+            if (in_array($key, ['age', 'category_id', 'source_id', 'lead_origin_id', 'lead_lifecycle_status_id', 'lead_owner', 'referred_by_agent_id'])) $type = 'number';
             elseif (in_array($key, ['date_of_birth', 'assigned_at', 'first_contacted_at', 'created_at'])) $type = 'date';
         @endphp
         <option value="lead_field_{{ $key }}" data-type="{{ $type }}" {{ $selectedField == 'lead_field_'.$key ? 'selected' : '' }}>{{ $label }}</option>

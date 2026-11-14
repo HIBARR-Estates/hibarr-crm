@@ -4,6 +4,8 @@ import { usePage } from "@inertiajs/react";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import RecordingPlayer from "@/Components/CallRecordingPlayer";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
+import { useTd } from "@/Hooks/useDynamicTranslation";
+import { canManageCalls } from "@/Hooks/useSoftphone";
 import type { SoftphoneDeviceSummary } from "@/Types/api/softphone";
 
 import "@/Components/Redesign/redesign.css";
@@ -28,6 +30,9 @@ interface RecordingRow {
     phone_number: string | null;
     direction: string | null;
     routing_reason: string | null;
+    is_forwarded?: boolean;
+    forwarded_from_user_id?: number | null;
+    forwarded_from_user_name?: string | null;
     duration_seconds: number;
     expires_at: string | null;
     is_expired: boolean;
@@ -53,13 +58,23 @@ function formatDuration(seconds: number): string {
 }
 
 /** "Inbound" chip + "Lead owner · Junior Prtu", or a muted "No context". */
-function describeRecording(rec: RecordingRow): { chip: string | null; text: string } {
+type Translate = (text: string, options: { source: "en" }) => string;
+
+function describeRecording(
+    rec: RecordingRow,
+    isAdmin: boolean,
+    td: Translate,
+): { chip: string | null; text: string } {
     const parts: string[] = [];
     let chip: string | null = null;
     if (rec.direction === "inbound") chip = "Inbound";
     else if (rec.direction === "outbound") chip = "Outbound";
 
-    if (rec.routing_reason && ROUTING_REASON_LABELS[rec.routing_reason]) {
+    if (isAdmin && rec.is_forwarded && rec.forwarded_from_user_name) {
+        parts.push(
+            `${td("Forwarded", { source: "en" })} · ${td("Last user", { source: "en" })}: ${rec.forwarded_from_user_name}`,
+        );
+    } else if (rec.routing_reason && rec.routing_reason !== "pool_fallback" && ROUTING_REASON_LABELS[rec.routing_reason]) {
         parts.push(ROUTING_REASON_LABELS[rec.routing_reason]);
     }
     if (rec.lead_name) parts.push(rec.lead_name);
@@ -95,9 +110,9 @@ function isDefaultLine(label: string, devices: SoftphoneDeviceSummary[]): boolea
  */
 export default function SoftphoneRecordingsPanel({ devices }: Props) {
     const { props } = usePage();
-    const isAdmin = (props.auth?.user?.roles ?? []).some(
-        (role: { name?: string }) => role?.name === "admin",
-    );
+    const { td } = useTd();
+    // Call managers (admins, manage_calls) see every agent's recordings.
+    const isAdmin = canManageCalls(props.auth?.user, props.auth?.permissions);
     const [scope, setScope] = useState<"mine" | "company">(isAdmin ? "company" : "mine");
 
     const query = useApiQuery<{ status: string; data: RecordingRow[] }>({
@@ -197,7 +212,7 @@ export default function SoftphoneRecordingsPanel({ devices }: Props) {
                         </div>
 
                         {group.rows.map((rec) => {
-                            const ctx = describeRecording(rec);
+                            const ctx = describeRecording(rec, isAdmin, td);
                             return (
                                 <div
                                     key={rec.id}
