@@ -86,6 +86,12 @@ class LeadSummaryInputBuilder
             $sections['lead_details'] = $details;
         }
 
+        // The summary is rendered to the viewer, so it must only be built from
+        // records that viewer may read: a Deal carries its own `view_deals`
+        // scope and a Note its own `view_lead_note` scope, and a summary that
+        // quotes a record the viewer cannot open leaks its content.
+        $viewer = Auth::user();
+
         $notes = $this->buildNotes($lead, $nowCarbon, $redactor, $viewer);
         if ($notes !== []) {
             $sections['notes'] = $notes;
@@ -105,12 +111,6 @@ class LeadSummaryInputBuilder
         if ($marketing !== null) {
             $sections['marketing'] = $marketing;
         }
-
-        // The summary is rendered to the viewer, so it must only be built from
-        // records that viewer may read: a Deal carries its own `view_deals`
-        // scope and a Note its own `view_lead_note` scope, and a summary that
-        // quotes a record the viewer cannot open leaks its content.
-        $viewer = Auth::user();
 
         $deals = $this->buildDeals($lead, $redactor, $viewer);
         if ($deals !== []) {
