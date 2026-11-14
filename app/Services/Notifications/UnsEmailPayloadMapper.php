@@ -28,6 +28,8 @@ class UnsEmailPayloadMapper
             $templateVars = $encoded !== null ? (json_decode(base64_decode($encoded), true) ?? []) : [];
         }
 
+        $category = MailCategory::fromMessage($message);
+
         $customIdempotencyKey = $this->extractHeader($message, self::IDEMPOTENCY_HEADER);
 
         $recipient = $this->resolveRecipientAddress($message, $envelope);
@@ -62,6 +64,7 @@ class UnsEmailPayloadMapper
             'userId' => $resolvedUserId,
             'channels' => ['email'],
             'priority' => 'DEFAULT',
+            'category' => $category,
             'idempotencyKey' => $customIdempotencyKey
                 ?? $this->buildIdempotencyKey($recipient, $subject, $templateId ?? $body),
             'data' => $data,

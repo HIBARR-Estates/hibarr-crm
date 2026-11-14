@@ -290,6 +290,7 @@ export default function LegacyLeadShow({
                         initialSummary={leadAiSummary}
                         variant="legacy"
                         leadPhone={lead.mobile || lead.cell}
+                        leadName={lead.client_name}
                     />
                 </div>
             )}

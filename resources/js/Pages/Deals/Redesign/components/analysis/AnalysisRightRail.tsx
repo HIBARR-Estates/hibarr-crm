@@ -43,13 +43,6 @@ export default function AnalysisRightRail({
     tab: controlledTab,
     onTabChange,
 }: Props) {
-    const { td } = useTd();
-    const { ready, label } = completeButtonState(
-        requiredMissing,
-        Math.max(0, totalFields - totalFilled),
-        isCompleting,
-        reachedEnd,
-    );
     const [uncontrolledTab, setUncontrolledTab] = useState<AnalysisRailTab>("steps");
     const tab = controlledTab ?? uncontrolledTab;
     const setTab = (next: AnalysisRailTab) => {
@@ -119,28 +112,65 @@ export default function AnalysisRightRail({
                         : `1px solid ${T.BORDER}`,
                 }}
             >
-                <button
-                    type="button"
-                    disabled={isCompleting}
-                    onClick={onComplete}
-                    className="w-full py-2.5 rounded-xl text-xs font-semibold transition-all disabled:cursor-wait"
-                    style={{
-                        cursor: "pointer",
-                        // Green means "nothing required is outstanding" — optional
-                        // empties are reported in the label, not the colour.
-                        ...(ready
-                            ? { backgroundColor: "var(--dr-emerald)", color: "#fff" }
-                            : {
-                                  backgroundColor: T.AMBER_SOFT,
-                                  color: T.AMBER,
-                                  border: `1px solid ${T.AMBER_MID}`,
-                              }),
-                    }}
-                >
-                    {td(ready && allFilled && !isCompleting ? "Complete Analysis ✓" : label, { source: "en" })}
-                </button>
+                <AnalysisCompleteButton
+                    totalFilled={totalFilled}
+                    totalFields={totalFields}
+                    allFilled={allFilled}
+                    requiredMissing={requiredMissing}
+                    reachedEnd={reachedEnd}
+                    isCompleting={isCompleting}
+                    onComplete={onComplete}
+                />
             </div>
         </div>
+    );
+}
+
+/**
+ * Complete, green once nothing required is open. Shared by the classic rail
+ * and the analysis opened under the agent dock.
+ */
+export function AnalysisCompleteButton({
+    totalFilled,
+    totalFields,
+    allFilled,
+    requiredMissing,
+    reachedEnd,
+    isCompleting,
+    onComplete,
+}: Pick<
+    Props,
+    "totalFilled" | "totalFields" | "allFilled" | "requiredMissing" | "reachedEnd" | "isCompleting" | "onComplete"
+>) {
+    const { td } = useTd();
+    const { ready, label } = completeButtonState(
+        requiredMissing,
+        Math.max(0, totalFields - totalFilled),
+        isCompleting,
+        reachedEnd,
+    );
+
+    return (
+        <button
+            type="button"
+            disabled={isCompleting}
+            onClick={onComplete}
+            className="w-full py-2.5 rounded-xl text-xs font-semibold transition-all disabled:cursor-wait"
+            style={{
+                cursor: "pointer",
+                // Green means "nothing required is outstanding" — optional
+                // empties are reported in the label, not the colour.
+                ...(ready
+                    ? { backgroundColor: "var(--dr-emerald)", color: "#fff" }
+                    : {
+                          backgroundColor: T.AMBER_SOFT,
+                          color: T.AMBER,
+                          border: `1px solid ${T.AMBER_MID}`,
+                      }),
+            }}
+        >
+            {td(ready && allFilled && !isCompleting ? "Complete Analysis ✓" : label, { source: "en" })}
+        </button>
     );
 }
 

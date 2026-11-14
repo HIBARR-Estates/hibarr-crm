@@ -377,7 +377,9 @@ class ExposeConfiguration implements Arrayable
                 // Project info
                 'title' => $project->name,
                 'reference_code' => $project->reference_code,
-                'price' => $project->starting_price ? number_format($project->starting_price, 0) . ' £' : null,
+                'price' => $project->starting_price
+                    ? number_format((float) $project->starting_price, 0) . ' ' . $project->currencySymbol()
+                    : null,
                 'raw_price' => $project->starting_price,
 
                 // Location

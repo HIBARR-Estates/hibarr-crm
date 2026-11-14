@@ -5,6 +5,8 @@ namespace Tests\Feature\Dashboard;
 use App\Http\Controllers\PartnerFlagController;
 use App\Models\PartnerFlag;
 use App\Models\User;
+use App\Notifications\PartnerFlagAnswered;
+use App\Notifications\PartnerFlagRaised;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -76,6 +78,11 @@ class PartnerFlagTest extends TestCase
 
         $this->assertSame(1, PartnerFlag::count());
         $this->assertSame('stalled', PartnerFlag::first()->reason);
+
+        Notification::assertSentTo(
+            User::findOrFail($this->managerUserId),
+            PartnerFlagRaised::class,
+        );
     }
 
     public function test_a_partner_cannot_flag_a_lead_they_did_not_refer(): void
@@ -165,6 +172,11 @@ class PartnerFlagTest extends TestCase
         $this->assertSame('Reassigned to another agent', $flag->response);
         $this->assertSame($this->managerUserId, $flag->resolved_by);
         $this->assertNotNull($flag->resolved_at);
+
+        Notification::assertSentTo(
+            User::findOrFail($this->partnerUserId),
+            PartnerFlagAnswered::class,
+        );
     }
 
     private function actAsPartner(): void
@@ -188,8 +200,8 @@ class PartnerFlagTest extends TestCase
     private function resetSchema(): void
     {
         foreach ([
-            'partner_flags', 'user_permissions', 'permission_types', 'permissions', 'client_contacts', 'sessions',
-            'leads', 'lead_agents', 'users', 'companies',
+            'partner_flags', 'user_permissions', 'permission_types', 'permissions', 'role_user', 'roles',
+            'client_contacts', 'sessions', 'leads', 'lead_agents', 'users', 'companies',
         ] as $table) {
             Schema::dropIfExists($table);
         }
@@ -236,6 +248,17 @@ class PartnerFlagTest extends TestCase
             $table->unsignedBigInteger('referred_by_agent_id')->nullable();
             $table->softDeletes();
             $table->timestamps();
+        });
+
+        Schema::create('roles', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('name');
+        });
+
+        Schema::create('role_user', function (Blueprint $table) {
+            $table->unsignedInteger('user_id');
+            $table->unsignedInteger('role_id');
         });
 
         Schema::create('permissions', function (Blueprint $table) {

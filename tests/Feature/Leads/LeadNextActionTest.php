@@ -24,8 +24,9 @@ use Tests\TestCase;
  *
  * Two mechanisms have to agree — a raw SQL expression the page sorts and
  * filters on, and a per-page lookup that says what the action actually is.
- * These tests pin the boundary cases where they could drift: done tasks and
- * cancelled meetings are not "next", and the earlier of the two wins.
+ * These tests pin the boundary cases where they could drift: done tasks,
+ * cancelled meetings, and meetings that have already started are not "next",
+ * and the earlier of the remaining candidates wins.
  */
 class LeadNextActionTest extends TestCase
 {
@@ -133,17 +134,149 @@ class LeadNextActionTest extends TestCase
 
     public function test_an_overdue_item_is_still_the_next_action(): void
     {
+        $overdue = now()->subDays(2);
         $this->makeLead(1);
-        $this->makeTask(1, 1, now()->subDays(2));
+        $this->makeTask(1, 1, $overdue);
         $this->makeTask(2, 1, now()->addDays(2));
 
         $action = $this->nextActionFor(1);
 
         $this->assertSame(
-            now()->subDays(2)->format('Y-m-d H:i:s'),
+            $overdue->format('Y-m-d H:i:s'),
             $action['due_at'],
             'An overdue task is the most urgent thing, not a skipped one',
         );
+    }
+
+    public function test_an_ended_scheduled_meeting_does_not_hide_a_future_task(): void
+    {
+        $this->makeLead(1);
+        $this->makeMeeting(1, 1, now()->subDay());
+        $taskDue = now()->addDay();
+        $this->makeTask(1, 1, $taskDue);
+
+        $action = $this->nextActionFor(1);
+
+        $this->assertSame('task', $action['type']);
+        $this->assertSame('Book a viewing', $action['title']);
+        $this->assertSame($taskDue->format('Y-m-d H:i:s'), $action['due_at']);
+        $this->assertSame($action['due_at'], $this->nextActionAtFor(1));
+        $this->assertSame([], $this->leadIdsMatching('overdue'));
+        $this->assertSame([], $this->leadIdsMatching('none'));
+        $this->assertSame([1], $this->leadIdsMatching('week'));
+    }
+
+    public function test_an_ended_scheduled_meeting_does_not_hide_an_upcoming_meeting(): void
+    {
+        $this->makeLead(1);
+        $this->makeMeeting(1, 1, now()->subDay());
+        $upcoming = now()->addDays(2);
+        $this->makeMeeting(2, 1, $upcoming);
+
+        $action = $this->nextActionFor(1);
+
+        $this->assertSame('meeting', $action['type']);
+        $this->assertSame(2, $action['id']);
+        $this->assertSame($upcoming->format('Y-m-d H:i:s'), $action['due_at']);
+        $this->assertSame($action['due_at'], $this->nextActionAtFor(1));
+    }
+
+    public function test_a_started_or_ended_meeting_alone_is_not_a_next_action(): void
+    {
+        $now = \Carbon\Carbon::parse('2026-10-15 12:00:00', 'UTC');
+        \Carbon\Carbon::setTestNow($now);
+
+        $this->makeLead(1);
+        $this->makeMeeting(1, 1, $now->copy()->subDay());
+
+        $this->makeLead(2);
+        $this->makeMeeting(2, 2, $now->copy());
+
+        $this->assertNull($this->nextActionFor(1));
+        $this->assertNull($this->nextActionAtFor(1));
+        $this->assertNull($this->nextActionFor(2));
+        $this->assertNull($this->nextActionAtFor(2));
+        $this->assertSame([1, 2], $this->leadIdsMatching('none'));
+        $this->assertSame([], $this->leadIdsMatching('overdue'));
+    }
+
+    public function test_a_meeting_qualifies_until_the_instant_it_starts(): void
+    {
+        $now = \Carbon\Carbon::parse('2026-10-15 12:00:00', 'UTC');
+        \Carbon\Carbon::setTestNow($now);
+
+        $this->makeLead(1);
+        $starts = $now->copy()->addSecond();
+        $this->makeMeeting(1, 1, $starts);
+
+        $this->makeLead(2);
+        $this->makeMeeting(2, 2, $now->copy());
+
+        $this->assertSame('meeting', $this->nextActionFor(1)['type']);
+        $this->assertSame($starts->format('Y-m-d H:i:s'), $this->nextActionAtFor(1));
+        $this->assertNull($this->nextActionFor(2));
+        $this->assertNull($this->nextActionAtFor(2));
+    }
+
+    public function test_an_overdue_task_stays_selected_beside_an_ended_meeting(): void
+    {
+        $overdue = now()->subDays(2);
+        $this->makeLead(1);
+        $this->makeMeeting(1, 1, now()->subDay());
+        $this->makeTask(1, 1, $overdue);
+
+        $action = $this->nextActionFor(1);
+
+        $this->assertSame('task', $action['type']);
+        $this->assertSame($overdue->format('Y-m-d H:i:s'), $action['due_at']);
+        $this->assertSame($action['due_at'], $this->nextActionAtFor(1));
+        $this->assertSame([1], $this->leadIdsMatching('overdue'));
+        $this->assertSame([], $this->leadIdsMatching('none'));
+    }
+
+    public function test_display_sort_and_filters_agree_for_a_non_utc_viewer(): void
+    {
+        // 23:30 UTC is already the next calendar morning in Tokyo. The meeting
+        // below is 30 minutes in the past as an instant, even though its Tokyo
+        // wall clock (08:00 on the 15th) still reads as "today".
+        \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse('2026-08-14 23:30:00', 'UTC'));
+        session(['company' => $this->viewerCompany('Asia/Tokyo')]);
+
+        $this->makeLead(1);
+        $this->makeMeeting(1, 1, \Carbon\Carbon::parse('2026-08-14 23:00:00', 'UTC'));
+        $this->makeTask(1, 1, \Carbon\Carbon::parse('2026-08-15 01:00:00', 'UTC'));
+
+        $action = $this->nextActionFor(1);
+
+        $this->assertSame('task', $action['type']);
+        $this->assertSame('2026-08-15 10:00:00', $action['due_at']);
+        $this->assertSame('2026-08-15 01:00:00', $this->nextActionAtFor(1));
+        $this->assertSame([1], $this->leadIdsMatching('today'));
+        $this->assertSame([1], $this->leadIdsMatching('week'));
+        $this->assertSame([], $this->leadIdsMatching('overdue'));
+        $this->assertSame([], $this->leadIdsMatching('none'));
+    }
+
+    public function test_added_visibility_ignores_another_users_upcoming_meeting(): void
+    {
+        app()->instance('user.permission-map.10', ['view_lead_follow_up' => 'added']);
+
+        $this->makeLead(1);
+        $this->makeMeeting(1, 1, now()->addDay(), addedBy: 99);
+        $ours = now()->addDays(3);
+        $this->makeMeeting(2, 1, $ours);
+
+        $this->makeLead(2);
+        $this->makeMeeting(3, 2, now()->addDay(), addedBy: 99);
+
+        $action = $this->nextActionFor(1);
+
+        $this->assertSame('meeting', $action['type']);
+        $this->assertSame(2, $action['id']);
+        $this->assertSame($ours->format('Y-m-d H:i:s'), $this->nextActionAtFor(1));
+        $this->assertNull($this->nextActionFor(2));
+        $this->assertNull($this->nextActionAtFor(2));
+        $this->assertSame([2], $this->leadIdsMatching('none'));
     }
 
     public function test_an_action_on_another_lead_does_not_leak(): void
@@ -170,6 +303,8 @@ class LeadNextActionTest extends TestCase
         // lead_follow_up.next_follow_up_date is stored as true UTC (see
         // DealController::followUpStore's ->setTimezone('UTC')). Asia/Tokyo
         // is UTC+9 with no DST, so the expected shift is unambiguous.
+        // Freeze before the start so the meeting is still eligible.
+        \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse('2026-08-14 08:00:00', 'UTC'));
         session(['company' => $this->viewerCompany('Asia/Tokyo')]);
 
         $this->makeLead(1);
@@ -364,6 +499,7 @@ class LeadNextActionTest extends TestCase
         int $leadId,
         $date,
         string $status = 'scheduled',
+        int $addedBy = 10,
     ): void {
         DB::table('lead_follow_up')->insert([
             'id' => $id,
@@ -371,7 +507,7 @@ class LeadNextActionTest extends TestCase
             'status' => $status,
             'next_follow_up_date' => $date->format('Y-m-d H:i:s'),
             'remark' => '<p>Site visit</p>',
-            'added_by' => 10,
+            'added_by' => $addedBy,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

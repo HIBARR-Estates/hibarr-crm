@@ -277,6 +277,7 @@ return [
         App\Providers\CrmEventServiceProvider::class,
         App\Providers\NotificationRoutingServiceProvider::class,
         App\Providers\EmailServiceProvider::class,
+        App\Providers\AuditLogServiceProvider::class,
         App\Providers\OpenTelemetryServiceProvider::class,
         Froiden\RestAPI\Providers\ApiServiceProvider::class,
         App\Providers\FortifyServiceProvider::class,

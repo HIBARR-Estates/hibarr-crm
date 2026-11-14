@@ -39,6 +39,11 @@ class TelephonyCallTest extends TestCase
         config()->set('services.ol.timeout', 5);
         config()->set('services.ol.telephony_calls_path', '/telephony/calls');
 
+        config()->set('services.call_bridge.base_url', 'https://ol.test/v1');
+        config()->set('services.call_bridge.api_key', 'ol-test-key');
+        config()->set('services.call_bridge.timeout', 5);
+        config()->set('services.call_bridge.paths.start_call', '/telephony/calls');
+
         Lead::unsetEventDispatcher();
         Deal::unsetEventDispatcher();
     }
@@ -97,6 +102,46 @@ class TelephonyCallTest extends TestCase
                 && $request['entity_id'] === $leadId
                 && $request['user_id'] === 99;
         });
+    }
+
+    public function test_suppressed_call_returns_failure_status(): void
+    {
+        $this->setFeatureFlag('shared.3cx-calling', true);
+        $this->withoutMiddleware();
+        $this->actingAsAuthorizedUser();
+
+        $leadId = $this->insertLead();
+
+        Http::fake([
+            'https://ol.test/v1/suppression/check' => Http::response([
+                'success' => true,
+                'data' => [
+                    'items' => [[
+                        'phone' => '+491701234567',
+                        'scope' => 'transactional',
+                        'blocked' => true,
+                        'wouldBlock' => true,
+                        'unavailable' => false,
+                    ]],
+                    'unavailable' => false,
+                    'enforced' => true,
+                ],
+            ], 200),
+            '*' => Http::response([], 200),
+        ]);
+
+        $this->postJson(route('telephony.calls.store'), [
+            'phone' => '+491701234567',
+            'entity_type' => 'lead',
+            'entity_id' => $leadId,
+        ])
+            ->assertOk()
+            ->assertJsonPath('status', 'fail')
+            ->assertJsonPath('message', 'Call not placed: this number is on the global suppression list.')
+            ->assertJsonPath('data.suppressed', true)
+            ->assertJsonPath('data.status', 'blocked');
+
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), '/telephony/calls'));
     }
 
     public function test_no_view_permission_returns_403(): void

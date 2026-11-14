@@ -1,4 +1,6 @@
 import { Tooltip } from "antd";
+import { usePage } from "@inertiajs/react";
+import { canPlayCallRecording } from "@/Hooks/useSoftphone";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import useTranslation from "@/Hooks/useTranslation";
@@ -11,6 +13,7 @@ import {
 } from "../../adapters/timelineAdapter";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import Icon from "@/Components/Redesign/primitives/Icon";
+import RecordingPlayer from "@/Components/CallRecordingPlayer";
 
 const DOT_COLORS = {
     agent: T.GREEN,
@@ -39,6 +42,16 @@ export default function DealTimelineEventRow({
     const { td } = useTd();
     const { t } = useTranslation();
     const { formatDateTime } = useUserDateTime();
+
+    const { props } = usePage<any>();
+    const authUser = props.auth?.user;
+    const callOwnerId = event.call?.userId ?? event.userId;
+    // The agent on the call or a call manager; the server enforces the same rule.
+    const canPlayRecording = canPlayCallRecording(
+        authUser,
+        props.auth?.permissions,
+        callOwnerId,
+    );
 
     const hasDetails = Boolean(event.details && event.details.length > 0);
     // Only events an agent logged by hand (custom event type) are editable or
@@ -105,7 +118,7 @@ export default function DealTimelineEventRow({
                     }}
                 >
                     <span style={{ fontSize: 13, fontWeight: 500 }}>
-                        {td(event.title, { source: "en" })}
+                        {event.titleLocalized ? event.title : td(event.title, { source: "en" })}
                     </span>
                     <span
                         className="dr-pill dr-pill-gray"
@@ -120,11 +133,13 @@ export default function DealTimelineEventRow({
                             {td(getTimelineDirectionLabel(event.direction), { source: "en" })}
                         </span>
                     )}
-                    <span
-                        className={`dr-pill ${getTimelineStatusTone(event.status)}`}
-                    >
-                        {td(getTimelineStatusLabel(event.status), { source: "en" })}
-                    </span>
+                    {!event.hideStatusChip && (
+                        <span
+                            className={`dr-pill ${getTimelineStatusTone(event.status)}`}
+                        >
+                            {td(getTimelineStatusLabel(event.status), { source: "en" })}
+                        </span>
+                    )}
 
                     {showManage && (
                         <span
@@ -312,7 +327,55 @@ export default function DealTimelineEventRow({
                         {event.preview}
                     </div>
                 )}
+
+                {/* Call events: show the recording inline with its metadata. */}
+                {event.call?.playUrl && canPlayRecording && (
+                    <div className="cb-timeline-player-card">
+                        <div className="cb-timeline-player-header">
+                            {event.call.phone && (
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                    <span className="cb-timeline-chip">
+                                        {event.direction === "inbound"
+                                            ? t("pages.call_summary.chip_inbound")
+                                            : event.direction === "outbound"
+                                              ? t("pages.call_summary.chip_outbound")
+                                              : t("pages.call_summary.call")}
+                                    </span>
+                                    <span>
+                                        {event.direction === "inbound"
+                                            ? `${t("pages.call_summary.from")}: `
+                                            : event.direction === "outbound"
+                                              ? `${t("pages.call_summary.to")}: `
+                                              : null}
+                                        <strong style={{ fontWeight: 600 }}>{event.call.phone}</strong>
+                                    </span>
+                                </span>
+                            )}
+                            {event.call.durationSeconds != null &&
+                                event.call.durationSeconds > 0 && (
+                                    <span className="cb-num">
+                                        {t("pages.call_summary.duration")}: {formatCallDurationShort(event.call.durationSeconds)}
+                                    </span>
+                                )}
+                        </div>
+                        <RecordingPlayer
+                            playUrl={event.call.playUrl}
+                            downloadUrl={event.call.downloadUrl}
+                            durationSeconds={event.call.durationSeconds}
+                            filename={event.call.filename ?? undefined}
+                            expired={event.call.expired}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );
+}
+
+/** `125` → `2:05`. Mirrors CallRecordingPlayer's local formatter. */
+function formatCallDurationShort(totalSeconds: number): string {
+    const total = Math.floor(totalSeconds);
+    const mins = Math.floor(total / 60);
+    const secs = total % 60;
+    return `${mins}:${String(secs).padStart(2, "0")}`;
 }

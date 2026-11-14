@@ -185,21 +185,147 @@ class LeadFilterMultiValueTest extends TestCase
         $this->assertSame($expected, $ids);
     }
 
+
+    public function test_lead_type_filter_splits_leads_from_converted_clients(): void
+    {
+        $leadId = $this->insertLead(['client_name' => 'Still a lead']);
+        $clientId = $this->insertLead(['client_name' => 'Converted', 'client_id' => 42]);
+
+        $this->assertSame([$leadId], $this->filteredLeadIds(['lead_type' => 'lead']));
+        $this->assertSame([$clientId], $this->filteredLeadIds(['lead_type' => 'client']));
+    }
+
+    public function test_start_date_alone_still_filters_created_at(): void
+    {
+        $this->insertLead(['client_name' => 'Old', 'created_at' => '2026-01-10 12:00:00']);
+        $recent = $this->insertLead(['client_name' => 'Recent', 'created_at' => '2026-03-10 12:00:00']);
+
+        $this->assertSame([$recent], $this->filteredLeadIds(['start_date' => '2026-02-01']));
+    }
+
+    public function test_end_date_alone_still_filters_created_at(): void
+    {
+        $old = $this->insertLead(['client_name' => 'Old', 'created_at' => '2026-01-10 12:00:00']);
+        $this->insertLead(['client_name' => 'Recent', 'created_at' => '2026-03-10 12:00:00']);
+
+        $this->assertSame([$old], $this->filteredLeadIds(['end_date' => '2026-01-10']));
+    }
+
+    public function test_search_with_digits_in_text_does_not_match_unrelated_phone_numbers(): void
+    {
+        $match = $this->insertLead(['client_name' => 'Ali', 'client_email' => 'ali92@example.com']);
+        $this->insertLead(['client_name' => 'Someone else', 'mobile' => '+49 1792 555']);
+
+        $this->assertSame([$match], $this->filteredLeadIds(['search' => 'ali92']));
+    }
+
+    public function test_phone_shaped_search_matches_differently_formatted_number(): void
+    {
+        $match = $this->insertLead(['client_name' => 'Phone', 'mobile' => '+49 (176) 123-4567']);
+        $this->insertLead(['client_name' => 'Other', 'mobile' => '+90 555 000 1111']);
+
+        $this->assertSame([$match], $this->filteredLeadIds(['search' => '176 1234567']));
+    }
+
+    public function test_multi_word_search_matches_words_in_any_order_and_ignores_padding(): void
+    {
+        $match = $this->insertLead(['client_name' => 'John A. Smith']);
+        $this->insertLead(['client_name' => 'John Doe']);
+
+        $this->assertSame([$match], $this->filteredLeadIds(['search' => '  smith   john ']));
+    }
+
+    public function test_comma_separated_qualification_answers_match_latest_qualification(): void
+    {
+        $match = $this->insertLead(['client_name' => 'Qualified']);
+        $this->insertQualificationAnswer($match, 'budget', ['high', 'cash']);
+
+        $partial = $this->insertLead(['client_name' => 'Partial']);
+        $this->insertQualificationAnswer($partial, 'budget', ['high']);
+
+        $ids = $this->filteredLeadIds([
+            'qualification_segment_key' => 'budget',
+            'qualification_answer_values' => 'high,cash',
+        ]);
+
+        $this->assertSame([$match], $ids);
+    }
+
+    public function test_filters_and_search_work_while_sorting_by_a_joined_column(): void
+    {
+        Schema::create('users', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('name');
+            $table->string('mobile')->nullable();
+            $table->string('gender')->nullable();
+            $table->unsignedInteger('added_by')->nullable();
+            $table->timestamps();
+        });
+        DB::table('users')->insert(['id' => 7, 'name' => 'Owner', 'mobile' => '123456', 'gender' => 'male']);
+
+        $match = $this->insertLead([
+            'client_name' => 'Sorted',
+            'mobile' => '555123456',
+            'gender' => 'female',
+            'added_by' => 7,
+            'lead_owner' => 7,
+            'created_at' => '2026-03-01 10:00:00',
+        ]);
+        $this->insertLead(['client_name' => 'Wrong gender', 'mobile' => '555123456', 'gender' => 'male', 'added_by' => 7]);
+
+        $ids = $this->filteredLeadIds([
+            'search' => '555123',
+            'gender' => 'female',
+            'added_by_id' => '7',
+            'start_date' => '2026-02-01',
+            'end_date' => '2026-04-01',
+            'sort_by' => 'lead_owner',
+            'sort_direction' => 'asc',
+        ], withSorting: true);
+
+        $this->assertSame([$match], $ids);
+    }
+
     /**
      * @param  array<string, string>  $params
      * @return array<int, int>
      */
-    private function filteredLeadIds(array $params): array
+    private function filteredLeadIds(array $params, bool $withSorting = false): array
     {
         $request = Request::create('/lead-contact', 'GET', $params);
+        $service = app(LeadService::class);
 
         $applyFilters = new ReflectionMethod(LeadService::class, 'applyFilters');
         $applyFilters->setAccessible(true);
 
-        $query = Lead::query();
-        $applyFilters->invoke(app(LeadService::class), $query, $request);
+        $query = Lead::query()->select('leads.*');
+        $applyFilters->invoke($service, $query, $request);
 
-        return $query->pluck('id')->map(fn ($id) => (int) $id)->all();
+        if ($withSorting) {
+            $applySorting = new ReflectionMethod(LeadService::class, 'applySorting');
+            $applySorting->setAccessible(true);
+            $applySorting->invoke($service, $query, $request);
+        }
+
+        return $query->pluck('leads.id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /**
+     * @param  list<string>  $values
+     */
+    private function insertQualificationAnswer(int $leadId, string $segmentKey, array $values): void
+    {
+        $qualificationId = DB::table('lead_qualifications')->insertGetId([
+            'lead_id' => $leadId,
+            'started_at' => now(),
+        ]);
+
+        DB::table('lead_qualification_answers')->insert([
+            'lead_qualification_id' => $qualificationId,
+            'segment_key' => $segmentKey,
+            'answer_values' => json_encode($values),
+        ]);
     }
 
     private function insertMarketing(int $leadId, array $attributes): void
@@ -224,6 +350,9 @@ class LeadFilterMultiValueTest extends TestCase
 
     private function resetSchema(): void
     {
+        Schema::dropIfExists('users');
+        Schema::dropIfExists('lead_qualification_answers');
+        Schema::dropIfExists('lead_qualifications');
         Schema::dropIfExists('lead_marketing');
         Schema::dropIfExists('lead_lead_category');
         Schema::dropIfExists('lead_category');
@@ -242,8 +371,10 @@ class LeadFilterMultiValueTest extends TestCase
         Schema::create('leads', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('company_id')->nullable();
+            $table->unsignedInteger('client_id')->nullable();
             $table->string('client_name');
             $table->string('client_email')->nullable();
+            $table->string('company_name')->nullable();
             $table->string('mobile')->nullable();
             $table->string('gender')->nullable();
             $table->string('temperature')->nullable();
@@ -274,6 +405,19 @@ class LeadFilterMultiValueTest extends TestCase
             $table->unsignedInteger('lead_id');
             $table->unsignedInteger('lead_category_id');
             $table->timestamps();
+        });
+
+        Schema::create('lead_qualifications', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('lead_id');
+            $table->timestamp('started_at')->nullable();
+        });
+
+        Schema::create('lead_qualification_answers', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('lead_qualification_id');
+            $table->string('segment_key');
+            $table->json('answer_values')->nullable();
         });
 
         Schema::create('lead_marketing', function (Blueprint $table) {

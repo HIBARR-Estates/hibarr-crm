@@ -25,6 +25,11 @@ interface PaginationProps {
     autoPageSize?: boolean;
     /** Called when the reader picks "Auto" back. */
     onAutoPageSize?: () => void;
+    /**
+     * Off when the page size is fixed by the caller. Hides the rows-per-page
+     * control; `onPageSizeChange` is then unused.
+     */
+    showPageSize?: boolean;
 }
 
 const NAV_BTN_BASE =
@@ -41,6 +46,7 @@ export default function Pagination({
     allowAutoPageSize = false,
     autoPageSize = false,
     onAutoPageSize,
+    showPageSize = true,
 }: PaginationProps) {
     const { td } = useTd();
     const selectId = useId();
@@ -84,6 +90,7 @@ export default function Pagination({
                     {totalItems === 1 ? td(itemLabel) : td(itemLabelPlural)}
                 </span>
 
+                {showPageSize && (
                 <div className="flex items-center gap-1.5">
                     <label
                         htmlFor={selectId}
@@ -120,6 +127,7 @@ export default function Pagination({
                         ))}
                     </select>
                 </div>
+                )}
             </div>
 
             {/* Right — page navigation controls */}

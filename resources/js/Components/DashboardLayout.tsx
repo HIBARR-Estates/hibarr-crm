@@ -4,6 +4,7 @@ import { theme } from "antd";
 import { PageProps as InertiaPageProps } from "@inertiajs/core";
 import { AuthType } from "@/Types";
 import Sidebar from "./Sidebar/Sidebar";
+import SoftphoneDock from "./Softphone/SoftphoneDock";
 import { useTranslation } from "@/Hooks/useTranslation";
 import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
 import {
@@ -22,6 +23,11 @@ export interface PageProps extends InertiaPageProps {
         worksuitePlugins?: unknown[];
     };
     currentRouteName: string;
+    impersonation?: { active: boolean } | null;
+    /** Null unless crm.agent-workspace is on (see HandleInertiaRequests). */
+    agentWorkspace?: { url: string | null; manageUrl: string | null } | null;
+    /** Set only for members of the departments assigned to the marketing lead flow. */
+    marketingLeadIntake?: { url: string } | null;
     // Internationalization props
     locale?: string;
     isRtl?: boolean;
@@ -125,6 +131,10 @@ const DashboardLayoutInner: React.FC<{
                     {children}
                 </div>
             </main>
+
+            {/* In-browser softphone (sipgate Neo) — self-gated by the
+                crm.softphone feature flag; renders nothing when off. */}
+            <SoftphoneDock />
         </div>
     );
 };

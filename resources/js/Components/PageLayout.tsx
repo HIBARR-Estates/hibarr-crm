@@ -17,6 +17,8 @@ import {
     HomeOutlined,
     ReloadOutlined,
     SettingOutlined,
+    DownOutlined,
+    ClockCircleOutlined,
 } from "@ant-design/icons";
 import { PageProps } from "./DashboardLayout";
 import { MenuOutlined } from "@ant-design/icons";
@@ -30,6 +32,10 @@ import LanguageSwitcher from "./LanguageSwitcher";
 import AccessInspector from "./AccessInspector";
 import TimezoneIndicator from "./TimezoneIndicator";
 import EmailUnreadIndicator from "@/Email/EmailUnreadIndicator";
+import AgentCallAvailabilityToggle from "@/Components/Softphone/AgentCallAvailabilityToggle";
+import { useUserDateTime } from "@/Hooks/useUserDateTime";
+import { isUserDateTimeEnabled } from "@/lib/userDateTime";
+import { timezoneChipLabel } from "@/lib/timezoneLabel";
 
 interface BreadcrumbItem {
     name: string;
@@ -54,6 +60,55 @@ interface PageLayoutProps {
 const defaultConfig = {
     showTitle: false,
 };
+
+/**
+ * Profile avatar that displays the user photo or falls back to their initial letter
+ * if no picture exists or if the picture fails to load.
+ */
+function UserHeaderAvatar({
+    user,
+}: {
+    user?: { name?: string; image_url?: string; image?: string } | null;
+}) {
+    const photoUrl = user?.image_url?.trim() || user?.image?.trim() || "";
+    const [imgFailed, setImgFailed] = React.useState(false);
+
+    React.useEffect(() => {
+        setImgFailed(false);
+    }, [photoUrl]);
+
+    const initialLetter = user?.name?.trim()?.charAt(0)?.toUpperCase() || "U";
+
+    if (photoUrl && !imgFailed) {
+        return (
+            <img
+                src={photoUrl}
+                alt={user?.name || "User"}
+                className="w-9 h-9 rounded-full object-cover shrink-0"
+                style={{ width: "36px", height: "36px", borderRadius: "50%" }}
+                onError={() => setImgFailed(true)}
+            />
+        );
+    }
+
+    return (
+        <div
+            className="w-9 h-9 rounded-full bg-[#6b7280] text-white flex items-center justify-center text-[14px] font-medium shrink-0 select-none"
+            style={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "50%",
+                backgroundColor: "#6b7280",
+                color: "#ffffff",
+                fontSize: "14px",
+                fontWeight: 500,
+            }}
+            aria-hidden="true"
+        >
+            {initialLetter}
+        </div>
+    );
+}
 
 export default function PageLayout({
     title,
@@ -101,6 +156,8 @@ export default function PageLayout({
     const { props } = usePage<PageProps>();
     const { auth, appName, flash } = props;
     const { user } = auth;
+    const { timezone } = useUserDateTime();
+    const tzLabel = React.useMemo(() => timezoneChipLabel(timezone), [timezone]);
 
     // Flag off preserves the exact previous default/classes at every width.
     const resolvedMainContentClassName =
@@ -140,6 +197,35 @@ export default function PageLayout({
 
     // User dropdown menu
     const userMenuItems: MenuProps["items"] = [
+        ...(isUserDateTimeEnabled()
+            ? [
+                  {
+                      key: "timezone-row",
+                      disabled: true,
+                      label: (
+                          <div
+                              style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "8px",
+                                  padding: "4px 4px",
+                                  fontSize: "12px",
+                                  color: "#4b5563",
+                                  fontWeight: 500,
+                                  cursor: "default",
+                                  userSelect: "none",
+                              }}
+                          >
+                              <ClockCircleOutlined style={{ fontSize: 13, color: "#6b7280" }} />
+                              <span>{tzLabel}</span>
+                          </div>
+                      ),
+                  },
+                  {
+                      type: "divider" as const,
+                  },
+              ]
+            : []),
         // {
         //     key: "settings",
         //     icon: <SettingOutlined />,
@@ -160,6 +246,17 @@ export default function PageLayout({
                       label: t("app.menu.settings_menu.mailbox"),
                       onClick: () =>
                           router.visit(props.emailMailbox.settingsUrl),
+                  },
+              ]
+            : []),
+        ...(props.emailPilot?.manageUrl
+            ? [
+                  {
+                      key: "email-pilot",
+                      icon: <MailOutlined />,
+                      label: t("app.menu.settings_menu.email_pilot"),
+                      onClick: () =>
+                          router.visit(props.emailPilot.manageUrl),
                   },
               ]
             : []),
@@ -206,89 +303,139 @@ export default function PageLayout({
             <div className="min-h-screen bg-gray-100">
                 {/* Page Header/Topbar */}
                 <div
-                    className={`bg-white border-b border-gray-200 ${topbarPaddingClassName}`}
+                    className="bg-white border-b border-gray-200"
+                    style={{
+                        backgroundColor: "#ffffff",
+                        borderBottom: "1px solid #e5e7eb",
+                        minHeight: "68px",
+                        padding: isMobileResponsive ? "10px 16px" : "10px 28px",
+                        display: "flex",
+                        alignItems: "center",
+                    }}
                 >
-                    <div className={topbarRowClassName}>
-                        {isMobileResponsive && (
-                            <button
-                                type="button"
-                                onClick={openMobileSidebar}
-                                aria-label={td("Open menu", { source: "en" })}
-                                className="lg:hidden flex items-center justify-center w-11 h-11 -ml-2 flex-shrink-0 rounded-lg text-gray-600 hover:bg-gray-100"
-                            >
-                                <MenuOutlined className="text-lg" />
-                            </button>
-                        )}
-                        <div className="min-w-0">
-                            <div className="flex items-center space-x-3">
-                                {config.showTitle && (
-                                    <h1 className="text-lg font-semibold text-gray-900 truncate max-w-[60vw] sm:max-w-xs">
-                                        {title}
-                                    </h1>
-                                )}
+                    <div
+                        className="w-full flex items-center justify-between flex-wrap gap-y-3"
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            flexWrap: "wrap",
+                            width: "100%",
+                        }}
+                    >
+                        {/* Left: Mobile Toggle, Title, Breadcrumbs, Search */}
+                        <div className="flex items-center gap-3 min-w-0">
+                            {isMobileResponsive && (
+                                <button
+                                    type="button"
+                                    onClick={openMobileSidebar}
+                                    aria-label={td("Open menu", { source: "en" })}
+                                    className="lg:hidden flex items-center justify-center w-11 h-11 -ml-2 flex-shrink-0 rounded-lg text-gray-600 hover:bg-gray-100"
+                                >
+                                    <MenuOutlined className="text-lg" />
+                                </button>
+                            )}
+                            <div className="min-w-0">
+                                <div className="flex items-center space-x-3">
+                                    {config.showTitle && (
+                                        <h1 className="text-lg font-semibold text-gray-900 truncate max-w-[60vw] sm:max-w-xs">
+                                            {title}
+                                        </h1>
+                                    )}
 
-                                {/* Breadcrumbs */}
-                                <div className="hidden lg:flex">
-                                    <Breadcrumb
-                                        separator="•"
-                                        items={breadcrumbItems}
-                                        className="text-xs text-gray-500"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Search Component */}
-                        {searchComp && (
-                            <div className={searchWrapperClassName}>
-                                {/* Full-width on the wrapped mobile row; cap width on desktop. */}
-                                <div className={searchInnerClassName}>
-                                    {searchComp}
-                                </div>
-                            </div>
-                        )}
-                        <div className="ml-auto flex items-center gap-2 sm:gap-4 flex-shrink-0">
-                            <div className="flex items-center gap-2">
-                                <LanguageSwitcher
-                                    labelClassName={
-                                        isMobileResponsive
-                                            ? "hidden lg:inline-flex"
-                                            : undefined
-                                    }
-                                />
-                                <AccessInspector />
-                                <TimezoneIndicator />
-                            </div>
-                            <EmailUnreadIndicator />
-                            <NotificationDropdown pollingInterval={30000} />
-                            <Dropdown
-                                menu={{ items: userMenuItems }}
-                                placement="bottomLeft"
-                            >
-                                {/* ensure this always at the end */}
-                                <div className="flex items-center justify-between cursor-pointer ml-auto">
-                                    <div className="flex items-center gap-x-2">
-                                        <Avatar
-                                            src={user?.image_url}
-                                            size="small"
-                                            alt={user?.name}
-                                        >
-                                            {user?.name?.charAt(0)}
-                                        </Avatar>
-                                        <div className={userIdentityClassName}>
-                                            <span className="text-sm font-medium truncate">
-                                                {user?.name}
-                                            </span>
-                                            <span className="text-xs text-gray-500 truncate">
-                                                {user?.employee_detail
-                                                    ?.designation?.name ??
-                                                    user?.roles?.[0]
-                                                        ?.display_name ??
-                                                    appName}
-                                            </span>
-                                        </div>
+                                    {/* Breadcrumbs - kept exactly as current per instructions */}
+                                    <div className="hidden lg:flex">
+                                        <Breadcrumb
+                                            separator="•"
+                                            items={breadcrumbItems}
+                                            className="text-xs text-gray-500"
+                                        />
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* Search Component */}
+                            {searchComp && (
+                                <div className={searchWrapperClassName}>
+                                    <div className={searchInnerClassName}>
+                                        {searchComp}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Right: Access, Language, Call Availability, Messages, Notifications, Profile (8px gaps) */}
+                        <div
+                            className="flex items-center flex-wrap shrink-0"
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                flexWrap: "wrap",
+                                marginLeft: "auto",
+                            }}
+                        >
+                            {/* 1. Access button (admin only) */}
+                            <AccessInspector />
+
+                            {/* 2. Language switcher */}
+                            <LanguageSwitcher />
+
+                            {/* 3. Call availability switch (primary accent) */}
+                            <AgentCallAvailabilityToggle />
+
+                            {/* 4. Messages icon button */}
+                            <EmailUnreadIndicator />
+
+                            {/* 5. Notifications icon button */}
+                            <NotificationDropdown pollingInterval={30000} />
+
+                            {/* 6. Profile menu trigger */}
+                            <Dropdown
+                                menu={{ items: userMenuItems }}
+                                placement="bottomRight"
+                                trigger={["click"]}
+                            >
+                                <button
+                                    type="button"
+                                    className="flex items-center gap-2 h-12 px-2 rounded-lg bg-transparent hover:bg-gray-50 border-0 cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                                    style={{
+                                        height: "48px",
+                                        border: "none",
+                                        background: "transparent",
+                                        padding: "0 8px",
+                                        cursor: "pointer",
+                                    }}
+                                    aria-label="User account menu"
+                                >
+                                    <UserHeaderAvatar user={user} />
+                                    <div className="hidden sm:flex flex-col min-w-0">
+                                        <span
+                                            className="text-[14px] font-semibold text-[#0f1f3d] leading-tight truncate"
+                                            style={{
+                                                fontSize: "14px",
+                                                fontWeight: 600,
+                                                color: "#0f1f3d",
+                                                lineHeight: 1.2,
+                                            }}
+                                        >
+                                            {user?.name}
+                                        </span>
+                                        <span
+                                            className="text-[12px] text-[#4b5563] leading-tight truncate"
+                                            style={{
+                                                fontSize: "12px",
+                                                color: "#4b5563",
+                                                lineHeight: 1.2,
+                                            }}
+                                        >
+                                            {user?.employee_detail?.designation?.name ??
+                                                user?.roles?.[0]?.display_name ??
+                                                appName}
+                                        </span>
+                                    </div>
+                                    <DownOutlined style={{ fontSize: 14, color: "#6b7280" }} aria-hidden="true" />
+                                </button>
                             </Dropdown>
                         </div>
                     </div>

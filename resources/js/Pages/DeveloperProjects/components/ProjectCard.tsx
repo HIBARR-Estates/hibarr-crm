@@ -1,4 +1,4 @@
-import { Link, usePage } from "@inertiajs/react";
+import { Link } from "@inertiajs/react";
 import { Dropdown, Popconfirm } from "antd";
 import {
     Eye,
@@ -12,7 +12,7 @@ import {
 import type { MenuProps } from "antd";
 import type { DeveloperProject } from "@/Types/developerProject";
 import { usePermission } from "@/lib/permissionUtils";
-import { formatLocationNameForDisplay } from "@/lib/utils";
+import { formatLocationNameForDisplay, currencySymbolForCode } from "@/lib/utils";
 import HiddenBadge from "./HiddenBadge";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 
@@ -42,8 +42,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
     onDelete,
     showHiddenBadge = false,
 }) => {
-    const { default_currency_symbol: currencySymbol = "" } = usePage()
-        .props as any;
+    const currencySymbol = currencySymbolForCode(project.currency || "GBP");
     const { hasPermission } = usePermission();
     const canEdit = hasPermission("edit_developer_projects");
     const canDelete = hasPermission("delete_developer_projects");

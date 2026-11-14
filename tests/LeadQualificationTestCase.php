@@ -130,7 +130,9 @@ abstract class LeadQualificationTestCase extends TestCase
             $table->id();
             $table->unsignedBigInteger('lead_qualification_id');
             $table->string('segment_key');
+            $table->text('question_label')->nullable();
             $table->json('answer_values');
+            $table->json('answer_labels')->nullable();
             $table->text('answer_text')->nullable();
             $table->timestamps();
         });

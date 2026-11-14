@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/Components/Redesign";
 import useTranslation from "@/Hooks/useTranslation";
 import type { Severity } from "./types";
-import SnoozeModal from "./SnoozeModal";
+import TaskSnoozeModal from "@/Components/Redesign/modals/TaskSnoozeModal";
 
 interface SignalActionsProps {
     severity: Severity;
@@ -90,7 +90,7 @@ export default function SignalActions({
                 style={{ width: 32, padding: 0, flex: "none" }}
             />
 
-            <SnoozeModal
+            <TaskSnoozeModal
                 open={snoozeOpen}
                 taskName={taskName}
                 snoozing={snoozing}

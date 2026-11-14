@@ -15,7 +15,7 @@ use Illuminate\Notifications\Messages\MailMessage;
  */
 class PartnerFlagRaised extends BaseNotification
 {
-    private PartnerFlag $flag;
+    protected PartnerFlag $flag;
 
     /** crm.partner-flag-routing, read at dispatch (queue workers do not call the flag service). */
     private bool $routeByAccess;
@@ -60,7 +60,27 @@ class PartnerFlagRaised extends BaseNotification
 
     public function via($notifiable): array
     {
-        return ['database', 'mail'];
+        return $this->channelsFor($notifiable);
+    }
+
+    /**
+     * In-app first, then mail when the account has an address and has not
+     * turned email off. A mail failure must not be the only copy of the alert.
+     *
+     * @return array<int, string>
+     */
+    protected function channelsFor($notifiable): array
+    {
+        $channels = ['database'];
+
+        $wantsMail = ! empty($notifiable->email)
+            && ($notifiable->email_notifications ?? true);
+
+        if ($wantsMail) {
+            $channels[] = 'mail';
+        }
+
+        return $channels;
     }
 
     public function toMail($notifiable): MailMessage
@@ -94,6 +114,14 @@ class PartnerFlagRaised extends BaseNotification
 
     public function toArray($notifiable): array
     {
+        [$routeName, $params] = self::destination(
+            $this->routeByAccess,
+            $this->managerViewEnabled,
+            $this->routeByAccess ? $notifiable->permission('view_manager_dashboard') : null,
+        );
+
+        $description = "{$this->partnerName()} flagged a referral: {$this->reasonLabel()}";
+
         return [
             'type' => 'partner_flag_raised',
             'partner_flag_id' => $this->flag->id,
@@ -102,8 +130,11 @@ class PartnerFlagRaised extends BaseNotification
             'reason' => $this->flag->reason,
             'message' => $this->flag->message,
             'icon' => 'flag',
+            'title' => 'Partner flagged a referral',
+            'text' => $description,
             'heading' => 'Partner flagged a referral',
-            'description' => "{$this->partnerName()} flagged a referral: {$this->reasonLabel()}",
+            'description' => $description,
+            'action_url' => $this->modifyUrl(route($routeName, $params)),
         ];
     }
 
@@ -112,7 +143,7 @@ class PartnerFlagRaised extends BaseNotification
         return $this->flag->partner?->user?->name ?? 'A partner';
     }
 
-    private function reasonLabel(): string
+    protected function reasonLabel(): string
     {
         return ucfirst(str_replace('_', ' ', $this->flag->reason));
     }

@@ -13,12 +13,16 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiResponse } from "@/lib/api/types";
 import FirstContactSlaTab from "./FirstContactSlaTab";
+import LeadOriginsSection from "./LeadOriginsSection";
 import LeadSourcesSection from "./LeadSourcesSection";
+import MarketingIntakeTab from "./MarketingIntakeTab";
 import LeadStatusesSection from "./LeadStatusesSection";
 import useLeadSettingsNavigation, {
     type LeadSettingsTab,
 } from "./hooks/useLeadSettingsNavigation";
 import type {
+    LeadOriginRow,
+    MarketingIntakeSettings,
     LeadSourcePermissions,
     LeadSourceRow,
     LeadStatusRow,
@@ -32,6 +36,8 @@ export default function LeadSettingsIndex({
     sourcePermissions,
     leadStatuses: initialStatuses,
     currentUserId,
+    origins: initialOrigins,
+    marketingIntake: initialMarketingIntake,
 }: {
     pageTitle: string;
     settings: SlaSettings;
@@ -39,6 +45,8 @@ export default function LeadSettingsIndex({
     sourcePermissions: LeadSourcePermissions;
     leadStatuses: LeadStatusRow[];
     currentUserId: number;
+    origins: LeadOriginRow[];
+    marketingIntake: MarketingIntakeSettings;
 }) {
     const { t } = useTranslation();
     const { td } = useTd();
@@ -49,6 +57,8 @@ export default function LeadSettingsIndex({
     const [hasChanges, setHasChanges] = useState(false);
     const [sources, setSources] = useState(initialSources);
     const [statuses, setStatuses] = useState(initialStatuses);
+    const [origins, setOrigins] = useState(initialOrigins);
+    const [marketingIntake, setMarketingIntake] = useState(initialMarketingIntake);
 
     // Read inside onSuccess below, which closes over the value at the time
     // the request was *sent* — this tracks the live value instead, so a save
@@ -74,6 +84,14 @@ export default function LeadSettingsIndex({
     useEffect(() => {
         setStatuses(initialStatuses);
     }, [initialStatuses]);
+
+    useEffect(() => {
+        setOrigins(initialOrigins);
+    }, [initialOrigins]);
+
+    useEffect(() => {
+        setMarketingIntake(initialMarketingIntake);
+    }, [initialMarketingIntake]);
 
     const handleSave = () => {
         const submittedHours = hours;
@@ -116,9 +134,18 @@ export default function LeadSettingsIndex({
             count: sources.length,
         },
         {
+            key: "origins",
+            label: t("pages.lead_settings.origins.tab"),
+            count: origins.length,
+        },
+        {
             key: "statuses",
             label: td("Lead statuses", { source: "en" }),
             count: statuses.length,
+        },
+        {
+            key: "marketing",
+            label: t("pages.lead_settings.marketing.tab"),
         },
         {
             key: "sla",
@@ -269,6 +296,25 @@ export default function LeadSettingsIndex({
                                 setSources={setSources}
                                 permissions={sourcePermissions}
                                 currentUserId={currentUserId}
+                            />
+                        )}
+                        {tab === "origins" && (
+                            <LeadOriginsSection
+                                origins={origins}
+                                setOrigins={setOrigins}
+                                marketingOriginId={marketingIntake.origin_id}
+                            />
+                        )}
+                        {tab === "marketing" && (
+                            <MarketingIntakeTab
+                                settings={marketingIntake}
+                                origins={origins}
+                                onSaved={(next) =>
+                                    setMarketingIntake((prev) => ({
+                                        ...prev,
+                                        ...next,
+                                    }))
+                                }
                             />
                         )}
                         {tab === "statuses" && (

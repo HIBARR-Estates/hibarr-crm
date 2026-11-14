@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Services\Notifications\MailCategory;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Log;
 
@@ -20,6 +21,14 @@ class LeadAutomationEmailNotification extends BaseNotification
     ) {
         $this->company = $company;
         $this->initUnsRouting();
+    }
+
+    /**
+     * Automation emails are marketing/nurture mail, not transactional.
+     */
+    protected function mailCategory(): string
+    {
+        return MailCategory::NON_TRANSACTIONAL;
     }
 
     /**

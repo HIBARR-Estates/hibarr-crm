@@ -30,6 +30,7 @@ class LeadFilterFacetsService
             'preferred_contact_time' => $this->countBy('preferred_contact_time'),
             'lifecycle_status_id' => $this->countBy('lead_lifecycle_status_id'),
             'lead_source' => $this->countBy('source_id'),
+            'lead_origin' => $this->countBy('lead_origin_id'),
             'lead_owner_id' => $this->countBy('lead_owner'),
             'added_by_id' => $this->countBy('added_by'),
             'referred_by_agent_id' => $this->countBy('referred_by_agent_id'),

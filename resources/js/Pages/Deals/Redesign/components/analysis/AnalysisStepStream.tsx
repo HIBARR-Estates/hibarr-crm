@@ -1,5 +1,6 @@
 import { Fragment, useMemo } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { useAgentAnalysis } from "./agent/AgentAnalysisContext";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { FormField } from "./AnalysisCustomFieldForm";
 import AnalysisQuestionRow from "./AnalysisQuestionRow";
@@ -56,13 +57,14 @@ function StepFooter({
     onClear: () => void;
 }) {
     const { td } = useTd();
+    const agent = useAgentAnalysis();
     const link = "font-medium underline-offset-2 hover:underline cursor-pointer";
 
     // After the hook, so the hook order stays stable across renders.
     if (!required && !answered) return null;
 
     return (
-        <div className="flex items-center gap-2 -mt-4 mb-2 pl-11 text-xs">
+        <div className={agent ? "flex items-center gap-2 mt-3 text-xs" : "flex items-center gap-2 -mt-4 mb-2 pl-11 text-xs"}>
             {required && (
                 <span
                     className="font-semibold"
@@ -158,35 +160,41 @@ function SectionHeading({
     );
 }
 
+interface AnalysisStepProps {
+    step: AnalysisFlatStep;
+    /** Merged deal + lead custom field values, keyed `field_{id}`. */
+    values: Record<string, any>;
+    canEdit: boolean;
+    /** The step holds a recorded answer. */
+    answered: boolean;
+    /** Marked "the customer would not answer this". */
+    marked: boolean;
+    answeredQuestions: ReadonlySet<string>;
+    onFieldUpdate: (fieldKey: string, value: any, updateType: string) => void;
+    onFieldChange?: (fieldId: number, value: any) => void;
+    onToggleUnanswered: (stepKey: string, on: boolean) => void;
+    onQuestionAnswered: (stepKey: string) => void;
+    onQuestionCleared: (stepKey: string) => void;
+}
+
 /**
- * The centre column's body: one step at a time, revealed downward.
- *
- * Everything already asked stays mounted above the current step so the agent can
- * scroll back through the call, but only the current step is highlighted — and the
- * panel keeps it pinned to the top of the view, with nothing rendered under it.
+ * One step of the script: its input and the footer under it. Shared by the
+ * stream (the centred modal) and the agent workspace's section screen, so both
+ * save and clear answers through the same path.
  */
-export default function AnalysisStepStream({
-    sections,
-    steps,
-    currentKey,
+export function AnalysisStep({
+    step,
     values,
     canEdit,
-    sectionProgress,
+    answered,
+    marked,
+    answeredQuestions,
     onFieldUpdate,
     onFieldChange,
-    unanswered,
-    filledSteps,
-    answeredQuestions,
     onToggleUnanswered,
     onQuestionAnswered,
     onQuestionCleared,
-}: Props) {
-    const sectionById = useMemo(() => {
-        const map = new Map<string, AnalysisSection>();
-        for (const s of sections) map.set(s.id, s);
-        return map;
-    }, [sections]);
-
+}: AnalysisStepProps) {
     /** Wipe a step's recorded answer through the same save path its input uses, so
      *  the value, the deal and the progress counts all follow from one write. */
     const clearAnswer = (step: AnalysisFlatStep) => {
@@ -257,6 +265,50 @@ export default function AnalysisStepStream({
     };
 
     return (
+        <>
+            {renderBody(step)}
+            <StepFooter
+                stepKey={step.key}
+                required={step.required}
+                marked={marked}
+                answered={answered}
+                onToggle={onToggleUnanswered}
+                onClear={() => clearAnswer(step)}
+            />
+        </>
+    );
+}
+
+/**
+ * The centre column's body: one step at a time, revealed downward.
+ *
+ * Everything already asked stays mounted above the current step so the agent can
+ * scroll back through the call, but only the current step is highlighted — and the
+ * panel keeps it pinned to the top of the view, with nothing rendered under it.
+ */
+export default function AnalysisStepStream({
+    sections,
+    steps,
+    currentKey,
+    values,
+    canEdit,
+    sectionProgress,
+    onFieldUpdate,
+    onFieldChange,
+    unanswered,
+    filledSteps,
+    answeredQuestions,
+    onToggleUnanswered,
+    onQuestionAnswered,
+    onQuestionCleared,
+}: Props) {
+    const sectionById = useMemo(() => {
+        const map = new Map<string, AnalysisSection>();
+        for (const s of sections) map.set(s.id, s);
+        return map;
+    }, [sections]);
+
+    return (
         <div>
             {steps.map((step, i) => {
                 const previous = steps[i - 1];
@@ -281,14 +333,18 @@ export default function AnalysisStepStream({
                             className={`analysis-step${isCurrent ? " analysis-step--current" : ""}`}
                             aria-current={isCurrent ? "step" : undefined}
                         >
-                            {renderBody(step)}
-                            <StepFooter
-                                stepKey={step.key}
-                                required={step.required}
-                                marked={step.key in unanswered}
+                            <AnalysisStep
+                                step={step}
+                                values={values}
+                                canEdit={canEdit}
                                 answered={answered}
-                                onToggle={onToggleUnanswered}
-                                onClear={() => clearAnswer(step)}
+                                marked={step.key in unanswered}
+                                answeredQuestions={answeredQuestions}
+                                onFieldUpdate={onFieldUpdate}
+                                onFieldChange={onFieldChange}
+                                onToggleUnanswered={onToggleUnanswered}
+                                onQuestionAnswered={onQuestionAnswered}
+                                onQuestionCleared={onQuestionCleared}
                             />
                         </div>
                     </Fragment>

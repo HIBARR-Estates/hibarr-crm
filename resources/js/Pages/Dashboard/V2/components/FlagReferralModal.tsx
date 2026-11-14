@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { router } from "@inertiajs/react";
-import { Modal, ModalField, REDESIGN_TOKENS as T } from "@/Components/Redesign";
+import {
+    Button,
+    Modal,
+    ModalField,
+    REDESIGN_TOKENS as T,
+} from "@/Components/Redesign";
+import SearchableSelect from "@/Components/Redesign/primitives/SearchableSelect";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { PartnerReferral } from "../types";
 
@@ -13,92 +19,106 @@ const REASONS = [
 /**
  * A partner asking for a look at one of their referrals.
  *
- * Deliberately not a message to the assigned agent: the partner sits outside
- * the trust boundary and has no line to them. This goes to whoever holds
- * manage_partner_flags, and the server re-checks that the referral is actually
- * theirs — the lead id here is a hint, not an authorisation.
+ * The lead id is a hint. The server re-checks that this account introduced
+ * the lead before it stores the flag.
  */
 export default function FlagReferralModal({
-    referral,
+    open,
+    referrals,
     onClose,
 }: {
-    referral: PartnerReferral | null;
+    open: boolean;
+    referrals: PartnerReferral[];
     onClose: () => void;
 }) {
     const { td } = useTd();
+    const [leadId, setLeadId] = useState<number | null>(null);
     const [reason, setReason] = useState<string>("stalled");
     const [message, setMessage] = useState("");
     const [saving, setSaving] = useState(false);
 
-    if (!referral) return null;
+    const close = () => {
+        if (saving) return;
+        setLeadId(null);
+        setReason("stalled");
+        setMessage("");
+        onClose();
+    };
 
     const submit = () => {
+        if (leadId === null) return;
+
         setSaving(true);
         router.post(
             route("partner-flags.store"),
-            { lead_id: referral.id, reason, message: message.trim() || null },
+            {
+                lead_id: leadId,
+                reason,
+                message: message.trim() || null,
+            },
             {
                 preserveScroll: true,
-                only: ["partnerReferrals"],
-                onFinish: () => {
-                    setSaving(false);
+                only: ["partnerFlags", "partnerReferrals"],
+                onSuccess: () => {
+                    setLeadId(null);
+                    setReason("stalled");
+                    setMessage("");
                     onClose();
                 },
+                onFinish: () => setSaving(false),
             },
         );
     };
 
     return (
         <Modal
-            open
-            onClose={onClose}
+            open={open}
+            onClose={close}
             title={td("Flag this referral", { source: "en" })}
-            dirty={message.length > 0}
+            dirty={leadId !== null || message.length > 0}
             footer={
                 <>
-                    <button
-                        type="button"
-                        className="dr-btn dr-btn-ghost"
-                        onClick={onClose}
-                    >
+                    <Button variant="ghost" onClick={close} disabled={saving}>
                         {td("Cancel", { source: "en" })}
-                    </button>
-                    <button
-                        type="button"
-                        className="dr-btn dr-btn-primary"
-                        disabled={saving}
+                    </Button>
+                    <Button
+                        variant="primary"
+                        loading={saving}
+                        disabled={leadId === null}
                         onClick={submit}
                     >
                         {td("Send flag", { source: "en" })}
-                    </button>
+                    </Button>
                 </>
             }
         >
-            <p
-                style={{
-                    margin: "0 0 16px",
-                    fontSize: 14,
-                    color: T.TEXT_MUTED,
-                    lineHeight: 1.5,
-                }}
-            >
-                {td("About", { source: "en" })} <strong>{referral.client}</strong>,{" "}
-                {td("referred", { source: "en" })} {referral.days_open}
-                {td("d ago", { source: "en" })}.
-            </p>
+            <ModalField label={td("Referral", { source: "en" })}>
+                <SearchableSelect<number>
+                    className="w-full"
+                    popupMatchSelectWidth
+                    value={leadId ?? undefined}
+                    placeholder={td("Choose a referral", { source: "en" })}
+                    notFoundContent={td("No matching referral", { source: "en" })}
+                    options={referrals.map((row) => ({
+                        value: row.id,
+                        label:
+                            row.client ?? td("Unnamed referral", { source: "en" }),
+                    }))}
+                    onChange={(value) => setLeadId(value ?? null)}
+                />
+            </ModalField>
 
             <ModalField label={td("What is the problem", { source: "en" })}>
-                <select
-                    className="dr-input"
+                <SearchableSelect<string>
+                    className="w-full"
+                    popupMatchSelectWidth
                     value={reason}
-                    onChange={(event) => setReason(event.target.value)}
-                >
-                    {REASONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                            {td(option.label, { source: "en" })}
-                        </option>
-                    ))}
-                </select>
+                    options={REASONS.map((option) => ({
+                        value: option.value,
+                        label: td(option.label, { source: "en" }),
+                    }))}
+                    onChange={(value) => setReason(value)}
+                />
             </ModalField>
 
             <ModalField label={td("Anything to add (optional)", { source: "en" })}>
@@ -120,7 +140,9 @@ export default function FlagReferralModal({
                 }}
             >
                 {td(
-                    "This reaches the partner team, not the assigned agent. You will see their reply on this row.", { source: "en" })}
+                    "This reaches the partner team, not the assigned agent. You will see their reply on this card.",
+                    { source: "en" },
+                )}
             </p>
         </Modal>
     );

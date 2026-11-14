@@ -527,6 +527,33 @@ class Property extends BaseModel
 
         $this->attributes['price'] = $value;
     }
+
+    /**
+     * Currency stored beside the price amount.
+     * Null when the row has no currency of its own, so display can keep the
+     * existing company-currency fallback for legacy numeric prices.
+     */
+    public function getPriceCurrencyAttribute(): ?string
+    {
+        $raw = $this->attributes['price'] ?? null;
+
+        if (! is_string($raw) || ! str_starts_with(trim($raw), '{')) {
+            return null;
+        }
+
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        $currency = $decoded['currency'] ?? null;
+        if (! is_string($currency) || trim($currency) === '') {
+            return null;
+        }
+
+        return strtoupper(trim($currency));
+    }
+
     /**
      * Boot: generate unique slug from title on create/update when title is present.
      */
@@ -623,6 +650,7 @@ class Property extends BaseModel
         'effective_location',
         'has_project_location',
         'display_title',
+        'price_currency',
     ];
 
     /**

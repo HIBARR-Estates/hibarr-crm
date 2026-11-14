@@ -1,9 +1,17 @@
+import { App, message } from "antd";
+import { usePage } from "@inertiajs/react";
 import { Icon } from "@/Components/Redesign";
+import ClickToCallButton from "@/Components/ClickToCallButton";
+import useClickToCall from "@/Hooks/useClickToCall";
+import useSoftphone, { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
 import useTranslation from "@/Hooks/useTranslation";
 import type { EmailQuickAction } from "@/Email/types";
 import useEmailUnreadCount from "@/Email/hooks/useEmailUnreadCount";
+import { isMeaningfulDossierValue } from "../../adapters/dossierAdapter";
 
 interface DossierQuickActionsProps {
+    leadId?: number;
+    phone?: string | null;
     onLogAction: () => void;
     onAddNote: () => void;
     onScheduleMeeting: () => void;
@@ -23,6 +31,8 @@ type ActionDef = {
 };
 
 export default function DossierQuickActions({
+    leadId,
+    phone,
     onLogAction,
     onAddNote,
     onScheduleMeeting,
@@ -30,11 +40,32 @@ export default function DossierQuickActions({
     onEmail,
 }: DossierQuickActionsProps) {
     const { t } = useTranslation();
+    const { props } = usePage();
+    const { message: appMessage } = App.useApp();
+    const toast = appMessage ?? message;
+    const { isEnabled: olEnabled } = useClickToCall();
     const { unread: emailUnread, available: emailUnreadAvailable } =
         useEmailUnreadCount({
             enabled: emailQuickAction != null,
             pollingInterval: 60_000,
         });
+
+    const trimmedPhone =
+        phone && isMeaningfulDossierValue(phone) ? phone.trim() : "";
+    const { isEnabled: softphoneFeatureEnabled } = useSoftphone();
+    const hasSoftphonePermission = canMakeSoftphoneCalls(
+        props.auth?.user,
+        props.auth?.permissions,
+    );
+    const softphoneEnabled =
+        softphoneFeatureEnabled &&
+        props.featureFlags?.["crm.softphone"] === true;
+    const canUseLine =
+        (softphoneEnabled && hasSoftphonePermission) || olEnabled;
+    const useTelephonyButton =
+        canUseLine &&
+        Boolean(trimmedPhone) &&
+        typeof leadId === "number";
 
     const actions: ActionDef[] = [
         {
@@ -70,6 +101,21 @@ export default function DossierQuickActions({
         });
     }
 
+    const callButtonChildren = (
+        <>
+            <span className="relative inline-flex">
+                <Icon name="phone" size={18} />
+            </span>
+            <span className="v2-quick-actions__label">
+                {t("pages.leads.quick_actions.call")}
+            </span>
+        </>
+    );
+
+    const callTitle = trimmedPhone
+        ? t("pages.leads.quick_actions.call_title")
+        : t("pages.leads.quick_actions.no_phone");
+
     return (
         <section
             className="v2-quick-actions"
@@ -80,6 +126,37 @@ export default function DossierQuickActions({
                 {t("pages.leads.quick_actions.title")}
             </h2>
             <div className="v2-quick-actions__list">
+                {canUseLine && (
+                    useTelephonyButton ? (
+                        <ClickToCallButton
+                            phone={trimmedPhone}
+                            entity={{ type: "lead", id: leadId! }}
+                            variant="link"
+                            className="v2-quick-actions__btn"
+                            title={callTitle}
+                            ariaLabel={callTitle}
+                            dataAction="call"
+                        >
+                            {callButtonChildren}
+                        </ClickToCallButton>
+                    ) : (
+                        <button
+                            type="button"
+                            className="v2-quick-actions__btn"
+                            onClick={() => {
+                                toast.warning(
+                                    t("pages.leads.quick_actions.no_phone"),
+                                );
+                            }}
+                            title={callTitle}
+                            aria-label={callTitle}
+                            data-action="call"
+                        >
+                            {callButtonChildren}
+                        </button>
+                    )
+                )}
+
                 {actions.map((action) => {
                     const showUnreadDot =
                         action.id === "email" &&

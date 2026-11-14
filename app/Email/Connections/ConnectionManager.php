@@ -6,6 +6,7 @@ use App\Email\Data\ConnectionHealth;
 use App\Email\Data\HealthState;
 use App\Email\Enums\ConnectionStatus;
 use App\Email\Exceptions\MailTransportException;
+use App\Email\Jobs\SyncMailboxJob;
 use App\Email\Models\EmailConnection;
 use App\Email\Observability\EmailLog;
 use App\Email\Transport\MailTransportFactory;
@@ -112,6 +113,11 @@ class ConnectionManager
         $connection->last_error_code = $health->isOk() ? null : ($health->errorCode ?? $health->state->value);
         $connection->sync_stopped_at = null;
         $connection->save();
+
+        // First pull after connect / resume / reconnect; the scheduler keeps up after that.
+        if ($connection->status === ConnectionStatus::Active) {
+            SyncMailboxJob::dispatch($connection->id);
+        }
 
         return $connection;
     }

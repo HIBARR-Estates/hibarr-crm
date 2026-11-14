@@ -3,10 +3,12 @@
 namespace App\Notifications;
 
 use App\Models\CommunicationActivity;
+use App\Services\Notifications\MailCategory;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Symfony\Component\Mime\Email;
 
 class NewCommunicationActivity extends Notification implements ShouldQueue
 {
@@ -48,6 +50,9 @@ class NewCommunicationActivity extends Notification implements ShouldQueue
         $messagePreview .= (strlen((string) $this->activity->message_content) > 100 ? '...' : '');
 
         return (new MailMessage)
+            ->withSymfonyMessage(static function (Email $message): void {
+                MailCategory::attach($message, MailCategory::TRANSACTIONAL);
+            })
             ->subject($subject)
             ->greeting("Hello {$notifiable->name},")
             ->line("A new {$channelType} communication has been recorded for {$entityType}: {$entityName}")

@@ -46,6 +46,17 @@ import QualifyRightRail, {
 } from "./QualifyRightRail";
 import QualifyOutcomePhase from "./QualifyOutcomePhase";
 import QualifyContextNote from "./QualifyContextNote";
+import useTranslation from "@/Hooks/useTranslation";
+import { useTranslatedScriptLabel } from "@/Pages/Leads/Components/Qualification/useTranslatedScriptLabel";
+import FlowPanelHeader from "@/Components/Redesign/agent/flow/FlowPanelHeader";
+import FlowSideTabs from "@/Components/Redesign/agent/flow/FlowSideTabs";
+import FlowStepList, { type FlowStep } from "@/Components/Redesign/agent/flow/FlowStepList";
+import useUnderDock, { flowOverlayClass } from "@/Components/Redesign/agent/flow/useUnderDock";
+import type { Segment } from "@/Types/qualification";
+import StepBody from "@/Components/Redesign/agent/flow/qualify/StepBody";
+import StepFooter, { StepName } from "@/Components/Redesign/agent/flow/qualify/StepFooter";
+import { AnswerRows, FactRows } from "@/Components/Redesign/agent/flow/qualify/SidePanels";
+import { leadFactRows } from "@/Components/Redesign/agent/flow/qualify/leadFacts";
 
 const LANGUAGE_OPTIONS = [
     { value: "en", label: "English" },
@@ -80,6 +91,12 @@ interface QualifyModalProps {
     editLeadPermission?: string;
     /** Meeting types for the inline book-meeting/callback forms in the outcome step. */
     meetingTypes?: Array<{ id: number; name: string; color?: string }>;
+    /**
+     * "under-dock" on the agent workspace: the call opens below the dock
+     * (canvas L7-07), steps on the left and the lead's facts on the right.
+     * The classic lead page keeps the centred modal.
+     */
+    placement?: "center" | "under-dock";
 }
 
 // ponytail: hardcoded — running this label through `td` would translate it in
@@ -337,7 +354,7 @@ function TranslationGate({
 }
 
 /** Small "Translating…" hint beside the language picker (inside the provider). */
-function TranslatingIndicator({ language }: { language: string }) {
+function TranslatingIndicator({ language, onLight = false }: { language: string; onLight?: boolean }) {
     const pending = useDynamicTranslationPending();
 
     if (!pending) {
@@ -347,7 +364,8 @@ function TranslatingIndicator({ language }: { language: string }) {
     return (
         <span
             className="text-[11px] font-medium whitespace-nowrap"
-            style={{ color: "rgba(255,255,255,0.85)" }}
+            // Light on the classic navy header, muted text on the white one under the dock.
+            style={{ color: onLight ? T.TEXT_MUTED : "rgba(255,255,255,0.85)" }}
             role="status"
         >
             {TRANSLATING_LABEL[language] ?? TRANSLATING_LABEL.en}
@@ -360,22 +378,26 @@ function QualifyModalShell({
     titleId,
     leadName,
     onMinimize,
+    underDock,
     children,
 }: {
     open: boolean;
     titleId: string;
     leadName: string;
     onMinimize: () => void;
+    underDock: boolean;
     children: ReactNode;
 }) {
     const { td } = useTd();
+    const { t } = useTranslation();
+    useUnderDock(open && underDock);
 
     if (!open || typeof document === "undefined") {
         return null;
     }
 
     return createPortal(
-        <div className="analysis-modal-overlay">
+        <div className={flowOverlayClass(underDock)}>
             <div
                 className="analysis-modal-panel"
                 role="dialog"
@@ -387,17 +409,29 @@ function QualifyModalShell({
                     e.currentTarget.scrollLeft = 0;
                 }}
             >
-                <AnalysisHeaderBar
-                    title={td("Qualify", { source: "en" })}
-                    leadName={leadName}
-                    isCompleted={false}
-                    totalFilled={0}
-                    totalFields={0}
-                    onMinimize={onMinimize}
-                />
-                <span id={titleId} className="sr-only">
-                    {td("Qualify", { source: "en" })} {leadName}
-                </span>
+                {underDock ? (
+                    <FlowPanelHeader
+                        titleId={titleId}
+                        name={leadName}
+                        title={t("pages.agent_workspace.flow.qualification_title", { name: leadName })}
+                        subtitle={t("pages.agent_workspace.flow.saves")}
+                        onClose={onMinimize}
+                    />
+                ) : (
+                    <>
+                        <AnalysisHeaderBar
+                            title={td("Qualify", { source: "en" })}
+                            leadName={leadName}
+                            isCompleted={false}
+                            totalFilled={0}
+                            totalFields={0}
+                            onMinimize={onMinimize}
+                        />
+                        <span id={titleId} className="sr-only">
+                            {td("Qualify", { source: "en" })} {leadName}
+                        </span>
+                    </>
+                )}
                 {children}
             </div>
         </div>,
@@ -440,6 +474,7 @@ export default function QualifyModal(props: QualifyModalProps) {
                     titleId="qualify-modal-title"
                     leadName={leadName}
                     onMinimize={props.onClose}
+                    underDock={props.placement === "under-dock"}
                 >
                     <div className="flex flex-1 min-h-0 items-center justify-center bg-dr-surface-2">
                         <div className="text-center px-6">
@@ -485,6 +520,7 @@ function QualifyModalContent({
     customFieldCategories,
     editLeadPermission,
     meetingTypes,
+    placement,
     agentLanguage,
     onAgentLanguageChange,
 }: Omit<QualifyModalProps, "templateTree" | "treeLoading" | "qualification"> & {
@@ -494,6 +530,9 @@ function QualifyModalContent({
     onAgentLanguageChange: (language: string) => void;
 }) {
     const { td } = useTd();
+    const { t } = useTranslation();
+    const underDock = placement === "under-dock";
+    useUnderDock(open && underDock);
     const qualificationService = useLeadQualificationService();
     const registrationService = useMemo(() => getRegistrationService(), []);
     const [phase, setPhase] = useState<Phase>("script");
@@ -696,8 +735,284 @@ function QualifyModalContent({
         }
     };
 
+    const centerColumn = (
+        <>
+                {inOutcome ? (
+                    <div className="flex-1 min-h-0 flex flex-col bg-dr-surface-2">
+                        <div
+                            className="qualify-progress shrink-0 px-6 pt-4 pb-3 bg-dr-surface-2"
+                            style={{
+                                borderBottom: "1px solid var(--dr-border)",
+                            }}
+                        >
+                            <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-black">
+                                    {td("Qualification Progress", {
+                                        source: "en",
+                                    })}
+                                </span>
+                                <span className="text-xs tabular-nums text-black">
+                                    <span className="font-semibold text-black">
+                                        {totalFilled}
+                                    </span>{" "}
+                                    {td("of", { source: "en" })}{" "}
+                                    {totalFields}{" "}
+                                    {td("questions", {
+                                        source: "en",
+                                    })}
+                                </span>
+                            </div>
+                            <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full rounded-full transition-all duration-700"
+                                    style={{
+                                        width: `${progressPct}%`,
+                                        backgroundColor:
+                                            progressPct === 100
+                                                ? "var(--dr-emerald)"
+                                                : "var(--dr-sky)",
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        <QualifyOutcomePhase
+                            flow={flow}
+                            lead={lead}
+                            agentLanguage={agentLanguage}
+                            qualificationService={
+                                qualificationService
+                            }
+                            registrationService={registrationService}
+                            meetingTypes={meetingTypes ?? []}
+                            selectedOutcome={selectedOutcome}
+                            onSelectOutcome={setSelectedOutcome}
+                            onBack={handleBackFromOutcome}
+                            onCompleted={(updated) => {
+                                setCompletedQualification(updated);
+                                onCompleted(updated);
+                            }}
+                            onDone={(updated) => void doClose(updated)}
+                        />
+                    </div>
+                ) : (
+                    <>
+                        <div className="flex-1 min-h-0 overflow-y-auto bg-dr-surface-2">
+                            <div
+                                className="qualify-progress sticky top-0 z-10 px-6 pt-4 pb-3 bg-dr-surface-2/95 backdrop-blur-sm"
+                                style={{
+                                    borderBottom: "1px solid var(--dr-border)",
+                                }}
+                            >
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <span className="text-[11px] font-semibold uppercase tracking-wider text-black">
+                                        {td("Qualification Progress", {
+                                            source: "en",
+                                        })}
+                                    </span>
+                                    <span className="text-xs tabular-nums text-black">
+                                        <span className="font-semibold text-black">
+                                            {totalFilled}
+                                        </span>{" "}
+                                        {td("of", { source: "en" })}{" "}
+                                        {totalFields}{" "}
+                                        {td("questions", {
+                                            source: "en",
+                                        })}
+                                    </span>
+                                </div>
+                                <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full rounded-full transition-all duration-700"
+                                        style={{
+                                            width: `${progressPct}%`,
+                                            backgroundColor:
+                                                progressPct === 100
+                                                    ? "var(--dr-emerald)"
+                                                    : "var(--dr-sky)",
+                                        }}
+                                    />
+                                </div>
+                                {templateTree.name ? (
+                                    <p className="mt-2 text-[11px] text-dr-text-hint truncate">
+                                        {templateTree.name}
+                                    </p>
+                                ) : null}
+                            </div>
+
+                            <div className="px-6 pt-5 pb-8">
+                                {segment ? (
+                                    <QualifySegmentBody
+                                        flow={flow}
+                                        currentSegment={segment}
+                                        agentLanguage={agentLanguage}
+                                        questionNumber={
+                                            questionNumber > 0
+                                                ? questionNumber
+                                                : undefined
+                                        }
+                                    />
+                                ) : (
+                                    <p className="text-sm text-dr-text-hint">
+                                        {td(
+                                            "No steps available for this template.",
+                                            { source: "en" },
+                                        )}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        {segment?.type === "question" ? (
+                            <QualifyContextNote
+                                mode={
+                                    segment.answerType === "text"
+                                        ? "answer"
+                                        : "context"
+                                }
+                                value={
+                                    flow.answers[segment.key]
+                                        ?.answer_text ?? ""
+                                }
+                                onChange={(text) => {
+                                    const values =
+                                        flow.answers[segment.key]
+                                            ?.answer_values ?? [];
+                                    flow.applyAnswerChange(
+                                        segment,
+                                        segment.answerType === "text"
+                                            ? []
+                                            : values,
+                                        text || null,
+                                    );
+                                }}
+                            />
+                        ) : null}
+
+                        <QualifyFooter
+                            flow={flow}
+                            onNext={handleNextFromScript}
+                            treatAsLast={
+                                flow.walkIndex ===
+                                    walkSegments.length - 1 ||
+                                flow.isLastWalkSegment
+                            }
+                            finishLabel={td("Choose outcome", {
+                                source: "en",
+                            })}
+                        />
+                    </>
+                )}
+        </>
+    );
+
+    // The script's steps, then the outcome, for the list under the dock.
+    const flowSteps: FlowStep[] = [
+        ...walkSegments.map((walkSegment, index): FlowStep => ({
+            key: walkSegment.key,
+            label: <SegmentLabel segment={walkSegment} translateScript={flow.translateScript} />,
+            state:
+                !inOutcome && walkSegment.key === segment?.key
+                    ? "current"
+                    : (walkSegment.type === "question"
+                            ? hasAnswerContent(flow.answers[walkSegment.key])
+                            : inOutcome || index < flow.walkIndex)
+                      ? "done"
+                      : "todo",
+        })),
+        {
+            key: OUTCOME_STEP,
+            label: t("pages.agent_workspace.flow.outcome"),
+            state: inOutcome ? "current" : "todo",
+            locked: !inOutcome,
+        },
+    ];
+
+    // Under the agent dock the step, its footer and the outcome are the boards' own
+    // screens (canvas L7-07, L7-08), built on the same flow state as the classic ones.
+    const lastWalkSegment = walkSegments[walkSegments.length - 1];
+    const agentCenter = inOutcome ? (
+        <QualifyOutcomePhase
+            flow={flow}
+            lead={lead}
+            agentLanguage={agentLanguage}
+            qualificationService={qualificationService}
+            registrationService={registrationService}
+            meetingTypes={meetingTypes ?? []}
+            selectedOutcome={selectedOutcome}
+            onSelectOutcome={setSelectedOutcome}
+            onBack={handleBackFromOutcome}
+            onCompleted={(updated) => {
+                setCompletedQualification(updated);
+                onCompleted(updated);
+            }}
+            onDone={(updated) => void doClose(updated)}
+            agentLayout
+            previousLabel={
+                lastWalkSegment ? <StepName segment={lastWalkSegment} translateScript={flow.translateScript} /> : undefined
+            }
+        />
+    ) : (
+        <div className="agent-qs__panel">
+            <div className="agent-qs__scroll">
+                {segment ? (
+                    <StepBody
+                        flow={flow}
+                        segment={segment}
+                        agentLanguage={agentLanguage}
+                        questionNumber={Math.max(questionNumber, 1)}
+                        questionTotal={Math.max(totalFields, 1)}
+                    />
+                ) : (
+                    <p className="agent-qs__hint">{td("No steps available for this template.", { source: "en" })}</p>
+                )}
+            </div>
+            <StepFooter
+                flow={flow}
+                isLast={flow.walkIndex === walkSegments.length - 1 || flow.isLastWalkSegment}
+                onNext={handleNextFromScript}
+            />
+        </div>
+    );
+
+    const languageControls =
+                !isCompleted ? (
+                    <span className="inline-flex items-center gap-2">
+                        <TranslatingIndicator
+                            language={agentLanguage}
+                            onLight={underDock}
+                        />
+                        <select
+                            value={agentLanguage}
+                            onChange={(e) =>
+                                onAgentLanguageChange(e.target.value)
+                            }
+                            aria-label={td("Script language", {
+                                source: "en",
+                            })}
+                            className="rounded-md text-xs font-medium"
+                            style={{
+                                background: "rgba(255,255,255,0.12)",
+                                color: "#fff",
+                                border: "1px solid rgba(255,255,255,0.2)",
+                                padding: "6px 10px",
+                                minWidth: 110,
+                            }}
+                        >
+                            {LANGUAGE_OPTIONS.map((option) => (
+                                <option
+                                    key={option.value}
+                                    value={option.value}
+                                    style={{ color: T.TEXT }}
+                                >
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </span>
+                ) : null;
+
     return createPortal(
-        <div className="analysis-modal-overlay">
+        <div className={flowOverlayClass(underDock)}>
             <div
                 className="analysis-modal-panel"
                 role="dialog"
@@ -709,51 +1024,42 @@ function QualifyModalContent({
                     e.currentTarget.scrollLeft = 0;
                 }}
             >
-                <AnalysisHeaderBar
-                    title={td("Qualify", { source: "en" })}
-                    leadName={leadName}
-                    isCompleted={isCompleted}
-                    totalFilled={totalFilled}
-                    totalFields={totalFields}
-                    subscribeSaving={flow.subscribeSaving}
-                    onMinimize={requestClose}
-                    trailingActions={
-                        !isCompleted ? (
-                            <span className="inline-flex items-center gap-2">
-                                <TranslatingIndicator
-                                    language={agentLanguage}
-                                />
-                                <select
-                                    value={agentLanguage}
-                                    onChange={(e) =>
-                                        onAgentLanguageChange(e.target.value)
-                                    }
-                                    aria-label={td("Script language", {
-                                        source: "en",
-                                    })}
-                                    className="rounded-md text-xs font-medium"
-                                    style={{
-                                        background: "rgba(255,255,255,0.12)",
-                                        color: "#fff",
-                                        border: "1px solid rgba(255,255,255,0.2)",
-                                        padding: "6px 10px",
-                                        minWidth: 110,
-                                    }}
-                                >
-                                    {LANGUAGE_OPTIONS.map((option) => (
-                                        <option
-                                            key={option.value}
-                                            value={option.value}
-                                            style={{ color: T.TEXT }}
-                                        >
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </span>
-                        ) : null
-                    }
-                />
+                {underDock ? (
+                    <FlowPanelHeader
+                        titleId={titleId}
+                        name={leadName}
+                        title={t("pages.agent_workspace.flow.qualification_title", { name: leadName })}
+                        subtitle={[
+                            templateTree.name,
+                            inOutcome
+                                ? t("pages.agent_workspace.flow.outcome")
+                                : walkSegments.length > 0
+                                  ? t("pages.agent_workspace.flow.step_of", {
+                                        current: Math.min(flow.walkIndex + 1, walkSegments.length),
+                                        total: walkSegments.length,
+                                    })
+                                  : "",
+                            t("pages.agent_workspace.flow.saves"),
+                        ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        subscribeSaving={flow.subscribeSaving}
+                        trailing={languageControls}
+                        leadId={lead.id}
+                        onClose={requestClose}
+                    />
+                ) : (
+                    <AnalysisHeaderBar
+                        title={td("Qualify", { source: "en" })}
+                        leadName={leadName}
+                        isCompleted={isCompleted}
+                        totalFilled={totalFilled}
+                        totalFields={totalFields}
+                        subscribeSaving={flow.subscribeSaving}
+                        onMinimize={requestClose}
+                        trailingActions={languageControls}
+                    />
+                )}
                 {translationGateVisible && (
                     <TranslationGate
                         language={agentLanguage}
@@ -761,202 +1067,75 @@ function QualifyModalContent({
                         onDismiss={dismissTranslationGate}
                     />
                 )}
-                <span id={titleId} className="sr-only">
-                    {td("Qualify", { source: "en" })} {leadName}
-                </span>
+                {underDock ? null : (
+                    <span id={titleId} className="sr-only">
+                        {td("Qualify", { source: "en" })} {leadName}
+                    </span>
+                )}
 
-                <div className="analysis-3col-body">
-                    <div className="analysis-3col-left">
-                        <QualifyLeadContextPanel
-                            lead={lead}
-                            fields={fields}
-                            customFieldCategories={customFieldCategories}
-                            editLeadPermission={editLeadPermission}
-                        />
-                    </div>
-
-                    <div className="analysis-3col-center">
-                        {inOutcome ? (
-                            <div className="flex-1 min-h-0 flex flex-col bg-dr-surface-2">
-                                <div
-                                    className="shrink-0 px-6 pt-4 pb-3 bg-dr-surface-2"
-                                    style={{
-                                        borderBottom: "1px solid var(--dr-border)",
-                                    }}
-                                >
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <span className="text-[11px] font-semibold uppercase tracking-wider text-black">
-                                            {td("Qualification Progress", {
-                                                source: "en",
-                                            })}
-                                        </span>
-                                        <span className="text-xs tabular-nums text-black">
-                                            <span className="font-semibold text-black">
-                                                {totalFilled}
-                                            </span>{" "}
-                                            {td("of", { source: "en" })}{" "}
-                                            {totalFields}{" "}
-                                            {td("questions", {
-                                                source: "en",
-                                            })}
-                                        </span>
-                                    </div>
-                                    <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full rounded-full transition-all duration-700"
-                                            style={{
-                                                width: `${progressPct}%`,
-                                                backgroundColor:
-                                                    progressPct === 100
-                                                        ? "var(--dr-emerald)"
-                                                        : "var(--dr-sky)",
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                                <QualifyOutcomePhase
-                                    flow={flow}
-                                    lead={lead}
-                                    agentLanguage={agentLanguage}
-                                    qualificationService={
-                                        qualificationService
-                                    }
-                                    registrationService={registrationService}
-                                    meetingTypes={meetingTypes ?? []}
-                                    selectedOutcome={selectedOutcome}
-                                    onSelectOutcome={setSelectedOutcome}
-                                    onBack={handleBackFromOutcome}
-                                    onCompleted={(updated) => {
-                                        setCompletedQualification(updated);
-                                        onCompleted(updated);
-                                    }}
-                                    onDone={(updated) => void doClose(updated)}
-                                />
-                            </div>
-                        ) : (
-                            <>
-                                <div className="flex-1 min-h-0 overflow-y-auto bg-dr-surface-2">
-                                    <div
-                                        className="sticky top-0 z-10 px-6 pt-4 pb-3 bg-dr-surface-2/95 backdrop-blur-sm"
-                                        style={{
-                                            borderBottom: "1px solid var(--dr-border)",
-                                        }}
-                                    >
-                                        <div className="flex items-center justify-between mb-1.5">
-                                            <span className="text-[11px] font-semibold uppercase tracking-wider text-black">
-                                                {td("Qualification Progress", {
-                                                    source: "en",
-                                                })}
-                                            </span>
-                                            <span className="text-xs tabular-nums text-black">
-                                                <span className="font-semibold text-black">
-                                                    {totalFilled}
-                                                </span>{" "}
-                                                {td("of", { source: "en" })}{" "}
-                                                {totalFields}{" "}
-                                                {td("questions", {
-                                                    source: "en",
-                                                })}
-                                            </span>
-                                        </div>
-                                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full rounded-full transition-all duration-700"
-                                                style={{
-                                                    width: `${progressPct}%`,
-                                                    backgroundColor:
-                                                        progressPct === 100
-                                                            ? "var(--dr-emerald)"
-                                                            : "var(--dr-sky)",
-                                                }}
+                {underDock ? (
+                    <div className="agent-flow__body">
+                        <div className="agent-flow__left">
+                            <FlowStepList
+                                steps={flowSteps}
+                                onJump={(key) => {
+                                    if (key !== OUTCOME_STEP) handleJump(key);
+                                }}
+                            />
+                        </div>
+                        <div className="analysis-3col-center agent-qs__center">{agentCenter}</div>
+                        <div className="agent-flow__right">
+                            <FlowSideTabs
+                                tabs={[
+                                    {
+                                        key: "facts",
+                                        label: t("pages.agent_workspace.flow.lead_facts"),
+                                        content: <FactRows rows={leadFactRows(lead, t)} />,
+                                    },
+                                    {
+                                        key: "answers",
+                                        label: t("pages.agent_workspace.flow.answers"),
+                                        count: totalFilled,
+                                        content: (
+                                            <AnswerRows
+                                                segments={walkSegments}
+                                                answers={flow.answers}
+                                                translateScript={flow.translateScript}
+                                                onJump={handleJump}
                                             />
-                                        </div>
-                                        {templateTree.name ? (
-                                            <p className="mt-2 text-[11px] text-dr-text-hint truncate">
-                                                {templateTree.name}
-                                            </p>
-                                        ) : null}
-                                    </div>
-
-                                    <div className="px-6 pt-5 pb-8">
-                                        {segment ? (
-                                            <QualifySegmentBody
-                                                flow={flow}
-                                                currentSegment={segment}
-                                                agentLanguage={agentLanguage}
-                                                questionNumber={
-                                                    questionNumber > 0
-                                                        ? questionNumber
-                                                        : undefined
-                                                }
-                                            />
-                                        ) : (
-                                            <p className="text-sm text-dr-text-hint">
-                                                {td(
-                                                    "No steps available for this template.",
-                                                    { source: "en" },
-                                                )}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {segment?.type === "question" ? (
-                                    <QualifyContextNote
-                                        mode={
-                                            segment.answerType === "text"
-                                                ? "answer"
-                                                : "context"
-                                        }
-                                        value={
-                                            flow.answers[segment.key]
-                                                ?.answer_text ?? ""
-                                        }
-                                        onChange={(text) => {
-                                            const values =
-                                                flow.answers[segment.key]
-                                                    ?.answer_values ?? [];
-                                            flow.applyAnswerChange(
-                                                segment,
-                                                segment.answerType === "text"
-                                                    ? []
-                                                    : values,
-                                                text || null,
-                                            );
-                                        }}
-                                    />
-                                ) : null}
-
-                                <QualifyFooter
-                                    flow={flow}
-                                    onNext={handleNextFromScript}
-                                    treatAsLast={
-                                        flow.walkIndex ===
-                                            walkSegments.length - 1 ||
-                                        flow.isLastWalkSegment
-                                    }
-                                    finishLabel={td("Choose outcome", {
-                                        source: "en",
-                                    })}
-                                />
-                            </>
-                        )}
+                                        ),
+                                    },
+                                ]}
+                            />
+                        </div>
                     </div>
+                ) : (
+                    <div className="analysis-3col-body">
+                        <div className="analysis-3col-left">
+                            <QualifyLeadContextPanel
+                                lead={lead}
+                                fields={fields}
+                                customFieldCategories={customFieldCategories}
+                                editLeadPermission={editLeadPermission}
+                            />
+                        </div>
+                        <div className="analysis-3col-center">{centerColumn}</div>
 
-                    <div className="analysis-3col-right qualify-3col-right">
-                        <QualifyRightRail
-                            segments={walkSegments}
-                            answers={flow.answers}
-                            currentSegmentKey={
-                                inOutcome ? undefined : segment?.key
-                            }
-                            onJump={handleJump}
-                            translateScript={flow.translateScript}
-                            tab={rightRailTab}
-                            onTabChange={setRightRailTab}
-                        />
+                        <div className="analysis-3col-right qualify-3col-right">
+                            <QualifyRightRail
+                                segments={walkSegments}
+                                answers={flow.answers}
+                                currentSegmentKey={
+                                    inOutcome ? undefined : segment?.key
+                                }
+                                onJump={handleJump}
+                                translateScript={flow.translateScript}
+                                tab={rightRailTab}
+                                onTabChange={setRightRailTab}
+                            />
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {confirmIntent && (
                     <div
@@ -1049,4 +1228,13 @@ function QualifyModalContent({
         </div>,
         document.body,
     );
+}
+
+/** Key of the outcome entry in the step list; never a segment key. */
+const OUTCOME_STEP = "__outcome";
+
+/** A step's label in the agent's script language, as the classic rail shows it. */
+function SegmentLabel({ segment, translateScript }: { segment: Segment; translateScript: (text: string) => string }) {
+    const raw = useTranslatedScriptLabel(segment.label || segment.key);
+    return <>{stripHtmlTags(translateScript(raw)) || segment.key}</>;
 }

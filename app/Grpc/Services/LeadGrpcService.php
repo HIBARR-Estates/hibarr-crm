@@ -17,6 +17,9 @@ use App\Grpc\Generated\Common\PBEmpty;
 use App\Grpc\Generated\Common\PaginationMeta;
 use App\Grpc\Generated\Common\StreamProgress;
 use App\Models\Lead;
+use App\Observers\LeadObserver;
+use App\Services\LeadApiChangeRecorder;
+use App\Services\LeadApiFieldMerger;
 use App\Support\LeadSearchQuery;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -169,23 +172,44 @@ class LeadGrpcService implements LeadServiceInterface
                 }
             }
 
-            DB::beginTransaction();
-            try {
-                $lead->fill($data);
-                $lead->save();
-
-                if ($in->hasCustomFieldsJson()) {
-                    $customFields = json_decode($in->getCustomFieldsJson(), true);
-                    if ($customFields && method_exists($lead, 'updateCustomFieldData')) {
-                        $lead->updateCustomFieldData($customFields);
-                    }
+            // Same rules as the contact/deal API: an existing value is never
+            // overwritten, empty ones are filled, multi-value custom fields grow.
+            // A proto3 0 (unset id/number) counts as empty on either side.
+            $isEmpty = fn ($value) => blank($value) || (is_numeric($value) && (float) $value === 0.0);
+            foreach ($data as $column => $value) {
+                if ($isEmpty($value) || ! $isEmpty($lead->getAttribute($column))) {
+                    unset($data[$column]);
                 }
-
-                DB::commit();
-            } catch (\Exception $e) {
-                DB::rollBack();
-                throw $e;
             }
+
+            $changeRecorder = app(LeadApiChangeRecorder::class);
+            $before = $changeRecorder->snapshot((int) $lead->id);
+
+            // LeadApiChangeRecorder records this write; LeadObserver's own timeline events are suppressed.
+            LeadObserver::withoutTimelineEvents(function () use ($lead, $data, $in) {
+                DB::beginTransaction();
+                try {
+                    $lead->fill($data);
+                    $lead->save();
+
+                    if ($in->hasCustomFieldsJson()) {
+                        $customFields = json_decode($in->getCustomFieldsJson(), true);
+                        if (is_array($customFields) && method_exists($lead, 'updateCustomFieldData')) {
+                            $customFields = app(LeadApiFieldMerger::class)->customFieldValues($lead, $customFields);
+                            if ($customFields !== []) {
+                                $lead->updateCustomFieldData($customFields, $lead->company_id);
+                            }
+                        }
+                    }
+
+                    DB::commit();
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    throw $e;
+                }
+            });
+
+            $changeRecorder->recordUpdated((int) $lead->id, $before, LeadApiChangeRecorder::CHANNEL_GRPC);
 
             return $this->buildResponse($lead);
         } catch (GRPCException $e) {

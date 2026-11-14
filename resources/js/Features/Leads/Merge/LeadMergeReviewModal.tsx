@@ -1,397 +1,599 @@
-import { useEffect, useState } from "react";
-import { Modal, Button, Radio, Skeleton, Alert, Tag } from "antd";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { router } from "@inertiajs/react";
+import "@/Components/Redesign/redesign.css";
+import "./LeadMergeReviewModal.css";
+import { Modal } from "@/Components/Redesign/primitives/Modal";
+import ModalShell from "@/Components/Redesign/primitives/ModalShell";
+import Button from "@/Components/Redesign/primitives/Button";
+import EmptyState from "@/Components/Redesign/primitives/EmptyState";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import Segmented from "@/Components/Redesign/primitives/Segmented";
+import { REDESIGN_FONT_STACK } from "@/Components/Redesign/tokens";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useApiMutate } from "@/lib/api/client";
-import { ApiResponse } from "@/lib/api/types";
+import type { ApiResponse } from "@/lib/api/types";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import type { TdFn } from "@/lib/dynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import { formatMobileForDisplay } from "@/lib/utils";
-import Badge from "@/Components/Redesign/primitives/Badge";
 import type { IModalProps } from "@/Types/common";
 import type {
+    LeadMergeCombined,
+    LeadMergeFieldGroup,
+    LeadMergeFieldRow,
+    LeadMergeGroupKey,
     LeadMergeReviewResponse,
+    LeadMergeSide,
     LeadMergeSummary,
 } from "@/Types/api/lead-merge";
-import type { LeadContactMethod } from "@/Types/api/leads";
 
 interface Props extends IModalProps {
     primaryId: number;
     duplicateId: number;
+    /**
+     * After a successful merge: the host decides where to go and what to
+     * refresh. `keptId` is the lead that now holds everything (the one the
+     * dialog was opened from, unless the person swapped the pair). Without it
+     * the classic lead page behaviour applies.
+     */
+    onMerged?: (keptId: number) => void;
+    /**
+     * "agent" draws the dialog as the agent workspace's canvas (L7-35): icon
+     * header, navy confirm button, short dates and full screen on a phone.
+     * The comparison, picks and merge itself are the same.
+     */
+    variant?: "agent";
 }
 
-const CONTACT_FIELD_LABELS: Record<string, string> = {
-    client_email: "Email",
-    mobile: "Mobile",
-    cell: "Cell",
-    office: "Office",
-    company_name: "Company",
-    address: "Address",
-    client_whatsapp: "WhatsApp",
-    client_telegram: "Telegram",
-    client_instagram: "Instagram",
-};
+type View = "differences" | "all";
 
-const PHONE_CONTACT_FIELDS = new Set([
-    "mobile",
-    "cell",
-    "office",
-    "client_whatsapp",
+const PHONE_FIELDS = new Set(["mobile", "cell", "office", "client_whatsapp"]);
+
+/** Server-side English labels from enums and lookup tables, translated with td(). */
+const DYNAMIC_VALUE_FIELDS = new Set([
+    "salutation",
+    "gender",
+    "age_range",
+    "preferred_contact_time",
+    "source_id",
+    "status_id",
+    "lead_lifecycle_status_id",
+    "temperature",
 ]);
 
-function displayContactValue(field: string, value: unknown): string {
-    if (value == null || value === "") return "—";
-    if (PHONE_CONTACT_FIELDS.has(field)) {
-        return formatMobileForDisplay(value) || "—";
-    }
-    return String(value);
+/** Order of the "Moves to the kept lead" chips. */
+const MOVE_ORDER = [
+    "deals",
+    "notes",
+    "tasks",
+    "meetings",
+    "calls",
+    "files",
+    "exposes",
+    "proposals",
+    "consents",
+    "products",
+    "sally_insights",
+    "sally_suggestions",
+    "removal_requests",
+    "qualifications",
+    "communication_activities",
+    "flight_itineraries",
+    "partner_flags",
+    "utm_touches",
+    "timeline_events",
+] as const;
+
+/** A row of the comparison: a pickable field, or a value merged on its own. */
+type DisplayRow =
+    | { kind: "field"; row: LeadMergeFieldRow }
+    | {
+          kind: "combined";
+          key: string;
+          label: string;
+          /** Both leads held the same; only listed under "All fields". */
+          same: boolean;
+          result: string;
+          hint: string;
+      };
+
+function isDifference(row: DisplayRow): boolean {
+    if (row.kind === "field") return row.row.state === "choose" || row.row.state === "fill" || row.row.state === "locked";
+    return !row.same;
 }
 
-function formatContactMethodValue(method: LeadContactMethod): string {
-    return method.type === "phone"
-        ? formatMobileForDisplay(method.identifier) || method.identifier
-        : method.identifier;
+function formatDate(iso: string | null | undefined): string | null {
+    if (!iso) return null;
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
-/** Union of both leads' contact methods, deduped by type+normalized — what the merged lead will end up with. */
-function unionContactMethods(
-    primary: LeadContactMethod[],
-    duplicate: LeadContactMethod[],
-): LeadContactMethod[] {
-    const byKey = new Map<string, LeadContactMethod>();
-
-    [...primary, ...duplicate].forEach((method) => {
-        const key = `${method.type}:${method.normalized}`;
-        const existing = byKey.get(key);
-        if (!existing || (method.is_main && !existing.is_main)) {
-            byKey.set(key, method);
-        }
-    });
-
-    return Array.from(byKey.values());
+/** "28 Oct": the year only when it is not this year. */
+function shortDate(iso: string | null | undefined, locale: string): string | null {
+    if (!iso) return null;
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return null;
+    const sameYear = date.getFullYear() === new Date().getFullYear();
+    return date.toLocaleDateString(locale, { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) });
 }
 
-const OWNERSHIP_LABELS: Record<string, string> = {
-    lead_owner: "Lead Owner",
-    added_by: "Added By",
-    client_id: "Client",
-    agent_id: "Agent",
-};
+function sameList(a: string[], b: string[]): boolean {
+    return a.length === b.length && a.every((v) => b.includes(v));
+}
 
-const COUNT_LABELS: Record<string, string> = {
-    deals: "Deals",
-    notes: "Notes",
-    follow_ups: "Follow-ups",
-    qualifications: "Qualifications",
-    communication_activities: "Communication Activities",
-    tasks: "Tasks",
-    flight_itineraries: "Flight Itineraries",
-};
-
-const LeadSummaryColumn: React.FC<{
-    label: string;
-    summary: LeadMergeSummary;
-    conflicts: LeadMergeReviewResponse["contact_conflicts"];
-}> = ({ label, summary, conflicts }) => {
+/**
+ * Merge two leads. Everything on the duplicate moves to the kept lead; where
+ * both hold different values the person picks which one stays. Fixed height:
+ * the lead cards and field comparison scroll, the "Moves to the kept lead"
+ * summary and the footer stay in view.
+ */
+export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onClose, onMerged, variant }: Props) {
+    const { t, locale } = useTranslation();
+    const agent = variant === "agent";
+    const titleId = useId();
     const { td } = useTd();
-
-    return (
-        <div className="rounded-lg border border-[#eef1f5] p-3">
-            <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase text-gray-500">
-                    {label}
-                </span>
-                <span className="text-sm font-semibold">
-                    {summary.client_name}
-                </span>
-            </div>
-            <dl className="space-y-1 text-sm">
-                {Object.entries(CONTACT_FIELD_LABELS).map(
-                    ([field, fieldLabel]) => {
-                        const value = (
-                            summary as unknown as Record<string, unknown>
-                        )[field] as string | null;
-                        const conflict = conflicts[field];
-                        const isConflict = Boolean(conflict);
-
-                        return (
-                            <div key={field} className="flex justify-between gap-2">
-                                <dt className="text-gray-500">{td(fieldLabel, { source: "en" })}</dt>
-                                <dd
-                                    className={
-                                        isConflict
-                                            ? "font-medium text-amber-600"
-                                            : "text-gray-800"
-                                    }
-                                >
-                                    {displayContactValue(field, value)}
-                                    {isConflict && (
-                                        <Tag color="warning" className="ml-1">
-                                            {td("differs", { source: "en" })}
-                                        </Tag>
-                                    )}
-                                </dd>
-                            </div>
-                        );
-                    },
-                )}
-            </dl>
-            {summary.contact_methods.some((method) => !method.is_main) && (
-                <div className="mt-2 border-t border-[#f0f0f0] pt-2">
-                    <span className="text-xs text-gray-500">
-                        {td("Additional contact points", { source: "en" })}
-                    </span>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                        {summary.contact_methods
-                            .filter((method) => !method.is_main)
-                            .map((method) => (
-                                <Badge key={method.id} variant="gray">
-                                    {formatContactMethodValue(method)}
-                                </Badge>
-                            ))}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
-
-export default function LeadMergeReviewModal({
-    open,
-    primaryId,
-    duplicateId,
-    onClose,
-}: Props) {
-    const { td } = useTd();
-    const [picks, setPicks] = useState<Record<string, number>>({});
+    const [keptId, setKeptId] = useState(primaryId);
+    const [otherId, setOtherId] = useState(duplicateId);
+    const [picks, setPicks] = useState<Record<string, LeadMergeSide>>({});
+    const [view, setView] = useState<View>("differences");
+    const [mergeError, setMergeError] = useState(false);
 
     useEffect(() => {
         if (open) {
+            setKeptId(primaryId);
+            setOtherId(duplicateId);
             setPicks({});
+            setView("differences");
+            setMergeError(false);
         }
     }, [open, primaryId, duplicateId]);
 
-    const { data, isLoading, isError } = useApiQuery<LeadMergeReviewResponse>({
-        path: route("lead-contact.merge-review", {
-            lead: primaryId,
-            duplicate: duplicateId,
-        }),
+    const { data, isLoading, isError, refetch } = useApiQuery<LeadMergeReviewResponse>({
+        path: route("lead-contact.merge-review", { lead: keptId, duplicate: otherId }),
         options: { enabled: open },
     });
 
     const { mutate: confirmMerge, status } = useApiMutate<
-        Record<string, number>,
-        any,
-        ApiResponse<any>
-    >(route("lead-contact.merge", primaryId), "POST");
+        { duplicate_id: number; field_picks: Record<string, LeadMergeSide> },
+        unknown,
+        ApiResponse<unknown>
+    >(route("lead-contact.merge", keptId), "POST");
 
-    const ownershipFields = data?.ownership_fields ?? [];
-    const pendingFields = ownershipFields.filter(
-        (field) =>
-            field.differs &&
-            field.primary_value === null &&
-            picks[field.field] === undefined,
-    );
-    const canConfirm = Boolean(data?.primary) && pendingFields.length === 0;
+    // The payload must be for the pair on screen: right after a swap the
+    // previous pair's rows (and default picks) must not be submitted.
+    const ready = data?.primary?.id === keptId && data?.duplicate?.id === otherId;
+    const stale = Boolean(data?.primary && data?.duplicate) && !ready;
+    const groups = useMemo(() => buildRows(data, t, td), [data, t, td]);
+    const differenceCount = groups.reduce((n, g) => n + g.rows.filter(isDifference).length, 0);
+    const allCount = groups.reduce((n, g) => n + g.rows.length, 0);
+    const visibleGroups = groups
+        .map((g) => ({ ...g, rows: view === "all" ? g.rows : g.rows.filter(isDifference) }))
+        .filter((g) => g.rows.length > 0);
+
+    const valueRow = (data?.field_groups ?? []).flatMap((g) => g.rows).find((r) => r.key === "value");
+    const pickFor = (row: LeadMergeFieldRow): LeadMergeSide =>
+        // The currency follows whichever value is kept.
+        row.hint === "follows_value" && valueRow
+            ? picks[valueRow.key] ?? valueRow.default_pick
+            : picks[row.key] ?? row.default_pick;
+
+    const swap = () => {
+        setKeptId(otherId);
+        setOtherId(keptId);
+        setPicks({});
+        setMergeError(false);
+    };
 
     const handleConfirm = () => {
-        const payload: Record<string, number> = { duplicate_id: duplicateId };
+        const fieldPicks: Record<string, LeadMergeSide> = {};
+        (data?.field_groups ?? []).forEach((g) =>
+            g.rows.forEach((row) => {
+                if (row.state === "choose") fieldPicks[row.key] = pickFor(row);
+            }),
+        );
 
-        ownershipFields.forEach((field) => {
-            if (!field.differs) return;
-            const value = picks[field.field] ?? field.primary_value;
-            if (value !== null && value !== undefined) {
-                payload[field.field] = value;
-            }
-        });
-
-        confirmMerge(payload, {
-            onSuccess: () => {
-                onClose(true);
-                router.reload({ only: ["leads", "lead"] });
+        setMergeError(false);
+        confirmMerge(
+            { duplicate_id: otherId, field_picks: fieldPicks },
+            {
+                // The merge runs in one transaction: a failure changes nothing.
+                onError: () => setMergeError(true),
+                onSuccess: (response) => {
+                    // A refused merge (Reply::error) arrives as a 200 with status "fail".
+                    if (response?.status !== "success") {
+                        setMergeError(true);
+                        return;
+                    }
+                    onClose(true);
+                    if (onMerged) {
+                        onMerged(keptId);
+                    } else if (keptId !== primaryId) {
+                        // The lead this dialog was opened from is now the archived
+                        // one; open the lead that was kept.
+                        router.visit(route("lead-contact.show", keptId));
+                    } else {
+                        router.reload({ only: ["leads", "lead"] });
+                    }
+                },
             },
-        });
+        );
     };
+
+    const moves = MOVE_ORDER.map((key) => [key, data?.moves?.[key] ?? 0] as const).filter(([, n]) => n > 0);
+
+    const valueText = (row: LeadMergeFieldRow, side: LeadMergeSide): string | null => {
+        const value = side === "primary" ? row.primary : row.duplicate;
+        if (value == null || value === "") return null;
+        if (PHONE_FIELDS.has(row.key)) return formatMobileForDisplay(value) || value;
+        if (DYNAMIC_VALUE_FIELDS.has(row.key)) return td(value, { source: "en" });
+        return value;
+    };
+
+    const fieldLabel = (row: LeadMergeFieldRow): string =>
+        row.custom ? td(row.label, { source: "en" }) : t(`pages.lead_merge.fields.${row.key.replace(":", "_")}`);
+
+    const hintFor = (row: LeadMergeFieldRow, side: LeadMergeSide): string | null => {
+        if (row.state === "fill" && side === "duplicate") return t("pages.lead_merge.hint_filled");
+        if (row.state === "locked" && side === "primary") return t("pages.lead_merge.hint_referrer_locked");
+        if (row.state !== "choose") return null;
+        // The value that isn't picked stays on the lead as an extra contact method.
+        if (row.hint === "kept_as_alternate" && side !== pickFor(row)) {
+            return row.key === "client_email"
+                ? t("pages.lead_merge.hint_alternate_email")
+                : t("pages.lead_merge.hint_alternate_phone");
+        }
+        if (row.hint === "higher_score" && side === row.default_pick) return t("pages.lead_merge.hint_higher_score");
+        if (row.hint === "touch_history" && side === pickFor(row)) return t("pages.lead_merge.hint_touch_history");
+        if (row.hint === "follows_value" && side === pickFor(row)) return t("pages.lead_merge.hint_follows_value");
+        return null;
+    };
+
+    const renderOption = (row: LeadMergeFieldRow, side: LeadMergeSide) => {
+        const text = valueText(row, side);
+        const hint = hintFor(row, side);
+        const content = (
+            <>
+                <span className="lm-dot" aria-hidden="true" />
+                <span style={{ minWidth: 0 }}>
+                    {text ? <span>{text}</span> : <span className="lm-empty">{t("pages.lead_merge.empty")}</span>}
+                    {hint && <span className="lm-hint">{hint}</span>}
+                </span>
+            </>
+        );
+
+        if (row.state === "choose" && row.hint === "follows_value") {
+            return <div className={`lm-opt${pickFor(row) === side ? " is-on" : ""}`}>{content}</div>;
+        }
+
+        if (row.state === "choose") {
+            const on = pickFor(row) === side;
+            return (
+                <button
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    className={`lm-opt${on ? " is-on" : ""}`}
+                    onClick={() => setPicks((prev) => ({ ...prev, [row.key]: side }))}
+                >
+                    {content}
+                </button>
+            );
+        }
+
+        // Nothing to choose: the kept lead ends up with the only value there is.
+        const on = row.state === "fill" ? side === "duplicate" : side === "primary";
+        return <div className={`lm-opt${on ? " is-on" : ""}`}>{content}</div>;
+    };
+
+    const renderRow = (row: DisplayRow) => {
+        if (row.kind === "field") {
+            const label = fieldLabel(row.row);
+            if (row.row.state === "same") {
+                return (
+                    <div key={row.row.key} className="lm-row">
+                        <div className="lm-label">{label}</div>
+                        <div className="lm-opt is-on is-span">
+                            <span className="lm-dot" aria-hidden="true" />
+                            <span>{valueText(row.row, "primary")}</span>
+                        </div>
+                    </div>
+                );
+            }
+            return (
+                <div
+                    key={row.row.key}
+                    className="lm-row"
+                    role={row.row.state === "choose" ? "radiogroup" : undefined}
+                    aria-label={row.row.state === "choose" ? label : undefined}
+                >
+                    <div className="lm-label">{label}</div>
+                    {renderOption(row.row, "primary")}
+                    {renderOption(row.row, "duplicate")}
+                </div>
+            );
+        }
+
+        return (
+            <div key={row.key} className="lm-row">
+                <div className="lm-label">{row.label}</div>
+                <div className="lm-opt is-on is-span">
+                    <span className="lm-dot" aria-hidden="true" />
+                    <span style={{ minWidth: 0 }}>
+                        <span>{row.result}</span>
+                        <span className="lm-hint">{row.hint}</span>
+                    </span>
+                </div>
+            </div>
+        );
+    };
+
+    const leadCard = (summary: LeadMergeSummary, kept: boolean, counts?: Record<string, number>) => {
+        const created = agent ? shortDate(summary.created_at, locale) : formatDate(summary.created_at);
+        const meta = [
+            t("pages.lead_merge.lead_number", { id: String(summary.id) }),
+            created ? t("pages.lead_merge.created_on", { date: created }) : null,
+            summary.owner_name ? t("pages.lead_merge.owner_name", { name: summary.owner_name }) : t("pages.lead_merge.no_owner"),
+            // What moves is listed once, under the comparison, on the agent dialog.
+            ...(agent
+                ? []
+                : (["deals", "notes", "tasks"] as const)
+                      .filter((k) => (counts?.[k] ?? 0) > 0)
+                      .map((k) => moveLabel(k, counts?.[k] ?? 0))),
+        ].filter(Boolean);
+
+        return (
+            <div className={`lm-card${kept ? " is-kept" : ""}`}>
+                <div className="lm-card-eyebrow">
+                    {kept ? t("pages.lead_merge.kept_lead") : t("pages.lead_merge.duplicate_archived")}
+                </div>
+                <div className="lm-card-name" title={summary.client_name ?? undefined}>
+                    {summary.client_name || "—"}
+                </div>
+                <div className="lm-card-meta">{meta.join(" · ")}</div>
+            </div>
+        );
+    };
+
+    // i18next picks the plural form for the locale from a numeric count
+    // (_one / _few / _many / _other), which Russian needs.
+    const moveLabel = (key: string, count: number) => t(`pages.lead_merge.moves.${key}`, { count });
+
+    let body: ReactNode;
+    if ((isLoading && !data) || stale) {
+        body = (
+            <div className="lm-scroll" aria-busy="true" style={{ padding: 22, display: "flex", flexDirection: "column", gap: 10 }}>
+                {[72, 36, 44, 44, 44, 44, 44].map((h, i) => (
+                    <div key={i} className="dr-skeleton" style={{ height: h, borderRadius: 8 }} />
+                ))}
+            </div>
+        );
+    } else if (isError || (data && !ready)) {
+        body = (
+            <div className="lm-scroll" style={{ padding: 22 }}>
+                <EmptyState
+                    role="alert"
+                    title={(data as unknown as { message?: string } | undefined)?.message ?? t("pages.lead_merge.load_failed")}
+                    action={{ label: t("pages.lead_merge.retry"), onClick: () => void refetch() }}
+                />
+            </div>
+        );
+    } else if (ready && data?.primary && data.duplicate) {
+        body = (
+            <>
+                <div className="lm-scroll">
+                    <div className="lm-cards">
+                        {leadCard(data.primary, true, data.counts?.primary as unknown as Record<string, number>)}
+                        <button
+                            type="button"
+                            className="lm-swap"
+                            onClick={swap}
+                            title={t("pages.lead_merge.swap")}
+                            aria-label={t("pages.lead_merge.swap")}
+                        >
+                            <Icon name="swap" size={15} />
+                        </button>
+                        {leadCard(data.duplicate, false, data.counts?.duplicate as unknown as Record<string, number>)}
+                    </div>
+
+                    <div className="lm-toolbar">
+                        <Segmented<View>
+                            value={view}
+                            onChange={setView}
+                            ariaLabel={t("pages.lead_merge.view_label")}
+                            variant="raised"
+                            options={[
+                                { value: "differences", label: t("pages.lead_merge.view_differences"), count: differenceCount },
+                                { value: "all", label: t("pages.lead_merge.view_all"), count: allCount },
+                            ]}
+                        />
+                        <span className="lm-toolbar-hint">{t("pages.lead_merge.auto_fill_hint")}</span>
+                    </div>
+
+                    {visibleGroups.length === 0 ? (
+                        <div className="lm-none">{t("pages.lead_merge.no_differences")}</div>
+                    ) : (
+                        <>
+                            <div className="lm-heads" aria-hidden="true">
+                                <span />
+                                <span>{t("pages.lead_merge.kept_lead")}</span>
+                                <span>{t("pages.lead_merge.duplicate")}</span>
+                            </div>
+                            {visibleGroups.map((group) => (
+                                <section key={group.key} aria-label={t(`pages.lead_merge.group_${group.key}`)}>
+                                    <div className="lm-group">
+                                        {t(`pages.lead_merge.group_${group.key}`)}
+                                        {view === "differences" && <span className="lm-chip">{group.rows.length}</span>}
+                                    </div>
+                                    {group.rows.map(renderRow)}
+                                </section>
+                            ))}
+                        </>
+                    )}
+                </div>
+
+                <section className="lm-moves" aria-label={t("pages.lead_merge.moves_title")}>
+                    <div className="lm-moves-title">{t("pages.lead_merge.moves_title")}</div>
+                    {moves.length > 0 ? (
+                        <ul className="lm-moves-list">
+                            {moves.map(([key, n]) => (
+                                <li key={key}>{moveLabel(key, n)}</li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <div className="lm-toolbar-hint">{t("pages.lead_merge.moves_nothing")}</div>
+                    )}
+                </section>
+            </>
+        );
+    }
+
+    const note = mergeError ? (
+        <span className="lm-footer-note is-error" role="alert">
+            {t("pages.lead_merge.merge_failed")}
+        </span>
+    ) : (
+        <span className="lm-footer-note">{t("pages.lead_merge.footer_note")}</span>
+    );
+
+    if (agent) {
+        return (
+            <ModalShell
+                open={open}
+                onClose={() => onClose()}
+                ariaLabelledBy={titleId}
+                zIndex={1500}
+                panelClassName="modal-panel lm-agent-panel"
+                initialFocus="panel"
+                trapFocus
+            >
+                <header className="lm-ahead">
+                    <span className="lm-ahead-icon" aria-hidden="true">
+                        <Icon name="swap" size={17} />
+                    </span>
+                    <div className="lm-ahead-text">
+                        <h2 id={titleId}>{t("pages.lead_merge.title")}</h2>
+                        <p>{t("pages.lead_merge.subtitle")}</p>
+                    </div>
+                    <button type="button" className="lm-ahead-close" onClick={() => onClose()} aria-label={t("pages.lead_merge.close")}>
+                        <Icon name="x" size={18} />
+                    </button>
+                </header>
+                <div className="lm-agent" style={{ display: "flex", flexDirection: "column", flex: "1 1 auto", minHeight: 0, fontFamily: REDESIGN_FONT_STACK }}>
+                    {body}
+                </div>
+                <footer className="lm-afoot">
+                    {note}
+                    <div className="lm-afoot-actions">
+                        <Button variant="ghost" onClick={() => onClose()}>
+                            {t("pages.lead_merge.cancel")}
+                        </Button>
+                        <Button variant="navy" loading={status === "pending"} disabled={!ready} onClick={handleConfirm}>
+                            {t("pages.lead_merge.confirm")}
+                        </Button>
+                    </div>
+                </footer>
+            </ModalShell>
+        );
+    }
 
     return (
         <Modal
             open={open}
-            onCancel={() => onClose()}
-            width={860}
-            title={td("Review lead merge", { source: "en" })}
-            destroyOnClose
-            footer={[
-                <Button key="cancel" onClick={() => onClose()}>
-                    {td("Cancel", { source: "en" })}
-                </Button>,
-                <Button
-                    key="confirm"
-                    type="primary"
-                    danger
-                    loading={status === "pending"}
-                    disabled={!canConfirm}
-                    onClick={handleConfirm}
-                >
-                    {td("Confirm merge", { source: "en" })}
-                </Button>,
-            ]}
+            title={t("pages.lead_merge.title")}
+            subtitle={t("pages.lead_merge.subtitle")}
+            onClose={() => onClose()}
+            maxWidth={980}
+            fixedHeight={820}
+            // Opened from antd screens (lead list, Find duplicates) as well as the
+            // lead page, so it sits above an antd modal.
+            zIndex={1500}
+            footer={
+                <>
+                    {note}
+                    <Button variant="ghost" onClick={() => onClose()}>
+                        {t("pages.lead_merge.cancel")}
+                    </Button>
+                    <Button variant="primary" loading={status === "pending"} disabled={!ready} onClick={handleConfirm}>
+                        {t("pages.lead_merge.confirm")}
+                    </Button>
+                </>
+            }
         >
-            {isLoading && <Skeleton active />}
-            {(isError || (data && !data.primary)) && (
-                <Alert
-                    type="error"
-                    showIcon
-                    message={
-                        (data as unknown as { message?: string })?.message ??
-                        td("Could not load merge review.", { source: "en" })
-                    }
-                />
-            )}
-            {data?.primary && data.duplicate && (
-                <div className="flex flex-col gap-4">
-                    <Alert
-                        type="warning"
-                        showIcon
-                        message={`${td("Lead", { source: "en" })} #${duplicateId} (${data.duplicate.client_name}) ${td("will be discarded — its records move to", { source: "en" })} ${td("lead", { source: "en" })} #${primaryId} (${data.primary.client_name}).`}
-                    />
-
-                    {(() => {
-                        const merged = unionContactMethods(
-                            data.primary.contact_methods,
-                            data.duplicate.contact_methods,
-                        );
-                        const emailCount = merged.filter(
-                            (m) => m.type === "email",
-                        ).length;
-                        const phoneCount = merged.filter(
-                            (m) => m.type === "phone",
-                        ).length;
-
-                        return (
-                            <Alert
-                                type="info"
-                                showIcon
-                                message={`${td("After merging, the kept lead will have", { source: "en" })} ${emailCount} ${td("email(s) and", { source: "en" })} ${phoneCount} ${td("phone number(s) across both leads.", { source: "en" })}`}
-                            />
-                        );
-                    })()}
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <LeadSummaryColumn
-                            label={`A · ${td("Primary (keep)", { source: "en" })}`}
-                            summary={data.primary}
-                            conflicts={data.contact_conflicts}
-                        />
-                        <LeadSummaryColumn
-                            label={`B · ${td("Duplicate (discard)", { source: "en" })}`}
-                            summary={data.duplicate}
-                            conflicts={data.contact_conflicts}
-                        />
-                    </div>
-
-                    <div>
-                        <h4 className="mb-2 text-sm font-semibold">
-                            {td("Connected records", { source: "en" })}
-                        </h4>
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="text-left text-gray-500">
-                                    <th className="pb-1 font-normal">
-                                        {td("Record type", { source: "en" })}
-                                    </th>
-                                    <th className="pb-1 font-normal">
-                                        A · {td("Primary", { source: "en" })}
-                                    </th>
-                                    <th className="pb-1 font-normal">
-                                        B · {td("Duplicate", { source: "en" })}
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {Object.entries(COUNT_LABELS).map(
-                                    ([key, countLabel]) => (
-                                        <tr
-                                            key={key}
-                                            className="border-t border-[#f0f0f0]"
-                                        >
-                                            <td className="py-1">
-                                                {td(countLabel, { source: "en" })}
-                                            </td>
-                                            <td className="py-1">
-                                                {
-                                                    data.counts.primary[
-                                                        key as keyof typeof data.counts.primary
-                                                    ]
-                                                }
-                                            </td>
-                                            <td className="py-1">
-                                                {
-                                                    data.counts.duplicate[
-                                                        key as keyof typeof data.counts.duplicate
-                                                    ]
-                                                }
-                                            </td>
-                                        </tr>
-                                    ),
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div>
-                        <h4 className="mb-2 text-sm font-semibold">
-                            {td("Ownership", { source: "en" })}
-                        </h4>
-                        <div className="flex flex-col gap-2">
-                            {ownershipFields.map((field) => (
-                                <div
-                                    key={field.field}
-                                    className="flex items-center justify-between gap-4 border-b border-[#f0f0f0] py-2 last:border-0"
-                                >
-                                    <span className="text-sm text-gray-600">
-                                        {td(OWNERSHIP_LABELS[field.field], { source: "en" })}
-                                    </span>
-                                    {field.differs ? (
-                                        <Radio.Group
-                                            value={
-                                                picks[field.field] ??
-                                                field.primary_value ??
-                                                undefined
-                                            }
-                                            onChange={(e) =>
-                                                setPicks((prev) => ({
-                                                    ...prev,
-                                                    [field.field]: e.target.value,
-                                                }))
-                                            }
-                                        >
-                                            {field.primary_value !== null && (
-                                                <Radio value={field.primary_value}>
-                                                    {field.primary_label ??
-                                                        field.primary_value}{" "}
-                                                    (A)
-                                                </Radio>
-                                            )}
-                                            {field.duplicate_value !== null && (
-                                                <Radio value={field.duplicate_value}>
-                                                    {field.duplicate_label ??
-                                                        field.duplicate_value}{" "}
-                                                    (B)
-                                                </Radio>
-                                            )}
-                                        </Radio.Group>
-                                    ) : (
-                                        <span className="text-sm">
-                                            {field.primary_label ??
-                                                field.primary_value ??
-                                                "—"}
-                                        </span>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
+            <div style={{ display: "flex", flexDirection: "column", flex: "1 1 auto", minHeight: 0, fontFamily: REDESIGN_FONT_STACK }}>
+                {body}
+            </div>
         </Modal>
     );
+}
+
+/** Turns the review payload into grouped rows, with the merged-on-its-own values in their groups. */
+function buildRows(
+    data: LeadMergeReviewResponse | undefined,
+    t: (key: string, params?: Record<string, string>) => string,
+    td: TdFn,
+): Array<{ key: LeadMergeGroupKey; rows: DisplayRow[] }> {
+    if (!data?.primary) return [];
+
+    const byKey = new Map<LeadMergeGroupKey, DisplayRow[]>();
+    (data.field_groups ?? []).forEach((g: LeadMergeFieldGroup) =>
+        byKey.set(g.key, g.rows.map((row) => ({ kind: "field" as const, row }))),
+    );
+
+    const add = (group: LeadMergeGroupKey, row: DisplayRow) => {
+        byKey.set(group, [...(byKey.get(group) ?? []), row]);
+    };
+    const combined: LeadMergeCombined = data.combined ?? {};
+
+    if (combined.languages) {
+        const { primary, duplicate, result } = combined.languages;
+        add("personal", {
+            kind: "combined",
+            key: "languages",
+            label: t("pages.lead_merge.row_languages"),
+            same: sameList(primary, duplicate),
+            result: result.map((l) => td(l, { source: "en" })).join(", "),
+            hint: t("pages.lead_merge.hint_combined"),
+        });
+    }
+
+    if (combined.categories) {
+        const { primary, duplicate, result } = combined.categories;
+        add("status", {
+            kind: "combined",
+            key: "categories",
+            label: t("pages.lead_merge.row_categories"),
+            same: sameList(primary, duplicate),
+            result: result.map((c) => td(c, { source: "en" })).join(", "),
+            hint: t("pages.lead_merge.hint_combined"),
+        });
+    }
+
+    if (combined.engagement?.length) {
+        add("marketing", {
+            kind: "combined",
+            key: "engagement",
+            label: t("pages.lead_merge.row_engagement"),
+            same: combined.engagement.every((f) => f.primary === f.duplicate),
+            result: combined.engagement.map((f) => t(`pages.lead_merge.flag_${f.key}`)).join(" · "),
+            hint: t("pages.lead_merge.hint_engagement"),
+        });
+    }
+
+    if (combined.last_webinar_date?.result) {
+        const w = combined.last_webinar_date;
+        add("marketing", {
+            kind: "combined",
+            key: "last_webinar_date",
+            label: t("pages.lead_merge.row_last_webinar"),
+            same: w.primary === w.duplicate,
+            result: w.result ?? "",
+            hint: t("pages.lead_merge.hint_latest_date"),
+        });
+    }
+
+    const order: LeadMergeGroupKey[] = ["contact", "personal", "status", "ownership", "marketing", "custom"];
+    return order
+        .map((key) => ({ key, rows: byKey.get(key) ?? [] }))
+        .filter((g) => g.rows.length > 0);
 }

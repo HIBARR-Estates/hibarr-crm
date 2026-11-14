@@ -54,6 +54,7 @@ export interface PropertySummary {
     property_type: string;
     sale_type: "sale" | "rent";
     price: number;
+    price_currency?: string | null;
     city: string;
     area: string;
     bedrooms: number | null;

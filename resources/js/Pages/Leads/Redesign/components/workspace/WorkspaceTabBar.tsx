@@ -1,5 +1,6 @@
 import { KeyboardEvent } from "react";
 import { Icon } from "@/Components/Redesign";
+import useTranslation from "@/Hooks/useTranslation";
 import useHScroll from "@/Pages/Deals/Redesign/hooks/useHScroll";
 import ScrollArrow from "@/Components/Redesign/primitives/ScrollArrow";
 import type { LeadTabCount, WorkspaceTabId } from "../../types";
@@ -21,6 +22,10 @@ interface WorkspaceTabBarProps {
     showQualification?: boolean;
     /** When false, hide the Exposes record tab (crm.deal-exposes-tab). */
     showExposes?: boolean;
+    /** When false, hide the Sally record tab (no insights for this lead). */
+    showSally?: boolean;
+    /** When false, hide the Calls record tab (crm.softphone off). */
+    showCalls?: boolean;
 }
 
 /**
@@ -33,13 +38,18 @@ export default function WorkspaceTabBar({
     counts = {},
     showQualification = true,
     showExposes = false,
+    showSally = false,
+    showCalls = false,
 }: WorkspaceTabBarProps) {
+    const { t } = useTranslation();
     const scroll = useHScroll();
     const hasOverflow = scroll.overflow.left || scroll.overflow.right;
 
     const recordTabs = RECORD_TABS.filter((tab) => {
         if (tab.id === "qualification") return showQualification;
         if (tab.id === "exposes") return showExposes;
+        if (tab.id === "sally") return showSally;
+        if (tab.id === "calls") return showCalls;
         return true;
     });
 
@@ -47,10 +57,12 @@ export default function WorkspaceTabBar({
         if (id === "notes") return counts.notes;
         if (id === "tasks") return counts.tasks;
         if (id === "meetings") return counts.meetings;
+        if (id === "calls") return counts.calls;
         if (id === "files") return counts.files;
         if (id === "deals") return counts.deals;
         if (id === "exposes") return counts.exposes;
         if (id === "itinerary") return counts.itinerary;
+        if (id === "sally") return counts.sally;
         if (id === "qualification") return counts.qualification;
         return undefined;
     };
@@ -120,7 +132,15 @@ export default function WorkspaceTabBar({
                 className="dr-tabs-scroll"
             >
                 {recordTabs.map((tab) =>
-                    renderTab(tab.id, tab.label, tab.countable),
+                    renderTab(
+                        tab.id,
+                        tab.id === "sally"
+                            ? t("pages.leads.tabs.sally")
+                            : tab.id === "calls"
+                              ? t("pages.calls.lead_tab_label")
+                              : tab.label,
+                        tab.countable,
+                    ),
                 )}
             </div>
             {hasOverflow && (

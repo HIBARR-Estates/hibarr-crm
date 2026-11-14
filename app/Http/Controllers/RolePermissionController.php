@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helper\Reply;
 use App\Http\Requests\Role\StoreRole;
+use App\Jobs\ResyncUserPermissionsJob;
 use App\Models\Module;
 use App\Models\ModuleSetting;
 use App\Models\Permission;
@@ -13,7 +14,6 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\UserPermission;
 use Illuminate\Http\Request;
-use const _PHPStan_7961f7ae1\__;
 
 class RolePermissionController extends AccountBaseController
 {
@@ -103,21 +103,38 @@ class RolePermissionController extends AccountBaseController
 
         }
 
+        $permissionModel = Permission::find($permissionId);
+        $isSoftphonePermission = $permissionModel && $permissionModel->name === 'make_softphone_calls';
+
         // Prepare user permissions for bulk insert
         $userPermissions = [];
+        $affectedUsers = [];
         foreach ($role->users as $roleuser) {
-            if (($role->name == 'employee' && count($roleuser->role) == 1) || $role->name != 'employee') {
-                if ($roleuser->customised_permissions == 0) {
+            $isTargetRoleForUser = ($role->name == 'employee' && count($roleuser->role) == 1)
+                || $role->name != 'employee';
+
+
+            if ($isTargetRoleForUser) {
+                $hasExistingRow = $roleuser->customised_permissions == 1
+                    ? UserPermission::where('user_id', $roleuser->id)->where('permission_id', $permissionId)->exists()
+                    : true;
+
+                if ($roleuser->customised_permissions == 0 || ! $hasExistingRow) {
                     $userPermissions[] = [
                         'permission_id' => $permissionId,
                         'user_id' => $roleuser->id,
                         'permission_type_id' => $permissionType
                     ];
+                    $affectedUsers[] = $roleuser;
                 }
-
             }
 
             cache()->forget('sidebar_user_perms_' . $roleuser->id);
+            if ($permissionModel) {
+                cache()->forget('permission-id-' . $permissionModel->name . '-' . $roleuser->id);
+                cache()->forget('permission-' . $permissionModel->name . '-' . $roleuser->id);
+            }
+            app()->forgetInstance('user.permission-map.' . $roleuser->id);
         }
 
         // Perform bulk insert or update for user permissions
@@ -129,6 +146,38 @@ class RolePermissionController extends AccountBaseController
             );
         }
 
+        if ($isSoftphonePermission && !empty($affectedUsers)) {
+            $granted = in_array((int) $permissionType, [PermissionType::ALL, PermissionType::ADDED], true);
+            foreach ($affectedUsers as $affectedUser) {
+                if ($granted && ! empty($affectedUser->company_id) && ! $affectedUser->hasRole('admin')) {
+                    $defaultDeviceId = \App\Models\SoftphoneDevice::query()
+                        ->where('company_id', $affectedUser->company_id)
+                        ->orderByDesc('is_default')
+                        ->value('id');
+
+                    if ($defaultDeviceId === null) {
+                        continue;
+                    }
+
+                    \App\Models\SoftphoneCallPoolAgent::firstOrCreate(
+                        [
+                            'device_id' => $defaultDeviceId,
+                            'user_id' => $affectedUser->id,
+                        ],
+                        [
+                            'company_id' => $affectedUser->company_id,
+                            'priority' => 100,
+                            'active' => true,
+                            'added_by' => user()?->id ?? $affectedUser->id,
+                        ]
+                    );
+                } elseif (! $granted) {
+                    \App\Models\SoftphoneCallPoolAgent::where('user_id', $affectedUser->id)->delete();
+                }
+            }
+        }
+
+        cache()->forget('all_permissions_list');
         \Illuminate\Support\Facades\Artisan::call('cache:clear');
 
         return Reply::success(__('messages.updateSuccess'));
@@ -274,6 +323,27 @@ class RolePermissionController extends AccountBaseController
 
     }
 
+    /**
+     * Rebuild user_permissions from each user's primary role (same as
+     * `php artisan sync-user-permissions --resync-all --company=<id>`) when
+     * role templates and per-user copies have drifted.
+     *
+     * Scoped to the acting admin's own company and dispatched to the queue: a
+     * full rewrite does not fit inside an HTTP request. The job takes a
+     * per-company lock, so a second click while one is in flight is a no-op
+     * rather than a concurrent rewrite.
+     */
+    public function resyncAllUserPermissions()
+    {
+        abort_403(user()->permission('manage_role_permission_setting') != 'all');
+
+        ResyncUserPermissionsJob::dispatch((int) company()->id, (int) user()->id);
+
+        $this->logUserActivity(user()->id, 'messages.resyncUserPermissionsStarted');
+
+        return Reply::success(__('messages.resyncUserPermissionsStarted'));
+    }
+
     public function update(Request $request, $id)
     {
         Role::where('id', $id)->update(['display_name' => $request->role_name]);
@@ -361,9 +431,13 @@ class RolePermissionController extends AccountBaseController
         $users = $role->users;
 
         foreach ($users as $user) {
+            if ((int) $user->customised_permissions === 1) {
+                continue;
+            }
+
             $userRole = $user->roles->pluck('name')->toArray();
 
-            if (!in_array('admin', $userRole)) {
+            if (!in_array('admin', $userRole) && (($role->name == 'employee' && count($userRole) == 1) || $role->name != 'employee')) {
                 $user->assignUserRolePermission($roleId);
             }
         }

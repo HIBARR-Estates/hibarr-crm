@@ -145,6 +145,10 @@ return [
         'provider' => env('AI_PROVIDER', 'openai'),
         'model'    => env('AI_MODEL', 'gpt-4o'),
         'api_key'  => $olApiKey,
+        // Saved AI config the lead summary runs (POST {base_url}/ai/execute/{slug}).
+        // Its prompt, provider, model and token budget live on that config in the
+        // AI service, not in this app. Seeded by hibarr-backend.
+        'lead_summary_slug' => env('AI_LEAD_SUMMARY_SLUG', 'lead-summary'),
     ],
 
     'ol_webhook' => [
@@ -198,5 +202,33 @@ return [
             'OL_TELEPHONY_CALLS_PATH',
             '/telephony/calls'
         ),
+    ],
+
+    'call_bridge' => [
+        'base_url' => env('OL_CALL_BRIDGE_BASE_URL', env('OL_BASE_URL', 'https://develop-api.hibarr.org/v1')),
+        'api_key' => env('OL_CALL_BRIDGE_API_KEY', env('OL_API_KEY')),
+        'timeout' => (int) env('OL_CALL_BRIDGE_TIMEOUT', 15),
+        'poll_interval' => (int) env('OL_CALL_BRIDGE_POLL_INTERVAL', 30),
+        'paths' => [
+            'start_call' => env('OL_CALL_BRIDGE_START_CALL_PATH', '/call-bridge/calls/start'),
+            'end_call' => env('OL_CALL_BRIDGE_END_CALL_PATH', '/call-bridge/calls/end'),
+            'status' => env('OL_CALL_BRIDGE_STATUS_PATH', '/call-bridge/calls/status'),
+            'events' => env('OL_CALL_BRIDGE_EVENTS_PATH', '/call-bridge/events'),
+            'active_calls' => env('OL_CALL_BRIDGE_ACTIVE_CALLS_PATH', '/call-bridge/calls/active'),
+            'emit' => env('OL_CALL_BRIDGE_EMIT_PATH', env('OL_CALL_BRIDGE_EMIT_EVENT_PATH', '/call-bridge/emit')),
+            'emit_event' => env('OL_CALL_BRIDGE_EMIT_PATH', env('OL_CALL_BRIDGE_EMIT_EVENT_PATH', '/call-bridge/emit')),
+            // SIP provider integrations: which platforms OL supports and the
+            // connection defaults for one of them. `platform` keeps a
+            // `{platform}` placeholder the client substitutes.
+            'providers' => env('OL_CALL_BRIDGE_PROVIDERS_PATH', '/call-bridge/integrations/providers'),
+            'platform' => env('OL_CALL_BRIDGE_PLATFORM_PATH', '/call-bridge/integrations/providers/{platform}'),
+        ],
+        // Task categories (task_category.category_name) the bridge links call
+        // events to. Compared after normalising to lowercase alphanumerics, so
+        // "Call Back", "call-back" and "callback" all match "call back".
+        'task_categories' => ['call', 'call back'],
+        // Move matching open call/callback tasks to the done column when a
+        // call for their linked entity ends answered.
+        'complete_tasks_on_call_end' => (bool) env('OL_CALL_BRIDGE_COMPLETE_TASKS', true),
     ],
 ];

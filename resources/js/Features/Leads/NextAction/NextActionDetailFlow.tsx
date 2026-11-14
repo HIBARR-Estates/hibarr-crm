@@ -5,7 +5,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import useTaskStatus, { applyTaskStatus } from "@/Hooks/useTaskStatus";
-import useDashboardTaskUpdate from "@/Pages/Dashboard/V2/hooks/useDashboardTaskUpdate";
+import useTaskUpdate from "@/Components/Redesign/hooks/useTaskUpdate";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { Task } from "@/Types/api/tasks";
 import type { DealFollowup } from "@/Types/api/deal-followup";
@@ -103,7 +103,7 @@ export default function NextActionDetailFlow({
     });
 
     const { updateTask, isUpdating, errors: taskErrors, clearErrors: clearTaskErrors } =
-        useDashboardTaskUpdate(task ?? ({ id: 0 } as Task), (updated) => {
+        useTaskUpdate(task ?? ({ id: 0 } as Task), (updated) => {
             setTask(updated);
             reloadLeads();
         });

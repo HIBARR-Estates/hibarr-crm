@@ -21,7 +21,8 @@ import {
     DeleteOutlined,
     UploadOutlined,
 } from "@ant-design/icons";
-import PhoneInput, { PhoneNumber } from "antd-phone-input";
+import type { PhoneNumber } from "antd-phone-input";
+import PhoneNumberField from "./PhoneNumberField";
 import FormDataSelector from "./FormDataSelector";
 import { FormDataType, useCountries, useCurrencies } from "@/Hooks/useFormData";
 import useTranslation from "@/Hooks/useTranslation";
@@ -35,12 +36,11 @@ import {
     formatCurrencyWithSymbol,
     formatCountryForDisplay,
     formatMobileForDisplay,
-    serializePhoneInputValue,
-    normalizePastedPhoneNumber,
 } from "@/lib/utils";
 import { parseMultiSelectStoredValue } from "@/lib/parseMultiSelectStoredValue";
 import { DetailFieldEditContext } from "./DetailSection";
 import DealBadge from "@/Components/Redesign/primitives/Badge";
+import CopyValueButton from "@/Components/Redesign/primitives/CopyValueButton";
 
 const { Text } = Typography;
 
@@ -124,7 +124,18 @@ interface EditableFieldProps {
      * humanized `fieldName`; pass the field's visible label where one exists
      * (the parent DetailField/dossier row renders it, out of reach here). */
     editLabel?: string;
+    /** Show a copy-to-clipboard button beside the displayed value (revealed
+     * with the pencil on hover/focus of the enclosing `group`). Opt-in; only
+     * shown for a non-empty value and never while editing. */
+    copyable?: boolean;
+    /** Text to copy when `copyable` is set. Defaults to the rendered display
+     * text when that is plain text — pass this when `displayValue` is a
+     * ReactNode or the copied form should differ from the displayed one. */
+    copyValue?: string;
 }
+
+/** Display fallbacks that stand for "no value" and must never be copied. */
+const EMPTY_DISPLAY_TEXT = new Set(["--", "—", "-"]);
 
 /** Last-resort accessible name for the edit trigger, from the machine field
  *  name ("date_of_birth" -> "Date of birth"). Callers that know the field's
@@ -212,105 +223,6 @@ function ClampedText({
     );
 }
 
-type CountryOption = {
-    iso?: string;
-    phonecode?: string | number;
-};
-
-function resolvePhoneCountryIso(
-    phoneStr: string,
-    countries: CountryOption[],
-): string {
-    if (!phoneStr?.startsWith("+")) return "";
-
-    const phoneWithoutPlus = phoneStr.substring(1);
-    for (let len = 4; len >= 1; len--) {
-        const potentialCode = phoneWithoutPlus.substring(0, len);
-        const matchingCountry = countries.find(
-            (country) =>
-                country.phonecode?.toString() === potentialCode ||
-                country.phonecode === parseInt(potentialCode, 10),
-        );
-        if (matchingCountry?.iso) {
-            return matchingCountry.iso.toLowerCase();
-        }
-    }
-
-    // Empty → PhoneInput keeps its timezone default. Never force "af":
-    // that short mask truncates many international pastes.
-    return "";
-}
-
-/**
- * Phone editor that remounts after paste so antd-phone-input re-initializes
- * with the full number. Its active-country mask otherwise clips pasted digits
- * that don't fit (often the last 1–2 digits).
- */
-function PhoneFieldInput({
-    value,
-    countries,
-    placeholder,
-    disabled,
-    onValueChange,
-    onBlur,
-    onKeyDown,
-}: {
-    value: string | PhoneNumber | undefined;
-    countries: CountryOption[];
-    placeholder?: string;
-    disabled?: boolean;
-    onValueChange: (value: string) => void;
-    onBlur: () => void;
-    onKeyDown: (e: React.KeyboardEvent) => void;
-}) {
-    const [remountKey, setRemountKey] = useState(0);
-    const stringValue = typeof value === "string" ? value : "";
-    const countryProp = resolvePhoneCountryIso(stringValue, countries);
-
-    return (
-        <PhoneInput
-            key={remountKey}
-            value={value}
-            onChange={(val) => {
-                if (val && typeof val === "object" && "phoneNumber" in val) {
-                    onValueChange(serializePhoneInputValue(val, value));
-                } else if (typeof val === "string") {
-                    onValueChange(val);
-                } else {
-                    onValueChange(val as unknown as string);
-                }
-            }}
-            onPaste={(event) => {
-                const pasted = event.clipboardData?.getData("text") ?? "";
-                const normalized = normalizePastedPhoneNumber(pasted);
-                if (!normalized) return;
-
-                // International / long pastes: bypass the active mask entirely.
-                const pastedDigits = pasted.replace(/\D/g, "");
-                const trimmedPaste = pasted.trim();
-                const looksInternational =
-                    trimmedPaste.startsWith("+") ||
-                    trimmedPaste.startsWith("00") ||
-                    (pastedDigits.length >= 11 && !pastedDigits.startsWith("0"));
-                if (!looksInternational) return;
-
-                event.preventDefault();
-                event.stopPropagation();
-                onValueChange(normalized);
-                setRemountKey((key) => key + 1);
-            }}
-            onBlur={onBlur}
-            onKeyDown={onKeyDown}
-            placeholder={placeholder}
-            className="flex-1"
-            disabled={disabled}
-            enableSearch
-            allowClear
-            {...(countryProp ? { country: countryProp } : {})}
-        />
-    );
-}
-
 export default function EditableField({
     value,
     fieldName,
@@ -329,6 +241,8 @@ export default function EditableField({
     onChange,
     activateOnSingleClick = false,
     editLabel,
+    copyable = false,
+    copyValue,
 }: EditableFieldProps) {
     const { props } = usePage<any>();
     const { countries } = useCountries();
@@ -951,6 +865,22 @@ export default function EditableField({
             normalizedValue === "" ||
             (Array.isArray(normalizedValue) && normalizedValue.length === 0));
 
+    const copyText =
+        !copyable || isEmptyValue
+            ? ""
+            : (copyValue ??
+              (typeof displayText === "string" || typeof displayText === "number"
+                  ? String(displayText)
+                  : ""));
+    const copyButton =
+        copyText.trim() && !EMPTY_DISPLAY_TEXT.has(copyText.trim()) ? (
+            <CopyValueButton
+                value={copyText}
+                label={editLabel ?? humanizeFieldName(fieldName)}
+                className="mt-0.5"
+            />
+        ) : undefined;
+
     if (editing) {
         return (
             <Spin
@@ -996,7 +926,7 @@ export default function EditableField({
                             disabled={saving || loading}
                         />
                     ) : fieldType === "phone" ? (
-                        <PhoneFieldInput
+                        <PhoneNumberField
                             value={
                                 typeof inputValue === "string"
                                     ? inputValue
@@ -1334,7 +1264,7 @@ export default function EditableField({
                     } ${className}`}
                     onDoubleClick={canStartEditing ? startEditing : undefined}
                 >
-                    <ClampedText text={displayText} />
+                    <ClampedText text={displayText} trailing={copyButton} />
                 </div>
             </Skeleton>
         );
@@ -1375,22 +1305,29 @@ export default function EditableField({
                     text={displayText}
                     textClassName={`border-b border-dashed ${
                         canStartEditing
-                            ? "border-transparent transition-colors group-hover:border-blue-300"
+                            ? "border-transparent transition-colors [.group:hover_&]:border-blue-300"
                             : ""
                     } ${isEmptyValue ? "italic text-gray-400" : ""}`}
                     trailing={
-                        canStartEditing ? (
-                            // Revealed on hover/focus of the enclosing `group`
-                            // (DetailField, or the lead dossier row). Opacity,
-                            // not `hidden`: antd's own `.anticon{display:inline-flex}`
-                            // has the same specificity as Tailwind's `.hidden`
-                            // and loads later, so a display-based hide never
-                            // took effect and the pencil showed permanently.
-                            <EditOutlined
-                                aria-hidden="true"
-                                className="mt-1 inline-flex shrink-0 text-blue-600 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                                style={{ fontSize: 11 }}
-                            />
+                        canStartEditing || copyButton ? (
+                            <>
+                                {canStartEditing ? (
+                                    // Revealed on hover/focus of the enclosing `group`
+                                    // (DetailField, or the lead dossier row). Opacity,
+                                    // not `hidden`: antd's own `.anticon{display:inline-flex}`
+                                    // has the same specificity as Tailwind's `.hidden`
+                                    // and loads later, so a display-based hide never
+                                    // took effect and the pencil showed permanently.
+                                    // Plain-:hover variant (not group-hover:) for the
+                                    // same touchscreen-laptop reason as CopyValueButton.
+                                    <EditOutlined
+                                        aria-hidden="true"
+                                        className="mt-1 inline-flex shrink-0 text-blue-600 opacity-0 transition-opacity [.group:hover_&]:opacity-100 group-focus-within:opacity-100"
+                                        style={{ fontSize: 11 }}
+                                    />
+                                ) : null}
+                                {copyButton}
+                            </>
                         ) : undefined
                     }
                 />

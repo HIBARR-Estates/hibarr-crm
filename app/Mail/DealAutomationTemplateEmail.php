@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Services\Notifications\MailCategory;
 use App\Services\Notifications\MailDeliveryContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -57,6 +58,11 @@ class DealAutomationTemplateEmail extends Mailable
                 'preheader' => $this->preheader,
                 'subject' => $this->emailSubject,
             ]);
+
+        // Deal automation is marketing/nurture mail: non-transactional.
+        $mail->withSymfonyMessage(static function (Email $message): void {
+            MailCategory::attach($message, MailCategory::NON_TRANSACTIONAL);
+        });
 
         if ($this->deliveryContext !== []) {
             $context = $this->deliveryContext;

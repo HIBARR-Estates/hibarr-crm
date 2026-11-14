@@ -34,7 +34,7 @@ import type {
 } from "@/Types/developerProject";
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
-import { formatLocationNameForDisplay } from "@/lib/utils";
+import { currencySymbolForCode, formatLocationNameForDisplay } from "@/lib/utils";
 
 const { Text } = Typography;
 
@@ -57,9 +57,13 @@ interface ConstructionProjectsTableProps {
 // Helpers — defined outside the component so they are never re-created
 // ============================================
 
-const formatPrice = (price: number | null): string => {
+const formatPrice = (
+    price: number | null,
+    currency: string | null | undefined,
+): string => {
     if (price === null || price === undefined) return "-";
-    return `€${Number(price).toLocaleString("en-GB", {
+    const symbol = currencySymbolForCode(currency || "GBP");
+    return `${symbol}${Number(price).toLocaleString("en-GB", {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
     })}`;
@@ -198,7 +202,8 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                 key: "starting_price",
                 width: 130,
                 align: "right",
-                render: (price: number | null) => formatPrice(price),
+                render: (price: number | null, record) =>
+                    formatPrice(price, record.currency),
             },
             {
                 title: "Properties",

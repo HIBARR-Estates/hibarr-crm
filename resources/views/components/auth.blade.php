@@ -313,6 +313,169 @@
                 box-shadow: 0 8px 24px rgba(0, 24, 52, 0.22);
             }
         }
+
+        /*
+         * Shared HIBARR sign-in screen. Spec: hibarr-os docs/architecture/sso-screens.md (HIB-1874).
+         * Page on a line grid with one framed canvas and a centred column. This block deliberately comes last and
+         * overrides the earlier navy-gradient layout; keep it in sync with the spec and with the React SsoScreen
+         * used by the other apps.
+         */
+        html,
+        body.hibarr-auth {
+            background: #f3f4f6;
+        }
+
+        .auth-shell,
+        .auth-panel,
+        .auth-card {
+            box-sizing: border-box;
+        }
+
+        .auth-shell {
+            padding: 24px;
+            justify-content: stretch;
+        }
+
+        .auth-bg {
+            background-color: #f3f4f6;
+            background-image:
+                linear-gradient(#e5e7eb 1px, transparent 1px),
+                linear-gradient(90deg, #e5e7eb 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .auth-bg::before,
+        .auth-bg::after {
+            display: none;
+        }
+
+        .auth-panel {
+            max-width: none;
+            width: 100%;
+            flex: 1 1 auto;
+            min-height: calc(100dvh - 48px);
+        }
+
+        .auth-card {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            padding: 32px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            box-shadow: none;
+        }
+
+        /* Forms on the other auth pages (2FA, password confirmation) must not stretch across the frame. */
+        .auth-content {
+            width: 100%;
+            max-width: 384px;
+        }
+
+        .auth-logo {
+            width: 192px;
+            margin: 0 auto;
+        }
+
+        .hibarr-auth .auth-card h3,
+        .hibarr-auth .auth-title {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            color: #0a0a0a;
+            line-height: 1.25;
+        }
+
+        .hibarr-auth .auth-subtitle {
+            margin: 12px auto 0;
+            max-width: 448px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #4b5563;
+        }
+
+        .hibarr-auth .auth-sso-btn {
+            display: inline-flex;
+            width: auto;
+            min-height: 40px;
+            margin-top: 24px;
+            padding: 0 20px;
+            border-radius: 6px;
+            background: #053060;
+            font-size: 14px;
+            box-shadow: none;
+        }
+
+        .hibarr-auth .auth-sso-btn:hover,
+        .hibarr-auth .auth-sso-btn:focus {
+            background: #042648;
+            box-shadow: none;
+        }
+
+        .hibarr-auth .auth-support {
+            margin: 16px auto 0;
+            padding-top: 24px;
+            max-width: 384px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 12px;
+            color: #4b5563;
+        }
+
+        .hibarr-auth .auth-support a {
+            color: #053060;
+            text-decoration: none;
+        }
+
+        .hibarr-auth .auth-support a:hover,
+        .hibarr-auth .auth-support a:focus {
+            color: #042648;
+            text-decoration: underline;
+        }
+
+        .auth-foot {
+            margin: 16px 0 0;
+            text-align: center;
+            color: #9ca3af;
+        }
+
+        @media (max-width: 767.98px) {
+            .auth-shell {
+                padding: 24px;
+                justify-content: stretch;
+            }
+
+            .auth-logo {
+                width: 192px;
+                margin-bottom: 0;
+            }
+
+            .auth-card {
+                padding: 32px;
+            }
+        }
+
+        @media (min-width: 576px) {
+            .auth-shell {
+                padding: 40px;
+            }
+
+            .auth-panel {
+                min-height: calc(100dvh - 80px);
+            }
+
+            .auth-card {
+                padding: 32px 64px;
+            }
+
+            .hibarr-auth .auth-card h3,
+            .hibarr-auth .auth-title {
+                font-size: 30px;
+            }
+        }
     </style>
 </head>
 
@@ -330,7 +493,9 @@
             <div class="auth-card">
                 <img class="auth-logo" src="{{ $hibarrLogo }}" alt="HIBARR" width="156" height="40" />
 
-                {{ $slot }}
+                <div class="auth-content">
+                    {{ $slot }}
+                </div>
 
                 @if ($languages->count() > 1)
                     <div class="auth-langs">

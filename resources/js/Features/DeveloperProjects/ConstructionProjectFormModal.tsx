@@ -272,6 +272,7 @@ const ConstructionProjectFormModal: React.FC<
                 google_drive_link: project.google_drive_link,
                 availability_link: project.availability_link,
                 starting_price: toFormNumber(project.starting_price),
+                currency: project.currency || "GBP",
                 commission_percentage: toFormNumber(
                     project.commission_percentage,
                 ),
@@ -310,6 +311,7 @@ const ConstructionProjectFormModal: React.FC<
             form.setFieldValue("facilities", []);
             form.setFieldValue("distances", {});
             form.setFieldValue("payment_plan", { enabled: false });
+            form.setFieldValue("currency", "GBP");
         }
     }, [open, project?.id, developer?.id, form]);
 

@@ -70,3 +70,8 @@ rr.exe
 
 # But do not ignore .env.example
 !.env.example
+
+
+.dev
+
+/clean-code-typescript-main

@@ -22,6 +22,10 @@ export interface AttachedProperty {
         property_type: string | null;
         sale_type: string | null;
         price: number | null;
+        /** Currency stored with the price JSON. Absent on legacy numeric prices. */
+        price_currency?: string | null;
+        /** Unit-type rows carry their own currency beside a numeric price. */
+        currency?: string | null;
         bedrooms: number | null;
         bathrooms: number | null;
         city: string | null;

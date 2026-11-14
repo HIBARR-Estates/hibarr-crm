@@ -15,6 +15,8 @@ use App\Services\LeadLifecycleStatusService;
 use App\Services\LeadNotificationService;
 use App\Services\LeadAutomationService;
 use App\Services\MlmNotificationService;
+use App\Support\LeadMergeContext;
+use App\Services\SallyInsightRetentionService;
 use App\Traits\HasDynamicTranslations;
 use App\Traits\RecordsCrmEvents;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +25,35 @@ use Illuminate\Support\Facades\Notification;
 class LeadObserver
 {
     use RecordsCrmEvents;
+
+    private static int $timelineEventsSuppressed = 0;
+
+    /**
+     * Run $callback without this observer's timeline events (lead_created,
+     * lead_updated, lead_lifecycle_status_changed, lead_owner_changed).
+     * Automations and notifications still run. The external contact/deal API
+     * and gRPC use this so LeadApiChangeRecorder is the one place that records
+     * their writes, whether or not the save was observed.
+     */
+    public static function withoutTimelineEvents(callable $callback): mixed
+    {
+        self::$timelineEventsSuppressed++;
+
+        try {
+            return $callback();
+        } finally {
+            self::$timelineEventsSuppressed--;
+        }
+    }
+
+    private function recordTimelineEvent(string $slug, Lead $lead, array $extra): void
+    {
+        if (self::$timelineEventsSuppressed > 0) {
+            return;
+        }
+
+        $this->recordCrmEvent($slug, $lead, $extra);
+    }
 
     public function saving(Lead $lead)
     {
@@ -67,14 +98,7 @@ class LeadObserver
             $leadContact->company_id = company()->id;
         }
 
-        if (! $leadContact->lead_lifecycle_status_id && $leadContact->company_id) {
-            $defaultStatus = app(LeadLifecycleStatusService::class)
-                ->resolveDefaultForCompany((int) $leadContact->company_id);
-
-            if ($defaultStatus) {
-                $leadContact->lead_lifecycle_status_id = $defaultStatus->id;
-            }
-        }
+        app(LeadLifecycleStatusService::class)->applyDefaultIfMissing($leadContact);
     }
 
     public function created(Lead $leadContact)
@@ -117,7 +141,7 @@ class LeadObserver
         }
 
         // ── CRM Event: lead_created ──
-        $this->recordCrmEvent('lead_created', $leadContact, [
+        $this->recordTimelineEvent('lead_created', $leadContact, [
             'metadata' => [
                 'comment' => 'New lead created'.(session()->has('is_imported') ? ' (imported)' : ''),
                 'client_name' => $leadContact->client_name,
@@ -160,7 +184,9 @@ class LeadObserver
         ];
         \App\Models\Notification::deleteNotification($notifyData, $leadContact->id);
 
-        if (! isRunningInConsoleOrSeeding()) {
+        // A merge soft-deletes the duplicate; LeadMergeService sends its own
+        // "Lead merged" notice, so "Lead removed from pipeline" is not sent.
+        if (! isRunningInConsoleOrSeeding() && ! LeadMergeContext::involves((int) $leadContact->id)) {
             $lead = $leadContact;
             $deletedByUser = user();
             DB::afterCommit(function () use ($lead, $deletedByUser) {
@@ -178,6 +204,24 @@ class LeadObserver
 
     public function deleted(Lead $leadContact)
     {
+        // Transcripts are client conversations, so they go with the lead. This
+        // has to happen here rather than through a cascadeOnDelete foreign key
+        // because Lead soft-deletes, so the database never fires one. A merge
+        // moves them to the kept lead first; nothing is purged for it.
+        try {
+            if (! LeadMergeContext::involves($leadContact->id)) {
+                app(SallyInsightRetentionService::class)->purgeForLead($leadContact->id);
+            }
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::warning('Failed to purge Sally insights for lead ID '.$leadContact->id.': '.$e->getMessage());
+
+            // Schedule a durable retry so a transient DB failure doesn't leave
+            // orphaned insights behind; remaining cleanup continues below.
+            app(\Illuminate\Contracts\Bus\Dispatcher::class)->dispatch(
+                new \App\Jobs\PurgeSallyInsightRetentionJob('lead', $leadContact->id)
+            );
+        }
+
         try {
             UniversalSearch::where('searchable_id', $leadContact->id)
                 ->where('module_type', 'lead')
@@ -196,20 +240,28 @@ class LeadObserver
 
         HasDynamicTranslations::dispatchDynamicTranslation($leadContact, true);
 
-        app(LeadAutomationService::class)->process($leadContact, 'lead_updated');
+        // A merge's own saves (the kept lead and the duplicate) are not edits
+        // by a person, so they run no lead or deal automations.
+        $merging = LeadMergeContext::involves((int) $leadContact->id);
+
+        if (! $merging) {
+            app(LeadAutomationService::class)->process($leadContact, 'lead_updated');
+        }
 
         if (isRunningInConsoleOrSeeding()) {
             return;
         }
 
-        app(DealAutomationService::class)->processLead($leadContact, 'lead_updated');
+        if (! $merging) {
+            app(DealAutomationService::class)->processLead($leadContact, 'lead_updated');
+        }
 
         if ($leadContact->wasChanged('temperature')) {
             $from = $leadContact->getOriginal('temperature');
             $to = $leadContact->temperature;
 
             // ── CRM Event: lead_updated (manual temperature change) ──
-            $this->recordCrmEvent('lead_updated', $leadContact, [
+            $this->recordTimelineEvent('lead_updated', $leadContact, [
                 'metadata' => [
                     'comment' => 'Lead temperature changed',
                     'from_temperature' => $from instanceof \App\Enums\LeadTemperature ? $from->value : $from,
@@ -227,7 +279,7 @@ class LeadObserver
                 ->keyBy('id');
 
             // ── CRM Event: lead_lifecycle_status_changed ──
-            $this->recordCrmEvent('lead_lifecycle_status_changed', $leadContact, [
+            $this->recordTimelineEvent('lead_lifecycle_status_changed', $leadContact, [
                 'metadata' => [
                     'comment' => 'Lifecycle status changed from '
                         .($statuses->get($fromId)?->label ?? 'none')
@@ -260,7 +312,12 @@ class LeadObserver
         }
 
         $actorId = user()?->id;
-        DB::afterCommit(function () use ($newOwner, $leadContact, $oldOwnerId, $actorId) {
+        // An owner change made by a merge is announced in the "Lead merged"
+        // notice (which names the new owner), not a separate email.
+        DB::afterCommit(function () use ($newOwner, $leadContact, $oldOwnerId, $actorId, $merging) {
+            if ($merging) {
+                return;
+            }
             try {
                 // Skip when the assignee is the one who made the change (incl. admins).
                 if ($actorId !== null && (int) $actorId === (int) $newOwner->id) {
@@ -278,7 +335,7 @@ class LeadObserver
         });
 
         // ── CRM Event: lead_owner_changed ──
-        $this->recordCrmEvent('lead_owner_changed', $leadContact, [
+        $this->recordTimelineEvent('lead_owner_changed', $leadContact, [
             'metadata' => [
                 'comment' => 'Lead owner changed',
                 'from_owner_id' => $oldOwnerId,

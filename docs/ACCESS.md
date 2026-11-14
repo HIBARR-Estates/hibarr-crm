@@ -55,6 +55,8 @@ Matches `hasAccess()` in `resources/js/lib/permissionUtils.tsx`. This is the use
 
 `AccessInspector` sits next to the language switcher in `PageLayout` (admin, or anyone on Vite DEV). It lists Inertia `featureFlags` and `auth.permissions`. Hidden for non-admin production sessions.
 
+**This page** (default on) limits those lists to the entry gates of the current Inertia component. The catalog is `resources/js/lib/pageAccess.ts`, keyed by `usePage().component`. An entry lists only what must hold for that screen to load: permissions (and the scopes the controller allow-lists, when it does) and feature flags that block the page. Record-level checks, modules, roles, and flags that only show a tab, widget, or redesign variant stay out. A key with an empty entry means the page was reviewed and nothing in these catalogs gates it. A missing key means the page is not catalogued yet — the switch stays on and the full lists remain, with a caption saying so. Turning the switch off always shows the full catalogs.
+
 ## OS port
 
 Copy the signatures, fail-closed rule, and scope matrix. Keep the name `Access` (Laravel already owns `Gate`). Do not fold CRM-specific `PermissionGates` constants into the helper — those stay a named-gate list on top of `User::permission()`.

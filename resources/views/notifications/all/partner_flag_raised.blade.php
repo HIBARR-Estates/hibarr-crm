@@ -1,7 +1,6 @@
 @php
     $title = $notification->data['heading'] ?? '';
-    $text = $notification->data['description'] ?? null;
-    $linkRoute = 'lead-contact.show';
-    $linkParam = $notification->data['lead_id'] ?? null;
+    $text = $notification->data['description'] ?? $notification->data['text'] ?? null;
+    $linkUrl = $notification->data['action_url'] ?? null;
 @endphp
 @include('notifications.all._generic')

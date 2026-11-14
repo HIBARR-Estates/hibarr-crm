@@ -127,6 +127,41 @@ export const formatCurrency = (
     }).format(amount);
 };
 
+const STORED_CURRENCY_SYMBOLS: Record<string, string> = {
+    EUR: "€",
+    GBP: "£",
+    USD: "$",
+    TRY: "₺",
+};
+
+export const currencySymbolForCode = (
+    code: string | null | undefined,
+    fallback = "£",
+): string => {
+    if (!code) return fallback;
+    return STORED_CURRENCY_SYMBOLS[code.toUpperCase()] ?? fallback;
+};
+
+/**
+ * Currency belonging to a displayed amount. Prefers a currency stored with
+ * the price, then a unit-type currency, then the caller fallback.
+ */
+export const storedPriceCurrency = (
+    record:
+        | {
+              price_currency?: string | null;
+              currency?: string | null;
+          }
+        | null
+        | undefined,
+    fallback?: string | null,
+): string | undefined => {
+    const stored = record?.price_currency?.trim() || record?.currency?.trim();
+    if (stored) return stored.toUpperCase();
+    const fallbackCode = fallback?.trim();
+    return fallbackCode ? fallbackCode.toUpperCase() : undefined;
+};
+
 // Property price can be stored as:
 // - number (legacy)
 // - JSON string: {"amount":1000,"currency":"TRY"}

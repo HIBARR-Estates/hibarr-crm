@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Email\Adapters\FakeMailAdapter;
 use App\Email\Console\ManageMailboxCommand;
+use App\Email\Console\SyncMailboxesCommand;
 use App\Email\Contracts\AttachmentStore;
 use App\Email\Contracts\MailTransport;
 use App\Email\Files\EmailFileAttachmentStore;
@@ -28,7 +29,10 @@ class EmailServiceProvider extends ServiceProvider
         $this->app->bind(MailTransport::class, fn ($app) => $app->make(MailTransportFactory::class)->default());
 
         if ($this->app->runningInConsole()) {
-            $this->commands([ManageMailboxCommand::class]);
+            $this->commands([
+                ManageMailboxCommand::class,
+                SyncMailboxesCommand::class,
+            ]);
         }
     }
 

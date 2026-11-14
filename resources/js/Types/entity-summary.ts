@@ -53,8 +53,33 @@ export interface EntitySummaryMeta {
     source?: "ai" | "heuristic";
 }
 
+/** Each kind picks the icon for a fact in the lead summary's facts row. */
+export type LeadSummaryFactKind =
+    | "property"
+    | "location"
+    | "budget"
+    | "timeline"
+    | "purpose"
+    | "decision_makers"
+    | "languages"
+    | "based_in";
+
+export interface LeadSummaryFact {
+    kind: LeadSummaryFactKind;
+    /** Shown without a label, so it reads on its own: "€200–250K cash". */
+    value: string;
+}
+
 export interface LeadSummaryPayload {
     status_line: string;
+    /**
+     * The written summary (prompt v2+): a short paragraph, with `**…**` around
+     * key facts and `==…==` around the one open item. Absent on summaries stored
+     * before v2, which still carry chips and bullets instead.
+     */
+    summary?: string;
+    /** Icon + value row under the summary (prompt v2+). */
+    facts?: LeadSummaryFact[];
     risk_level: EntitySummaryRiskLevel;
     primary_risk_source: EntitySummaryPrimaryRiskSource;
     chips: EntitySummaryChip[];
@@ -83,12 +108,19 @@ export interface EntityAiSummaryCardProps {
     variant?: "legacy" | "redesign";
     className?: string;
     leadPhone?: string | null;
+    /**
+     * The lead's name as it is on the record. The AI summary never contains it (it is
+     * withheld from the model); the card fills it in where the summary uses a name token.
+     */
+    leadName?: string | null;
     onQualifyLead?: () => void;
     onCreateTask?: () => void;
     onScheduleCall?: () => void;
     onRequestDocuments?: () => void;
     onAdvanceStage?: () => void;
     onReviewStaleDeal?: () => void;
+    /** Called when this card generates or loads a newer summary. */
+    onSummaryChange?: (summary: EntitySummaryPayload | null) => void;
 }
 
 export function isLeadSummaryPayload(

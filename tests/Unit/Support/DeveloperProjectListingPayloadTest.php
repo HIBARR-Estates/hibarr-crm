@@ -62,6 +62,7 @@ class DeveloperProjectListingPayloadTest extends TestCase
             'description',
             'project_location_id',
             'starting_price',
+            'currency',
             'completion_date',
             'total_units',
             'total_units_sold',
@@ -77,6 +78,8 @@ class DeveloperProjectListingPayloadTest extends TestCase
         $this->assertSame('Listing Payload Project', $payload['name']);
         $this->assertSame('A listing description', $payload['description']);
         $this->assertSame($location->id, $payload['project_location_id']);
+        $this->assertSame('185000.00', (string) $payload['starting_price']);
+        $this->assertSame('GBP', $payload['currency']);
         $this->assertSame('2026-06-01', $payload['completion_date']);
         $this->assertSame(40, $payload['total_units']);
         $this->assertSame(12, $payload['total_units_sold']);
@@ -97,6 +100,20 @@ class DeveloperProjectListingPayloadTest extends TestCase
         $this->assertSame(['id', 'url'], array_keys($payload['thumbnail']));
         $this->assertSame($cover->id, $payload['thumbnail']['id']);
         $this->assertSame('https://example.test/cover.jpg', $payload['thumbnail']['url']);
+    }
+
+    public function test_payload_keeps_the_saved_amount_and_currency(): void
+    {
+        $project = $this->createProject([
+            'starting_price' => '100000.00',
+            'currency' => 'EUR',
+        ]);
+        $project->load(DeveloperProjectListingPayload::RELATIONS);
+
+        $payload = DeveloperProjectListingPayload::from($project);
+
+        $this->assertSame('100000.00', (string) $payload['starting_price']);
+        $this->assertSame('EUR', $payload['currency']);
     }
 
     public function test_payload_omits_gallery_expose_config_facilities_and_location_attractions(): void
@@ -239,6 +256,7 @@ class DeveloperProjectListingPayloadTest extends TestCase
             $table->string('slug', 255)->nullable();
             $table->text('description')->nullable();
             $table->decimal('starting_price', 15, 2)->nullable();
+            $table->string('currency', 5)->nullable();
             $table->date('completion_date')->nullable();
             $table->unsignedInteger('total_units')->nullable();
             $table->unsignedInteger('total_units_sold')->nullable();

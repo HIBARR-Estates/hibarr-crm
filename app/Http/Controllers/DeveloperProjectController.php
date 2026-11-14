@@ -332,14 +332,12 @@ class DeveloperProjectController extends AccountBaseController
         $soldProperties = $project->properties->where('status', Property::STATUS_SOLD)->count();
         $underOfferProperties = $project->properties->where('status', Property::STATUS_UNDER_OFFER)->count();
 
-        // Project-level starting price, else cheapest unit type.
-        $lowestPriceUnit = $project->unitTypes->whereNotNull('starting_price')->sortBy('starting_price')->first();
+        // Project-level starting price, else cheapest unit type. The currency
+        // follows whichever amount was chosen.
         $startingPrice = $project->resolvedStartingPrice();
-        $startingPriceCurrency = $project->starting_price !== null && $project->starting_price !== ''
-            ? ($project->unitTypes->first()?->currency ?? 'GBP')
-            : ($lowestPriceUnit?->currency ?? 'GBP');
+        $startingPriceCurrency = $project->resolvedStartingPriceCurrency();
         $startingPriceFormatted = $startingPrice !== null
-            ? (DeveloperProjectUnitType::CURRENCIES[$startingPriceCurrency]['symbol'] ?? '£').number_format($startingPrice, 0)
+            ? (DeveloperProject::pricingCurrencies()[$startingPriceCurrency]['symbol'] ?? '£').number_format($startingPrice, 0)
             : null;
 
         // Build unit types summary (grouped by property_type)
@@ -686,6 +684,8 @@ class DeveloperProjectController extends AccountBaseController
      */
     public function store(Request $request)
     {
+        abort_403(! DeveloperProjectVisibility::canEditProjects());
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'reference_code' => 'nullable|string|max:50',
@@ -696,6 +696,7 @@ class DeveloperProjectController extends AccountBaseController
             'google_drive_link' => 'nullable|url|max:2048',
             'availability_link' => 'nullable|url|max:2048',
             'starting_price' => 'nullable|numeric|min:0',
+            'currency' => DeveloperProject::pricingCurrencyRule(),
             'commission_percentage' => 'nullable|numeric|min:0|max:100',
             'primary_categories' => 'nullable|array',
             'primary_categories.*' => 'string|in:residential,commercial',
@@ -778,6 +779,7 @@ class DeveloperProjectController extends AccountBaseController
             'google_drive_link' => $request->google_drive_link,
             'availability_link' => $request->availability_link,
             'starting_price' => $request->starting_price,
+            'currency' => $request->filled('currency') ? strtoupper((string) $request->currency) : 'GBP',
             'commission_percentage' => $request->commission_percentage,
             'primary_categories' => $request->primary_categories,
             'title_deed_type' => $request->title_deed_type,
@@ -823,6 +825,8 @@ class DeveloperProjectController extends AccountBaseController
      */
     public function update(Request $request, $id)
     {
+        abort_403(! DeveloperProjectVisibility::canEditProjects());
+
         $project = DeveloperProject::where('company_id', user()->company_id)
             ->findOrFail($id);
 
@@ -836,6 +840,7 @@ class DeveloperProjectController extends AccountBaseController
             'google_drive_link' => 'nullable|url|max:2048',
             'availability_link' => 'nullable|url|max:2048',
             'starting_price' => 'nullable|numeric|min:0',
+            'currency' => DeveloperProject::pricingCurrencyRule(),
             'commission_percentage' => 'nullable|numeric|min:0|max:100',
             'primary_categories' => 'nullable|array',
             'primary_categories.*' => 'string|in:residential,commercial',
@@ -904,7 +909,7 @@ class DeveloperProjectController extends AccountBaseController
 
         $updateFields = [
             'name', 'reference_code', 'description', 'developer_id', 'project_location_id',
-            'google_drive_link', 'availability_link', 'starting_price', 'commission_percentage',
+            'google_drive_link', 'availability_link', 'starting_price', 'currency', 'commission_percentage',
             'primary_categories', 'title_deed_type', 'unit_types',
             'number_of_units', 'total_units', 'total_units_sold', 'number_of_blocks', 'project_total_area_sqm',
             'construction_status', 'completion_date', 'number_of_phases',
@@ -933,6 +938,14 @@ class DeveloperProjectController extends AccountBaseController
 
         if (array_key_exists('is_hidden', $updatePayload)) {
             $updatePayload['is_hidden'] = (bool) $request->boolean('is_hidden');
+        }
+
+        if (array_key_exists('currency', $updatePayload)) {
+            if ($updatePayload['currency'] === null || $updatePayload['currency'] === '') {
+                unset($updatePayload['currency']);
+            } else {
+                $updatePayload['currency'] = strtoupper((string) $updatePayload['currency']);
+            }
         }
 
         $project->update($updatePayload);

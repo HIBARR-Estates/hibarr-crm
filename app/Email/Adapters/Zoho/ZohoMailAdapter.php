@@ -283,11 +283,13 @@ class ZohoMailAdapter implements MailTransport
         $start = 1;
 
         for ($page = 0; $page < self::MAX_LIST_PAGES; $page++) {
+            // Zoho Mail EU rejects sortBy=messageId (PATTERN_NOT_MATCHED).
+            // Sort by date; checkpointing still compares messageId in PHP.
             $payload = $this->client->get($connection, 'messages/view', [
                 'folderId' => $folder['id'],
                 'start' => $start,
                 'limit' => 50,
-                'sortBy' => 'messageId',
+                'sortBy' => 'date',
                 'sortorder' => 'false',
                 'includeto' => 'true',
             ]);

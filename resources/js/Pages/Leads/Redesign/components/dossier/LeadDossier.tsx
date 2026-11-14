@@ -7,7 +7,9 @@ import type { DossierFieldKey } from "../../config/dossierSections";
 import {
     countFilledFields,
     getDossierFieldValue,
+    isMeaningfulDossierValue,
 } from "../../adapters/dossierAdapter";
+import ClickToCallButton from "@/Components/ClickToCallButton";
 import useLeadInfoFieldUpdate from "../../hooks/useLeadInfoFieldUpdate";
 import {
     LeadCategoryField,
@@ -160,17 +162,32 @@ export default function LeadDossier({
                                             disabled={!canEdit}
                                         />
                                     ) : (
-                                        <DossierField
-                                            value={displayValue}
-                                            placeholder={
-                                                field.placeholder || "Not set"
-                                            }
-                                            tone={field.tone}
-                                            copyable={
-                                                field.copyable !== false &&
-                                                section.copyable !== false
-                                            }
-                                        />
+                                        <span className="inline-flex items-center gap-1.5 min-w-0">
+                                            <DossierField
+                                                value={displayValue}
+                                                placeholder={
+                                                    field.placeholder || "Not set"
+                                                }
+                                                tone={field.tone}
+                                                copyable={
+                                                    field.copyable !== false &&
+                                                    section.copyable !== false
+                                                }
+                                            />
+                                            {field.key === "mobile" &&
+                                                isMeaningfulDossierValue(
+                                                    displayValue,
+                                                ) && (
+                                                    <ClickToCallButton
+                                                        phone={displayValue}
+                                                        entity={{
+                                                            type: "lead",
+                                                            id: lead.id,
+                                                        }}
+                                                        className="mt-0"
+                                                    />
+                                                )}
+                                        </span>
                                     )}
                                 </div>
                             );

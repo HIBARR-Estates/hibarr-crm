@@ -4,6 +4,8 @@ import {
     truncateText,
     parsePropertyPrice,
     formatCurrencyWithSymbol,
+    storedPriceCurrency,
+    currencySymbolForCode,
     generatePropertySubtitle,
 } from "@/lib/utils";
 import { Property } from "@/Types";
@@ -148,15 +150,19 @@ export const PROPERTY_TABLE_COLUMNS = (
         key: "price",
         width: 120,
         render: (price: any, record: Property) => {
+            const storedCurrency = storedPriceCurrency(record);
             const { amount, currency } = parsePropertyPrice(
                 price,
-                defaultCurrencyCode || "TRY",
+                storedCurrency || defaultCurrencyCode || "TRY",
             );
+            const displayCurrency = storedCurrency || currency;
             const symbol =
-                currencies.find((c: any) => c?.currency_code === currency)
+                currencies.find((c: any) => c?.currency_code === displayCurrency)
                     ?.currency_symbol ||
-                defaultCurrencySymbol ||
-                "";
+                currencySymbolForCode(
+                    displayCurrency,
+                    defaultCurrencySymbol || "",
+                );
 
             return (
                 <div className="font-medium">

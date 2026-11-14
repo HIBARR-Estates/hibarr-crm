@@ -41,6 +41,11 @@ class EmailPilotAllowlistEntry extends BaseModel
         return $this->belongsTo(User::class)->withoutGlobalScopes();
     }
 
+    public function addedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'added_by')->withoutGlobalScopes();
+    }
+
     /**
      * True only for a user listed by name or whose company is listed as a
      * whole. Always checked against the user's own company, whoever is

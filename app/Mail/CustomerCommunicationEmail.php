@@ -7,12 +7,14 @@ use App\Models\Deal;
 use App\Models\GlobalSetting;
 use App\Models\Lead;
 use App\Models\User;
+use App\Services\Notifications\MailCategory;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\Mime\Email;
 
 class CustomerCommunicationEmail extends Mailable
 {
@@ -159,7 +161,7 @@ class CustomerCommunicationEmail extends Mailable
         
         // Use sender's name for the "from" name (the person who clicked send)
         // The company name appears in the email body and template
-        return $this->from($fromEmail, $senderName)
+        $mail = $this->from($fromEmail, $senderName)
             ->replyTo($replyToEmail, $replyToName)
             ->subject($this->subject)
             ->view('mail.customer-communication', [
@@ -177,6 +179,13 @@ class CustomerCommunicationEmail extends Mailable
                 'companyAddress' => $companyAddress,
                 'subject' => $this->subject
             ]);
+
+        // A user-replied 1:1 communication is transactional.
+        $mail->withSymfonyMessage(static function (Email $message): void {
+            MailCategory::attach($message, MailCategory::TRANSACTIONAL);
+        });
+
+        return $mail;
     }
 
     /**

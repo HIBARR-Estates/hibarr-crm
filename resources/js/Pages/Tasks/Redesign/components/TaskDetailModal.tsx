@@ -12,6 +12,7 @@ import useTaskCheckpoints, {
 import ModalShell from "@/Components/Redesign/primitives/ModalShell";
 import TaskCommentsPanel from "./TaskCommentsPanel";
 import TaskDetailHeader from "./detail/TaskDetailHeader";
+import TaskCallBanner from "./detail/TaskCallBanner";
 import TaskDetailLinks from "./detail/TaskDetailLinks";
 import TaskDetailAttachments from "./detail/TaskDetailAttachments";
 import TaskDetailChecklist from "./detail/TaskDetailChecklist";
@@ -99,6 +100,8 @@ export default function TaskDetailModal({
                             className="min-h-0 flex-1 overflow-y-auto"
                             style={{ padding: "20px 22px" }}
                         >
+                            <TaskCallBanner task={vm.task} />
+
                             <TaskDetailLinks links={vm.allLinks} />
 
                             {deferAttachments ? (

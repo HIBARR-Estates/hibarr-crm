@@ -19,6 +19,10 @@ class LeadSearchQuery
      * Plain-string mobiles (e.g. "+41…") are matched via LIKE / digit stripping only;
      * JSON paths are guarded with JSON_VALID so MySQL does not error on non-JSON rows.
      *
+     * Digit-only matching runs only for phone-shaped terms (see phoneDigits()):
+     * otherwise a name or email such as "ali92@…" was reduced to "92" and
+     * matched every lead whose number contains those two digits.
+     *
      * @param  Builder<\App\Models\Lead>  $query
      */
     public static function applyMobileMatch(
@@ -27,8 +31,8 @@ class LeadSearchQuery
         string $column = 'mobile',
     ): void {
         $term = '%' . $search . '%';
-        $digits = preg_replace('/\D+/', '', $search) ?? '';
-        $digitTerm = $digits !== '' ? '%' . $digits . '%' : null;
+        $digits = self::phoneDigits($search);
+        $digitTerm = $digits !== null ? '%' . $digits . '%' : null;
 
         $query->orWhere($column, 'like', $term);
 
@@ -92,16 +96,39 @@ class LeadSearchQuery
         }
 
         $term = '%' . $search . '%';
-        $digits = preg_replace('/\D+/', '', $search) ?? '';
+        $digits = self::phoneDigits($search);
 
         $query->orWhereHas('contactMethods', function (Builder $methods) use ($term, $digits) {
             $methods->where('identifier', 'like', $term)
                 ->orWhere('normalized', 'like', $term);
 
-            if ($digits !== '') {
+            if ($digits !== null) {
                 $methods->orWhere('normalized', 'like', '%' . $digits . '%');
             }
         });
+    }
+
+    /** Whether the term is a phone number fragment ("+49 (176) 12-34"), not text. */
+    public static function looksLikePhone(string $search): bool
+    {
+        return self::phoneDigits($search) !== null;
+    }
+
+    /**
+     * Digits of a phone-shaped term, or null when the term contains anything
+     * besides digits and phone punctuation, or too few digits to be selective.
+     */
+    private static function phoneDigits(string $search): ?string
+    {
+        $search = trim($search);
+
+        if (preg_match('/^\+?[\d\s().\/-]+$/', $search) !== 1) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/', '', $search) ?? '';
+
+        return strlen($digits) >= 3 ? $digits : null;
     }
 
     private static function supportsJsonMobileSearch(): bool

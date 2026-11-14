@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import axios from "axios";
-import { message } from "antd";
+import { App, message } from "antd";
 import { usePage } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import type {
@@ -24,6 +24,8 @@ function isNoExtensionError(status: number | undefined, serverMessage: string): 
 export default function useClickToCall() {
     const { props } = usePage();
     const { t } = useTranslation();
+    const { message: appMessage } = App.useApp();
+    const toast = appMessage ?? message;
     const [callingKey, setCallingKey] = useState<string | null>(null);
 
     const isEnabled = props.featureFlags?.[FEATURE_FLAG] === true;
@@ -50,14 +52,14 @@ export default function useClickToCall() {
                 );
 
                 if (response.data?.status === "success") {
-                    message.success(
+                    toast.success(
                         response.data.message ||
                             t("pages.telephony.success"),
                     );
                     return true;
                 }
 
-                message.error(
+                toast.error(
                     response.data?.message ||
                         t("pages.telephony.generic_error"),
                 );
@@ -74,13 +76,13 @@ export default function useClickToCall() {
                     err.response?.data?.message?.trim() || "";
 
                 if (status === 403) {
-                    message.error(t("pages.telephony.permission_denied"));
+                    toast.error(t("pages.telephony.permission_denied"));
                 } else if (isNoExtensionError(status, serverMessage)) {
-                    message.error(
+                    toast.error(
                         serverMessage || t("pages.telephony.no_extension"),
                     );
                 } else {
-                    message.error(
+                    toast.error(
                         serverMessage || t("pages.telephony.generic_error"),
                     );
                 }
@@ -92,7 +94,7 @@ export default function useClickToCall() {
                 );
             }
         },
-        [t],
+        [t, toast],
     );
 
     const isCalling = useCallback(

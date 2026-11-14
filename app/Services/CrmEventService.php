@@ -11,6 +11,7 @@ use App\Models\CrmEventCategory;
 use App\Models\CrmEventType;
 use App\Models\Deal;
 use App\Models\Lead;
+use App\Support\PolymorphicModelType;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -101,16 +102,20 @@ class CrmEventService
             'status' => $params['status'] ?? 'completed',
             'direction' => $params['direction'] ?? null,
             'user_id' => $params['user_id'] ?? null,
-            'model_type' => $params['model_type'] ?? $eventType->model_type,
+            'model_type' => PolymorphicModelType::canonicalize($params['model_type'] ?? $eventType->model_type),
             'model_id' => $params['model_id'] ?? null,
             'correlation_id' => $params['correlation_id'] ?? null,
             'causation_id' => $params['causation_id'] ?? null,
             'source' => $params['source'],
             'ip_address' => $params['ip_address'] ?? null,
             'user_agent' => $params['user_agent'] ?? null,
-            'metadata' => $params['metadata'] ?? null,
+            'metadata' => is_array($params['metadata'] ?? null) ? $params['metadata'] : null,
             'occurred_at' => $params['occurred_at'] ?? now(),
         ];
+
+        // While an admin is signed in as an employee, the admin is the actor
+        // and the employee is who they acted on behalf of.
+        $eventData = app(EmployeeImpersonationService::class)->attributeEvent($eventData);
 
         $this->stampLeadFirstContact($eventData, $params['event_type_slug']);
 
@@ -178,6 +183,13 @@ class CrmEventService
             ->update(['first_contacted_at' => $occurredAt]);
 
         if (!$stamped) {
+            return;
+        }
+
+        // Note triggers already appear on the timeline as the agent's own
+        // action — don't ALSO emit a separate lead_first_contact milestone for
+        // them (the first_contacted_at timestamp above is still stamped).
+        if (in_array($slug, config('crm_events.first_contact.skip_event_slugs', []), true)) {
             return;
         }
 

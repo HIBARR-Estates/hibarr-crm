@@ -5,7 +5,9 @@ namespace App\Http\Middleware;
 use App\Email\EmailFeature;
 use App\Models\UserNotificationAlertSetting;
 use App\Models\UserProductTour;
+use App\Services\EmployeeImpersonationService;
 use App\Services\I18nTranslationService;
+use App\Support\AgentWorkspaceAccess;
 use App\Support\AppBuild;
 use App\Support\FeatureFlags;
 use App\Support\UserTimezone;
@@ -71,11 +73,16 @@ class HandleInertiaRequests extends Middleware
             ],
             'csrf_token' => csrf_token(),
             'app_url' => config('app.url'),
+            'appEnv' => fn () => config('app.env'),
             'appBuildId' => fn () => AppBuild::clientId(),
             'company' => fn () => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
             'appName' => fn () => function_exists('companyOrGlobalSetting')
                 ? (companyOrGlobalSetting()->app_name ?? config('app.name'))
                 : config('app.name'),
+            // The company logo made for dark backgrounds (the agent workspace's navy band); null until one is uploaded.
+            'companyLogoOnDark' => fn () => function_exists('companyOrGlobalSetting') && companyOrGlobalSetting()?->logo
+                ? companyOrGlobalSetting()->dark_logo_url
+                : null,
             'appTheme' => fn () => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
             'notificationAlertSettings' => fn () => $request->user()
                 ? Inertia::defer(fn () => UserNotificationAlertSetting::forUser((int) $request->user()->id))
@@ -99,6 +106,20 @@ class HandleInertiaRequests extends Middleware
             'emailMailbox' => fn () => EmailFeature::enabled() && EmailFeature::enabledFor($request->user())
                 ? ['settingsUrl' => '/account/settings/mailbox']
                 : null,
+            // Admins manage the pilot list while the flag is on, even before they are listed.
+            // Null while crm.agent-workspace is off. url is set for people with
+            // access (the sidebar's Agent switch); manageUrl for admins (the
+            // access list), who manage it whether or not they have access.
+            'agentWorkspace' => fn () => $this->getAgentWorkspace($request),
+            // Null unless the user is in a department picked for the marketing
+            // lead flow (Lead settings); the leads list and sidebar offer it then.
+            'marketingLeadIntake' => fn () => $this->getMarketingLeadIntake($request),
+            'emailPilot' => fn () => EmailFeature::enabled() && $request->user()?->hasRole('admin')
+                ? ['manageUrl' => '/account/settings/email-pilot']
+                : null,
+            'impersonation' => fn () => session()->has(EmployeeImpersonationService::SESSION_ID)
+                ? ['active' => true]
+                : null,
             'viewerTimezone' => fn () => UserTimezone::forViewer(
                 $request->user(),
                 function_exists('company') ? company() : null
@@ -109,6 +130,38 @@ class HandleInertiaRequests extends Middleware
             'pipelineFieldScopeMap' => fn () => $this->getPipelineFieldScopeMap($request),
             'stages' => fn () => $this->getPipelineStages($request),
         ]);
+    }
+
+    /**
+     * @return array{url: string}|null
+     */
+    private function getMarketingLeadIntake(Request $request): ?array
+    {
+        try {
+            return \App\Support\MarketingLeadIntake::allows($request->user())
+                ? ['url' => '/account/marketing-leads']
+                : null;
+        } catch (\Illuminate\Database\QueryException) {
+            // Before the lead origins migration has run.
+            return null;
+        }
+    }
+
+    /**
+     * @return array{url: string|null, manageUrl: string|null}|null
+     */
+    private function getAgentWorkspace(Request $request): ?array
+    {
+        $user = $request->user();
+
+        if ($user === null || ! AgentWorkspaceAccess::enabled()) {
+            return null;
+        }
+
+        $url = AgentWorkspaceAccess::allows($user) ? '/agent/today' : null;
+        $manageUrl = AgentWorkspaceAccess::canManage() ? '/account/settings/agent-workspace-access' : null;
+
+        return $url === null && $manageUrl === null ? null : ['url' => $url, 'manageUrl' => $manageUrl];
     }
 
     /**
