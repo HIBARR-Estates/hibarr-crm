@@ -471,33 +471,32 @@
     white-space: nowrap;
 }
 
-/* Unit types read as chips with their count, in a row that wraps at two lines. */
+/* Unit types read as chips with their count, in two even columns: three chips and
+   "+N more" are always two rows of two, so nothing is ever clipped. A long label
+   is cut with an ellipsis inside its chip. */
 .agent-pf__units {
-    display: flex;
-    max-height: 56px;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 5px;
     margin: 3px 0 0;
     padding: 0;
-    overflow: hidden;
     list-style: none;
 }
 
 .agent-pf__unit {
     display: inline-flex;
-    /* Two to a row at most, so three chips and "+N more" always fit the two rows reserved. */
-    max-width: calc(50% - 3px);
-    overflow: hidden;
+    min-width: 0;
     align-items: center;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     gap: 6px;
     padding: 4px 8px;
+    overflow: hidden;
     border-radius: 8px;
     background: var(--dr-green-light);
     color: var(--dr-green);
     font-size: 11px;
     font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .agent-pf__unit b {
