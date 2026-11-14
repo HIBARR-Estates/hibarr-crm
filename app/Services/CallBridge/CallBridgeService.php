@@ -18,6 +18,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Integration layer between the CRM and OL's call bridge.
@@ -62,10 +63,23 @@ class CallBridgeService
         $blocked = $this->checkCallSuppression($payload);
 
         if ($blocked !== null) {
+            // The agent tried to call and was refused — that attempt belongs on
+            // the lead/deal timeline, not just in the server log.
+            $this->logFailedAttempt($payload, 'suppressed', (string) ($blocked['message'] ?? ''));
+
             return $blocked;
         }
 
-        $response = $this->client->startCall($payload);
+        try {
+            $response = $this->client->startCall($payload);
+        } catch (HttpException $e) {
+            // The call never left the CRM (bridge down, no extension bound,
+            // not configured, ...). Record the attempt, then let the caller
+            // surface the original error unchanged.
+            $this->logFailedAttempt($payload, $this->failureReasonForStatus($e->getStatusCode()), $e->getMessage());
+
+            throw $e;
+        }
 
         // Best-effort: the call is already live; a timeline failure must not
         // fail the request that started it.
@@ -111,6 +125,54 @@ class CallBridgeService
         }
 
         return $response;
+    }
+
+    /**
+     * Record an outbound call attempt that never connected on the entity
+     * timeline as a `call_failed` event.
+     *
+     * Best-effort: the caller is already reporting the failure to the agent,
+     * so a timeline write error must not replace or mask it.
+     *
+     * @param  array<string, mixed>  $payload  The startCall() payload.
+     */
+    public function logFailedAttempt(array $payload, string $reason, ?string $message = null): ?CrmEvent
+    {
+        try {
+            return $this->logCallEvent([
+                // A fresh id per attempt: there is no bridge call id, and the
+                // dedupe key must not collapse two attempts to the same number.
+                'call_id' => 'attempt-' . Str::uuid()->toString(),
+                'event' => 'call.failed',
+                'status' => 'failed',
+                'direction' => $payload['direction'] ?? 'outbound',
+                'phone_number' => $payload['phone_number'] ?? null,
+                'entity_type' => $payload['entity_type'] ?? null,
+                'entity_id' => $payload['entity_id'] ?? null,
+                'user_id' => $payload['user_id'] ?? null,
+                'company_id' => $payload['company_id'] ?? null,
+                'failure_reason' => $reason,
+                'failure_message' => $message,
+                'occurred_at' => now(),
+            ], CrmEventGenerationType::USER_GENERATED);
+        } catch (\Throwable $e) {
+            Log::warning('CallBridgeService: failed to log failed call attempt', [
+                'reason' => $reason,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    private function failureReasonForStatus(int $status): string
+    {
+        return match (true) {
+            $status === 422 => 'rejected',
+            $status === 503 => 'not_configured',
+            $status >= 500 => 'bridge_unreachable',
+            default => 'bridge_error',
+        };
     }
 
     /**
@@ -417,7 +479,12 @@ class CallBridgeService
         $metadata = $this->buildMetadata($olEvent, $dedupeKey);
 
         $event = null;
-        if ($modelType !== null) {
+        // Bridge events with no lead or deal are skipped (the poller sees many
+        // calls the CRM has no record for); the softphone asks for its calls
+        // to be logged anyway (`log_unlinked`), so the Calls page lists them.
+        // Inbound calls are always logged even when unlinked so callers without an existing lead appear in the Call Log.
+        $isInbound = $this->direction($olEvent) === CrmEventDirection::INBOUND->value;
+        if ($modelType !== null || ! empty($olEvent['log_unlinked']) || $isInbound) {
             $event = $this->events->record([
                 'event_type_slug' => $slug,
                 'company_id' => $companyId,
@@ -666,14 +733,14 @@ class CallBridgeService
             in_array($olStatus, ['failed', 'failure', 'error', 'cancel', 'cancelled', 'canceled'], true) => ['call_failed', CrmEventStatus::ERROR_OCCURRED],
             in_array($olStatus, ['missed', 'dropped', 'no_answer', 'unanswered', 'no_pickup'], true) => ['call_missed', CrmEventStatus::MISSED],
             // Event-name-driven outcomes (when no usable status is present).
-            in_array($raw, ['call.ended', 'call.completed', 'ended', 'completed'], true) => ['call_ended', CrmEventStatus::COMPLETED],
-            in_array($raw, ['call.missed', 'missed'], true) => ['call_missed', CrmEventStatus::MISSED],
-            in_array($raw, ['call.declined', 'call.rejected', 'declined', 'rejected'], true) => ['call_declined', CrmEventStatus::REJECTED],
-            in_array($raw, ['call.voicemail', 'voicemail', 'voice_mail'], true) => ['call_voicemail', CrmEventStatus::COMPLETED],
-            in_array($raw, ['call.busy', 'busy'], true) => ['call_busy', CrmEventStatus::MISSED],
-            in_array($raw, ['call.failed', 'failed', 'error'], true) => ['call_failed', CrmEventStatus::ERROR_OCCURRED],
+            in_array($raw, ['call.ended', 'call.completed', 'ended', 'completed', 'call_ended', 'call_completed'], true) => ['call_ended', CrmEventStatus::COMPLETED],
+            in_array($raw, ['call.missed', 'missed', 'call_missed'], true) => ['call_missed', CrmEventStatus::MISSED],
+            in_array($raw, ['call.declined', 'call.rejected', 'declined', 'rejected', 'call_declined'], true) => ['call_declined', CrmEventStatus::REJECTED],
+            in_array($raw, ['call.voicemail', 'voicemail', 'voice_mail', 'call_voicemail'], true) => ['call_voicemail', CrmEventStatus::COMPLETED],
+            in_array($raw, ['call.busy', 'busy', 'call_busy'], true) => ['call_busy', CrmEventStatus::MISSED],
+            in_array($raw, ['call.failed', 'failed', 'error', 'call_failed'], true) => ['call_failed', CrmEventStatus::ERROR_OCCURRED],
             // Started (once per call; CRM-initiated calls already log this via startCall).
-            in_array($raw, ['call.started', 'call.initiated', 'started', 'initiated'], true) => ['call_started', CrmEventStatus::COMPLETED],
+            in_array($raw, ['call.started', 'call.initiated', 'started', 'initiated', 'call_started', 'call_answered', 'incoming_call', 'outgoing_call'], true) => ['call_started', CrmEventStatus::COMPLETED],
             // Everything else — ringing, dialing, status pings — is not logged.
             default => null,
         };
@@ -688,6 +755,14 @@ class CallBridgeService
         $type = is_string($olEvent['entity_type'] ?? null) ? strtolower($olEvent['entity_type']) : null;
         $id = !empty($olEvent['entity_id']) ? (int) $olEvent['entity_id'] : 0;
         if ($type === null || $id <= 0) {
+            $phoneNumber = (string) ($olEvent['phone_number'] ?? $olEvent['phone'] ?? '');
+            if ($phoneNumber !== '') {
+                $matchedLead = app(LeadPhoneMatcher::class)->findLead($companyId, $phoneNumber);
+                if ($matchedLead) {
+                    return [Lead::class, (int) $matchedLead->id];
+                }
+            }
+
             return [null, null];
         }
 
@@ -863,6 +938,20 @@ class CallBridgeService
             'entity_type' => $olEvent['entity_type'] ?? null,
             'entity_id' => $olEvent['entity_id'] ?? null,
             'comment' => $olEvent['comment'] ?? null,
+            'failure_reason' => $olEvent['failure_reason'] ?? null,
+            'failure_message' => isset($olEvent['failure_message'])
+                ? mb_substr((string) $olEvent['failure_message'], 0, 255)
+                : null,
+            'recording_status' => $olEvent['recording_status'] ?? null,
+            'recording_error' => isset($olEvent['recording_error'])
+                ? mb_substr((string) $olEvent['recording_error'], 0, 255)
+                : null,
+            'routing_reason' => $olEvent['routing_reason'] ?? null,
+            'is_forwarded' => !empty($olEvent['is_forwarded']) ? true : null,
+            'forwarded_from_user_id' => isset($olEvent['forwarded_from_user_id']) ? (int) $olEvent['forwarded_from_user_id'] : null,
+            'forwarded_from_user_name' => isset($olEvent['forwarded_from_user_name'])
+                ? mb_substr((string) $olEvent['forwarded_from_user_name'], 0, 180)
+                : null,
             'dedupe_key' => $dedupeKey,
         ], fn ($v) => $v !== null && $v !== '');
 

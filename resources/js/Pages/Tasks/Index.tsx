@@ -260,30 +260,42 @@ const TasksTableView: React.FC<TasksTableViewProps> = ({
     );
 };
 
+const EMPTY_TASKS: Task[] = [];
+const EMPTY_CATEGORIES: TaskCategory[] = [];
+const EMPTY_LABELS: TaskLabel[] = [];
+const EMPTY_COLUMNS: TaskboardColumn[] = [];
+const EMPTY_USERS: User[] = [];
+const EMPTY_PROJECTS: Project[] = [];
+const EMPTY_DEALS: Deal[] = [];
+const EMPTY_LEADS: Lead[] = [];
+const EMPTY_PROPERTIES: Property[] = [];
+const DEFAULT_PERMISSIONS: TasksIndexProps["permissions"] = {
+    add_tasks: "all",
+    edit_tasks: "all",
+    delete_tasks: "all",
+    change_status: "all",
+    view_tasks: "all",
+};
+const DEFAULT_STATS: TasksIndexProps["stats"] = {
+    total: 0,
+    completed: 0,
+    overdue: 0,
+    dueToday: 0,
+};
+
 const LegacyTasksIndex = ({
     tableTasks,
-    kanbanTasks = [],
-    categories = [],
-    labels = [],
-    columns = [],
-    users = [],
-    projects = [],
-    deals = [],
-    leads = [],
-    properties = [],
-    permissions = {
-        add_tasks: "all",
-        edit_tasks: "all",
-        delete_tasks: "all",
-        change_status: "all",
-        view_tasks: "all",
-    },
-    stats = {
-        total: 0,
-        completed: 0,
-        overdue: 0,
-        dueToday: 0,
-    },
+    kanbanTasks = EMPTY_TASKS,
+    categories = EMPTY_CATEGORIES,
+    labels = EMPTY_LABELS,
+    columns = EMPTY_COLUMNS,
+    users = EMPTY_USERS,
+    projects = EMPTY_PROJECTS,
+    deals = EMPTY_DEALS,
+    leads = EMPTY_LEADS,
+    properties = EMPTY_PROPERTIES,
+    permissions = DEFAULT_PERMISSIONS,
+    stats = DEFAULT_STATS,
     auth,
 }: TasksIndexProps) => {
     // Generic entity action hook for modals and actions

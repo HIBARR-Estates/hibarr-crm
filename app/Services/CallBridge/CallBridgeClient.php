@@ -96,7 +96,179 @@ class CallBridgeClient
      */
     public function emitCallEvent(array $payload): array
     {
-        return $this->request('POST', 'emit_event', $payload);
+
+        $formatted = $this->formatEmitPayload($payload);
+        if ($formatted === null) {
+            Log::warning('CallBridgeClient: emitCallEvent skipped — missing or invalid callId', [
+                'event' => $payload['event'] ?? null,
+                'direction' => $payload['direction'] ?? null,
+            ]);
+
+            return [];
+        }
+
+        $pathKey = config('services.call_bridge.paths.emit') !== null ? 'emit' : 'emit_event';
+
+        return $this->request('POST', $pathKey, $formatted);
+    }
+
+    /**
+     * Map any incoming call event payload to OL's strict emitCallEventSchema:
+     * - required: event, callId
+     * - optional: direction, status, occurredAt, phoneNumber, durationSeconds, leg
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>|null
+     */
+    private function formatEmitPayload(array $payload): ?array
+    {
+        // 1. Resolve callId (required, minLength: 1, maxLength: 191)
+        $rawCallId = $payload['callId'] ?? $payload['call_id'] ?? null;
+        if ($rawCallId === null || (! is_string($rawCallId) && ! is_numeric($rawCallId)) || trim((string) $rawCallId) === '') {
+            return null;
+        }
+        $callId = mb_substr(trim((string) $rawCallId), 0, 191);
+
+        // 2. Resolve direction
+        $rawDirection = $payload['direction'] ?? null;
+        $direction = in_array($rawDirection, ['inbound', 'outbound'], true) ? $rawDirection : null;
+
+        // 3. Resolve event (required, enum)
+        $rawEvent = (string) ($payload['event'] ?? '');
+        $event = match ($rawEvent) {
+            'incoming_call', 'outgoing_call', 'call_answered', 'call_completed', 'call_ended', 'call_missed', 'leg_update' => $rawEvent,
+            'call.started', 'call_started' => ($direction === 'inbound') ? 'incoming_call' : 'outgoing_call',
+            'call.answered', 'call_answered' => 'call_answered',
+            'call.completed', 'call_completed' => 'call_completed',
+            'call.ended', 'call_ended' => 'call_ended',
+            'call.missed', 'call_missed' => 'call_missed',
+            'call.declined', 'call_declined' => 'call_ended',
+            'call.busy', 'call_busy' => 'call_ended',
+            'call.failed', 'call_failed' => 'call_ended',
+            'leg.update' => 'leg_update',
+            default => ($direction === 'inbound') ? 'incoming_call' : 'outgoing_call',
+        };
+
+        if ($direction === null) {
+            $direction = $event === 'incoming_call' ? 'inbound' : 'outbound';
+        }
+
+        // 4. Resolve status (enum)
+        $allowedStatuses = [
+            'queued', 'initiated', 'ringing', 'answered', 'completed',
+            'busy', 'no_answer', 'rejected', 'failed', 'cancelled', 'unknown',
+        ];
+        $rawStatus = (string) ($payload['status'] ?? '');
+        $status = match ($rawStatus) {
+            'pending', 'started', 'calling' => 'initiated',
+            'ended' => 'completed',
+            default => in_array($rawStatus, $allowedStatuses, true) ? $rawStatus : null,
+        };
+        if ($status === null) {
+            $status = match ($rawEvent) {
+                'call.declined', 'call_declined' => 'rejected',
+                'call.busy', 'call_busy' => 'busy',
+                'call.failed', 'call_failed' => 'failed',
+                default => match ($event) {
+                    'incoming_call', 'outgoing_call' => 'initiated',
+                    'call_answered' => 'answered',
+                    'call_completed', 'call_ended' => 'completed',
+                    'call_missed' => 'no_answer',
+                    default => 'unknown',
+                },
+            };
+        }
+
+        $formatted = [
+            'event' => $event,
+            'callId' => $callId,
+            'status' => $status,
+            'direction' => $direction,
+            'occurredAt' => isset($payload['occurredAt']) && is_string($payload['occurredAt']) && $payload['occurredAt'] !== ''
+                ? $payload['occurredAt']
+                : (isset($payload['occurred_at']) && $payload['occurred_at'] instanceof \DateTimeInterface
+                    ? $payload['occurred_at']->format('c')
+                    : now()->toIso8601String()),
+        ];
+
+        // 5. Phone number (nullable, max 32 chars)
+        $rawPhone = $payload['phoneNumber'] ?? $payload['phone_number'] ?? $payload['phone'] ?? null;
+        if (is_string($rawPhone) && trim($rawPhone) !== '') {
+            $formatted['phoneNumber'] = mb_substr(trim($rawPhone), 0, 32);
+        }
+
+        // 6. Duration seconds (integer >= 0)
+        $rawDuration = $payload['durationSeconds'] ?? $payload['duration_seconds'] ?? $payload['duration'] ?? null;
+        if (is_numeric($rawDuration)) {
+            $formatted['durationSeconds'] = max(0, (int) $rawDuration);
+        }
+
+        // 7. Leg (object, nullable)
+        if (isset($payload['leg']) && is_array($payload['leg'])) {
+            $legRole = $payload['leg']['role'] ?? null;
+            $legStatus = $payload['leg']['status'] ?? null;
+            $legExternalId = $payload['leg']['externalLegId'] ?? $payload['leg']['external_leg_id'] ?? null;
+
+            $allowedRoles = ['agent', 'destination', 'provider', 'unknown'];
+            $leg = [];
+            if (is_string($legRole) && in_array($legRole, $allowedRoles, true)) {
+                $leg['role'] = $legRole;
+            }
+            if (is_string($legStatus) && in_array($legStatus, $allowedStatuses, true)) {
+                $leg['status'] = $legStatus;
+            }
+            if (is_string($legExternalId) && trim($legExternalId) !== '') {
+                $leg['externalLegId'] = mb_substr(trim($legExternalId), 0, 191);
+            }
+            if (! empty($leg)) {
+                $formatted['leg'] = $leg;
+            }
+        }
+
+        return $formatted;
+    }
+
+    /**
+     * The SIP platforms OL supports for call-bridge integrations
+     * (GET /call-bridge/integrations/providers).
+     *
+     * @return array<int, string>
+     */
+    public function fetchSipProviders(): array
+    {
+        $data = $this->request('GET', 'providers');
+
+        $providers = [];
+        foreach ((array) ($data['providers'] ?? []) as $provider) {
+            if (is_string($provider) && $provider !== '') {
+                $providers[] = $provider;
+            }
+        }
+
+        return array_values(array_unique($providers));
+    }
+
+    /**
+     * The SIP connection defaults OL associates with one platform
+     * (GET /call-bridge/integrations/providers/{platform}).
+     *
+     * Null when OL answers but the payload does not carry both fields — the
+     * caller then decides whether to fall back to the local registry.
+     *
+     * @return array{wss: string, sipUriFormat: string}|null
+     */
+    public function fetchSipPlatformDefaults(string $platform): ?array
+    {
+        $data = $this->request('GET', 'platform', [], [], ['platform' => $platform]);
+
+        $wss = $data['wss'] ?? null;
+        $sipUriFormat = $data['sipUriFormat'] ?? null;
+
+        if (! is_string($wss) || $wss === '' || ! is_string($sipUriFormat) || $sipUriFormat === '') {
+            return null;
+        }
+
+        return ['wss' => $wss, 'sipUriFormat' => $sipUriFormat];
     }
 
     /**
@@ -110,9 +282,11 @@ class CallBridgeClient
     /**
      * @param  array<string, mixed>  $payload
      * @param  array<string, scalar>  $query
+     * @param  array<string, string>  $pathParams  Values substituted into the
+     *   configured path's `{placeholder}` segments (e.g. the platform name).
      * @return array<string, mixed>
      */
-    private function request(string $method, string $pathKey, array $payload = [], array $query = []): array
+    private function request(string $method, string $pathKey, array $payload = [], array $query = [], array $pathParams = []): array
     {
         $baseUrl = $this->baseUrl();
         $apiKey = $this->apiKey();
@@ -130,6 +304,10 @@ class CallBridgeClient
         $path = (string) config("services.call_bridge.paths.{$pathKey}", '');
         if ($path === '') {
             throw new HttpException(503, "Call bridge path [{$pathKey}] is not configured.");
+        }
+
+        foreach ($pathParams as $name => $value) {
+            $path = str_replace('{'.$name.'}', rawurlencode($value), $path);
         }
 
         $url = rtrim($baseUrl, '/') . '/' . ltrim($path, '/');
@@ -263,11 +441,11 @@ class CallBridgeClient
 
     private function baseUrl(): string
     {
-        return (string) config('services.call_bridge.base_url', '');
+        return (string) config('services.call_bridge.base_url', config('services.ol.base_url', ''));
     }
 
     private function apiKey(): string
     {
-        return (string) config('services.call_bridge.api_key', '');
+        return (string) config('services.call_bridge.api_key', config('services.ol.api_key', ''));
     }
 }

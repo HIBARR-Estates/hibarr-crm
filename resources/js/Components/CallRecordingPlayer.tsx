@@ -6,6 +6,7 @@ import {
     LoadingOutlined,
     PauseOutlined,
 } from "@ant-design/icons";
+import "./CallRecordingPlayer.css";
 
 interface RecordingPlayerProps {
     /** API endpoint that streams the recording inline with the right MIME type. */
@@ -133,7 +134,8 @@ export default function RecordingPlayer({
     const percent = total && total > 0 ? Math.min(100, (progress / total) * 100) : 0;
 
     return (
-        <div className="cb-player">
+        <div className="cb-player-wrapper">
+            <div className="cb-player">
             <audio
                 ref={audioRef}
                 src={playUrl}
@@ -252,15 +254,17 @@ export default function RecordingPlayer({
                 </a>
             )}
 
+            </div>
+
             {failed && (
-                <span className="cb-fail" role="alert">
-                    Playback failed.
+                <div className="cb-fail" role="alert">
+                    <span>Playback failed.</span>
                     {downloadUrl && (
                         <a href={downloadUrl} target="_blank" rel="noreferrer">
                             Open the file
                         </a>
                     )}
-                </span>
+                </div>
             )}
         </div>
     );

@@ -12,6 +12,14 @@ import AnalysisLeadContextPanel from "./AnalysisLeadContextPanel";
 import AnalysisHeaderBar from "./AnalysisHeaderBar";
 import AnalysisScrollPanel, { type ScrollPanelHandle } from "./AnalysisScrollPanel";
 import AnalysisRightRail, { type AnalysisRailTab } from "./AnalysisRightRail";
+import AnalysisAnswersPanel from "./AnalysisAnswersPanel";
+import AgentAnalysisScreen from "./agent/AgentAnalysisScreen";
+import AgentAnalysisFacts from "./agent/AgentAnalysisFacts";
+import useDealHeaderData from "../../hooks/useDealHeaderData";
+import FlowPanelHeader from "@/Components/Redesign/agent/flow/FlowPanelHeader";
+import FlowSideTabs from "@/Components/Redesign/agent/flow/FlowSideTabs";
+import FlowStepList, { type FlowStep } from "@/Components/Redesign/agent/flow/FlowStepList";
+import useUnderDock, { flowOverlayClass } from "@/Components/Redesign/agent/flow/useUnderDock";
 import { buildRailGroups } from "./analysisRailItems";
 import { buildScriptItems, computeAnalysisProgress } from "./analysisProgress";
 import type { AnalysisScriptItem } from "./types/analysisTypes";
@@ -23,6 +31,12 @@ interface Props {
     // ponytail: kept for parent compat, not used here (pipeline scope filtering is server-side)
     visibleLeadFieldKeys?: string[] | null;
     analysisScript?: { items: AnalysisScriptItem[] } | null;
+    /**
+     * "under-dock" on the agent workspace: the analysis opens below the dock
+     * (canvas L7-12), steps on the left and the lead's context on the right.
+     * The classic deal page keeps the centred modal.
+     */
+    placement?: "center" | "under-dock";
 }
 
 const FOCUSABLE =
@@ -54,8 +68,10 @@ export default function DealAnalysisModal({
     dealInfoCategories,
     fields,
     analysisScript,
+    placement,
 }: Props) {
     const { deal, setDeal } = useDealWorkspace();
+    const dealHeader = useDealHeaderData(deal);
     const { props } = usePage<any>();
     const { t } = useTranslation();
     const { td } = useTd();
@@ -66,6 +82,8 @@ export default function DealAnalysisModal({
     const panelRef = useRef<HTMLDivElement>(null);
     const scrollPanelRef = useRef<ScrollPanelHandle>(null);
     const titleId = "analysis-modal-title";
+    const underDock = placement === "under-dock";
+    useUnderDock(analysis.isOpen && underDock);
 
     const [railTab, setRailTab] = useState<AnalysisRailTab>("steps");
     /** Focus mode hides both side rails so only the form column is left. */
@@ -201,14 +219,24 @@ export default function DealAnalysisModal({
 
     /** Step keys revealed so far — what the right rail locks against. */
     const unlockedStepKeys = useMemo(
-        () => new Set(visibleSteps.map((s) => s.key)),
-        [visibleSteps],
+        () => new Set((underDock ? steps : visibleSteps).map((s) => s.key)),
+        [underDock, steps, visibleSteps],
     );
 
     const goToStep = useCallback((index: number) => {
         if (steps.length === 0) return;
         setCurrentKey(steps[Math.max(0, Math.min(index, steps.length - 1))].key);
     }, [steps]);
+
+    // Under the agent dock the script runs one section at a time: opening a
+    // section lands on its first question.
+    const goToSection = useCallback(
+        (sectionId: string) => {
+            const first = steps.find((s) => s.sectionId === sectionId);
+            if (first) setCurrentKey(first.key);
+        },
+        [steps],
+    );
 
     // On open, resume at the first step not settled yet, so a part-filled analysis
     // is not walked through from the beginning again.
@@ -318,11 +346,15 @@ export default function DealAnalysisModal({
 
     const handleJump = useCallback(
         (id: string) => {
+            if (underDock) {
+                goToSection(id);
+                return;
+            }
             // A section no step has reached yet is not rendered — ignore the jump.
             if (!visibleSteps.some((s) => s.sectionId === id)) return;
             scrollPanelRef.current?.scrollToSection(id);
         },
-        [visibleSteps],
+        [underDock, goToSection, visibleSteps],
     );
 
     const handleKeyDown = useCallback(
@@ -345,7 +377,13 @@ export default function DealAnalysisModal({
                 const active = document.activeElement as HTMLElement | null;
                 if (active?.closest("[data-option-group]")) return;
                 e.preventDefault();
-                goToStep(currentStep + (e.key === "ArrowRight" ? 1 : -1));
+                if (underDock) {
+                    const ids = steps.map((s) => s.sectionId).filter((id, i, all) => all.indexOf(id) === i);
+                    const target = ids[ids.indexOf(activeSection) + (e.key === "ArrowRight" ? 1 : -1)];
+                    if (target) goToSection(target);
+                } else {
+                    goToStep(currentStep + (e.key === "ArrowRight" ? 1 : -1));
+                }
                 return;
             }
 
@@ -362,16 +400,19 @@ export default function DealAnalysisModal({
                 if (document.activeElement === last) { e.preventDefault(); first.focus(); }
             }
         },
-        [confirmIntent, requestClose, goToStep, currentStep],
+        [confirmIntent, requestClose, goToStep, currentStep, underDock, steps, activeSection, goToSection],
     );
 
     useEffect(() => {
         if (analysis.isOpen) {
             const panel = panelRef.current;
-            const first = panel?.querySelector<HTMLElement>(FOCUSABLE);
+            // Under the agent dock the cursor goes to the question, not the close button.
+            const first =
+                (underDock && panel?.querySelector<HTMLElement>(".agent-an input:not([disabled]), .agent-an textarea:not([disabled]), .agent-an button")) ||
+                panel?.querySelector<HTMLElement>(FOCUSABLE);
             first?.focus({ preventScroll: true });
         }
-    }, [analysis.isOpen]);
+    }, [analysis.isOpen, underDock]);
 
     const leadName = (deal as any).client_name || deal.contact?.client_name || "";
 
@@ -389,28 +430,44 @@ export default function DealAnalysisModal({
 
     if (!analysis.isOpen || typeof document === "undefined") return null;
 
+    const flowTitle = t("pages.agent_workspace.flow.analysis_title", {
+        name: [leadName, deal.name].filter(Boolean).join(" · "),
+    });
+
     // The script prop is synchronous, so `undefined` means genuinely not loaded —
     // show the shell as its own loading state rather than the category fallback,
     // which would render a structure the real script is about to replace.
     if (analysisScript === undefined) {
         return createPortal(
-            <div className="analysis-modal-overlay">
+            <div className={flowOverlayClass(underDock)}>
                 <div
                     className="analysis-modal-panel"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby={titleId}
                 >
-                    <AnalysisHeaderBar
-                        leadName={leadName}
-                        isCompleted={false}
-                        totalFilled={0}
-                        totalFields={0}
-                        onMinimize={doClose}
-                    />
-                    <span id={titleId} className="sr-only">
-                        Deal Analysis {leadName}
-                    </span>
+                    {underDock ? (
+                        <FlowPanelHeader
+                            titleId={titleId}
+                            name={leadName}
+                            title={flowTitle}
+                            subtitle={t("pages.agent_workspace.flow.saves")}
+                            onClose={doClose}
+                        />
+                    ) : (
+                        <>
+                            <AnalysisHeaderBar
+                                leadName={leadName}
+                                isCompleted={false}
+                                totalFilled={0}
+                                totalFields={0}
+                                onMinimize={doClose}
+                            />
+                            <span id={titleId} className="sr-only">
+                                Deal Analysis {leadName}
+                            </span>
+                        </>
+                    )}
                     <div className="flex flex-1 min-h-0 items-center justify-center bg-dr-surface-2">
                         <div className="text-center px-6">
                             <div
@@ -430,8 +487,34 @@ export default function DealAnalysisModal({
     const dealFieldValues = localValues;
     const leadFieldValues = localValues;
 
+    const flowSteps: FlowStep[] = railGroups.map((group) => ({
+        key: group.sectionId,
+        label: group.sectionTitle,
+        state:
+            group.sectionId === activeSection
+                ? "current"
+                : // Questions never count as filled in the rail; an answered or
+                  // "no answer" question is settled all the same.
+                  group.steps.length > 0 &&
+                    group.steps.every((step) => step.filled || resolvedSteps.has(step.stepKey))
+                  ? "done"
+                  : "todo",
+        locked: group.locked,
+    }));
+    const leadContext = (
+        <AnalysisLeadContextPanel
+            leadCustomFields={leadCustomFields}
+            leadCustomFieldsData={leadFieldValues}
+            onLeadCustomFieldSave={handleLeadFieldSave}
+            onLeadCustomFieldChange={handleFieldChange}
+            onContactFieldSave={handleContactFieldSave}
+            canEdit={canEdit}
+            showProfile={!underDock}
+        />
+    );
+
     return createPortal(
-        <div className="analysis-modal-overlay">
+        <div className={flowOverlayClass(underDock)}>
             <div
                 ref={panelRef}
                 className={`analysis-modal-panel${focusMode ? " analysis-focus" : ""}`}
@@ -449,35 +532,79 @@ export default function DealAnalysisModal({
                     el.scrollLeft = 0;
                 }}
             >
-                {/* Navy header */}
-                <AnalysisHeaderBar
-                    leadName={leadName}
-                    isCompleted={analysis.isCompleted}
-                    totalFilled={totalFilled}
-                    totalFields={totalFields}
-                    subscribeSaving={subscribeSaving}
-                    onMinimize={requestClose}
-                    trailingActions={
-                        <FocusModeButton active={focusMode} onToggle={() => setFocusMode((v) => !v)} />
-                    }
-                />
+                {underDock ? (
+                    <FlowPanelHeader
+                        titleId={titleId}
+                        name={leadName}
+                        title={flowTitle}
+                        subtitle={[
+                            // Counted in sections, as the steps on the left are.
+                            flowSteps.length > 0
+                                ? t("pages.agent_workspace.flow.answered_of", {
+                                      done: flowSteps.filter((step) => step.state === "done").length,
+                                      total: flowSteps.length,
+                                  })
+                                : "",
+                            t("pages.agent_workspace.flow.saves"),
+                        ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        subscribeSaving={subscribeSaving}
+                        leadId={deal.lead_id ?? deal.contact?.id}
+                        onClose={requestClose}
+                    />
+                ) : (
+                    /* Navy header */
+                    <AnalysisHeaderBar
+                        leadName={leadName}
+                        isCompleted={analysis.isCompleted}
+                        totalFilled={totalFilled}
+                        totalFields={totalFields}
+                        subscribeSaving={subscribeSaving}
+                        onMinimize={requestClose}
+                        trailingActions={
+                            <FocusModeButton active={focusMode} onToggle={() => setFocusMode((v) => !v)} />
+                        }
+                    />
+                )}
 
-                {/* 3-column body */}
-                <div className="analysis-3col-body">
-                    {/* Left — lead context */}
-                    <div className="analysis-3col-left">
-                        <AnalysisLeadContextPanel
-                            leadCustomFields={leadCustomFields}
-                            leadCustomFieldsData={leadFieldValues}
-                            onLeadCustomFieldSave={handleLeadFieldSave}
-                            onLeadCustomFieldChange={handleFieldChange}
-                            onContactFieldSave={handleContactFieldSave}
-                            canEdit={canEdit}
-                        />
-                    </div>
+                {/* 3-column body; under the dock: steps | form | lead context and answers */}
+                <div className={underDock ? "agent-flow__body" : "analysis-3col-body"}>
+                    {underDock ? (
+                        <div className="agent-flow__left">
+                            <FlowStepList steps={flowSteps} onJump={handleJump} />
+                        </div>
+                    ) : (
+                        /* Left — lead context */
+                        <div className="analysis-3col-left">{leadContext}</div>
+                    )}
 
                     {/* Center — scroll panel with all sections */}
                     <div className="analysis-3col-center">
+                        {underDock ? (
+                            <AgentAnalysisScreen
+                                sections={sections}
+                                steps={steps}
+                                activeSection={activeSection}
+                                onGoToSection={goToSection}
+                                values={dealFieldValues}
+                                canEdit={canEdit}
+                                unanswered={unanswered}
+                                filledSteps={filledSteps}
+                                answeredQuestions={answeredQuestions}
+                                onFieldUpdate={handleScriptFieldSave}
+                                onFieldChange={handleFieldChange}
+                                onToggleUnanswered={toggleUnanswered}
+                                onQuestionAnswered={handleQuestionAnswered}
+                                onQuestionCleared={handleQuestionCleared}
+                                subscribeSaving={subscribeSaving}
+                                hasFailedSaves={failedKeys.length > 0}
+                                requiredMissing={requiredMissing}
+                                totalMissing={unfilledCount}
+                                isCompleting={analysis.isCompleting}
+                                onComplete={handleCompleteClick}
+                            />
+                        ) : (
                         <AnalysisScrollPanel
                             ref={scrollPanelRef}
                             sections={sections}
@@ -505,9 +632,42 @@ export default function DealAnalysisModal({
                             onQuestionAnswered={handleQuestionAnswered}
                             onQuestionCleared={handleQuestionCleared}
                         />
+                        )}
                     </div>
 
-                    {/* Right — script steps / captured answers + Complete */}
+                    {underDock ? (
+                        <div className="agent-flow__right">
+                            <FlowSideTabs
+                                tabs={[
+                                    {
+                                        key: "context",
+                                        label: t("pages.agent_workspace.flow.lead_context"),
+                                        content: (
+                                            <AgentAnalysisFacts
+                                                deal={deal}
+                                                railGroups={railGroups}
+                                                valueText={deal.value != null || deal.value_breakdown?.final_value != null ? dealHeader.value : ""}
+                                                onJump={handleJump}
+                                            />
+                                        ),
+                                    },
+                                    {
+                                        key: "answers",
+                                        label: t("pages.agent_workspace.flow.steps_tab"),
+                                        content: (
+                                            <AnalysisAnswersPanel
+                                                groups={railGroups}
+                                                activeSection={activeSection}
+                                                activeStepKey={activeStepKey}
+                                                onJump={handleJump}
+                                            />
+                                        ),
+                                    },
+                                ]}
+                            />
+                        </div>
+                    ) : (
+                    /* Right — script steps / captured answers + Complete */
                     <div className="analysis-3col-right analysis-3col-right--wide">
                         <AnalysisRightRail
                             groups={railGroups}
@@ -525,6 +685,7 @@ export default function DealAnalysisModal({
                             onTabChange={setRailTab}
                         />
                     </div>
+                    )}
                 </div>
 
                 {/* Failed-save retry banner */}

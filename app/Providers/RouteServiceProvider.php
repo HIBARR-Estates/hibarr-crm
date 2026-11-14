@@ -34,6 +34,7 @@ class RouteServiceProvider extends ServiceProvider
             $this->mapPublicRoutes();
             $this->mapSettingRoutes();
             $this->mapApiRoutes();
+            $this->mapAgentRoutes();
             $this->mapWebRoutes();
 
         });
@@ -77,6 +78,17 @@ class RouteServiceProvider extends ServiceProvider
         Route::middleware('web')
             ->namespace($this->namespace)
             ->group(base_path('routes/web.php'));
+    }
+
+    /**
+     * The agent workspace at /agent (routes/agent.php). Web middleware like
+     * the account routes; access is checked inside the file.
+     */
+    protected function mapAgentRoutes()
+    {
+        Route::middleware('web')
+            ->namespace($this->namespace)
+            ->group(base_path('routes/agent.php'));
     }
 
     /**

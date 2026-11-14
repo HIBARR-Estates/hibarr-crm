@@ -1,0 +1,71 @@
+/* The Agent | Classic switch: on the agent workspace's navy band and in the
+   classic sidebar. Colours from the --dr-* token variables. */
+
+.agent-switch {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 999px;
+    font-size: 12px;
+}
+
+.agent-switch--band {
+    background: var(--dr-navy-pressed);
+}
+
+.agent-switch--sidebar {
+    display: flex;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.agent-switch__option {
+    min-height: 30px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--dr-navy-mid);
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+
+.agent-switch--sidebar .agent-switch__option {
+    flex: 1;
+}
+
+.agent-switch__option[aria-pressed="true"] {
+    background: var(--dr-white);
+    color: var(--dr-navy);
+    font-weight: 600;
+}
+
+.agent-switch__option:hover:not([aria-pressed="true"]) {
+    color: var(--dr-white);
+}
+
+.agent-switch__option:focus-visible,
+.agent-switch-compact:focus-visible {
+    outline: 2px solid var(--dr-blue-mid);
+    outline-offset: 2px;
+}
+
+.agent-switch-compact {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--dr-white);
+    cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .agent-switch__option {
+        transition: none;
+    }
+}

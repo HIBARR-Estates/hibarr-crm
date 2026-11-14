@@ -1,0 +1,651 @@
+/* Lead merge dialog — layout only; colours come from the redesign --dr-* tokens. */
+
+.lm-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: 12px;
+}
+
+.lm-cards {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 18px 22px 6px;
+}
+
+.lm-card {
+    border: 1px solid var(--dr-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: var(--dr-white);
+    min-width: 0;
+}
+
+.lm-card.is-kept {
+    border-color: var(--dr-blue);
+    box-shadow: 0 0 0 1px var(--dr-blue);
+}
+
+.lm-card-eyebrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--dr-text-muted);
+}
+
+.lm-card-name {
+    margin-top: 4px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--dr-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lm-card-meta {
+    margin-top: 2px;
+    font-size: 12.5px;
+    color: var(--dr-text-muted);
+}
+
+.lm-swap {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    border: 1px solid var(--dr-border);
+    background: var(--dr-white);
+    color: var(--dr-text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.lm-swap:hover {
+    color: var(--dr-blue);
+    border-color: var(--dr-blue);
+}
+
+.lm-swap:focus-visible,
+.lm-opt:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+.lm-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 22px 4px;
+}
+
+.lm-toolbar-hint {
+    font-size: 12.5px;
+    color: var(--dr-text-muted);
+}
+
+.lm-row,
+.lm-heads {
+    display: grid;
+    grid-template-columns: 190px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+    padding: 6px 22px;
+}
+
+.lm-heads {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--dr-white);
+    border-bottom: 1px solid var(--dr-border-soft);
+    padding-top: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--dr-text-muted);
+}
+
+.lm-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 22px 4px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--dr-text-muted);
+}
+
+.lm-chip {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+}
+
+.lm-label {
+    padding-top: 11px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--dr-text);
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.lm-opt {
+    font: inherit;
+    text-align: left;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    min-height: 42px;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--dr-border);
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font-size: 14px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+button.lm-opt {
+    cursor: pointer;
+}
+
+button.lm-opt:hover:not(.is-on) {
+    border-color: var(--dr-blue-mid);
+}
+
+.lm-opt.is-on {
+    border-color: var(--dr-blue);
+    box-shadow: 0 0 0 1px var(--dr-blue);
+    background: color-mix(in srgb, var(--dr-blue-light) 45%, var(--dr-white));
+}
+
+.lm-opt.is-span {
+    grid-column: 2 / 4;
+}
+
+.lm-dot {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+    box-sizing: border-box;
+    border-radius: 999px;
+    border: 1.5px solid var(--dr-border);
+}
+
+.lm-opt.is-on .lm-dot {
+    border: 5px solid var(--dr-blue);
+}
+
+.lm-empty {
+    color: var(--dr-text-hint);
+    font-style: italic;
+}
+
+.lm-hint {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--dr-text-muted);
+}
+
+.lm-none {
+    margin: 16px 22px;
+    padding: 14px;
+    border: 1px dashed var(--dr-border);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--dr-text-muted);
+}
+
+.lm-moves {
+    flex: none;
+    border-top: 1px solid var(--dr-border);
+    background: var(--dr-surface-2);
+    padding: 12px 22px;
+    max-height: 30%;
+    overflow-y: auto;
+}
+
+.lm-moves-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--dr-text-muted);
+    margin-bottom: 8px;
+}
+
+.lm-moves-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.lm-moves-list li {
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--dr-border);
+    background: var(--dr-white);
+    color: var(--dr-text);
+}
+
+.lm-footer-note {
+    margin-right: auto;
+    font-size: 12.5px;
+    color: var(--dr-text-muted);
+    max-width: 520px;
+}
+
+.lm-footer-note.is-error {
+    color: var(--dr-red);
+    font-weight: 600;
+}
+
+@media (max-width: 720px) {
+    .lm-cards {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .lm-swap {
+        justify-self: center;
+        transform: rotate(90deg);
+    }
+
+    .lm-row,
+    .lm-heads {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .lm-label {
+        grid-column: 1 / 3;
+        padding-top: 6px;
+    }
+
+    .lm-opt.is-span {
+        grid-column: 1 / 3;
+    }
+
+    .lm-heads > :first-child {
+        display: none;
+    }
+
+    .lm-moves {
+        max-height: 20%;
+        padding: 10px 16px;
+    }
+
+    .lm-footer-note {
+        font-size: 12px;
+    }
+}
+
+/* ---------- agent workspace skin (canvas L7-35) ---------- */
+.redesign-modal-overlay .modal-panel.lm-agent-panel {
+    max-width: min(1000px, 100%);
+    height: min(860px, calc(100vh - 56px));
+    max-height: none;
+    overflow: hidden;
+    border: 0;
+    border-radius: 16px;
+    box-shadow: none;
+}
+
+.lm-ahead {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--dr-border);
+}
+
+.lm-ahead-icon {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+}
+
+.lm-ahead-text {
+    min-width: 0;
+    flex: 1;
+}
+
+.lm-ahead-text h2 {
+    margin: 0;
+    color: var(--dr-text);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.lm-ahead-text p {
+    margin: 2px 0 0;
+    color: var(--dr-text-muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.lm-ahead-close {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--dr-text-muted);
+    cursor: pointer;
+}
+
+.lm-ahead-close:hover {
+    background: var(--dr-surface-hover);
+    color: var(--dr-text);
+}
+
+.lm-ahead-close:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+.lm-afoot {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 20px;
+    padding: 14px 28px;
+    border-top: 1px solid var(--dr-border);
+}
+
+.lm-afoot .lm-footer-note {
+    min-width: 0;
+    flex: 1 1 320px;
+    margin-right: 0;
+    max-width: none;
+}
+
+.lm-afoot-actions {
+    display: flex;
+    flex: none;
+    gap: 8px;
+}
+
+.lm-agent .lm-cards {
+    padding: 20px 28px 4px;
+}
+
+.lm-agent .lm-card {
+    padding: 14px 16px;
+    border-radius: 12px;
+}
+
+.lm-agent .lm-card.is-kept {
+    border: 2px solid var(--dr-blue);
+    box-shadow: none;
+    padding: 13px 15px;
+}
+
+.lm-agent .lm-card-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+}
+
+.lm-agent .lm-card.is-kept .lm-card-eyebrow {
+    color: var(--dr-blue-dark);
+}
+
+.lm-agent .lm-card-name {
+    margin-top: 4px;
+    font-size: 16px;
+}
+
+.lm-agent .lm-card-meta {
+    margin-top: 4px;
+    font-size: 12px;
+}
+
+.lm-agent .lm-swap {
+    width: 36px;
+    height: 36px;
+    color: var(--dr-navy);
+    border-color: var(--dr-navy-mid);
+}
+
+.lm-agent .lm-toolbar {
+    padding: 16px 28px 4px;
+}
+
+.lm-agent .lm-toolbar-hint {
+    font-size: 12px;
+}
+
+.lm-agent .lm-row,
+.lm-agent .lm-heads {
+    grid-template-columns: 170px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+    padding: 5px 28px;
+}
+
+.lm-agent .lm-heads {
+    padding-top: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--dr-border);
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.lm-agent .lm-group {
+    padding: 14px 28px 6px;
+    color: var(--dr-navy);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+}
+
+.lm-agent .lm-chip {
+    padding: 1px 7px;
+    background: var(--dr-surface-hover);
+    color: var(--dr-text-muted);
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 11px;
+}
+
+.lm-agent .lm-label {
+    align-self: center;
+    padding-top: 0;
+    color: var(--dr-text-muted);
+}
+
+.lm-agent .lm-opt {
+    min-height: 40px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+}
+
+.lm-agent .lm-row {
+    align-items: center;
+}
+
+.lm-agent .lm-opt.is-on {
+    background: var(--dr-blue-wash);
+    font-weight: 600;
+}
+
+.lm-agent .lm-opt.is-on .lm-hint {
+    color: var(--dr-blue-dark);
+    font-weight: 400;
+}
+
+.lm-agent .lm-hint {
+    margin-top: 1px;
+    font-size: 11px;
+    font-weight: 400;
+}
+
+.lm-agent .lm-dot {
+    margin-top: 1px;
+    border-color: var(--dr-text-hint);
+}
+
+.lm-agent .lm-moves {
+    padding: 14px 28px;
+    max-height: none;
+}
+
+.lm-agent .lm-moves-title {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+}
+
+.lm-agent .lm-moves-list li {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* Tablet: the label sits above its two options, as on the phone. */
+@media (max-width: 900px) {
+    .lm-agent .lm-row,
+    .lm-agent .lm-heads {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        padding-inline: 20px;
+    }
+
+    .lm-agent .lm-label {
+        grid-column: 1 / 3;
+        padding-top: 6px;
+    }
+
+    .lm-agent .lm-opt.is-span {
+        grid-column: 1 / 3;
+    }
+
+    .lm-agent .lm-heads > :first-child {
+        display: none;
+    }
+
+    .lm-agent .lm-cards,
+    .lm-agent .lm-toolbar,
+    .lm-agent .lm-group,
+    .lm-agent .lm-moves {
+        padding-inline: 20px;
+    }
+
+    .lm-ahead,
+    .lm-afoot {
+        padding-inline: 20px;
+    }
+}
+
+/* Phone: the dialog fills the screen so the comparison has room, and the footer stacks. */
+@media (max-width: 720px) {
+    .redesign-modal-overlay:has(.lm-agent-panel) {
+        padding: 0;
+    }
+
+    .redesign-modal-overlay .modal-panel.lm-agent-panel {
+        height: 100dvh;
+        max-width: 100%;
+        border-radius: 0;
+    }
+
+    .lm-agent .lm-cards {
+        padding-inline: 16px;
+    }
+
+    .lm-agent .lm-toolbar,
+    .lm-agent .lm-group,
+    .lm-agent .lm-moves,
+    .lm-ahead,
+    .lm-afoot {
+        padding-inline: 16px;
+    }
+
+    .lm-agent .lm-row,
+    .lm-agent .lm-heads {
+        padding-inline: 16px;
+        gap: 8px;
+    }
+
+    /* One scroll for everything: the cards, the comparison and what moves,
+       so the comparison is not squeezed into what the pinned parts leave. */
+    .lm-agent {
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    .lm-agent .lm-scroll {
+        flex: none;
+        overflow: visible;
+        padding-bottom: 0;
+    }
+
+    .lm-agent .lm-heads {
+        top: -1px;
+    }
+
+    .lm-agent .lm-moves {
+        flex: none;
+        padding-block: 12px;
+    }
+
+    .lm-agent .lm-cards {
+        gap: 8px;
+        padding-top: 14px;
+    }
+
+    .lm-agent .lm-card {
+        padding: 10px 12px;
+    }
+
+    .lm-agent .lm-card.is-kept {
+        padding: 9px 11px;
+    }
+
+    .lm-afoot-actions {
+        width: 100%;
+    }
+
+    .lm-afoot-actions .dr-btn {
+        flex: 1 1 0;
+        justify-content: center;
+    }
+}

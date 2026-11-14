@@ -1,0 +1,741 @@
+/* Agent workspace shell (/agent). Colours come from design-tokens.json via the
+   --dr-* variables; nothing here restates a hex value.
+   Breakpoints: phone < 640px, tablet 640-1023px, desktop >= 1024px. */
+
+.agent-ws {
+    --agent-band-height: 300px;
+    --agent-tabbar-height: 64px;
+
+    position: relative;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: var(--dr-bg);
+    color: var(--dr-text);
+    font-family: var(--dr-font-sans);
+    overflow-x: clip;
+}
+
+.agent-ws__band {
+    position: absolute;
+    inset: 0 0 auto;
+    height: var(--agent-band-height);
+    background: var(--dr-navy);
+}
+
+/* ---------- time states (tasks, meetings: late, now, soon, later, none, done) ---------- */
+.agent-ts--late { --ts-bg: var(--dr-time-late-bg); --ts-border: var(--dr-time-late-border); --ts-text: var(--dr-time-late-text); --ts-solid: var(--dr-time-late-solid); }
+.agent-ts--now { --ts-bg: var(--dr-time-now-bg); --ts-border: var(--dr-time-now-border); --ts-text: var(--dr-time-now-text); --ts-solid: var(--dr-time-now-solid); }
+.agent-ts--soon { --ts-bg: var(--dr-time-soon-bg); --ts-border: var(--dr-time-soon-border); --ts-text: var(--dr-time-soon-text); --ts-solid: var(--dr-time-soon-solid); }
+.agent-ts--later { --ts-bg: var(--dr-time-later-bg); --ts-border: var(--dr-time-later-border); --ts-text: var(--dr-time-later-text); --ts-solid: var(--dr-time-later-solid); }
+.agent-ts--none { --ts-bg: var(--dr-time-none-bg); --ts-border: var(--dr-time-none-border); --ts-text: var(--dr-time-none-text); --ts-solid: var(--dr-time-none-solid); }
+.agent-ts--done { --ts-bg: var(--dr-time-done-bg); --ts-border: var(--dr-time-done-border); --ts-text: var(--dr-time-done-text); --ts-solid: var(--dr-time-done-solid); }
+
+/* ---------- sticky chrome (pages that pin a bar, canvas L7-11) ----------
+   The dock, the second row and the page's pinned bar stay on a navy backdrop
+   while the page scrolls under them. The pin is out of the flow, so showing or
+   hiding it never moves the page. */
+.agent-ws__chrome {
+    position: relative;
+}
+
+.agent-ws__pin {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    z-index: 5;
+}
+
+.agent-ws__pin:empty {
+    display: none;
+}
+
+@media (min-width: 1024px) {
+    .agent-ws--sticky-chrome .agent-ws__chrome {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        padding-bottom: 18px;
+        background: var(--dr-navy);
+    }
+
+    .agent-ws--sticky-chrome .agent-ws__main {
+        padding-top: 0;
+    }
+
+    .agent-ws--sticky-chrome .agent-ws__pin {
+        background: var(--dr-navy);
+        padding: 0 24px 18px;
+    }
+}
+
+/* Tablet and phone: the dock scrolls away; only the pinned bar stays, fixed
+   to the top of the screen. */
+@media (max-width: 1023px) {
+    .agent-ws--sticky-chrome .agent-ws__pin {
+        position: fixed;
+        top: 0;
+        z-index: 30;
+        background: var(--dr-navy);
+        padding: 0 16px 10px;
+    }
+}
+
+/* ---------- top row: corner, dock, actions ---------- */
+.agent-ws__top {
+    position: relative;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 24px 0;
+}
+
+.agent-ws__corner,
+.agent-ws__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.agent-ws__actions {
+    justify-content: flex-end;
+}
+
+.agent-ws__brand {
+    display: inline-flex;
+    flex: 0 0 36px;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--dr-blue);
+    color: var(--dr-white);
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.agent-ws__logo {
+    display: block;
+    height: 36px;
+    width: auto;
+    max-width: 150px;
+    flex: 0 1 auto;
+    object-fit: contain;
+}
+
+.agent-ws__bell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--dr-navy-line);
+    border-radius: 50%;
+    background: var(--dr-navy-pressed);
+}
+
+/* Agent | Classic switch styles live in agent-switch.css (the classic sidebar loads it too). */
+.agent-dock__item:focus-visible,
+.agent-tabs__item:focus-visible,
+.agent-pills__pill:focus-visible,
+.agent-menu__trigger:focus-visible,
+.agent-menu__item:focus-visible {
+    outline: 2px solid var(--dr-blue-mid);
+    outline-offset: 2px;
+}
+
+/* ---------- dock ---------- */
+.agent-dock {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 6px;
+    border: 1px solid var(--dr-navy-line);
+    border-radius: 18px;
+    background: var(--dr-white);
+}
+
+.agent-dock__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 13px;
+    border-radius: 12px;
+    color: var(--dr-gray-darker);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+
+.agent-dock__item:hover {
+    background: var(--dr-surface-hover);
+    color: var(--dr-text);
+}
+
+.agent-dock__item[aria-current="page"] {
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+    font-weight: 600;
+}
+
+/* Desktop dock items are words only (L7 boards); icons show on tablet. */
+.agent-dock__item-icon {
+    display: none !important;
+}
+
+.agent-dock__divider {
+    flex: 0 0 1px;
+    width: 1px;
+    height: 26px;
+    margin: 0 4px;
+    background: var(--dr-border);
+}
+
+.agent-dock__search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 150px;
+    height: 40px;
+    padding: 0 10px 0 13px;
+    border-radius: 12px;
+    background: var(--dr-surface-hover);
+    color: var(--dr-text-muted);
+}
+
+.agent-dock__search:focus-within {
+    width: 220px;
+    outline: 2px solid var(--dr-blue-mid);
+}
+
+.agent-dock__search-input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 13px;
+}
+
+.agent-dock__search-input::placeholder {
+    color: var(--dr-text-muted);
+}
+
+.agent-dock__search-input::-webkit-search-cancel-button {
+    display: none;
+}
+
+.agent-dock__kbd {
+    padding: 2px 4px;
+    border: 1px solid var(--dr-border);
+    border-radius: 4px;
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 10px;
+    line-height: 1;
+}
+
+.agent-dock__phone {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    margin-left: 2px;
+    padding: 0 13px;
+    border-radius: 12px;
+    background: var(--dr-green);
+    color: var(--dr-white);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-dock__phone--offline {
+    background: var(--dr-gray-dark);
+}
+
+/* ---------- second row (page pills) ---------- */
+.agent-ws__second-row {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    padding: 10px 24px 0;
+}
+
+.agent-ws__second-row:empty {
+    padding-top: 0;
+}
+
+.agent-pills {
+    display: flex;
+    gap: 6px;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.agent-pills::-webkit-scrollbar {
+    display: none;
+}
+
+.agent-pills__pill {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 7px;
+    min-height: 34px;
+    padding: 0 13px;
+    border: 1px solid var(--dr-navy-line);
+    border-radius: 999px;
+    background: var(--dr-navy-pressed);
+    color: var(--dr-navy-soft);
+    font: inherit;
+    font-size: 13px;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-pills__pill[aria-selected="true"],
+.agent-pills__pill[aria-current="page"] {
+    border-color: var(--dr-white);
+    background: var(--dr-white);
+    color: var(--dr-navy);
+    font-weight: 600;
+}
+
+.agent-pills__pill[aria-pressed="true"] {
+    border-color: var(--dr-white);
+    background: var(--dr-white);
+    color: var(--dr-navy);
+    font-weight: 600;
+}
+
+/* An action in the row (not a place): dashed, dimmer. */
+.agent-pills__pill--action {
+    border-style: dashed;
+    color: var(--dr-navy-mid);
+}
+
+.agent-pills__pill:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
+/* In a row of pills or inside a button the tag centres on the label. */
+.agent-pills__pill .agent-new-tag,
+button .agent-new-tag {
+    align-self: center;
+}
+
+/* A pill whose page is not built yet: held in place, not clickable. */
+.agent-pills__pill--held {
+    border-style: dashed;
+    color: var(--dr-navy-mid);
+    cursor: default;
+}
+
+/* The dashed purple "New" tag: something the approved screen shows that the CRM has no data for yet. */
+.agent-new-tag {
+    display: inline-block;
+    align-self: flex-start;
+    padding: 3px 6px;
+    border: 1px dashed var(--dr-purple);
+    border-radius: 4px;
+    background: var(--dr-purple-soft);
+    color: var(--dr-purple);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.agent-new-tag__hint {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.agent-pills__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+/* ---------- page body ---------- */
+.agent-ws__main {
+    position: relative;
+    z-index: 1;
+    padding: 18px 24px 24px;
+}
+
+/* ---------- account menu ---------- */
+.agent-menu {
+    position: relative;
+}
+
+.agent-menu__trigger {
+    display: inline-flex;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+}
+
+.agent-menu__list {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 30;
+    min-width: 220px;
+    margin: 0;
+    padding: 6px;
+    list-style: none;
+    border: 1px solid var(--dr-border);
+    border-radius: 12px;
+    background: var(--dr-white);
+}
+
+.agent-menu__name {
+    padding: 8px 10px 6px;
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+.agent-menu__item {
+    display: block;
+    width: 100%;
+    min-height: 40px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.agent-menu__item:hover {
+    background: var(--dr-surface-hover);
+}
+
+.agent-menu__item--danger {
+    color: var(--dr-red);
+}
+
+.agent-menu__group {
+    padding: 10px 10px 4px;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.agent-menu__sublist {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-menu__item--lang {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.agent-menu__item--lang[aria-checked="true"] {
+    font-weight: 600;
+}
+
+.agent-menu__lang-name {
+    flex: 1;
+}
+
+.agent-menu__check {
+    color: var(--dr-blue);
+}
+
+.agent-menu__separator {
+    height: 1px;
+    margin: 6px 4px;
+    background: var(--dr-border-soft);
+}
+
+/* ---------- phone bottom tab bar ---------- */
+.agent-ws__tabbar {
+    display: none;
+}
+
+.agent-tabs {
+    display: flex;
+    justify-content: space-around;
+}
+
+.agent-tabs__item {
+    display: inline-flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 52px;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.agent-tabs__item[aria-current="page"] {
+    color: var(--dr-blue-dark);
+    font-weight: 600;
+}
+
+/* ---------- tablet: condensed dock (icons; label on hover/focus via title) ---------- */
+@media (max-width: 1023px) {
+    .agent-ws {
+        --agent-band-height: 220px;
+    }
+
+    .agent-ws__top {
+        padding: 14px 16px 0;
+        gap: 10px;
+    }
+
+    .agent-dock__label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .agent-dock__item {
+        width: 44px;
+        height: 44px;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .agent-dock__item-icon {
+        display: block !important;
+    }
+
+    .agent-dock__search {
+        width: 44px;
+        padding: 0;
+        justify-content: center;
+    }
+
+    /* Typing opens a dropdown, so the field needs little room of its own; the dock must not push into the corner. */
+    .agent-dock__search:focus-within {
+        width: 128px;
+        padding: 0 10px;
+    }
+
+    .agent-dock__search {
+        position: relative;
+    }
+
+    /* The field still takes the tap: it covers the icon until focused. */
+    .agent-dock__search-input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+    }
+
+    .agent-dock__kbd {
+        display: none;
+    }
+
+    .agent-dock__search:focus-within .agent-dock__search-input {
+        position: static;
+        opacity: 1;
+    }
+
+    .agent-dock__phone {
+        width: 44px;
+        height: 44px;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .agent-dock__phone-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .agent-ws__second-row,
+    .agent-ws__main {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+}
+
+/* ---------- phone: slim top bar, bottom tab bar ---------- */
+@media (max-width: 639px) {
+    .agent-ws {
+        --agent-band-height: 168px;
+    }
+
+    .agent-ws__top {
+        grid-template-columns: 1fr auto;
+        padding: 12px 16px 0;
+    }
+
+    .agent-ws__dock-wrap {
+        display: none;
+    }
+
+    .agent-ws__second-row {
+        justify-content: flex-start;
+    }
+
+    .agent-ws--with-tabs .agent-ws__main {
+        padding-bottom: calc(var(--agent-tabbar-height) + 16px + env(safe-area-inset-bottom));
+    }
+
+    .agent-ws--with-tabs .agent-ws__tabbar {
+        position: fixed;
+        inset: auto 0 0;
+        z-index: 40;
+        display: block;
+        min-height: var(--agent-tabbar-height);
+        padding: 6px 8px env(safe-area-inset-bottom);
+        border-top: 1px solid var(--dr-border);
+        background: var(--dr-white);
+    }
+
+    /* Keep the softphone clear of the tab bar. */
+    .agent-ws--with-tabs .sp {
+        bottom: calc(var(--agent-tabbar-height) + 12px + env(safe-area-inset-bottom));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .agent-dock__item {
+        transition: none;
+    }
+}
+
+/* ---------- Today (shell) ---------- */
+.agent-today {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 1392px;
+    margin: 0 auto;
+}
+
+.agent-today__heading h1 {
+    margin: 0;
+    color: var(--dr-white);
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.agent-today__heading p {
+    margin: 4px 0 0;
+    color: var(--dr-navy-mid);
+    font-size: 14px;
+}
+
+@media (max-width: 639px) {
+    .agent-today__heading h1 {
+        font-size: 20px;
+    }
+}
+
+/* The workspace's secondary action ("Open agenda", "New activity", "+ Note"):
+   a soft blue button, between the filled primary and the plain ghost. */
+.agent-btn-soft.dr-btn {
+    border-color: var(--dr-blue-mid);
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+}
+
+.agent-btn-soft.dr-btn:hover:not(:disabled) {
+    border-color: var(--dr-blue);
+    background: var(--dr-blue-mid);
+}
+
+/* ---------- in-list search, in the title block on the band ---------- */
+.agent-list-head {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.agent-list-search-row {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 14px;
+}
+
+.agent-list-search {
+    position: relative;
+    display: flex;
+    width: 280px;
+    max-width: 100%;
+    height: 38px;
+    align-items: center;
+}
+
+.agent-list-search svg {
+    position: absolute;
+    left: 11px;
+    color: var(--dr-text-hint);
+    pointer-events: none;
+}
+
+.agent-list-search input {
+    width: 100%;
+    height: 100%;
+    padding: 0 11px 0 32px;
+    border: 1px solid var(--dr-white);
+    border-radius: 9px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 14px;
+}
+
+.agent-list-search input::placeholder {
+    color: var(--dr-text-hint);
+}
+
+.agent-list-search input:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 1px;
+}
+
+@media (max-width: 639px) {
+    .agent-list-search {
+        width: 100%;
+    }
+}

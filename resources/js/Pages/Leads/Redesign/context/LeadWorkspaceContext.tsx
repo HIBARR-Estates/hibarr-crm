@@ -16,6 +16,7 @@ import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { LeadContactFile } from "@/Types/api/file";
 import type { Lead } from "@/Types/api/leads";
 import type { LeadNote } from "@/Types/api/lead-note";
+import type { SallyMeetingInsight } from "@/Types/api/sally-meeting-insight";
 import type { Task } from "@/Types/api/tasks";
 
 interface EntityResponse<T> {
@@ -40,6 +41,13 @@ interface LeadWorkspaceValue {
     files: LeadContactFile[];
     setFiles: Dispatch<SetStateAction<LeadContactFile[]>>;
     filesLoading: boolean;
+    sallyInsights: SallyMeetingInsight[];
+    setSallyInsights: Dispatch<SetStateAction<SallyMeetingInsight[]>>;
+    sallyInsightsLoading: boolean;
+    /** True once the query settles, so tab visibility isn't decided mid-flight. */
+    sallyInsightsSettled: boolean;
+    sallyInsightsError: boolean;
+    refetchSallyInsights: () => void;
     addNote: (note: LeadNote) => void;
     addTask: (task: Task) => void;
     addLeadFollowUp: (followUp: DealFollowup) => void;
@@ -54,6 +62,8 @@ interface LeadWorkspaceProviderProps {
     leadFollowUps?: DealFollowup[];
     deals?: Deal[];
     children: ReactNode;
+    /** Mirrors the crm.sally-insights-tab flag: off means no request at all. */
+    sallyInsightsEnabled?: boolean;
 }
 
 /**
@@ -71,6 +81,7 @@ export function LeadWorkspaceProvider({
     leadFollowUps: leadFollowUpsProp,
     deals: dealsProp,
     children,
+    sallyInsightsEnabled = false,
 }: LeadWorkspaceProviderProps) {
     const [lead, setLead] = useState<Lead>(initialLead);
     useEffect(() => {
@@ -104,10 +115,15 @@ export function LeadWorkspaceProvider({
     );
     const [deals, setDeals] = useState<Deal[]>(() => dealsProp ?? []);
     const [files, setFiles] = useState<LeadContactFile[]>([]);
+    const [sallyInsights, setSallyInsights] = useState<SallyMeetingInsight[]>([]);
 
     const filesQuery = useApiQuery<EntityResponse<LeadContactFile[]>>({
         path: route("lead-contact.files.index", lead.id),
         options: { staleTime: 30_000 },
+    });
+    const sallyInsightsQuery = useApiQuery<EntityResponse<SallyMeetingInsight[]>>({
+        path: route("lead-contact.sally-insights.index", lead.id),
+        options: { staleTime: 30_000, enabled: sallyInsightsEnabled },
     });
 
     const seeded = useRef({
@@ -115,6 +131,7 @@ export function LeadWorkspaceProvider({
         tasks: tasksProp !== undefined,
         leadFollowUps: leadFollowUpsProp !== undefined,
         files: false,
+        sallyInsights: false,
         filesLeadId: lead.id,
     });
 
@@ -123,7 +140,9 @@ export function LeadWorkspaceProvider({
         if (seeded.current.filesLeadId === lead.id) return;
         seeded.current.filesLeadId = lead.id;
         seeded.current.files = false;
+        seeded.current.sallyInsights = false;
         setFiles([]);
+        setSallyInsights([]);
     }, [lead.id]);
 
     useEffect(() => {
@@ -178,6 +197,13 @@ export function LeadWorkspaceProvider({
         }
     }, [filesQuery.data]);
 
+    useEffect(() => {
+        if (!seeded.current.sallyInsights && sallyInsightsQuery.data?.data) {
+            setSallyInsights(sallyInsightsQuery.data.data);
+            seeded.current.sallyInsights = true;
+        }
+    }, [sallyInsightsQuery.data]);
+
     const addNote = useCallback((note: LeadNote) => {
         setNotes((prev) => [note, ...prev.filter((n) => n.id !== note.id)]);
     }, []);
@@ -211,6 +237,14 @@ export function LeadWorkspaceProvider({
             files,
             setFiles,
             filesLoading: filesQuery.isLoading,
+            sallyInsights,
+            setSallyInsights,
+            sallyInsightsLoading: sallyInsightsQuery.isLoading,
+            sallyInsightsSettled: !sallyInsightsQuery.isLoading,
+            sallyInsightsError: sallyInsightsQuery.isError,
+            refetchSallyInsights: () => {
+                void sallyInsightsQuery.refetch();
+            },
             addNote,
             addTask,
             addLeadFollowUp,
@@ -222,6 +256,11 @@ export function LeadWorkspaceProvider({
             deals,
             files,
             filesQuery.isLoading,
+            sallyInsights,
+            sallyInsightsQuery.isLoading,
+            sallyInsightsQuery.isError,
+            sallyInsightsQuery.refetch,
+            setSallyInsights,
             lead,
             leadFollowUps,
             leadFollowUpsProp,

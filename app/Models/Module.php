@@ -1734,11 +1734,8 @@ class Module extends BaseModel
                     'is_custom' => 1,
                     'name' => 'view_team_dashboard',
                 ],
-                [
-                    'allowed_permissions' => Permission::ALL_NONE,
-                    'is_custom' => 1,
-                    'name' => 'view_leadership_dashboard',
-                ],
+                // No view_leadership_dashboard: the Company dashboard is opened
+                // by being on the company's list (CompanyDashboardAccess).
                 [
                     'allowed_permissions' => Permission::ALL_NONE,
                     'is_custom' => 1,
@@ -1751,6 +1748,19 @@ class Module extends BaseModel
                     'allowed_permissions' => Permission::ALL_NONE,
                     'is_custom' => 1,
                     'name' => 'manage_partner_flags',
+                ],
+                [
+                    'allowed_permissions' => Permission::ALL_ADDED_NONE,
+                    'is_custom' => 1,
+                    'name' => 'make_softphone_calls',
+                ],
+                // Call management: the Calls menu, every agent's calls and
+                // every recording. Kept apart from make_softphone_calls,
+                // because listening to colleagues' calls is a separate grant.
+                [
+                    'allowed_permissions' => Permission::ALL_NONE,
+                    'is_custom' => 1,
+                    'name' => 'manage_calls',
                 ],
             ]
         ],

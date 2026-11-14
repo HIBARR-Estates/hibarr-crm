@@ -61,8 +61,10 @@ class TeamDownlineService
      * would blow PHP's 30s limit before the tile could paint. Past this many
      * the panel says so (`truncated`) rather than quietly reporting a partial
      * number as the whole picture.
+     *
+     * Public so the company view's forecast spends the same budget.
      */
-    private const FORECAST_MAX_DEALS = 12;
+    public const FORECAST_MAX_DEALS = 12;
 
     public function __construct(
         private HierarchyService $hierarchy,

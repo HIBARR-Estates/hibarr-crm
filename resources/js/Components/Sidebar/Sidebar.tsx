@@ -20,7 +20,9 @@ import {
     HistoryOutlined,
     GiftOutlined,
     AppstoreOutlined,
+    PhoneOutlined,
 } from "@ant-design/icons";
+import { canManageCalls } from "@/Hooks/useSoftphone";
 
 import {
     HouseIcon,
@@ -32,6 +34,7 @@ import {
     CheckSquareIcon,
 } from "../icons";
 import { PageProps } from "../DashboardLayout";
+import AgentViewSwitch from "@/Components/Redesign/agent/AgentViewSwitch";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { isPermissionAll } from "@/lib/permissionUtils";
@@ -66,7 +69,7 @@ const PARTNER_NAV_KEYS = new Set(["dashboard", "partner-leads", "my-mlm"]);
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const { props } = usePage<PageProps>();
-    const { auth, company, appName, integrationsHubUrl } = props;
+    const { auth, company, appName, integrationsHubUrl, impersonation } = props;
     const { user } = auth;
     const pipelines = (props.pipelines || []) as Pipeline[];
     const defaultPipeline = pipelines.find((p) => p.default === 1);
@@ -75,6 +78,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const canManageOffers = isPermissionAll(
         props.auth?.permissions?.manage_offers,
     );
+    // Calls page: call managers (admins, or manage_calls = all) while the
+    // softphone feature is on. Mirrors the server gate on calls.index.
+    const canViewCalls =
+        props.featureFlags?.["crm.softphone"] === true &&
+        canManageCalls(props.auth?.user, props.auth?.permissions);
     const canViewPaymentRequests =
         props.featureFlags?.["packages.online-payment"] === true &&
         isPermissionAll(props.auth?.permissions?.edit_payments);
@@ -265,6 +273,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             label: t("app.menu.meetings"),
             icon: <CalendarIcon />,
             href: "/account/meetings",
+        },
+        {
+            key: "calls",
+            label: t("app.menu.calls"),
+            icon: <PhoneOutlined />,
+            href: "/account/calls",
+            hidden: !canViewCalls,
         },
         {
             key: "tasks",
@@ -661,6 +676,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 ${isMobileDrawer ? "w-full max-w-[320px]" : effectiveCollapsed ? "w-[72px]" : "w-[260px]"}
                 ${mobileTranslateClass}
             `}
+            style={impersonation ? { paddingTop: 44 } : undefined}
         >
             {/* Header / Brand */}
             <div
@@ -708,6 +724,21 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     </button>
                 )}
             </div>
+
+            {/* Agent | Classic switch — only for people with agent workspace access */}
+            {props.agentWorkspace?.url && (
+                <div
+                    className={`border-b border-slate-700/50 ${
+                        effectiveCollapsed ? "flex justify-center py-3" : "px-3 py-3"
+                    }`}
+                >
+                    <AgentViewSwitch
+                        current="classic"
+                        tone="sidebar"
+                        compact={effectiveCollapsed}
+                    />
+                </div>
+            )}
 
             {/* Navigation */}
             <nav className="flex-1 overflow-y-auto px-3 py-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">

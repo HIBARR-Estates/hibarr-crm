@@ -35,6 +35,7 @@ use App\Models\TaskLabelList;
 use App\Models\TaskSetting;
 use App\Models\TaskUser;
 use App\Models\User;
+use App\Services\Dashboard\DashboardMetricsService;
 use App\Services\PermissionService;
 use App\Services\Reminders\TaskReminderSync;
 use App\Services\TaskFilterCountsService;
@@ -460,6 +461,92 @@ class TaskController extends AccountBaseController
         }
 
         return Inertia::render('Tasks/Index', $props);
+    }
+
+    /** Open tasks the agent workspace's list holds at most; the page says so when it is cut. */
+    public const AGENT_TASKS_LIMIT = 500;
+
+    /**
+     * The agent workspace's Tasks list: one scope of the viewer's open tasks
+     * (mine, assigned by me, or the whole team for someone who sees all), on
+     * the Tasks index's own permission check and filters. The rows arrive after
+     * the page, so first paint never waits on them.
+     */
+    /**
+     * One task as the agent workspace's task modal opens it, for a row that only
+     * carries the task's id (People's next action). Runs on the same permission
+     * scope as the Tasks list, so a task the viewer cannot see is a 404.
+     */
+    public function agentShow(int $task, DashboardMetricsService $metrics): \Illuminate\Http\JsonResponse
+    {
+        abort_unless(in_array(user()->permission('view_tasks'), ['all', 'added', 'owned', 'both'], true), 403);
+
+        $row = $this->filteredTasksQuery(applyQuickFilter: false)
+            ->with(TaskPresenter::RELATIONS)
+            ->withCount(TaskPresenter::COUNTS)
+            ->whereKey($task)
+            ->firstOrFail();
+
+        return response()->json(['task' => $metrics->presentTasks(collect([$row]))[0]]);
+    }
+
+    public function agentIndex(Request $request, DashboardMetricsService $metrics)
+    {
+        $viewPermission = user()->permission('view_tasks');
+
+        // A bookmarkable page: a denial is a 403, not a redirect back.
+        abort_unless(in_array($viewPermission, ['all', 'added', 'owned', 'both'], true), 403);
+
+        $userId = (int) user()->id;
+        $canSeeTeam = $viewPermission === 'all';
+        $scope = (string) $request->query('scope', 'mine');
+        if (! in_array($scope, ['mine', 'byme', 'team'], true) || ($scope === 'team' && ! $canSeeTeam)) {
+            $scope = 'mine';
+        }
+
+        $filterKeys = ['search', 'priority', 'category_id', 'assigned_to', 'assigned_by', 'project_id', 'labels',
+            'due_date_range', 'due_start_date', 'due_end_date', 'created_date_range', 'created_start_date', 'created_end_date'];
+
+        $query = fn () => $this->filteredTasksQuery(applyQuickFilter: false)
+            ->pending()
+            ->when($scope === 'mine', fn ($q) => $q->assignedToUser($userId))
+            ->when($scope === 'byme', fn ($q) => $q->where(
+                fn ($by) => $by->where('tasks.added_by', $userId)->orWhere('tasks.created_by', $userId)
+            ));
+
+        return Inertia::render('AgentWorkspace/Tasks', [
+            'pageTitle' => __('pages.agent_workspace.tasks.title'),
+            'userId' => $userId,
+            'now' => now()->toIso8601String(),
+            'scope' => $scope,
+            'canSeeTeam' => $canSeeTeam,
+            'limit' => self::AGENT_TASKS_LIMIT,
+            'filters' => $request->only($filterKeys),
+
+            'tasks' => Inertia::defer(function () use ($query, $metrics) {
+                $total = $query()->count();
+                $rows = $query()
+                    ->with(TaskPresenter::RELATIONS)
+                    ->withCount(TaskPresenter::COUNTS)
+                    ->orderByRaw('tasks.due_date IS NULL')
+                    ->orderBy('tasks.due_date')
+                    ->orderBy('tasks.id')
+                    ->limit(self::AGENT_TASKS_LIMIT)
+                    ->get();
+
+                return ['items' => $metrics->presentTasks($rows), 'total' => $total];
+            }, 'tasks'),
+
+            // The task modal cannot render its status control or category picker without these.
+            'taskBoardColumns' => Inertia::defer(fn () => $this->taskColumnsForSelect(), 'tasks'),
+            'taskCategories' => Inertia::defer(fn () => $this->taskCategoriesForSelect(), 'tasks'),
+
+            // Lookups for the Filters modal, only read once it opens.
+            'categories' => Inertia::defer(fn () => $this->taskCategoriesForSelect(), 'taskMeta'),
+            'labels' => Inertia::defer(fn () => $this->taskLabelsForSelect(), 'taskMeta'),
+            'users' => Inertia::defer(fn () => $this->taskUsersForSelect($viewPermission), 'taskMeta'),
+            'projects' => Inertia::defer(fn () => $this->taskProjectsForSelect(), 'taskMeta'),
+        ]);
     }
 
     /**

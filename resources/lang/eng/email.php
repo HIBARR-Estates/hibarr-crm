@@ -950,4 +950,13 @@ return [
             'action' => 'View deal',
         ],
     ],
+    'leadMerged' => [
+        'subject' => 'Lead merged into another record',
+        'text' => ':duplicate was merged into :kept by :mergedBy. Its notes, tasks, deals, meetings, calls and files are now on that lead.',
+        'ownerLine' => 'The lead is now owned by :owner.',
+        'youOwnLine' => 'You own the merged lead.',
+        'action' => 'Open lead',
+        'actionDescription' => 'Open the merged lead to see its full history in one place.',
+        'unknownActor' => 'A team member',
+    ],
 ];

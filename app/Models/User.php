@@ -311,6 +311,7 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
         'two_factor_expires_at	' => 'array',
         'salutation' => Salutation::class,
         'timezone_locked' => 'boolean',
+        'can_receive_calls' => 'boolean',
     ];
 
     protected $appends = ['image_url', 'modules', 'mobile_with_phone_code', 'name_salutation', 'phone_number', 'country_code', 'phone_number', 'country_code'];
@@ -1192,25 +1193,7 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
 
     public function permissionTypeId($permission)
     {
-        $cacheKey = 'permission-id-' . $permission . '-' . $this->id;
-
-        if (cache()->has($cacheKey)) {
-            return cache($cacheKey);
-        }
-
-        $permissionType = UserPermission::join('permissions', 'user_permissions.permission_id', '=', 'permissions.id')
-            ->join('permission_types', 'user_permissions.permission_type_id', '=', 'permission_types.id')
-            ->select('permission_types.name', 'permission_types.id')
-            ->where('permissions.name', $permission)
-            ->where('user_permissions.user_id', $this->id)
-            ->first();
-
-        $permissionName = $permissionType ? $permissionType->name : false;
-
-        cache([$cacheKey => $permissionName]);
-
-        return $permissionName;
-
+        return $this->permission($permission);
     }
 
     /**
@@ -1255,6 +1238,8 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
         foreach (array_chunk($data, 100) as $item) {
             UserPermission::insert($item);
         }
+
+        app()->forgetInstance('user.permission-map.' . $this->id);
     }
 
     public function assignModuleRolePermission($module)

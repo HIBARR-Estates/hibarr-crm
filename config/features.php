@@ -11,6 +11,9 @@ return [
         'crm.deal-view-redesign',
         'crm.lead-view-redesign',
         'crm.lead-ai-summary',
+        // Next meeting / open tasks / deals strip above the lead workspace tabs. It repeats what the
+        // tabs and dossier already show, so it is hidden unless this flag is on.
+        'crm.lead-quick-stats',
         'crm.lead-merge',
         'crm.lead-automation-engine',
         'crm.notification-service-routing',
@@ -26,6 +29,7 @@ return [
         'sales.bulk-agent-promotion',
         'sales.crm-lead-deal-sync',
         'sally.crm-write-client',
+        'crm.sally-insights-tab',
         'integrations.zoho-calendar-sync',
         'crm.unit-sold-out-badge',
         'crm.unit-sold-out-grid-diagonal-ribbon',
@@ -47,6 +51,8 @@ return [
         'crm.personal-dashboard',
         'crm.manager-dashboard',
         'crm.team-dashboard',
+        // Company-wide dashboard (?view=leadership) and its switcher tab (HIB-1330); cleanup HIB-1952.
+        'crm.company-dashboard',
         'crm.partner-flag-routing',
         'crm.partner.lead-stalled',
         'crm.partner-keycloak-provision',
@@ -56,9 +62,14 @@ return [
         'crm.deal-value-commission',
         'shared.3cx-calling',
         'crm.softphone',
+        'callbridge.integrations',
         'crm.mobile-responsive-layout',
         'crm.property-completeness-score',
         'crm.email',
+        // Agent workspace at /agent (Today, contact page, destinations). Master switch on top of the
+        // per-user access list in Settings → Agent workspace access (lead agents by default).
+        'crm.agent-workspace',
+        'softphone.voicemail',
     ],
 
     /*
@@ -73,5 +84,22 @@ return [
         'crm.meeting-attendance-confirmation' => true,
         'crm.mobile-responsive-layout' => true,
         'crm.email' => true,
+        'crm.sally-insights-tab' => true,
+        'crm.lead-view-redesign' => true,
+        'crm.softphone' => true,
+    ],
+
+    /*
+    | Force-enable specific flags in local-ish environments regardless of what
+    | the remote flags service returns. Used for flags under active development
+    | that may not be registered in the remote service yet. Never applies
+    | outside local/development/codecanyon environments.
+    */
+    'local_overrides' => [
+        'crm.sally-insights-tab' => true,
+        'callbridge.integrations' => true,
+        'crm.agent-workspace' => true,
+        'softphone.voicemail' => true,
+        'crm.softphone' => true,
     ],
 ];

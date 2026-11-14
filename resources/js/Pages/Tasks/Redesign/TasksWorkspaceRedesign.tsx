@@ -77,23 +77,52 @@ const PRIORITY_TREATMENT: "stripe" | "pill" = "stripe";
 const SHOW_ROW_CATEGORY = true;
 const BOARD_CARD_META: "full" | "minimal" = "full";
 
+const EMPTY_TASKS: Task[] = [];
+const EMPTY_CATEGORIES: TasksWorkspaceRedesignProps["categories"] = [];
+const EMPTY_LABELS: TasksWorkspaceRedesignProps["labels"] = [];
+const EMPTY_USERS: TasksWorkspaceRedesignProps["users"] = [];
+const EMPTY_COLUMNS: TasksWorkspaceRedesignProps["columns"] = [];
+const EMPTY_PROJECTS: TasksWorkspaceRedesignProps["projects"] = [];
+const EMPTY_DEALS: TasksWorkspaceRedesignProps["deals"] = [];
+const EMPTY_LEADS: TasksWorkspaceRedesignProps["leads"] = [];
+const EMPTY_PROPERTIES: TasksWorkspaceRedesignProps["properties"] = [];
+const EMPTY_DEV_PROJECTS: NonNullable<
+    TasksWorkspaceRedesignProps["developerProjects"]
+> = [];
+const EMPTY_SAVED_VIEWS: SavedView[] = [];
+const DEFAULT_STATS: TasksWorkspaceRedesignProps["stats"] = {
+    total: 0,
+    completed: 0,
+    overdue: 0,
+    dueToday: 0,
+};
+const DEFAULT_TABLE_TASKS: NonNullable<
+    TasksWorkspaceRedesignProps["tableTasks"]
+> = {
+    data: EMPTY_TASKS,
+    current_page: 1,
+    total: 0,
+    per_page: 15,
+    last_page: 1,
+};
+
 export default function TasksWorkspaceRedesign({
     tableTasks,
-    kanbanTasks = [],
+    kanbanTasks = EMPTY_TASKS,
     taskQuickCounts,
-    categories = [],
-    labels = [],
-    users = [],
+    categories = EMPTY_CATEGORIES,
+    labels = EMPTY_LABELS,
+    users = EMPTY_USERS,
     mentionablePeople,
-    columns = [],
-    projects = [],
-    deals = [],
-    leads = [],
-    properties = [],
-    developerProjects = [],
+    columns = EMPTY_COLUMNS,
+    projects = EMPTY_PROJECTS,
+    deals = EMPTY_DEALS,
+    leads = EMPTY_LEADS,
+    properties = EMPTY_PROPERTIES,
+    developerProjects = EMPTY_DEV_PROJECTS,
     permissions,
-    stats = { total: 0, completed: 0, overdue: 0, dueToday: 0 },
-    savedViews = [],
+    stats = DEFAULT_STATS,
+    savedViews = EMPTY_SAVED_VIEWS,
     filters,
     auth,
     now,
@@ -207,13 +236,7 @@ export default function TasksWorkspaceRedesign({
         navigateToPage,
         changePageSize,
     } = useTasksServerPagination({
-        tableTasks: tableTasks ?? {
-            data: [],
-            current_page: 1,
-            total: 0,
-            per_page: 15,
-            last_page: 1,
-        },
+        tableTasks: tableTasks ?? DEFAULT_TABLE_TASKS,
         onPersistPageSize: persistPageSize,
     });
 

@@ -1,258 +1,39 @@
-import React, { useMemo, useState } from "react";
-import axios from "axios";
-import { DeleteOutlined, PlusOutlined, RightOutlined } from "@ant-design/icons";
-import { App, Select } from "antd";
-import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
+import React, { useMemo } from "react";
+import {
+    InfoCircleOutlined,
+    UserOutlined,
+    PhoneOutlined,
+    SwapRightOutlined,
+} from "@ant-design/icons";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
-import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { SoftphoneDeviceSummary } from "@/Types/api/softphone";
+
+import LinePool from "./SoftphoneCallPool/components/LinePool";
+import FallbackTierPool from "./SoftphoneCallPool/components/FallbackTierPool";
 
 import "@/Components/Redesign/redesign.css";
 import "./CallBridgeSettings.css";
 
-interface PoolAgent {
-    id: number;
-    user_id: number;
-    name: string | null;
-    email: string | null;
-    priority: number;
-    active: boolean;
-}
+// Re-export types for backward compatibility
+export type { PoolAgent, EligibleUser, PoolResponse, EligibleResponse, TierScope } from "./SoftphoneCallPool/types";
 
-interface EligibleUser {
-    id: number;
-    name: string;
-    email: string | null;
-}
-
-interface PoolResponse {
-    status: string;
-    data: { agents: PoolAgent[] };
-}
-
-interface EligibleResponse {
-    status: string;
-    data: { users: EligibleUser[] };
-}
-
-function initials(name: string | null, userId: number): string {
-    const source = name?.trim() || `User ${userId}`;
-    return source
-        .split(/\s+/)
-        .map((part) => part[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase();
+interface SoftphoneCallPoolManagerProps {
+    devices: SoftphoneDeviceSummary[];
+    initialFallbackSeconds?: number;
 }
 
 /**
- * One phone line's call pool: the agents who receive its inbound calls, plus
- * the inline "add agent" form that adds to this line.
- */
-function LinePool({
-    device,
-}: {
-    device: { id: number; label: string; is_default?: boolean };
-}) {
-    const { message } = App.useApp();
-    const [picking, setPicking] = useState(false);
-    const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-    const [deleteTarget, setDeleteTarget] = useState<PoolAgent | null>(null);
-    const [removingId, setRemovingId] = useState<number | null>(null);
-    const [saving, setSaving] = useState(false);
-
-    const poolQuery = useApiQuery<PoolResponse>({
-        path: route("telephony.softphone.call-pool.index", { device_id: device.id }),
-    });
-    const eligibleQuery = useApiQuery<EligibleResponse>({
-        path: route("telephony.softphone.call-pool.eligible"),
-        options: { enabled: picking },
-    });
-
-    const agents = poolQuery.data?.data?.agents ?? [];
-    const eligible = eligibleQuery.data?.data?.users ?? [];
-    const alreadyInPool = new Set(agents.map((a) => a.user_id));
-    const options = eligible
-        .filter((u) => !alreadyInPool.has(u.id))
-        .map((u) => ({
-            value: u.id,
-            label: u.email ? `${u.name} — ${u.email}` : u.name,
-        }));
-
-    const submitAdd = async () => {
-        if (!selectedUserId) return;
-        setSaving(true);
-        try {
-            await axios.post(
-                route("telephony.softphone.call-pool.store"),
-                { device_id: device.id, user_id: selectedUserId },
-                { headers: { Accept: "application/json" } },
-            );
-            setPicking(false);
-            setSelectedUserId(null);
-            await poolQuery.refetch();
-            void message.success("Agent added to the pool.");
-        } catch {
-            void message.error("Could not add agent.");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const handleRemove = async () => {
-        if (!deleteTarget) return;
-        setRemovingId(deleteTarget.id);
-        try {
-            await axios.delete(route("telephony.softphone.call-pool.destroy", deleteTarget.id), {
-                headers: { Accept: "application/json" },
-            });
-            await poolQuery.refetch();
-            setDeleteTarget(null);
-            void message.success("Agent removed from the pool.");
-        } catch {
-            void message.error("Could not remove agent.");
-        } finally {
-            setRemovingId(null);
-        }
-    };
-
-    const cancelAdd = () => {
-        setPicking(false);
-        setSelectedUserId(null);
-    };
-
-    return (
-        <details className="cb-group" open>
-            <summary className="cb-summary">
-                <RightOutlined className="cb-chev" aria-hidden="true" />
-                <span className="cb-group__name">{device.label}</span>
-                {device.is_default && <span className="cb-chip cb-chip--default">Default</span>}
-                <span className="cb-group__count">
-                    {agents.length} agent{agents.length === 1 ? "" : "s"}
-                </span>
-            </summary>
-
-            <div className="cb-table cb-pool" role="table" aria-label={`${device.label} agents`}>
-                <div className="cb-grid-row cb-grid-row--head cb-pool" role="row">
-                    <span>Agent</span>
-                    <span>Priority</span>
-                    <span aria-hidden="true" />
-                </div>
-
-                {poolQuery.isLoading ? (
-                    <div className="cb-empty">Loading…</div>
-                ) : agents.length === 0 ? (
-                    <div className="cb-empty">No agents on this line yet.</div>
-                ) : (
-                    agents.map((agent) => (
-                        <div
-                            key={agent.id}
-                            className="cb-grid-row cb-pool"
-                            role="row"
-                        >
-                            <div className="cb-who">
-                                <span className="cb-avatar" aria-hidden="true">
-                                    {initials(agent.name, agent.user_id)}
-                                </span>
-                                <span className="cb-who-text">
-                                    <span className="cb-name" title={agent.name ?? undefined}>
-                                        {agent.name ?? `User #${agent.user_id}`}
-                                    </span>
-                                    {agent.email && <span className="cb-sub">{agent.email}</span>}
-                                </span>
-                            </div>
-                            <span>
-                                <span className="cb-prio cb-num">{agent.priority}</span>
-                            </span>
-                            <button
-                                type="button"
-                                className="cb-icon-btn"
-                                aria-label={`Remove ${agent.name ?? "agent"} from ${device.label}`}
-                                disabled={removingId === agent.id}
-                                onClick={() => setDeleteTarget(agent)}
-                            >
-                                <DeleteOutlined aria-hidden="true" />
-                            </button>
-                        </div>
-                    ))
-                )}
-            </div>
-
-            <div className="cb-group__foot">
-                {!picking ? (
-                    <button
-                        type="button"
-                        className="cb-btn cb-btn--ghost"
-                        onClick={() => setPicking(true)}
-                    >
-                        <PlusOutlined aria-hidden="true" />
-                        Add agent to {device.label}
-                    </button>
-                ) : (
-                    <div className="cb-add-row">
-                        <div className="cb-field">
-                            <label htmlFor={`cb-add-${device.id}`}>Agent</label>
-                            <Select
-                                id={`cb-add-${device.id}`}
-                                showSearch
-                                value={selectedUserId ?? undefined}
-                                onChange={setSelectedUserId}
-                                style={{ width: "100%" }}
-                                loading={eligibleQuery.isLoading}
-                                optionFilterProp="label"
-                                placeholder="Search agents with call permission"
-                                options={options}
-                                notFoundContent="Every eligible agent is already on this line."
-                            />
-                        </div>
-                        <button
-                            type="button"
-                            className="cb-btn cb-btn--primary"
-                            disabled={!selectedUserId || saving}
-                            onClick={() => void submitAdd()}
-                        >
-                            Add
-                        </button>
-                        <button type="button" className="cb-btn" onClick={cancelAdd}>
-                            Cancel
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            <ConfirmDialog
-                open={deleteTarget !== null}
-                title="Remove agent from pool?"
-                message={
-                    deleteTarget
-                        ? `${deleteTarget.name ?? "This agent"} will no longer receive inbound calls on ${device.label}.`
-                        : ""
-                }
-                confirmLabel="Remove"
-                cancelLabel="Cancel"
-                danger
-                confirmLoading={removingId !== null}
-                onConfirm={() => void handleRemove()}
-                onCancel={() => {
-                    setDeleteTarget(null);
-                    setRemovingId(null);
-                }}
-            />
-        </details>
-    );
-}
-
-/**
- * Call pool for every phone line. Each line is its own collapsible group with
- * its own agent table and its own "Add agent" button — default line first, then
- * the rest alphabetically.
+ * Incoming call routing pool manager orchestrator:
+ * - Tier 1: Lead Owner (Automatic Priority Matching when caller matches a CRM lead)
+ * - Tier 2: Line Routing (Primary agent pools for each phone line)
+ * - Tier 3: Default Fallback Tier (Company-wide fallback pool)
+ * - Tier 4: Admin Fallback Tier (Escalation to administrators)
+ * - Tier 5: Automated Voicemail / Voice Message Fallback
  */
 export default function SoftphoneCallPoolManager({
     devices,
-}: {
-    devices: SoftphoneDeviceSummary[];
-}) {
-    const sorted = useMemo(() => {
+}: SoftphoneCallPoolManagerProps) {
+    const sortedDevices = useMemo(() => {
         return [...devices].sort((a, b) => {
             if (a.is_default !== b.is_default) {
                 return (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0);
@@ -261,22 +42,173 @@ export default function SoftphoneCallPoolManager({
         });
     }, [devices]);
 
-    if (sorted.length === 0) {
-        return (
-            <EmptyState title="No phone lines" description="Add a line under the Lines tab first." />
-        );
-    }
-
     return (
-        <>
-            <div className="cb-toolbar">
-                <span className="cb-toolbar__grow">
-                    Agents who receive calls, grouped by line.
-                </span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+            {/* Call Routing Sequence Explanation Banner */}
+            <div
+                style={{
+                    padding: "14px 18px",
+                    borderRadius: "8px",
+                    background: "var(--dr-surface-2, #f8fafc)",
+                    border: "1px solid var(--dr-border, #e2e8f0)",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "12px",
+                    fontSize: "13px",
+                    lineHeight: "1.5",
+                    color: "var(--dr-text)",
+                }}
+            >
+                <InfoCircleOutlined style={{ color: "var(--dr-blue, #1677ff)", fontSize: "16px", marginTop: "3px" }} />
+                <div>
+                    <strong style={{ fontSize: "14px" }}>Incoming Call Routing Sequence (Tiers 1 – 4):</strong>
+                    <div style={{ marginTop: "4px", color: "var(--dr-text-muted)" }}>
+                        When an incoming call matches a lead in the CRM, the call routes to <strong>Tier 1: Lead Owner</strong> first. If the caller is not matched to a lead, or if the lead owner is unavailable, has paused calls, or does not answer within the ring window, calls advance to <strong>Tier 2: Line Routing</strong>, then <strong>Tier 3: Default Fallback Tier</strong>, and finally <strong>Tier 4: Admin Fallback Tier</strong> before automated voicemail. Configure rotation timings and voicemail greeting under the <strong>Call Rotation & Timing</strong> tab.
+                    </div>
+                </div>
             </div>
-            {sorted.map((device) => (
-                <LinePool key={device.id} device={device} />
-            ))}
-        </>
+
+            {/* Section 1: Tier 1 - Lead Owner Routing */}
+            <div className="cb-group" style={{ padding: "18px 20px" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+                    <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "var(--dr-text)" }}>
+                                Tier 1: Lead Owner Routing
+                            </h3>
+                            <span className="cb-chip" style={{ background: "rgba(16, 185, 129, 0.12)", color: "var(--dr-green, #10b981)", fontWeight: 600 }}>
+                                Priority Match · Active
+                            </span>
+                        </div>
+                        <p style={{ margin: "6px 0 0", fontSize: "13px", color: "var(--dr-text-muted)", maxWidth: "820px" }}>
+                            Whenever an incoming caller's phone number matches an existing lead or contact in the CRM, the call routes <strong>directly to the assigned Lead Owner first</strong>. If the lead has no owner, the owner has paused calls, or does not answer within the ring window, the call automatically advances to <strong>Tier 2: Line Routing</strong>.
+                        </p>
+                    </div>
+                </div>
+
+                {/* Lead Owner Flow Cards */}
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                        gap: "14px",
+                        marginTop: "16px",
+                        paddingTop: "14px",
+                        borderTop: "1px solid var(--dr-border, #e2e8f0)",
+                    }}
+                >
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px" }}>
+                        <div
+                            style={{
+                                width: "32px",
+                                height: "32px",
+                                borderRadius: "8px",
+                                background: "rgba(22, 119, 255, 0.1)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "#1677ff",
+                                flexShrink: 0,
+                            }}
+                        >
+                            <PhoneOutlined />
+                        </div>
+                        <div>
+                            <div style={{ fontWeight: 600, color: "var(--dr-text)" }}>Caller Phone Match</div>
+                            <div style={{ fontSize: "12px", color: "var(--dr-text-muted)" }}>Automatic lookup in CRM leads</div>
+                        </div>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px" }}>
+                        <div
+                            style={{
+                                width: "32px",
+                                height: "32px",
+                                borderRadius: "8px",
+                                background: "rgba(16, 185, 129, 0.1)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "#10b981",
+                                flexShrink: 0,
+                            }}
+                        >
+                            <UserOutlined />
+                        </div>
+                        <div>
+                            <div style={{ fontWeight: 600, color: "var(--dr-text)" }}>Lead Owner Rings First</div>
+                            <div style={{ fontSize: "12px", color: "var(--dr-text-muted)" }}>Direct to owner's softphone</div>
+                        </div>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px" }}>
+                        <div
+                            style={{
+                                width: "32px",
+                                height: "32px",
+                                borderRadius: "8px",
+                                background: "rgba(245, 158, 11, 0.1)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "#d97706",
+                                flexShrink: 0,
+                            }}
+                        >
+                            <SwapRightOutlined />
+                        </div>
+                        <div>
+                            <div style={{ fontWeight: 600, color: "var(--dr-text)" }}>Automatic Escalation</div>
+                            <div style={{ fontSize: "12px", color: "var(--dr-text-muted)" }}>Advances to Tier 2 if missed/paused</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Section 2: Tier 2 - Line Routing */}
+            <div>
+                <div style={{ marginBottom: "12px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "var(--dr-text)" }}>
+                            Tier 2: Line Routing
+                        </h3>
+                        <span className="cb-chip" style={{ background: "var(--dr-surface-2)", color: "var(--dr-text)" }}>
+                            Line Agent Pools
+                        </span>
+                    </div>
+                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--dr-text-muted)" }}>
+                        Configure the primary agent pool for each phone line. Unmatched calls or calls unanswered by the lead owner ring these line agents in priority order.
+                    </p>
+                </div>
+
+                {sortedDevices.length === 0 ? (
+                    <EmptyState title="No phone lines" description="Add a line under the Lines tab first." />
+                ) : (
+                    sortedDevices.map((device) => <LinePool key={device.id} device={device} />)
+                )}
+            </div>
+
+            {/* Section 3: Tier 3 - Default Fallback Tier */}
+            <FallbackTierPool
+                tierScope="default_fallback"
+                title="Default Fallback Tier"
+                tierBadge="Tier 3: Global Fallback"
+                description="Company-wide default fallback tier for all incoming calls across every line. If the lead owner and line agents are unavailable or pass, calls route here before escalating to admins."
+                emptyStateMessage="No default fallback users assigned. Unanswered calls will advance directly to the Admin Fallback Tier."
+                addLabel="Add user to default fallback tier"
+                placeholder="Search active users and managers"
+            />
+
+            {/* Section 4: Tier 4 - Admin Fallback Tier */}
+            <FallbackTierPool
+                tierScope="admin_fallback"
+                title="Admin Fallback Tier"
+                tierBadge="Tier 4: Admin Escalation"
+                description="Users on this list receive calls if neither the lead owner, line agents, nor the default fallback tier answer. Admins and managers can toggle 'Route Calls to Me' off to prevent fallback calls from routing to them."
+                emptyStateMessage="No specific users assigned. All active administrators with call reception enabled will receive the call as the default fallback."
+                addLabel="Add user to admin fallback tier"
+                placeholder="Search active users and admins"
+            />
+        </div>
     );
 }

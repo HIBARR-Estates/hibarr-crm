@@ -1,5 +1,5 @@
 import { Deal } from "@/Types/api/deals";
-import { Card, Button, Tooltip, Dropdown, message, Modal, App } from "antd";
+import { Card, Button, Tooltip, Dropdown, App } from "antd";
 import {
     PhoneOutlined,
     MessageOutlined,
@@ -12,8 +12,14 @@ import {
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import { useState } from "react";
+import { usePage } from "@inertiajs/react";
+import axios from "axios";
 import StartConversationDrawer from "./modals/StartConversationDrawer";
 import ScheduleMeetingModal from "./modals/ScheduleMeetingModal";
+import useTranslation from "@/Hooks/useTranslation";
+import useClickToCall from "@/Hooks/useClickToCall";
+import useSoftphone, { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
+import { resolveLeadPhoneDisplay } from "@/lib/utils";
 
 interface Props {
     deal: Deal;
@@ -21,10 +27,90 @@ interface Props {
 }
 
 export default function QuickActions2({ deal, permissions }: Props) {
-    const { message: messageApi, modal } = App.useApp();
+    const { message: messageApi } = App.useApp();
+    const { t } = useTranslation();
+    const { props } = usePage();
+    const { isEnabled: olEnabled, initiateCall } = useClickToCall();
+    const {
+        isEnabled: softphoneFeatureEnabled,
+        devices,
+        hasLine,
+        activeDeviceId,
+        call: softphoneCall,
+    } = useSoftphone();
+    const hasSoftphonePermission = canMakeSoftphoneCalls(
+        props.auth?.user,
+        props.auth?.permissions,
+    );
+    const useSoftphonePath =
+        softphoneFeatureEnabled &&
+        props.featureFlags?.["crm.softphone"] === true &&
+        hasSoftphonePermission &&
+        hasLine;
+    const canUseLine = (softphoneFeatureEnabled && props.featureFlags?.["crm.softphone"] === true && hasSoftphonePermission) || olEnabled;
+
     const [conversationModalOpen, setConversationModalOpen] = useState(false);
     const [meetingModalOpen, setMeetingModalOpen] = useState(false);
     const [selectedChannelType, setSelectedChannelType] = useState<string>("");
+
+    const contactPhone =
+        resolveLeadPhoneDisplay(
+            deal.contact?.mobile,
+            deal.contact?.mobile_with_phonecode,
+        ) ||
+        resolveLeadPhoneDisplay(deal.contact?.cell) ||
+        "";
+
+    const placeCall = (deviceId?: number) => {
+        if (!canUseLine) {
+            return;
+        }
+        if (!contactPhone) {
+            messageApi.warning(t("pages.deals.quick_actions.no_phone"));
+            return;
+        }
+        if (useSoftphonePath) {
+            const dialingPhone = contactPhone.replace(/\s/g, "");
+            void softphoneCall(
+                dialingPhone,
+                deal.contact?.id
+                    ? {
+                          leadId: deal.contact.id,
+                          leadName: deal.contact.client_name ?? null,
+                      }
+                    : null,
+                deviceId,
+            )
+                .then(() => {
+                    messageApi.info(
+                        t("pages.telephony.calling_number", {
+                            phone: contactPhone,
+                        }),
+                    );
+                    void axios
+                        .post(route("telephony.softphone.events.store"), {
+                            phone: contactPhone,
+                            entity_type: "deal",
+                            entity_id: deal.id,
+                            event: "call.started",
+                        })
+                        .catch(() => undefined);
+                })
+                .catch((error: unknown) => {
+                    const detail =
+                        error instanceof Error ? error.message?.trim() : "";
+                    messageApi.error(
+                        detail || t("pages.telephony.generic_error"),
+                    );
+                });
+            return;
+        }
+        if (olEnabled) {
+            void initiateCall(contactPhone, { type: "deal", id: deal.id });
+            return;
+        }
+        window.open(`tel:${contactPhone.replace(/[^\d+]/g, "")}`, "_blank");
+    };
 
     const handleQuickAction = (action: string) => {
         const contact = deal.contact;
@@ -44,30 +130,11 @@ export default function QuickActions2({ deal, permissions }: Props) {
                     setSelectedChannelType("whatsapp");
                     setConversationModalOpen(true);
                 } else {
-                    messageApi.warning("Contact has no phone number");
+                    messageApi.warning(t("pages.deals.quick_actions.no_phone"));
                 }
                 break;
             case "phone":
-                if (contact.mobile) {
-                    let mobile = contact.mobile;
-                    if (
-                        typeof mobile === "string" &&
-                        mobile.trim().startsWith("{")
-                    ) {
-                        try {
-                            const mobileData = JSON.parse(mobile.trim());
-                            mobile = mobileData?.phone || mobile;
-                        } catch (e) {
-                            // Use original mobile
-                        }
-                    }
-                    window.open(
-                        `tel:${mobile.replace(/[^\d+]/g, "")}`,
-                        "_blank"
-                    );
-                } else {
-                    messageApi.warning("Contact has no phone number");
-                }
+                placeCall();
                 break;
             case "telegram":
                 if (contact.client_telegram) {
@@ -95,6 +162,31 @@ export default function QuickActions2({ deal, permissions }: Props) {
         }
     };
 
+    const hasLineChoice =
+        Boolean(contactPhone) && useSoftphonePath && devices.length > 1;
+
+    const lineMenuItems: MenuProps["items"] = [
+        {
+            key: "select-line-group",
+            type: "group",
+            label: t("pages.telephony.select_line"),
+            children: devices.map((d) => ({
+                key: String(d.id),
+                label: (
+                    <span className="flex items-center justify-between gap-3">
+                        <span>{d.label}</span>
+                        {activeDeviceId === d.id && (
+                            <span className="text-[11px] text-emerald-600">
+                                {t("pages.telephony.active_line_badge")}
+                            </span>
+                        )}
+                    </span>
+                ),
+                onClick: () => placeCall(d.id),
+            })),
+        },
+    ];
+
     // Primary actions (most commonly used)
     const primaryActions = [
         {
@@ -102,35 +194,34 @@ export default function QuickActions2({ deal, permissions }: Props) {
             icon: <MailOutlined />,
             title: "Email",
             color: "#1890ff",
-            // disabled: !deal.contact?.client_email,
         },
         {
             key: "whatsapp",
             icon: <WhatsAppOutlined />,
             title: "WhatsApp",
             color: "#25D366",
-            // disabled: !deal.contact?.mobile,
         },
-        {
-            key: "phone",
-            icon: <PhoneOutlined />,
-            title: "Call",
-            color: "#52c41a",
-            // disabled: !deal.contact?.mobile,
-        },
+        ...(canUseLine
+            ? [
+                  {
+                      key: "phone",
+                      icon: <PhoneOutlined />,
+                      title: "Call",
+                      color: "#52c41a",
+                  },
+              ]
+            : []),
         {
             key: "telegram",
             label: "Telegram",
             icon: <MessageOutlined />,
             color: "#0088cc",
-            // disabled: !deal.contact?.client_telegram,
         },
         {
             key: "instagram",
             label: "Instagram",
             icon: <InstagramOutlined />,
             color: "#E4405F",
-            // disabled: !deal.contact?.client_instagram,
             disabled: false,
         },
     ];
@@ -164,8 +255,8 @@ export default function QuickActions2({ deal, permissions }: Props) {
                 <div className="flex items-center justify-between gap-2">
                     {/* Primary Actions - Horizontal Layout */}
                     <div className="flex items-center gap-2 flex-1">
-                        {primaryActions.map((action) => (
-                            <Tooltip key={action.key} title={action.title}>
+                        {primaryActions.map((action) => {
+                            const btn = (
                                 <Button
                                     type="text"
                                     shape="circle"
@@ -179,13 +270,33 @@ export default function QuickActions2({ deal, permissions }: Props) {
                                             ? undefined
                                             : action.color,
                                     }}
-                                    onClick={() =>
-                                        handleQuickAction(action.key)
+                                    onClick={
+                                        action.key === "phone" && hasLineChoice
+                                            ? undefined
+                                            : () =>
+                                                  handleQuickAction(action.key)
                                     }
                                     disabled={action?.disabled}
                                 />
-                            </Tooltip>
-                        ))}
+                            );
+                            if (action.key === "phone" && hasLineChoice) {
+                                return (
+                                    <Tooltip key={action.key} title={action.title}>
+                                        <Dropdown
+                                            menu={{ items: lineMenuItems }}
+                                            trigger={["click"]}
+                                        >
+                                            {btn}
+                                        </Dropdown>
+                                    </Tooltip>
+                                );
+                            }
+                            return (
+                                <Tooltip key={action.key} title={action.title}>
+                                    {btn}
+                                </Tooltip>
+                            );
+                        })}
                     </div>
 
                     {/* More Actions Dropdown */}

@@ -1,5 +1,6 @@
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
+import { usePersonalize } from "./SummaryPersonalization";
 import type { EntitySummaryNextStep } from "@/Types/entity-summary";
 import { nextStepButtonLabel } from "./summaryActions";
 
@@ -28,6 +29,7 @@ export default function EntityAiSummaryNextStep({
 }: EntityAiSummaryNextStepProps) {
     const { t } = useTranslation();
     const { td } = useTd();
+    const personalize = usePersonalize();
 
     if (nextStep.action_type === "NO_ACTION_NEEDED") {
         return null;
@@ -42,11 +44,11 @@ export default function EntityAiSummaryNextStep({
                     })}
                 </p>
                 <p className="entity-ai-summary-next-step__text">
-                    {td(nextStep.label, { source: "en" })}
+                    {personalize(td(nextStep.label, { source: "en" }))}
                 </p>
                 {nextStep.rationale && (
                     <p className="entity-ai-summary-next-step__rationale">
-                        {td(nextStep.rationale, { source: "en" })}
+                        {personalize(td(nextStep.rationale, { source: "en" }))}
                     </p>
                 )}
             </div>

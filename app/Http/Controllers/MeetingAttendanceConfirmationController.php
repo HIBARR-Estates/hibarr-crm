@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Enums\MeetingAttendanceOutcome;
+use App\Models\Company;
 use App\Models\DealFollowUp;
 use App\Services\MeetingAttendanceConfirmationService;
+use App\Support\MeetingAttendanceConfirmationFeature;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -27,6 +29,8 @@ class MeetingAttendanceConfirmationController extends Controller
             'status' => 'success',
             'message' => '',
             'data' => $followUps->map(fn (DealFollowUp $followUp) => $this->present($followUp))->values(),
+            // How long a snooze hides a meeting, so a screen can say "until 14:30" before it is pressed.
+            'snooze_minutes' => $this->snoozeMinutes(),
         ]);
     }
 
@@ -168,6 +172,15 @@ class MeetingAttendanceConfirmationController extends Controller
         return $companyId !== null
             && $followUp->belongsToCompany($companyId)
             && $followUp->confirmationAssigneeUserId() === (int) user()->id;
+    }
+
+    private function snoozeMinutes(): int
+    {
+        $company = company();
+
+        return $company instanceof Company
+            ? MeetingAttendanceConfirmationFeature::snoozeMinutes($company)
+            : 60;
     }
 
     private function present(DealFollowUp $followUp): array

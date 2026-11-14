@@ -32,6 +32,7 @@ class LeadService
         'start_date',
         'end_date',
         'lead_source',
+        'lead_origin',
         'category_id',
         'lead_owner_id',
         'added_by_id',
@@ -428,6 +429,21 @@ class LeadService
     }
 
     /**
+     * Count of leads matching the current filters and the viewer's scope, with
+     * no next-action bucket applied. The People list's "All" chip.
+     */
+    public function countMatching(Request $request): int
+    {
+        $viewPermission = user()->permission('view_lead');
+
+        $query = Lead::query()->select('leads.id');
+        $this->applyPermissionScope($query, $viewPermission);
+        $this->applyFilters($query, $request);
+
+        return $query->count();
+    }
+
+    /**
      * Count of leads (current filters + permission scope) at the given
      * temperature. Same shape as countNextActionBucket() — one indexed COUNT.
      */
@@ -591,6 +607,10 @@ class LeadService
 
         if ($request->filled('lead_source')) {
             $query->whereIn('leads.source_id', $this->toValueArray($request->get('lead_source')));
+        }
+
+        if ($request->filled('lead_origin')) {
+            $query->whereIn('leads.lead_origin_id', $this->toValueArray($request->get('lead_origin')));
         }
 
         if ($request->filled('category_id')) {

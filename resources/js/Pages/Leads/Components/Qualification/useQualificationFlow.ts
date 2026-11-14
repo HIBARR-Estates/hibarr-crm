@@ -17,6 +17,7 @@ import {
     answersFromQualification,
     buildTokenMap,
     computeVisibleSegments,
+    buildAnswerLabelSnapshot,
     computeWalkSegments,
     findEntrySegment,
     getActionsForSelectedOutcomes,
@@ -25,6 +26,9 @@ import {
     resolveTokens,
     validateSegmentAnswer,
 } from "./qualificationUtils";
+
+/** Told whether a save is running, and whether the last save to settle failed. */
+export type SavingListener = (saving: boolean, failed?: boolean) => void;
 
 export interface UseQualificationFlowOptions {
     lead: Lead;
@@ -85,17 +89,23 @@ export const useQualificationFlow = ({
      * responses can't clobber a newer answer with a stale one. */
     const saveChains = useRef(new Map<string, Promise<unknown>>());
     const inFlight = useRef(new Set<Promise<unknown>>());
-    const savingListeners = useRef(new Set<(saving: boolean) => void>());
+    const savingListeners = useRef(new Set<SavingListener>());
+    /** Whether the most recent answer save to settle failed; the next one to succeed clears it. */
+    const lastSaveFailed = useRef(false);
 
     const notifySaving = useCallback(() => {
         const saving =
             pendingTimers.current.size > 0 || inFlight.current.size > 0;
-        savingListeners.current.forEach((listener) => listener(saving));
+        const failed = lastSaveFailed.current;
+        savingListeners.current.forEach((listener) => listener(saving, failed));
     }, []);
 
-    const subscribeSaving = useCallback((cb: (saving: boolean) => void) => {
+    const subscribeSaving = useCallback((cb: SavingListener) => {
         savingListeners.current.add(cb);
-        cb(pendingTimers.current.size > 0 || inFlight.current.size > 0);
+        cb(
+            pendingTimers.current.size > 0 || inFlight.current.size > 0,
+            lastSaveFailed.current,
+        );
         return () => {
             savingListeners.current.delete(cb);
         };
@@ -127,8 +137,13 @@ export const useQualificationFlow = ({
                             segment_key: segment.key,
                             answer_values: storedValues,
                             answer_text: text ?? null,
+                            ...buildAnswerLabelSnapshot(segment, values),
+                        })
+                        .then(() => {
+                            lastSaveFailed.current = false;
                         })
                         .catch(() => {
+                            lastSaveFailed.current = true;
                             message.error("Failed to save answer");
                         }),
                 );
@@ -171,9 +186,11 @@ export const useQualificationFlow = ({
                       : 0;
 
             const timer = setTimeout(() => {
+                // Start the save before dropping the timer so the saving
+                // signal never reads idle between the two.
+                void persistAnswer(segment, values, text);
                 pendingTimers.current.delete(segment.key);
                 notifySaving();
-                void persistAnswer(segment, values, text);
             }, delay);
 
             pendingTimers.current.set(segment.key, timer);

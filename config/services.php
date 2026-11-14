@@ -128,6 +128,10 @@ return [
         'provider' => env('AI_PROVIDER', 'openai'),
         'model'    => env('AI_MODEL', 'gpt-4o'),
         'api_key'  => env('AI_API_KEY'),
+        // Saved AI config the lead summary runs (POST {base_url}/ai/execute/{slug}).
+        // Its prompt, provider, model and token budget live on that config in the
+        // AI service, not in this app. Seeded by hibarr-backend.
+        'lead_summary_slug' => env('AI_LEAD_SUMMARY_SLUG', 'lead-summary'),
     ],
 
     'ol_webhook' => [
@@ -205,7 +209,13 @@ return [
             'status' => env('OL_CALL_BRIDGE_STATUS_PATH', '/call-bridge/calls/status'),
             'events' => env('OL_CALL_BRIDGE_EVENTS_PATH', '/call-bridge/events'),
             'active_calls' => env('OL_CALL_BRIDGE_ACTIVE_CALLS_PATH', '/call-bridge/calls/active'),
-            'emit_event' => env('OL_CALL_BRIDGE_EMIT_EVENT_PATH', '/call-bridge/calls/emit'),
+            'emit' => env('OL_CALL_BRIDGE_EMIT_PATH', env('OL_CALL_BRIDGE_EMIT_EVENT_PATH', '/call-bridge/emit')),
+            'emit_event' => env('OL_CALL_BRIDGE_EMIT_PATH', env('OL_CALL_BRIDGE_EMIT_EVENT_PATH', '/call-bridge/emit')),
+            // SIP provider integrations: which platforms OL supports and the
+            // connection defaults for one of them. `platform` keeps a
+            // `{platform}` placeholder the client substitutes.
+            'providers' => env('OL_CALL_BRIDGE_PROVIDERS_PATH', '/call-bridge/integrations/providers'),
+            'platform' => env('OL_CALL_BRIDGE_PLATFORM_PATH', '/call-bridge/integrations/providers/{platform}'),
         ],
         // Task categories (task_category.category_name) the bridge links call
         // events to. Compared after normalising to lowercase alphanumerics, so

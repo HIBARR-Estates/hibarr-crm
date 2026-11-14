@@ -27,9 +27,9 @@ interface RescheduleResponse {
  * so there is nothing to patch from — success reloads the "leads" prop
  * instead, refreshing that row's Next Action cell.
  *
- * ponytail: fourth copy of this fetch (useDashboardMeetingReschedule,
+ * ponytail: fourth copy of this fetch (useMeetingReschedule,
  * useDealMeetingReschedule, useLeadMeetingReschedule are the others — see
- * useDashboardMeetingReschedule's own note). Collapse when the endpoint
+ * useMeetingReschedule's own note). Collapse when the endpoint
  * learns to return the updated follow-up and the reload-target differences
  * disappear.
  */
