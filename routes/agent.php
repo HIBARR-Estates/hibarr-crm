@@ -39,6 +39,10 @@ Route::middleware(['auth', 'partner.restrict', EnsureAgentWorkspaceAccess::class
         Route::get('people/{lead}/deals/{deal}', [DealController::class, 'agentShow'])
             ->whereNumber(['lead', 'deal'])
             ->name('people.deal');
+        // The incoming-call card's glance at a known caller (lead viewers only).
+        Route::get('people/{lead}/caller', [AgentWorkspaceController::class, 'caller'])
+            ->whereNumber('lead')
+            ->name('people.caller');
         // The task list: runs on the Tasks index's own permission check and filters.
         Route::get('tasks', [TaskController::class, 'agentIndex'])->name('tasks');
         // One task / meeting by id, for rows that only carry the id (People's next action).

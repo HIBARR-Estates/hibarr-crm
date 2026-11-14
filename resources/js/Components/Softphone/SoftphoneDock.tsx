@@ -74,6 +74,7 @@ import { formatDuration, initialsOf, useElapsed } from "./dock/utils";
 import CallIdentity from "./dock/components/CallIdentity";
 import CallStateBadge from "./dock/components/CallStateBadge";
 import CallFailedNotice from "./dock/components/CallFailedNotice";
+import { publishIncomingCall } from "./dock/incomingCallBridge";
 
 /**
  * Call-control widget for the in-browser softphone (sipgate Neo via SIP.js).
@@ -85,8 +86,13 @@ import CallFailedNotice from "./dock/components/CallFailedNotice";
  * `liveCallInDock={false}` leaves the controls of a running call to the
  * caller (the agent workspace shows them in its dock pill); everything else,
  * including ringing, recording and lead matching, still runs here.
+ * `incomingInDock={false}` does the same for a call that is ringing in: the
+ * caller draws it from `incomingCallBridge`, which this component feeds.
  */
-export default function SoftphoneDock({ liveCallInDock = true }: { liveCallInDock?: boolean } = {}) {
+export default function SoftphoneDock({
+    liveCallInDock = true,
+    incomingInDock = false,
+}: { liveCallInDock?: boolean; incomingInDock?: boolean } = {}) {
     const { t } = useTranslation();
     const { props } = usePage();
     const isAdmin = (props.auth?.user?.roles ?? []).some(
@@ -811,60 +817,58 @@ export default function SoftphoneDock({ liveCallInDock = true }: { liveCallInDoc
         reject,
     ]);
 
+    /** Another user is left in the rotation to take the call after this one. */
+    const canPassInbound =
+        rotationUsers.some(
+            (u, idx) =>
+                idx > rotationIndex &&
+                Number(u.id) !== currentUserId &&
+                !passedUserIds.includes(Number(u.id)),
+        ) || !isAdmin;
+
+    /** Hand the call to the next user in the rotation without ending it for the caller. */
+    const handlePassInbound = useCallback(async () => {
+        if (!activeCall?.peer) return;
+
+        setPassedCallId(activeCall.id);
+        stopRinging();
+        try {
+            await axios.post(
+                route("telephony.softphone.pass"),
+                {
+                    phone: activeCall.peer,
+                    device_id: activeDeviceId,
+                    call_id: activeCall.id,
+                    ...(callRef ? { call_ref: callRef } : {}),
+                },
+                { timeout: 5000 },
+            );
+            const res = await axios.get(route("telephony.softphone.lead-match"), {
+                params: {
+                    phone: activeCall.peer,
+                    device_id: activeDeviceId,
+                    call_id: activeCall.id,
+                },
+            });
+            const updated = res.data?.data as CallRouting | null;
+            if (updated) {
+                setInboundRoute(updated);
+            }
+        } catch {
+            // Local pass already hid the call on this browser.
+        }
+    }, [activeCall, stopRinging, activeDeviceId, callRef]);
+
     const handleDeclineInbound = useCallback(async () => {
         if (!activeCall) return;
 
-        const hasRemainingRotation =
-            rotationUsers.some(
-                (u, idx) =>
-                    idx > rotationIndex &&
-                    Number(u.id) !== currentUserId &&
-                    !passedUserIds.includes(Number(u.id)),
-            ) || !isAdmin;
-
-        if (hasRemainingRotation && activeCall.peer) {
-            setPassedCallId(activeCall.id);
-            stopRinging();
-            try {
-                await axios.post(
-                    route("telephony.softphone.pass"),
-                    {
-                        phone: activeCall.peer,
-                        device_id: activeDeviceId,
-                        call_id: activeCall.id,
-                        ...(callRef ? { call_ref: callRef } : {}),
-                    },
-                    { timeout: 5000 },
-                );
-                const res = await axios.get(route("telephony.softphone.lead-match"), {
-                    params: {
-                        phone: activeCall.peer,
-                        device_id: activeDeviceId,
-                        call_id: activeCall.id,
-                    },
-                });
-                const updated = res.data?.data as CallRouting | null;
-                if (updated) {
-                    setInboundRoute(updated);
-                }
-            } catch {
-                // Local pass already hid the call on this browser.
-            }
+        if (canPassInbound && activeCall.peer) {
+            await handlePassInbound();
             return;
         }
 
         await reject();
-    }, [
-        activeCall,
-        rotationUsers,
-        rotationIndex,
-        currentUserId,
-        passedUserIds,
-        isAdmin,
-        stopRinging,
-        activeDeviceId,
-        reject,
-    ]);
+    }, [activeCall, canPassInbound, handlePassInbound, reject]);
 
     /** One-shot "call finished" cue when a live call drops. Shared by the dock Answer button and the notification island Answer action, and keyed on the call id so one answered call can only ever log once. */
     const logInboundCallStarted = useCallback(
@@ -1503,6 +1507,69 @@ export default function SoftphoneDock({ liveCallInDock = true }: { liveCallInDoc
             ? route("lead-contact.index", { search: activeCall.peer })
             : null;
 
+    const handleAnswerInbound = () => {
+        if (!activeCall) return;
+        const callId = activeCall.id;
+        const peer = activeCall.peer;
+        void answer().then(() => logInboundCallStarted(callId, peer));
+    };
+
+    // The agent workspace draws the ringing call itself: hand it what this dock knows.
+    // The handlers go through a ref so the published view only changes when the call does.
+    const incomingActionsRef = useRef({ answer: handleAnswerInbound, pass: handlePassInbound, decline: handleDeclineInbound });
+    incomingActionsRef.current = { answer: handleAnswerInbound, pass: handlePassInbound, decline: handleDeclineInbound };
+    const ringStartedRef = useRef<{ id: string; at: number } | null>(null);
+    const incomingId = ringingInbound && activeCall ? activeCall.id : null;
+    const incomingPeer = ringingInbound && activeCall ? activeCall.peer : "";
+    const incomingLeadId = matchedLead?.id ?? (hasContextLead ? (activeCall?.context?.leadId ?? null) : null);
+    const incomingName = matchedLead?.name || (hasContextLead ? contextLeadName : "");
+    // The server leaves the lead out for a viewer who may not open it, but says the number matched.
+    const incomingHidden =
+        incomingId !== null && !incomingLeadId && !hasContextLead && inboundRoute?.matched === true && !inboundRoute.lead_id;
+    const incomingMultiple = incomingId !== null && isMultipleMatches ? matchCount : null;
+    const incomingUnmatched = incomingId !== null && isUnmatched && !incomingHidden;
+    const incomingLine: "own" | "pool" = callRoutingReason === "lead_owner" ? "own" : "pool";
+    const incomingOwnLead = inboundRoute?.owner_id != null && Number(inboundRoute.owner_id) === currentUserId;
+    useEffect(() => {
+        if (!incomingInDock) return;
+        if (incomingId === null) {
+            publishIncomingCall(null);
+            return;
+        }
+        if (ringStartedRef.current?.id !== incomingId) {
+            ringStartedRef.current = { id: incomingId, at: Date.now() };
+        }
+        publishIncomingCall({
+            id: incomingId,
+            peer: incomingPeer,
+            startedAt: ringStartedRef.current.at,
+            leadId: incomingLeadId,
+            name: incomingName,
+            hidden: incomingHidden,
+            multiple: incomingMultiple,
+            unmatched: incomingUnmatched,
+            line: incomingLine,
+            ownLead: incomingOwnLead,
+            canPass: canPassInbound,
+            answer: () => incomingActionsRef.current.answer(),
+            pass: () => void incomingActionsRef.current.pass(),
+            decline: () => void incomingActionsRef.current.decline(),
+        });
+    }, [
+        incomingInDock,
+        incomingId,
+        incomingPeer,
+        incomingLeadId,
+        incomingName,
+        incomingHidden,
+        incomingMultiple,
+        incomingUnmatched,
+        incomingLine,
+        incomingOwnLead,
+        canPassInbound,
+    ]);
+    useEffect(() => () => publishIncomingCall(null), []);
+
     const headerTitle = activeDevice
         ? `Phone · ${activeDevice.label}`
         : "Phone";
@@ -1722,7 +1789,7 @@ export default function SoftphoneDock({ liveCallInDock = true }: { liveCallInDoc
             )}
 
             {/* Inbound ringing */}
-            {ringingInbound && activeCall && (
+            {ringingInbound && activeCall && !incomingInDock && (
                 <section className="sp sp--incoming" aria-label="Phone, incoming call">
                     <header className="sp__head">
                         <span className={statusDotClass} />
@@ -1830,11 +1897,7 @@ export default function SoftphoneDock({ liveCallInDock = true }: { liveCallInDoc
                                 </span>
                                 {isRingingMuted ? t("pages.softphone.unmute_ring") : t("pages.softphone.mute_ring")}
                             </button>
-                            <button type="button" className="act act--ok" onClick={() => {
-                                const callId = activeCall.id;
-                                const peer = activeCall.peer;
-                                void answer().then(() => logInboundCallStarted(callId, peer));
-                            }}>
+                            <button type="button" className="act act--ok" onClick={handleAnswerInbound}>
                                 <span className="act__btn">
                                     <svg viewBox="0 0 24 24">
                                         <path d="M5.5 4h2.6a1.5 1.5 0 0 1 1.5.8l1 3a1.5 1.5 0 0 1-.4 1.6l-1.6 1.4a16 16 0 0 0 5.6 5.6l1.4-1.6a1.5 1.5 0 0 1 1.6-.4l3 1.1a1.5 1.5 0 0 1 .8 1.4v2.6A1.5 1.5 0 0 1 18.4 20 17 17 0 0 1 4 5.6 1.5 1.5 0 0 1 5.5 4z" />
