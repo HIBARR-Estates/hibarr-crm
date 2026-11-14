@@ -14,6 +14,7 @@ use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Incoming call routing pool (per-line agent pools, default fallback tier, and admin fallback tier).
@@ -29,6 +30,21 @@ use Illuminate\Support\Facades\DB;
  */
 class TelephonySoftphoneCallPoolController extends AccountBaseController
 {
+    private static ?bool $hasCanReceiveCallsColumn = null;
+
+    private static function supportsCanReceiveCalls(): bool
+    {
+        if (self::$hasCanReceiveCallsColumn === null) {
+            try {
+                self::$hasCanReceiveCallsColumn = Schema::hasColumn('users', 'can_receive_calls');
+            } catch (\Throwable) {
+                self::$hasCanReceiveCallsColumn = false;
+            }
+        }
+
+        return self::$hasCanReceiveCallsColumn;
+    }
+
     /**
      * Compute the next available priority for a pool/tier, defaulting to 100 or the lowest unused slot <= 100.
      */
@@ -94,11 +110,15 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
             $deviceId = null;
         }
 
+        $userRelation = self::supportsCanReceiveCalls()
+            ? 'user:id,name,email,can_receive_calls'
+            : 'user:id,name,email';
+
         $agentsQuery = SoftphoneCallPoolAgent::query()
             ->where('company_id', $companyId)
             ->where('tier', $tier)
             ->when($isLine, fn ($q) => $q->where('device_id', $deviceId), fn ($q) => $q->whereNull('device_id'))
-            ->with('user:id,name,email,can_receive_calls')
+            ->with($userRelation)
             ->orderBy('priority')
             ->orderBy('id')
             ->get();
@@ -149,11 +169,12 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
 
         $companyId = (int) company()->id;
         $tier = $this->resolveTier($request);
-        $isFallback = $tier !== SoftphoneCallPoolAgent::TIER_LINE;
 
-        $users = $isFallback
-            ? SoftphoneCallPoolAgent::eligibleFallbackUsersForCompany($companyId)
-            : SoftphoneCallPoolAgent::eligibleUsersForCompany($companyId);
+        $users = match ($tier) {
+            SoftphoneCallPoolAgent::TIER_ADMIN_FALLBACK => SoftphoneCallPoolAgent::eligibleAdminFallbackUsersForCompany($companyId),
+            SoftphoneCallPoolAgent::TIER_DEFAULT_FALLBACK => SoftphoneCallPoolAgent::eligibleFallbackUsersForCompany($companyId),
+            default => SoftphoneCallPoolAgent::eligibleUsersForCompany($companyId),
+        };
 
         $permissionId = Permission::query()->where('name', 'make_softphone_calls')->value('id');
         $permissionUsers = $permissionId ? UserPermission::query()
@@ -242,6 +263,16 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         }
 
         if (! empty($updates)) {
+            $existingColumns = Schema::getColumnListing('companies');
+            $unsupportedKeys = array_diff(array_keys($updates), $existingColumns);
+
+            if (! empty($unsupportedKeys)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'The following telephony settings are not supported by the database schema: ' . implode(', ', $unsupportedKeys),
+                ], 422);
+            }
+
             Company::query()->whereKey($companyId)->update($updates);
 
             if (session()->has('company')) {
@@ -290,7 +321,13 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         $user = User::query()->where('company_id', $companyId)->find($userId);
         abort_unless($user !== null, 404);
 
-        if (! $isLine) {
+        if ($tier === SoftphoneCallPoolAgent::TIER_ADMIN_FALLBACK) {
+            abort_unless(
+                $user->hasRole('admin'),
+                422,
+                'Only users with the admin role can be added to the admin fallback list.'
+            );
+        } elseif (! $isLine) {
             abort_unless(
                 SoftphoneCallPoolAgent::eligibleFallbackUsersForCompany($companyId)->contains('id', $userId),
                 422,
@@ -469,6 +506,16 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
             403
         );
 
+        $isEligible = SoftphoneCallPoolAgent::isUserEligibleToReceiveCalls((int) company()->id, (int) $currentUser->id);
+        abort_unless($isEligible, 403, 'You are not assigned to any softphone call lists.');
+
+        if (! self::supportsCanReceiveCalls()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Call availability setting is not supported by the database schema.',
+            ], 500);
+        }
+
         $canReceive = (bool) $validated['can_receive_calls'];
         $currentUser->can_receive_calls = $canReceive;
         $currentUser->save();
@@ -491,6 +538,13 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
     {
         $this->assertSoftphoneEnabled();
         $this->assertCanManage();
+
+        if (! Schema::hasColumn('companies', 'fallback_voice_message_url')) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Voicemail storage is not supported by the database schema.',
+            ], 422);
+        }
 
         $request->validate([
             'file' => 'required|file|mimes:mp3,wav,ogg,m4a,aac|max:10240',
@@ -527,6 +581,13 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
     {
         $this->assertSoftphoneEnabled();
         $this->assertCanManage();
+
+        if (! Schema::hasColumn('companies', 'fallback_voice_message_url')) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Voicemail storage is not supported by the database schema.',
+            ], 422);
+        }
 
         $companyId = (int) company()?->id;
         abort_unless($companyId > 0, 400, 'No active company found.');
@@ -576,6 +637,13 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
     {
         $this->assertSoftphoneEnabled();
         $this->assertCanManage();
+
+        if (! Schema::hasColumn('companies', 'fallback_voice_message_enabled')) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Voicemail feature is not supported by the database schema.',
+            ], 422);
+        }
 
         $validated = $request->validate([
             'enabled' => 'required|boolean',
