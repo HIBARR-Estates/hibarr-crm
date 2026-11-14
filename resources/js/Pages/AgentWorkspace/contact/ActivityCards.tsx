@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
@@ -18,7 +18,7 @@ import { buildComingUp, type ComingUpItem } from "./model";
 
 const ROWS = 5;
 
-type CardId = "coming_up" | "touches" | "notes";
+type CardId = string;
 
 export interface ActivityPermissions {
     viewNotes: boolean;
@@ -55,7 +55,15 @@ interface ActivityCardsProps {
     onOpenTask: (id: number) => void;
     onOpenMeeting: (id: number) => void;
     onOpenNote: (id: number) => void;
+    /**
+     * The deal-only view: no Last touches (the timeline also carries the lead's
+     * own events), Notes titled for the deal, and these cards after them.
+     */
+    dealOnly?: { notesTitle: string; extraCards: Array<{ id: string; label: string; node: ReactNode }> };
 }
+
+/** Window event that switches the strip to the card named in `detail` (matters where the cards are tabs). */
+export const SHOW_ACTIVITY_CARD = "agent-activity:show";
 
 /**
  * Coming up, Last touches and Notes, side by side; tabs on a phone. Coming
@@ -75,10 +83,25 @@ export default function ActivityCards(props: ActivityCardsProps) {
             node: <ComingUpCard {...props} />,
         });
     }
-    cards.push({ id: "touches", label: t("pages.agent_workspace.contact.touches.title"), node: <LastTouchesCard {...props} /> });
+    if (!props.dealOnly) {
+        cards.push({ id: "touches", label: t("pages.agent_workspace.contact.touches.title"), node: <LastTouchesCard {...props} /> });
+    }
     if (permissions.viewNotes) {
         cards.push({ id: "notes", label: t("pages.agent_workspace.contact.notes.title"), node: <NotesCard {...props} /> });
     }
+    if (props.dealOnly) cards.push(...props.dealOnly.extraCards);
+    // Something outside the cards (a button in the AI strip) can ask for one to be shown.
+    useEffect(() => {
+        const show = (event: Event) => {
+            const id = (event as CustomEvent<string>).detail;
+            if (typeof id === "string") setTab(id);
+        };
+        window.addEventListener(SHOW_ACTIVITY_CARD, show);
+        return () => window.removeEventListener(SHOW_ACTIVITY_CARD, show);
+    }, []);
+
+    // A viewer who may see none of the cards gets no strip at all.
+    if (cards.length === 0) return null;
     const active = cards.some((card) => card.id === tab) ? tab : cards[0].id;
 
     return (
@@ -274,7 +297,7 @@ function LastTouchesCard({ source, nowMs, timeZone, permissions, onCreate }: Act
     );
 }
 
-function NotesCard({ source, nowMs, timeZone, permissions, onCreate, onOpenNote }: ActivityCardsProps) {
+function NotesCard({ source, nowMs, timeZone, permissions, onCreate, onOpenNote, dealOnly }: ActivityCardsProps) {
     const { t, locale } = useTranslation();
     const todayLabel = t("pages.agent_workspace.today.title");
     const { notes, notesLoading } = source;
@@ -284,7 +307,7 @@ function NotesCard({ source, nowMs, timeZone, permissions, onCreate, onOpenNote 
         <Card
             title={
                 <>
-                    {t("pages.agent_workspace.contact.notes.title")}
+                    {dealOnly?.notesTitle ?? t("pages.agent_workspace.contact.notes.title")}
                     {notes.length > 0 ? <span className="agent-card__count"> · {notes.length}</span> : null}
                 </>
             }
