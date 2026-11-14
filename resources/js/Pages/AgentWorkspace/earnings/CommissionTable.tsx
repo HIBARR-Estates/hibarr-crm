@@ -98,15 +98,15 @@ export default function CommissionTable({ lines, currencySymbol, activeId, onDis
     const year = new Date().getFullYear();
 
     return (
-        <div role="table" aria-label={t("pages.agent_workspace.earnings.table.label")} className="agent-ea__table">
+        <div role="table" aria-label={t("pages.agent_workspace.earnings.table.label")} className="agent-table agent-ea__table">
             <div role="row" className="agent-ea__head">
-                <span role="columnheader" className="agent-ea__th">{t("pages.agent_workspace.earnings.table.deal")}</span>
+                <span role="columnheader" className="agent-table__th agent-ea__th">{t("pages.agent_workspace.earnings.table.deal")}</span>
                 <span className="agent-ea__line">
-                    <span role="columnheader" className="agent-ea__th">{t("pages.agent_workspace.earnings.table.package")}</span>
-                    <span role="columnheader" className="agent-ea__th">{t("pages.agent_workspace.earnings.table.share")}</span>
-                    <span role="columnheader" className="agent-ea__th">{t("pages.agent_workspace.earnings.table.status")}</span>
-                    <span role="columnheader" className="agent-ea__th" aria-sort="descending">{t("pages.agent_workspace.earnings.table.month")} ↑</span>
-                    <span role="columnheader" className="agent-ea__th" />
+                    <span role="columnheader" className="agent-table__th agent-ea__th">{t("pages.agent_workspace.earnings.table.package")}</span>
+                    <span role="columnheader" className="agent-table__th agent-ea__th">{t("pages.agent_workspace.earnings.table.share")}</span>
+                    <span role="columnheader" className="agent-table__th agent-ea__th">{t("pages.agent_workspace.earnings.table.status")}</span>
+                    <span role="columnheader" className="agent-table__th agent-ea__th" aria-sort="descending">{t("pages.agent_workspace.earnings.table.month")} ↑</span>
+                    <span role="columnheader" className="agent-table__th agent-ea__th" />
                 </span>
             </div>
             {lines.map((line) => (

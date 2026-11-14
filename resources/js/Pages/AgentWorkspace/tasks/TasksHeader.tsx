@@ -46,15 +46,15 @@ export default function TasksHeader({ subtitle, counts, chip, onChip, searchText
                             <li key={key}>
                                 <button
                                     type="button"
-                                    className={`agent-tk__chip${value === undefined ? " agent-tk__chip--loading" : ""}`}
+                                    className={`agent-band-chip agent-tk__chip${value === undefined ? " is-loading" : ""}`}
                                     aria-pressed={pressed}
                                     onClick={() => onChip(key === "all" ? null : key)}
                                 >
-                                    <span className="agent-tk__chip-label">
-                                        {mark ? <span className="agent-tk__chip-mark" style={{ ["--mark" as string]: mark }} aria-hidden="true" /> : null}
+                                    <span className="agent-band-chip__label agent-tk__chip-label">
+                                        {mark ? <span className="agent-band-chip__mark agent-tk__chip-mark" style={{ ["--mark" as string]: mark }} aria-hidden="true" /> : null}
                                         {t(`pages.agent_workspace.tasks.chips.${key}`)}
                                     </span>
-                                    <b className="agent-tk__chip-value">{value ?? "00"}</b>
+                                    <b className="agent-band-chip__value agent-tk__chip-value">{value ?? "00"}</b>
                                 </button>
                             </li>
                         );
