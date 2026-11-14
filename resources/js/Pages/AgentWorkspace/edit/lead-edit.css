@@ -146,6 +146,11 @@
     overflow-wrap: anywhere;
 }
 
+.agent-edit__dup-text .agent-edit__dup-note {
+    color: var(--dr-text);
+    font-weight: 600;
+}
+
 /* ---------- body: sections | form | changes ---------- */
 .agent-edit__body {
     display: grid;

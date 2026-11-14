@@ -29,6 +29,7 @@ import type { LeadRedesignProps } from "@/Pages/Leads/Redesign/types";
 import { LEAD_TIMELINE_MODEL_TYPE } from "@/Pages/Deals/Redesign/hooks/useDealTimeline";
 import type { Note } from "@/Types/api/note";
 import LeadEditPage from "./edit/LeadEditPage";
+import useAgentMerge from "./contact/useAgentMerge";
 import type { EditOptions } from "./edit/leadEditForm";
 import ActivityCards, { type ActivityPermissions, type ActivitySource } from "./contact/ActivityCards";
 import AiBriefStrip from "./contact/AiBriefStrip";
@@ -132,6 +133,7 @@ function ContactLead(props: LeadRedesignProps) {
     const dealCreate = useLeadDealCreate(lead);
     const deleteLead = useLeadDelete(lead);
     const duplicates = useLeadDuplicates(lead.id);
+    const afterMerge = useAgentMerge(lead.id);
 
     const [createKind, setCreateKind] = useState<LeadCreateKind | null>(null);
     const [editOpen, setEditOpen] = useState(false);
@@ -225,6 +227,7 @@ function ContactLead(props: LeadRedesignProps) {
                         options={editOptions}
                         statusLabel={lifecycle.statusLabel}
                         duplicates={duplicates}
+                        onMergedInto={afterMerge}
                         onClose={() => setEditOpen(false)}
                     />
                 </div>
@@ -268,6 +271,8 @@ function ContactLead(props: LeadRedesignProps) {
                                         isLoading={duplicates.isLoading}
                                         onDismiss={duplicates.dismiss}
                                         onMerged={() => void duplicates.invalidate()}
+                                        onMergedInto={afterMerge}
+                                        variant="agent"
                                     />
                                 </div>
                             ) : null}
