@@ -755,3 +755,93 @@
         font-size: 18px;
     }
 }
+
+/* ---------- New activity panel (L7-42) ---------- */
+.agent-na {
+    width: 320px;
+    max-width: calc(100vw - 32px);
+    padding: 8px;
+    border: 1px solid var(--dr-border);
+    border-radius: 14px;
+    background: var(--dr-white);
+}
+
+.agent-na__eyebrow {
+    margin: 0;
+    padding: 8px 10px 10px;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    overflow-wrap: anywhere;
+    text-transform: uppercase;
+}
+
+.agent-na__row {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: var(--dr-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.agent-na__row:hover,
+.agent-na__row:focus-visible {
+    background: var(--dr-blue-light);
+}
+
+.agent-na__row:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: -2px;
+}
+
+.agent-na__icon {
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+}
+
+.agent-na__text {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.agent-na__text b {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.agent-na__text small {
+    color: var(--dr-text-muted);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.agent-na__chevron {
+    flex: none;
+    color: var(--dr-text-muted);
+}
+
+.agent-na__foot {
+    margin: 6px 0 0;
+    padding: 10px 10px 4px;
+    border-top: 1px solid var(--dr-border-soft);
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}

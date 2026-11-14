@@ -37,6 +37,7 @@ import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdap
 import type { LeadCreateKind } from "@/Pages/Leads/Redesign/components/workspace/LeadCreateModals";
 import ActivityCards, { SHOW_ACTIVITY_CARD, type ActivityPermissions, type ActivitySource } from "./contact/ActivityCards";
 import AiBriefStrip from "./contact/AiBriefStrip";
+import { NewActivityProvider } from "./contact/NewActivityContext";
 import ContactHeader, { leadPhone, type ExtraActivity } from "./contact/ContactHeader";
 import KeyFacts from "./contact/KeyFacts";
 import LeadLockCard from "./contact/LeadLockCard";
@@ -365,8 +366,13 @@ function ContactDealInner(props: ContactDealProps) {
             : [];
     const openDetails = dealPermissions.canEdit ? () => setDetails({ section: "general" }) : undefined;
 
+    const newActivityScope = useMemo(
+        () => ({ person: contact?.client_name ?? "", deal: deal.name ?? null, meetingTypes: meetingTypes.map((type) => type.name) }),
+        [contact, deal.name, meetingTypes],
+    );
+
     return (
-        <>
+        <NewActivityProvider value={newActivityScope}>
             <Head title={name} />
             <AgentSecondRow>
                 <AgentLinkPills pills={dealPills} ariaLabel={t("pages.agent_workspace.contact.deals_aria")} />
@@ -602,7 +608,7 @@ function ContactDealInner(props: ContactDealProps) {
                 prefillTo={contact?.client_email ?? null}
                 onCreateFollowUp={openCreateFromEmail}
             />
-        </>
+        </NewActivityProvider>
     );
 }
 
