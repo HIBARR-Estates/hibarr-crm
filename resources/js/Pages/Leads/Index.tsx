@@ -19,6 +19,7 @@ import "@/Components/Redesign/redesign.css";
 import "@/Features/Leads/leadsTable.css";
 
 import SaveLeadModal from "@/Features/Leads/SaveLead/SaveLeadModal";
+import MarketingLeadModal from "@/Features/Leads/MarketingIntake/MarketingLeadModal";
 import ImportLeads from "@/Features/Leads/ImportLeads";
 import DeleteLead from "@/Features/Leads/DeleteLead";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
@@ -152,6 +153,14 @@ const Index = ({
         pageProps.featureFlags?.["crm.leads-filter-v2"] === true;
     const showProductTour =
         pageProps.featureFlags?.["crm.list-product-tours"] === true;
+    // Members of the departments picked in Lead settings get the marketing
+    // lead flow; everyone else never sees the button.
+    const canUseMarketingIntake = Boolean(
+        (pageProps as { marketingLeadIntake?: { url: string } | null })
+            .marketingLeadIntake,
+    );
+    const [marketingOpen, setMarketingOpen] = useState(false);
+    const marketingSavedRef = useRef(0);
 
     const tourRef = useRef<ProductTourHandle>(null);
     const leadListTourSteps = useMemo(() => buildLeadListTourSteps(), []);
@@ -182,6 +191,7 @@ const Index = ({
             "lead-utm-terms",
             "lead-utm-audiences",
             "lead-custom-fields",
+            "lead-origins",
         ],
         [],
     );
@@ -195,6 +205,7 @@ const Index = ({
         () =>
             createLeadFilterConfig({
                 sources: formData.sources || [],
+                origins: formData["lead-origins"] || [],
                 categories: formData.categories || [],
                 employees: formData.employees || [],
                 leadAgents: formData["lead-agents"] || [],
@@ -231,12 +242,14 @@ const Index = ({
         () => ({
             categories: formData.categories || [],
             sources: formData.sources || [],
+            origins: formData["lead-origins"] || [],
+            originSearchPlaceholder: t("pages.lead_settings.origins.search"),
             employees: formData.employees || [],
             temperatures: formData.temperatures || [],
             leadAgents: formData["lead-agents"] || [],
             leadLifecycleStatuses,
         }),
-        [formData, leadLifecycleStatuses],
+        [formData, leadLifecycleStatuses, t],
     );
 
     // Setup search and filter contexts
@@ -596,6 +609,16 @@ const Index = ({
                                 label={t("app.filter")}
                                 tourTarget="leads-list-filters"
                             />
+                            {canUseMarketingIntake && (
+                                <button
+                                    type="button"
+                                    className="dr-btn dr-btn-ghost"
+                                    onClick={() => setMarketingOpen(true)}
+                                >
+                                    <PlusOutlined style={{ fontSize: 13 }} />
+                                    {t("pages.marketing_leads.open_button")}
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 className="dr-btn dr-btn-primary"
@@ -758,6 +781,23 @@ const Index = ({
                 onClose={() => setScheduleNextStepLead(null)}
                 meetingTypes={meetingTypes}
             />
+
+            {canUseMarketingIntake && (
+                <MarketingLeadModal
+                    open={marketingOpen}
+                    onSaved={() => {
+                        marketingSavedRef.current += 1;
+                    }}
+                    onClose={() => {
+                        setMarketingOpen(false);
+                        // One partial reload after the run, not one per lead saved.
+                        if (marketingSavedRef.current > 0) {
+                            marketingSavedRef.current = 0;
+                            router.reload({ only: ["leads"] });
+                        }
+                    }}
+                />
+            )}
 
             <NextActionDetailFlow
                 action={openNextAction}

@@ -35,10 +35,13 @@ import useDealWorkspaceModel from "@/Pages/Deals/Redesign/hooks/useDealWorkspace
 import type { DealShowProps } from "@/Pages/Deals/Redesign/types";
 import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import type { LeadCreateKind } from "@/Pages/Leads/Redesign/components/workspace/LeadCreateModals";
-import ActivityCards, { type ActivityPermissions, type ActivitySource } from "./contact/ActivityCards";
+import ActivityCards, { SHOW_ACTIVITY_CARD, type ActivityPermissions, type ActivitySource } from "./contact/ActivityCards";
 import AiBriefStrip from "./contact/AiBriefStrip";
+import { NewActivityProvider } from "./contact/NewActivityContext";
 import ContactHeader, { leadPhone, type ExtraActivity } from "./contact/ContactHeader";
 import KeyFacts from "./contact/KeyFacts";
+import LeadLockCard from "./contact/LeadLockCard";
+import RestrictedDealHeader, { type LeadRestriction } from "./contact/RestrictedDealHeader";
 import { buildKeyFacts } from "./contact/model";
 import "@/Components/Redesign/redesign.css";
 import "@/Components/CallRecordingPlayer.css";
@@ -74,6 +77,8 @@ export interface ContactDealSummary {
 
 type ContactDealProps = DealShowProps & {
     contactDeals?: ContactDealSummary[];
+    /** Set when the viewer may see this deal but not its lead: the deal-only view (LeadVisibility). */
+    leadRestricted?: LeadRestriction | null;
     showOnlinePayment?: boolean;
     sallyInsightsEnabled?: boolean;
 };
@@ -198,6 +203,7 @@ function ContactDealInner(props: ContactDealProps) {
     const viewExposes = showExposes && permissions.view_lead_proposals !== "none";
 
     const contact = deal.contact;
+    const restricted = props.leadRestricted ?? null;
     const dealHeader = useDealHeaderData(deal);
 
     // ----- key facts: the person, the analysis answers, the deal's budget -----
@@ -215,19 +221,22 @@ function ContactDealInner(props: ContactDealProps) {
     );
     const keyFacts = useMemo(() => {
         if (!contact) return [];
-        const person = buildKeyFacts(
-            contact,
-            {
-                preferredTime: (time) => t("pages.agent_workspace.contact.best_time", { time }),
-                addedBy: (name) => t("pages.agent_workspace.contact.facts.added_by", { name }),
-                score: (score) => t("pages.agent_workspace.contact.facts.score", { score }),
-                webinarAttended: t("pages.agent_workspace.contact.facts.webinar_attended"),
-                webinarRegistered: t("pages.agent_workspace.contact.facts.webinar_registered"),
-                lastWebinar: (date) => t("pages.agent_workspace.contact.facts.last_webinar", { date }),
-                ebook: t("pages.agent_workspace.contact.facts.ebook"),
-            },
-            companyCurrency,
-        );
+        // The deal-only view has no person's facts: only the deal's.
+        const person = restricted
+            ? []
+            : buildKeyFacts(
+                  contact,
+                  {
+                      preferredTime: (time) => t("pages.agent_workspace.contact.best_time", { time }),
+                      addedBy: (name) => t("pages.agent_workspace.contact.facts.added_by", { name }),
+                      score: (score) => t("pages.agent_workspace.contact.facts.score", { score }),
+                      webinarAttended: t("pages.agent_workspace.contact.facts.webinar_attended"),
+                      webinarRegistered: t("pages.agent_workspace.contact.facts.webinar_registered"),
+                      lastWebinar: (date) => t("pages.agent_workspace.contact.facts.last_webinar", { date }),
+                      ebook: t("pages.agent_workspace.contact.facts.ebook"),
+                  },
+                  companyCurrency,
+              );
         const hasValue = deal.value != null || deal.value_breakdown?.final_value != null;
         const budgetRange = String(deal.hibarr_fields?.budget_range ?? "").trim();
         return buildDealFacts(
@@ -242,7 +251,7 @@ function ContactDealInner(props: ContactDealProps) {
             },
             t("pages.agent_workspace.deal.facts.not_asked"),
         );
-    }, [companyCurrency, contact, deal, dealHeader.closeDate, dealHeader.value, railGroups, t]);
+    }, [companyCurrency, contact, deal, dealHeader.closeDate, dealHeader.value, railGroups, restricted, t]);
 
     // ----- stage: the next stage's conditions, and the move -----
     const stageRequirements = page.props.stageAutomationRequirements as Record<number, StageRequirementCondition[]> | undefined;
@@ -313,6 +322,12 @@ function ContactDealInner(props: ContactDealProps) {
         });
         const list: SectionPill[] = [pill("agent-deal-top", "summary")];
         if (activityPermissions.viewTasks || activityPermissions.viewMeetings) list.push(pill("agent-activity-coming_up", "coming_up"));
+        // The deal-only view draws just the activity strip (coming up, notes, files); every other section is left out, so it has no pill.
+        if (restricted) {
+            if (activityPermissions.viewNotes) list.push(pill("agent-activity-notes", "notes", notes.length));
+            if (viewFiles) list.push(pill("deal-files", "files", uploadedFiles));
+            return list;
+        }
         list.push(pill("agent-activity-touches", "conversation"));
         if (activityPermissions.viewNotes) list.push(pill("deal-notes", "notes", notes.length));
         if (viewFiles) list.push(pill("deal-files", "files", uploadedFiles));
@@ -324,26 +339,40 @@ function ContactDealInner(props: ContactDealProps) {
         list.push(pill("deal-marketing", "marketing"), pill("deal-history", "history"));
         return list;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [t, notes.length, uploadedFiles, viewFiles, viewExposes, showQualification, showAnalysis, props.showOnlinePayment, permissions.view_tasks, permissions.view_lead_follow_up, permissions.view_deal_note]);
+    }, [t, restricted, notes.length, uploadedFiles, viewFiles, viewExposes, showQualification, showAnalysis, props.showOnlinePayment, permissions.view_tasks, permissions.view_lead_follow_up, permissions.view_deal_note]);
     const [activeSection, setActiveSection] = useSectionSpy(
         sectionPills.map((pill) => pill.id),
         scrolledPast,
     );
     const jump = (id: string) => {
         setActiveSection(id);
+        // In the deal-only view the files are a card of the activity strip, a tab on a phone: show it first.
+        // The same goes for any pill that points at a card of that strip.
+        const card = restricted ? (id === "deal-files" ? "files" : id.startsWith("agent-activity-") ? id.slice("agent-activity-".length) : null) : null;
+        if (card) {
+            window.dispatchEvent(new CustomEvent(SHOW_ACTIVITY_CARD, { detail: card }));
+            window.requestAnimationFrame(() => scrollToSection(id));
+            return;
+        }
         scrollToSection(id);
     };
 
     const name = contact?.client_name || deal.name || td("Deal", { source: "en" });
     const comingUpTitle = t("pages.agent_workspace.contact.coming_up.deal_title");
     const extraActivities: ExtraActivity[] =
-        emailQuickAction != null
+        // No lead address to write to in the deal-only view.
+        emailQuickAction != null && !restricted
             ? [{ key: "email", icon: <Icon name="mail" size={14} />, label: t("pages.agent_workspace.deal.new_email"), onSelect: () => openCommunication(null) }]
             : [];
     const openDetails = dealPermissions.canEdit ? () => setDetails({ section: "general" }) : undefined;
 
+    const newActivityScope = useMemo(
+        () => ({ person: contact?.client_name ?? "", deal: deal.name ?? null, meetingTypes: meetingTypes.map((type) => type.name) }),
+        [contact, deal.name, meetingTypes],
+    );
+
     return (
-        <>
+        <NewActivityProvider value={newActivityScope}>
             <Head title={name} />
             <AgentSecondRow>
                 <AgentLinkPills pills={dealPills} ariaLabel={t("pages.agent_workspace.contact.deals_aria")} />
@@ -354,7 +383,7 @@ function ContactDealInner(props: ContactDealProps) {
                 initials={initialsFromName(contact?.client_name ?? name)}
                 stageName={stageName}
                 conditions={stage.next ? { met: stage.met, total: stage.conditions.length } : null}
-                phone={contact ? leadPhone(contact) : ""}
+                phone={contact && !restricted ? leadPhone(contact) : ""}
                 callEntityId={deal.id}
                 allowedCreate={canCreate}
                 onCreate={setCreateKind}
@@ -371,6 +400,17 @@ function ContactDealInner(props: ContactDealProps) {
                             {contact ? (
                                 <>
                                     <div ref={headRef} className="agent-deal__head">
+                                        {restricted ? (
+                                            <RestrictedDealHeader
+                                                name={name}
+                                                restriction={restricted}
+                                                canEdit={dealPermissions.canEdit}
+                                                onEdit={() => setDetails({ section: "general" })}
+                                                onCreate={setCreateKind}
+                                                allowedCreate={canCreate}
+                                                extraActivities={extraActivities}
+                                            />
+                                        ) : (
                                         <ContactHeader
                                             lead={contact}
                                             canEdit={dealPermissions.canEdit}
@@ -384,6 +424,7 @@ function ContactDealInner(props: ContactDealProps) {
                                             callEntity={{ type: "deal", id: deal.id }}
                                             staticAvatar
                                         />
+                                        )}
                                     </div>
                                     {showAiSummary ? (
                                         <AiBriefStrip
@@ -391,11 +432,21 @@ function ContactDealInner(props: ContactDealProps) {
                                             entityId={deal.id}
                                             initialSummary={props.dealAiSummary}
                                             leadName={contact.client_name}
-                                            leadPhone={leadPhone(contact)}
+                                            leadPhone={restricted ? "" : leadPhone(contact)}
                                             onCreateTask={() => setCreateKind("task")}
                                             onScheduleCall={() => setCreateKind("meeting")}
                                             onRequestDocuments={() => jump("deal-files")}
-                                            onReviewStaleDeal={() => jump("deal-history")}
+                                            onReviewStaleDeal={() =>
+                                                jump(
+                                                    !restricted
+                                                        ? "deal-history"
+                                                        : activityPermissions.viewNotes
+                                                          ? "agent-activity-notes"
+                                                          : activityPermissions.viewTasks || activityPermissions.viewMeetings
+                                                            ? "agent-activity-coming_up"
+                                                            : "agent-deal-top",
+                                                )
+                                            }
                                             onAdvanceStage={model.advanceToNextStage}
                                         />
                                     ) : null}
@@ -420,7 +471,10 @@ function ContactDealInner(props: ContactDealProps) {
                                 <p className="agent-deal__stage-foot">{t("pages.agent_workspace.deal.stage.admin_sets_outcome")}</p>
                             </div>
 
-                            {keyFacts.length > 0 ? <KeyFacts groups={keyFacts} /> : null}
+                            {keyFacts.length > 0 ? (
+                                <KeyFacts groups={keyFacts} title={restricted ? t("pages.agent_workspace.deal.restricted.deal_facts") : undefined} />
+                            ) : null}
+                            {restricted && contact ? <LeadLockCard name={contact.client_name ?? name} restriction={restricted} /> : null}
                         </section>
 
                         <div className="agent-deal__activity">
@@ -434,6 +488,22 @@ function ContactDealInner(props: ContactDealProps) {
                                 onOpenTask={setOpenTaskId}
                                 onOpenMeeting={setOpenMeetingId}
                                 onOpenNote={setOpenNoteId}
+                                dealOnly={
+                                    restricted
+                                        ? {
+                                              notesTitle: t("pages.agent_workspace.deal.restricted.notes_title"),
+                                              extraCards: viewFiles
+                                                  ? [
+                                                        {
+                                                            id: "files",
+                                                            label: t("pages.agent_workspace.deal.files.title"),
+                                                            node: <FilesSection deal={deal} documents={documents} files={files} loading={filesLoading} canUpload={canUpload} title={t("pages.agent_workspace.deal.restricted.files_title")} />,
+                                                        },
+                                                    ]
+                                                  : [],
+                                          }
+                                        : undefined
+                                }
                             />
                         </div>
                     </div>
@@ -450,6 +520,7 @@ function ContactDealInner(props: ContactDealProps) {
                     </aside>
                 </div>
 
+                {restricted ? null : (
                 <div className="agent-deal__sections">
                     <div className="agent-deal__band agent-deal__band--records">
                         {activityPermissions.viewNotes ? (
@@ -477,6 +548,7 @@ function ContactDealInner(props: ContactDealProps) {
                         <HistorySection dealId={deal.id} timeline={timeline} emailEnabled={emailQuickAction != null} onOpenEmailMessage={(messageId) => openCommunication(messageId)} />
                     </div>
                 </div>
+                )}
             </div>
 
             {/* Mounted only while open, as on the deal page: its hooks build
@@ -546,7 +618,7 @@ function ContactDealInner(props: ContactDealProps) {
                 prefillTo={contact?.client_email ?? null}
                 onCreateFollowUp={openCreateFromEmail}
             />
-        </>
+        </NewActivityProvider>
     );
 }
 

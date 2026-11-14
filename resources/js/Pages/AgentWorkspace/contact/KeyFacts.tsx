@@ -25,7 +25,7 @@ function initialOpen(): boolean {
  * shown in amber as needing input. Collapsible, so the activity below can
  * come up the page.
  */
-export default function KeyFacts({ groups }: { groups: KeyFactGroup[] }) {
+export default function KeyFacts({ groups, title }: { groups: KeyFactGroup[]; /** Replaces "Key facts" (the deal-only view reads "Deal facts"). */ title?: string }) {
     const { t } = useTranslation();
     const { td } = useTd();
     const [open, setOpen] = useState(initialOpen);
@@ -45,7 +45,7 @@ export default function KeyFacts({ groups }: { groups: KeyFactGroup[] }) {
         <section className="agent-contact__section agent-facts" aria-labelledby="agent-facts-title">
             <div className="agent-facts__head">
                 <h2 id="agent-facts-title" className="agent-contact__label">
-                    {t("pages.agent_workspace.contact.facts.title")}
+                    {title ?? t("pages.agent_workspace.contact.facts.title")}
                 </h2>
                 <Button variant="ghost" size="sm" onClick={toggle} aria-expanded={open} aria-controls={bodyId}>
                     <Icon name={open ? "chevron-up" : "chevron-down"} size={12} />
@@ -61,18 +61,14 @@ export default function KeyFacts({ groups }: { groups: KeyFactGroup[] }) {
                                 <span className="agent-fact__label">
                                     {group.label ? td(group.label, { source: "en" }) : t(`pages.agent_workspace.contact.facts.${group.id}`)}
                                 </span>
-                                {empty ? (
-                                    <span className="agent-fact__lead">{group.lead || t("pages.agent_workspace.contact.facts.empty")}</span>
-                                ) : (
-                                    <>
-                                        <span className="agent-fact__lead">{group.lead}</span>
-                                        {group.lines.map((line) => (
-                                            <span key={line} className="agent-fact__line">
-                                                {line}
-                                            </span>
-                                        ))}
-                                    </>
-                                )}
+                                <span className="agent-fact__lead">
+                                    {empty ? group.lead || t("pages.agent_workspace.contact.facts.empty") : group.lead}
+                                </span>
+                                {group.lines.map((line) => (
+                                    <span key={line} className="agent-fact__line">
+                                        {line}
+                                    </span>
+                                ))}
                             </li>
                         );
                     })}

@@ -18,6 +18,11 @@ interface UseEntityAiSummaryOptions {
      * failed automatic attempt is not retried until the page is opened again.
      */
     autoGenerate?: boolean;
+    /**
+     * Called whenever a summary is accepted (generated, fetched or hydrated), so a
+     * second view of the same summary can follow this one.
+     */
+    onSummaryChange?: (summary: EntitySummaryPayload | null) => void;
 }
 
 interface UseEntityAiSummaryResult {
@@ -63,6 +68,7 @@ export default function useEntityAiSummary({
     entityId,
     initialSummary = null,
     autoGenerate = false,
+    onSummaryChange,
 }: UseEntityAiSummaryOptions): UseEntityAiSummaryResult {
     const { t } = useTranslation();
     const [summary, setSummary] = useState<EntitySummaryPayload | null>(
@@ -85,9 +91,13 @@ export default function useEntityAiSummary({
     const localGeneratedAtRef = useRef(generatedAtMs(initialSummary));
     const entityKeyRef = useRef(`${entityType}:${entityId}`);
 
+    const onSummaryChangeRef = useRef(onSummaryChange);
+    onSummaryChangeRef.current = onSummaryChange;
+
     const applySummary = useCallback((next: EntitySummaryPayload | null) => {
         localGeneratedAtRef.current = generatedAtMs(next);
         setSummary(next);
+        onSummaryChangeRef.current?.(next);
         setIsStale(Boolean(next?.meta?.is_stale));
     }, []);
 
@@ -173,6 +183,7 @@ export default function useEntityAiSummary({
             // flashes an empty/"done loading" gap before content mounts.
             localGeneratedAtRef.current = generatedAtMs(response.data.summary);
             setSummary(response.data.summary);
+            onSummaryChangeRef.current?.(response.data.summary);
             setIsStale(Boolean(response.data.is_stale));
             setLoading(false);
         } catch (err) {

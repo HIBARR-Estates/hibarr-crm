@@ -39,6 +39,42 @@ class ContactDeals
             ->all();
     }
 
+    /**
+     * The open deals each of several people hold, for the People list: one
+     * query for the page, viewer-checked like forLead(). Won and lost deals
+     * are left out, since the column answers "where is this person now".
+     *
+     * @param  list<int>  $leadIds
+     * @return array<int, list<array{id: int, name: string|null, stage: string|null, stage_color: string|null}>>
+     */
+    public function openForLeads(array $leadIds, User $viewer): array
+    {
+        if ($leadIds === []) {
+            return [];
+        }
+
+        $byLead = [];
+        Deal::query()
+            ->whereIn('lead_id', $leadIds)
+            ->whereNull('outcome_status')
+            // leadAgent is read by the view check for narrower scopes; loading it
+            // here keeps that to one query for the page instead of one per deal.
+            ->with(['leadStage:id,name,label_color', 'leadAgent'])
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (Deal $deal) => self::canView($viewer, $deal))
+            ->each(function (Deal $deal) use (&$byLead) {
+                $byLead[(int) $deal->lead_id][] = [
+                    'id' => (int) $deal->id,
+                    'name' => $deal->name,
+                    'stage' => $deal->leadStage?->name,
+                    'stage_color' => $deal->leadStage?->label_color,
+                ];
+            });
+
+        return $byLead;
+    }
+
     /** The deal page's own view check (DealController::show). */
     public static function canView(User $viewer, Deal $deal): bool
     {

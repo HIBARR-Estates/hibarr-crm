@@ -118,6 +118,15 @@
     font-size: 15px;
 }
 
+.agent-ws__logo {
+    display: block;
+    height: 36px;
+    width: auto;
+    max-width: 150px;
+    flex: 0 1 auto;
+    object-fit: contain;
+}
+
 .agent-ws__bell {
     display: inline-flex;
     align-items: center;
@@ -127,16 +136,6 @@
     border: 1px solid var(--dr-navy-line);
     border-radius: 50%;
     background: var(--dr-navy-pressed);
-}
-
-/* The CRM's own notification dropdown, recoloured for the navy band. */
-.agent-ws__bell .ant-btn,
-.agent-ws__bell .ant-btn .anticon {
-    color: var(--dr-navy-mid) !important;
-}
-
-.agent-ws__bell .ant-btn:hover {
-    background: transparent !important;
 }
 
 /* Agent | Classic switch styles live in agent-switch.css (the classic sidebar loads it too). */
@@ -312,6 +311,63 @@
     background: var(--dr-white);
     color: var(--dr-navy);
     font-weight: 600;
+}
+
+.agent-pills__pill[aria-pressed="true"] {
+    border-color: var(--dr-white);
+    background: var(--dr-white);
+    color: var(--dr-navy);
+    font-weight: 600;
+}
+
+/* An action in the row (not a place): dashed, dimmer. */
+.agent-pills__pill--action {
+    border-style: dashed;
+    color: var(--dr-navy-mid);
+}
+
+.agent-pills__pill:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
+/* In a row of pills or inside a button the tag centres on the label. */
+.agent-pills__pill .agent-new-tag,
+button .agent-new-tag {
+    align-self: center;
+}
+
+/* A pill whose page is not built yet: held in place, not clickable. */
+.agent-pills__pill--held {
+    border-style: dashed;
+    color: var(--dr-navy-mid);
+    cursor: default;
+}
+
+/* The dashed purple "New" tag: something the approved screen shows that the CRM has no data for yet. */
+.agent-new-tag {
+    display: inline-block;
+    align-self: flex-start;
+    padding: 3px 6px;
+    border: 1px dashed var(--dr-purple);
+    border-radius: 4px;
+    background: var(--dr-purple-soft);
+    color: var(--dr-purple);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.agent-new-tag__hint {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
 }
 
 .agent-pills__dot {
@@ -490,8 +546,9 @@
         justify-content: center;
     }
 
+    /* Typing opens a dropdown, so the field needs little room of its own; the dock must not push into the corner. */
     .agent-dock__search:focus-within {
-        width: 180px;
+        width: 128px;
         padding: 0 10px;
     }
 
@@ -625,4 +682,60 @@
 .agent-btn-soft.dr-btn:hover:not(:disabled) {
     border-color: var(--dr-blue);
     background: var(--dr-blue-mid);
+}
+
+/* ---------- in-list search, in the title block on the band ---------- */
+.agent-list-head {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.agent-list-search-row {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 14px;
+}
+
+.agent-list-search {
+    position: relative;
+    display: flex;
+    width: 280px;
+    max-width: 100%;
+    height: 38px;
+    align-items: center;
+}
+
+.agent-list-search svg {
+    position: absolute;
+    left: 11px;
+    color: var(--dr-text-hint);
+    pointer-events: none;
+}
+
+.agent-list-search input {
+    width: 100%;
+    height: 100%;
+    padding: 0 11px 0 32px;
+    border: 1px solid var(--dr-white);
+    border-radius: 9px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 14px;
+}
+
+.agent-list-search input::placeholder {
+    color: var(--dr-text-hint);
+}
+
+.agent-list-search input:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 1px;
+}
+
+@media (max-width: 639px) {
+    .agent-list-search {
+        width: 100%;
+    }
 }

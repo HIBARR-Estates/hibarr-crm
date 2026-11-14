@@ -219,12 +219,12 @@ class DashboardMetricsService
         // Name, where the record stands (lifecycle status or deal stage) and the
         // number to call, so a queue row reads like the person it is about.
         $leads = Lead::query()
-            ->with('lifecycleStatus:id,label')
+            ->with('lifecycleStatus:id,key,label,label_color')
             ->whereIn('id', $links->where('taskable_type', Lead::class)->pluck('taskable_id'))
             ->get(['id', 'client_name', 'mobile', 'lead_lifecycle_status_id'])
             ->keyBy('id');
         $deals = Deal::query()
-            ->with(['leadStage:id,name', 'contact:id,client_name,mobile'])
+            ->with(['leadStage:id,name,label_color', 'contact:id,client_name,mobile'])
             ->whereIn('id', $links->where('taskable_type', Deal::class)->pluck('taskable_id'))
             ->get(['id', 'name', 'lead_id', 'pipeline_stage_id'])
             ->keyBy('id');
@@ -252,6 +252,8 @@ class DashboardMetricsService
                     'id' => (int) $lead->id,
                     'name' => $lead->client_name,
                     'status' => $lead->lifecycleStatus?->label,
+                    'status_key' => $lead->lifecycleStatus?->key,
+                    'status_color' => $lead->lifecycleStatus?->label_color,
                     'person' => $lead->client_name,
                     'phone' => $phone($lead),
                 ];
@@ -268,12 +270,26 @@ class DashboardMetricsService
                 'id' => (int) $deal->id,
                 'name' => $deal->name,
                 'status' => $deal->leadStage?->name,
+                'status_color' => $deal->leadStage?->label_color,
                 'person' => $deal->contact?->client_name,
                 'phone' => $phone($deal->contact),
             ];
         }
 
         return $out;
+    }
+
+    /**
+     * Rows for the agent workspace's Tasks list: the queue's row shape (the
+     * task as its modal opens it, how late it is, and the lead or deal it
+     * hangs off) for tasks the caller loaded with TaskPresenter::RELATIONS
+     * and COUNTS.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function presentTasks(Collection $tasks): array
+    {
+        return $this->presentQueueTasks($tasks, true);
     }
 
     /** Base query shared by the agenda panels — only the date window differs. */
@@ -373,7 +389,7 @@ class DashboardMetricsService
 
         $tasksQuery = $pending()
             ->where('due_date', '<=', $until)
-            ->with($useRedesignedTasks ? TaskPresenter::RELATIONS : ['users:id,name,image', 'boardColumn:id,slug,column_name'])
+            ->with($useRedesignedTasks ? TaskPresenter::RELATIONS : ['users:id,name,image', 'boardColumn:id,slug,column_name', 'category:id,category_name,action'])
             ->orderBy('due_date')
             ->limit($limit);
 
@@ -427,7 +443,7 @@ class DashboardMetricsService
             ->pending()
             ->visibleToUser($userId)
             ->whereBetween('due_date', $this->storageWindow($from, $to))
-            ->with($useRedesignedTasks ? TaskPresenter::RELATIONS : ['users:id,name,image', 'boardColumn:id,slug,column_name'])
+            ->with($useRedesignedTasks ? TaskPresenter::RELATIONS : ['users:id,name,image', 'boardColumn:id,slug,column_name', 'category:id,category_name,action'])
             ->orderBy('due_date')
             ->limit($limit);
 
@@ -728,6 +744,14 @@ class DashboardMetricsService
             now()->addDays(self::PERSONAL_WINDOW_DAYS)->endOfDay(),
             $limit
         );
+    }
+
+    /** One meeting the person may see, in the shape the agenda rows carry; null if not theirs to see. */
+    public function meetingById(int $userId, int $id): ?array
+    {
+        $followUp = $this->followUpQuery($userId)->whereKey($id)->first();
+
+        return $followUp ? $this->mapFollowUps(collect([$followUp]))[0] : null;
     }
 
     /**

@@ -1,0 +1,1426 @@
+/* Earnings: Overview, Ledger and Network (L7-21, L7-22, L7-37). Colours come
+   from the --dr-* tokens. Cards are filled or edged all round, never with a
+   side border, and nothing here casts a shadow. */
+
+/* ---------- band ---------- */
+.agent-ws:has(.agent-ea) {
+    --agent-band-height: 300px;
+}
+
+/* Below 1280px the chips, tabs and search no longer fit beside the title, so they stack under it. */
+@media (max-width: 1279px) {
+    .agent-ws:has(.agent-ea--ledger),
+    .agent-ws:has(.agent-ea--network) {
+        --agent-band-height: 348px;
+    }
+}
+
+@media (max-width: 639px) {
+    .agent-ws:has(.agent-ea--overview) {
+        --agent-band-height: 500px;
+    }
+
+    .agent-ws:has(.agent-ea--ledger),
+    .agent-ws:has(.agent-ea--network) {
+        --agent-band-height: 360px;
+    }
+}
+
+.agent-ea {
+    display: flex;
+    flex-direction: column;
+    gap: 38px;
+    min-width: 0;
+}
+
+.agent-ea--overview,
+.agent-ea--report {
+    gap: 28px;
+}
+
+.agent-ea--overview .agent-ea__top,
+.agent-ea--report .agent-ea__top {
+    margin-bottom: 10px;
+}
+
+/* ---------- header on the band ---------- */
+.agent-ea__top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px 16px;
+    min-height: 62px;
+}
+
+.agent-ea__heading h1 {
+    margin: 0;
+    color: var(--dr-white);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.agent-ea__heading p {
+    margin: 4px 0 0;
+    color: var(--dr-navy-mid);
+    font-size: 14px;
+}
+
+.agent-ea__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px 6px;
+    min-width: 0;
+}
+
+/* The Ledger's status chips */
+.agent-ea__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 8px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-ea__chip {
+    display: flex;
+    min-width: 104px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 9px 14px;
+    border: 1px solid var(--dr-navy-raised-line);
+    border-radius: 12px;
+    background: var(--dr-navy-raised);
+    color: var(--dr-white);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.agent-ea__chip:hover:not(:disabled):not([aria-disabled="true"]) {
+    border-color: var(--dr-navy-mid);
+}
+
+.agent-ea__chip[aria-pressed="true"] {
+    border-color: var(--dr-white);
+    background: var(--dr-white);
+    color: var(--dr-navy);
+}
+
+.agent-ea__chip.is-held {
+    border-style: dashed;
+    cursor: default;
+}
+
+.agent-ea__chip:focus-visible,
+.agent-ea__tab:focus-visible,
+.agent-ea__switch button:focus-visible {
+    outline: 2px solid var(--dr-white);
+    outline-offset: 2px;
+}
+
+.agent-ea__chip-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--dr-navy-soft);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-ea__chip[aria-pressed="true"] .agent-ea__chip-label {
+    color: var(--dr-navy);
+}
+
+.agent-ea__chip-mark {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    border-radius: 2px;
+}
+
+.agent-ea__chip-value {
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.agent-ea__chip.is-loading .agent-ea__chip-value {
+    border-radius: 4px;
+    background: var(--dr-navy-raised-line);
+    color: transparent;
+}
+
+.agent-ea__search {
+    position: relative;
+    display: flex;
+    width: 200px;
+    height: 38px;
+    align-items: center;
+}
+
+.agent-ea__search svg {
+    position: absolute;
+    left: 11px;
+    color: var(--dr-text-hint);
+    pointer-events: none;
+}
+
+.agent-ea__search input {
+    width: 100%;
+    height: 100%;
+    padding: 0 11px 0 32px;
+    border: 1px solid var(--dr-white);
+    border-radius: 9px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 13px;
+}
+
+.agent-ea__search input::placeholder {
+    color: var(--dr-text-hint);
+}
+
+.agent-ea__search input:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 1px;
+}
+
+/* The Network's tabs, List | Tree switch and Invite agent */
+.agent-ea__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.agent-ea__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border: 1px solid var(--dr-navy-line);
+    border-radius: 9px;
+    background: none;
+    color: var(--dr-navy-mid);
+    font: inherit;
+    font-size: 13px;
+}
+
+.agent-ea__tab[aria-pressed="true"] {
+    border-color: var(--dr-white);
+    background: var(--dr-white);
+    color: var(--dr-navy);
+    font-weight: 600;
+}
+
+.agent-ea__tab--held {
+    border-style: dashed;
+}
+
+.agent-ea__switch {
+    display: flex;
+    padding: 3px;
+    border: 1px solid var(--dr-navy-line);
+    border-radius: 10px;
+    background: var(--dr-navy-pressed);
+}
+
+.agent-ea__switch button,
+.agent-ea__switch-held {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 13px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--dr-navy-mid);
+    font: inherit;
+    font-size: 13px;
+}
+
+.agent-ea__switch button[aria-pressed="true"] {
+    background: var(--dr-white);
+    color: var(--dr-navy);
+    font-weight: 600;
+}
+
+/* ---------- buttons ---------- */
+.agent-ea__btn {
+    display: inline-flex;
+    height: 28px;
+    align-items: center;
+    gap: 6px;
+    padding: 0 11px;
+    border: 1px solid var(--dr-blue-mid);
+    border-radius: 8px;
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-ea__btn:hover:not(:disabled) {
+    border-color: var(--dr-blue);
+}
+
+.agent-ea__btn:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+.agent-ea__btn:disabled {
+    cursor: default;
+}
+
+.agent-ea__btn:disabled:not(:has(.agent-new-tag)) {
+    opacity: 0.6;
+}
+
+/* A held button keeps its colours but is dashed: not clickable yet, and its New tag says why. */
+.agent-ea__btn:disabled:has(.agent-new-tag) {
+    border-style: dashed;
+}
+
+.agent-ea__btn--ghost {
+    border-color: var(--dr-border);
+    background: var(--dr-white);
+    color: var(--dr-text);
+}
+
+.agent-ea__btn--call {
+    height: 38px;
+    border-color: var(--dr-green);
+    background: var(--dr-green);
+    color: var(--dr-white);
+}
+
+/* ---------- Overview: the three figures ---------- */
+.agent-ea__cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-ea__card {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 6px;
+    padding: 16px 18px;
+    border: 1px solid var(--dr-navy-raised-line);
+    border-radius: 16px;
+    background: var(--dr-navy-raised);
+    color: var(--dr-white);
+}
+
+.agent-ea__card-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--dr-navy-soft);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.agent-ea__card-mark {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    border-radius: 2px;
+}
+
+.agent-ea__card-value {
+    font-size: 32px;
+    line-height: 1.2;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.agent-ea__card-note {
+    color: var(--dr-navy-mid);
+    font-size: 12px;
+}
+
+.agent-ea__card.is-loading .agent-ea__card-value,
+.agent-ea__card.is-loading .agent-ea__card-note {
+    width: max-content;
+    max-width: 100%;
+    border-radius: 6px;
+    background: var(--dr-navy-raised-line);
+    color: transparent;
+}
+
+/* ---------- layout below the band ---------- */
+.agent-ea__split {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    min-width: 0;
+}
+
+.agent-ea__main {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.agent-ea__section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.agent-ea__section-head b {
+    font-size: 15px;
+}
+
+.agent-ea__split--network {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 470px;
+}
+
+.agent-ea__note {
+    margin: -22px 0 0;
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+/* ---------- commission table ---------- */
+.agent-ea__table {
+    --cols: minmax(0, 1.9fr) minmax(0, 1.7fr) minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 0.5fr) minmax(0, 0.8fr);
+
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--dr-border);
+    border-radius: 14px;
+    background: var(--dr-white);
+}
+
+.agent-ea__table--network {
+    --cols: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 0.9fr);
+}
+
+.agent-ea__head,
+.agent-ea__row {
+    display: grid;
+    grid-template-columns: var(--cols);
+    align-items: center;
+    gap: 14px;
+    padding: 8px 16px;
+}
+
+.agent-ea__table--network .agent-ea__head,
+.agent-ea__table--network .agent-ea__row {
+    gap: 12px;
+}
+
+.agent-ea__head {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--dr-border);
+    background: var(--dr-surface-hover);
+}
+
+.agent-ea__th {
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.agent-ea__th[aria-sort] {
+    color: var(--dr-navy);
+}
+
+.agent-ea__row {
+    position: relative;
+    border-top: 1px solid var(--dr-border);
+}
+
+.agent-ea__head + .agent-ea__row {
+    border-top: 0;
+}
+
+.agent-ea__row.is-active {
+    background: var(--dr-blue-light);
+}
+
+.agent-ea__row--skeleton {
+    grid-template-columns: 32px 1fr;
+}
+
+/* Wide screens: the cells after the person are plain grid cells of the row. */
+.agent-ea__line {
+    display: contents;
+}
+
+.agent-ea__person {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+}
+
+.agent-ea__avatar {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--fill, var(--dr-blue));
+    color: var(--dr-white);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.agent-ea__avatar--lg {
+    width: 38px;
+    height: 38px;
+    font-size: 13px;
+}
+
+.agent-ea__who {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.agent-ea__name {
+    overflow: hidden;
+    color: var(--dr-text);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.25;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+a.agent-ea__name:hover {
+    color: var(--dr-blue);
+}
+
+a.agent-ea__name:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+.agent-ea__sub {
+    overflow: hidden;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    line-height: 1.4;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-ea__package {
+    overflow: hidden;
+    color: var(--dr-text);
+    font-size: 14px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-ea__amount,
+.agent-ea__num,
+.agent-ea__mono {
+    font-variant-numeric: tabular-nums;
+}
+
+.agent-ea__amount {
+    color: var(--dr-text);
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.agent-ea__num {
+    color: var(--dr-text);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.agent-ea__month {
+    color: var(--dr-text);
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.agent-ea__act {
+    justify-self: end;
+}
+
+.agent-ea__status {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--dr-gray-dark);
+    color: var(--dr-white);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-ea__status--paid {
+    background: var(--dr-green);
+}
+
+.agent-ea__status--disputed {
+    background: var(--dr-red);
+}
+
+.agent-ea__status--reverted {
+    background: var(--dr-time-none-bg);
+    color: var(--dr-time-none-text);
+}
+
+/* ---------- dispute bar ---------- */
+.agent-ea__dispute {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border: 2px solid var(--dr-navy);
+    border-radius: 14px;
+    background: var(--dr-white);
+}
+
+.agent-ea__dispute-title {
+    color: var(--dr-navy);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.agent-ea__dispute-input {
+    min-width: 200px;
+    flex: 1;
+    height: 38px;
+    padding: 0 11px;
+    border: 1px solid var(--dr-border);
+    border-radius: 9px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 13px;
+}
+
+.agent-ea__dispute-input:focus-visible {
+    border-color: var(--dr-blue);
+    outline: 1px solid var(--dr-blue);
+}
+
+.agent-ea__dispute-text {
+    display: flex;
+    min-width: 200px;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    color: var(--dr-text);
+    font-size: 13px;
+}
+
+.agent-ea__dispute-meta {
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+.agent-ea__dispute-error {
+    flex-basis: 100%;
+    color: var(--dr-time-late-text);
+    font-size: 12px;
+}
+
+/* ---------- level card ---------- */
+.agent-ea__level {
+    display: flex;
+    flex: 0 0 380px;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid var(--dr-border);
+    border-radius: 16px;
+    background: var(--dr-white);
+}
+
+.agent-ea__level--skeleton {
+    min-height: 260px;
+    border: 0;
+}
+
+.agent-ea__level-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.agent-ea__level-head b {
+    font-size: 15px;
+}
+
+.agent-ea__level-chip {
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--dr-navy);
+    color: var(--dr-white);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-ea__bar {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.agent-ea__bar-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+}
+
+.agent-ea__bar-line b {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.agent-ea__track {
+    display: block;
+    height: 9px;
+    overflow: hidden;
+    border-radius: 5px;
+    background: var(--dr-skeleton);
+}
+
+.agent-ea__track i {
+    display: block;
+    height: 100%;
+    background: var(--dr-blue);
+}
+
+.agent-ea__days {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 10px;
+    border-top: 1px solid var(--dr-border);
+    font-size: 13px;
+}
+
+.agent-ea__days b {
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+}
+
+.agent-ea__hint {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--dr-surface-2, var(--dr-surface-hover));
+    color: var(--dr-text-muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+/* ---------- Network ---------- */
+.agent-ea__row--pick {
+    cursor: pointer;
+}
+
+.agent-ea__row--pick:hover:not(.is-active) {
+    background: var(--dr-surface-subtle, var(--dr-surface-hover));
+}
+
+.agent-ea__pickbtn {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+/* The whole row is the button's target. */
+.agent-ea__pickbtn::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+}
+
+.agent-ea__pickbtn:focus-visible {
+    outline: none;
+}
+
+.agent-ea__pickbtn:focus-visible::after {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: -2px;
+}
+
+.agent-ea__elbow {
+    color: var(--dr-text-hint);
+    font-size: 13px;
+}
+
+
+.agent-ea__level-pill {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--dr-navy);
+    color: var(--dr-white);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-ea__level-pill.is-unranked {
+    background: var(--dr-time-done-solid);
+}
+
+.agent-ea__panel {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--dr-border);
+    border-radius: 16px;
+    background: var(--dr-white);
+}
+
+.agent-ea__panel-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.agent-ea__panel-head .agent-ea__who {
+    flex: 1;
+}
+
+.agent-ea__panel-head .agent-ea__sub {
+    white-space: normal;
+}
+
+.agent-ea__panel-name {
+    overflow: hidden;
+    font-size: 15px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-ea__panel-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.agent-ea__facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 20px;
+    margin: 0;
+    color: var(--dr-text-muted);
+    font-size: 13px;
+}
+
+.agent-ea__facts b {
+    color: var(--dr-text);
+}
+
+.agent-ea__cap {
+    margin: 4px 0 0;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.agent-ea__metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.agent-ea__metric {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
+    border: 1px solid var(--dr-border);
+    border-radius: 10px;
+}
+
+.agent-ea__metric b {
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 20px;
+    line-height: 1.2;
+}
+
+.agent-ea__metric span {
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+.agent-ea__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-ea__history,
+.agent-ea__deal {
+    display: grid;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    border-top: 1px solid var(--dr-border);
+    font-size: 12px;
+}
+
+.agent-ea__list li:first-child {
+    border-top: 0;
+}
+
+.agent-ea__history {
+    grid-template-columns: 52px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr);
+}
+
+.agent-ea__deal {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.9fr) minmax(0, 0.7fr) minmax(0, 1fr);
+}
+
+.agent-ea__history b,
+.agent-ea__deal b {
+    overflow: hidden;
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-ea__history-deal,
+.agent-ea__muted {
+    overflow: hidden;
+    color: var(--dr-text-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-ea__empty-line {
+    margin: 0;
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+/* ---------- smaller screens ---------- */
+@media (max-width: 1279px) {
+    .agent-ea__split {
+        flex-wrap: wrap;
+    }
+
+    .agent-ea__main {
+        flex-basis: 100%;
+    }
+
+    .agent-ea__level {
+        flex: 1 1 100%;
+    }
+
+    .agent-ea__split--network {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* Narrower than a wide table needs: a row is the person, then one line of the rest. */
+@media (max-width: 1023px) {
+    .agent-ea__table,
+    .agent-ea__table--network {
+        --cols: minmax(0, 1fr);
+    }
+
+    .agent-ea__head {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        padding: 0;
+        border: 0;
+    }
+
+    .agent-ea__row {
+        gap: 8px;
+        padding: 12px 16px;
+    }
+
+    /* The package on its own line; the share, status and month beneath it, the button at the end. */
+    .agent-ea__line {
+        display: grid;
+        grid-template-columns: auto auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 6px 14px;
+        padding-left: 42px;
+    }
+
+    .agent-ea__package {
+        grid-column: 1 / -1;
+    }
+
+    .agent-ea__act {
+        grid-column: 4;
+    }
+
+    /* The Network rows have no package: level, then the three counts. */
+    .agent-ea__table--network .agent-ea__line {
+        grid-template-columns: auto repeat(3, minmax(0, 1fr));
+    }
+
+    .agent-ea__num[data-label]::before {
+        color: var(--dr-text-muted);
+        content: attr(data-label) " ";
+        font-family: "IBM Plex Sans", sans-serif;
+        font-size: 11px;
+    }
+
+    .agent-ea__card-value {
+        font-size: 26px;
+    }
+}
+
+@media (max-width: 639px) {
+    .agent-ea__cards {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+    }
+
+    .agent-ea__card {
+        padding: 12px 16px;
+    }
+
+    .agent-ea__card-value {
+        font-size: 26px;
+    }
+
+    .agent-ea__chips {
+        margin-right: 0;
+    }
+
+    .agent-ea__chip {
+        min-width: 88px;
+        padding: 8px 12px;
+    }
+
+    .agent-ea__search {
+        width: 100%;
+    }
+
+    .agent-ea__controls {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .agent-ea__dispute {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .agent-ea__dispute-title {
+        white-space: normal;
+    }
+
+    .agent-ea__panel-head {
+        flex-wrap: wrap;
+    }
+
+    .agent-ea__panel-head .agent-ea__btn {
+        flex-basis: 100%;
+        justify-content: center;
+    }
+
+    .agent-ea__history {
+        grid-template-columns: 52px minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .agent-ea__history-deal {
+        grid-column: 2 / -1;
+    }
+
+    .agent-ea__deal {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+}
+
+/* ---------- My report (L7-38) ---------- */
+/* The six white cards straddle the edge of the band, so the band is the same as the Overview's. */
+.agent-ea__kpis {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-ea__kpi {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    border: 1px solid var(--dr-border);
+    border-radius: 14px;
+    background: var(--dr-white);
+}
+
+.agent-ea__kpi-label {
+    color: var(--dr-text-muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.agent-ea__kpi-value {
+    color: var(--dr-text);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+}
+
+.agent-ea__kpi-note {
+    color: var(--dr-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.agent-ea__kpi-note.is-up {
+    color: var(--dr-green);
+}
+
+.agent-ea__kpi-note.is-down {
+    color: var(--dr-time-late-solid);
+}
+
+.agent-ea__kpi.is-loading .agent-ea__kpi-value,
+.agent-ea__kpi.is-loading .agent-ea__kpi-note {
+    width: max-content;
+    max-width: 100%;
+    border-radius: 6px;
+    background: var(--dr-surface-hover);
+    color: transparent;
+}
+
+.agent-ea__kpi-error {
+    grid-column: 1 / -1;
+    color: var(--dr-time-late-solid);
+    font-size: 13px;
+}
+
+.agent-ea__link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--dr-blue);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* The AI summary: the board's indigo, shared with the brief strip on the deal page. */
+.agent-ea__ai {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    border: 1px solid var(--agent-ai-border, #e1dff4);
+    border-radius: 14px;
+    background: var(--agent-ai-bg, #f8f7fd);
+}
+
+.agent-ea__ai-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.agent-ea__ai-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+}
+
+.agent-ea__ai-badge {
+    display: inline-flex;
+    height: 20px;
+    align-items: center;
+    padding: 0 6px;
+    border-radius: 5px;
+    background: var(--agent-ai, #4c4f8f);
+    color: var(--dr-white);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.agent-ea__ai-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.agent-ea__ai-actions .agent-ea__btn {
+    height: 32px;
+}
+
+.agent-ea__ai-body,
+.agent-ea__ai-empty {
+    margin: 0;
+    color: var(--dr-text);
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+.agent-ea__ai-empty {
+    color: var(--dr-text-muted);
+}
+
+.agent-ea__ai-body p {
+    margin: 0 0 8px;
+}
+
+.agent-ea__ai-body p:last-child {
+    margin-bottom: 0;
+}
+
+.agent-ea__ai-body ul,
+.agent-ea__ai-body ol {
+    margin: 0 0 8px;
+    padding-left: 20px;
+}
+
+.agent-ea__ai-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.agent-ea__ai-skeleton i {
+    height: 12px;
+    border-radius: 6px;
+    background: var(--dr-surface-hover);
+}
+
+.agent-ea__ai-skeleton i:last-child {
+    width: 60%;
+}
+
+.agent-ea__ai-error {
+    margin: 0;
+    color: var(--dr-time-late-solid);
+    font-size: 13px;
+}
+
+/* The lists: a white panel with the tabs on top and the Earnings table inside. */
+.agent-ea__lists {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 14px;
+    padding: 14px;
+    border: 1px solid var(--dr-border);
+    border-radius: 16px;
+    background: var(--dr-white);
+}
+
+.agent-ea__list-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+.agent-ea__list-tab {
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--dr-text-muted);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.agent-ea__list-tab[aria-selected="true"] {
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+    font-weight: 600;
+}
+
+.agent-ea__list-tab:focus-visible,
+.agent-ea__list-switch button:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+.agent-ea__list-switch {
+    display: inline-flex;
+    margin-left: auto;
+    padding: 3px;
+    border-radius: 9px;
+    background: var(--dr-surface-hover);
+}
+
+.agent-ea__list-switch button {
+    padding: 5px 12px;
+    border: 0;
+    border-radius: 7px;
+    background: none;
+    color: var(--dr-text-muted);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.agent-ea__list-switch button[aria-pressed="true"] {
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font-weight: 600;
+}
+
+.agent-ea__table--report .agent-ea__row {
+    padding: 11px 16px;
+}
+
+.agent-ea__cell {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--dr-text);
+    font-size: 14px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+}
+
+.agent-ea__muted {
+    color: var(--dr-text-muted);
+}
+
+.agent-ea__stage {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 14px;
+}
+
+.agent-ea__stage i {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    border-radius: 2px;
+}
+
+.agent-ea__sub--clamp {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+}
+
+.agent-ea__skeleton-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--dr-surface-hover);
+}
+
+.agent-ea__skeleton-line {
+    height: 12px;
+    width: 50%;
+    border-radius: 6px;
+    background: var(--dr-surface-hover);
+}
+
+.agent-ea__list-foot {
+    display: flex;
+    padding: 10px 2px 0;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--dr-text-muted);
+    font-size: 13px;
+}
+
+@media (max-width: 1279px) {
+    .agent-ea__kpis {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 1023px) {
+    /* A list row is its first cell, then the rest beneath it on one wrapping line, each with its label. */
+    .agent-ea__table--report .agent-ea__row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 14px;
+        padding: 12px 14px;
+    }
+
+    .agent-ea__table--report .agent-ea__cell:first-child {
+        flex: 1 1 100%;
+    }
+
+    .agent-ea__table--report .agent-ea__cell:not(:first-child)::before {
+        color: var(--dr-text-muted);
+        content: attr(data-label) " ";
+        font-size: 11px;
+        font-weight: 400;
+    }
+}
+
+@media (max-width: 639px) {
+    .agent-ea__kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .agent-ea__list-switch {
+        margin-left: 0;
+    }
+}

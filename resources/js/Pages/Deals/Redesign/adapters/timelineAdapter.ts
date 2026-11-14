@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { onBehalfOfName } from "@/Components/CrmEvents/onBehalfOf";
 import type {
     CrmEvent,
     CrmEventDirection,
@@ -178,7 +179,7 @@ export function getTimelineDirectionLabel(
  */
 export function crmEventToTimelineViewModel(
     event: CrmEvent,
-    t: (key: string) => string,
+    t: (key: string, options?: Record<string, string | number>) => string,
 ): TimelineEventViewModel {
     const type: TimelineEventViewModel["type"] =
         event.generation_type === "user_generated"
@@ -201,10 +202,18 @@ export function crmEventToTimelineViewModel(
     const titleLocalized = callSummary !== null;
 
     const call = buildCallDetails(event);
-    const meta = `${actor} · ${dayjs(event.occurred_at).fromNow()}`;
+    const metadata = event.metadata ?? {};
+    const behalfName = onBehalfOfName(metadata);
+    const actorLabel =
+        behalfName !== ""
+            ? t("app.impersonation.onBehalfOf", {
+                  admin: actor,
+                  name: behalfName,
+              })
+            : actor;
+    const meta = `${actorLabel} · ${dayjs(event.occurred_at).fromNow()}`;
     const hideStatusChip = isCallStartedEvent(event);
 
-    const metadata = event.metadata ?? {};
     const changes = metadata?.changes;
     const grouped =
         typeof metadata?.grouped === "string" ? metadata.grouped : undefined;

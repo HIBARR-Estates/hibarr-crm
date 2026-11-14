@@ -6,6 +6,7 @@ use Exception;
 use App\Models\User;
 use App\Helper\Reply;
 use App\Models\Social;
+use App\Support\AuditLog\AuthTrigger;
 use App\Support\KeycloakBackchannelLogout;
 use App\Support\KeycloakLogout;
 use App\Support\SilentSso;
@@ -68,7 +69,8 @@ class LoginController extends Controller
             $user->resetTwoFactorCode();
             $request->session()->forget(['login.id', 'login.remember', 'login.authenticate_via']);
 
-            // Attempt login
+            // Attempt login. The password step already happened; this code is what finishes it.
+            AuthTrigger::mark(AuthTrigger::TWO_FACTOR);
             Auth::login($user);
             $request->session()->regenerate();
 
@@ -221,6 +223,7 @@ class LoginController extends Controller
 
             Log::info("Social record saved, logging in user", ['user_id' => $user->id]);
 
+            AuthTrigger::mark(AuthTrigger::SSO);
             Auth::login($user, true);
 
             // Needed as id_token_hint to end the Keycloak session on logout.

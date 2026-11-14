@@ -9,6 +9,7 @@ import {
     type CurrencyDisplay,
 } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import { getDossierFieldValue, isMeaningfulDossierValue } from "@/Pages/Leads/Redesign/adapters/dossierAdapter";
+import { resolveLeadPhoneDisplay } from "@/lib/utils";
 import type { Lead } from "@/Types/api/leads";
 
 /* ---------- lead status path ---------- */
@@ -55,7 +56,7 @@ export function buildLeadPath(statuses: LeadStatusOption[], currentKey: string):
 
 /* ---------- key facts ---------- */
 
-export type KeyFactGroupId = "reach" | "who" | "where" | "value" | "deal" | "came_from";
+export type KeyFactGroupId = "reach" | "who" | "where" | "value" | "deal" | "came_from" | "qualification";
 
 export interface KeyFactGroup {
     id: KeyFactGroupId | string;
@@ -76,7 +77,7 @@ const value = (lead: Lead, key: Parameters<typeof getDossierFieldValue>[1], comp
 
 const join = (parts: string[], separator = " · ") => parts.filter(Boolean).join(separator);
 
-interface KeyFactLabels {
+export interface KeyFactLabels {
     preferredTime: (time: string) => string;
     addedBy: (name: string) => string;
     score: (score: string) => string;
@@ -97,8 +98,11 @@ export function buildKeyFacts(lead: Lead, labels: KeyFactLabels, companyCurrency
 
     const phone = v("mobile");
     const email = v("email");
+    // The second mobile number (the lead's `cell`) is another way to reach them.
+    const secondPhone = resolveLeadPhoneDisplay(lead.cell);
     const reachLines = [
         phone ? email : "",
+        secondPhone && secondPhone !== phone ? secondPhone : "",
         join([
             // Same number as the phone: just say they're on WhatsApp.
             v("whatsapp") ? (v("whatsapp") === phone ? "WhatsApp" : `WhatsApp ${v("whatsapp")}`) : "",

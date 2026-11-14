@@ -69,7 +69,7 @@ const PARTNER_NAV_KEYS = new Set(["dashboard", "partner-leads", "my-mlm"]);
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const { props } = usePage<PageProps>();
-    const { auth, company, appName, integrationsHubUrl } = props;
+    const { auth, company, appName, integrationsHubUrl, impersonation } = props;
     const { user } = auth;
     const pipelines = (props.pipelines || []) as Pipeline[];
     const defaultPipeline = pipelines.find((p) => p.default === 1);
@@ -676,6 +676,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 ${isMobileDrawer ? "w-full max-w-[320px]" : effectiveCollapsed ? "w-[72px]" : "w-[260px]"}
                 ${mobileTranslateClass}
             `}
+            style={impersonation ? { paddingTop: 44 } : undefined}
         >
             {/* Header / Brand */}
             <div
