@@ -193,16 +193,21 @@ export default function SoftphoneDock({
     // Guards against double-logging when Answer is clicked in the dock while the island alert for the same call is also on screen.
     const inboundLoggedRef = useRef<string | null>(null);
 
+    const isOnCallList = Boolean((props.auth?.user as any)?.is_on_call_list ?? false);
     const [canReceiveCalls, setCanReceiveCalls] = useState<boolean>(() => {
         return (props.auth?.user as any)?.can_receive_calls ?? true;
     });
+    const lastToggledAtRef = useRef<number>(0);
     const [togglingReceiveCalls, setTogglingReceiveCalls] = useState(false);
     const [isPlayingVoiceMessage, setIsPlayingVoiceMessage] = useState(false);
     const [voiceMessageStatus, setVoiceMessageStatus] = useState<string | null>(null);
 
     useEffect(() => {
         if (typeof inboundRoute?.user_can_receive_calls === "boolean") {
-            setCanReceiveCalls(inboundRoute.user_can_receive_calls);
+            const isRecentToggle = Date.now() - lastToggledAtRef.current < 5000;
+            if (!isRecentToggle) {
+                setCanReceiveCalls(inboundRoute.user_can_receive_calls);
+            }
         }
     }, [inboundRoute?.user_can_receive_calls]);
 
@@ -210,7 +215,9 @@ export default function SoftphoneDock({
         const onAvailabilityChanged = (event: Event) => {
             const ce = event as CustomEvent<{ can_receive_calls: boolean }>;
             if (typeof ce.detail?.can_receive_calls === "boolean") {
+                lastToggledAtRef.current = Date.now();
                 setCanReceiveCalls(ce.detail.can_receive_calls);
+                setInboundRoute((prev) => (prev ? { ...prev, user_can_receive_calls: ce.detail.can_receive_calls } : prev));
             }
         };
         window.addEventListener("softphone:availability-changed", onAvailabilityChanged);
@@ -219,6 +226,9 @@ export default function SoftphoneDock({
 
     const handleToggleReceiveCalls = async () => {
         const nextVal = !canReceiveCalls;
+        lastToggledAtRef.current = Date.now();
+        setCanReceiveCalls(nextVal);
+        setInboundRoute((prev) => (prev ? { ...prev, user_can_receive_calls: nextVal } : prev));
         setTogglingReceiveCalls(true);
         try {
             await axios.post(
@@ -226,7 +236,6 @@ export default function SoftphoneDock({
                 { can_receive_calls: nextVal },
                 { headers: { Accept: "application/json" } },
             );
-            setCanReceiveCalls(nextVal);
             if (props.auth?.user) {
                 (props.auth.user as any).can_receive_calls = nextVal;
             }
@@ -236,7 +245,10 @@ export default function SoftphoneDock({
                 }),
             );
         } catch {
-            // best-effort
+            // rollback on failure
+            lastToggledAtRef.current = 0;
+            setCanReceiveCalls(!nextVal);
+            setInboundRoute((prev) => (prev ? { ...prev, user_can_receive_calls: !nextVal } : prev));
         } finally {
             setTogglingReceiveCalls(false);
         }
@@ -330,6 +342,13 @@ export default function SoftphoneDock({
         return callRefRef.current;
     }, [activeCall?.id]);
 
+    const lastActiveCallRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (callRef) {
+            lastActiveCallRef.current = callRef;
+        }
+    }, [callRef]);
+
     /** Why this call reached this agent. Shown in the ringing popup and stored on the recording so the audio can be traced back to its cause. */
     const callRoutingReason = useMemo(() => {
         if (activeCall?.direction !== "inbound") {
@@ -373,12 +392,14 @@ export default function SoftphoneDock({
             ? Number(currentRotationTarget.id) === currentUserId
             : true);
 
+    const userCanReceiveCalls = canReceiveCalls;
+
     const isEligibleSession =
-        inboundRoute === null ||
-        (currentRotationTarget !== null &&
-            Number(currentRotationTarget.id) === currentUserId) ||
-        inboundRoute.can_ring ||
-        isAdmin;
+        userCanReceiveCalls &&
+        (inboundRoute === null ||
+            (currentRotationTarget !== null &&
+                Number(currentRotationTarget.id) === currentUserId) ||
+            inboundRoute.can_ring);
 
     const ringingInbound =
         activeCall?.phase === "inbound" &&
@@ -641,7 +662,15 @@ export default function SoftphoneDock({
                         if (prev === null) {
                             setRoutingMode(data?.route === "owner" ? "owner" : "all");
                         }
-                        return data;
+                        if (!data) return null;
+                        const isRecentToggle = Date.now() - lastToggledAtRef.current < 5000;
+                        const effectiveCanReceive = isRecentToggle
+                            ? canReceiveCalls
+                            : (typeof data.user_can_receive_calls === "boolean" ? data.user_can_receive_calls : canReceiveCalls);
+                        return {
+                            ...data,
+                            user_can_receive_calls: effectiveCanReceive,
+                        };
                     });
                 }
                 const lead = data?.matched && data.lead_id ? {
@@ -852,7 +881,13 @@ export default function SoftphoneDock({
             });
             const updated = res.data?.data as CallRouting | null;
             if (updated) {
-                setInboundRoute(updated);
+                const isRecentToggle = Date.now() - lastToggledAtRef.current < 5000;
+                setInboundRoute({
+                    ...updated,
+                    user_can_receive_calls: isRecentToggle
+                        ? canReceiveCalls
+                        : (typeof updated.user_can_receive_calls === "boolean" ? updated.user_can_receive_calls : canReceiveCalls),
+                });
             }
         } catch {
             // Local pass already hid the call on this browser.
@@ -1413,12 +1448,20 @@ export default function SoftphoneDock({
                     ? { event: "call.missed", status: "missed" }
                     : { event: "call.failed", status: "failed" });
 
+        const effectiveCallRef =
+            callRef ||
+            lastActiveCallRef.current ||
+            (typeof crypto !== "undefined" && "randomUUID" in crypto
+                ? crypto.randomUUID()
+                : `call-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+
         const fwd = forwardedInfoRef.current;
         void axios
             .post(route("telephony.softphone.events.store"), {
                 phone: callFailure.peer,
                 device_id: activeDeviceId,
-                ...(callRef ? { call_id: callRef, call_ref: callRef } : {}),
+                call_id: effectiveCallRef,
+                call_ref: effectiveCallRef,
                 ...(leadId ? { entity_type: "lead", entity_id: leadId } : {}),
                 direction: callFailure.direction,
                 failure_reason: callFailure.code,
@@ -1794,38 +1837,40 @@ export default function SoftphoneDock({
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         {headerTitle}
-                        <button
-                            type="button"
-                            onClick={() => void handleToggleReceiveCalls()}
-                            disabled={togglingReceiveCalls}
-                            title={canReceiveCalls ? "You are receiving calls. Click to pause." : "Incoming calls paused. Click to receive calls."}
-                            style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 4,
-                                fontSize: 11,
-                                padding: "2px 8px",
-                                borderRadius: 999,
-                                border: "1px solid",
-                                borderColor: canReceiveCalls ? "rgba(16, 185, 129, 0.4)" : "rgba(148, 163, 184, 0.4)",
-                                background: canReceiveCalls ? "rgba(16, 185, 129, 0.1)" : "rgba(148, 163, 184, 0.1)",
-                                color: canReceiveCalls ? "#10b981" : "#94a3b8",
-                                cursor: "pointer",
-                                fontWeight: 600,
-                                marginLeft: "auto",
-                                marginRight: 6,
-                            }}
-                        >
-                            <span
+                        {isOnCallList && (
+                            <button
+                                type="button"
+                                onClick={() => void handleToggleReceiveCalls()}
+                                disabled={togglingReceiveCalls}
+                                title={canReceiveCalls ? "You are receiving calls. Click to pause." : "Incoming calls paused. Click to receive calls."}
                                 style={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: "50%",
-                                    background: canReceiveCalls ? "#10b981" : "#94a3b8",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    fontSize: 11,
+                                    padding: "2px 8px",
+                                    borderRadius: 999,
+                                    border: "1px solid",
+                                    borderColor: canReceiveCalls ? "rgba(16, 185, 129, 0.4)" : "rgba(148, 163, 184, 0.4)",
+                                    background: canReceiveCalls ? "rgba(16, 185, 129, 0.1)" : "rgba(148, 163, 184, 0.1)",
+                                    color: canReceiveCalls ? "#10b981" : "#94a3b8",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                    marginLeft: "auto",
+                                    marginRight: 6,
                                 }}
-                            />
-                            {canReceiveCalls ? "Calls ON" : "Calls OFF"}
-                        </button>
+                            >
+                                <span
+                                    style={{
+                                        width: 6,
+                                        height: 6,
+                                        borderRadius: "50%",
+                                        background: canReceiveCalls ? "#10b981" : "#94a3b8",
+                                    }}
+                                />
+                                {canReceiveCalls ? "Calls ON" : "Calls OFF"}
+                            </button>
+                        )}
                         <span className="sp__signal" data-quality={quality} title={`Connection: ${connectionQuality}`}>
                             <i />
                             <i />
@@ -1916,38 +1961,40 @@ export default function SoftphoneDock({
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         {headerTitle}
-                        <button
-                            type="button"
-                            onClick={() => void handleToggleReceiveCalls()}
-                            disabled={togglingReceiveCalls}
-                            title={canReceiveCalls ? "You are receiving calls. Click to pause." : "Incoming calls paused. Click to receive calls."}
-                            style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 4,
-                                fontSize: 11,
-                                padding: "2px 8px",
-                                borderRadius: 999,
-                                border: "1px solid",
-                                borderColor: canReceiveCalls ? "rgba(16, 185, 129, 0.4)" : "rgba(148, 163, 184, 0.4)",
-                                background: canReceiveCalls ? "rgba(16, 185, 129, 0.1)" : "rgba(148, 163, 184, 0.1)",
-                                color: canReceiveCalls ? "#10b981" : "#94a3b8",
-                                cursor: "pointer",
-                                fontWeight: 600,
-                                marginLeft: "auto",
-                                marginRight: 6,
-                            }}
-                        >
-                            <span
+                        {isOnCallList && (
+                            <button
+                                type="button"
+                                onClick={() => void handleToggleReceiveCalls()}
+                                disabled={togglingReceiveCalls}
+                                title={canReceiveCalls ? "You are receiving calls. Click to pause." : "Incoming calls paused. Click to receive calls."}
                                 style={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: "50%",
-                                    background: canReceiveCalls ? "#10b981" : "#94a3b8",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    fontSize: 11,
+                                    padding: "2px 8px",
+                                    borderRadius: 999,
+                                    border: "1px solid",
+                                    borderColor: canReceiveCalls ? "rgba(16, 185, 129, 0.4)" : "rgba(148, 163, 184, 0.4)",
+                                    background: canReceiveCalls ? "rgba(16, 185, 129, 0.1)" : "rgba(148, 163, 184, 0.1)",
+                                    color: canReceiveCalls ? "#10b981" : "#94a3b8",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                    marginLeft: "auto",
+                                    marginRight: 6,
                                 }}
-                            />
-                            {canReceiveCalls ? "Calls ON" : "Calls OFF"}
-                        </button>
+                            >
+                                <span
+                                    style={{
+                                        width: 6,
+                                        height: 6,
+                                        borderRadius: "50%",
+                                        background: canReceiveCalls ? "#10b981" : "#94a3b8",
+                                    }}
+                                />
+                                {canReceiveCalls ? "Calls ON" : "Calls OFF"}
+                            </button>
+                        )}
                         <span className="sp__signal" data-quality={quality} title={`Connection: ${connectionQuality}`}>
                             <i />
                             <i />
