@@ -11,8 +11,11 @@ use App\Models\Lead;
 use App\Models\LeadNote;
 use App\Models\LeadQualification;
 use App\Models\LeadQualificationAnswer;
+use App\Models\User;
+use App\Services\PermissionService;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -83,7 +86,13 @@ class LeadSummaryInputBuilder
             $sections['lead_details'] = $details;
         }
 
-        $notes = $this->buildNotes($lead, $nowCarbon, $redactor);
+        // The summary is rendered to the viewer, so it must only be built from
+        // records that viewer may read: a Deal carries its own `view_deals`
+        // scope and a Note its own `view_lead_note` scope, and a summary that
+        // quotes a record the viewer cannot open leaks its content.
+        $viewer = Auth::user();
+
+        $notes = $this->buildNotes($lead, $nowCarbon, $redactor, $viewer);
         if ($notes !== []) {
             $sections['notes'] = $notes;
         }
@@ -103,7 +112,7 @@ class LeadSummaryInputBuilder
             $sections['marketing'] = $marketing;
         }
 
-        $deals = $this->buildDeals($lead, $redactor);
+        $deals = $this->buildDeals($lead, $redactor, $viewer);
         if ($deals !== []) {
             $sections['deals'] = $deals;
         }
@@ -144,6 +153,8 @@ class LeadSummaryInputBuilder
             'lead_owner' => $lead->lead_owner,
             'source_id' => $lead->source_id,
             'category_id' => $lead->category_id,
+            // The viewer the input was scoped to.
+            'viewer' => (string) (Auth::id() ?? ''),
             'deals_count' => Deal::where('lead_id', $lead->id)->count(),
             'deals_max_updated_at' => Deal::where('lead_id', $lead->id)->max('updated_at'),
             'hibarr_max_updated_at' => HibarrDealFields::whereIn('deal_id', $dealIds)->max('updated_at'),
@@ -165,6 +176,34 @@ class LeadSummaryInputBuilder
         ];
 
         return hash('sha256', json_encode($fingerprint));
+    }
+
+    /**
+     * The lead's deals the given viewer may read.
+     *
+     * Mirrors the per-instance check the direct Deal page runs, so a summary
+     * never quotes a deal the viewer cannot open.
+     *
+     * @return \Illuminate\Support\Collection<int, Deal>
+     */
+    private function visibleDeals(Lead $lead, ?User $viewer)
+    {
+        $deals = Deal::where('lead_id', $lead->id)->with('hibarrFields')->get();
+
+        if ($viewer === null) {
+            // No viewer context (background/system generation) — keep the
+            // unscoped behaviour rather than silently dropping every deal.
+            return $deals;
+        }
+
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+        ];
+
+        return $deals
+            ->filter(fn (Deal $deal) => PermissionService::checkAccess($viewer, 'view_deals', $deal, $dealRules)['canAccess'])
+            ->values();
     }
 
     /**
@@ -338,9 +377,10 @@ class LeadSummaryInputBuilder
     /**
      * @return list<array{days_ago: int|null, text: string}>
      */
-    private function buildNotes(Lead $lead, Carbon $now, LeadSummaryRedactor $redactor): array
+    private function buildNotes(Lead $lead, Carbon $now, LeadSummaryRedactor $redactor, ?User $viewer): array
     {
         return LeadNote::where('lead_id', $lead->id)
+            ->when($viewer !== null, fn ($query) => $query->visibleTo($viewer))
             ->orderByDesc('created_at')
             ->limit(self::MAX_NOTES)
             ->get()
@@ -443,11 +483,9 @@ class LeadSummaryInputBuilder
      *
      * @return list<array<string, mixed>>
      */
-    private function buildDeals(Lead $lead, LeadSummaryRedactor $redactor): array
+    private function buildDeals(Lead $lead, LeadSummaryRedactor $redactor, ?User $viewer): array
     {
-        return Deal::where('lead_id', $lead->id)
-            ->with('hibarrFields')
-            ->get()
+        return $this->visibleDeals($lead, $viewer)
             ->map(function (Deal $deal) use ($redactor) {
                 $snapshot = $this->dealSnapshotService->getOrGenerate($deal);
 

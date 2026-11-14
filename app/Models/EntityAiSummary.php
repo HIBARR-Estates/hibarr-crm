@@ -19,6 +19,9 @@ class EntityAiSummary extends BaseModel
         'company_id',
         'entity_type',
         'entity_id',
+        // The viewer the summary was built for. Empty for the system context
+        // and for the shared deal summaries.
+        'viewer_key',
         'summary_json',
         'input_hash',
         'prompt_version',
