@@ -4,6 +4,7 @@ use App\Http\Controllers\AgentWorkspace\AgentWorkspaceController;
 use App\Http\Controllers\AgentWorkspace\EarningsController;
 use App\Http\Controllers\AgentWorkspace\MyReportController;
 use App\Http\Controllers\AgentWorkspace\PortfolioController;
+use App\Http\Controllers\AgentWorkspace\PreferencesController;
 use App\Http\Controllers\AgentWorkspace\SearchController;
 use App\Http\Controllers\DealController;
 use App\Http\Controllers\LeadContactController;
@@ -55,6 +56,8 @@ Route::middleware(['auth', 'partner.restrict', EnsureAgentWorkspaceAccess::class
         Route::get('earnings/network/{agent}', [EarningsController::class, 'agentPanel'])
             ->whereNumber('agent')
             ->name('earnings.network.agent');
+        // Preferences: the classic Preferences and Reminder preferences pages on one screen.
+        Route::get('preferences', [PreferencesController::class, 'show'])->name('preferences');
         // Search: the dock's dropdown (JSON) and the results page. Each source keeps its own visibility rules.
         Route::get('search', [SearchController::class, 'results'])->name('search');
         Route::get('search/suggest', [SearchController::class, 'suggest'])->middleware('throttle:60,1')->name('search.suggest');
