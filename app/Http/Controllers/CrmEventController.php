@@ -8,6 +8,7 @@ use App\Enums\CrmEventStatus;
 use App\Models\CrmBusinessRule;
 use App\Models\CrmEvent;
 use App\Services\CrmEventService;
+use App\Support\PolymorphicModelType;
 use App\Support\RequestCompany;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -466,28 +467,17 @@ class CrmEventController extends Controller
     }
 
     /**
-     * Collapse escaped FQCN backslashes to the canonical Eloquent class name.
+     * Canonicalise a client-supplied polymorphic model_type to the Eloquent class
+     * name, so it matches what `CrmEventService::record()` writes on the way in.
      *
-     * Callers send either `App\Models\Lead` or `App\\Models\\Lead` (the latter
-     * was required when this used stripslashes(), which turns a single-backslash
-     * FQCN into `AppModelsLead`). Both forms normalize to `App\Models\Lead`.
+     * Handles `App\Models\Lead`, `App\\Models\\Lead`, `App/Models/Lead`,
+     * `AppModelsLead` and `App\Model\lead` — see PolymorphicModelType for why the
+     * malformed spellings exist and why they are worth folding rather than
+     * rejecting.
      */
     protected function normalizeModelType(string $modelType): string
     {
-        $normalized = preg_replace('/\\\\+/', '\\', $modelType) ?? $modelType;
-
-        // Recover the fully-stripped form the old stripslashes() left behind (and
-        // that clients still occasionally send). Left unrecovered, these events
-        // resolve to no model at all, which silently breaks first-contact stamping.
-        if (!str_contains($normalized, '\\')) {
-            foreach ([\App\Models\Lead::class, \App\Models\Deal::class] as $candidate) {
-                if (str_replace('\\', '', $candidate) === $normalized) {
-                    return $candidate;
-                }
-            }
-        }
-
-        return $normalized;
+        return PolymorphicModelType::canonicalize($modelType) ?? $modelType;
     }
 
     /**

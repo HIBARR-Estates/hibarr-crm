@@ -11,12 +11,16 @@ import {
     CheckSquareIcon,
 } from "../../Components/icons";
 import {
+    AuditOutlined,
     FileTextOutlined,
     BellOutlined,
     NotificationOutlined,
     ThunderboltOutlined,
     TagsOutlined,
     DollarOutlined,
+    PhoneOutlined,
+    TeamOutlined,
+    FileDoneOutlined,
 } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import TaskCategoryManager from "./TaskCategoryManager";
@@ -52,9 +56,16 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
     const [taskCategoriesOpen, setTaskCategoriesOpen] = useState(false);
     const pageProps = usePage().props as {
         featureFlags?: Record<string, boolean>;
+        auth?: { user?: { roles?: Array<{ name?: string }> } };
     };
+    const isAdmin = (pageProps.auth?.user?.roles ?? []).some(
+        (role) => role?.name === "admin",
+    );
     const automationV2Enabled =
         pageProps.featureFlags?.["crm.automation-v2"] === true;
+    const softphoneEnabled = pageProps.featureFlags?.["crm.softphone"] === true;
+    const agentWorkspaceEnabled =
+        pageProps.featureFlags?.["crm.agent-workspace"] === true;
 
     const cards: EntitySettingCard[] = [
         {
@@ -123,6 +134,20 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
             connected: true,
             onOpen: () => setTaskCategoriesOpen(true),
         },
+        ...(softphoneEnabled
+            ? [
+                  {
+                      key: "softphone",
+                      icon: <PhoneOutlined />,
+                      iconBg: "bg-sky-50",
+                      iconColor: "text-sky-600",
+                      title: t("pages.call_bridge.title"),
+                      description: t("pages.call_bridge.description"),
+                      connected: true,
+                      onOpen: () => router.visit(route("call-bridge.index")),
+                  },
+              ]
+            : []),
         ...(canManageCustomFields
             ? [
                   {
@@ -138,6 +163,56 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
                       connected: true,
                       onOpen: () =>
                           router.visit(route("custom-fields-settings.index")),
+                  },
+              ]
+            : []),
+        {
+            key: "employees",
+            icon: <TeamOutlined />,
+            iconBg: "bg-slate-50",
+            iconColor: "text-slate-600",
+            title: t("app.menu.employees"),
+            description: t("app.settingsHub.employeesDesc"),
+            connected: true,
+            onOpen: () => router.visit(route("settings-employees.index")),
+        },
+        {
+            key: "audit-log",
+            icon: <AuditOutlined />,
+            iconBg: "bg-slate-100",
+            iconColor: "text-slate-600",
+            title: t("app.auditLog.title"),
+            description: t("app.auditLog.cardDesc"),
+            connected: true,
+            onOpen: () => router.visit(route("audit-log.index")),
+        },
+        ...(isAdmin
+            ? [
+                  {
+                      key: "company-dashboard-access",
+                      icon: <TeamOutlined />,
+                      iconBg: "bg-amber-50",
+                      iconColor: "text-amber-600",
+                      title: t("pages.company_dashboard_access.title"),
+                      description: t("pages.company_dashboard_access.card_desc"),
+                      connected: true,
+                      onOpen: () =>
+                          router.visit(route("company-dashboard-access.index")),
+                  },
+              ]
+            : []),
+        ...(isAdmin && agentWorkspaceEnabled
+            ? [
+                  {
+                      key: "agent-workspace-access",
+                      icon: <TeamOutlined />,
+                      iconBg: "bg-blue-50",
+                      iconColor: "text-blue-600",
+                      title: t("pages.agent_workspace.access.title"),
+                      description: t("pages.agent_workspace.access.card_desc"),
+                      connected: true,
+                      onOpen: () =>
+                          router.visit(route("agent-workspace-access.index")),
                   },
               ]
             : []),
@@ -188,6 +263,17 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
                       connected: true,
                       onOpen: () =>
                           router.visit(route("package-settings.index")),
+                  },
+                  {
+                      key: "payment-documents",
+                      icon: <FileDoneOutlined />,
+                      iconBg: "bg-teal-50",
+                      iconColor: "text-teal-700",
+                      title: t("pages.payment_document_settings.title"),
+                      description: t("pages.payment_document_settings.card_desc"),
+                      connected: true,
+                      onOpen: () =>
+                          router.visit(route("payment-document-settings.index")),
                   },
               ]
             : []),

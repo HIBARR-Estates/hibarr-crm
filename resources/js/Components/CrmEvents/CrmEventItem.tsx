@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { usePage } from "@inertiajs/react";
+import { canPlayCallRecording } from "@/Hooks/useSoftphone";
 import { Tooltip, Typography } from "antd";
 import {
     UserOutlined,
@@ -25,7 +27,11 @@ import type {
     CrmEventDirection,
 } from "@/Types/api/crm-event";
 import getEventIcon from "./crmEvent";
+import { onBehalfOfName } from "./onBehalfOf";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
+import { describeCallEvent, isCallStartedEvent } from "@/lib/crmEvents/callSummary";
+import RecordingPlayer from "@/Components/CallRecordingPlayer";
 
 dayjs.extend(relativeTime);
 
@@ -144,6 +150,25 @@ const DIRECTION_CONFIG: Record<
     },
 };
 
+/**
+ * Builds a human-readable summary for the call-bridge event types so timeline
+ * rows carry context instead of just "Call Started".
+ *
+ * Uses the same fields the event definitions declare in
+ * `config/crm_events.php` (`direction`, `phone_number`, `duration`, `status`).
+ *
+ * The summary is built from the locale's own strings (`pages.call_summary.*`)
+ * with the counterparty's number interpolated in the browser. It must never be
+ * sent to the dynamic translation service: that would ship a customer's phone
+ * number to a third party along with the rest of the tenant's data.
+ */
+function buildCallSummary(
+    event: CrmEvent,
+    t: (key: string) => string,
+): string | null {
+    return describeCallEvent(event, t);
+}
+
 interface Props {
     event: CrmEvent;
     compact?: boolean;
@@ -151,6 +176,17 @@ interface Props {
 
 export default function CrmEventItem({ event, compact = false }: Props) {
     const [expanded, setExpanded] = useState(false);
+    const { t } = useTranslation();
+    const { props } = usePage<any>();
+    const authUser = props.auth?.user;
+    const eventOwnerId = event.user_id ?? event.user?.id;
+    const behalfName = onBehalfOfName(event.metadata);
+    // The agent on the call or a call manager; the server enforces the same rule.
+    const canPlayRecording = canPlayCallRecording(
+        authUser,
+        props.auth?.permissions,
+        eventOwnerId,
+    );
 
     const catSlug = event.event_type?.category?.slug ?? "";
     const colors = CATEGORY_COLORS[catSlug] || DEFAULT_CAT;
@@ -161,7 +197,28 @@ export default function CrmEventItem({ event, compact = false }: Props) {
     const directionCfg = event.direction
         ? DIRECTION_CONFIG[event.direction]
         : null;
+    const meta = (event.metadata ?? {}) as Record<string, unknown>;
+    const recordingId =
+        typeof meta.recording_id === "number" ? meta.recording_id : null;
+    const recordingPlayUrl =
+        recordingId !== null
+            ? route("call-recordings.play", recordingId)
+            : null;
+    const recordingDownloadUrl =
+        recordingId !== null
+            ? route("call-recordings.download", recordingId)
+            : null;
+    const recordingDuration =
+        typeof meta.duration === "number" ? meta.duration : null;
+    const recordingFilename =
+        typeof meta.filename === "string" ? meta.filename : undefined;
+
     const message = event.metadata?.comment as string | undefined;
+    const callSummary = buildCallSummary(event, t);
+    // `call_started` is mapped to a "completed" status by the call bridge even
+    // though it only marks the beginning of a call — the summary carries that
+    // nuance, so the bare "Completed" chip would just be misleading.
+    const hideStatusChip = isCallStartedEvent(event);
 
     const { td } = useTd();
 
@@ -197,8 +254,15 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                             strong
                             className="text-[14px] text-gray-900 tracking-tight truncate leading-none"
                         >
-                            {td(event.event_type?.name ?? "Unknown Event", { source: "en" })}
+                            {td(event.event_type?.name ?? "Unknown Event", {
+                                source: "en",
+                            })}
                         </Text>
+                        {callSummary && (
+                            <span className="text-[12px] font-normal text-gray-500 truncate">
+                                {callSummary}
+                            </span>
+                        )}
                         <span
                             className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${gen.className}`}
                         >
@@ -231,14 +295,16 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                         {event.event_type.category.name}
                     </span>
                 )}
-                <div
-                    className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${statusCfg.className}`}
-                >
-                    <span className="flex items-center scale-90">
-                        {statusCfg.icon}
-                    </span>
-                    {td(statusCfg.label, { source: "en" })}
-                </div>
+                {!hideStatusChip && (
+                    <div
+                        className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${statusCfg.className}`}
+                    >
+                        <span className="flex items-center scale-90">
+                            {statusCfg.icon}
+                        </span>
+                        {td(statusCfg.label, { source: "en" })}
+                    </div>
+                )}
                 {directionCfg && (
                     <div
                         className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-tight ${directionCfg.className}`}
@@ -258,7 +324,12 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                             <UserOutlined className="text-[9px] text-gray-500" />
                         </div>
                         <span className="text-[11px] font-semibold text-gray-700">
-                            {event.user.name}
+                            {behalfName
+                                ? t("app.impersonation.onBehalfOf", {
+                                      admin: event.user.name,
+                                      name: behalfName,
+                                  })
+                                : event.user.name}
                         </span>
                     </div>
                 )}
@@ -270,6 +341,18 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                     <div className="border-l-4 border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-600 whitespace-pre-wrap break-words rounded-r-md">
                         {td(message)}
                     </div>
+                </div>
+            )}
+
+            {/* Call recording playback */}
+            {recordingPlayUrl && canPlayRecording && (
+                <div className="cb-timeline-player-card">
+                    <RecordingPlayer
+                        playUrl={recordingPlayUrl}
+                        downloadUrl={recordingDownloadUrl}
+                        durationSeconds={recordingDuration}
+                        filename={recordingFilename}
+                    />
                 </div>
             )}
 

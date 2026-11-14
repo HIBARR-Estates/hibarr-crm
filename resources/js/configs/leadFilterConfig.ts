@@ -185,6 +185,20 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
                 })) || [],
         },
         {
+            key: "lead_origin",
+            label: "Origin",
+            type: "multiselect",
+            control: "pills",
+            facetKey: "lead_origin",
+            sentence: "origin",
+            section: "Assignment & Source",
+            options:
+                props.origins?.map((origin: { id: number; name: string }) => ({
+                    value: origin.id,
+                    label: origin.name,
+                })) || [],
+        },
+        {
             key: "category_id",
             label: "Categories",
             type: "multiselect",

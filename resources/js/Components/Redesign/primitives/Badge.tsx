@@ -15,6 +15,7 @@ interface BadgeProps {
     variant?: BadgeVariant;
     className?: string;
     style?: CSSProperties;
+    title?: string;
 }
 
 /**
@@ -26,6 +27,7 @@ export default function Badge({
     variant = "blue",
     className,
     style,
+    title,
 }: BadgeProps) {
     const variants: Record<
         BadgeVariant,
@@ -44,6 +46,7 @@ export default function Badge({
 
     return (
         <span
+            title={title}
             className={className}
             style={{
                 display: "inline-flex",
@@ -57,6 +60,7 @@ export default function Badge({
                 color: v.color,
                 border: `1px solid ${v.border}`,
                 whiteSpace: "nowrap",
+                flexShrink: 0,
                 ...style,
             }}
         >

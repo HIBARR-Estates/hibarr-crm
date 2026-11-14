@@ -4,7 +4,10 @@ import type { SelectProps } from "antd";
 export type SearchableSelectOption = { value: string | number; label: string };
 export type SearchableSelectGroup = { label: string; options: SearchableSelectOption[] };
 
-interface SearchableSelectProps<T extends string | number>
+/** A single value, or an array of them for `mode="multiple"`. */
+type SearchableSelectValue = string | number | Array<string | number>;
+
+interface SearchableSelectProps<T extends SearchableSelectValue>
     extends Omit<SelectProps<T>, "options" | "showSearch" | "optionFilterProp"> {
     options: SearchableSelectOption[] | SearchableSelectGroup[];
 }
@@ -19,7 +22,7 @@ interface SearchableSelectProps<T extends string | number>
  * auto-flips the popup near viewport edges, so no extra positioning logic
  * is needed here.
  */
-export default function SearchableSelect<T extends string | number>({
+export default function SearchableSelect<T extends SearchableSelectValue>({
     options,
     popupMatchSelectWidth = 280,
     ...props

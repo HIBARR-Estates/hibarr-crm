@@ -1,0 +1,232 @@
+/* Call recording player — shared by the Call Bridge settings page and the
+   entity timeline. Scoped to the `cb-*` class names below rather than a page
+   wrapper so the same markup works in both. */
+
+.cb-player-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+}
+
+.cb-player {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: nowrap;
+    min-width: 0;
+    width: 100%;
+}
+
+.cb-play {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    border: 0;
+    background: var(--dr-button-primary-bg, #2563eb);
+    color: var(--dr-button-primary-text, #ffffff);
+    display: grid;
+    place-items: center;
+    flex: none;
+    transition: background 0.12s, transform 0.08s;
+    cursor: pointer;
+}
+
+.cb-play:hover:not(:disabled) {
+    background: var(--dr-button-primary-hover-bg, #1d4ed8);
+}
+
+.cb-play:active:not(:disabled) {
+    transform: scale(0.96);
+}
+
+.cb-play:disabled {
+    background: var(--dr-gray, #e5e7eb);
+    color: var(--dr-text-hint, #9ca3af);
+    cursor: not-allowed;
+}
+
+/* Scrubber: a 20px hit area wrapped around a 4px track, so the thin bar is
+   still easy to grab — with mouse, finger or keyboard. */
+.cb-seek {
+    position: relative;
+    flex: 1;
+    min-width: 60px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    touch-action: none;
+}
+
+.cb-seek[aria-disabled="true"] {
+    cursor: not-allowed;
+}
+
+.cb-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--dr-gray, #e5e7eb);
+    border-radius: 999px;
+    overflow: hidden;
+    transition: height 0.12s;
+}
+
+.cb-bar__fill {
+    display: block;
+    height: 100%;
+    width: var(--p, 0%);
+    background: var(--dr-blue, #2563eb);
+    border-radius: 999px;
+}
+
+.cb-seek:hover .cb-bar,
+.cb-seek:focus-visible .cb-bar {
+    height: 6px;
+}
+
+/* Thumb — revealed on hover/focus, positioned by the same --p variable. */
+.cb-seek::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: var(--p, 0%);
+    width: 11px;
+    height: 11px;
+    margin-left: -5.5px;
+    border-radius: 50%;
+    background: var(--dr-blue, #2563eb);
+    transform: translateY(-50%) scale(0.6);
+    opacity: 0;
+    pointer-events: none;
+    transition:
+        opacity 0.12s,
+        transform 0.12s;
+}
+
+.cb-seek:hover::after,
+.cb-seek:focus-visible::after,
+.cb-seek:focus-within::after {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+}
+
+.cb-seek:focus-visible {
+    outline: 3px solid var(--dr-blue, #2563eb);
+    outline-offset: 1px;
+    border-radius: 999px;
+}
+
+.cb-time {
+    font-size: 12px;
+    color: var(--dr-text-muted, #6b7280);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    font-family: inherit;
+    flex: none;
+}
+
+.cb-num {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Icon button for download and secondary actions */
+.cb-icon-btn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: var(--cb-radius-sm, 6px);
+    border: 1px solid var(--dr-border, #e5e7eb);
+    background: var(--dr-surface, #ffffff);
+    color: var(--dr-text-muted, #6b7280);
+    display: grid;
+    place-items: center;
+    text-decoration: none;
+    flex: none;
+    cursor: pointer;
+    transition:
+        background 0.12s,
+        color 0.12s,
+        border-color 0.12s;
+}
+
+.cb-icon-btn:hover {
+    color: var(--dr-red, #ef4444);
+    border-color: var(--dr-red, #ef4444);
+    background: var(--dr-red-soft, #fef2f2);
+}
+
+.cb-icon-btn--plain {
+    border-color: transparent;
+    background: transparent;
+}
+
+.cb-icon-btn--plain:hover {
+    color: var(--dr-blue, #2563eb);
+    border-color: transparent;
+    background: var(--dr-blue-light, #eff6ff);
+}
+
+.cb-icon-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.cb-fail {
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--dr-red, #ef4444);
+    background: var(--dr-red-soft, #fef2f2);
+    border-radius: var(--cb-radius-sm, 6px);
+    padding: 6px 10px;
+    margin-top: 8px;
+}
+
+.cb-fail a {
+    color: var(--dr-red, #ef4444);
+    font-weight: 600;
+}
+
+/* Timeline card container for call recordings */
+.cb-timeline-player-card {
+    margin-top: 8px;
+    padding: 10px 14px;
+    border: 1px solid var(--dr-border, #e5e7eb);
+    border-radius: 8px;
+    background: var(--dr-surface-2, #f9fafb);
+    max-width: 520px;
+}
+
+.cb-timeline-player-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 12px;
+    font-size: 12px;
+    color: var(--dr-text-muted, #6b7280);
+    margin-bottom: 8px;
+}
+
+.cb-timeline-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--dr-blue-light, #eff6ff);
+    color: var(--dr-blue-dark, #1e40af);
+}
+
+@media (max-width: 480px) {
+    .cb-player {
+        flex-wrap: wrap;
+    }
+}

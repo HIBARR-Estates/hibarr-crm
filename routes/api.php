@@ -19,8 +19,16 @@ use Illuminate\Support\Facades\Route;
 
 ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
     // Used by the CRM frontend (session cookie) and by services (API token).
-    ApiRoute::middleware(['api.token.or.session'])->group(function () {
+    // The `api` group is required here: Froiden's ApiRoute creates routes
+    // directly on the router, so it does not inherit the `api` middleware
+    // group from RouteServiceProvider. Without it there is no session
+    // middleware and `$request->user()` is always null for browser calls.
+    ApiRoute::middleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class, 'api.token.or.session'])->group(function () {
         ApiRoute::get('purchased-module', ['as' => 'api.purchasedModule', 'uses' => 'HomeController@installedModule']);
+
+        // CallBridge SIP Provider Integrations API
+        ApiRoute::get('call-bridge/integrations/providers', ['as' => 'api.call-bridge.integrations.providers', 'uses' => 'App\Http\Controllers\Api\CallBridgeIntegrationsController@providers']);
+        ApiRoute::get('call-bridge/integrations/providers/{platform}', ['as' => 'api.call-bridge.integrations.platform', 'uses' => 'App\Http\Controllers\Api\CallBridgeIntegrationsController@platform']);
 
         ApiRoute::post('internal/communication-activities', ['as' => 'api.communication-activities.store.internal', 'uses' => 'CommunicationActivityController@store']);
         ApiRoute::get('internal/deals/{dealId}/communication-activities', ['as' => 'api.deals.communication-activities.internal', 'uses' => 'CommunicationActivityController@getDealActivities']);
@@ -50,13 +58,12 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::get('meeting-summary/{summaryId}', ['as' => 'api.meeting-summary.show', 'uses' => 'MeetingSummaryController@show']);
         ApiRoute::post('meeting-summary', ['as' => 'api.meeting-summary.store', 'uses' => 'MeetingSummaryApiController@getMeetingSummary']);
 
-        //Import routes
+        // Import routes
         ApiRoute::post('bitrix/import', ['as' => 'api.bitrix.import', 'uses' => 'Api\BitrixImportController@store']);
         ApiRoute::post('bitrix/contact/import', ['as' => 'api.bitrix.contact.import', 'uses' => 'Api\BitrixImportController@contactStore']);
         ApiRoute::post('bitrix/comments/import', ['as' => 'api.bitrix.comments.import', 'uses' => 'Api\BitrixImportController@commentStore']);
         ApiRoute::post('bitrix/tasks/import', ['as' => 'api.bitrix.tasks.import', 'uses' => 'Api\BitrixImportController@taskImport']);
 
-        
         // External Events Routes
         ApiRoute::post('external-events', ['as' => 'api.external-events.store', 'uses' => 'ExternalEventController@store']);
         ApiRoute::get('external-events', ['as' => 'api.external-events.index', 'uses' => 'ExternalEventController@index']);
@@ -64,10 +71,10 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
 
         // Deal API Routes
         ApiRoute::post('deal/create', ['as' => 'api.deals.create', 'uses' => 'Api\DealContactApiController@createDeal']);
-        
+
         // Contact API Routes
         ApiRoute::post('contact/create', ['as' => 'api.contacts.createOrUpdate', 'uses' => 'Api\DealContactApiController@createOrUpdateContact']);
-        
+
         // Lead API Routes (paginated: first_name, last_name, email)
         ApiRoute::get('leads', ['as' => 'api.leads.index', 'uses' => 'Api\LeadApiController@index']);
 
@@ -145,6 +152,11 @@ Route::middleware(['api.token'])->prefix('v2')->group(function () {
         Route::post('payments', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@upsertPayment', 'as' => 'api.v2.payments.upsert']);
         Route::get('payments/{paymentId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@getPayment', 'as' => 'api.v2.payments.show'])
             ->whereNumber('paymentId');
+
+        Route::get('sally-meetings', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@listSallyMeetings', 'as' => 'api.v2.sally-meetings.index']);
+        Route::post('sally-meetings', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@upsertSallyMeeting', 'as' => 'api.v2.sally-meetings.upsert']);
+        Route::get('sally-meetings/{meetingId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@getSallyMeeting', 'as' => 'api.v2.sally-meetings.show'])
+            ->whereNumber('meetingId');
     });
 
     Route::post('employees', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@createEmployee', 'as' => 'api.v2.employees.create.compat']);

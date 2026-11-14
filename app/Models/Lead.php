@@ -354,6 +354,12 @@ class Lead extends BaseModel
         return $this->belongsTo(LeadCategory::class, 'category_id');
     }
 
+    /** Which team or channel brought the lead in (set by the marketing lead flow). */
+    public function origin(): BelongsTo
+    {
+        return $this->belongsTo(LeadOrigin::class, 'lead_origin_id');
+    }
+
     /**
      * Taxonomy categories attached to this lead (many).
      * `category_id` remains the primary/first category for legacy callers.

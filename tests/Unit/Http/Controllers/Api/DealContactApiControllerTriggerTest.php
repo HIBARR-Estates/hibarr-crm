@@ -380,6 +380,13 @@ class DealContactApiControllerTriggerTest extends TestCase
 
     private function resetSchema(): void
     {
+        Schema::dropIfExists('custom_fields_data');
+        Schema::dropIfExists('custom_fields');
+        Schema::dropIfExists('custom_field_groups');
+        Schema::dropIfExists('lead_lead_category');
+        Schema::dropIfExists('lead_category');
+        Schema::dropIfExists('lead_lifecycle_statuses');
+        Schema::dropIfExists('lead_utm_touches');
         Schema::dropIfExists('lead_marketing');
         Schema::dropIfExists('leads');
         Schema::dropIfExists('lead_agents');
@@ -449,6 +456,70 @@ class DealContactApiControllerTriggerTest extends TestCase
             $table->date('last_webinar_date')->nullable();
             $table->integer('contact_score')->nullable();
             $table->timestamps();
+        });
+
+        Schema::create('lead_utm_touches', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('lead_id');
+            $table->string('utm_source')->nullable();
+            $table->string('utm_medium')->nullable();
+            $table->string('utm_campaign')->nullable();
+            $table->string('utm_content')->nullable();
+            $table->string('utm_term')->nullable();
+            $table->string('utm_audience')->nullable();
+            $table->string('origin', 50)->nullable();
+            $table->boolean('is_first_touch')->default(false);
+            $table->timestamps();
+        });
+
+        Schema::create('lead_lifecycle_statuses', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id');
+            $table->string('key', 50);
+            $table->string('label');
+            $table->text('description')->nullable();
+            $table->unsignedSmallInteger('sort_order')->default(0);
+            $table->string('label_color', 20)->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('lead_category', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('category_name');
+            $table->timestamps();
+        });
+
+        Schema::create('lead_lead_category', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('lead_id');
+            $table->unsignedInteger('lead_category_id');
+            $table->timestamps();
+        });
+
+        Schema::create('custom_field_groups', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('model');
+            $table->timestamps();
+        });
+
+        Schema::create('custom_fields', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id')->nullable();
+            $table->unsignedInteger('custom_field_group_id')->nullable();
+            $table->string('label');
+            $table->string('name');
+            $table->string('type')->default('text');
+            $table->string('required')->default('no');
+        });
+
+        Schema::create('custom_fields_data', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('custom_field_id');
+            $table->unsignedInteger('model_id');
+            $table->string('model')->nullable();
+            $table->text('value')->nullable();
         });
     }
 }

@@ -43,6 +43,8 @@ class Kernel extends HttpKernel
             // Logs out other sessions once the user's password hash changes
             // (password reset/update, or an admin setting a new password).
             \Illuminate\Session\Middleware\AuthenticateSession::class,
+            // Ends the session once Keycloak reports the user signed out elsewhere.
+            \App\Http\Middleware\EnsureKeycloakSessionActive::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\ParsePatchMultipart::class, // Parse multipart for PATCH requests

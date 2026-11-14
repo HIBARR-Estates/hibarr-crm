@@ -12,6 +12,7 @@ import {
 } from "../primitives/TaskGlyphs";
 import RowActionMenu, { type RowAction } from "@/Components/Redesign/primitives/RowActionMenu";
 import TaskRecordIcon from "../primitives/TaskRecordIcon";
+import TaskCategoryAction from "../primitives/TaskCategoryAction";
 import type { TaskViewModel } from "../../adapters/taskViewModel";
 
 const OPEN_BUTTON: CSSProperties = {
@@ -128,6 +129,7 @@ export default function TaskListRow({
                             )}
                         </>
                     )}
+                    <TaskCategoryAction task={vm.task} />
                     {vm.links.map((link) => {
                         const body = (
                             <>

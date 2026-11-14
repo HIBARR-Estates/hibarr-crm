@@ -1,17 +1,12 @@
 import React from "react";
 import { Dropdown, Button, Space } from "antd";
-import { GlobalOutlined, CheckOutlined } from "@ant-design/icons";
+import { GlobalOutlined, CheckOutlined, DownOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import { useTranslation } from "@/Hooks/useTranslation";
 import type { SupportedLocale } from "@/lib/i18n";
+import { LOCALE_FLAG_EMOJI } from "@/lib/localeFlags";
 
-// Flag emoji mapping for the four supported languages
-const FLAG_EMOJI: Record<string, string> = {
-    gb: "🇬🇧",
-    de: "🇩🇪",
-    ru: "🇷🇺",
-    tr: "🇹🇷",
-};
+const FLAG_EMOJI = LOCALE_FLAG_EMOJI;
 
 interface LanguageSwitcherProps {
     /** Show only icon when true */
@@ -77,20 +72,25 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
             trigger={["click"]}
             placement="bottomRight"
         >
-            <Button
-                icon={<GlobalOutlined />}
-                className={className}
-                type={compact ? "text" : "default"}
+            <button
+                type="button"
+                className={`inline-flex items-center gap-1.5 h-11 px-3 rounded-lg text-[13px] font-medium text-[#374151] bg-transparent hover:bg-gray-100 transition-colors border-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${className}`}
+                style={{
+                    height: "44px",
+                    padding: "0 12px",
+                    borderRadius: "8px",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#374151",
+                    background: "transparent",
+                    border: "none",
+                }}
+                aria-label={`Language: ${currentLang?.name || "English"}`}
             >
-                {!compact && (
-                    <span className={labelClassName || undefined}>
-                        <Space>
-                            <span>{currentFlag}</span>
-                            <span>{currentLang?.native || "English"}</span>
-                        </Space>
-                    </span>
-                )}
-            </Button>
+                <GlobalOutlined style={{ fontSize: 16 }} aria-hidden="true" />
+                <span>{currentLang?.name || currentLang?.native || "English"}</span>
+                <DownOutlined style={{ fontSize: 13, color: "#6b7280" }} aria-hidden="true" />
+            </button>
         </Dropdown>
     );
 };

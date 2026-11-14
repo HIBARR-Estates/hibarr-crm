@@ -1,0 +1,118 @@
+/* The deal analysis under the agent dock (canvas L7-12): one section of the
+   script, its questions and its footer. Redesign tokens only; no shadows. */
+
+.agent-an {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    background: var(--dr-white);
+}
+
+.agent-an__scroll {
+    flex: 1;
+    min-height: 0;
+    padding: 22px 24px 8px;
+    overflow-y: auto;
+}
+
+.agent-an__cap {
+    margin: 0 0 14px;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.agent-an__guide {
+    margin: -6px 0 14px;
+    color: var(--dr-text-muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* Each question, a hairline between them. */
+.agent-an__q {
+    padding: 16px 0;
+}
+
+.agent-an__cap + .agent-an__q,
+.agent-an__guide + .agent-an__q {
+    padding-top: 0;
+}
+
+.agent-an__q + .agent-an__q {
+    border-top: 1px solid var(--dr-border);
+}
+
+.agent-an__field {
+    min-width: 0;
+}
+
+.agent-an__field--conditional {
+    margin-left: 12px;
+    padding-left: 16px;
+    border-left: 2px solid var(--dr-border);
+}
+
+.agent-an__label {
+    margin: 0 0 10px;
+    color: var(--dr-text);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.agent-an__required {
+    margin-left: 3px;
+    color: var(--dr-blue);
+}
+
+/* Answer chips: Yes / No, single and multiple choice (canvas L7-12). */
+.agent-an__chip {
+    display: inline-flex;
+    min-height: 38px;
+    align-items: center;
+    gap: 6px;
+    padding: 0 16px;
+    border: 1px solid var(--dr-button-ghost-border);
+    border-radius: 8px;
+    background: var(--dr-button-ghost-bg);
+    color: var(--dr-button-ghost-text);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.agent-an__chip:hover:not(:disabled) {
+    background: var(--dr-button-ghost-hover-bg);
+    color: var(--dr-button-ghost-hover-text);
+}
+
+.agent-an__chip--on,
+.agent-an__chip--on:hover:not(:disabled) {
+    border-color: var(--dr-button-primary-bg);
+    background: var(--dr-button-primary-bg);
+    color: var(--dr-button-primary-text);
+    font-weight: 600;
+}
+
+.agent-an__chip:focus-within,
+.agent-an__chip:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 1px;
+}
+
+.agent-an__chip:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 639px) {
+    .agent-an__scroll {
+        padding: 18px 16px 8px;
+    }
+}

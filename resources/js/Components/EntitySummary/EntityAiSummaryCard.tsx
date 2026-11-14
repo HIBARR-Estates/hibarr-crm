@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import useEntityAiSummary from "@/Hooks/useEntityAiSummary";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
@@ -6,8 +6,12 @@ import type { EntityAiSummaryCardProps } from "@/Types/entity-summary";
 import { isLeadSummaryPayload } from "@/Types/entity-summary";
 import AiThinkingIndicator from "./AiThinkingIndicator";
 import EntityAiSummaryChipGrid from "./EntityAiSummaryChipGrid";
+import EntityAiSummaryProse from "./EntityAiSummaryProse";
+import EntityAiSummaryFacts from "./EntityAiSummaryFacts";
 import EntityAiSummaryHeader from "./EntityAiSummaryHeader";
 import EntityAiSummaryNextStep from "./EntityAiSummaryNextStep";
+import { SummaryPersonalizationProvider } from "./SummaryPersonalization";
+import { buildLeadTokenValues, personalizeSummaryText } from "./summaryTokens";
 import { executeSummaryAction, isExecutableAction } from "./summaryActions";
 import "./entity-summary.css";
 
@@ -23,16 +27,23 @@ export default function EntityAiSummaryCard({
     variant = "legacy",
     className = "my-4",
     leadPhone,
+    leadName,
     onQualifyLead,
     onCreateTask,
     onScheduleCall,
     onRequestDocuments,
     onAdvanceStage,
     onReviewStaleDeal,
+    onSummaryChange,
 }: EntityAiSummaryCardProps) {
     const { t } = useTranslation();
     const { td } = useTd();
     const isRedesign = variant === "redesign";
+
+    // The summary text names the lead with tokens (the model never sees the name);
+    // these are the real values the tokens are replaced with when it renders.
+    const tokenValues = useMemo(() => buildLeadTokenValues(leadName), [leadName]);
+
     const [collapsed, setCollapsed] = useState(isRedesign);
 
     const { summary, loading, error, errorFromApi, isStale, generate, regenerate } =
@@ -40,6 +51,10 @@ export default function EntityAiSummaryCard({
             entityType,
             entityId,
             initialSummary,
+            // Lead summaries write themselves on load when missing or stale (never over a
+            // current one); deal summaries stay manual.
+            autoGenerate: entityType === "lead",
+            onSummaryChange,
         });
 
     const wasLoadingRef = useRef(false);
@@ -72,6 +87,48 @@ export default function EntityAiSummaryCard({
                 summary.primary_risk_source === "linked_deal"));
 
     const isHeuristic = summary?.meta?.source === "heuristic";
+
+    // Lead summaries from prompt v2 are a written paragraph; older stored lead
+    // summaries and all deal summaries still render as chips + bullets.
+    const leadBrief =
+        summary && isLeadSummaryPayload(summary) && summary.summary
+            ? summary
+            : null;
+
+    // Redesign lead brief: the takeaway sits large in the body, so the header
+    // only shows it while collapsed; Regenerate moves up into the header row.
+    const showLeadBriefLayout = isRedesign && Boolean(leadBrief);
+
+    const renderBody = () =>
+        summary ? (
+            leadBrief?.summary ? (
+                <>
+                    {isRedesign && (
+                        <p className="entity-ai-summary-takeaway">
+                            {personalizeSummaryText(
+                                td(leadBrief.status_line, { source: "en" }),
+                                tokenValues,
+                            )}
+                        </p>
+                    )}
+                    <EntityAiSummaryProse text={leadBrief.summary} />
+                    <EntityAiSummaryFacts facts={leadBrief.facts ?? []} />
+                </>
+            ) : (
+                <>
+                    <EntityAiSummaryChipGrid chips={summary.chips} />
+                    {summary.bullets.length > 0 && (
+                        <ul className="entity-ai-summary-bullets">
+                            {summary.bullets.map((bullet) => (
+                                <li key={bullet}>
+                                    {td(bullet, { source: "en" })}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </>
+            )
+        ) : null;
 
     const handleAction = () => {
         if (!summary) return;
@@ -114,196 +171,184 @@ export default function EntityAiSummaryCard({
     const showDetailBody = !isRedesign || !collapsed;
 
     return (
-        <section className={cardClassName} aria-busy={loading || undefined}>
-            <EntityAiSummaryHeader
-                title={t(TITLE_KEYS[entityType])}
-                entityType={entityType}
-                generatedAt={summary?.meta?.generated_at}
-                loading={loading}
-                onRegenerate={summary ? startRegenerate : startGenerate}
-                dataConfidence={
-                    isStale ? undefined : summary?.meta?.data_confidence
-                }
-                variant={variant}
-                collapsed={collapsed}
-                onToggleCollapse={
-                    isRedesign
-                        ? () => setCollapsed((value) => !value)
-                        : undefined
-                }
-                statusLine={isRedesign ? summary?.status_line : undefined}
-                riskLevel={isRedesign ? summary?.risk_level : undefined}
-                chips={isRedesign ? summary?.chips : undefined}
-                hasSummary={Boolean(summary)}
-                isStale={isStale}
-                isHeuristic={isHeuristic}
-            />
+        <SummaryPersonalizationProvider values={tokenValues}>
+            <section className={cardClassName} aria-busy={loading || undefined}>
+                <EntityAiSummaryHeader
+                    title={t(TITLE_KEYS[entityType])}
+                    entityType={entityType}
+                    generatedAt={summary?.meta?.generated_at}
+                    loading={loading}
+                    onRegenerate={summary ? startRegenerate : startGenerate}
+                    dataConfidence={
+                        isStale ? undefined : summary?.meta?.data_confidence
+                    }
+                    variant={variant}
+                    collapsed={collapsed}
+                    onToggleCollapse={
+                        isRedesign
+                            ? () => setCollapsed((value) => !value)
+                            : undefined
+                    }
+                    statusLine={
+                        isRedesign && (!showLeadBriefLayout || collapsed)
+                            ? summary?.status_line
+                            : undefined
+                    }
+                    riskLevel={isRedesign ? summary?.risk_level : undefined}
+                    chips={isRedesign ? summary?.chips : undefined}
+                    hasSummary={Boolean(summary)}
+                    isStale={isStale}
+                    isHeuristic={isHeuristic}
+                    leadBrief={showLeadBriefLayout}
+                />
 
-            {showDetailBody && (
-                <>
-                    {loading && (
-                        <div className="entity-ai-summary-loading-banner">
-                            <AiThinkingIndicator
-                                variant={isRedesign ? "panel" : "inline"}
-                            />
-                        </div>
-                    )}
-
-                    {error && !loading && (
-                        <div className="entity-ai-summary-error" role="alert">
-                            {isRedesign && errorFromApi
-                                ? td(error, { source: "en" })
-                                : error}{" "}
-                            <button type="button" onClick={startGenerate}>
-                                {isRedesign
-                                    ? t("pages.entity_summary.retry")
-                                    : "Retry"}
-                            </button>
-                        </div>
-                    )}
-
-                    {isStale && summary && !loading && (
-                        <div className="entity-ai-summary-stale-banner">
-                            {isRedesign ? (
-                                <>
-                                    {t("pages.entity_summary.stale_banner", {
-                                        entity: entityType,
-                                    })}{" "}
-                                    <button type="button" onClick={startRegenerate}>
-                                        {t("pages.entity_summary.refresh")}
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    This summary may be out of date because the{" "}
-                                    {entityType} changed.{" "}
-                                    <button type="button" onClick={startRegenerate}>
-                                        Refresh
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    )}
-
-                    {isHeuristic && summary && !loading && !error && (
-                        <div className="entity-ai-summary-heuristic-banner">
-                            {isRedesign ? (
-                                <>
-                                    {t("pages.entity_summary.heuristic_banner")}{" "}
-                                    <button type="button" onClick={startRegenerate}>
-                                        {t("pages.entity_summary.retry_ai")}
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    Showing a fallback summary because AI was
-                                    unavailable.{" "}
-                                    <button type="button" onClick={startRegenerate}>
-                                        Retry AI
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    )}
-
-                    {!isRedesign && !summary && !loading && !error && (
-                        <div className="entity-ai-summary-empty">
-                            <p>
-                                Generate an AI summary to see key facts, risk
-                                signals, and a suggested next step for this{" "}
-                                {entityType}.
-                            </p>
-                            <button
-                                type="button"
-                                className="entity-ai-summary-next-step__button entity-ai-summary-empty__cta"
-                                onClick={startGenerate}
-                            >
-                                Generate AI Summary
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Keep prior summary mounted while regenerating so loading
-                        never blanks the card; swap in place when the new one
-                        arrives with loading already cleared. */}
-                    {summary && !loading && (
-                        <div className="entity-ai-summary-result">
-                            <div className="entity-ai-summary-body">
-                                {!isRedesign && (
-                                    <p
-                                        className={`entity-ai-summary-status-line${
-                                            showRiskHighlight
-                                                ? " entity-ai-summary-status-line--risk"
-                                                : ""
-                                        }`}
-                                    >
-                                        {summary.status_line}
-                                    </p>
-                                )}
-                                <EntityAiSummaryChipGrid
-                                    chips={summary.chips}
+                {showDetailBody && (
+                    <>
+                        {loading && (
+                            <div className="entity-ai-summary-loading-banner">
+                                <AiThinkingIndicator
+                                    variant={isRedesign ? "panel" : "inline"}
                                 />
-                                {summary.bullets.length > 0 && (
-                                    <ul className="entity-ai-summary-bullets">
-                                        {summary.bullets.map((bullet) => (
-                                            <li key={bullet}>
-                                                {td(bullet, { source: "en" })}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                                {isRedesign && (
-                                    <button
-                                        type="button"
-                                        className="entity-ai-summary-regenerate-btn"
-                                        disabled={loading}
-                                        onClick={startRegenerate}
-                                    >
-                                        {isStale
-                                            ? t(
-                                                  "pages.entity_summary.refresh_summary",
-                                              )
-                                            : t(
-                                                  "pages.entity_summary.regenerate_summary",
-                                              )}
-                                    </button>
+                            </div>
+                        )}
+
+                        {error && !loading && (
+                            <div className="entity-ai-summary-error" role="alert">
+                                {isRedesign && errorFromApi
+                                    ? td(error, { source: "en" })
+                                    : error}{" "}
+                                <button type="button" onClick={startGenerate}>
+                                    {isRedesign
+                                        ? t("pages.entity_summary.retry")
+                                        : "Retry"}
+                                </button>
+                            </div>
+                        )}
+
+                        {isStale && summary && !loading && (
+                            <div className="entity-ai-summary-stale-banner">
+                                {isRedesign ? (
+                                    <>
+                                        {t("pages.entity_summary.stale_banner", {
+                                            entity: entityType,
+                                        })}{" "}
+                                        <button type="button" onClick={startRegenerate}>
+                                            {t("pages.entity_summary.refresh")}
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        This summary may be out of date because the{" "}
+                                        {entityType} changed.{" "}
+                                        <button type="button" onClick={startRegenerate}>
+                                            Refresh
+                                        </button>
+                                    </>
                                 )}
                             </div>
-                            <EntityAiSummaryNextStep
-                                nextStep={summary.next_step}
-                                onAction={handleAction}
-                                actionable={isExecutableAction(
-                                    summary.next_step.action_type,
-                                    {
-                                        canAdvanceStage:
-                                            Boolean(onAdvanceStage),
-                                    },
-                                )}
-                            />
-                        </div>
-                    )}
+                        )}
 
-                    {/* Regenerating: show prior summary dimmed under the panel loader above. */}
-                    {summary && loading && (
-                        <div className="entity-ai-summary-result entity-ai-summary-result--pending">
-                            <div className="entity-ai-summary-body">
-                                <EntityAiSummaryChipGrid
-                                    chips={summary.chips}
-                                />
-                                {summary.bullets.length > 0 && (
-                                    <ul className="entity-ai-summary-bullets">
-                                        {summary.bullets.map((bullet) => (
-                                            <li key={bullet}>
-                                                {td(bullet, { source: "en" })}
-                                            </li>
-                                        ))}
-                                    </ul>
+                        {isHeuristic && summary && !loading && !error && (
+                            <div className="entity-ai-summary-heuristic-banner">
+                                {isRedesign ? (
+                                    <>
+                                        {t("pages.entity_summary.heuristic_banner")}{" "}
+                                        <button type="button" onClick={startRegenerate}>
+                                            {t("pages.entity_summary.retry_ai")}
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        Showing a fallback summary because AI was
+                                        unavailable.{" "}
+                                        <button type="button" onClick={startRegenerate}>
+                                            Retry AI
+                                        </button>
+                                    </>
                                 )}
                             </div>
-                        </div>
-                    )}
-                </>
-            )}
-        </section>
+                        )}
+
+                        {!isRedesign && !summary && !loading && !error && (
+                            <div className="entity-ai-summary-empty">
+                                <p>
+                                    Generate an AI summary to see key facts, risk
+                                    signals, and a suggested next step for this{" "}
+                                    {entityType}.
+                                </p>
+                                <button
+                                    type="button"
+                                    className="entity-ai-summary-next-step__button entity-ai-summary-empty__cta"
+                                    onClick={startGenerate}
+                                >
+                                    Generate AI Summary
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Keep prior summary mounted while regenerating so loading
+                            never blanks the card; swap in place when the new one
+                            arrives with loading already cleared. */}
+                        {summary && !loading && (
+                            <div className="entity-ai-summary-result">
+                                <div className="entity-ai-summary-body">
+                                    {!isRedesign && (
+                                        <p
+                                            className={`entity-ai-summary-status-line${
+                                                showRiskHighlight
+                                                    ? " entity-ai-summary-status-line--risk"
+                                                    : ""
+                                            }`}
+                                        >
+                                            {personalizeSummaryText(
+                                                summary.status_line,
+                                                tokenValues,
+                                            )}
+                                        </p>
+                                    )}
+                                    {renderBody()}
+                                    {isRedesign && !showLeadBriefLayout && (
+                                        <button
+                                            type="button"
+                                            className="entity-ai-summary-regenerate-btn"
+                                            disabled={loading}
+                                            onClick={startRegenerate}
+                                        >
+                                            {isStale
+                                                ? t(
+                                                      "pages.entity_summary.refresh_summary",
+                                                  )
+                                                : t(
+                                                      "pages.entity_summary.regenerate_summary",
+                                                  )}
+                                        </button>
+                                    )}
+                                </div>
+                                <EntityAiSummaryNextStep
+                                    nextStep={summary.next_step}
+                                    onAction={handleAction}
+                                    actionable={isExecutableAction(
+                                        summary.next_step.action_type,
+                                        {
+                                            canAdvanceStage:
+                                                Boolean(onAdvanceStage),
+                                        },
+                                    )}
+                                />
+                            </div>
+                        )}
+
+                        {/* Regenerating: show prior summary dimmed under the panel loader above. */}
+                        {summary && loading && (
+                            <div className="entity-ai-summary-result entity-ai-summary-result--pending">
+                                <div className="entity-ai-summary-body">
+                                    {renderBody()}
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+            </section>
+        </SummaryPersonalizationProvider>
     );
 }

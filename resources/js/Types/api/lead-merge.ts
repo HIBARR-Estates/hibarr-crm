@@ -18,7 +18,53 @@ export interface LeadMergeSummary {
     client_whatsapp: string | null;
     client_telegram: string | null;
     client_instagram: string | null;
+    owner_name?: string | null;
+    created_at?: string | null;
     contact_methods: LeadContactMethod[];
+}
+
+/** Which lead's value the kept lead ends up with. */
+export type LeadMergeSide = "primary" | "duplicate";
+
+export type LeadMergeFieldState = "same" | "fill" | "keep" | "choose" | "locked";
+
+export interface LeadMergeFieldRow {
+    /** Lead column, "custom:<id>" or "marketing:<column>". */
+    key: string;
+    /** English label (custom field labels are user-defined). */
+    label: string;
+    primary: string | null;
+    duplicate: string | null;
+    state: LeadMergeFieldState;
+    default_pick: LeadMergeSide;
+    hint: "kept_as_alternate" | "higher_score" | "touch_history" | "referrer_locked" | "follows_value" | null;
+    custom?: boolean;
+}
+
+export type LeadMergeGroupKey = "contact" | "personal" | "status" | "ownership" | "marketing" | "custom";
+
+export interface LeadMergeFieldGroup {
+    key: LeadMergeGroupKey;
+    rows: LeadMergeFieldRow[];
+}
+
+export interface LeadMergeCombinedList {
+    primary: string[];
+    duplicate: string[];
+    result: string[];
+}
+
+export interface LeadMergeCombinedValue {
+    primary: string | null;
+    duplicate: string | null;
+    result: string | null;
+}
+
+export interface LeadMergeCombined {
+    languages?: LeadMergeCombinedList;
+    categories?: LeadMergeCombinedList;
+    engagement?: Array<{ key: string; primary: boolean; duplicate: boolean; result: boolean }>;
+    last_webinar_date?: LeadMergeCombinedValue;
 }
 
 export interface LeadMergeContactConflict {
@@ -56,6 +102,10 @@ export interface LeadMergeReviewResponse {
         primary: LeadMergeConnectedCounts;
         duplicate: LeadMergeConnectedCounts;
     };
+    field_groups?: LeadMergeFieldGroup[];
+    combined?: LeadMergeCombined;
+    /** Records of each kind that move from the duplicate to the kept lead. */
+    moves?: Record<string, number>;
 }
 
 export interface LeadDuplicateCandidate {

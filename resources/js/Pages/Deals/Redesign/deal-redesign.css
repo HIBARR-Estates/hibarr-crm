@@ -479,3 +479,97 @@
 .dr-ov-col-empty {
     flex: 0 0 auto;
 }
+
+/* ---------- stage ramp (DealPipelineStepper variant="ramp") ----------
+   The pipeline as one segmented bar: navy behind, blue now, grey ahead. */
+.dr-stage-ramp__steps {
+    display: grid;
+    grid-template-columns: repeat(var(--dr-stage-count, 5), minmax(0, 1fr));
+    gap: 8px;
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dr-stage-ramp__step {
+    min-width: 0;
+}
+
+.dr-stage-ramp__button {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.dr-stage-ramp__button:disabled {
+    cursor: default;
+}
+
+.dr-stage-ramp__button:focus-visible {
+    border-radius: 6px;
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 3px;
+}
+
+.dr-stage-ramp__bar {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--dr-gray-mid);
+}
+
+.dr-stage-ramp__step--done .dr-stage-ramp__bar {
+    background: var(--dr-navy);
+}
+
+.dr-stage-ramp__step--current .dr-stage-ramp__bar {
+    background: var(--dr-blue);
+}
+
+.dr-stage-ramp__button:not(:disabled):hover .dr-stage-ramp__bar {
+    box-shadow: inset 0 0 0 2px var(--dr-blue-mid);
+}
+
+.dr-stage-ramp__name {
+    color: var(--dr-text);
+    font-size: 13px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.dr-stage-ramp__step--current .dr-stage-ramp__name {
+    color: var(--dr-blue-dark);
+    font-weight: 650;
+}
+
+.dr-stage-ramp__step--ahead .dr-stage-ramp__name {
+    color: var(--dr-text-muted);
+}
+
+.dr-stage-ramp__tag {
+    font-weight: 500;
+}
+
+.dr-stage-ramp__foot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* Many stages on a narrow screen: scroll the ramp sideways. */
+@media (max-width: 767px) {
+    .dr-stage-ramp__steps {
+        overflow-x: auto;
+        grid-template-columns: repeat(var(--dr-stage-count, 5), minmax(110px, 1fr));
+        scrollbar-width: none;
+    }
+}
