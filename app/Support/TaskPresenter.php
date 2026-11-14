@@ -155,11 +155,18 @@ class TaskPresenter
             $payload['files'] = self::serializeFiles($task);
         }
 
-        try {
-            $payload['source_email_message_id'] = app(\App\Email\FollowUps\FollowUpLinker::class)
-                ->sourceUuidFor($task);
-        } catch (\Throwable) {
-            $payload['source_email_message_id'] = null;
+        // A caller presenting many tasks looks these up in one query first
+        // (FollowUpLinker::decorateSourceUuids); asking again here would cost
+        // two queries per task.
+        if (array_key_exists('source_email_message_id', $task->getAttributes())) {
+            $payload['source_email_message_id'] = $task->getAttribute('source_email_message_id');
+        } else {
+            try {
+                $payload['source_email_message_id'] = app(\App\Email\FollowUps\FollowUpLinker::class)
+                    ->sourceUuidFor($task);
+            } catch (\Throwable) {
+                $payload['source_email_message_id'] = null;
+            }
         }
 
         return $payload;

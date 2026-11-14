@@ -22,12 +22,12 @@ import {
 import DashboardPanel, {
     PanelSkeleton,
 } from "./components/DashboardPanel";
-import PersonalTaskModal from "./personal/PersonalTaskModal";
+import QueueTaskModal from "@/Components/Redesign/modals/QueueTaskModal";
 import PersonalTaskCreateModal from "./personal/PersonalTaskCreateModal";
-import MeetingActionModals from "./components/MeetingActionModals";
+import MeetingActionModals from "@/Components/Redesign/meeting/MeetingActionModals";
 import MeetingScheduleModal from "@/Components/Redesign/modals/MeetingScheduleModal";
-import useDashboardTaskReschedule from "./hooks/useDashboardTaskReschedule";
-import useDashboardMeetingStatus from "./hooks/useDashboardMeetingStatus";
+import useTaskReschedule from "@/Components/Redesign/hooks/useTaskReschedule";
+import useMeetingStatus from "@/Components/Redesign/hooks/useMeetingStatus";
 import type { QueueTask, ScheduleEntry } from "./types";
 import SegmentedControl from "./personal/SegmentedControl";
 import StatusLine from "./personal/StatusLine";
@@ -95,7 +95,7 @@ export interface PersonalDashboardProps {
  * actions (Complete, Reschedule, Log activity) mutate through the existing
  * dashboard hooks and re-resolve only the keys that moved, never the page.
  */
-// Module scope, not inline: useDashboardMeetingReschedule keys its reschedule
+// Module scope, not inline: useMeetingReschedule keys its reschedule
 // callback's memoization off this array, so a fresh literal on every render
 // would defeat it.
 const MEETING_RELOAD_KEYS = ["agenda", "stats"];
@@ -214,11 +214,11 @@ export default function PersonalDashboard({
             message.error("Could not complete the task");
         },
     );
-    const { reschedule, isPending: isSnoozing } = useDashboardTaskReschedule(
+    const { reschedule, isPending: isSnoozing } = useTaskReschedule(
         () => { },
         (taskId) => clearOverride(taskId),
     );
-    const { markHeld, isPending: isMarkingHeld } = useDashboardMeetingStatus(
+    const { markHeld, isPending: isMarkingHeld } = useMeetingStatus(
         () => setOpenMeeting(null),
         ["agenda", "stats"],
     );
@@ -567,7 +567,7 @@ export default function PersonalDashboard({
                         </div>
                     </div>
 
-                    <PersonalTaskModal
+                    <QueueTaskModal
                         task={openTask}
                         taskBoardColumns={taskBoardColumns ?? []}
                         onClose={() => setOpenTask(null)}

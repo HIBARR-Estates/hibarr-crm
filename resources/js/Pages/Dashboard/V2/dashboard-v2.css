@@ -338,35 +338,6 @@
     }
 }
 
-/* SnoozeModal's option rows. Unscoped (no .dashboard-v2 ancestor) — Modal
-   portals to document.body, outside that subtree, so a page-scoped selector
-   would never match here. */
-.dv2-snooze-option {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #e2e5ea;
-    border-radius: 8px;
-    background: #ffffff;
-    cursor: pointer;
-    text-align: left;
-    transition:
-        background 0.12s,
-        border-color 0.12s;
-}
-
-.dv2-snooze-option:hover {
-    background: #f5f6f8;
-    border-color: #c7d0de;
-}
-
-.dv2-snooze-option:focus-visible {
-    outline: 2px solid #1a6bb5;
-    outline-offset: 1px;
-}
-
 /* The team network graph: React Flow HTML nodes (not SVG foreignObject). */
 .dashboard-v2 .dv2-network-flow {
     width: 100%;

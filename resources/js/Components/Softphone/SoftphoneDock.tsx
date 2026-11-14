@@ -1,3 +1,4 @@
+import { playFallbackVoiceMessage } from "./playFallbackVoiceMessage";
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, BellOff, ExternalLink, Phone, PhoneForwarded, PhoneIncoming, PhoneOff, UserPlus, X } from "lucide-react";
@@ -7,6 +8,7 @@ import axios from "axios";
 import { Link, usePage } from "@inertiajs/react";
 import { softphone } from "@/lib/softphone/SoftphoneClient";
 import SaveLeadModal from "@/Features/Leads/SaveLead/SaveLeadModal";
+import SoftphoneMicDiagnostics from "./SoftphoneMicDiagnostics";
 import {
     savePendingRecording,
     getPendingRecordings,
@@ -54,265 +56,25 @@ type CallRouting = {
     rotation_users?: RotationUser[];
     passed_user_ids?: number[];
     fallback_seconds: number;
+    fallback_voice_message?: {
+        enabled: boolean;
+        url?: string | null;
+        text?: string | null;
+        repeat_count: number;
+    };
+    user_can_receive_calls?: boolean;
     current_user_id: number | null;
     call_status?: "answered" | "ended" | null;
     answered_by_user_id?: number | null;
 };
 
-type CallRecordingItem = {
-    id: number;
-    filename: string;
-    play_url: string;
-    is_expired: boolean;
-};
-
-const STATUS_DOT: Record<SoftphoneRegistrationState, string> = {
-    idle: "bg-slate-300",
-    registering: "bg-amber-400 animate-pulse",
-    registered: "bg-emerald-500",
-    unregistered: "bg-amber-400",
-    failed: "bg-red-500",
-};
-
-/** What the dock says for each stage of the call lifecycle. */
-const STAGE_LABEL: Record<SoftphoneCallStage, string> = {
-    calling: "Calling…",
-    ringing: "Ringing…",
-    connecting: "Connecting…",
-    connected: "Connected",
-    ended: "Call ended",
-};
-
-function formatDuration(ms: number): string {
-    const total = Math.max(0, Math.floor(ms / 1000));
-    const minutes = Math.floor(total / 60);
-    const seconds = total % 60;
-    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
-
-/** Ticks once a second once the call is up; null before that. */
-function useElapsed(connectedAt: number | null): string | null {
-    const [now, setNow] = useState(() => Date.now());
-
-    useEffect(() => {
-        if (connectedAt === null) {
-            return;
-        }
-        const id = window.setInterval(() => setNow(Date.now()), 1000);
-        return () => window.clearInterval(id);
-    }, [connectedAt]);
-
-    return useMemo(() => {
-        if (connectedAt === null) {
-            return null;
-        }
-        return formatDuration(now - connectedAt);
-    }, [connectedAt, now]);
-}
-
-/** Up to two initials for the avatar bubble. */
-function initialsOf(name: string | null | undefined, fallback: string): string {
-    const source = name?.trim() ? name.trim() : (fallback ?? "");
-    return (
-        source
-            .split(/\s+/)
-            .map((part) => part[0])
-            .join("")
-            .slice(0, 2)
-            .toUpperCase() || "·"
-    );
-}
-
-/**
- * Who the dock is talking to. When the number resolved to a lead, the name is
- * an Inertia link: clicking it swaps the page in place (the persistent
- * DashboardLayout keeps this dock — and the call — mounted), so the agent can
- * read the lead mid-call without dropping the SIP session. `href` is left
- * untouched for ctrl/cmd-click, which opens a new tab and does end the call
- * on this page, so the tooltip says so.
- */
-function CallIdentity({
-    name,
-    peer,
-    leadUrl,
-    children,
-}: {
-    name: string;
-    peer: string;
-    leadUrl?: string | null;
-    children?: React.ReactNode;
-}) {
-    const hasLink = Boolean(leadUrl && name.trim());
-    return (
-        <>
-            <div className="sp__avatar" aria-hidden="true">
-                {name?.trim() ? initialsOf(name, peer) : <Phone size={28} strokeWidth={1.8} />}
-            </div>
-            {name?.trim() ? (
-                <h2 className="sp__name">
-                    {hasLink && leadUrl ? (
-                        <Link
-                            href={leadUrl}
-                            className="sp__name-link"
-                            title="Open this lead — the call keeps running"
-                        >
-                            {name}
-                            <ExternalLink className="sp__name-open" aria-hidden="true" />
-                        </Link>
-                    ) : (
-                        name
-                    )}
-                </h2>
-            ) : null}
-            <p className="sp__number">{peer}</p>
-            {children}
-        </>
-    );
-}
-
-/** The call lifecycle state ("Calling…", "Connecting…", "Connected"). */
-function CallStateBadge({ stage }: { stage: SoftphoneCallStage }) {
-    return (
-        <p className="sp__state" data-stage={stage} role="status" aria-live="polite">
-            {STAGE_LABEL[stage]}
-        </p>
-    );
-}
-
-/** Why a call never connected or ended. Inbound notices are clean and informative; outbound errors explain failures. */
-function CallFailedNotice({
-    failure,
-    devices,
-    activeDeviceId,
-    onSelectDevice,
-    onRetry,
-    onClose,
-    isAnsweredElsewhere = false,
-}: {
-    failure: SoftphoneCallFailure;
-    devices: SoftphoneDeviceSummary[];
-    activeDeviceId: number | null;
-    onSelectDevice: (deviceId: number) => void;
-    onRetry: () => void;
-    onClose: () => void;
-    isAnsweredElsewhere?: boolean;
-}) {
-    const { t } = useTranslation();
-    const activeLabel = devices.find((d) => d.id === activeDeviceId)?.label;
-    const isInbound = failure.direction === "inbound";
-    const answeredElsewhere = isAnsweredElsewhere || failure.code === "answered_elsewhere";
-    const isDisconnected = failure.code === "disconnected";
-    const isInboundOrNotice = isInbound || isDisconnected;
-
-    if (isInboundOrNotice) {
-        return (
-            <section className="sp sp--notice" role="status" aria-label="Call status">
-                <header className="sp__head">
-                    <span className={`sp__dot ${answeredElsewhere ? "sp__dot--answered" : "sp__dot--notice"}`} />
-                    {activeLabel ? `Softphone · ${activeLabel}` : "Softphone"}
-                </header>
-                <div className="sp__body">
-                    <div
-                        className={`sp__avatar ${answeredElsewhere ? "sp__avatar--answered" : "sp__avatar--notice"}`}
-                        aria-hidden="true"
-                    >
-                        {answeredElsewhere ? (
-                            <PhoneForwarded size={28} strokeWidth={1.7} />
-                        ) : (
-                            <PhoneIncoming size={28} strokeWidth={1.7} />
-                        )}
-                    </div>
-                    <h2 className="sp__name">
-                        {answeredElsewhere ? t("pages.softphone.answered_elsewhere") : isDisconnected ? t("pages.softphone.call_disconnected") : t("pages.softphone.call_ended")}
-                    </h2>
-                    <p className="sp__number">
-                        {failure.direction === "outbound" ? "To" : "From"} {failure.context?.leadName || failure.peer}
-                    </p>
-                    {failure.context?.leadName && (
-                        <p className="sp__number sp__number--peer">{failure.peer}</p>
-                    )}
-                    <p className="sp__reason sp__reason--notice">
-                        {answeredElsewhere
-                            ? "This call was answered on another device."
-                            : failure.reason || (isDisconnected ? "The call was disconnected from the caller's end." : "The call ended before it was answered.")}
-                    </p>
-
-                    <div className="sp__actions">
-                        {!answeredElsewhere && failure.peer && (
-                            <button type="button" className="act" onClick={onRetry}>
-                                <span className="act__btn">
-                                    <Phone size={24} strokeWidth={2} />
-                                </span>
-                                {t("pages.softphone.call_back")}
-                            </button>
-                        )}
-                        <button type="button" className="act" onClick={onClose}>
-                            <span className="act__btn">
-                                <X size={24} strokeWidth={2} />
-                            </span>
-                            {t("pages.softphone.close")}
-                        </button>
-                    </div>
-                </div>
-            </section>
-        );
-    }
-
-    return (
-        <section className="sp sp--failed" role="alertdialog" aria-label="Call failed">
-            <header className="sp__head">
-                <span className="sp__dot sp__dot--failed" />
-                {activeLabel ? `Phone · ${activeLabel}` : "Phone"}
-            </header>
-            <div className="sp__body">
-                <div className="sp__avatar sp__avatar--failed" aria-hidden="true">
-                    <PhoneOff size={30} strokeWidth={1.7} />
-                </div>
-                <h2 className="sp__name">Call failed</h2>
-                {/* Who it was about, not just the digits — otherwise a failed call is just "a number" with no owner. */}
-                <p className="sp__number">
-                    {failure.direction === "outbound" ? "To" : "From"} {" "}{failure.context?.leadName || failure.peer}
-                </p>
-                {failure.context?.leadName && (
-                    <p className="sp__number sp__number--peer">{failure.peer}</p>
-                )}
-                <p className="sp__reason">{failure.reason}</p>
-
-                {devices.length > 1 && (
-                    <div className="sp__field" style={{ width: "100%", marginTop: 8 }}>
-                        <span>Active line</span>
-                        <select
-                            value={activeDeviceId ?? ""}
-                            onChange={(e) => onSelectDevice(Number(e.target.value))}
-                            className="sp__select"
-                        >
-                            {devices.map((d) => (
-                                <option key={d.id} value={d.id}>
-                                    {d.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                )}
-
-                <div className="sp__actions">
-                    <button type="button" className="act" onClick={onRetry}>
-                        <span className="act__btn">
-                            <Phone size={24} strokeWidth={2} />
-                        </span>
-                        Try again
-                    </button>
-                    <button type="button" className="act" onClick={onClose}>
-                        <span className="act__btn">
-                            <X size={24} strokeWidth={2} />
-                        </span>
-                        Close
-                    </button>
-                </div>
-            </div>
-        </section>
-    );
-}
+import type { CallRecordingItem } from "./dock/types";
+import { STATUS_DOT, STAGE_LABEL } from "./dock/types";
+import { formatDuration, initialsOf, useElapsed } from "./dock/utils";
+import CallIdentity from "./dock/components/CallIdentity";
+import CallStateBadge from "./dock/components/CallStateBadge";
+import CallFailedNotice from "./dock/components/CallFailedNotice";
+import { publishIncomingCall } from "./dock/incomingCallBridge";
 
 /**
  * Call-control widget for the in-browser softphone (sipgate Neo via SIP.js).
@@ -320,8 +82,17 @@ function CallFailedNotice({
  * auto-opens while a call is ringing/active and shows answer/decline or
  * mute/hold/hangup. Audio is browser ↔ sipgate; the CRM timeline is driven
  * by the OL call-bridge poll and is unaffected here.
+ *
+ * `liveCallInDock={false}` leaves the controls of a running call to the
+ * caller (the agent workspace shows them in its dock pill); everything else,
+ * including ringing, recording and lead matching, still runs here.
+ * `incomingInDock={false}` does the same for a call that is ringing in: the
+ * caller draws it from `incomingCallBridge`, which this component feeds.
  */
-export default function SoftphoneDock() {
+export default function SoftphoneDock({
+    liveCallInDock = true,
+    incomingInDock = false,
+}: { liveCallInDock?: boolean; incomingInDock?: boolean } = {}) {
     const { t } = useTranslation();
     const { props } = usePage();
     const isAdmin = (props.auth?.user?.roles ?? []).some(
@@ -332,6 +103,23 @@ export default function SoftphoneDock() {
         ["all", "added"].includes(
             props.auth?.permissions?.make_softphone_calls as string,
         );
+    const appEnv = String((props as { appEnv?: string }).appEnv ?? "").toLowerCase();
+    const isProduction =
+        appEnv === "production" ||
+        appEnv === "staging" ||
+        appEnv === "prod";
+    const isDevEnv =
+        !isProduction &&
+        (appEnv === "local" ||
+            appEnv === "development" ||
+            appEnv === "testing" ||
+            appEnv === "codecanyon" ||
+            (typeof import.meta !== "undefined" && Boolean(import.meta.env?.DEV)) ||
+            (typeof window !== "undefined" &&
+                (window.location.hostname === "localhost" ||
+                    window.location.hostname === "127.0.0.1" ||
+                    window.location.hostname.endsWith(".test") ||
+                    window.location.hostname.endsWith(".local"))));
     const {
         isEnabled,
         state,
@@ -404,6 +192,55 @@ export default function SoftphoneDock() {
     const routeInitializedCallIdRef = useRef<string | null>(null);
     // Guards against double-logging when Answer is clicked in the dock while the island alert for the same call is also on screen.
     const inboundLoggedRef = useRef<string | null>(null);
+
+    const [canReceiveCalls, setCanReceiveCalls] = useState<boolean>(() => {
+        return (props.auth?.user as any)?.can_receive_calls ?? true;
+    });
+    const [togglingReceiveCalls, setTogglingReceiveCalls] = useState(false);
+    const [isPlayingVoiceMessage, setIsPlayingVoiceMessage] = useState(false);
+    const [voiceMessageStatus, setVoiceMessageStatus] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (typeof inboundRoute?.user_can_receive_calls === "boolean") {
+            setCanReceiveCalls(inboundRoute.user_can_receive_calls);
+        }
+    }, [inboundRoute?.user_can_receive_calls]);
+
+    useEffect(() => {
+        const onAvailabilityChanged = (event: Event) => {
+            const ce = event as CustomEvent<{ can_receive_calls: boolean }>;
+            if (typeof ce.detail?.can_receive_calls === "boolean") {
+                setCanReceiveCalls(ce.detail.can_receive_calls);
+            }
+        };
+        window.addEventListener("softphone:availability-changed", onAvailabilityChanged);
+        return () => window.removeEventListener("softphone:availability-changed", onAvailabilityChanged);
+    }, []);
+
+    const handleToggleReceiveCalls = async () => {
+        const nextVal = !canReceiveCalls;
+        setTogglingReceiveCalls(true);
+        try {
+            await axios.post(
+                route("telephony.softphone.toggle-receive-calls"),
+                { can_receive_calls: nextVal },
+                { headers: { Accept: "application/json" } },
+            );
+            setCanReceiveCalls(nextVal);
+            if (props.auth?.user) {
+                (props.auth.user as any).can_receive_calls = nextVal;
+            }
+            window.dispatchEvent(
+                new CustomEvent("softphone:availability-changed", {
+                    detail: { can_receive_calls: nextVal },
+                }),
+            );
+        } catch {
+            // best-effort
+        } finally {
+            setTogglingReceiveCalls(false);
+        }
+    };
 
     const currentUserId = Number(
         props.auth?.user?.id ?? inboundRoute?.current_user_id ?? -1,
@@ -737,6 +574,21 @@ export default function SoftphoneDock() {
                 routeInitializedCallIdRef.current = call.id;
                 setRotationIndex(0);
                 setPassedCallId(null);
+                if (isActiveTab) {
+                    void axios
+                        .post(route("telephony.softphone.events.store"), {
+                            phone,
+                            device_id: activeDeviceId,
+                            call_id: call.id,
+                            event: "incoming_call",
+                            direction: "inbound",
+                            status: "ringing",
+                            ...(callRef ? { call_ref: callRef } : {}),
+                        })
+                        .catch(() => {
+                            // best-effort
+                        });
+                }
             }
         }
 
@@ -867,6 +719,38 @@ export default function SoftphoneDock() {
 
         if (rotationIndex >= rotationUsers.length) {
             setRoutingMode("pool");
+
+            const voiceConfig = inboundRoute.fallback_voice_message;
+            if (voiceConfig?.enabled) {
+                stopRinging();
+                const cancelPlay = playFallbackVoiceMessage({
+                    config: voiceConfig,
+                    onProgress: (statusText) => {
+                        setIsPlayingVoiceMessage(true);
+                        setVoiceMessageStatus(statusText);
+                    },
+                    onComplete: () => {
+                        setIsPlayingVoiceMessage(false);
+                        stopAll();
+                        void reject();
+                    },
+                });
+
+                // Safety deadline: if playback stalls for any reason, force reject after bounded duration
+                const safetySeconds = Math.max(1, (routeFallbackSeconds ?? 20) + 15);
+                const voiceDeadlineTimer = setTimeout(() => {
+                    cancelPlay();
+                    setIsPlayingVoiceMessage(false);
+                    stopAll();
+                    void reject();
+                }, safetySeconds * 1000);
+
+                return () => {
+                    clearTimeout(voiceDeadlineTimer);
+                    cancelPlay();
+                };
+            }
+
             // Final fallback tier timeout: if no one answers within fallback seconds, dismiss the call
             fallbackRef.current = setTimeout(() => {
                 stopRinging();
@@ -933,60 +817,58 @@ export default function SoftphoneDock() {
         reject,
     ]);
 
+    /** Another user is left in the rotation to take the call after this one. */
+    const canPassInbound =
+        rotationUsers.some(
+            (u, idx) =>
+                idx > rotationIndex &&
+                Number(u.id) !== currentUserId &&
+                !passedUserIds.includes(Number(u.id)),
+        ) || !isAdmin;
+
+    /** Hand the call to the next user in the rotation without ending it for the caller. */
+    const handlePassInbound = useCallback(async () => {
+        if (!activeCall?.peer) return;
+
+        setPassedCallId(activeCall.id);
+        stopRinging();
+        try {
+            await axios.post(
+                route("telephony.softphone.pass"),
+                {
+                    phone: activeCall.peer,
+                    device_id: activeDeviceId,
+                    call_id: activeCall.id,
+                    ...(callRef ? { call_ref: callRef } : {}),
+                },
+                { timeout: 5000 },
+            );
+            const res = await axios.get(route("telephony.softphone.lead-match"), {
+                params: {
+                    phone: activeCall.peer,
+                    device_id: activeDeviceId,
+                    call_id: activeCall.id,
+                },
+            });
+            const updated = res.data?.data as CallRouting | null;
+            if (updated) {
+                setInboundRoute(updated);
+            }
+        } catch {
+            // Local pass already hid the call on this browser.
+        }
+    }, [activeCall, stopRinging, activeDeviceId, callRef]);
+
     const handleDeclineInbound = useCallback(async () => {
         if (!activeCall) return;
 
-        const hasRemainingRotation =
-            rotationUsers.some(
-                (u, idx) =>
-                    idx > rotationIndex &&
-                    Number(u.id) !== currentUserId &&
-                    !passedUserIds.includes(Number(u.id)),
-            ) || !isAdmin;
-
-        if (hasRemainingRotation && activeCall.peer) {
-            setPassedCallId(activeCall.id);
-            stopRinging();
-            try {
-                await axios.post(
-                    route("telephony.softphone.pass"),
-                    {
-                        phone: activeCall.peer,
-                        device_id: activeDeviceId,
-                        call_id: activeCall.id,
-                        ...(callRef ? { call_ref: callRef } : {}),
-                    },
-                    { timeout: 5000 },
-                );
-                const res = await axios.get(route("telephony.softphone.lead-match"), {
-                    params: {
-                        phone: activeCall.peer,
-                        device_id: activeDeviceId,
-                        call_id: activeCall.id,
-                    },
-                });
-                const updated = res.data?.data as CallRouting | null;
-                if (updated) {
-                    setInboundRoute(updated);
-                }
-            } catch {
-                // Local pass already hid the call on this browser.
-            }
+        if (canPassInbound && activeCall.peer) {
+            await handlePassInbound();
             return;
         }
 
         await reject();
-    }, [
-        activeCall,
-        rotationUsers,
-        rotationIndex,
-        currentUserId,
-        passedUserIds,
-        isAdmin,
-        stopRinging,
-        activeDeviceId,
-        reject,
-    ]);
+    }, [activeCall, canPassInbound, handlePassInbound, reject]);
 
     /** One-shot "call finished" cue when a live call drops. Shared by the dock Answer button and the notification island Answer action, and keyed on the call id so one answered call can only ever log once. */
     const logInboundCallStarted = useCallback(
@@ -1009,9 +891,10 @@ export default function SoftphoneDock() {
                     // on the lead (or in the Calls page as unlinked).
                     ...(inboundRoute?.matched && inboundRoute.lead_id
                         ? { entity_type: "lead", entity_id: inboundRoute.lead_id }
-                        : {}),
+                        : (matchedLead?.id ? { entity_type: "lead", entity_id: matchedLead.id } : {})),
                     event: "call.started",
                     direction: "inbound",
+                    status: "answered",
                     routing_reason: fwd.callRoutingReason,
                     ...(callRef ? { call_ref: callRef } : {}),
                     ...(fwd.isForwarded && fwd.lastForwardedUser
@@ -1071,6 +954,9 @@ export default function SoftphoneDock() {
                 deviceId: activeDeviceId ?? null,
                 fwd: { ...forwardedInfoRef.current },
             };
+            if (activeCall.direction === "inbound" && activeCall.peer) {
+                void logInboundCallStarted(activeCall.id, activeCall.peer);
+            }
             return;
         }
         const ended = connectedCallRef.current;
@@ -1090,6 +976,7 @@ export default function SoftphoneDock() {
             .post(route("telephony.softphone.events.store"), {
                 phone: ended.peer,
                 device_id: ended.deviceId,
+                call_id: ended.id,
                 // Without a lead the server matches inbound numbers itself.
                 ...(ended.leadId ? { entity_type: "lead", entity_id: ended.leadId } : {}),
                 event: "call.ended",
@@ -1187,41 +1074,74 @@ export default function SoftphoneDock() {
     };
 
     useEffect(() => {
-        if (!hasActiveCall || !canRecord || activeCall?.phase !== "active") return;
+        if (!isActiveTab || !hasActiveCall || !canRecord || activeCall?.phase !== "active") return;
 
         const started = async () => {
             if (recordRecorderRef.current) return;
             const audioEl = remoteAudioRef.current;
             const remoteStream = audioEl?.srcObject instanceof MediaStream ? audioEl.srcObject : null;
-            let micStream: MediaStream | null = null;
-            try {
-                micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            } catch (err) {
-                console.warn("[softphone] Microphone access unavailable for recording, recording remote audio only:", err);
+            // Prefer the live WebRTC sender track directly from SIP.js before falling back
+            // to a second getUserMedia capture, preventing dual-capture gating on Windows/Chrome.
+            let micStream: MediaStream | null = softphone.getLocalSendStream();
+            const usedWebRtcSender = micStream !== null;
+            if (!micStream) {
+                try {
+                    micStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: false, // Prevents Chrome's aggressive frequency gating and robotic tone
+                            autoGainControl: true,
+                            channelCount: 1,
+                        },
+                    });
+                } catch (err) {
+                    console.warn("[softphone] Microphone access unavailable for recording, recording remote audio only:", err);
+                }
             }
 
             const ctx = new AudioContext();
+            if (ctx.state === "suspended") {
+                await ctx.resume().catch(() => undefined);
+            }
             const destination = ctx.createMediaStreamDestination();
+
+            // Dynamics compressor/limiter prevents harsh digital clipping when both parties speak simultaneously
+            const compressor = ctx.createDynamicsCompressor();
+            compressor.threshold.setValueAtTime(-6, ctx.currentTime);
+            compressor.knee.setValueAtTime(10, ctx.currentTime);
+            compressor.ratio.setValueAtTime(12, ctx.currentTime);
+            compressor.attack.setValueAtTime(0.003, ctx.currentTime);
+            compressor.release.setValueAtTime(0.25, ctx.currentTime);
+            compressor.connect(destination);
+
             if (remoteStream) {
-                ctx.createMediaStreamSource(remoteStream).connect(destination);
+                const remoteSource = ctx.createMediaStreamSource(remoteStream);
+                const remoteGain = ctx.createGain();
+                remoteGain.gain.setValueAtTime(0.8, ctx.currentTime);
+                remoteSource.connect(remoteGain).connect(compressor);
             }
             if (micStream) {
-                ctx.createMediaStreamSource(micStream).connect(destination);
+                const micSource = ctx.createMediaStreamSource(micStream);
+                const micGain = ctx.createGain();
+                const gainValue = usedWebRtcSender ? 1.0 : softphone.getMicGain();
+                micGain.gain.setValueAtTime(gainValue, ctx.currentTime);
+                micSource.connect(micGain).connect(compressor);
             }
 
-            // MediaRecorder cannot encode MP3 — it only emits Opus/WebM (or MP4/AAC on Safari). Pick the best *audio-only* type so we never end up with a video/webm container, and let the server transcode to MP3 on upload.
+            // Target audio-only formats (prioritize MP4/OGG, fallback to audio-only WebM/Opus).
             const AUDIO_MIME_CANDIDATES = [
-                "audio/webm;codecs=opus",
-                "audio/ogg;codecs=opus",
-                "audio/webm",
-                "audio/ogg",
                 "audio/mp4",
+                "audio/mp4;codecs=mp4a.40.2",
+                "audio/ogg;codecs=opus",
+                "audio/ogg",
+                "audio/webm;codecs=opus",
+                "audio/webm",
             ];
             const mimeType = AUDIO_MIME_CANDIDATES.find((type) => MediaRecorder.isTypeSupported(type));
 
             const recorder = new MediaRecorder(
                 destination.stream,
-                mimeType ? { mimeType, audioBitsPerSecond: 48000 } : { audioBitsPerSecond: 48000 },
+                mimeType ? { mimeType, audioBitsPerSecond: 128000 } : { audioBitsPerSecond: 128000 },
             );
             recorder.onerror = (event: any) => {
                 console.error("[softphone] MediaRecorder runtime error:", event?.error || event);
@@ -1237,7 +1157,7 @@ export default function SoftphoneDock() {
             const callConnectedAt = activeCall?.connectedAt || activeCall?.answeredAt || recordingStartedAt;
 
             recorder.onstop = async () => {
-                const blob = new Blob(recordChunksRef.current, { type: recorder.mimeType || mimeType || "audio/webm" });
+                const blob = new Blob(recordChunksRef.current, { type: recorder.mimeType || mimeType || "audio/mp4" });
                 recordChunksRef.current = [];
                 const stopTime = Date.now();
                 const elapsedRecording = recordingStartedAt ? (stopTime - recordingStartedAt) / 1000 : 0;
@@ -1245,7 +1165,7 @@ export default function SoftphoneDock() {
                 const duration = Math.max(1, Math.round(Math.max(elapsedRecording, elapsedCall)));
                 recordStartedAtRef.current = null;
 
-                // Close audio context and release microphone tracks immediately before starting upload
+                // Release recording stream tracks (cloned WebRTC stream or isolated mic stream)
                 micStream?.getTracks().forEach((track) => track.stop());
                 const audioCtx = recordContextRef.current ?? ctx;
                 recordContextRef.current = null;
@@ -1260,7 +1180,7 @@ export default function SoftphoneDock() {
 
                 if (blob.size === 0) {
                     console.warn("[softphone] Recording empty (0 bytes). Skipping upload.");
-                    if (callRef) {
+                    if (callRef && isActiveTab) {
                         void axios.post(route("telephony.softphone.events.store"), {
                             phone: activeCall?.peer ?? lastInboundPhone ?? "",
                             event: "call.recording_failed",
@@ -1336,7 +1256,7 @@ export default function SoftphoneDock() {
             recordContextRef.current = null;
             recordStartedAtRef.current = null;
         };
-    }, [activeCall?.id, activeCall?.phase, canRecord, hasActiveCall]);
+    }, [activeCall?.id, activeCall?.phase, canRecord, hasActiveCall, isActiveTab]);
 
     // Load any un-uploaded recordings from local IndexedDB queue on mount
     useEffect(() => {
@@ -1379,9 +1299,11 @@ export default function SoftphoneDock() {
 
     const hasCall = activeCall !== null;
 
-    // Auto-open while a call rings or is live; collapse once it ends. A FAILED call keeps the dock open with the reason — closing silently left agents thinking the app had hung. It self-dismisses after company fallback seconds so it cannot sit on screen forever.
+    // Auto-open while a call rings or is live; collapse once it ends. In dev, pinned open / pending recordings can keep the dock open for testing. In production, the dock only opens for live calls or failure notices.
     const callFailure = state.callFailure;
-    const open = pinnedOpen || hasCall || callFailure !== null || failedRecordings.length > 0;
+    const open = isDevEnv
+        ? (pinnedOpen || hasCall || callFailure !== null || failedRecordings.length > 0)
+        : (hasCall || callFailure !== null);
 
     const isNotice = callFailure?.direction === "inbound" || callFailure?.code === "disconnected";
     const isAnsweredElsewhere =
@@ -1454,45 +1376,67 @@ export default function SoftphoneDock() {
         return () => window.clearTimeout(timer);
     }, [callFailure, clearCallFailure, failureNoticeMs]);
 
-    // Every outbound attempt that never connected (busy, declined, no answer,
-    // not registered, ...) goes on the lead's timeline. The failure object is
+    // Every outbound or inbound attempt that never connected (busy, declined, no answer,
+    // not registered, disconnected...) goes on the timeline / call log. The failure object is
     // replaced per attempt, so keying on identity logs each one exactly once.
     const loggedFailureRef = useRef<typeof callFailure>(null);
     useEffect(() => {
         if (
             !callFailure ||
-            callFailure.direction !== "outbound" ||
             loggedFailureRef.current === callFailure
         ) {
             return;
         }
-        loggedFailureRef.current = callFailure;
-        const leadId = callFailure.context?.leadId;
-        if (!leadId) {
+
+        const isInbound = callFailure.direction === "inbound";
+
+        // Inbound calls answered elsewhere or passive tabs must not log failures
+        if (isInbound && (callFailure.code === "answered_elsewhere" || !isActiveTab)) {
             return;
         }
-        const event =
-            callFailure.code === "busy"
+
+        loggedFailureRef.current = callFailure;
+        const leadId = callFailure.context?.leadId ?? matchedLead?.id ?? inboundRoute?.lead_id ?? null;
+        if (!isInbound && !leadId) {
+            return;
+        }
+
+        const event = isInbound
+            ? (callFailure.code === "declined"
+                ? { event: "call.declined", status: "declined" }
+                : { event: "call.missed", status: "missed" })
+            : (callFailure.code === "busy"
                 ? { event: "call.busy", status: "busy" }
                 : callFailure.code === "declined"
                   ? { event: "call.declined", status: "declined" }
                   : callFailure.code === "no-answer"
                     ? { event: "call.missed", status: "missed" }
-                    : { event: "call.failed", status: "failed" };
+                    : { event: "call.failed", status: "failed" });
+
+        const fwd = forwardedInfoRef.current;
         void axios
             .post(route("telephony.softphone.events.store"), {
                 phone: callFailure.peer,
-                entity_type: "lead",
-                entity_id: leadId,
-                direction: "outbound",
+                device_id: activeDeviceId,
+                ...(callRef ? { call_id: callRef, call_ref: callRef } : {}),
+                ...(leadId ? { entity_type: "lead", entity_id: leadId } : {}),
+                direction: callFailure.direction,
                 failure_reason: callFailure.code,
-                failure_message: callFailure.reason.slice(0, 255),
+                failure_message: (callFailure.reason || "").slice(0, 255),
+                routing_reason: fwd.callRoutingReason,
+                ...(fwd.isForwarded && fwd.lastForwardedUser
+                    ? {
+                          is_forwarded: true,
+                          forwarded_from_user_id: fwd.lastForwardedUser.id,
+                          forwarded_from_user_name: fwd.lastForwardedUser.name,
+                      }
+                    : {}),
                 ...event,
             })
             .catch(() => {
                 // Timeline logging is best-effort only.
             });
-    }, [callFailure]);
+    }, [callFailure, isActiveTab, activeDeviceId, callRef, matchedLead?.id, inboundRoute?.lead_id]);
 
     const retryFailedCall = () => {
         const failure = callFailure;
@@ -1562,6 +1506,69 @@ export default function SoftphoneDock() {
         isMultipleMatches && activeCall?.peer
             ? route("lead-contact.index", { search: activeCall.peer })
             : null;
+
+    const handleAnswerInbound = () => {
+        if (!activeCall) return;
+        const callId = activeCall.id;
+        const peer = activeCall.peer;
+        void answer().then(() => logInboundCallStarted(callId, peer));
+    };
+
+    // The agent workspace draws the ringing call itself: hand it what this dock knows.
+    // The handlers go through a ref so the published view only changes when the call does.
+    const incomingActionsRef = useRef({ answer: handleAnswerInbound, pass: handlePassInbound, decline: handleDeclineInbound });
+    incomingActionsRef.current = { answer: handleAnswerInbound, pass: handlePassInbound, decline: handleDeclineInbound };
+    const ringStartedRef = useRef<{ id: string; at: number } | null>(null);
+    const incomingId = ringingInbound && activeCall ? activeCall.id : null;
+    const incomingPeer = ringingInbound && activeCall ? activeCall.peer : "";
+    const incomingLeadId = matchedLead?.id ?? (hasContextLead ? (activeCall?.context?.leadId ?? null) : null);
+    const incomingName = matchedLead?.name || (hasContextLead ? contextLeadName : "");
+    // The server leaves the lead out for a viewer who may not open it, but says the number matched.
+    const incomingHidden =
+        incomingId !== null && !incomingLeadId && !hasContextLead && inboundRoute?.matched === true && !inboundRoute.lead_id;
+    const incomingMultiple = incomingId !== null && isMultipleMatches ? matchCount : null;
+    const incomingUnmatched = incomingId !== null && isUnmatched && !incomingHidden;
+    const incomingLine: "own" | "pool" = callRoutingReason === "lead_owner" ? "own" : "pool";
+    const incomingOwnLead = inboundRoute?.owner_id != null && Number(inboundRoute.owner_id) === currentUserId;
+    useEffect(() => {
+        if (!incomingInDock) return;
+        if (incomingId === null) {
+            publishIncomingCall(null);
+            return;
+        }
+        if (ringStartedRef.current?.id !== incomingId) {
+            ringStartedRef.current = { id: incomingId, at: Date.now() };
+        }
+        publishIncomingCall({
+            id: incomingId,
+            peer: incomingPeer,
+            startedAt: ringStartedRef.current.at,
+            leadId: incomingLeadId,
+            name: incomingName,
+            hidden: incomingHidden,
+            multiple: incomingMultiple,
+            unmatched: incomingUnmatched,
+            line: incomingLine,
+            ownLead: incomingOwnLead,
+            canPass: canPassInbound,
+            answer: () => incomingActionsRef.current.answer(),
+            pass: () => void incomingActionsRef.current.pass(),
+            decline: () => void incomingActionsRef.current.decline(),
+        });
+    }, [
+        incomingInDock,
+        incomingId,
+        incomingPeer,
+        incomingLeadId,
+        incomingName,
+        incomingHidden,
+        incomingMultiple,
+        incomingUnmatched,
+        incomingLine,
+        incomingOwnLead,
+        canPassInbound,
+    ]);
+    useEffect(() => () => publishIncomingCall(null), []);
 
     const headerTitle = activeDevice
         ? `Phone · ${activeDevice.label}`
@@ -1653,8 +1660,8 @@ export default function SoftphoneDock() {
                 />
             )}
 
-            {/* Idle state — line picker + status. Only when no call is live and no failed call is being reported (otherwise both panels render at once). */}
-            {!hasCall && !callFailure && open && (
+            {/* Idle state — line picker + status (Dev only). In production, the dock stays completely off-screen until a call rings or is placed. */}
+            {isDevEnv && !hasCall && !callFailure && open && (
                 <section className="sp" aria-label="Phone status">
                     <header className="sp__head">
                         <span className={statusDotClass} />
@@ -1771,6 +1778,9 @@ export default function SoftphoneDock() {
                                 </div>
                             </div>
                         )}
+                        {/* Mic Test & WebRTC Audio Diagnostics (Idle Mode, Dev only) */}
+                        {isDevEnv && <SoftphoneMicDiagnostics inCall={false} />}
+
                         <button type="button" className="sp__close" onClick={() => setPinnedOpen(false)}>
                             Hide
                         </button>
@@ -1779,11 +1789,43 @@ export default function SoftphoneDock() {
             )}
 
             {/* Inbound ringing */}
-            {ringingInbound && activeCall && (
+            {ringingInbound && activeCall && !incomingInDock && (
                 <section className="sp sp--incoming" aria-label="Phone, incoming call">
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         {headerTitle}
+                        <button
+                            type="button"
+                            onClick={() => void handleToggleReceiveCalls()}
+                            disabled={togglingReceiveCalls}
+                            title={canReceiveCalls ? "You are receiving calls. Click to pause." : "Incoming calls paused. Click to receive calls."}
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                                fontSize: 11,
+                                padding: "2px 8px",
+                                borderRadius: 999,
+                                border: "1px solid",
+                                borderColor: canReceiveCalls ? "rgba(16, 185, 129, 0.4)" : "rgba(148, 163, 184, 0.4)",
+                                background: canReceiveCalls ? "rgba(16, 185, 129, 0.1)" : "rgba(148, 163, 184, 0.1)",
+                                color: canReceiveCalls ? "#10b981" : "#94a3b8",
+                                cursor: "pointer",
+                                fontWeight: 600,
+                                marginLeft: "auto",
+                                marginRight: 6,
+                            }}
+                        >
+                            <span
+                                style={{
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: "50%",
+                                    background: canReceiveCalls ? "#10b981" : "#94a3b8",
+                                }}
+                            />
+                            {canReceiveCalls ? "Calls ON" : "Calls OFF"}
+                        </button>
                         <span className="sp__signal" data-quality={quality} title={`Connection: ${connectionQuality}`}>
                             <i />
                             <i />
@@ -1816,6 +1858,20 @@ export default function SoftphoneDock() {
                             ) : null}
                         </CallIdentity>
                         <CallStateBadge stage={activeCall.stage} />
+                        {isPlayingVoiceMessage && (
+                            <div style={{
+                                padding: "8px 12px",
+                                background: "rgba(59, 130, 246, 0.1)",
+                                border: "1px solid rgba(59, 130, 246, 0.2)",
+                                borderRadius: 6,
+                                color: "#1d4ed8",
+                                fontSize: 12,
+                                textAlign: "center",
+                                margin: "8px 0"
+                            }}>
+                                <strong>Voice Fallback:</strong> {voiceMessageStatus}
+                            </div>
+                        )}
                         <div className="sp__actions">
                             <button type="button" className="act act--danger" onClick={() => void handleDeclineInbound()}>
                                 <span className="act__btn">
@@ -1841,11 +1897,7 @@ export default function SoftphoneDock() {
                                 </span>
                                 {isRingingMuted ? t("pages.softphone.unmute_ring") : t("pages.softphone.mute_ring")}
                             </button>
-                            <button type="button" className="act act--ok" onClick={() => {
-                                const callId = activeCall.id;
-                                const peer = activeCall.peer;
-                                void answer().then(() => logInboundCallStarted(callId, peer));
-                            }}>
+                            <button type="button" className="act act--ok" onClick={handleAnswerInbound}>
                                 <span className="act__btn">
                                     <svg viewBox="0 0 24 24">
                                         <path d="M5.5 4h2.6a1.5 1.5 0 0 1 1.5.8l1 3a1.5 1.5 0 0 1-.4 1.6l-1.6 1.4a16 16 0 0 0 5.6 5.6l1.4-1.6a1.5 1.5 0 0 1 1.6-.4l3 1.1a1.5 1.5 0 0 1 .8 1.4v2.6A1.5 1.5 0 0 1 18.4 20 17 17 0 0 1 4 5.6 1.5 1.5 0 0 1 5.5 4z" />
@@ -1859,11 +1911,43 @@ export default function SoftphoneDock() {
             )}
 
             {/* Live / outbound call */}
-            {inCall && activeCall && (
+            {liveCallInDock && inCall && activeCall && (
                 <section className="sp sp--active" aria-label="Phone, in call">
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         {headerTitle}
+                        <button
+                            type="button"
+                            onClick={() => void handleToggleReceiveCalls()}
+                            disabled={togglingReceiveCalls}
+                            title={canReceiveCalls ? "You are receiving calls. Click to pause." : "Incoming calls paused. Click to receive calls."}
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                                fontSize: 11,
+                                padding: "2px 8px",
+                                borderRadius: 999,
+                                border: "1px solid",
+                                borderColor: canReceiveCalls ? "rgba(16, 185, 129, 0.4)" : "rgba(148, 163, 184, 0.4)",
+                                background: canReceiveCalls ? "rgba(16, 185, 129, 0.1)" : "rgba(148, 163, 184, 0.1)",
+                                color: canReceiveCalls ? "#10b981" : "#94a3b8",
+                                cursor: "pointer",
+                                fontWeight: 600,
+                                marginLeft: "auto",
+                                marginRight: 6,
+                            }}
+                        >
+                            <span
+                                style={{
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: "50%",
+                                    background: canReceiveCalls ? "#10b981" : "#94a3b8",
+                                }}
+                            />
+                            {canReceiveCalls ? "Calls ON" : "Calls OFF"}
+                        </button>
                         <span className="sp__signal" data-quality={quality} title={`Connection: ${connectionQuality}`}>
                             <i />
                             <i />
@@ -1925,8 +2009,32 @@ export default function SoftphoneDock() {
                                 End
                             </button>
                         </div>
+
+                        {/* Mic Test Diagnostic Section during call (Dev only) */}
+                        {isDevEnv && (
+                            <SoftphoneMicDiagnostics
+                                inCall={true}
+                                activeCallId={activeCall.id}
+                                isCallConnected={activeCall.stage === "connected"}
+                            />
+                        )}
                     </div>
                 </section>
+            )}
+
+            {/* Floating Launcher Pill when dock is collapsed/idle (Dev only) */}
+            {isDevEnv && !open && !hasCall && !callFailure && (
+                <button
+                    type="button"
+                    className="sp__launcher"
+                    onClick={() => setPinnedOpen(true)}
+                    aria-label="Phone & Mic Test"
+                    title="Open Phone & Mic Test"
+                >
+                    <span className={statusDotClass} />
+                    <Phone size={14} />
+                    <span>{headerTitle}</span>
+                </button>
             )}
 
         </>

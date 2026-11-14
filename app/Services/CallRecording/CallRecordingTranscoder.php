@@ -53,8 +53,8 @@ class CallRecordingTranscoder
                 '-i', $sourcePath,
                 '-vn',                 // never carry a video stream through
                 '-ac', '1',            // mono — call audio is single channel
-                '-ar', '44100',
-                '-b:a', '64k',
+                '-ar', '48000',        // match WebRTC/browser native 48kHz to avoid resampling artifacts
+                '-b:a', '128k',        // 128 kbps provides clean, clear voice fidelity without metallic compression
                 '-codec:a', 'libmp3lame',
                 $destinationPath,
             ]);
@@ -137,7 +137,11 @@ class CallRecordingTranscoder
             return is_executable($this->ffmpegBinary) ? $this->ffmpegBinary : null;
         }
 
-        $configured = config('services.call_recording.ffmpeg_path') ?: 'ffmpeg';
+        $configured = config('services.call_recording.ffmpeg_path') ?: env('FFMPEG_PATH', 'ffmpeg');
+
+        if (is_executable($configured)) {
+            return $configured;
+        }
 
         $whichCmd = PHP_OS_FAMILY === 'Windows' ? 'where.exe' : 'which';
         $process = new Process([$whichCmd, $configured]);

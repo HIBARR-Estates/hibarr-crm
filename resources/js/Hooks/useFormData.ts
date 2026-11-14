@@ -43,6 +43,7 @@ export type FormDataType =
     | "lead-utm-contents"
     | "lead-utm-terms"
     | "lead-utm-audiences"
+    | "lead-origins"
     | "packages"
     | "deal-custom-fields"
     | "deal-custom-field-categories"

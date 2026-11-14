@@ -86,6 +86,7 @@ class ZohoSSOController extends Controller
         }
 
         // Login the linked user
+        \App\Support\AuditLog\AuthTrigger::mark(\App\Support\AuditLog\AuthTrigger::ZOHO);
         Auth::login($employee->user);
 
         return redirect()->route('dashboard')->with('success', 'Zoho SSO linked successfully!');

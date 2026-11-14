@@ -1,0 +1,342 @@
+/* The bell and its panel (L7-36). Colours come from the --dr-* tokens; the
+   panel casts no shadow and no row is edged with a side border. */
+
+.agent-bell__button {
+    position: relative;
+    display: inline-flex;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--dr-navy-mid);
+    cursor: pointer;
+}
+
+.agent-bell__button:hover {
+    color: var(--dr-white);
+}
+
+.agent-bell__button:focus-visible {
+    outline: 2px solid var(--dr-blue-mid);
+    outline-offset: 2px;
+}
+
+.agent-bell__badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border: 2px solid var(--dr-navy);
+    border-radius: 999px;
+    background: var(--dr-red);
+    color: var(--dr-white);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 14px;
+    text-align: center;
+    box-sizing: content-box;
+}
+
+/* ---------- panel ---------- */
+.agent-bell {
+    display: flex;
+    width: 470px;
+    max-width: calc(100vw - 24px);
+    max-height: min(640px, calc(100vh - 96px));
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--dr-border);
+    border-radius: 16px;
+    background: var(--dr-white);
+}
+
+.agent-bell__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--dr-border);
+}
+
+.agent-bell__head b {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.agent-bell__tools {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.agent-bell__tabs {
+    display: flex;
+    gap: 2px;
+    margin: 10px 16px 0;
+    padding: 3px;
+    border-radius: 9px;
+    background: var(--dr-surface-hover);
+}
+
+.agent-bell__tab {
+    flex: 1;
+    padding: 6px 12px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: none;
+    color: var(--dr-text-muted);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.agent-bell__tab[aria-selected="true"] {
+    border-color: var(--dr-border);
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font-weight: 600;
+}
+
+.agent-bell__tab:focus-visible,
+.agent-bell__open:focus-visible,
+.agent-bell__dot-button:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: -2px;
+}
+
+.agent-bell__list {
+    min-height: 120px;
+    flex: 1;
+    padding: 8px 12px;
+    overflow-y: auto;
+}
+
+.agent-bell__group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.agent-bell__group + .agent-bell__group {
+    margin-top: 8px;
+}
+
+.agent-bell__group-title {
+    margin: 0;
+    padding: 4px 2px;
+    color: var(--dr-gray-darker);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.agent-bell__row {
+    display: flex;
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: 10px;
+}
+
+.agent-bell__row--unread {
+    border-color: var(--dr-blue-mid);
+    background: var(--dr-blue-light);
+}
+
+.agent-bell__row:hover {
+    background: var(--dr-surface-hover);
+}
+
+.agent-bell__row--unread:hover {
+    background: var(--dr-blue-light);
+}
+
+.agent-bell__dot-slot,
+.agent-bell__dot-button {
+    display: inline-flex;
+    width: 26px;
+    height: 36px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+}
+
+.agent-bell__dot-slot {
+    cursor: default;
+}
+
+.agent-bell__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--dr-blue);
+}
+
+.agent-bell__dot-button:hover .agent-bell__dot {
+    box-shadow: none;
+    outline: 3px solid var(--dr-blue-mid);
+}
+
+.agent-bell__open {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px 9px 0;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: var(--dr-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.agent-bell__icon {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--tint) 14%, var(--dr-white));
+    color: var(--tint);
+}
+
+.agent-bell__text {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.agent-bell__text b {
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-bell__text small {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--dr-text-muted);
+    font-size: 12px;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.agent-bell__when {
+    flex: none;
+    align-self: flex-start;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.agent-bell__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 28px 16px;
+    color: var(--dr-text-muted);
+    font-size: 13px;
+    text-align: center;
+}
+
+.agent-bell__empty p {
+    margin: 0;
+}
+
+.agent-bell__empty-icon {
+    display: inline-flex;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--dr-surface-hover);
+    color: var(--dr-gray-dark);
+}
+
+.agent-bell__skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.agent-bell__skeleton-row {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px 9px 26px;
+}
+
+.agent-bell__skeleton-row > span {
+    height: 12px;
+    border-radius: 6px;
+    background: var(--dr-skeleton);
+}
+
+.agent-bell__skeleton-row > span:first-child {
+    height: 32px;
+    border-radius: 9px;
+}
+
+.agent-bell__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--dr-border);
+    background: var(--dr-surface-hover);
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+.agent-bell__settings {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+@media (max-width: 639px) {
+    .agent-bell__foot {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+}
+
+/* On a phone the panel spans the screen instead of hanging off the bell. */
+@media (max-width: 639px) {
+    .agent-bell-pop {
+        left: 12px !important;
+        right: 12px !important;
+        width: auto;
+    }
+
+    .agent-bell {
+        width: calc(100vw - 24px);
+    }
+}

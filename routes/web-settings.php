@@ -6,6 +6,7 @@ use App\Email\Http\Controllers\MailboxSettingsController;
 use App\Email\Http\Controllers\PilotAllowlistSettingsController;
 use App\Email\Http\Middleware\EnsureEmailEnabled;
 use App\Email\Http\Middleware\EnsureEmailPilot;
+use App\Http\Controllers\AgentWorkspace\AgentWorkspaceAccessController;
 use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\AttendanceSettingController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\CustomModuleController;
 use App\Http\Controllers\DatabaseBackupSettingController;
 use App\Http\Controllers\DealAutomationController;
 use App\Http\Controllers\EmailTemplateController;
+use App\Http\Controllers\EmployeeDirectoryController;
 use App\Http\Controllers\EmployeeShiftController;
 use App\Http\Controllers\EntityReminderDefaultController;
 use App\Http\Controllers\GoogleAuthController;
@@ -48,6 +50,7 @@ use App\Http\Controllers\NotificationSettingsApiController;
 use App\Http\Controllers\OfflinePaymentSettingController;
 use App\Http\Controllers\PackageController;
 use App\Http\Controllers\PackageSettingsController;
+use App\Http\Controllers\PaymentDocumentSettingsController;
 use App\Http\Controllers\PaymentGatewayCredentialController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProfileSettingController;
@@ -95,6 +98,14 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     /* Admin-only React settings hub (entity setting cards) */
     Route::get('overview', [SettingsOverviewController::class, 'index'])->name('settings-overview.index');
 
+    /* Employee directory and impersonation. The directory is admin-only;
+       leaving impersonation is available to the signed-in employee. */
+    Route::get('employees', [EmployeeDirectoryController::class, 'index'])->name('settings-employees.index');
+    Route::post('employees/{user}/impersonate', [EmployeeDirectoryController::class, 'store'])
+        ->whereNumber('user')
+        ->name('settings-employees.impersonate');
+    Route::post('impersonation/leave', [EmployeeDirectoryController::class, 'leave'])->name('impersonation.leave');
+
     /* Leads settings hub — sources, statuses, first-contact SLA, and related defaults */
     Route::get('leads', [LeadSettingsHubController::class, 'page'])->name('settings-leads.index');
     Route::put('leads', [LeadSettingsHubController::class, 'update'])->name('settings-leads.update');
@@ -102,6 +113,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::post('leads/sources', [LeadSettingsHubController::class, 'storeSource'])->name('settings-leads.sources.store');
     Route::put('leads/sources/{source}', [LeadSettingsHubController::class, 'updateSource'])->name('settings-leads.sources.update');
     Route::delete('leads/sources/{source}', [LeadSettingsHubController::class, 'destroySource'])->name('settings-leads.sources.destroy');
+    Route::post('leads/origins/reorder', [LeadSettingsHubController::class, 'reorderOrigins'])->name('settings-leads.origins.reorder');
+    Route::post('leads/origins', [LeadSettingsHubController::class, 'storeOrigin'])->name('settings-leads.origins.store');
+    Route::put('leads/origins/{origin}', [LeadSettingsHubController::class, 'updateOrigin'])->name('settings-leads.origins.update');
+    Route::delete('leads/origins/{origin}', [LeadSettingsHubController::class, 'destroyOrigin'])->name('settings-leads.origins.destroy');
+    Route::put('leads/marketing-intake', [LeadSettingsHubController::class, 'updateMarketingIntake'])->name('settings-leads.marketing-intake.update');
     Route::post('leads/statuses/reorder', [LeadSettingsHubController::class, 'reorderStatuses'])->name('settings-leads.statuses.reorder');
     Route::post('leads/statuses', [LeadSettingsHubController::class, 'storeStatus'])->name('settings-leads.statuses.store');
     Route::put('leads/statuses/{status}', [LeadSettingsHubController::class, 'updateStatus'])->name('settings-leads.statuses.update');
@@ -115,6 +131,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('company-dashboard-access', [CompanyDashboardAccessController::class, 'index'])->name('company-dashboard-access.index');
     Route::post('company-dashboard-access', [CompanyDashboardAccessController::class, 'store'])->name('company-dashboard-access.store');
     Route::delete('company-dashboard-access/{userId}', [CompanyDashboardAccessController::class, 'destroy'])->whereNumber('userId')->name('company-dashboard-access.destroy');
+
+    /* Agent workspace access list (crm.agent-workspace + admin; 404 while the flag is off) */
+    Route::get('agent-workspace-access', [AgentWorkspaceAccessController::class, 'index'])->name('agent-workspace-access.index');
+    Route::post('agent-workspace-access', [AgentWorkspaceAccessController::class, 'store'])->name('agent-workspace-access.store');
+    Route::delete('agent-workspace-access/{userId}', [AgentWorkspaceAccessController::class, 'destroy'])->whereNumber('userId')->name('agent-workspace-access.destroy');
 
     /* Automation settings — email templates + trigger-based automations */
     Route::get('automation', [AutomationSettingController::class, 'index'])->name('settings-automation.index');
@@ -406,6 +427,18 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
         Route::put('packages/{package}/agents/{agent}', [PackageSettingsController::class, 'upsertOverride'])->name('overrides.upsert');
         Route::delete('packages/{package}/agents/{agent}', [PackageSettingsController::class, 'destroyOverride'])->name('overrides.destroy');
         Route::get('packages/{package}/routing-triggers', [PackageSettingsController::class, 'routingTriggers'])->name('routing_triggers.index');
+    });
+
+    // Invoices and receipts settings: seller details, number ranges, KDV and
+    // bank details printed on deal payment Fatura and Tahsilat Makbuzu PDFs.
+    Route::get('payment-document-settings', [PaymentDocumentSettingsController::class, 'index'])->name('payment-document-settings.index');
+    Route::prefix('payment-document-settings/api')->name('payment-document-settings.api.')->group(function () {
+        Route::put('settings', [PaymentDocumentSettingsController::class, 'update'])->name('update');
+        Route::post('logo', [PaymentDocumentSettingsController::class, 'uploadLogo'])->name('logo.store');
+        Route::delete('logo', [PaymentDocumentSettingsController::class, 'removeLogo'])->name('logo.destroy');
+        Route::get('preview/{kind}', [PaymentDocumentSettingsController::class, 'preview'])
+            ->whereIn('kind', ['invoice', 'receipt'])
+            ->name('preview');
     });
 
     Route::post('employee-shifts/set-default', [EmployeeShiftController::class, 'setDefaultShift'])->name('employee-shifts.set_default');
