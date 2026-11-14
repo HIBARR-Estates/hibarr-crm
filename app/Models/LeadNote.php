@@ -133,6 +133,10 @@ class LeadNote extends BaseModel
             });
         }
 
+        if (! in_array($scope, ['added', 'owned', 'both'], true)) {
+            return $query->whereRaw('1 = 0');
+        }
+
         return $query->where(function ($query) use ($user, $scope): void {
             if ($scope === 'added' || $scope === 'both') {
                 $query->orWhere('lead_notes.added_by', $user->id);
@@ -242,7 +246,7 @@ class LeadNote extends BaseModel
      * Whether the user holds the given role.
      *
      * Prefers the relation on the user being checked, and falls back to the
-     * session helper the rest of the codebase uses.
+     * user's own roles rather than the session.
      */
     private function hasRole(User $user, string $role): bool
     {
@@ -262,6 +266,6 @@ class LeadNote extends BaseModel
             }
         }
 
-        return in_array($role, (array) user_roles(), true);
+        return (bool) $user->hasRole($role);
     }
 }

@@ -65,6 +65,15 @@ class LeadNoteVisibilityTest extends TestCase
         $this->assertCount(0, $visible);
     }
 
+    public function test_unrecognized_scope_returns_no_notes(): void
+    {
+        $this->seedNotes();
+
+        $visible = LeadNote::where('lead_id', 1)->visibleTo($this->viewer('unrecognized'))->get();
+
+        $this->assertCount(0, $visible);
+    }
+
     public function test_added_scope_returns_only_own_notes(): void
     {
         $this->seedNotes();
@@ -144,6 +153,26 @@ class LeadNoteVisibilityTest extends TestCase
         $theirs = LeadNote::where('title', 'Theirs')->first();
 
         $this->assertTrue($theirs->isVisibleTo($admin));
+    }
+
+    public function test_has_role_resolves_fallback_roles_from_user_when_not_loaded(): void
+    {
+        $this->seedNotes();
+
+        $admin = Mockery::mock(User::class)->makePartial();
+        $admin->id = 99;
+        $admin->shouldReceive('permission')->with('view_lead_note')->andReturn('all');
+        $admin->shouldReceive('hasRole')->with('admin')->andReturn(true);
+
+        $nonAdmin = Mockery::mock(User::class)->makePartial();
+        $nonAdmin->id = 98;
+        $nonAdmin->shouldReceive('permission')->with('view_lead_note')->andReturn('all');
+        $nonAdmin->shouldReceive('hasRole')->with('admin')->andReturn(false);
+
+        $theirs = LeadNote::where('title', 'Theirs')->first();
+
+        $this->assertTrue($theirs->isVisibleTo($admin));
+        $this->assertFalse($theirs->isVisibleTo($nonAdmin));
     }
 
     public function test_owned_scope_requires_membership(): void
