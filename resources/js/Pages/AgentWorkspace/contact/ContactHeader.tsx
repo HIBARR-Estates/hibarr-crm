@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { usePage } from "@inertiajs/react";
-import { Dropdown, type MenuProps } from "antd";
 import type { PageProps } from "@/Components/DashboardLayout";
 import AgentCallButton from "@/Components/Redesign/agent/AgentCallButton";
 import { initialsFromName } from "@/Components/Redesign";
@@ -10,20 +9,16 @@ import useTranslation from "@/Hooks/useTranslation";
 import { getDossierFieldValue, isMeaningfulDossierValue } from "@/Pages/Leads/Redesign/adapters/dossierAdapter";
 import LeadAvatarButton from "@/Pages/Leads/Redesign/components/header/LeadAvatarButton";
 import MoreMenu from "@/Pages/Leads/Redesign/components/header/MoreMenu";
+import { NewActivityButton, type ExtraActivity } from "./NewActivityButton";
 import type { LeadCreateKind } from "@/Pages/Leads/Redesign/components/workspace/LeadCreateModals";
 import { formatLeadTemperature } from "@/Pages/Leads/Redesign/config/leadTemperature";
 import type { MoreMenuActionId } from "@/Pages/Leads/Redesign/config/moreMenuItems";
 import type { Lead } from "@/Types/api/leads";
 
-const TEMPERATURE_PILL: Record<string, string> = { hot: "red", warm: "amber", cold: "blue" };
+export type { ExtraActivity };
+export { NewActivityButton };
 
-/** A New activity entry that isn't one of the lead page's create forms. */
-export interface ExtraActivity {
-    key: string;
-    icon: ReactNode;
-    label: string;
-    onSelect: () => void;
-}
+const TEMPERATURE_PILL: Record<string, string> = { hot: "red", warm: "amber", cold: "blue" };
 
 interface ContactHeaderProps {
     lead: Lead;
@@ -143,60 +138,6 @@ export default function ContactHeader({
                     ) : null)}
             </div>
         </header>
-    );
-}
-
-/**
- * One "New activity" button for every kind of record (task, meeting, note, a
- * logged activity), each opening the lead page's own create form.
- */
-export function NewActivityButton({
-    onCreate,
-    allowed,
-    size = "base",
-    extra = [],
-}: {
-    onCreate: (kind: LeadCreateKind) => void;
-    /** Kinds the viewer may not create are left out (permissions). */
-    allowed?: Partial<Record<LeadCreateKind, boolean>>;
-    size?: "base" | "sm";
-    extra?: ExtraActivity[];
-}) {
-    const { t } = useTranslation();
-    const all: Array<{ key: LeadCreateKind; icon: ReactNode; label: string }> = [
-        { key: "task", icon: <Icon name="check-square" size={14} />, label: t("pages.agent_workspace.contact.new_task") },
-        { key: "meeting", icon: <Icon name="calendar" size={14} />, label: t("pages.agent_workspace.contact.new_meeting") },
-        { key: "note", icon: <Icon name="file-text" size={14} />, label: t("pages.agent_workspace.contact.new_note") },
-        { key: "log", icon: <Icon name="activity" size={14} />, label: t("pages.agent_workspace.contact.log_activity") },
-    ];
-    const items: MenuProps["items"] = [
-        ...all.filter((item) => allowed?.[item.key] !== false),
-        ...extra.map((item) => ({ key: item.key, icon: item.icon, label: item.label })),
-    ];
-    if (items.length === 0) return null;
-
-    return (
-        <Dropdown
-            menu={{
-                items,
-                onClick: ({ key }) => {
-                    const entry = extra.find((item) => item.key === key);
-                    if (entry) entry.onSelect();
-                    else onCreate(key as LeadCreateKind);
-                },
-            }}
-            trigger={["click"]}
-            placement="bottomRight"
-        >
-            {/* antd positions the menu from a DOM node; the span gives it one. */}
-            <span className="agent-contact__menu-anchor">
-                <Button size={size} className="agent-btn-soft" aria-haspopup="menu">
-                    <Icon name="plus" size={size === "sm" ? 12 : 14} />
-                    {t("pages.agent_workspace.contact.new_activity")}
-                    <Icon name="chevron-down" size={size === "sm" ? 12 : 14} />
-                </Button>
-            </span>
-        </Dropdown>
     );
 }
 
