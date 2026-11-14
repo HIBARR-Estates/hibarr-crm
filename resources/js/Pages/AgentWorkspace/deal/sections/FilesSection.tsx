@@ -18,6 +18,8 @@ interface FilesSectionProps {
     loading: boolean;
     /** add_lead_files, as the classic Files tab reads it. */
     canUpload: boolean;
+    /** Replaces "Files" (the deal-only view reads "Files on this deal"). */
+    title?: string;
 }
 
 /** Type badge colours of the board: PDF red, images blue, documents navy. */
@@ -35,7 +37,7 @@ function badgeFor(name: string): { label: string; tone: "pdf" | "image" | "doc" 
  * type badge, the name and where it came from. Upload adds loose files; the
  * document fields themselves are filled from Deal details.
  */
-export default function FilesSection({ deal, documents, files, loading, canUpload }: FilesSectionProps) {
+export default function FilesSection({ deal, documents, files, loading, canUpload, title }: FilesSectionProps) {
     const { t } = useTranslation();
     const { td } = useTd();
     const input = useRef<HTMLInputElement>(null);
@@ -48,7 +50,7 @@ export default function FilesSection({ deal, documents, files, loading, canUploa
             id="deal-files"
             title={
                 <>
-                    {t("pages.agent_workspace.deal.files.title")}
+                    {title ?? t("pages.agent_workspace.deal.files.title")}
                     {uploaded.length > 0 ? <span className="agent-card__count"> · {uploaded.length}</span> : null}
                 </>
             }
