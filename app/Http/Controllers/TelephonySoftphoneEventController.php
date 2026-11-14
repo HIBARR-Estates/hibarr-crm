@@ -17,9 +17,24 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class TelephonySoftphoneEventController extends AccountBaseController
 {
+    private static ?bool $hasCanReceiveCallsColumn = null;
+
+    private static function supportsCanReceiveCalls(): bool
+    {
+        if (self::$hasCanReceiveCallsColumn === null) {
+            try {
+                self::$hasCanReceiveCallsColumn = Schema::hasColumn('users', 'can_receive_calls');
+            } catch (\Throwable) {
+                self::$hasCanReceiveCallsColumn = false;
+            }
+        }
+
+        return self::$hasCanReceiveCallsColumn;
+    }
     public function __construct(
         private readonly CallBridgeService $callBridge,
         private readonly LeadPhoneMatcher $leadMatcher,
@@ -113,8 +128,7 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
         // If no lead matches the caller's phone, route directly to the line pool sequence
         if ($matchCount === 0) {
             $rotationUsers = $this->buildRotationSequence(null, null, $poolUsers, $defaultFallbackUsers, $adminFallbackUsers);
-            $canRing = in_array((int) user()->id, array_column($rotationUsers, 'id'), true)
-                || ($rotationUsers === [] && user()->hasRole('admin') && $userCanReceiveCalls);
+            $canRing = in_array((int) user()->id, array_column($rotationUsers, 'id'), true);
 
             return response()->json([
                 'status' => 'success',
@@ -208,8 +222,7 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
 
         $rotationUsers = $this->buildRotationSequence($ownerId, $ownerName, $poolUsers, $defaultFallbackUsers, $adminFallbackUsers);
         $leadName = trim((string) ($lead->client_name ?? $lead->client_name_salutation ?? ''));
-        $canRing = in_array((int) user()->id, array_column($rotationUsers, 'id'), true)
-            || ($rotationUsers === [] && user()->hasRole('admin') && $userCanReceiveCalls);
+        $canRing = in_array((int) user()->id, array_column($rotationUsers, 'id'), true);
 
         return response()->json([
             'status' => 'success',
@@ -672,9 +685,13 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
                 if (! in_array($emitEvent, ['call.started', 'call.answered', 'call_answered', 'incoming_call', 'outgoing_call', 'call.ended', 'call_ended', 'call.missed', 'call_missed', 'call.declined', 'call_declined', 'call.busy', 'call_busy', 'call.failed', 'call_failed', 'call_voicemail'], true)) {
                     $emitEvent = ($emitDirection === 'inbound') ? 'incoming_call' : 'call.started';
                 }
+                $callId = $validated['call_id'] ?? $validated['call_ref'] ?? null;
+                if (empty($callId)) {
+                    $callId = sprintf('call-%s-%d-%s', $emitDirection, now()->timestamp, \Illuminate\Support\Str::random(6));
+                }
                 $emitPayload = [
                     'event' => $emitEvent,
-                    'call_id' => $validated['call_id'] ?? $validated['call_ref'] ?? null,
+                    'call_id' => $callId,
                     'direction' => $emitDirection,
                     'phone_number' => $validated['phone'],
                     'status' => $validated['status'] ?? null,
@@ -740,13 +757,18 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
      */
     private function getAvailableAgentsForTier(int $companyId, string $tier, ?int $deviceId, string $role): array
     {
+        $userSelect = ['id', 'name', 'status', 'login'];
+        if (self::supportsCanReceiveCalls()) {
+            $userSelect[] = 'can_receive_calls';
+        }
+
         return SoftphoneCallPoolAgent::query()
             ->where('company_id', $companyId)
             ->where('active', true)
             ->where('tier', $tier)
             ->when($deviceId !== null, fn ($q) => $q->where('device_id', $deviceId))
             ->when($deviceId === null && $tier !== SoftphoneCallPoolAgent::TIER_LINE, fn ($q) => $q->whereNull('device_id'))
-            ->with(['user' => fn ($q) => $q->select('id', 'name', 'status', 'login', 'can_receive_calls')])
+            ->with(['user' => fn ($q) => $q->select($userSelect)])
             ->orderBy('priority')
             ->orderBy('id')
             ->get()
@@ -776,44 +798,16 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
      */
     private function getAvailableAdminFallbackUsers(int $companyId): array
     {
-        $configuredAgents = $this->getAvailableAgentsForTier(
+        $agents = $this->getAvailableAgentsForTier(
             $companyId,
             SoftphoneCallPoolAgent::TIER_ADMIN_FALLBACK,
             null,
             'admin_fallback'
         );
 
-        $hasConfiguredTierAgents = SoftphoneCallPoolAgent::query()
-            ->where('company_id', $companyId)
-            ->where('tier', SoftphoneCallPoolAgent::TIER_ADMIN_FALLBACK)
-            ->exists();
+        $adminUserIds = SoftphoneCallPoolAgent::adminUserIds($companyId);
 
-        if ($hasConfiguredTierAgents) {
-            return $configuredAgents;
-        }
-
-        return User::query()
-            ->where('company_id', $companyId)
-            ->where('status', 'active')
-            ->where('login', '!=', 'disable')
-            ->where(fn ($q) => $q->whereNull('can_receive_calls')->orWhere('can_receive_calls', true))
-            ->whereExists(function ($q): void {
-                $q->select(DB::raw(1))
-                    ->from('role_user')
-                    ->join('roles', 'roles.id', '=', 'role_user.role_id')
-                    ->whereColumn('role_user.user_id', 'users.id')
-                    ->where('roles.name', 'admin');
-            })
-            ->orderBy('id')
-            ->get(['id', 'name'])
-            ->map(fn ($admin): array => [
-                'id' => (int) $admin->id,
-                'name' => trim((string) $admin->name) ?: ('Admin #' . $admin->id),
-                'role' => 'admin_fallback',
-                'priority' => 999,
-            ])
-            ->values()
-            ->all();
+        return array_values(array_filter($agents, fn ($agent) => in_array((int) $agent['id'], $adminUserIds, true)));
     }
 
     /**
