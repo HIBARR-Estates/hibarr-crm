@@ -1,13 +1,16 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Deferred, router } from "@inertiajs/react";
 import { message } from "antd";
+import { AgentPager } from "@/Components/Redesign/agent";
 import Avatar from "@/Components/Redesign/primitives/Avatar";
+import Button from "@/Components/Redesign/primitives/Button";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
+import MenuSelect, { type MenuOption } from "@/Components/Redesign/primitives/MenuSelect";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
 import useTranslation from "@/Hooks/useTranslation";
 import PropertyCard from "./PropertyCard";
 import type { ExposeTarget } from "./PortfolioExposeModal";
-import type { PortfolioDeal, PortfolioProperty, RecommendationsPayload } from "./types";
+import type { DealsPageMeta, PortfolioDeal, PortfolioPipeline, PortfolioProperty, RecommendationsPayload } from "./types";
 import usePortfolioActions from "./usePortfolioActions";
 
 /** Deals get a stable avatar colour by position, from the navy and teal tones of the design. */
@@ -15,10 +18,43 @@ const AVATAR_TONES = ["#16294d", "#0f5f73", "#177a5b", "#475569", "#3d5a80"];
 
 const PortfolioExposeModal = lazy(() => import("./PortfolioExposeModal"));
 
+/** Matches shown at a time; the rest are a page away. */
+const MATCHES_PER_PAGE = 6;
+
+const PIPELINE_KEY = "agent-portfolio-pipeline";
+const ALL_PIPELINES = "all";
+
 interface ForDealsViewProps {
     deals: PortfolioDeal[];
-    dealId: number | null;
+    dealsPage: DealsPageMeta;
+    selectedDeal: PortfolioDeal | null;
+    pipelines: PortfolioPipeline[];
+    pipelineId: string;
     recommendations?: RecommendationsPayload;
+}
+
+/** The query every visit of this page carries: the pipeline, the rail's page and the deal picked. */
+function query(pipelineId: string, dealsPage: number, dealId: number | null): Record<string, string> {
+    const data: Record<string, string> = { pipeline: pipelineId };
+    if (dealsPage > 1) data.deals_page = String(dealsPage);
+    if (dealId) data.deal = String(dealId);
+    return data;
+}
+
+function readStoredPipeline(): string | null {
+    try {
+        return window.localStorage.getItem(PIPELINE_KEY);
+    } catch {
+        return null;
+    }
+}
+
+function storePipeline(value: string): void {
+    try {
+        window.localStorage.setItem(PIPELINE_KEY, value);
+    } catch {
+        // Not remembered; the page still works.
+    }
 }
 
 function CardsSkeleton() {
@@ -35,6 +71,24 @@ function CardsSkeleton() {
     );
 }
 
+interface RailHeadProps {
+    pipelineId: string;
+    options: MenuOption[];
+    onChange: (value: string) => void;
+}
+
+/** The rail's title and the setting for which kind of deals it lists: the pipeline. */
+function RailHead({ pipelineId, options, onChange }: RailHeadProps) {
+    const { t } = useTranslation();
+
+    return (
+        <div className="agent-pf__rail-head">
+            <span className="agent-pf__cap">{t("pages.agent_workspace.portfolio.deals.rail")}</span>
+            <MenuSelect size="sm" fullWidth value={pipelineId} options={options} onChange={(value) => onChange(String(value))} />
+        </div>
+    );
+}
+
 /** What a deal wants, from its Hibarr fields: "2+1 · € 250–350k · by May 2027". */
 function wants(deal: PortfolioDeal): string {
     return [deal.interested_in, deal.budget_range, deal.purchase_timeline].filter(Boolean).join(" · ");
@@ -46,39 +100,75 @@ function wants(deal: PortfolioDeal): string {
  * visit that keeps the page; cards can be selected to send an exposé, attach
  * to the deal or ask whether they are still available.
  */
-export default function ForDealsView({ deals, dealId, recommendations }: ForDealsViewProps) {
+export default function ForDealsView({ deals, dealsPage, selectedDeal, pipelines, pipelineId, recommendations }: ForDealsViewProps) {
     const { t } = useTranslation();
     const { busy, assign, askAvailability } = usePortfolioActions();
-    const [pickedId, setPickedId] = useState<number | null>(dealId);
     const [switching, setSwitching] = useState(false);
     const [selected, setSelected] = useState<number[]>([]);
+    const [matchPage, setMatchPage] = useState(1);
     const [expose, setExpose] = useState<ExposeTarget | null>(null);
 
+    const deal = selectedDeal;
+    const dealId = deal?.id ?? null;
+
+    // A new deal, or fresh matches, start on the first page with nothing ticked.
     useEffect(() => {
-        setPickedId(dealId);
         setSelected([]);
+        setMatchPage(1);
     }, [dealId]);
 
-    const deal = useMemo(() => deals.find((item) => item.id === pickedId) ?? deals[0], [deals, pickedId]);
+    // The pipeline picked last time is the one the page opens on.
+    useEffect(() => {
+        const stored = readStoredPipeline();
+        const known = stored === ALL_PIPELINES || pipelines.some((pipeline) => String(pipeline.id) === stored);
+        if (stored && known && stored !== pipelineId && !new URLSearchParams(window.location.search).has("pipeline")) {
+            router.get(route("agent.portfolio"), query(stored, 1, null), { preserveState: true, preserveScroll: true, replace: true });
+        }
+        // Once, on arrival.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-    const pick = useCallback(
+    const pipelineOptions = useMemo<MenuOption[]>(
+        () => [{ value: ALL_PIPELINES, label: t("pages.agent_workspace.portfolio.deals.all_pipelines") }, ...pipelines.map((pipeline) => ({ value: String(pipeline.id), label: pipeline.name }))],
+        [pipelines, t],
+    );
+
+    const changePipeline = useCallback((next: string) => {
+        if (next === pipelineId) return;
+        storePipeline(next);
+        setSwitching(true);
+        router.get(route("agent.portfolio"), query(next, 1, null), {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            onFinish: () => setSwitching(false),
+        });
+    }, [pipelineId]);
+
+    const pickDeal = useCallback(
         (id: number) => {
-            if (id === pickedId) return;
-            setPickedId(id);
+            if (id === dealId) return;
             setSwitching(true);
-            router.get(
-                route("agent.portfolio"),
-                { deal: id },
-                {
-                    preserveState: true,
-                    preserveScroll: true,
-                    replace: true,
-                    only: ["dealId", "recommendations"],
-                    onFinish: () => setSwitching(false),
-                },
-            );
+            router.get(route("agent.portfolio"), query(pipelineId, dealsPage.page, id), {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                only: ["dealId", "selectedDeal", "recommendations"],
+                onFinish: () => setSwitching(false),
+            });
         },
-        [pickedId],
+        [dealId, dealsPage.page, pipelineId],
+    );
+
+    const railPage = useCallback(
+        (page: number) =>
+            router.get(route("agent.portfolio"), query(pipelineId, page, dealId), {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                only: ["deals", "dealsPage"],
+            }),
+        [dealId, pipelineId],
     );
 
     const toggle = useCallback((id: number) => setSelected((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id])), []);
@@ -118,24 +208,40 @@ export default function ForDealsView({ deals, dealId, recommendations }: ForDeal
         }
     };
 
-    if (deals.length === 0 || !deal) {
+    if (dealsPage.total === 0 || !deal) {
         return (
-            <section className="agent-pf__panel">
-                <EmptyState icon="briefcase" title={t("pages.agent_workspace.portfolio.deals.empty_title")} description={t("pages.agent_workspace.portfolio.deals.empty_description")} />
-            </section>
+            <div className="agent-pf__split">
+                <section className="agent-pf__panel agent-pf__rail" aria-label={t("pages.agent_workspace.portfolio.deals.rail")}>
+                    <RailHead pipelineId={pipelineId} options={pipelineOptions} onChange={changePipeline} />
+                </section>
+                <section className="agent-pf__panel agent-pf__main">
+                    <EmptyState
+                        icon="briefcase"
+                        title={t("pages.agent_workspace.portfolio.deals.empty_title")}
+                        description={t(pipelineId === ALL_PIPELINES ? "pages.agent_workspace.portfolio.deals.empty_description" : "pages.agent_workspace.portfolio.deals.empty_pipeline")}
+                    />
+                </section>
+            </div>
         );
     }
+
+    const allMatches = recommendations?.items ?? [];
+    const matchPages = Math.max(1, Math.ceil(allMatches.length / MATCHES_PER_PAGE));
+    const matchStart = (Math.min(matchPage, matchPages) - 1) * MATCHES_PER_PAGE;
+    const matches = allMatches.slice(matchStart, matchStart + MATCHES_PER_PAGE);
+    const matchFrom = allMatches.length === 0 ? 0 : matchStart + 1;
+    const matchTo = matchStart + matches.length;
 
     const single = selected.length === 1 ? (recommendations?.items.find((item) => item.id === selected[0]) ?? null) : null;
 
     return (
         <div className="agent-pf__split">
             <section className="agent-pf__panel agent-pf__rail" aria-label={t("pages.agent_workspace.portfolio.deals.rail")}>
-                <span className="agent-pf__cap">{t("pages.agent_workspace.portfolio.deals.rail")}</span>
+                <RailHead pipelineId={pipelineId} options={pipelineOptions} onChange={changePipeline} />
                 <ul className="agent-pf__deals">
                     {deals.map((item, index) => (
                         <li key={item.id}>
-                            <button type="button" className="agent-pf__deal" aria-pressed={item.id === deal.id} onClick={() => pick(item.id)}>
+                            <button type="button" className="agent-pf__deal" aria-pressed={item.id === deal.id} onClick={() => pickDeal(item.id)}>
                                 <Avatar initials={initialsFromName(item.person || item.name)} size={30} tone={{ bg: AVATAR_TONES[index % AVATAR_TONES.length], fg: "#ffffff" }} />
                                 <span className="agent-pf__deal-text">
                                     <b>{item.person ? `${item.person} · ${item.name}` : item.name}</b>
@@ -145,16 +251,24 @@ export default function ForDealsView({ deals, dealId, recommendations }: ForDeal
                         </li>
                     ))}
                 </ul>
-                <p className="agent-pf__note">{t("pages.agent_workspace.portfolio.deals.source")}</p>
+                <AgentPager
+                    page={dealsPage.page}
+                    lastPage={dealsPage.last_page}
+                    from={dealsPage.from}
+                    to={dealsPage.to}
+                    total={dealsPage.total}
+                    onPage={railPage}
+                    label={t("pages.agent_workspace.portfolio.deals.rail")}
+                />
             </section>
 
             <section className="agent-pf__panel agent-pf__main" aria-live="polite">
                 <header className="agent-pf__main-head">
                     <h2>{t("pages.agent_workspace.portfolio.deals.recommended", { deal: deal.person ? `${deal.person} · ${deal.name}` : deal.name })}</h2>
                     <div className="agent-pf__actions">
-                        <button
-                            type="button"
-                            className="dr-btn dr-btn-sm dr-btn-primary"
+                        <Button
+                            size="sm"
+                            variant="primary"
                             disabled={!single}
                             title={selected.length > 1 ? t("pages.agent_workspace.portfolio.deals.expose_one") : undefined}
                             onClick={() => single && openExpose(single)}
@@ -162,13 +276,13 @@ export default function ForDealsView({ deals, dealId, recommendations }: ForDeal
                             {selected.length > 0
                                 ? t("pages.agent_workspace.portfolio.deals.send_expose_count", { count: selected.length })
                                 : t("pages.agent_workspace.portfolio.deals.send_expose")}
-                        </button>
-                        <button type="button" className="dr-btn dr-btn-sm dr-btn-ghost" disabled={selected.length === 0 || busy !== null} onClick={onAssign}>
+                        </Button>
+                        <Button size="sm" className="agent-btn-soft" disabled={selected.length === 0 || busy !== null} onClick={onAssign}>
                             {t("pages.agent_workspace.portfolio.deals.assign")}
-                        </button>
-                        <button type="button" className="dr-btn dr-btn-sm dr-btn-ghost" disabled={selected.length === 0 || busy !== null} onClick={onAsk}>
+                        </Button>
+                        <Button size="sm" className="agent-btn-soft" disabled={selected.length === 0 || busy !== null} onClick={onAsk}>
                             {t("pages.agent_workspace.portfolio.deals.ask")}
-                        </button>
+                        </Button>
                     </div>
                 </header>
 
@@ -177,11 +291,22 @@ export default function ForDealsView({ deals, dealId, recommendations }: ForDeal
                 ) : (
                     <Deferred data="recommendations" fallback={<CardsSkeleton />}>
                         {recommendations && recommendations.items.length > 0 ? (
-                            <ul className="agent-pf__grid">
-                                {recommendations.items.map((item) => (
-                                    <PropertyCard key={item.id} property={item} selected={selected.includes(item.id)} onSelect={toggle} onExpose={openExpose} />
-                                ))}
-                            </ul>
+                            <>
+                                <ul className="agent-pf__grid">
+                                    {matches.map((item) => (
+                                        <PropertyCard key={item.id} property={item} selected={selected.includes(item.id)} onSelect={toggle} onExpose={openExpose} />
+                                    ))}
+                                </ul>
+                                <AgentPager
+                                    page={matchPage}
+                                    lastPage={matchPages}
+                                    from={matchFrom}
+                                    to={matchTo}
+                                    total={recommendations.items.length}
+                                    onPage={setMatchPage}
+                                    label={t("pages.agent_workspace.portfolio.deals.matches")}
+                                />
+                            </>
                         ) : (
                             <EmptyState
                                 icon="building"
