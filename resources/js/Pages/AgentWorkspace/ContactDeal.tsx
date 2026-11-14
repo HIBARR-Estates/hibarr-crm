@@ -436,7 +436,17 @@ function ContactDealInner(props: ContactDealProps) {
                                             onCreateTask={() => setCreateKind("task")}
                                             onScheduleCall={() => setCreateKind("meeting")}
                                             onRequestDocuments={() => jump("deal-files")}
-                                            onReviewStaleDeal={() => jump(restricted ? "agent-activity-notes" : "deal-history")}
+                                            onReviewStaleDeal={() =>
+                                                jump(
+                                                    !restricted
+                                                        ? "deal-history"
+                                                        : activityPermissions.viewNotes
+                                                          ? "agent-activity-notes"
+                                                          : activityPermissions.viewTasks || activityPermissions.viewMeetings
+                                                            ? "agent-activity-coming_up"
+                                                            : "agent-deal-top",
+                                                )
+                                            }
                                             onAdvanceStage={model.advanceToNextStage}
                                         />
                                     ) : null}
