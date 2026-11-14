@@ -3320,10 +3320,9 @@ return [
             'subtitle_browse_one' => 'Подходит 1 объект · сначала новые',
             'subtitle_browse_loading' => 'Загрузка объектов',
             'subtitle_projects' => 'Проекты застройщиков и наличие юнитов',
-            'subtitle_projects_count' => '{{count}} проектов · проекты застройщиков и наличие юнитов',
+            'subtitle_projects_count' => 'Проектов: {{count}} · проекты застройщиков и наличие юнитов',
             'subtitle_projects_one' => '1 проект · проекты застройщиков и наличие юнитов',
             'failed' => 'Не получилось. Попробуйте ещё раз.',
-            'filters' => 'Фильтры',
             'filters_count' => 'Фильтры · {{count}}',
             'new' => 'Новое',
             'pills' => [

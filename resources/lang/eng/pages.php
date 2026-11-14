@@ -3467,7 +3467,6 @@ return [
             'subtitle_projects_count' => '{{count}} projects · developer projects and their unit availability',
             'subtitle_projects_one' => '1 project · developer projects and their unit availability',
             'failed' => 'That did not work. Please try again.',
-            'filters' => 'Filters',
             'filters_count' => 'Filters · {{count}}',
             'new' => 'New',
             'pills' => [

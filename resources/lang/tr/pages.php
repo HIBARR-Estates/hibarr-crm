@@ -3288,7 +3288,6 @@ return [
             'subtitle_projects_count' => '{{count}} proje · geliştirici projeleri ve birim müsaitliği',
             'subtitle_projects_one' => '1 proje · geliştirici projeleri ve birim müsaitliği',
             'failed' => 'İşlem başarısız oldu. Lütfen tekrar dene.',
-            'filters' => 'Filtreler',
             'filters_count' => 'Filtreler · {{count}}',
             'new' => 'Yeni',
             'pills' => [

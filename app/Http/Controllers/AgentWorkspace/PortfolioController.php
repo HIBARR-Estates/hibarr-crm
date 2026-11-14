@@ -77,7 +77,8 @@ class PortfolioController extends AccountBaseController
         $pipelineId = $this->dealsPipeline($request, $pipelines);
 
         $base = $this->myOpenDeals($pipelineId);
-        $page = max(1, (int) $request->query('deals_page', 1));
+        $lastPage = max(1, (int) ceil((clone $base)->count() / self::DEALS_PAGE_SIZE));
+        $page = min($lastPage, max(1, (int) $request->query('deals_page', 1)));
 
         $deals = (clone $base)
             ->with(['contact:id,client_name', 'hibarrFields', 'leadStage:id,name'])
@@ -99,7 +100,7 @@ class PortfolioController extends AccountBaseController
             'selectedDeal' => $selected ? $this->presentDeal($selected) : null,
             'dealId' => $selected?->id,
             'recommendations' => Inertia::defer(
-                fn () => $selected ? $this->recommendationsFor($selected) : ['items' => [], 'error' => null],
+                fn () => $selected ? $this->recommendationsFor($selected) : ['deal_id' => null, 'items' => [], 'error' => null],
                 'recommendations'
             ),
         ]);
@@ -248,7 +249,7 @@ class PortfolioController extends AccountBaseController
      * the Portfolio shows. The service is an outside call, so this only ever
      * runs deferred.
      *
-     * @return array{items: list<array<string, mixed>>, error: string|null}
+     * @return array{deal_id: int, items: list<array<string, mixed>>, error: string|null}
      */
     private function recommendationsFor(Deal $deal): array
     {
@@ -280,7 +281,7 @@ class PortfolioController extends AccountBaseController
             ->values()
             ->all();
 
-        return ['items' => $items, 'error' => $result['error'] ?? null];
+        return ['deal_id' => (int) $deal->id, 'items' => $items, 'error' => $result['error'] ?? null];
     }
 
     /**

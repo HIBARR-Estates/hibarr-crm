@@ -73,7 +73,7 @@ export default function ProjectsView({ filters, projects }: ProjectsViewProps) {
         const meta = [
             project.starting_price !== null ? t("pages.agent_workspace.portfolio.projects.from", { price: formatFrom(project.starting_price, project.currency) }) : null,
             project.completion_date
-                ? t("pages.agent_workspace.portfolio.projects.handover", { date: new Date(project.completion_date).toLocaleDateString(intlLocale(locale), { month: "short", year: "numeric" }) })
+                ? t("pages.agent_workspace.portfolio.projects.handover", { date: new Date(project.completion_date).toLocaleDateString(intlLocale(locale), { month: "short", year: "numeric", timeZone: "UTC" }) })
                 : null,
         ].filter(Boolean);
         const shown = project.unit_types.slice(0, UNIT_CHIPS);

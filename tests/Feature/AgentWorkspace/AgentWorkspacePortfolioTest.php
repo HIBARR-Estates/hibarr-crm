@@ -93,6 +93,8 @@ class AgentWorkspacePortfolioTest extends TestCase
 
         $controller = file_get_contents(base_path('app/Http/Controllers/AgentWorkspace/PortfolioController.php'));
         $this->assertStringContainsString("'deals_page'", $controller);
+        $this->assertStringContainsString('min($lastPage, max(1, (int) $request->query(\'deals_page\', 1)))', $controller, 'a page past the end falls back to the last one');
+        $this->assertStringContainsString('\'deal_id\' => (int) $deal->id', $controller, 'matches say which deal they are for');
 
         $view = file_get_contents(base_path('resources/js/Pages/AgentWorkspace/portfolio/ForDealsView.tsx'));
         $this->assertStringContainsString('MATCHES_PER_PAGE = 6', $view);

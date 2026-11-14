@@ -18,7 +18,13 @@ interface PortfolioFilterModalProps {
  * filter modal (the one Deals and People use) with this page's fields. Loaded
  * the first time Filters is pressed, so the page never pays for it up front.
  */
-export default function PortfolioFilterModal({ view, options, total, appliedKey }: PortfolioFilterModalProps) {
+export default function PortfolioFilterModal(props: PortfolioFilterModalProps) {
+    // The fields' choices come with the deferred options. Opening only once they are here keeps a late
+    // arrival from rebuilding the form under a selection the agent has already made.
+    return props.options ? <PortfolioFilterModalBody {...props} /> : null;
+}
+
+function PortfolioFilterModalBody({ view, options, total, appliedKey }: PortfolioFilterModalProps) {
     const { openDrawer } = useFilter();
 
     const filterConfig = useMemo(
@@ -37,5 +43,5 @@ export default function PortfolioFilterModal({ view, options, total, appliedKey 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    return <EntityFilterModal config={filterConfig} optionsLoading={!options} entityLabel={view === "browse" ? "properties" : "projects"} currentCount={total} savedViews={false} />;
+    return <EntityFilterModal config={filterConfig} optionsLoading={false} entityLabel={view === "browse" ? "properties" : "projects"} currentCount={total} savedViews={false} />;
 }

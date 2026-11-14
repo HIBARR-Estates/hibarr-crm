@@ -38,6 +38,8 @@ export interface PortfolioDeal {
 }
 
 export interface RecommendationsPayload {
+    /** The deal these matches were computed for. */
+    deal_id: number | null;
     items: Recommendation[];
     error: string | null;
 }

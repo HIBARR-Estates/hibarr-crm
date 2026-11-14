@@ -37,7 +37,7 @@ export default function PortfolioPills({ view, filterCount, onFilters }: Portfol
             trailing={
                 onFilters ? (
                     <button type="button" className="agent-pills__pill" aria-pressed={filterCount > 0} onClick={onFilters}>
-                        {filterCount > 0 ? t("pages.agent_workspace.portfolio.filters_count", { count: filterCount }) : t("pages.agent_workspace.portfolio.filters")}
+                        {filterCount > 0 ? t("pages.agent_workspace.portfolio.filters_count", { count: filterCount }) : t("app.filter")}
                     </button>
                 ) : null
             }

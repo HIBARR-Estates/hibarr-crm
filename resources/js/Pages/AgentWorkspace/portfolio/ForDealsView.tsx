@@ -225,14 +225,16 @@ export default function ForDealsView({ deals, dealsPage, selectedDeal, pipelines
         );
     }
 
-    const allMatches = recommendations?.items ?? [];
+    // Matches that arrive for another deal (a slow answer from before a switch) are not shown.
+    const current = recommendations && recommendations.deal_id === dealId ? recommendations : undefined;
+    const allMatches = current?.items ?? [];
     const matchPages = Math.max(1, Math.ceil(allMatches.length / MATCHES_PER_PAGE));
     const matchStart = (Math.min(matchPage, matchPages) - 1) * MATCHES_PER_PAGE;
     const matches = allMatches.slice(matchStart, matchStart + MATCHES_PER_PAGE);
     const matchFrom = allMatches.length === 0 ? 0 : matchStart + 1;
     const matchTo = matchStart + matches.length;
 
-    const single = selected.length === 1 ? (recommendations?.items.find((item) => item.id === selected[0]) ?? null) : null;
+    const single = selected.length === 1 ? (current?.items.find((item) => item.id === selected[0]) ?? null) : null;
 
     return (
         <div className="agent-pf__split">
@@ -290,7 +292,9 @@ export default function ForDealsView({ deals, dealsPage, selectedDeal, pipelines
                     <CardsSkeleton />
                 ) : (
                     <Deferred data="recommendations" fallback={<CardsSkeleton />}>
-                        {recommendations && recommendations.items.length > 0 ? (
+                        {!current ? (
+                            <CardsSkeleton />
+                        ) : current.items.length > 0 ? (
                             <>
                                 <ul className="agent-pf__grid">
                                     {matches.map((item) => (
@@ -302,7 +306,7 @@ export default function ForDealsView({ deals, dealsPage, selectedDeal, pipelines
                                     lastPage={matchPages}
                                     from={matchFrom}
                                     to={matchTo}
-                                    total={recommendations.items.length}
+                                    total={current.items.length}
                                     onPage={setMatchPage}
                                     label={t("pages.agent_workspace.portfolio.deals.matches")}
                                 />
@@ -310,8 +314,8 @@ export default function ForDealsView({ deals, dealsPage, selectedDeal, pipelines
                         ) : (
                             <EmptyState
                                 icon="building"
-                                title={t(recommendations?.error ? "pages.agent_workspace.portfolio.deals.error_title" : "pages.agent_workspace.portfolio.deals.none_title")}
-                                description={t(recommendations?.error ? "pages.agent_workspace.portfolio.deals.error_description" : "pages.agent_workspace.portfolio.deals.none_description")}
+                                title={t(current.error ? "pages.agent_workspace.portfolio.deals.error_title" : "pages.agent_workspace.portfolio.deals.none_title")}
+                                description={t(current.error ? "pages.agent_workspace.portfolio.deals.error_description" : "pages.agent_workspace.portfolio.deals.none_description")}
                             />
                         )}
                     </Deferred>

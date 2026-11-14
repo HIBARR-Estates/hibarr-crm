@@ -23,10 +23,24 @@ export function visitList(routeName: "agent.portfolio.browse" | "agent.portfolio
 export function useListSearchVisit(routeName: "agent.portfolio.browse" | "agent.portfolio.projects", filters: Params, enabled: boolean) {
     const [text, setText] = useState(filters.search ?? "");
     const debounce = useRef<number | null>(null);
+    // What this box last asked the server for; anything else that changes the applied search came from outside.
+    const submitted = useRef(filters.search ?? "");
+
+    // The filter modal can apply or reset the search too: follow it, without touching what is being typed.
+    useEffect(() => {
+        const applied = filters.search ?? "";
+        if (applied !== submitted.current) {
+            submitted.current = applied;
+            setText(applied);
+        }
+    }, [filters.search]);
 
     useEffect(() => {
         if (!enabled || text === (filters.search ?? "")) return;
-        debounce.current = window.setTimeout(() => visitList(routeName, { ...filters, search: text }), 300);
+        debounce.current = window.setTimeout(() => {
+            submitted.current = text;
+            visitList(routeName, { ...filters, search: text });
+        }, 300);
         return () => {
             if (debounce.current) window.clearTimeout(debounce.current);
         };

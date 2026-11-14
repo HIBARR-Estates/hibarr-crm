@@ -3310,7 +3310,6 @@ return [
             'subtitle_projects_count' => '{{count}} Projekte · Bauprojekte und ihre Verfügbarkeit',
             'subtitle_projects_one' => '1 Projekt · Bauprojekte und ihre Verfügbarkeit',
             'failed' => 'Das hat nicht geklappt. Bitte versuche es erneut.',
-            'filters' => 'Filter',
             'filters_count' => 'Filter · {{count}}',
             'new' => 'Neu',
             'pills' => [
@@ -3320,11 +3319,11 @@ return [
                 'projects' => 'Projekte',
             ],
             'deals' => [
-                'rail' => 'Deine Deals',
+                'rail' => 'Ihre Deals',
                 'no_wants' => 'Noch keine Wünsche gespeichert',
                 'all_pipelines' => 'Alle Pipelines',
                 'matches' => 'Empfohlene Immobilien',
-                'empty_pipeline' => 'Keine offenen Deals in dieser Pipeline. Wähle oben eine andere.',
+                'empty_pipeline' => 'Keine offenen Deals in dieser Pipeline. Wählen Sie oben eine andere aus.',
                 'recommended' => 'Empfohlen für {{deal}}',
                 'send_expose' => 'Exposé senden',
                 'send_expose_count' => 'Exposé senden · {{count}} ausgewählt',
@@ -3350,7 +3349,7 @@ return [
                 'pages' => 'Seiten',
                 'empty_title' => 'Keine Immobilien gefunden',
                 'empty_description' => 'Es gibt noch keine Immobilien.',
-                'empty_filtered' => 'Nichts passt zu diesen Filtern. Lockere einen, um mehr zu sehen.',
+                'empty_filtered' => 'Nichts passt zu diesen Filtern. Lockern Sie einen, um mehr zu sehen.',
             ],
             'projects' => [
                 'from' => 'ab {{price}}',
@@ -3364,7 +3363,7 @@ return [
                 'open' => 'Projekt ansehen',
                 'units' => 'Einheitentypen',
                 'more_units' => '+{{count}} weitere',
-                'empty_filtered' => 'Keine Treffer für diese Filter. Lockere einen, um mehr zu sehen.',
+                'empty_filtered' => 'Keine Treffer für diese Filter. Lockern Sie einen, um mehr zu sehen.',
                 'status' => [
                     'pre_construction' => 'Vor Baubeginn',
                     'active_construction' => 'Im Bau',

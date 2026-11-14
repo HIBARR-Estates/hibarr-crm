@@ -485,7 +485,8 @@
 
 .agent-pf__unit {
     display: inline-flex;
-    max-width: 100%;
+    /* Two to a row at most, so three chips and "+N more" always fit the two rows reserved. */
+    max-width: calc(50% - 3px);
     align-items: center;
     gap: 6px;
     padding: 4px 8px;
