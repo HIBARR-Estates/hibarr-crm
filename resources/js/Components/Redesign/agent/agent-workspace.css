@@ -138,16 +138,6 @@
     background: var(--dr-navy-pressed);
 }
 
-/* The CRM's own notification dropdown, recoloured for the navy band. */
-.agent-ws__bell .ant-btn,
-.agent-ws__bell .ant-btn .anticon {
-    color: var(--dr-navy-mid) !important;
-}
-
-.agent-ws__bell .ant-btn:hover {
-    background: transparent !important;
-}
-
 /* Agent | Classic switch styles live in agent-switch.css (the classic sidebar loads it too). */
 .agent-dock__item:focus-visible,
 .agent-tabs__item:focus-visible,
