@@ -54,6 +54,7 @@ use App\Notifications\MeetingLinkGenerationFailed;
 use App\Scopes\ActiveScope;
 use App\Services\AgentWorkspace\ContactDeals;
 use App\Services\AgentWorkspace\DealPulse;
+use App\Services\AgentWorkspace\LeadVisibility;
 use App\Services\CalendarSyncDispatcher;
 use App\Services\Deal\DealOutcomeService;
 use App\Services\Deal\DealPaymentValueGuard;
@@ -560,9 +561,23 @@ class DealController extends AccountBaseController
             return $props;
         }
 
+        // A deal can be visible to someone the lead is not: they get the deal
+        // only, with nothing of the lead's own details sent.
+        $person = Lead::query()->with('leadOwner:id,name')->whereKey((int) $lead)->first();
+        $restricted = $person === null || ! LeadVisibility::canView(user(), $person);
+        if ($restricted) {
+            $props = LeadVisibility::withoutLeadDetails($props, $person?->leadOwner?->name, (int) user()->id);
+        }
+
+        $siblings = $contactDeals->forLead((int) $lead, user());
+        if ($restricted) {
+            // The lead's other deals are part of the lead: only this deal is sent.
+            $siblings = array_values(array_filter($siblings, fn (array $summary) => (int) $summary['id'] === (int) $deal));
+        }
+
         return Inertia::render('AgentWorkspace/ContactDeal', array_merge(
             Arr::except($props, self::AGENT_CONTACT_UNUSED_PROPS),
-            ['contactDeals' => $contactDeals->forLead((int) $lead, user())],
+            ['contactDeals' => $siblings],
         ));
     }
 
@@ -1293,6 +1308,32 @@ class DealController extends AccountBaseController
             ->where('deal_id', $id)
             ->orderBy('next_follow_up_date', 'desc')
             ->get();
+
+        // Someone who may see the deal but not a lead on it (the agent workspace's
+        // deal-only view) keeps the meetings, without that lead's phone numbers.
+        // Each lead is checked on its own: a meeting can keep a lead other than
+        // the deal's current one.
+        $leadIds = $dealFollowUps
+            ->flatMap(fn ($f) => [$f->lead?->id, $f->deal?->contact?->id])
+            ->filter()
+            ->unique()
+            ->values();
+        $hiddenLeadIds = $leadIds->isEmpty()
+            ? collect()
+            : Lead::query()->whereIn('id', $leadIds)->get()
+                ->reject(fn (Lead $lead) => LeadVisibility::canView(user(), $lead))
+                ->pluck('id');
+        if ($hiddenLeadIds->isNotEmpty()) {
+            $phoneFields = ['mobile', 'cell', 'office'];
+            $dealFollowUps->each(function ($f) use ($hiddenLeadIds, $phoneFields) {
+                if ($f->lead && $hiddenLeadIds->contains($f->lead->id)) {
+                    $f->lead->makeHidden($phoneFields);
+                }
+                if ($f->deal?->contact && $hiddenLeadIds->contains($f->deal->contact->id)) {
+                    $f->deal->contact->makeHidden($phoneFields);
+                }
+            });
+        }
 
         $allParticipantIds = $dealFollowUps->flatMap(fn ($f) => $f->participants ?? [])->unique()->values();
         $participantUsersMap = $allParticipantIds->isEmpty()
