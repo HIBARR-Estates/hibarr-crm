@@ -75,7 +75,6 @@ class AgentWorkspacePortfolioTest extends TestCase
         $this->assertSame('AgentWorkspace/Portfolio', $page['component']);
         $this->assertSame('browse', $page['props']['view']);
         $this->assertSame(['city' => 'iskele', 'max_price' => '350000'], $page['props']['filters']);
-        $this->assertSame(PortfolioController::BROWSE_STEP, $page['props']['limit']);
 
         foreach (['properties', 'options'] as $deferred) {
             $this->assertArrayNotHasKey($deferred, $page['props'], "{$deferred} must not block the first paint");
@@ -83,22 +82,50 @@ class AgentWorkspacePortfolioTest extends TestCase
         }
     }
 
-    public function test_show_more_is_capped(): void
+    public function test_the_lists_are_paged_so_no_page_is_endless(): void
     {
-        $page = $this->visit('all', 'browse', Request::create('/agent/portfolio/browse', 'GET', ['limit' => '99999']));
-        $this->assertSame(PortfolioController::BROWSE_CAP, $page['props']['limit']);
+        // Browse is four columns of four; Projects and the deals rail are smaller pages;
+        // the matches are asked for in a number that pages out at six.
+        $this->assertSame(16, PortfolioController::BROWSE_PAGE_SIZE);
+        $this->assertSame(12, PortfolioController::PROJECTS_PAGE_SIZE);
+        $this->assertSame(8, PortfolioController::DEALS_PAGE_SIZE);
+        $this->assertSame(0, PortfolioController::RECOMMENDATION_LIMIT % 6);
 
-        $page = $this->visit('all', 'browse', Request::create('/agent/portfolio/browse', 'GET', ['limit' => '1']));
-        $this->assertSame(PortfolioController::BROWSE_STEP, $page['props']['limit']);
+        $controller = file_get_contents(base_path('app/Http/Controllers/AgentWorkspace/PortfolioController.php'));
+        $this->assertStringContainsString("'deals_page'", $controller);
+
+        $view = file_get_contents(base_path('resources/js/Pages/AgentWorkspace/portfolio/ForDealsView.tsx'));
+        $this->assertStringContainsString('MATCHES_PER_PAGE = 6', $view);
+        $this->assertStringNotContainsString('deals.source', $view, 'the source note under the rail is gone');
     }
 
-    public function test_projects_defer_their_cards(): void
+    public function test_projects_carry_the_search_and_filters_the_classic_projects_page_has(): void
     {
-        $page = $this->visit('all', 'projects', Request::create('/agent/portfolio/projects'));
+        $page = $this->visit('all', 'projects', Request::create('/agent/portfolio/projects', 'GET', ['search' => 'plage', 'developer_id' => '4', 'bogus' => 'x']));
 
-        $this->assertSame('projects', $page['props']['view']);
-        $this->assertArrayNotHasKey('projects', $page['props']);
-        $this->assertContains('projects', $page['deferredProps']['projects'] ?? []);
+        $this->assertSame(['search' => 'plage', 'developer_id' => '4'], $page['props']['filters']);
+        foreach (['projects', 'options'] as $deferred) {
+            $this->assertArrayNotHasKey($deferred, $page['props']);
+            $this->assertContains($deferred, $page['deferredProps'][$deferred] ?? []);
+        }
+    }
+
+    public function test_listings_use_the_same_buttons_as_the_other_agent_pages(): void
+    {
+        $dir = base_path('resources/js/Pages/AgentWorkspace/portfolio/');
+
+        foreach (['PropertyCard.tsx', 'ForDealsView.tsx', 'ProjectsView.tsx'] as $file) {
+            $this->assertStringNotContainsString('agent-pf__expose', file_get_contents($dir.$file), "{$file} must use the shared Button");
+            $this->assertStringNotContainsString('agent-pf__chipbtn', file_get_contents($dir.$file), "{$file} must use the shared Button");
+        }
+    }
+
+    public function test_locations_are_tidied_for_the_cards(): void
+    {
+        $this->assertSame('Long Beach', PortfolioPresenter::tidy('long_beach'));
+        $this->assertSame('Iskele, Long Beach', PortfolioPresenter::tidy('iskele,  long-beach'));
+        $this->assertNull(PortfolioPresenter::tidy('  _-  '));
+        $this->assertNull(PortfolioPresenter::tidy(null));
     }
 
     public function test_a_property_card_carries_what_the_design_shows(): void

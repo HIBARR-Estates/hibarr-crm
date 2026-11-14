@@ -1,23 +1,17 @@
 import { lazy, Suspense, useCallback, useMemo, useState } from "react";
 import { Deferred } from "@inertiajs/react";
+import { AgentPager } from "@/Components/Redesign/agent";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
-import Icon from "@/Components/Redesign/primitives/Icon";
-import MenuSelect, { type MenuOption } from "@/Components/Redesign/primitives/MenuSelect";
 import useTranslation from "@/Hooks/useTranslation";
 import PropertyCard from "./PropertyCard";
-import { STEP, visitBrowse } from "./browseVisit";
+import { visitList } from "./portfolioVisit";
 import type { ExposeTarget } from "./PortfolioExposeModal";
-import type { BrowseFilters, BrowseOptions, NamedOption, PortfolioProperty, PropertiesPayload } from "./types";
+import type { BrowseFilters, BrowseOptions, PortfolioProperty, PropertiesPayload } from "./types";
 
 const PortfolioExposeModal = lazy(() => import("./PortfolioExposeModal"));
 
-const ALL = "";
-const PRICES = [150000, 200000, 250000, 350000, 500000, 750000, 1000000];
-const BEDROOMS = [1, 2, 3, 4];
-
 interface BrowseViewProps {
     filters: BrowseFilters;
-    limit: number;
     properties?: PropertiesPayload;
     options?: BrowseOptions;
 }
@@ -36,88 +30,28 @@ function GridSkeleton() {
     );
 }
 
-/** The filter row's trigger reads "City: Iskele" once something is picked, just "City" before. */
-function FilterMenu({
-    label,
-    value,
-    options,
-    onChange,
-    searchable = false,
-}: {
-    label: string;
-    value: string;
-    options: MenuOption[];
-    onChange: (value: string) => void;
-    searchable?: boolean;
-}) {
-    const { t } = useTranslation();
-    const picked = options.find((option) => String(option.value) === value);
-    const all: MenuOption = { value: ALL, label: t("pages.agent_workspace.portfolio.browse.any") };
-
-    return (
-        <span className={`agent-pf__filter-wrap${picked ? " is-set" : ""}`}>
-            {picked ? <span className="agent-pf__filter-label">{label}:</span> : null}
-            <MenuSelect
-                value={picked ? value : null}
-                options={[all, ...options]}
-                onChange={(next) => onChange(String(next))}
-                placeholder={label}
-                searchable={searchable}
-                size="sm"
-                width={240}
-                triggerClassName="agent-pf__filter"
-            />
-        </span>
-    );
-}
-
-const toOptions = (list: NamedOption[] | undefined): MenuOption[] => (list ?? []).map((item) => ({ value: item.name, label: item.label }));
-
 /**
- * Browse (L7-19): every property the agent may see, newest first, narrowed by
- * the filter row. Filters, search and "Show more" are partial visits that
- * keep the page; the cards and the filter options follow the shell.
+ * Browse (L7-19): every property the agent may see, newest first, sixteen to
+ * a page in four columns. Search, the Filters pill in the second row and the
+ * pager are partial visits that keep the page; the cards follow the shell.
  */
-export default function BrowseView({ filters, limit, properties, options }: BrowseViewProps) {
+export default function BrowseView({ filters, properties, options }: BrowseViewProps) {
     const { t } = useTranslation();
     const [expose, setExpose] = useState<ExposeTarget | null>(null);
 
-    const visit = visitBrowse;
-
-    const set = useCallback((key: keyof BrowseFilters, value: string) => visit({ ...filters, [key]: value }), [filters, visit]);
-
     const statusLabels = useMemo(() => new Map((options?.construction_statuses ?? []).map((item) => [item.name, item.label])), [options]);
-
-    const cityOptions = useMemo(() => toOptions(options?.cities), [options]);
-    const areaOptions = useMemo<MenuOption[]>(() => (options?.areas ?? []).map((area) => ({ value: area, label: area })), [options]);
-    const developerOptions = useMemo<MenuOption[]>(() => (options?.developers ?? []).map((item) => ({ value: String(item.id), label: item.name })), [options]);
-    const priceOptions = useMemo<MenuOption[]>(() => PRICES.map((price) => ({ value: String(price), label: price >= 1000000 ? `${price / 1000000}M` : `${price / 1000}k` })), []);
-    const bedroomOptions = useMemo<MenuOption[]>(() => BEDROOMS.map((count) => ({ value: String(count), label: `${count}+` })), []);
 
     const openExpose = useCallback(
         (property: PortfolioProperty) => setExpose({ kind: "property", id: property.id, title: property.title, subtitle: property.project ?? undefined }),
         [],
     );
 
+    const goTo = useCallback((page: number) => visitList("agent.portfolio.browse", filters, page), [filters]);
+
     const anyFilter = Object.values(filters).some(Boolean);
 
     return (
         <div className="agent-pf__browse">
-            <div className="agent-pf__filters" role="group" aria-label={t("pages.agent_workspace.portfolio.browse.filters")}>
-                <FilterMenu label={t("pages.agent_workspace.portfolio.browse.city")} value={filters.city ?? ALL} options={cityOptions} onChange={(v) => set("city", v)} />
-                <FilterMenu label={t("pages.agent_workspace.portfolio.browse.area")} value={filters.area ?? ALL} options={areaOptions} onChange={(v) => set("area", v)} searchable />
-                <FilterMenu label={t("pages.agent_workspace.portfolio.browse.price")} value={filters.max_price ?? ALL} options={priceOptions} onChange={(v) => set("max_price", v)} />
-                <FilterMenu label={t("pages.agent_workspace.portfolio.browse.bedrooms")} value={filters.min_bedrooms ?? ALL} options={bedroomOptions} onChange={(v) => set("min_bedrooms", v)} />
-                <FilterMenu
-                    label={t("pages.agent_workspace.portfolio.browse.construction")}
-                    value={filters.construction_status ?? ALL}
-                    options={toOptions(options?.construction_statuses)}
-                    onChange={(v) => set("construction_status", v)}
-                />
-                <FilterMenu label={t("pages.agent_workspace.portfolio.browse.deed")} value={filters.deed_status ?? ALL} options={toOptions(options?.deed_statuses)} onChange={(v) => set("deed_status", v)} />
-                <FilterMenu label={t("pages.agent_workspace.portfolio.browse.developer")} value={filters.developer_id ?? ALL} options={developerOptions} onChange={(v) => set("developer_id", v)} searchable />
-            </div>
-
             <Deferred data="properties" fallback={<GridSkeleton />}>
                 {properties && properties.items.length > 0 ? (
                     <>
@@ -126,14 +60,15 @@ export default function BrowseView({ filters, limit, properties, options }: Brow
                                 <PropertyCard key={property.id} property={property} statusLabel={statusLabels.get(property.construction_status ?? "")} onExpose={openExpose} />
                             ))}
                         </ul>
-                        {properties.total > properties.items.length ? (
-                            <div className="agent-pf__more">
-                                <button type="button" className="dr-btn dr-btn-sm dr-btn-ghost" onClick={() => visit(filters, limit + STEP)}>
-                                    <Icon name="chevron-down" size={13} />
-                                    {t("pages.agent_workspace.portfolio.browse.more", { count: properties.total - properties.items.length })}
-                                </button>
-                            </div>
-                        ) : null}
+                        <AgentPager
+                            page={properties.page}
+                            lastPage={properties.last_page}
+                            from={properties.from}
+                            to={properties.to}
+                            total={properties.total}
+                            onPage={goTo}
+                            label={t("pages.agent_workspace.portfolio.browse.pages")}
+                        />
                     </>
                 ) : (
                     <section className="agent-pf__panel">

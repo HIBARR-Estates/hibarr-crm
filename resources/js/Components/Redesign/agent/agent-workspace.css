@@ -320,6 +320,30 @@
     font-weight: 600;
 }
 
+/* Pills are links as often as buttons; without these an anchor turns the
+   browser/Bootstrap link blue on hover and after a visit. */
+.agent-pills__pill:visited,
+.agent-pills__pill:active {
+    color: var(--dr-navy-soft);
+    text-decoration: none;
+}
+
+.agent-pills__pill:hover:not(:disabled):not([aria-disabled="true"]) {
+    border-color: var(--dr-navy-mid);
+    color: var(--dr-white);
+    text-decoration: none;
+}
+
+.agent-pills__pill[aria-selected="true"]:hover,
+.agent-pills__pill[aria-selected="true"]:visited,
+.agent-pills__pill[aria-current="page"]:hover,
+.agent-pills__pill[aria-current="page"]:visited,
+.agent-pills__pill[aria-pressed="true"]:hover,
+.agent-pills__pill[aria-pressed="true"]:visited {
+    border-color: var(--dr-white);
+    color: var(--dr-navy);
+}
+
 /* An action in the row (not a place): dashed, dimmer. */
 .agent-pills__pill--action {
     border-style: dashed;
@@ -737,5 +761,30 @@ button .agent-new-tag {
 @media (max-width: 639px) {
     .agent-list-search {
         width: 100%;
+    }
+}
+
+/* ---------- pager under a paged list ---------- */
+.agent-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px;
+    border: 1px solid var(--dr-border);
+    border-radius: 14px;
+    background: var(--dr-surface-hover);
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+.agent-pager__buttons {
+    display: flex;
+    gap: 8px;
+}
+
+@media (max-width: 639px) {
+    .agent-pager {
+        flex-wrap: wrap;
     }
 }

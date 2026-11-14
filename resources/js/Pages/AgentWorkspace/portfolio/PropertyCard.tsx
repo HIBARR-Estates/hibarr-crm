@@ -1,3 +1,4 @@
+import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import useTranslation from "@/Hooks/useTranslation";
 import { propertyLine, formatPrice, humanize } from "./format";
@@ -59,10 +60,9 @@ export default function PropertyCard({ property, statusLabel, selected = false, 
             )}
             <div className="agent-pf__foot">
                 <span className="agent-pf__price">{formatPrice(property.price, property.currency, locale)}</span>
-                <button type="button" className="agent-pf__expose" onClick={() => onExpose(property)}>
-                    <Icon name="file-text" size={13} />
+                <Button size="sm" className="agent-btn-soft" icon={<Icon name="file-text" size={13} />} onClick={() => onExpose(property)}>
                     {t("pages.agent_workspace.portfolio.card.expose")}
-                </button>
+                </Button>
             </div>
             {rec && (rec.match !== null || rec.factors.length > 0) ? (
                 <ul className="agent-pf__chips">

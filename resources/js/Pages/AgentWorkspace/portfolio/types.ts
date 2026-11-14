@@ -42,8 +42,32 @@ export interface RecommendationsPayload {
     error: string | null;
 }
 
-export interface PropertiesPayload {
+/** Where a paged list stands: the page shown and the range it covers. */
+export interface PageNumbers {
+    page: number;
+    last_page: number;
+    per_page: number;
+    from: number;
+    to: number;
+}
+
+export interface PropertiesPayload extends PageNumbers {
     items: PortfolioProperty[];
+    total: number;
+}
+
+export interface ProjectsPayload extends PageNumbers {
+    items: PortfolioProject[];
+    total: number;
+}
+
+export interface PortfolioPipeline {
+    id: number;
+    name: string;
+}
+
+/** The For my deals rail's page (the deals themselves come as `deals`). */
+export interface DealsPageMeta extends PageNumbers {
     total: number;
 }
 
@@ -54,7 +78,7 @@ export interface NamedOption {
 
 export interface BrowseOptions {
     cities: NamedOption[];
-    areas: string[];
+    areas: NamedOption[];
     construction_statuses: NamedOption[];
     deed_statuses: NamedOption[];
     developers: Array<{ id: number; name: string }>;
@@ -73,6 +97,7 @@ export interface PortfolioProject {
     id: number;
     name: string;
     developer: string | null;
+    developer_logo: string | null;
     location: string | null;
     construction_status: string | null;
     starting_price: number | null;
@@ -80,4 +105,12 @@ export interface PortfolioProject {
     completion_date: string | null;
     thumbnail: string | null;
     unit_types: PortfolioUnitType[];
+}
+
+export type ProjectFilters = Record<string, string | undefined>;
+
+export interface ProjectOptions {
+    developers: Array<{ id: number; name: string }>;
+    locations: Array<{ id: number; name: string; city: string | null; area: string | null }>;
+    construction_statuses: NamedOption[];
 }

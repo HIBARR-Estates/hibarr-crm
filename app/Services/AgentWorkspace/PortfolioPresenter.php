@@ -5,6 +5,7 @@ namespace App\Services\AgentWorkspace;
 use App\Models\DeveloperProject;
 use App\Models\Property;
 use App\Models\PropertyAsset;
+use Illuminate\Support\Str;
 
 /**
  * The slim shapes the agent Portfolio screens read: one property card, one
@@ -18,6 +19,25 @@ class PortfolioPresenter
         'developerProject.developer:id,name',
         'product:id,name',
     ];
+
+    /**
+     * A stored place name as it reads on a card: "long_beach" becomes "Long
+     * Beach", "belek, antalya" becomes "Belek, Antalya". Underscores, dashes
+     * and stray spaces go, every word is capitalised.
+     */
+    public static function tidy(?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+
+        $parts = array_filter(array_map(
+            fn (string $part) => Str::title(trim((string) preg_replace('/[\s_\-]+/u', ' ', $part))),
+            explode(',', $value)
+        ), fn (string $part) => $part !== '');
+
+        return $parts === [] ? null : implode(', ', $parts);
+    }
 
     /** The first image only: the card needs one photo, not the gallery. */
     public static function photoRelation(): array
@@ -42,8 +62,8 @@ class PortfolioPresenter
             'title' => $property->display_title ?: ($property->title ?: 'Property #'.$property->id),
             'project' => $project?->name,
             'developer' => $developer?->name,
-            'city' => $property->city,
-            'area' => $property->area,
+            'city' => self::tidy($property->city),
+            'area' => self::tidy($property->area),
             'bedrooms' => $property->bedrooms !== null ? (int) $property->bedrooms : null,
             'size_sqm' => $property->living_area_sqm !== null ? (float) $property->living_area_sqm : null,
             'price' => $property->price !== null ? (float) $property->price : null,
@@ -65,7 +85,8 @@ class PortfolioPresenter
             'id' => (int) $project->id,
             'name' => $project->name,
             'developer' => $project->relationLoaded('developer') ? $project->developer?->name : null,
-            'location' => $project->relationLoaded('location') ? $project->location?->name : null,
+            'developer_logo' => $project->relationLoaded('developer') ? ($project->developer?->logo_url ?: null) : null,
+            'location' => $project->relationLoaded('location') ? self::tidy($project->location?->name) : null,
             'construction_status' => $project->construction_status,
             'starting_price' => $project->starting_price !== null ? (float) $project->starting_price : null,
             'currency' => $project->currencyCode(),
