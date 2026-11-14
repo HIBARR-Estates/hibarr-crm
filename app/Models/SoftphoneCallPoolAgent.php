@@ -135,6 +135,24 @@ class SoftphoneCallPoolAgent extends Model
         return $rows->pluck('device_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
     }
 
+    /** Active company users with the admin role who can be added to the admin fallback list. */
+    public static function eligibleAdminFallbackUsersForCompany(int $companyId)
+    {
+        return User::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->where('login', '!=', 'disable')
+            ->whereExists(function ($query): void {
+                $query->select(DB::raw(1))
+                    ->from('role_user')
+                    ->join('roles', 'roles.id', '=', 'role_user.role_id')
+                    ->whereColumn('role_user.user_id', 'users.id')
+                    ->where('roles.name', 'admin');
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+    }
+
     /** Active company users (admins and staff) who can be added to the fallback list. */
     public static function eligibleFallbackUsersForCompany(int $companyId)
     {
