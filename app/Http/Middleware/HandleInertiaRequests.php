@@ -340,11 +340,7 @@ class HandleInertiaRequests extends Middleware
         $isOnCallList = false;
         if (! empty($user->company_id)) {
             try {
-                $isOnCallList = SoftphoneCallPoolAgent::query()
-                    ->where('company_id', (int) $user->company_id)
-                    ->where('user_id', (int) $user->id)
-                    ->where('active', true)
-                    ->exists();
+                $isOnCallList = SoftphoneCallPoolAgent::isUserEligibleToReceiveCalls((int) $user->company_id, (int) $user->id);
             } catch (\Throwable) {
                 $isOnCallList = false;
             }

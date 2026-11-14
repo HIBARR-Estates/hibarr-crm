@@ -197,13 +197,17 @@ export default function SoftphoneDock({
     const [canReceiveCalls, setCanReceiveCalls] = useState<boolean>(() => {
         return (props.auth?.user as any)?.can_receive_calls ?? true;
     });
+    const lastToggledAtRef = useRef<number>(0);
     const [togglingReceiveCalls, setTogglingReceiveCalls] = useState(false);
     const [isPlayingVoiceMessage, setIsPlayingVoiceMessage] = useState(false);
     const [voiceMessageStatus, setVoiceMessageStatus] = useState<string | null>(null);
 
     useEffect(() => {
         if (typeof inboundRoute?.user_can_receive_calls === "boolean") {
-            setCanReceiveCalls(inboundRoute.user_can_receive_calls);
+            const isRecentToggle = Date.now() - lastToggledAtRef.current < 5000;
+            if (!isRecentToggle) {
+                setCanReceiveCalls(inboundRoute.user_can_receive_calls);
+            }
         }
     }, [inboundRoute?.user_can_receive_calls]);
 
@@ -211,7 +215,9 @@ export default function SoftphoneDock({
         const onAvailabilityChanged = (event: Event) => {
             const ce = event as CustomEvent<{ can_receive_calls: boolean }>;
             if (typeof ce.detail?.can_receive_calls === "boolean") {
+                lastToggledAtRef.current = Date.now();
                 setCanReceiveCalls(ce.detail.can_receive_calls);
+                setInboundRoute((prev) => (prev ? { ...prev, user_can_receive_calls: ce.detail.can_receive_calls } : prev));
             }
         };
         window.addEventListener("softphone:availability-changed", onAvailabilityChanged);
@@ -220,6 +226,9 @@ export default function SoftphoneDock({
 
     const handleToggleReceiveCalls = async () => {
         const nextVal = !canReceiveCalls;
+        lastToggledAtRef.current = Date.now();
+        setCanReceiveCalls(nextVal);
+        setInboundRoute((prev) => (prev ? { ...prev, user_can_receive_calls: nextVal } : prev));
         setTogglingReceiveCalls(true);
         try {
             await axios.post(
@@ -227,7 +236,6 @@ export default function SoftphoneDock({
                 { can_receive_calls: nextVal },
                 { headers: { Accept: "application/json" } },
             );
-            setCanReceiveCalls(nextVal);
             if (props.auth?.user) {
                 (props.auth.user as any).can_receive_calls = nextVal;
             }
@@ -237,7 +245,10 @@ export default function SoftphoneDock({
                 }),
             );
         } catch {
-            // best-effort
+            // rollback on failure
+            lastToggledAtRef.current = 0;
+            setCanReceiveCalls(!nextVal);
+            setInboundRoute((prev) => (prev ? { ...prev, user_can_receive_calls: !nextVal } : prev));
         } finally {
             setTogglingReceiveCalls(false);
         }
@@ -381,10 +392,7 @@ export default function SoftphoneDock({
             ? Number(currentRotationTarget.id) === currentUserId
             : true);
 
-    const userCanReceiveCalls =
-        typeof inboundRoute?.user_can_receive_calls === "boolean"
-            ? inboundRoute.user_can_receive_calls
-            : canReceiveCalls;
+    const userCanReceiveCalls = canReceiveCalls;
 
     const isEligibleSession =
         userCanReceiveCalls &&
@@ -654,7 +662,15 @@ export default function SoftphoneDock({
                         if (prev === null) {
                             setRoutingMode(data?.route === "owner" ? "owner" : "all");
                         }
-                        return data;
+                        if (!data) return null;
+                        const isRecentToggle = Date.now() - lastToggledAtRef.current < 5000;
+                        const effectiveCanReceive = isRecentToggle
+                            ? canReceiveCalls
+                            : (typeof data.user_can_receive_calls === "boolean" ? data.user_can_receive_calls : canReceiveCalls);
+                        return {
+                            ...data,
+                            user_can_receive_calls: effectiveCanReceive,
+                        };
                     });
                 }
                 const lead = data?.matched && data.lead_id ? {
@@ -865,7 +881,13 @@ export default function SoftphoneDock({
             });
             const updated = res.data?.data as CallRouting | null;
             if (updated) {
-                setInboundRoute(updated);
+                const isRecentToggle = Date.now() - lastToggledAtRef.current < 5000;
+                setInboundRoute({
+                    ...updated,
+                    user_can_receive_calls: isRecentToggle
+                        ? canReceiveCalls
+                        : (typeof updated.user_can_receive_calls === "boolean" ? updated.user_can_receive_calls : canReceiveCalls),
+                });
             }
         } catch {
             // Local pass already hid the call on this browser.

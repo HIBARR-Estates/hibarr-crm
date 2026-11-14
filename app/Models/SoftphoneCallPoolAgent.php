@@ -190,4 +190,30 @@ class SoftphoneCallPoolAgent extends Model
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
     }
+
+    /**
+     * Whether a user is eligible to receive inbound softphone calls in a company,
+     * either via an active assignment on a call list/pool or as an assigned lead owner.
+     */
+    public static function isUserEligibleToReceiveCalls(int $companyId, int $userId): bool
+    {
+        $onCallList = static::query()
+            ->where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->where('active', true)
+            ->exists();
+
+        if ($onCallList) {
+            return true;
+        }
+
+        try {
+            return \App\Models\Lead::query()
+                ->where('company_id', $companyId)
+                ->where('lead_owner', $userId)
+                ->exists();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
 }

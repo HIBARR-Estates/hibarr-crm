@@ -264,11 +264,16 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
 
         if (! empty($updates)) {
             $existingColumns = Schema::getColumnListing('companies');
-            $safeUpdates = array_intersect_key($updates, array_flip($existingColumns));
+            $unsupportedKeys = array_diff(array_keys($updates), $existingColumns);
 
-            if (! empty($safeUpdates)) {
-                Company::query()->whereKey($companyId)->update($safeUpdates);
+            if (! empty($unsupportedKeys)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'The following telephony settings are not supported by the database schema: ' . implode(', ', $unsupportedKeys),
+                ], 422);
             }
+
+            Company::query()->whereKey($companyId)->update($updates);
 
             if (session()->has('company')) {
                 $cached = session('company');
@@ -501,18 +506,19 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
             403
         );
 
-        $isOnCallList = SoftphoneCallPoolAgent::query()
-            ->where('company_id', (int) company()->id)
-            ->where('user_id', (int) $currentUser->id)
-            ->where('active', true)
-            ->exists();
-        abort_unless($isOnCallList, 403, 'You are not assigned to any softphone call lists.');
+        $isEligible = SoftphoneCallPoolAgent::isUserEligibleToReceiveCalls((int) company()->id, (int) $currentUser->id);
+        abort_unless($isEligible, 403, 'You are not assigned to any softphone call lists.');
+
+        if (! self::supportsCanReceiveCalls()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Call availability setting is not supported by the database schema.',
+            ], 500);
+        }
 
         $canReceive = (bool) $validated['can_receive_calls'];
-        if (self::supportsCanReceiveCalls()) {
-            $currentUser->can_receive_calls = $canReceive;
-            $currentUser->save();
-        }
+        $currentUser->can_receive_calls = $canReceive;
+        $currentUser->save();
 
         return response()->json([
             'status' => 'success',
@@ -533,6 +539,13 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         $this->assertSoftphoneEnabled();
         $this->assertCanManage();
 
+        if (! Schema::hasColumn('companies', 'fallback_voice_message_url')) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Voicemail storage is not supported by the database schema.',
+            ], 422);
+        }
+
         $request->validate([
             'file' => 'required|file|mimes:mp3,wav,ogg,m4a,aac|max:10240',
         ]);
@@ -544,11 +557,9 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         $filename = Files::uploadLocalOrS3($file, 'voicemail');
         $fileUrl = asset_url_local_s3('voicemail/' . $filename);
 
-        if (Schema::hasColumn('companies', 'fallback_voice_message_url')) {
-            Company::query()->whereKey($companyId)->update([
-                'fallback_voice_message_url' => $fileUrl,
-            ]);
-        }
+        Company::query()->whereKey($companyId)->update([
+            'fallback_voice_message_url' => $fileUrl,
+        ]);
 
         if (session()->has('company')) {
             $cached = session('company');
@@ -570,6 +581,13 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
     {
         $this->assertSoftphoneEnabled();
         $this->assertCanManage();
+
+        if (! Schema::hasColumn('companies', 'fallback_voice_message_url')) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Voicemail storage is not supported by the database schema.',
+            ], 422);
+        }
 
         $companyId = (int) company()?->id;
         abort_unless($companyId > 0, 400, 'No active company found.');
@@ -595,11 +613,9 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
             }
         }
 
-        if (Schema::hasColumn('companies', 'fallback_voice_message_url')) {
-            Company::query()->whereKey($companyId)->update([
-                'fallback_voice_message_url' => null,
-            ]);
-        }
+        Company::query()->whereKey($companyId)->update([
+            'fallback_voice_message_url' => null,
+        ]);
 
         if (session()->has('company')) {
             $cached = session('company');
@@ -622,6 +638,13 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
         $this->assertSoftphoneEnabled();
         $this->assertCanManage();
 
+        if (! Schema::hasColumn('companies', 'fallback_voice_message_enabled')) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Voicemail feature is not supported by the database schema.',
+            ], 422);
+        }
+
         $validated = $request->validate([
             'enabled' => 'required|boolean',
         ]);
@@ -631,11 +654,9 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
 
         $enabled = (bool) $validated['enabled'];
 
-        if (Schema::hasColumn('companies', 'fallback_voice_message_enabled')) {
-            Company::query()->whereKey($companyId)->update([
-                'fallback_voice_message_enabled' => $enabled,
-            ]);
-        }
+        Company::query()->whereKey($companyId)->update([
+            'fallback_voice_message_enabled' => $enabled,
+        ]);
 
         if (session()->has('company')) {
             $cached = session('company');
