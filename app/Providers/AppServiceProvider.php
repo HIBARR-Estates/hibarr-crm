@@ -60,6 +60,15 @@ class AppServiceProvider extends ServiceProvider
             \App\Services\AiDescription\HibarrPropertyDescriptionService::class,
         );
 
+        $this->app->singleton(\App\Contracts\KeycloakIdentityClient::class, function ($app) {
+            $driver = (string) config('services.ol.keycloak.driver', 'http');
+            if ($app->environment('testing') || $driver === 'fake') {
+                return new \App\Services\Keycloak\FakeOlKeycloakIdentityClient;
+            }
+
+            return $app->make(\App\Services\Keycloak\HttpOlKeycloakIdentityClient::class);
+        });
+
         $this->app->singleton(\App\Services\FeatureFlagService::class);
     }
 
