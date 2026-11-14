@@ -14,6 +14,7 @@ import type { LeadCreateKind } from "@/Pages/Leads/Redesign/components/workspace
 import { formatLeadTemperature } from "@/Pages/Leads/Redesign/config/leadTemperature";
 import type { MoreMenuActionId } from "@/Pages/Leads/Redesign/config/moreMenuItems";
 import type { Lead } from "@/Types/api/leads";
+import { leadCallPhones } from "@/lib/leadCallPhones";
 
 export type { ExtraActivity };
 export { NewActivityButton };
@@ -124,7 +125,11 @@ export default function ContactHeader({
                 </div>
             </div>
             <div className="agent-contact__actions">
-                <AgentCallButton phone={leadPhone(lead)} entity={callEntity ?? { type: "lead", id: lead.id }} />
+                <AgentCallButton
+                    phone={leadPhone(lead)}
+                    phones={leadCallPhones(lead)}
+                    entity={callEntity ?? { type: "lead", id: lead.id }}
+                />
                 <NewActivityButton onCreate={onCreate} allowed={allowedCreate} extra={extraActivities} />
                 {canEdit ? (
                     <Button variant="ghost" onClick={onEdit}>

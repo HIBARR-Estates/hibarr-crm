@@ -26,6 +26,8 @@ import DealBadge from "@/Components/Redesign/primitives/Badge";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { usePage } from "@inertiajs/react";
+import useClickToCall from "@/Hooks/useClickToCall";
+import useSoftphone, { canPlaceCrmCall } from "@/Hooks/useSoftphone";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import { useCurrencies } from "@/Hooks/useFormData";
 
@@ -654,6 +656,17 @@ export default function CustomFieldDisplay({
 }: Props) {
     const { props } = usePage<any>();
     const { currencies } = useCurrencies();
+    const { isEnabled: clickToCallEnabled } = useClickToCall();
+    const { isEnabled: softphoneFeatureEnabled, devices } = useSoftphone();
+    const canDialPhone = canPlaceCrmCall({
+        softphoneEnabled:
+            softphoneFeatureEnabled &&
+            props.featureFlags?.["crm.softphone"] === true,
+        user: props.auth?.user,
+        permissions: props.auth?.permissions,
+        deviceCount: devices.length,
+        clickToCallEnabled,
+    });
     const { default_currency_code } = props;
 
     // In bulk "edit whole section" mode, edited values only reach
@@ -1036,6 +1049,9 @@ export default function CustomFieldDisplay({
                 };
 
                 const { display, tel } = parsePhoneValue(value);
+                if (!canDialPhone) {
+                    return <span>{display}</span>;
+                }
                 return (
                     <a
                         href={`tel:${tel}`}

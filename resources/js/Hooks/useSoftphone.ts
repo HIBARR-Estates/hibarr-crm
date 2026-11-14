@@ -61,6 +61,26 @@ export function canMakeSoftphoneCalls(
 }
 
 /**
+ * Whether this viewer may place a call from the CRM.
+ * Softphone requires the feature, make_softphone_calls (admins included), and
+ * at least one line from Call routing. The 3CX bridge is the other path.
+ * Users outside that set get no call button — there is no device-dialler fallback.
+ */
+export function canPlaceCrmCall(options: {
+    softphoneEnabled: boolean;
+    user?: { roles?: Array<{ name?: string }> } | null;
+    permissions?: Record<string, unknown> | null;
+    deviceCount: number;
+    clickToCallEnabled: boolean;
+}): boolean {
+    const softphone =
+        options.softphoneEnabled &&
+        canMakeSoftphoneCalls(options.user, options.permissions) &&
+        options.deviceCount > 0;
+    return softphone || options.clickToCallEnabled;
+}
+
+/**
  * Call managers (admins, or manage_calls = 'all') see every agent's calls and
  * may play every recording. Mirrors App\Support\CallAccess::canManageCalls.
  */
@@ -635,9 +655,8 @@ export default function useSoftphone() {
         configLoaded: shared.configLoaded,
         devices: shared.devices,
         /**
-         * False once the line list has loaded empty: the user is not assigned
-         * to any line, so call buttons must fall back to a plain tel: link.
-         * Treated as true while loading so buttons don't flicker.
+         * False once the line list has loaded empty: this user is not assigned
+         * a line under Call routing. Treated as true while loading.
          */
         hasLine: !shared.devicesLoaded || shared.devices.length > 0,
         activeDevice,

@@ -62,6 +62,8 @@ import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useClickToCall from "@/Hooks/useClickToCall";
+import useSoftphone, { canPlaceCrmCall } from "@/Hooks/useSoftphone";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 import usePersistedPageSize from "@/Hooks/usePersistedPageSize";
 import {
@@ -156,6 +158,17 @@ const Index = ({
         ),
     );
     const { td } = useTd();
+    const { isEnabled: clickToCallEnabled } = useClickToCall();
+    const { isEnabled: softphoneFeatureEnabled, devices } = useSoftphone();
+    const canCallPhone = canPlaceCrmCall({
+        softphoneEnabled:
+            softphoneFeatureEnabled &&
+            pageProps.featureFlags?.["crm.softphone"] === true,
+        user: pageProps.auth?.user,
+        permissions: pageProps.auth?.permissions,
+        deviceCount: devices.length,
+        clickToCallEnabled,
+    });
     const companyCurrency = useCompanyCurrency();
     const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const showProductTour =
@@ -542,6 +555,7 @@ const Index = ({
             t,
             td,
             companyCurrency,
+            canCallPhone,
         }),
         ["created_at", "lead_source", "updated_at"],
         isMobileResponsive,

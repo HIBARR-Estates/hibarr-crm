@@ -14,6 +14,7 @@ import AnalysisCustomFieldRow from "@/Pages/Deals/Redesign/components/analysis/A
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { initialsFromName } from "@/Pages/Deals/Redesign/adapters/initials";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
+import { leadCallPhones } from "@/lib/leadCallPhones";
 
 interface QualifyLeadContextPanelProps {
     lead: Lead;
@@ -178,11 +179,8 @@ export default function QualifyLeadContextPanel({
     const { notes, notesLoading } = useLeadWorkspace();
     const [activeTab, setActiveTab] = useState<Tab>("lead");
     const [imgError, setImgError] = useState(false);
-    // The feature flag alone isn't enough: ClickToCallButton additionally requires
-    // make_softphone_calls for the softphone path, so an agent without it needs
-    // the plain tel: link to stay usable. The 3cx-calling path uses
-    // ClickToCallButton which has its own permission check, so it doesn't need
-    // make_softphone_calls here.
+    // ClickToCallButton hides itself unless this user can dial (an assigned
+    // softphone line, or the 3CX bridge). No tel: stand-in for everyone else.
     const softphoneEnabled =
         canMakeSoftphoneCalls(props.auth?.user, props.auth?.permissions) &&
         props.featureFlags?.["crm.softphone"] === true;
@@ -360,6 +358,7 @@ export default function QualifyLeadContextPanel({
         lead.office,
         record.office_phone_formatted,
     );
+    const callPhones = leadCallPhones(lead);
     const phones = useMemo(() => {
         const values = [
             mobileDisplay,
@@ -413,24 +412,15 @@ export default function QualifyLeadContextPanel({
                 </div>
 
                 <div className="flex gap-2">
-                    {phones[0] ? (
-                        telephonyEnabled ? (
-                            <ClickToCallButton
-                                phone={phones[0]}
-                                entity={{ type: "lead", id: lead.id }}
-                                variant="link"
-                                label={td("Call", { source: "en" })}
-                                className="flex flex-1 items-center justify-center gap-0.5 py-1.5 rounded-md text-xs font-medium text-white bg-dr-navy transition-colors disabled:opacity-60"
-                            />
-                        ) : (
-                            <a
-                                href={`tel:${phones[0]}`}
-                                className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-white transition-colors"
-                                style={{ backgroundColor: T.NAVY }}
-                            >
-                                {td("Call", { source: "en" })}
-                            </a>
-                        )
+                    {callPhones.length > 0 && telephonyEnabled ? (
+                        <ClickToCallButton
+                            phone={callPhones[0].phone}
+                            phones={callPhones}
+                            entity={{ type: "lead", id: lead.id }}
+                            variant="link"
+                            label={td("Call", { source: "en" })}
+                            className="flex flex-1 items-center justify-center gap-0.5 py-1.5 rounded-md text-xs font-medium text-white bg-dr-navy transition-colors disabled:opacity-60"
+                        />
                     ) : null}
                     {email ? (
                         <a

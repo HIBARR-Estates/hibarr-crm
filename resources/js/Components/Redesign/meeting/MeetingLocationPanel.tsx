@@ -1,5 +1,8 @@
 import { message } from "antd";
+import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useClickToCall from "@/Hooks/useClickToCall";
+import useSoftphone, { canPlaceCrmCall } from "@/Hooks/useSoftphone";
 import useTranslation from "@/Hooks/useTranslation";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import {
@@ -186,6 +189,18 @@ function PhoneLocation({
 }) {
     const { t } = useTranslation();
     const { td } = useTd();
+    const { props } = usePage();
+    const { isEnabled: clickToCallEnabled } = useClickToCall();
+    const { isEnabled: softphoneFeatureEnabled, devices } = useSoftphone();
+    const canDial = canPlaceCrmCall({
+        softphoneEnabled:
+            softphoneFeatureEnabled &&
+            props.featureFlags?.["crm.softphone"] === true,
+        user: props.auth?.user,
+        permissions: props.auth?.permissions,
+        deviceCount: devices.length,
+        clickToCallEnabled,
+    });
     const phone = meetingContactPhone(meeting);
     const tel = phoneTelHref(phone);
 
@@ -255,7 +270,7 @@ function PhoneLocation({
                         <Icon name="copy" size={14} />
                         {t("pages.deals.workspace.meetings.copy_number")}
                     </button>
-                    {actionable && tel && (
+                    {actionable && canDial && tel && (
                         <a
                             href={tel}
                             className="dr-btn dr-btn-primary dr-btn-sm no-underline"

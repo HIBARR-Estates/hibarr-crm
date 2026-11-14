@@ -334,6 +334,10 @@ const Index = ({
     });
 
     const canMergeLeads = useLeadMergeAccess();
+    // Same scopes LeadContactController::create/store accept.
+    const canAddLead =
+        pageProps.auth?.permissions?.add_lead === "all" ||
+        pageProps.auth?.permissions?.add_lead === "added";
     // Mirrors QualificationFieldMappingController::assertCanManage.
     const canManageQualificationMapping =
         pageProps.auth?.permissions?.manage_qualification_mapping === "all";
@@ -619,15 +623,17 @@ const Index = ({
                                     {t("pages.marketing_leads.open_button")}
                                 </button>
                             )}
-                            <button
-                                type="button"
-                                className="dr-btn dr-btn-primary"
-                                data-tour="leads-list-add"
-                                onClick={handleCreateLead}
-                            >
-                                <PlusOutlined style={{ fontSize: 13 }} />
-                                {t("app.leads.actions.add")}
-                            </button>
+                            {canAddLead && (
+                                <button
+                                    type="button"
+                                    className="dr-btn dr-btn-primary"
+                                    data-tour="leads-list-add"
+                                    onClick={handleCreateLead}
+                                >
+                                    <PlusOutlined style={{ fontSize: 13 }} />
+                                    {t("app.leads.actions.add")}
+                                </button>
+                            )}
                         </>
                     }
                     filterSentence={

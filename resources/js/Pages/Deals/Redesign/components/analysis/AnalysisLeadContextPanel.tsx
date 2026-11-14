@@ -14,7 +14,7 @@ import { buildFieldValueMap } from "@/lib/customFieldValueMap";
 import { buildDealVisibilityContext } from "../../adapters/dealVisibilityContext";
 import { GENDER_OPTIONS } from "../../config/analysisFieldMeta";
 import ClickToCallButton from "@/Components/ClickToCallButton";
-import { resolveLeadPhoneDisplay } from "@/lib/utils";
+import { leadCallPhones, type LeadCallPhone } from "@/lib/leadCallPhones";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -96,6 +96,7 @@ function ProfileCard({
     leadName,
     email,
     primaryPhone,
+    phones = [],
     dealId,
     whatsapp,
     imageUrl,
@@ -103,6 +104,7 @@ function ProfileCard({
     leadName: string;
     email: string;
     primaryPhone: string;
+    phones?: LeadCallPhone[];
     dealId: number;
     whatsapp: string;
     imageUrl?: string;
@@ -150,6 +152,7 @@ function ProfileCard({
                 {primaryPhone && (
                     <ClickToCallButton
                         phone={primaryPhone}
+                        phones={phones}
                         entity={dealCallEntity}
                         variant="link"
                         className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-white transition-colors disabled:opacity-60 bg-[#0A2540]"
@@ -222,17 +225,8 @@ export default function AnalysisLeadContextPanel({
 
     const leadName = contact?.client_name || (deal as any).client_name || "";
     const email = contact?.client_email || "";
-    const primaryPhone =
-        resolveLeadPhoneDisplay(
-            contact?.mobile,
-            contact?.mobile_with_phonecode,
-        ) ||
-        resolveLeadPhoneDisplay(contact?.cell) ||
-        resolveLeadPhoneDisplay(
-            contact?.office,
-            contact?.office_phone_formatted,
-        ) ||
-        "";
+    const callPhones = leadCallPhones(contact);
+    const primaryPhone = callPhones[0]?.phone ?? "";
     const whatsapp = contact?.client_whatsapp || "";
 
     // ── Data derivations ─────────────────────────────────────────────────
@@ -397,6 +391,7 @@ export default function AnalysisLeadContextPanel({
                 leadName={leadName}
                 email={email}
                 primaryPhone={primaryPhone}
+                phones={callPhones}
                 dealId={deal.id}
                 whatsapp={whatsapp}
                 imageUrl={

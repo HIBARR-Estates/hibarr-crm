@@ -36,6 +36,7 @@ export default function TaskCallBanner({ task }: TaskCallBannerProps) {
         calling,
         softphoneEnabled,
         canCall: hasCallPermission,
+        canDial,
         devices,
         activeDeviceId,
         startCall,
@@ -177,21 +178,22 @@ export default function TaskCallBanner({ task }: TaskCallBannerProps) {
                     qualificationButton
                 )}
 
-                {hasLineChoice && canCall ? (
-                    <Dropdown
-                        menu={{
-                            items: buildLineMenuItems((deviceId) => {
-                                void startCall(deviceId);
-                            }),
-                        }}
-                        trigger={["click"]}
-                        disabled={!canCall || calling}
-                    >
-                        {callNowButton}
-                    </Dropdown>
-                ) : (
-                    callNowButton
-                )}
+                {canDial &&
+                    (hasLineChoice && canCall ? (
+                        <Dropdown
+                            menu={{
+                                items: buildLineMenuItems((deviceId) => {
+                                    void startCall(deviceId);
+                                }),
+                            }}
+                            trigger={["click"]}
+                            disabled={!canCall || calling}
+                        >
+                            {callNowButton}
+                        </Dropdown>
+                    ) : (
+                        callNowButton
+                    ))}
             </div>
 
             {qualifyLead && (
