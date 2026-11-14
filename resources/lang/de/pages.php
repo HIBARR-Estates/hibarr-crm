@@ -3897,6 +3897,16 @@ return [
                 ],
             ],
         ],
+        'new_activity' => [
+            'eyebrow' => 'Neue Aktivität',
+            'task' => 'Aufgabe',
+            'task_text' => 'Anrufen, senden, vorbereiten. Fälligkeit und Zuständigkeit festlegen.',
+            'meeting' => 'Termin',
+            'meeting_text' => 'Zeit, Art und Teilnehmer festlegen.',
+            'meeting_types_more' => '{{types}} und weitere',
+            'foot_deal' => 'Mit dem ausgewählten Deal verknüpft · dieselben Formulare wie bisher',
+            'foot_person' => 'Mit dieser Person verknüpft · dieselben Formulare wie bisher',
+        ],
         'contact' => [
             'views_aria' => 'Lead und Deals',
             'lead_pill' => 'Lead · {{status}}',
