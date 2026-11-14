@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import { Head } from "@inertiajs/react";
-import { AgentSecondRow, AgentWorkspaceLayout } from "@/Components/Redesign/agent";
+import { AgentListSearch, AgentSecondRow, AgentWorkspaceLayout } from "@/Components/Redesign/agent";
 import useTranslation from "@/Hooks/useTranslation";
 import BrowseView from "./portfolio/BrowseView";
 import ForDealsView from "./portfolio/ForDealsView";
 import PortfolioPills from "./portfolio/PortfolioPills";
+import { useBrowseSearch } from "./portfolio/browseVisit";
 import ProjectsView from "./portfolio/ProjectsView";
 import type { BrowseFilters, BrowseOptions, PortfolioDeal, PortfolioProject, PortfolioView, PropertiesPayload, RecommendationsPayload } from "./portfolio/types";
 import "./portfolio/portfolio.css";
@@ -29,6 +30,7 @@ interface PortfolioProps {
  */
 export default function Portfolio({ pageTitle, view, deals = [], dealId = null, recommendations, filters = {}, limit = 24, properties, options, projects }: PortfolioProps) {
     const { t } = useTranslation();
+    const { text, setText } = useBrowseSearch(filters, view === "browse");
 
     const subtitle =
         view === "deals"
@@ -50,11 +52,16 @@ export default function Portfolio({ pageTitle, view, deals = [], dealId = null, 
                 <PortfolioPills view={view} />
             </AgentSecondRow>
 
-            <div className="agent-pf">
-                <div className="agent-pf__top">
-                    <div className="agent-pf__heading">
-                        <h1>{t("pages.agent_workspace.portfolio.title")}</h1>
-                        <p aria-live="polite">{subtitle}</p>
+            <div className={`agent-pf${view === "browse" ? " agent-pf--search" : ""}`}>
+                <div className="agent-list-head">
+                    <div className="agent-pf__top">
+                        <div className="agent-pf__heading">
+                            <h1>{t("pages.agent_workspace.portfolio.title")}</h1>
+                            <p aria-live="polite">{subtitle}</p>
+                            {view === "browse" ? (
+                                <AgentListSearch value={text} onChange={setText} placeholder={t("pages.agent_workspace.portfolio.browse.search")} />
+                            ) : null}
+                        </div>
                     </div>
                 </div>
 

@@ -1,4 +1,4 @@
-import Icon from "@/Components/Redesign/primitives/Icon";
+import { AgentListSearch } from "@/Components/Redesign/agent";
 import useTranslation from "@/Hooks/useTranslation";
 import type { DealsChip, DealsLayout } from "./types";
 
@@ -31,58 +31,53 @@ export default function DealsHeader({ title, subtitle, layout, onLayout, counts,
     const { t } = useTranslation();
 
     return (
-        <div className="agent-dp__top">
-            <div className="agent-dp__heading">
-                <h1>{title}</h1>
-                <p aria-live="polite">{subtitle}</p>
-            </div>
-
-            <div className="agent-dp__tools">
-                {layout === "list" ? (
-                    <ul className="agent-dp__chip-row" aria-label={t("pages.agent_workspace.deals.chips.label")}>
-                        {CHIPS.map(({ key, mark }) => {
-                            const pressed = key === "all" ? chip === null : chip === key;
-                            const value = counts[key];
-                            return (
-                                <li key={key}>
-                                    <button
-                                        type="button"
-                                        className={`agent-dp__chip${value === undefined ? " agent-dp__chip--loading" : ""}`}
-                                        aria-pressed={pressed}
-                                        onClick={() => onChip(key === "all" ? null : key)}
-                                    >
-                                        <span className="agent-dp__chip-label">
-                                            {mark ? <span className="agent-dp__chip-mark" style={{ ["--mark" as string]: mark }} aria-hidden="true" /> : null}
-                                            {t(`pages.agent_workspace.deals.chips.${key}`)}
-                                        </span>
-                                        <b className="agent-dp__chip-value">{value ?? "00"}</b>
-                                    </button>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                ) : null}
-
-                <div className="agent-dp__switch" role="group" aria-label={t("pages.agent_workspace.deals.layout.label")}>
-                    {(["board", "list"] as const).map((key) => (
-                        <button key={key} type="button" aria-pressed={layout === key} onClick={() => onLayout(key)}>
-                            {t(`pages.agent_workspace.deals.layout.${key}`)}
-                        </button>
-                    ))}
+        <div className="agent-list-head">
+            <div className="agent-dp__top">
+                <div className="agent-dp__heading">
+                    <h1>{title}</h1>
+                    <p aria-live="polite">{subtitle}</p>
+                    <AgentListSearch
+                        value={searchText}
+                        onChange={onSearchText}
+                        placeholder={t("pages.agent_workspace.deals.search_placeholder")}
+                        label={t("pages.agent_workspace.deals.search_label")}
+                    />
                 </div>
 
-                {layout === "board" ? (
-                    <label className="agent-dp__search">
-                        <Icon name="search" size={14} />
-                        <input
-                            type="search"
-                            value={searchText}
-                            onChange={(event) => onSearchText(event.target.value)}
-                            placeholder={t("pages.agent_workspace.deals.search_placeholder")}
-                            aria-label={t("pages.agent_workspace.deals.search_label")}
-                        />
-                    </label>
-                ) : null}
+                <div className="agent-dp__tools">
+                    {layout === "list" ? (
+                        <ul className="agent-dp__chip-row" aria-label={t("pages.agent_workspace.deals.chips.label")}>
+                            {CHIPS.map(({ key, mark }) => {
+                                const pressed = key === "all" ? chip === null : chip === key;
+                                const value = counts[key];
+                                return (
+                                    <li key={key}>
+                                        <button
+                                            type="button"
+                                            className={`agent-dp__chip${value === undefined ? " agent-dp__chip--loading" : ""}`}
+                                            aria-pressed={pressed}
+                                            onClick={() => onChip(key === "all" ? null : key)}
+                                        >
+                                            <span className="agent-dp__chip-label">
+                                                {mark ? <span className="agent-dp__chip-mark" style={{ ["--mark" as string]: mark }} aria-hidden="true" /> : null}
+                                                {t(`pages.agent_workspace.deals.chips.${key}`)}
+                                            </span>
+                                            <b className="agent-dp__chip-value">{value ?? "00"}</b>
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    ) : null}
+
+                    <div className="agent-dp__switch" role="group" aria-label={t("pages.agent_workspace.deals.layout.label")}>
+                        {(["board", "list"] as const).map((key) => (
+                            <button key={key} type="button" aria-pressed={layout === key} onClick={() => onLayout(key)}>
+                                {t(`pages.agent_workspace.deals.layout.${key}`)}
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
         </div>
     );

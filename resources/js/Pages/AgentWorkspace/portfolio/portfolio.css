@@ -7,6 +7,11 @@
     --agent-band-height: 300px;
 }
 
+/* Browse has the search on its own row under the title. */
+.agent-ws:has(.agent-pf--search) {
+    --agent-band-height: 352px;
+}
+
 .agent-pf {
     display: flex;
     flex-direction: column;
@@ -277,10 +282,10 @@
 }
 
 .agent-pf__price {
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
     font-size: 14px;
     font-weight: 600;
     white-space: nowrap;
+    font-variant-numeric: tabular-nums;
 }
 
 .agent-pf__expose {
@@ -398,33 +403,6 @@
 .agent-pf__filter {
     min-height: 34px;
     padding: 0 10px;
-    font: inherit;
-    font-size: 13px;
-}
-
-.agent-pf__search {
-    display: inline-flex;
-    height: 34px;
-    min-width: 200px;
-    flex: 1 1 200px;
-    max-width: 320px;
-    margin-left: auto;
-    align-items: center;
-    gap: 8px;
-    padding: 0 11px;
-    border: 1px solid var(--dr-border);
-    border-radius: 8px;
-    background: var(--dr-white);
-    color: var(--dr-text-muted);
-}
-
-.agent-pf__search input {
-    width: 100%;
-    min-width: 0;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: var(--dr-text);
     font: inherit;
     font-size: 13px;
 }
@@ -669,13 +647,6 @@
     .agent-pf__grid,
     .agent-pf__grid--browse {
         grid-template-columns: minmax(0, 1fr);
-    }
-
-    /* Search leads the swipeable row so it never hides off to the right. */
-    .agent-pf__search {
-        order: -1;
-        max-width: none;
-        margin-left: 0;
     }
 
     .agent-pf__filters {

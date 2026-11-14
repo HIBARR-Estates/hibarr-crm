@@ -2,7 +2,8 @@ import Button from "@/Components/Redesign/primitives/Button";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import useTranslation from "@/Hooks/useTranslation";
 import PersonRow from "./PersonRow";
-import type { LifecycleStatus, PeoplePage, RowExtrasMap } from "./types";
+import type { ActivityKind } from "../today/AddActivityMenu";
+import type { Lead, LifecycleStatus, PeoplePage, RowExtrasMap } from "./types";
 
 interface PeopleTableProps {
     page: PeoplePage;
@@ -15,6 +16,8 @@ interface PeopleTableProps {
     sortDirection: "asc" | "desc";
     onToggleSort: () => void;
     onPage: (page: number) => void;
+    onOpenAction: (lead: Lead, action: NonNullable<Lead["next_action"]>) => void;
+    onAddAction: (lead: Lead, kind: ActivityKind) => void;
 }
 
 const COLUMNS = ["person", "status", "next_action", "due", "deals", "owner", "last_touch"] as const;
@@ -29,7 +32,7 @@ const COLUMN_CLASS: Record<(typeof COLUMNS)[number], string> = {
 };
 
 /** The list as one card: header row, a row per person, then the pager when there is more than a page. */
-export default function PeopleTable({ page, statuses, extras, userId, nowMs, timeZone, busy, sortDirection, onToggleSort, onPage }: PeopleTableProps) {
+export default function PeopleTable({ page, statuses, extras, userId, nowMs, timeZone, busy, sortDirection, onToggleSort, onPage, onOpenAction, onAddAction }: PeopleTableProps) {
     const { t } = useTranslation();
     const statusById = new Map(statuses.map((status) => [status.id, status]));
 
@@ -79,6 +82,8 @@ export default function PeopleTable({ page, statuses, extras, userId, nowMs, tim
                             userId={userId}
                             nowMs={nowMs}
                             timeZone={timeZone}
+                            onOpenAction={onOpenAction}
+                            onAddAction={onAddAction}
                         />
                     ))}
                 </div>

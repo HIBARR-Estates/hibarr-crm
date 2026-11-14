@@ -1,4 +1,4 @@
-import Icon from "@/Components/Redesign/primitives/Icon";
+import { AgentListSearch } from "@/Components/Redesign/agent";
 import useTranslation from "@/Hooks/useTranslation";
 import type { PeopleBucket, PeopleCounts } from "./types";
 
@@ -30,50 +30,47 @@ export default function PeopleHeader({ total, bucket, counts, onBucket, searchTe
     const { t } = useTranslation();
 
     return (
-        <div className="agent-pp__top">
-            <div className="agent-pp__heading">
-                <h1>{t("pages.agent_workspace.people.title")}</h1>
-                <p aria-live="polite">
-                    {total === 1
-                        ? t("pages.agent_workspace.people.subtitle_one")
-                        : t("pages.agent_workspace.people.subtitle", { count: total })}
-                </p>
-            </div>
-
-            <div className="agent-pp__tools">
-                <ul className="agent-pp__chips" aria-label={t("pages.agent_workspace.people.chips.label")}>
-                    {CHIPS.map(({ key, mark }) => {
-                        const pressed = key === "all" ? bucket === null : bucket === key;
-                        const value = counts?.[key];
-                        return (
-                            <li key={key}>
-                                <button
-                                    type="button"
-                                    className={`agent-pp__chip${value === undefined ? " agent-pp__chip--loading" : ""}`}
-                                    aria-pressed={pressed}
-                                    onClick={() => onBucket(key === "all" ? null : key)}
-                                >
-                                    <span className="agent-pp__chip-label">
-                                        {mark ? <span className="agent-pp__chip-mark" style={{ ["--mark" as string]: mark }} aria-hidden="true" /> : null}
-                                        {t(`pages.agent_workspace.people.chips.${key}`)}
-                                    </span>
-                                    <b className="agent-pp__chip-value">{value ?? "00"}</b>
-                                </button>
-                            </li>
-                        );
-                    })}
-                </ul>
-
-                <label className="agent-pp__search">
-                    <Icon name="search" size={14} />
-                    <input
-                        type="search"
+        <div className="agent-list-head">
+            <div className="agent-pp__top">
+                <div className="agent-pp__heading">
+                    <h1>{t("pages.agent_workspace.people.title")}</h1>
+                    <p aria-live="polite">
+                        {total === 1
+                            ? t("pages.agent_workspace.people.subtitle_one")
+                            : t("pages.agent_workspace.people.subtitle", { count: total })}
+                    </p>
+                    <AgentListSearch
                         value={searchText}
-                        onChange={(event) => onSearchText(event.target.value)}
+                        onChange={onSearchText}
                         placeholder={t("pages.agent_workspace.people.search_placeholder")}
-                        aria-label={t("pages.agent_workspace.people.search_label")}
+                        label={t("pages.agent_workspace.people.search_label")}
                     />
-                </label>
+                </div>
+
+                <div className="agent-pp__tools">
+                    <ul className="agent-pp__chips" aria-label={t("pages.agent_workspace.people.chips.label")}>
+                        {CHIPS.map(({ key, mark }) => {
+                            const pressed = key === "all" ? bucket === null : bucket === key;
+                            const value = counts?.[key];
+                            return (
+                                <li key={key}>
+                                    <button
+                                        type="button"
+                                        className={`agent-pp__chip${value === undefined ? " agent-pp__chip--loading" : ""}`}
+                                        aria-pressed={pressed}
+                                        onClick={() => onBucket(key === "all" ? null : key)}
+                                    >
+                                        <span className="agent-pp__chip-label">
+                                            {mark ? <span className="agent-pp__chip-mark" style={{ ["--mark" as string]: mark }} aria-hidden="true" /> : null}
+                                            {t(`pages.agent_workspace.people.chips.${key}`)}
+                                        </span>
+                                        <b className="agent-pp__chip-value">{value ?? "00"}</b>
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
             </div>
         </div>
     );

@@ -219,7 +219,7 @@ class DashboardMetricsService
         // Name, where the record stands (lifecycle status or deal stage) and the
         // number to call, so a queue row reads like the person it is about.
         $leads = Lead::query()
-            ->with('lifecycleStatus:id,label,label_color')
+            ->with('lifecycleStatus:id,key,label,label_color')
             ->whereIn('id', $links->where('taskable_type', Lead::class)->pluck('taskable_id'))
             ->get(['id', 'client_name', 'mobile', 'lead_lifecycle_status_id'])
             ->keyBy('id');
@@ -252,6 +252,7 @@ class DashboardMetricsService
                     'id' => (int) $lead->id,
                     'name' => $lead->client_name,
                     'status' => $lead->lifecycleStatus?->label,
+                    'status_key' => $lead->lifecycleStatus?->key,
                     'status_color' => $lead->lifecycleStatus?->label_color,
                     'person' => $lead->client_name,
                     'phone' => $phone($lead),
@@ -388,7 +389,7 @@ class DashboardMetricsService
 
         $tasksQuery = $pending()
             ->where('due_date', '<=', $until)
-            ->with($useRedesignedTasks ? TaskPresenter::RELATIONS : ['users:id,name,image', 'boardColumn:id,slug,column_name'])
+            ->with($useRedesignedTasks ? TaskPresenter::RELATIONS : ['users:id,name,image', 'boardColumn:id,slug,column_name', 'category:id,category_name,action'])
             ->orderBy('due_date')
             ->limit($limit);
 
@@ -442,7 +443,7 @@ class DashboardMetricsService
             ->pending()
             ->visibleToUser($userId)
             ->whereBetween('due_date', $this->storageWindow($from, $to))
-            ->with($useRedesignedTasks ? TaskPresenter::RELATIONS : ['users:id,name,image', 'boardColumn:id,slug,column_name'])
+            ->with($useRedesignedTasks ? TaskPresenter::RELATIONS : ['users:id,name,image', 'boardColumn:id,slug,column_name', 'category:id,category_name,action'])
             ->orderBy('due_date')
             ->limit($limit);
 
@@ -743,6 +744,14 @@ class DashboardMetricsService
             now()->addDays(self::PERSONAL_WINDOW_DAYS)->endOfDay(),
             $limit
         );
+    }
+
+    /** One meeting the person may see, in the shape the agenda rows carry; null if not theirs to see. */
+    public function meetingById(int $userId, int $id): ?array
+    {
+        $followUp = $this->followUpQuery($userId)->whereKey($id)->first();
+
+        return $followUp ? $this->mapFollowUps(collect([$followUp]))[0] : null;
     }
 
     /**

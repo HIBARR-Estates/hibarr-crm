@@ -40,6 +40,7 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
     const { props, url } = usePage<PageProps>();
     const user = props.auth?.user as { name?: string; image_url?: string | null } | undefined;
     const appName = (props.appName as string | undefined) ?? "";
+    const logo = (props.companyLogoOnDark as string | null | undefined) ?? null;
     const active = activeDestinationKey(url);
     const [slot, setSlot] = useState<HTMLElement | null>(null);
     const { t } = useTranslation();
@@ -57,9 +58,7 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
                 <div className="agent-ws__chrome">
                 <header ref={setTop} className="agent-ws__top">
                     <div className="agent-ws__corner">
-                        <span className="agent-ws__brand" aria-hidden="true">
-                            {appName.charAt(0) || "H"}
-                        </span>
+                        <Brand logo={logo} name={appName} />
                         <AgentViewSwitch current="agent" tone="band" />
                     </div>
                     <div className="agent-ws__dock-wrap">
@@ -92,6 +91,27 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
             </div>
             </PinnedSlot.Provider>
         </SecondRowSlot.Provider>
+    );
+}
+
+/**
+ * The company's logo at the top left, at a fixed height with its own width so
+ * a wide wordmark and a square mark both keep their proportions. Until a logo
+ * is uploaded (or if it fails to load) the first letter of the company name
+ * stands in.
+ */
+function Brand({ logo, name }: { logo: string | null; name: string }) {
+    const [failed, setFailed] = useState(false);
+    useLayoutEffect(() => setFailed(false), [logo]);
+
+    if (logo && !failed) {
+        return <img className="agent-ws__logo" src={logo} alt={name} onError={() => setFailed(true)} />;
+    }
+
+    return (
+        <span className="agent-ws__brand" aria-hidden="true">
+            {name.charAt(0) || "H"}
+        </span>
     );
 }
 

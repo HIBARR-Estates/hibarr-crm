@@ -244,6 +244,12 @@ class LeadContactController extends AccountBaseController
                     ],
                 ])->all();
             }, 'extras'),
+            // Behind a row's next action: its task opens in the task modal, which needs these.
+            'taskBoardColumns' => Inertia::defer(
+                fn () => \App\Models\TaskboardColumn::orderBy('priority')->get(['id', 'slug', 'column_name', 'label_color', 'priority']),
+                'actions'
+            ),
+            'taskCategories' => Inertia::defer(fn () => \App\Models\TaskCategory::allCategories(), 'actions'),
             'preferredContactTimes' => Inertia::defer(
                 fn () => collect(PreferredContactTime::cases())->map(
                     fn (PreferredContactTime $time) => [

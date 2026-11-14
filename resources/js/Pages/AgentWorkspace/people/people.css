@@ -4,7 +4,7 @@
 
 /* ---------- band ---------- */
 .agent-ws:has(.agent-pp) {
-    --agent-band-height: 300px;
+    --agent-band-height: 352px;
 }
 
 /* Below 1280px the chips and search no longer fit beside the title, so they stack under it. */
@@ -30,7 +30,7 @@
 .agent-pp__top {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     gap: 14px 16px;
     min-height: 62px;
@@ -140,42 +140,6 @@
 
 .agent-pp__chip[aria-pressed="true"].agent-pp__chip--loading .agent-pp__chip-value {
     background: var(--dr-skeleton);
-}
-
-.agent-pp__search {
-    position: relative;
-    display: flex;
-    width: 220px;
-    height: 38px;
-    align-items: center;
-}
-
-.agent-pp__search svg {
-    position: absolute;
-    left: 11px;
-    color: var(--dr-text-hint);
-    pointer-events: none;
-}
-
-.agent-pp__search input {
-    width: 100%;
-    height: 100%;
-    padding: 0 11px 0 32px;
-    border: 1px solid var(--dr-white);
-    border-radius: 9px;
-    background: var(--dr-white);
-    color: var(--dr-text);
-    font: inherit;
-    font-size: 13px;
-}
-
-.agent-pp__search input::placeholder {
-    color: var(--dr-text-hint);
-}
-
-.agent-pp__search input:focus-visible {
-    outline: 2px solid var(--dr-blue);
-    outline-offset: 1px;
 }
 
 /* ---------- table ---------- */
@@ -288,8 +252,8 @@ button.agent-pp__th {
 .agent-pp__name {
     overflow: hidden;
     color: var(--dr-text);
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 14px;
+    font-weight: 500;
     line-height: 1.25;
     text-decoration: none;
     text-overflow: ellipsis;
@@ -339,7 +303,7 @@ button.agent-pp__th {
 .agent-pp__action {
     overflow: hidden;
     color: var(--dr-text);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -348,6 +312,50 @@ button.agent-pp__th {
 .agent-pp__action--none {
     color: var(--dr-text-muted);
     font-weight: 400;
+}
+
+/* The step is a button, lifted above the row's own link so pressing it never opens the person. */
+.agent-pp__action--btn,
+.agent-pp__action--add {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    max-width: 100%;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    margin-left: -8px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: none;
+    font: inherit;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.agent-pp__action--btn > span,
+.agent-pp__action--add > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-pp__action--btn:hover,
+.agent-pp__action--add:hover {
+    border-color: var(--dr-border);
+    background: var(--dr-white);
+}
+
+.agent-pp__action--btn:focus-visible,
+.agent-pp__action--add:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 1px;
+}
+
+.agent-pp__action--add {
+    color: var(--dr-blue-dark);
+    font-weight: 500;
 }
 
 .agent-pp__due {
@@ -386,7 +394,7 @@ button.agent-pp__th {
     min-width: 0;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 500;
     white-space: nowrap;
 }
@@ -406,8 +414,8 @@ button.agent-pp__th {
 
 .agent-pp__muted {
     color: var(--dr-text-muted);
-    font-size: 12px;
-    font-weight: 400;
+    font-size: 14px;
+    font-weight: 500;
     white-space: nowrap;
 }
 
@@ -416,7 +424,8 @@ button.agent-pp__th {
     min-width: 0;
     align-items: center;
     gap: 7px;
-    font-size: 12px;
+    font-size: 14px;
+    font-weight: 500;
 }
 
 .agent-pp__owner-avatar {
@@ -543,9 +552,6 @@ button.agent-pp__th {
         min-width: 0;
     }
 
-    .agent-pp__search {
-        width: 100%;
-    }
 }
 
 /* ---------- tablet: Deals and Last touch step aside ---------- */
@@ -611,6 +617,12 @@ button.agent-pp__th {
         gap: 6px 8px;
         grid-area: line;
         padding-left: 42px;
+    }
+
+    /* The step takes what is left of the line, and wraps rather than cutting "Call back" to "Call b". */
+    .agent-pp__line .agent-pp__c--action {
+        min-width: 0;
+        flex: 1 1 120px;
     }
 
     .agent-pp__c--owner.agent-pp__c--you {

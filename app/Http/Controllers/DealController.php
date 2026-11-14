@@ -669,10 +669,17 @@ class DealController extends AccountBaseController
             ->orderBy('deals.id')
             ->limit(self::AGENT_DEALS_LIMIT);
 
+        $navVisibility = FeatureFlags::enabled('crm.pipeline-nav-visibility');
+
         return Inertia::render('AgentWorkspace/Deals', [
             'pageTitle' => __('pages.agent_workspace.deals.title'),
             'userId' => (int) user()->id,
-            'pipelines' => $this->pipelines->map(fn ($pipeline) => ['id' => (int) $pipeline->id, 'name' => $pipeline->name])->values(),
+            // `visible` is the pipeline's nav-visibility setting; the default pipeline is always visible.
+            'pipelines' => $this->pipelines->map(fn ($pipeline) => [
+                'id' => (int) $pipeline->id,
+                'name' => $pipeline->name,
+                'visible' => ! $navVisibility || (bool) $pipeline->default || ! $pipeline->hidden_from_nav,
+            ])->values(),
             'pipelineId' => $pipelineId,
             'filters' => $request->only([
                 'lead_pipeline_id', 'pipeline_stage_id', 'category_id', 'source_id', 'package_id', 'agent_id',

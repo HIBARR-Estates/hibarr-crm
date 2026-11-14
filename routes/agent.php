@@ -45,6 +45,9 @@ Route::middleware(['auth', 'partner.restrict', EnsureAgentWorkspaceAccess::class
             ->name('people.caller');
         // The task list: runs on the Tasks index's own permission check and filters.
         Route::get('tasks', [TaskController::class, 'agentIndex'])->name('tasks');
+        // One task / meeting by id, for rows that only carry the id (People's next action).
+        Route::get('tasks/{task}', [TaskController::class, 'agentShow'])->whereNumber('task')->name('tasks.show');
+        Route::get('meetings/{meeting}', [AgentWorkspaceController::class, 'meeting'])->whereNumber('meeting')->name('meetings.show');
         // The deals board and list: runs on the Deals index's own filters and scope.
         Route::get('deals', [DealController::class, 'agentIndex'])->name('deals');
         // Earnings: the MLM module's own commissions, disputes, levels, cycles and network.

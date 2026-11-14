@@ -231,6 +231,7 @@ function MeetingItem({
                         ) : null}
                         {showRecordLink && record ? (
                             <Link className="dr-btn dr-btn-ghost dr-btn-sm" href={record}>
+                                <Icon name="user" size={13} />
                                 {t("pages.agent_workspace.agenda.contact_page")}
                             </Link>
                         ) : null}
@@ -330,6 +331,7 @@ function TaskItem({
                     )}
                     {showRecordLink && task.related ? (
                         <Link className="dr-btn dr-btn-ghost dr-btn-sm" href={recordHref(task.related)}>
+                            <Icon name="user" size={13} />
                             {t("pages.agent_workspace.agenda.contact_page")}
                         </Link>
                     ) : null}

@@ -9,6 +9,7 @@ use App\Models\TaskboardColumn;
 use App\Models\TaskCategory;
 use App\Services\AgentWorkspace\CallerGlance;
 use App\Services\Dashboard\DashboardMetricsService;
+use App\Services\MeetingVisibilityService;
 use App\Services\PermissionService;
 use App\Support\UserTimezone;
 use Illuminate\Http\JsonResponse;
@@ -68,6 +69,19 @@ class AgentWorkspaceController extends AccountBaseController
             ),
             'taskCategories' => Inertia::defer(fn () => TaskCategory::allCategories(), 'queue'),
 
+            // Behind "Add > Meeting": the deals and leads this agent may schedule on, the same permission-scoped
+            // queries the Meetings page's schedule dialog uses.
+            'userDeals' => Inertia::defer(fn () => MeetingVisibilityService::schedulableDealsQuery()->get(['id', 'name']), 'meetingOptions'),
+            'userLeads' => Inertia::defer(
+                fn () => MeetingVisibilityService::schedulableLeadsQuery()
+                    ->get(['id', 'client_name', 'company_name'])
+                    ->map(fn (Lead $lead) => [
+                        'id' => $lead->id,
+                        'name' => $lead->company_name ? "{$lead->client_name} ({$lead->company_name})" : $lead->client_name,
+                    ]),
+                'meetingOptions'
+            ),
+
             'stats' => Inertia::defer(fn () => $metrics->personalStats($userId), 'stats'),
             // null for anyone without a lead_agent record: the chip is dropped
             // rather than showing a zero that reads as "you earned nothing".
@@ -124,6 +138,15 @@ class AgentWorkspaceController extends AccountBaseController
     }
 
     /** The zone the viewer reads days in: theirs, else the company's. */
+    /** One meeting as the meeting modal opens it, for a row that only carries its id. 404 unless the viewer may see it. */
+    public function meeting(int $meeting, DashboardMetricsService $metrics): JsonResponse
+    {
+        $row = $metrics->meetingById((int) user()->id, $meeting);
+        abort_if($row === null, 404);
+
+        return response()->json(['meeting' => $row]);
+    }
+
     private function viewerZone(): string
     {
         $company = company();
