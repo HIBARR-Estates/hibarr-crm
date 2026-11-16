@@ -4213,53 +4213,44 @@ class DealController extends AccountBaseController
     }
 
     /**
-     * Notify agent when meeting link generation fails
+     * Who is alerted when a meeting link fails: the deal's agent, else the lead's
+     * owner, else the deal watcher, else the follow-up's creator. That person may
+     * also ask for the link again, so the alert always has a way to be resolved.
      */
-    /**
-     * The deal's agent, or the lead's owner when the deal has no agent: the person
-     * notifyAgentOfMeetingLinkFailure() alerts, so the one who must be able to retry.
-     */
-    private function isResponsibleAgentForFollowUp(DealFollowUp $followUp, int $userId): bool
+    private function meetingLinkAlertRecipientId(DealFollowUp $followUp): ?int
     {
         $deal = $followUp->deal;
-        if ($deal && $deal->agent_id) {
-            return (int) \App\Models\LeadAgent::query()->whereKey($deal->agent_id)->value('user_id') === $userId;
-        }
-
         $leadId = $followUp->lead_id ?: $deal?->lead_id;
 
-        return $leadId !== null && (int) Lead::query()->whereKey($leadId)->value('lead_owner') === $userId;
+        $candidates = [
+            $deal?->agent_id ? \App\Models\LeadAgent::query()->whereKey($deal->agent_id)->value('user_id') : null,
+            $leadId ? Lead::query()->whereKey($leadId)->value('lead_owner') : null,
+            $deal?->dealWatchers()->value('users.id'),
+            $followUp->added_by,
+        ];
+
+        foreach ($candidates as $userId) {
+            if ($userId && \App\Models\User::query()->whereKey($userId)->exists()) {
+                return (int) $userId;
+            }
+        }
+
+        return null;
     }
 
+    private function isResponsibleAgentForFollowUp(DealFollowUp $followUp, int $userId): bool
+    {
+        return $this->meetingLinkAlertRecipientId($followUp) === $userId;
+    }
+
+    /**
+     * Notify the alert recipient when meeting link generation fails
+     */
     private function notifyAgentOfMeetingLinkFailure(DealFollowUp $followUp, string $errorMessage)
     {
         try {
-            // Get the responsible agent
-            $agent = null;
-
-            if ($followUp->deal && $followUp->deal->agent_id) {
-                $leadAgent = \App\Models\LeadAgent::find($followUp->deal->agent_id);
-                if ($leadAgent) {
-                    $agent = \App\Models\User::find($leadAgent->user_id);
-                }
-            }
-
-            if (! $agent && $followUp->lead_id) {
-                $lead = Lead::find($followUp->lead_id);
-                if ($lead?->lead_owner) {
-                    $agent = \App\Models\User::find($lead->lead_owner);
-                }
-            }
-
-            // If no agent found, try to get the deal watcher
-            if (! $agent && $followUp->deal && $followUp->deal->deal_watcher) {
-                $agent = \App\Models\User::find($followUp->deal->deal_watcher);
-            }
-
-            // If still no agent, get the user who created the follow-up
-            if (! $agent) {
-                $agent = \App\Models\User::find($followUp->added_by);
-            }
+            $recipientId = $this->meetingLinkAlertRecipientId($followUp);
+            $agent = $recipientId ? \App\Models\User::find($recipientId) : null;
 
             if ($agent) {
                 $agent->notify(new MeetingLinkGenerationFailed($followUp, $agent, $errorMessage));
