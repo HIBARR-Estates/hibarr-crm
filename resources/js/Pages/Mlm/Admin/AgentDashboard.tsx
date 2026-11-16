@@ -68,6 +68,7 @@ interface AgentInfo {
     name: string;
     email?: string;
     image?: string | null;
+    is_partner?: boolean;
 }
 
 interface Props extends PageProps {
@@ -89,7 +90,10 @@ const AdminAgentDashboard: React.FC<Props> = ({
         data: profileData,
         isLoading: profileLoading,
         refetch: refetchProfile,
-    } = useAgentCommissionProfile(agent.id, commissionOverrideEnabled);
+    } = useAgentCommissionProfile(
+        agent.id,
+        commissionOverrideEnabled || agent.is_partner === true,
+    );
     const [commissionForm] =
         Form.useForm<AgentCommissionProfileUpdatePayload>();
 
@@ -109,6 +113,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
             commissionForm.setFieldsValue({
                 custom_commission_rate:
                     commissionProfile.custom_commission_rate,
+                referral_pool_rate: commissionProfile.referral_pool_rate,
             });
         }
     }, [commissionProfile, commissionForm]);
@@ -632,7 +637,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                             </Card>
                         </motion.div>
 
-                        {commissionOverrideEnabled && (
+                        {(commissionOverrideEnabled || agent.is_partner) && (
                             <Row gutter={[16, 16]} className="mb-6">
                                 <Col xs={24}>
                                     <motion.div
@@ -727,7 +732,8 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                 )
                                                             }
                                                         >
-                                                            <Form.Item
+                                                            {commissionOverrideEnabled && (
+                                                        <Form.Item
                                                                 label="Custom Commission Rate"
                                                                 name="custom_commission_rate"
                                                                 tooltip="Leave empty to use level default"
@@ -780,6 +786,53 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                     placeholder={commissionProfile.level?.default_commission_rate?.toString()}
                                                                 />
                                                             </Form.Item>
+                                                        )}
+                                                        {agent.is_partner && (
+                                                            <Form.Item
+                                                                label="Referral share"
+                                                                name="referral_pool_rate"
+                                                                tooltip="Percent of the commission pool for deals this partner referred. Leave empty for no referral share."
+                                                                rules={[
+                                                                    {
+                                                                        validator:
+                                                                            async (
+                                                                                _,
+                                                                                value,
+                                                                            ) => {
+                                                                                if (
+                                                                                    value ===
+                                                                                        null ||
+                                                                                    value ===
+                                                                                        undefined ||
+                                                                                    value ===
+                                                                                        ""
+                                                                                ) {
+                                                                                    return;
+                                                                                }
+
+                                                                                if (
+                                                                                    value <
+                                                                                        0 ||
+                                                                                    value >
+                                                                                        100
+                                                                                ) {
+                                                                                    throw new Error(
+                                                                                        "Referral share must be between 0 and 100%.",
+                                                                                    );
+                                                                                }
+                                                                            },
+                                                                    },
+                                                                ]}
+                                                            >
+                                                                <InputNumber
+                                                                    min={0}
+                                                                    max={100}
+                                                                    className="w-full"
+                                                                    addonAfter="%"
+                                                                    placeholder="No referral share"
+                                                                />
+                                                            </Form.Item>
+                                                        )}
                                                             <Form.Item
                                                                 label="Reason"
                                                                 name="reason"
@@ -800,6 +853,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                     Save
                                                                     Override
                                                                 </Button>
+                                                                {commissionOverrideEnabled && (
                                                                 <Button
                                                                     onClick={() =>
                                                                         updateCommissionProfile.mutate(
@@ -814,6 +868,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                     Clear
                                                                     Override
                                                                 </Button>
+                                                                )}
                                                             </div>
                                                         </Form>
 
@@ -841,8 +896,36 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                             render: (
                                                                                 _: unknown,
                                                                                 row: AgentCommissionRateAuditLog,
-                                                                            ) =>
-                                                                                `${row.previous_direct_rate ?? "—"} → ${row.new_direct_rate ?? "—"}`,
+                                                                            ) => {
+                                                                                const parts: string[] =
+                                                                                    [];
+                                                                                if (
+                                                                                    row.previous_direct_rate !=
+                                                                                        null ||
+                                                                                    row.new_direct_rate !=
+                                                                                        null
+                                                                                ) {
+                                                                                    parts.push(
+                                                                                        `${row.previous_direct_rate ?? "—"} → ${row.new_direct_rate ?? "—"}`,
+                                                                                    );
+                                                                                }
+                                                                                if (
+                                                                                    row.previous_referral_pool_rate !=
+                                                                                        null ||
+                                                                                    row.new_referral_pool_rate !=
+                                                                                        null
+                                                                                ) {
+                                                                                    parts.push(
+                                                                                        `Referral ${row.previous_referral_pool_rate ?? "—"} → ${row.new_referral_pool_rate ?? "—"}`,
+                                                                                    );
+                                                                                }
+                                                                                return (
+                                                                                    parts.join(
+                                                                                        " · ",
+                                                                                    ) ||
+                                                                                    "—"
+                                                                                );
+                                                                            },
                                                                         },
                                                                         {
                                                                             title: "By",

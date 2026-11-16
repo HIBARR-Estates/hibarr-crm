@@ -17,7 +17,7 @@ class AgentCommissionProfileInternalController extends Controller
 
     public function show(Request $request, int $agentId): JsonResponse
     {
-        if (!$this->featureEnabled()) {
+        if (! $this->featureEnabled()) {
             abort(404);
         }
 
@@ -32,7 +32,7 @@ class AgentCommissionProfileInternalController extends Controller
 
     public function update(Request $request, int $agentId): JsonResponse
     {
-        if (!$this->featureEnabled()) {
+        if (! $this->featureEnabled()) {
             abort(404);
         }
 
@@ -40,6 +40,7 @@ class AgentCommissionProfileInternalController extends Controller
 
         $validated = $request->validate([
             'custom_commission_rate' => 'nullable|numeric|min:0|max:100',
+            'referral_pool_rate' => 'nullable|numeric|min:0|max:100',
             'reason' => 'nullable|string|max:1000',
             'changed_by_user_id' => [
                 'nullable',
@@ -57,7 +58,7 @@ class AgentCommissionProfileInternalController extends Controller
             $validated
         );
 
-        if (!empty($result['errors'])) {
+        if (! empty($result['errors'])) {
             return response()->json([
                 'status' => 'fail',
                 'message' => 'Commission rate validation failed.',

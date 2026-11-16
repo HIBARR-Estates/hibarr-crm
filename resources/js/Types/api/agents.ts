@@ -8,6 +8,8 @@ export interface Agent {
     lead_category_id: number | null;
     parent_agent_id: number | null;
     status: "enabled" | "disabled";
+    is_partner?: boolean;
+    referral_pool_rate?: number | null;
     added_by: number | null;
     last_updated_by: number | null;
     created_at: string;

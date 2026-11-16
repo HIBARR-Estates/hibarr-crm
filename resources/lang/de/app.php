@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'mlmCommissionType' => [
+        'agent' => 'Agent',
+        'upline' => 'Upline',
+        'system' => 'System',
+        'referral' => 'Empfehlung',
+    ],
+
     // Common buttons
     'save' => 'Speichern',
     'update' => 'Aktualisieren',

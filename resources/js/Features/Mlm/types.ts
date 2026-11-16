@@ -29,7 +29,7 @@ export interface LevelData {
 
 // ── MLM Enums ────────────────────────────────────────────────────
 export type MlmMetric = "nsa" | "nsd" | "vsa" | "vsd" | "nsa_nsd" | "vsa_vsd";
-export type MlmCommissionType = "agent" | "upline" | "system";
+export type MlmCommissionType = "agent" | "upline" | "system" | "referral";
 export type MlmCommissionStatus = "pending" | "paid" | "reverted";
 export type CriteriaOperator = ">=" | "<=" | "=" | ">" | "<";
 // ── Cycle Enums ──────────────────────────────────────────────────
@@ -78,6 +78,7 @@ export const COMMISSION_TYPE_LABELS: Record<MlmCommissionType, string> = {
     agent: "Agent",
     upline: "Upline",
     system: "System",
+    referral: "Referral",
 };
 
 // ── MLM Level ────────────────────────────────────────────────────
@@ -371,6 +372,8 @@ export interface AgentCommissionRateAuditLog {
     new_direct_rate: number | null;
     previous_override_rate: number | null;
     new_override_rate: number | null;
+    previous_referral_pool_rate?: number | null;
+    new_referral_pool_rate?: number | null;
     changed_at: string;
     reason: string | null;
     changed_by_user?: { id: number; name: string } | null;
@@ -385,12 +388,15 @@ export interface AgentCommissionProfile {
         default_commission_rate: number;
     } | null;
     custom_commission_rate: number | null;
+    referral_pool_rate?: number | null;
+    is_partner?: boolean;
     bounds: AgentCommissionRateBounds;
     audit: PaginatedResponse<AgentCommissionRateAuditLog>;
 }
 
 export interface AgentCommissionProfileUpdatePayload {
     custom_commission_rate?: number | null;
+    referral_pool_rate?: number | null;
     reason?: string | null;
 }
 

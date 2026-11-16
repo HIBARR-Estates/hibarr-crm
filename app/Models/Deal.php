@@ -4,19 +4,14 @@ namespace App\Models;
 
 use App\Scopes\ActiveScope;
 use App\Traits\CustomFieldsTrait;
-use App\Traits\HasDynamicTranslations;
 use App\Traits\HasCompany;
+use App\Traits\HasDynamicTranslations;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Notifications\Notifiable;
-use App\Models\Payment;
-use App\Models\LeadAgent;
-use App\Models\MlmCommission;
-use App\Models\DealOfferApplication;
-
 
 /**
  * App\Models\Lead
@@ -67,6 +62,7 @@ use App\Models\DealOfferApplication;
  * @property-read \App\Models\LeadStatus|null $leadStatus
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection|\Illuminate\Notifications\DatabaseNotification[] $notifications
  * @property-read int|null $notifications_count
+ *
  * @method static \Database\Factories\LeadFactory factory(...$parameters)
  * @method static \Illuminate\Database\Eloquent\Builder|Lead newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder|Lead newQuery()
@@ -99,12 +95,17 @@ use App\Models\DealOfferApplication;
  * @method static \Illuminate\Database\Eloquent\Builder|Lead whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Lead whereValue($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Lead whereWebsite($value)
+ *
  * @property string|null $hash
  * @property-read \App\Models\LeadCategory|null $category
+ *
  * @method static \Illuminate\Database\Eloquent\Builder|Lead whereHash($value)
+ *
  * @property int|null $company_id
  * @property-read \App\Models\Company|null $company
+ *
  * @method static \Illuminate\Database\Eloquent\Builder|Lead whereCompanyId($value)
+ *
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Product> $products
  * @property-read int|null $products_count
  * @property-read int|null $follow_up_date_next
@@ -117,20 +118,21 @@ use App\Models\DealOfferApplication;
  * @property-read \App\Models\Lead|null $contact
  * @property-read \App\Models\PipelineStage|null $leadStage
  * @property-read \App\Models\LeadPipeline|null $pipeline
+ *
  * @method static \Illuminate\Database\Eloquent\Builder|Deal whereCloseDate($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Deal whereLeadId($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Deal whereLeadPipelineId($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Deal whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder|Deal wherePipelineStageId($value)
+ *
  * @mixin \Eloquent
  */
 class Deal extends BaseModel
 {
-
-    use Notifiable, HasFactory;
     use CustomFieldsTrait;
-    use HasDynamicTranslations;
     use HasCompany;
+    use HasDynamicTranslations;
+    use HasFactory, Notifiable;
 
     const CUSTOM_FIELD_MODEL = 'App\Models\Deal';
 
@@ -143,8 +145,7 @@ class Deal extends BaseModel
         'name',
     ];
 
-    protected $hidden = ["pivot"];
-
+    protected $hidden = ['pivot'];
 
     // total_discount is an aggregate — appending it globally cost one extra query
     // per deal on every list that gets serialized. Only the deal show page reads
@@ -161,6 +162,8 @@ class Deal extends BaseModel
         'commission_locked' => 'boolean',
         'commission_locked_at' => 'datetime',
         'max_commission_percentage' => 'decimal:2',
+        'referral_pool_rate' => 'decimal:2',
+        'referral_fixed_amount' => 'decimal:2',
         'manual_value' => 'decimal:2',
         'calculated_value' => 'decimal:2',
         'discount_value' => 'decimal:2',
@@ -184,13 +187,13 @@ class Deal extends BaseModel
     {
         $gravatarHash = md5(strtolower(trim($this->name)));
 
-        return 'https://www.gravatar.com/avatar/' . $gravatarHash . '.png?s=200&d=mp';
+        return 'https://www.gravatar.com/avatar/'.$gravatarHash.'.png?s=200&d=mp';
     }
 
     /**
      * Route notifications for the mail channel.
      *
-     * @param \Illuminate\Notifications\Notification $notification
+     * @param  \Illuminate\Notifications\Notification  $notification
      * @return string
      */
     // phpcs:ignore
@@ -350,7 +353,6 @@ class Deal extends BaseModel
         return $this->belongsTo(User::class, 'added_by')->withoutGlobalScope(ActiveScope::class);
     }
 
-
     public function communicationActivities(): HasMany
     {
         return $this->hasMany(CommunicationActivity::class, 'deal_id')->orderByDesc('timestamp');
@@ -452,7 +454,7 @@ class Deal extends BaseModel
      * True when $data (a request's input, however it's keyed) touches any
      * field that feeds this deal's value.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public static function touchesValueFields(array $data): bool
     {
@@ -470,7 +472,7 @@ class Deal extends BaseModel
      * changing the agent does not change the deal's value, but it is still
      * refused once commission has been calculated against the current agent.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public static function touchesAgentField(array $data): bool
     {

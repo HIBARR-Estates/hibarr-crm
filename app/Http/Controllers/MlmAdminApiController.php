@@ -628,7 +628,10 @@ class MlmAdminApiController extends AccountBaseController
 
     public function getAgentCommissionProfile(Request $request, int $agentId): JsonResponse
     {
-        if (! FeatureFlags::enabled('sales.per-agent-commission-override')) {
+        $agent = \App\Models\LeadAgent::where('company_id', company()->id)->findOrFail($agentId);
+        $overrideEnabled = FeatureFlags::enabled('sales.per-agent-commission-override');
+
+        if (! $overrideEnabled && ! $agent->is_partner) {
             abort(404);
         }
 
@@ -642,14 +645,34 @@ class MlmAdminApiController extends AccountBaseController
 
     public function updateAgentCommissionProfile(Request $request, int $agentId): JsonResponse
     {
-        if (! FeatureFlags::enabled('sales.per-agent-commission-override')) {
+        $agent = \App\Models\LeadAgent::where('company_id', company()->id)->findOrFail($agentId);
+        $overrideEnabled = FeatureFlags::enabled('sales.per-agent-commission-override');
+
+        if (! $overrideEnabled && ! $agent->is_partner) {
             abort(404);
         }
 
-        $validated = $request->validate([
-            'custom_commission_rate' => 'nullable|numeric|min:0|max:100',
+        $rules = [
             'reason' => 'nullable|string|max:1000',
-        ]);
+        ];
+
+        if ($overrideEnabled) {
+            $rules['custom_commission_rate'] = 'nullable|numeric|min:0|max:100';
+        }
+
+        if ($agent->is_partner) {
+            $rules['referral_pool_rate'] = 'nullable|numeric|min:0|max:100';
+        }
+
+        $validated = $request->validate($rules);
+
+        if (! $overrideEnabled) {
+            unset($validated['custom_commission_rate']);
+        }
+
+        if (! $agent->is_partner) {
+            unset($validated['referral_pool_rate']);
+        }
 
         $result = $this->commissionProfileService->updateProfile(
             $agentId,

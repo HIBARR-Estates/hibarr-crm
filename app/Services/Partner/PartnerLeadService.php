@@ -2,6 +2,7 @@
 
 namespace App\Services\Partner;
 
+use App\Enums\MlmCommissionType;
 use App\Enums\OutcomeStatus;
 use App\Enums\PackageCommissionType;
 use App\Models\AgentPackageCommissionRate;
@@ -23,15 +24,13 @@ use Illuminate\Support\Collection;
  *
  * Deals that pay this partner nothing are left out of every figure here: a deal
  * whose attached packages all resolve to no commission for them (a configured
- * "none", or a payout of zero). A deal with no commission package pays through
- * the level-based split, so it stays in. The rule is MlmCommissionService's own
- * (resolvePackageCommission), not a copy of it.
+ * "none", or a payout of zero), and that also would not write them a referral
+ * leg. A deal with no commission package pays through the level-based split,
+ * so it stays in. The rule is MlmCommissionService's own, not a copy of it.
  */
 class PartnerLeadService
 {
-    public function __construct(private MlmCommissionService $commissions)
-    {
-    }
+    public function __construct(private MlmCommissionService $commissions) {}
 
     public function agentFor(int $userId): ?LeadAgent
     {
@@ -210,14 +209,18 @@ class PartnerLeadService
     }
 
     /**
-     * Mirrors MlmCommissionService::packageLegs(): package pricing applies when
-     * any attached package carries a commission_type, and then it owns the whole
+     * A referral leg keeps the deal. Otherwise package pricing applies when any
+     * attached package carries a commission_type, and then it owns the closer's
      * payout — so the deal pays nothing only if every such package does.
      *
      * @param  Collection<int, AgentPackageCommissionRate>  $overrides  keyed by package_id
      */
     private function paysNothing(Deal $deal, LeadAgent $agent, Collection $overrides): bool
     {
+        if ($this->referralPays($deal, $agent)) {
+            return false;
+        }
+
         $configured = $deal->packages->filter(fn ($package) => $package->commission_type !== null);
 
         if ($configured->isEmpty()) {
@@ -235,6 +238,19 @@ class PartnerLeadService
 
             return $this->commissions->resolvePackageCommission($package, $agent, $override) === null;
         });
+    }
+
+    /**
+     * True when preview() would write this partner a referral leg. Keeps a
+     * referred deal on their list even when the package would have paid them
+     * nothing as the closer.
+     */
+    private function referralPays(Deal $deal, LeadAgent $agent): bool
+    {
+        return collect($this->commissions->preview($deal))
+            ->contains(fn (array $leg) => ($leg['type'] ?? null) === MlmCommissionType::Referral->value
+                && (int) ($leg['agent_id'] ?? 0) === (int) $agent->id
+                && (float) ($leg['amount'] ?? 0) > 0);
     }
 
     /** @return array{id: int, label: string, color: string|null}|null */

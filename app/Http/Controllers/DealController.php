@@ -2442,6 +2442,61 @@ class DealController extends AccountBaseController
      * Patch (partial update) a deal record.
      * Allows updating any subset of deal fields.
      */
+    /**
+     * Set this deal's referral percentage and agreed amount.
+     *
+     * The percentage, left empty, uses the partner's default. An agreed amount
+     * replaces that percentage. Both are frozen once commission has been calculated.
+     */
+    public function updateReferralCommission(Request $request, $id)
+    {
+        $deal = Deal::findOrFail($id);
+
+        if ($deal->isLocked()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealLocked'),
+            ], 403);
+        }
+
+        $hasTeamAccess = $deal->hasTeamMemberAccess(user()->id);
+        $editPermission = user()->permission('edit_deals');
+
+        abort_403(! (
+            $editPermission == 'all'
+            || ($editPermission == 'added' && $deal->added_by == user()->id)
+            || ($editPermission == 'owned' && $hasTeamAccess)
+            || ($editPermission == 'both' && ($deal->added_by == user()->id || $hasTeamAccess))
+        ));
+
+        if ($deal->isCommissionLocked()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealReferralLockedByCommission'),
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'referral_pool_rate' => 'nullable|numeric|min:0|max:100',
+            'referral_fixed_amount' => 'nullable|numeric|min:0',
+        ]);
+
+        if ($request->exists('referral_pool_rate')) {
+            $deal->referral_pool_rate = $validated['referral_pool_rate'];
+        }
+
+        if ($request->exists('referral_fixed_amount')) {
+            $deal->referral_fixed_amount = $validated['referral_fixed_amount'];
+        }
+
+        $deal->save();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->loadFullDeal($deal->id),
+        ]);
+    }
+
     public function patch(PatchRequest $request, $id)
     {
         $deal = Deal::with('contact')->findOrFail($id);

@@ -7,6 +7,7 @@ use App\Models\Deal;
 use App\Models\MlmCommission;
 use App\Services\MlmCommissionService;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Tests\PackageCommissionTestCase;
 
 class CommissionCalculationTest extends PackageCommissionTestCase
@@ -264,5 +265,171 @@ class CommissionCalculationTest extends PackageCommissionTestCase
             MlmCommission::where('deal_id', $ctx['deal'])->get(),
             'A None override must silence the package default entirely.'
         );
+    }
+
+    public function test_partner_percentage_is_taken_from_the_company_remainder(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->refer($ctx, $referrerId, 25);
+
+        $this->distribute($ctx['deal']);
+
+        $legs = MlmCommission::where('deal_id', $ctx['deal'])->get();
+
+        $this->assertSame(30.0, (float) $legs->firstWhere('type', MlmCommissionType::Agent)->amount);
+        $this->assertSame(30.0, (float) $legs->firstWhere('type', MlmCommissionType::Upline)->amount);
+        $referral = $legs->firstWhere('type', MlmCommissionType::Referral);
+        $this->assertSame($referrerId, (int) $referral->agent_id);
+        $this->assertSame(25.0, (float) $referral->amount, '25% of the 100 pool, not of the 1000 deal.');
+        $this->assertSame(2.5, (float) $referral->percentage);
+        $this->assertSame(15.0, (float) $legs->firstWhere('type', MlmCommissionType::System)->amount);
+    }
+
+    public function test_referral_is_capped_when_it_exceeds_the_company_remainder(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->refer($ctx, $referrerId, 90);
+
+        $legs = collect(app(MlmCommissionService::class)->preview(
+            Deal::withoutGlobalScopes()->findOrFail($ctx['deal'])
+        ));
+
+        $this->assertSame(40.0, (float) $legs->firstWhere('type', MlmCommissionType::Referral->value)['amount']);
+        $this->assertNull($legs->firstWhere('type', MlmCommissionType::System->value));
+    }
+
+    public function test_deal_percentage_overrides_the_partner_default(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->refer($ctx, $referrerId, 50, 10);
+
+        $legs = collect(app(MlmCommissionService::class)->preview(
+            Deal::withoutGlobalScopes()->findOrFail($ctx['deal'])
+        ));
+
+        $this->assertSame(10.0, (float) $legs->firstWhere('type', MlmCommissionType::Referral->value)['amount']);
+    }
+
+    public function test_agreed_amount_replaces_the_percentage_and_is_capped(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->refer($ctx, $referrerId, 25, null, 50);
+
+        $legs = collect(app(MlmCommissionService::class)->preview(
+            Deal::withoutGlobalScopes()->findOrFail($ctx['deal'])
+        ));
+
+        $referral = $legs->firstWhere('type', MlmCommissionType::Referral->value);
+        $this->assertSame(40.0, (float) $referral['amount']);
+        $this->assertNull($referral['percentage']);
+        $this->assertNull($legs->firstWhere('type', MlmCommissionType::System->value));
+    }
+
+    public function test_agreed_zero_replaces_a_paying_percentage(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->refer($ctx, $referrerId, 25, null, 0);
+
+        $legs = collect(app(MlmCommissionService::class)->preview(
+            Deal::withoutGlobalScopes()->findOrFail($ctx['deal'])
+        ));
+
+        $this->assertNull($legs->firstWhere('type', MlmCommissionType::Referral->value));
+        $this->assertSame(40.0, (float) $legs->firstWhere('type', MlmCommissionType::System->value)['amount']);
+    }
+
+    public function test_explicit_zero_percentage_writes_no_referral_leg(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->refer($ctx, $referrerId, 25, 0);
+
+        $legs = collect(app(MlmCommissionService::class)->preview(
+            Deal::withoutGlobalScopes()->findOrFail($ctx['deal'])
+        ));
+
+        $this->assertNull($legs->firstWhere('type', MlmCommissionType::Referral->value));
+    }
+
+    public function test_package_referral_does_not_change_the_closer_fee(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $packageId = $this->seedPackage($ctx['company'], 8000, 'percentage', 5);
+        $this->attachPackage($ctx['deal'], $packageId);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->refer($ctx, $referrerId, 10);
+        $this->seedAgentPackageRate($ctx['company'], $referrerId, $packageId, 'none', null);
+
+        $this->distribute($ctx['deal']);
+
+        $legs = MlmCommission::where('deal_id', $ctx['deal'])->get();
+        $this->assertCount(2, $legs);
+        $this->assertSame(400.0, (float) $legs->firstWhere('type', MlmCommissionType::Agent)->amount);
+        $referral = $legs->firstWhere('type', MlmCommissionType::Referral);
+        $this->assertSame(40.0, (float) $referral->amount);
+        $this->assertSame(4.0, (float) $referral->percentage);
+    }
+
+    public function test_none_package_pays_a_percentage_nothing_but_an_agreed_amount_still_pays(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $packageId = $this->seedPackage($ctx['company'], 8000, 'none', null);
+        $this->attachPackage($ctx['deal'], $packageId);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->refer($ctx, $referrerId, 25);
+
+        $service = app(MlmCommissionService::class);
+        $deal = Deal::withoutGlobalScopes()->findOrFail($ctx['deal']);
+
+        $this->assertNull(collect($service->preview($deal))->firstWhere('type', MlmCommissionType::Referral->value));
+
+        DB::table('deals')->where('id', $ctx['deal'])->update(['referral_fixed_amount' => 100]);
+        $deal->refresh();
+
+        $referral = collect($service->preview($deal))->firstWhere('type', MlmCommissionType::Referral->value);
+        $this->assertSame(100.0, (float) $referral['amount']);
+        $this->assertNull($referral['percentage']);
+    }
+
+    public function test_referrer_who_closed_the_deal_gets_both_legs(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $this->refer($ctx, $ctx['agent'], 25);
+
+        $legs = collect(app(MlmCommissionService::class)->preview(
+            Deal::withoutGlobalScopes()->findOrFail($ctx['deal'])
+        ))->where('agent_id', $ctx['agent'])->where('type', '!=', MlmCommissionType::System->value);
+
+        $this->assertSame([MlmCommissionType::Agent->value, MlmCommissionType::Referral->value], $legs->pluck('type')->values()->all());
+        $this->assertSame(55.0, round((float) $legs->sum('amount'), 2));
+    }
+
+    /**
+     * @param  array{company: int, deal: int}  $ctx
+     */
+    private function refer(array $ctx, int $referrerId, ?float $partnerRate, ?float $dealRate = null, ?float $fixed = null): void
+    {
+        DB::table('lead_agents')->where('id', $referrerId)->update([
+            'referral_pool_rate' => $partnerRate,
+            'is_partner' => true,
+        ]);
+
+        $leadId = DB::table('leads')->insertGetId([
+            'company_id' => $ctx['company'],
+            'referred_by_agent_id' => $referrerId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('deals')->where('id', $ctx['deal'])->update([
+            'lead_id' => $leadId,
+            'referral_pool_rate' => $dealRate,
+            'referral_fixed_amount' => $fixed,
+        ]);
     }
 }

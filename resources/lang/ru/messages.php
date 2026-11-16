@@ -1,6 +1,6 @@
 <?php
 
-return array(
+return [
     'importStarted' => 'Импорт начат. Вы получите уведомление после завершения.',
     'availabilityRequestSent' => 'Запрос о доступности успешно отправлен.',
     'availabilityRequestApproved' => 'Запрос о доступности успешно одобрен.',
@@ -22,6 +22,7 @@ return array(
     'updateSuccess' => 'Успешно обновлено.',
     'dealUpdateSuccess' => 'Сделка успешно обновлена.',
     'dealLocked' => 'Эта сделка заблокирована и не может быть изменена.',
+    'dealReferralLockedByCommission' => 'Комиссия по этой сделке уже рассчитана, поэтому долю реферала больше нельзя изменить.',
     'leadUpdateSuccess' => 'Контакт успешно обновлён.',
     'leadReferrerImmutable' => 'Реферер уже указан и не может быть изменён.',
     'propertyUpdateSuccess' => 'Недвижимость успешно обновлена.',
@@ -147,4 +148,4 @@ return array(
     'resyncUserPermissionsAlreadyRunning' => 'Синхронизация прав пользователей для этой компании уже выполняется.',
     'resyncUserPermissionsSuccess' => 'Права синхронизированы для :synced пользователей. Пропущено без роли: :skipped.',
     'resyncUserPermissionsFailed' => 'Не удалось синхронизировать права пользователей. Проверьте журналы приложения и повторите попытку.',
-);
+];

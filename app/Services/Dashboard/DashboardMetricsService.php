@@ -2009,13 +2009,10 @@ class DashboardMetricsService
      * one thing this view must not leak. Below three deals the sum is
      * suppressed for the same reason.
      *
-     * KNOWN LIMITATION, not a bug: this returns zero today. distribute() pays
-     * deals.agent_id and their agent_hierarchy ancestors, and never reads
-     * leads.referred_by_agent_id — referral is not a concept the commission
-     * engine has. agent_hierarchy is also empty, so upline legs pay nothing at
-     * all. The tile renders an em dash and says so. It starts producing real
-     * numbers the day referral attribution reaches the engine and the hierarchy
-     * is populated; no dashboard change is needed then.
+     * Counts the legs preview() would write to this partner, including a
+     * referral leg on deals whose lead they introduced. The company (system)
+     * leg is excluded. Upline legs still pay nothing while agent_hierarchy is
+     * empty. Below three open deals the sum is suppressed.
      *
      * ponytail: N previews for N open referred deals (single digits today).
      * Batch the level and hierarchy lookups if a partner ever carries hundreds.

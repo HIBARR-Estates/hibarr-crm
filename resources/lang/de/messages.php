@@ -1,6 +1,6 @@
 <?php
 
-return array(
+return [
     'importStarted' => 'Import gestartet. Sie werden benachrichtigt, sobald er abgeschlossen ist.',
     'availabilityRequestSent' => 'Verfügbarkeitsanfrage erfolgreich gesendet.',
     'availabilityRequestApproved' => 'Verfügbarkeitsanfrage erfolgreich genehmigt.',
@@ -22,6 +22,7 @@ return array(
     'updateSuccess' => 'Erfolgreich aktualisiert.',
     'dealUpdateSuccess' => 'Angebot erfolgreich aktualisiert.',
     'dealLocked' => 'Dieses Angebot ist gesperrt und kann nicht geändert werden.',
+    'dealReferralLockedByCommission' => 'Die Provision für dieses Angebot wurde bereits berechnet, daher kann der Empfehlungsanteil nicht mehr geändert werden.',
     'leadUpdateSuccess' => 'Kontakt erfolgreich aktualisiert.',
     'leadReferrerImmutable' => 'Der Empfehlungsgeber ist bereits gesetzt und kann nicht geändert werden.',
     'propertyUpdateSuccess' => 'Immobilie erfolgreich aktualisiert.',
@@ -147,4 +148,4 @@ return array(
     'resyncUserPermissionsAlreadyRunning' => 'Für dieses Unternehmen läuft bereits eine Neusynchronisierung der Benutzerberechtigungen.',
     'resyncUserPermissionsSuccess' => 'Berechtigungen für :synced Benutzer neu synchronisiert. :skipped ohne Rolle übersprungen.',
     'resyncUserPermissionsFailed' => 'Die Neusynchronisierung der Benutzerberechtigungen ist fehlgeschlagen. Prüfen Sie die Anwendungsprotokolle und versuchen Sie es erneut.',
-);
+];

@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Enums\MlmCommissionStatus;
 use App\Enums\MlmCommissionType;
 use App\Models\AgentHierarchy;
-use App\Models\AgentLevelHistory;
 use App\Models\AgentMetric;
 use App\Models\LeadAgent;
 use App\Models\MlmCommission;
@@ -19,6 +18,7 @@ use Inertia\Inertia;
 class MlmAdminController extends AccountBaseController
 {
     protected CycleService $cycleService;
+
     protected LevelService $levelService;
 
     public function __construct(CycleService $cycleService, LevelService $levelService)
@@ -28,7 +28,7 @@ class MlmAdminController extends AccountBaseController
         $this->levelService = $levelService;
 
         $this->middleware(function ($request, $next) {
-            abort_403(!\App\Support\PermissionGates::canManagePartnerNetwork(user()));
+            abort_403(! \App\Support\PermissionGates::canManagePartnerNetwork(user()));
 
             return $next($request);
         });
@@ -95,13 +95,13 @@ class MlmAdminController extends AccountBaseController
                 'enable_commission_reversal' => true,
             ],
             'agents' => LeadAgent::where('company_id', company()->id)
-            ->with('user:id,name,email,image')
-            ->get()
-            ->map(fn ($a) => [
-                'id' => $a->id,
-                'name' => $a->user?->name ?? 'Unknown',
-                'email' => $a->user?->email,
-            ]),
+                ->with('user:id,name,email,image')
+                ->get()
+                ->map(fn ($a) => [
+                    'id' => $a->id,
+                    'name' => $a->user?->name ?? 'Unknown',
+                    'email' => $a->user?->email,
+                ]),
         ]);
     }
 
@@ -132,7 +132,7 @@ class MlmAdminController extends AccountBaseController
 
         $summaryStats = MlmCommission::where('company_id', $companyId)
             ->whereNull('reverted_at')
-            ->selectRaw("COALESCE(SUM(amount), 0) as total_amount")
+            ->selectRaw('COALESCE(SUM(amount), 0) as total_amount')
             ->selectRaw("COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount")
             ->selectRaw("COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as paid_amount")
             ->first();
@@ -199,6 +199,7 @@ class MlmAdminController extends AccountBaseController
                 'name' => $agent->user?->name ?? 'Unknown',
                 'email' => $agent->user?->email,
                 'image' => $agent->user?->image,
+                'is_partner' => (bool) $agent->is_partner,
             ],
             'stats' => $this->buildAgentDashboardStats($agent),
         ]);
@@ -235,7 +236,9 @@ class MlmAdminController extends AccountBaseController
                 $met = $criterion->evaluate($metricsForEvaluation);
                 $percentage = $targetValue > 0 ? min(100, ($currentValue / $targetValue) * 100) : 0;
 
-                if ($met) $metCount++;
+                if ($met) {
+                    $metCount++;
+                }
 
                 $criteriaProgress[] = [
                     'criterion' => $criterion,

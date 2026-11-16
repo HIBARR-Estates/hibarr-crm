@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { router } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
 import { message } from "antd";
 import axios from "axios";
 import DashboardLayout from "@/Components/DashboardLayout";
@@ -24,6 +24,7 @@ interface PartnerAgent {
     id: number;
     status: "enabled" | "disabled";
     is_partner: boolean;
+    referral_pool_rate?: number | null;
     referred_leads_count: number;
     /** True for an account made through Invite Partner, which can be re-invited. */
     can_resend?: boolean;
@@ -279,6 +280,17 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
                                         ? td("Enabled", { source: "en" })
                                         : td("Disabled", { source: "en" })}
                                 </Badge>
+                                <Link
+                                    href={route("mlm.agent_dashboard", agent.id)}
+                                    style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}
+                                >
+                                    {agent.referral_pool_rate != null
+                                        ? td(":rate% referral share", { source: "en" }).replace(
+                                              ":rate",
+                                              String(agent.referral_pool_rate),
+                                          )
+                                        : td("No referral share", { source: "en" })}
+                                </Link>
                                 <Badge variant="blue">
                                     {td(":count leads referred", { source: "en" }).replace(
                                         ":count",

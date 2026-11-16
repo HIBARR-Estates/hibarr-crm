@@ -13,6 +13,7 @@ import Icon from "@/Components/Redesign/primitives/Icon";
 import Button from "@/Components/Redesign/primitives/Button";
 import CopyValueButton from "@/Components/Redesign/primitives/CopyValueButton";
 import DealValueEditorModal from "./DealValueEditorModal";
+import useDealReferralCommission from "../../hooks/useDealReferralCommission";
 import useFloatingMenuPosition from "../../hooks/useFloatingMenuPosition";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
@@ -25,6 +26,7 @@ interface DealValueBlockProps {
 export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
     const { t } = useTranslation();
     const showCommission = useDealValueCommissionFlag();
+    const { save: saveReferral, saving: savingReferral } = useDealReferralCommission(deal.id);
     const [open, setOpen] = useState(false);
     const [editorOpen, setEditorOpen] = useState(false);
     const triggerRef = useRef<HTMLButtonElement>(null);
@@ -168,6 +170,7 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
     /** Readable role for a leg, in place of the raw engine leg type. */
     const roleLabel = (leg: { type: string; is_you: boolean }) => {
         if (leg.is_you) return t("pages.deals.info.value_insight.role_you");
+        if (leg.type === "referral") return t("pages.deals.info.value_insight.role_referral");
         if (leg.type === "upline") return t("pages.deals.info.value_insight.role_upline");
         return t("pages.deals.info.value_insight.role_agent");
     };
@@ -368,6 +371,15 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                             section(
                                 t("pages.deals.info.value_insight.section_commission"),
                                 <>
+                                    {breakdown.commission.referral && (
+                                        <ReferralShareFields
+                                            referral={breakdown.commission.referral}
+                                            currencySymbol={companyCurrency.symbol || companyCurrency.code}
+                                            editable={canEdit && !deal.commission_locked}
+                                            saving={savingReferral}
+                                            onSave={saveReferral}
+                                        />
+                                    )}
                                     {/* Privileged view: the legs are the makeup of
                                         the total below them, so they sit above a
                                         dashed rule rather than reading as three
@@ -488,6 +500,173 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                 dealCurrency={dealCurrency}
                 companyCurrency={companyCurrency}
             />
+        </div>
+    );
+}
+
+function ReferralShareFields({
+    referral,
+    currencySymbol,
+    editable,
+    saving,
+    onSave,
+}: {
+    referral: NonNullable<NonNullable<Deal["value_breakdown"]>["commission"]>["referral"];
+    currencySymbol: string;
+    editable: boolean;
+    saving: boolean;
+    onSave: (input: {
+        referral_pool_rate: number | null;
+        referral_fixed_amount: number | null;
+    }) => Promise<void>;
+}) {
+    const { t } = useTranslation();
+    const share = referral!;
+    const [percent, setPercent] = useState(
+        share.deal_percentage == null ? "" : String(share.deal_percentage),
+    );
+    const [amount, setAmount] = useState(
+        share.fixed_amount == null ? "" : String(share.fixed_amount),
+    );
+
+    useEffect(() => {
+        setPercent(share.deal_percentage == null ? "" : String(share.deal_percentage));
+        setAmount(share.fixed_amount == null ? "" : String(share.fixed_amount));
+    }, [share.deal_percentage, share.fixed_amount]);
+
+    const parse = (value: string) => {
+        const trimmed = value.trim();
+        if (trimmed === "") return null;
+        const number = Number(trimmed);
+        return Number.isNaN(number) ? null : number;
+    };
+
+    const percentValue = parse(percent);
+    const amountValue = parse(amount);
+    const dirty =
+        percentValue !== (share.deal_percentage ?? null) ||
+        amountValue !== (share.fixed_amount ?? null);
+
+    const inputStyle = {
+        width: "100%",
+        height: 32,
+        border: `1px solid ${T.BORDER}`,
+        borderRadius: 8,
+        padding: "0 8px",
+        fontSize: 13,
+        color: T.TEXT,
+        background: "#fff",
+    };
+
+    return (
+        <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: T.TEXT, marginBottom: 6 }}>
+                {share.referrer_name}
+            </div>
+            {editable ? (
+                <div style={{ display: "flex", gap: 8 }}>
+                    <label style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: "block", fontSize: 11, color: T.TEXT_HINT, marginBottom: 2 }}>
+                            {t("pages.deals.info.value_insight.referral_percent")}
+                        </span>
+                        <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step="0.01"
+                            value={percent}
+                            placeholder={
+                                share.partner_percentage != null
+                                    ? t("pages.deals.info.value_insight.referral_using_partner", {
+                                          rate: share.partner_percentage,
+                                      })
+                                    : ""
+                            }
+                            onChange={(event) => setPercent(event.target.value)}
+                            style={inputStyle}
+                        />
+                    </label>
+                    <label style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: "block", fontSize: 11, color: T.TEXT_HINT, marginBottom: 2 }}>
+                            {t("pages.deals.info.value_insight.referral_agreed")}
+                        </span>
+                        <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={amount}
+                            onChange={(event) => setAmount(event.target.value)}
+                            style={{ ...inputStyle, paddingRight: 28 }}
+                        />
+                        <span style={{ display: "block", marginTop: 2, fontSize: 11, color: T.TEXT_HINT }}>
+                            {currencySymbol}
+                        </span>
+                    </label>
+                </div>
+            ) : (
+                <div style={{ fontSize: 12, color: T.TEXT_MUTED }}>
+                    <div>
+                        {share.deal_percentage != null
+                            ? `${share.deal_percentage}%`
+                            : share.partner_percentage != null
+                              ? t("pages.deals.info.value_insight.referral_using_partner", {
+                                    rate: share.partner_percentage,
+                                })
+                              : t("pages.deals.info.value_insight.referral_none")}
+                    </div>
+                    {share.fixed_amount != null && (
+                        <div>
+                            {t("pages.deals.info.value_insight.referral_agreed")}: {currencySymbol}
+                            {Number(share.fixed_amount).toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
+            {share.applied === "fixed" && share.fixed_amount != null && share.fixed_amount > 0 && (
+                <div style={{ fontSize: 12, color: T.TEXT_HINT, marginTop: 4 }}>
+                    {t("pages.deals.info.value_insight.referral_replaced", {
+                        amount: `${currencySymbol}${Number(share.percentage_amount).toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                        })}`,
+                    })}
+                </div>
+            )}
+            {((share.applied === "percentage" && (share.percentage ?? 0) === 0) ||
+                (share.applied === "fixed" && share.fixed_amount === 0)) && (
+                <div style={{ fontSize: 12, color: T.TEXT_HINT, marginTop: 4 }}>
+                    {t("pages.deals.info.value_insight.referral_none")}
+                </div>
+            )}
+            {share.base === "package" && share.applied === "percentage" && (
+                <div style={{ fontSize: 12, color: T.TEXT_HINT, marginTop: 4 }}>
+                    {t("pages.deals.info.value_insight.referral_package_base")}
+                </div>
+            )}
+            {share.capped && (
+                <div style={{ fontSize: 12, color: T.TEXT_HINT, marginTop: 4 }}>
+                    {t("pages.deals.info.value_insight.referral_capped")}
+                </div>
+            )}
+            {editable && dirty && (
+                <Button
+                    variant="navy"
+                    size="sm"
+                    style={{ marginTop: 8 }}
+                    disabled={saving}
+                    onClick={() =>
+                        onSave({
+                            referral_pool_rate: percentValue,
+                            referral_fixed_amount: amountValue,
+                        })
+                    }
+                >
+                    {t("pages.deals.info.value_insight.referral_save")}
+                </Button>
+            )}
         </div>
     );
 }

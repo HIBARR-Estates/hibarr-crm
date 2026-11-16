@@ -111,6 +111,20 @@ const Show = ({
                             <Descriptions.Item label="Agent ID">
                                 {agent.id}
                             </Descriptions.Item>
+                            {agent.is_partner && (
+                                <Descriptions.Item label="Referral share">
+                                    <Link
+                                        href={route(
+                                            "mlm.agent_dashboard",
+                                            agent.id,
+                                        )}
+                                    >
+                                        {agent.referral_pool_rate != null
+                                            ? `${agent.referral_pool_rate}% of the commission pool`
+                                            : "No referral share"}
+                                    </Link>
+                                </Descriptions.Item>
+                            )}
                             <Descriptions.Item label="Total Deals">
                                 {agent.deals_count ?? deals.length}
                             </Descriptions.Item>
