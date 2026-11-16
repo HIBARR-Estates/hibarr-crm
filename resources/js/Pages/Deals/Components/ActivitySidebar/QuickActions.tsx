@@ -34,7 +34,6 @@ export default function QuickActions({ deal, permissions }: Props) {
     const {
         isEnabled: softphoneFeatureEnabled,
         devices,
-        hasLine,
         activeDeviceId,
         call: softphoneCall,
     } = useSoftphone();
@@ -46,8 +45,8 @@ export default function QuickActions({ deal, permissions }: Props) {
         softphoneFeatureEnabled &&
         props.featureFlags?.["crm.softphone"] === true &&
         hasSoftphonePermission &&
-        hasLine;
-    const canUseLine = (softphoneFeatureEnabled && props.featureFlags?.["crm.softphone"] === true && hasSoftphonePermission) || olEnabled;
+        devices.length > 0;
+    const canUseLine = useSoftphonePath || olEnabled;
 
     const [conversationModalOpen, setConversationModalOpen] = useState(false);
     const [meetingModalOpen, setMeetingModalOpen] = useState(false);
@@ -108,9 +107,7 @@ export default function QuickActions({ deal, permissions }: Props) {
         }
         if (olEnabled) {
             void initiateCall(contactPhone, { type: "deal", id: deal.id });
-            return;
         }
-        window.open(`tel:${contactPhone.replace(/[^\d+]/g, "")}`, "_blank");
     };
 
     const handleQuickAction = (action: string) => {

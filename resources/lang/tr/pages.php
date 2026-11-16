@@ -12,6 +12,7 @@ return [
     'telephony' => [
         'call' => 'Ara',
         'select_line' => 'Arama için hat seçin',
+        'select_number' => 'Numara seçin',
         'active_line_badge' => 'Aktif',
         'calling_number' => '{{phone}} aranıyor…',
         'softphone_not_registered' => 'Telefon hattınız bağlı değil — telefon panelinden bir hat seçin.',
@@ -2941,7 +2942,7 @@ return [
         'live_monitor' => 'Kulaklıkla canlı dinle (yankıya dikkat)',
         'mic_gain_boost' => 'Mikrofon Kazanç Artışı (Pre-Amp)',
         'mic_gain_desc' => 'Kısık mikrofon sesini yükseltir ve ses netliğini artırır.',
-        'mic_gain_default' => 'Varsayılana Sıfırla (2.5x / +8 dB)',
+        'mic_gain_default' => 'Varsayılana Sıfırla (2.5x / +8 dB)',
         'reset_gain' => 'Sıfırla',
         'microphone' => 'Mikrofon',
         'incoming_calls_active' => 'Aramalar Aktif',
