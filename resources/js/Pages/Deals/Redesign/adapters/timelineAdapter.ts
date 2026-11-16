@@ -55,6 +55,8 @@ export interface TimelineEventViewModel {
          * storage URL is a durable bearer credential and is never exposed.
          */
         downloadUrl: string | null;
+        /** Opens the recording in its own tab (Bunny's player for WebM). */
+        openUrl: string | null;
         expired: boolean;
         userId?: number | null;
     };
@@ -102,6 +104,12 @@ function buildCallDetails(event: CrmEvent): TimelineEventViewModel["call"] {
         downloadUrl:
             recordingId !== null
                 ? route("call-recordings.download", recordingId)
+                : null,
+        // Offered when the player cannot play the file (WebM recordings play
+        // only in Bunny's own player, which this opens in a new tab).
+        openUrl:
+            recordingId !== null
+                ? route("call-recordings.open", recordingId)
                 : null,
         // Expiry is not carried in the event metadata; the play endpoint
         // answers 410 for an expired recording and the player surfaces that.

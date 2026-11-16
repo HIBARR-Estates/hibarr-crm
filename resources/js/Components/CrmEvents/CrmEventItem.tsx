@@ -208,6 +208,12 @@ export default function CrmEventItem({ event, compact = false }: Props) {
         recordingId !== null
             ? route("call-recordings.download", recordingId)
             : null;
+    // The timeline does not know the file's format; a WebM recording fails
+    // in the player and is then offered here, in Bunny's own player.
+    const recordingOpenUrl =
+        recordingId !== null
+            ? route("call-recordings.open", recordingId)
+            : null;
     const recordingDuration =
         typeof meta.duration === "number" ? meta.duration : null;
     const recordingFilename =
@@ -350,6 +356,7 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                     <RecordingPlayer
                         playUrl={recordingPlayUrl}
                         downloadUrl={recordingDownloadUrl}
+                        openUrl={recordingOpenUrl}
                         durationSeconds={recordingDuration}
                         filename={recordingFilename}
                     />
