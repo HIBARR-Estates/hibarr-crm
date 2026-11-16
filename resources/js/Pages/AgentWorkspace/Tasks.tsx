@@ -13,10 +13,12 @@ import TasksTable, { TasksTableSkeleton } from "./tasks/TasksTable";
 import { countViews, taskViews } from "./tasks/format";
 import type { TaskChip, TaskScope, TasksPayload } from "./tasks/types";
 import useTaskListWork from "./tasks/useTaskListWork";
+import useAgentTaskCreate from "./tasks/useAgentTaskCreate";
 import "./tasks/tasks.css";
 
 // Opened on demand, so their code stays out of the first load.
 const TasksFilterModal = lazy(() => import("./tasks/TasksFilterModal"));
+const AgentTaskModal = lazy(() => import("./tasks/AgentTaskModal"));
 const QueueTaskModal = lazy(() => import("@/Components/Redesign/modals/QueueTaskModal"));
 const TaskSnoozeModal = lazy(() => import("@/Components/Redesign/modals/TaskSnoozeModal"));
 
@@ -74,7 +76,18 @@ export default function Tasks({
     const clock = useMinuteClock();
     // The server's clock for the first paint, the browser's once it ticks.
     const nowMs = Math.max(clock, Date.parse(now) || 0);
-    const { url } = usePage<PageProps>();
+    const { url, props: pageProps } = usePage<PageProps>();
+    const addScope = (pageProps.auth?.permissions as Record<string, string> | undefined)?.add_tasks;
+    const canAddTask = addScope === "all" || addScope === "added";
+
+    // + New task (L7-17): the agent task form, then the list re-reads its rows.
+    const [newTaskOpen, setNewTaskOpen] = useState(false);
+    const taskCreate = useAgentTaskCreate({
+        onCreated: () => {
+            setNewTaskOpen(false);
+            router.reload({ only: ["tasks"] });
+        },
+    });
     const { openDrawer } = useFilter();
 
     const [chip, setChip] = useState<TaskChip | null>(null);
@@ -154,7 +167,14 @@ export default function Tasks({
         <>
             <Head title={pageTitle} />
             <AgentSecondRow>
-                <TaskScopePills scope={shownScope} canSeeTeam={canSeeTeam} onScope={changeScope} filterCount={filterCount(filters)} onFilters={openFilters} />
+                <TaskScopePills
+                    scope={shownScope}
+                    canSeeTeam={canSeeTeam}
+                    onScope={changeScope}
+                    filterCount={filterCount(filters)}
+                    onFilters={openFilters}
+                    onNewTask={canAddTask ? () => setNewTaskOpen(true) : undefined}
+                />
             </AgentSecondRow>
 
             <div className="agent-tk">
@@ -170,6 +190,21 @@ export default function Tasks({
             </div>
 
             <Suspense fallback={null}>
+                {newTaskOpen ? (
+                    <AgentTaskModal
+                        open
+                        onClose={() => {
+                            if (taskCreate.saving) return;
+                            taskCreate.clearErrors();
+                            setNewTaskOpen(false);
+                        }}
+                        onSubmit={taskCreate.submit}
+                        saving={taskCreate.saving}
+                        errors={taskCreate.errors}
+                        columns={taskBoardColumns ?? []}
+                        categories={categories ?? []}
+                    />
+                ) : null}
                 {filtersMounted ? (
                     <TasksFilterModal
                         categories={categories}

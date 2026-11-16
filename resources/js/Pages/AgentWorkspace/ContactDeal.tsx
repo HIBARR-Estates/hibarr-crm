@@ -21,7 +21,6 @@ import DealAnalysisModal from "@/Pages/Deals/Redesign/components/analysis/DealAn
 import DealPipelineStepper, { normalizeFieldKey, resolveSectionForField } from "@/Pages/Deals/Redesign/components/header/DealPipelineStepper";
 import type { StageRequirementCondition } from "@/Pages/Deals/Redesign/adapters/stageRequirementEvaluator";
 import DealAddNoteModal from "@/Pages/Deals/Redesign/components/workspace/DealAddNoteModal";
-import DealAddTaskModal from "@/Pages/Deals/Redesign/components/workspace/DealAddTaskModal";
 import DealMeetingDetailModal from "@/Pages/Deals/Redesign/components/workspace/DealMeetingDetailModal";
 import DealNoteDetailModal from "@/Pages/Deals/Redesign/components/workspace/DealNoteDetailModal";
 import DealScheduleMeetingModal from "@/Pages/Deals/Redesign/components/workspace/DealScheduleMeetingModal";
@@ -37,6 +36,11 @@ import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdap
 import { canEditLead } from "@/Pages/Leads/Redesign/adapters/leadEditAccess";
 import type { EditOptions } from "./edit/leadEditForm";
 import type { LeadCreateKind } from "@/Pages/Leads/Redesign/components/workspace/LeadCreateModals";
+import AgentTaskModal from "./tasks/AgentTaskModal";
+import useAgentTaskCreate from "./tasks/useAgentTaskCreate";
+import { patchTaskListExtrasCounts } from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
+import type { Task as WorkspaceTask } from "@/Types/Task";
+import type { TaskLinkRef } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
 import ActivityCards, { SHOW_ACTIVITY_CARD, type ActivityPermissions, type ActivitySource } from "./contact/ActivityCards";
 import AiSummaryPanel from "./contact/AiSummaryPanel";
 import { NewActivityProvider } from "./contact/NewActivityContext";
@@ -216,6 +220,31 @@ function ContactDealInner(props: ContactDealProps) {
 
     const contact = deal.contact;
     const restricted = props.leadRestricted ?? null;
+
+    // Add task (L7-33): linked to the deal and, where the lead is theirs, the person too.
+    const { setTasks } = useDealWorkspace();
+    const taskLinks = useMemo<TaskLinkRef[]>(
+        () => [
+            { type: "deal", id: deal.id, name: deal.name ?? "" },
+            ...(contact && !restricted ? [{ type: "lead" as const, id: contact.id, name: contact.client_name ?? "" }] : []),
+        ],
+        [deal.id, deal.name, contact, restricted],
+    );
+    const taskCreate = useAgentTaskCreate({
+        onCreated: (task) => {
+            if (task) setTasks((prev) => [task as unknown as (typeof prev)[number], ...prev.filter((item) => item.id !== task.id)]);
+            closeCreate();
+        },
+        onExtras: (task, result) =>
+            setTasks((prev) => patchTaskListExtrasCounts(prev as unknown as WorkspaceTask[], task.id, result) as unknown as typeof prev),
+        fallbackAssignee: deal.lead_agent?.user?.id ?? deal.lead_agent?.user_id ?? deal.agent?.user?.id ?? deal.agent?.user_id ?? null,
+        sourceEmailMessageId,
+    });
+    const closeTask = () => {
+        if (taskCreate.saving) return;
+        taskCreate.clearErrors();
+        closeCreate();
+    };
     const dealHeader = useDealHeaderData(deal);
 
     // ----- key facts: the person, the analysis answers, the deal's budget -----
@@ -616,15 +645,18 @@ function ContactDealInner(props: ContactDealProps) {
                 onClose={() => setBriefId(null)}
             />
             <DealDetailsModal target={details} onClose={() => setDetails(null)} props={props} model={model} showCompletionDot={showCompletionDot} />
-            <DealAddTaskModal
+            <AgentTaskModal
                 open={createKind === "task"}
-                onClose={closeCreate}
-                dealId={deal.id}
-                dealName={deal.name}
-                dealAgentUserId={
-                    deal.lead_agent?.user?.id ?? deal.lead_agent?.user_id ?? deal.agent?.user?.id ?? deal.agent?.user_id ?? null
-                }
-                sourceEmailMessageId={sourceEmailMessageId}
+                onClose={closeTask}
+                onSubmit={taskCreate.submit}
+                saving={taskCreate.saving}
+                errors={taskCreate.errors}
+                columns={taskBoardColumns}
+                categories={(props as { taskCategories?: Array<{ id: number; category_name: string }> }).taskCategories ?? []}
+                lockedLinks={taskLinks}
+                subtitle={t(restricted || !contact ? "pages.agent_workspace.task_form.subtitle_deal_only" : "pages.agent_workspace.task_form.subtitle_deal", {
+                    name: contact?.client_name ?? deal.name ?? "",
+                })}
             />
             <DealScheduleMeetingModal
                 open={createKind === "meeting"}

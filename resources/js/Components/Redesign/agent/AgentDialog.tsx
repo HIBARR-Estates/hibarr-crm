@@ -21,6 +21,8 @@ interface AgentDialogProps {
     closeLabel: string;
     /** Width cap in px; the dialog is full width on a phone. */
     width?: number;
+    /** A form (canvas L7-32, L7-33): white footer with the buttons on the right, and no closing on a stray backdrop click. */
+    form?: boolean;
     children: ReactNode;
 }
 
@@ -41,6 +43,7 @@ export default function AgentDialog({
     footer,
     closeLabel,
     width = 880,
+    form = false,
     children,
 }: AgentDialogProps) {
     const titleId = useId();
@@ -48,10 +51,10 @@ export default function AgentDialog({
         <ModalShell
             open={open}
             onClose={onClose}
-            closeOnBackdrop
+            closeOnBackdrop={!form}
             ariaLabelledBy={titleId}
             overlayClassName="agent-dlg-overlay"
-            panelClassName="agent-dlg"
+            panelClassName={form ? "agent-dlg agent-dlg--form" : "agent-dlg"}
             panelStyle={{ maxWidth: `min(${width}px, 100%)` }}
             initialFocus="panel"
             trapFocus

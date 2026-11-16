@@ -1148,6 +1148,11 @@ button .agent-new-tag {
     background: #fafbfc;
 }
 
+/* A form dialog: the footer is part of the white sheet. */
+.agent-dlg--form .agent-dlg__foot {
+    background: var(--dr-white);
+}
+
 .agent-dlg__spacer {
     flex: 1 1 auto;
 }

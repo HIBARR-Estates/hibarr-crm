@@ -33,6 +33,11 @@ import MarketingSection from "./deal/sections/MarketingSection";
 import QualificationSection from "./deal/sections/QualificationSection";
 import type { Note } from "@/Types/api/note";
 import LeadEditPage from "./edit/LeadEditPage";
+import AgentTaskModal from "./tasks/AgentTaskModal";
+import useAgentTaskCreate from "./tasks/useAgentTaskCreate";
+import { patchTaskListExtrasCounts } from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
+import type { TaskLinkRef } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
+import type { Task as WorkspaceTask } from "@/Types/Task";
 import useAgentMerge from "./contact/useAgentMerge";
 import type { EditOptions } from "./edit/leadEditForm";
 import ActivityCards, { type ActivityPermissions, type ActivitySource } from "./contact/ActivityCards";
@@ -158,6 +163,23 @@ function ContactLead(props: LeadRedesignProps) {
     const afterMerge = useAgentMerge(lead.id);
 
     const [createKind, setCreateKind] = useState<LeadCreateKind | null>(null);
+
+    // Add task (L7-33), linked to this person.
+    const { addTask, setTasks } = useLeadWorkspace();
+    const taskLinks = useMemo<TaskLinkRef[]>(() => [{ type: "lead", id: lead.id, name: lead.client_name ?? "" }], [lead.id, lead.client_name]);
+    const taskCreate = useAgentTaskCreate({
+        onCreated: (task) => {
+            if (task) addTask(task as unknown as Parameters<typeof addTask>[0]);
+            setCreateKind(null);
+        },
+        onExtras: (task, result) =>
+            setTasks((prev) => patchTaskListExtrasCounts(prev as unknown as WorkspaceTask[], task.id, result) as unknown as typeof prev),
+    });
+    const closeTask = () => {
+        if (taskCreate.saving) return;
+        taskCreate.clearErrors();
+        setCreateKind(null);
+    };
     const [editOpen, setEditOpen] = useState(false);
     const [confirmLost, setConfirmLost] = useState(false);
     const [openTaskId, setOpenTaskId] = useState<number | null>(null);
@@ -407,8 +429,19 @@ function ContactLead(props: LeadRedesignProps) {
             </div>
             )}
 
+            <AgentTaskModal
+                open={createKind === "task"}
+                onClose={closeTask}
+                onSubmit={taskCreate.submit}
+                saving={taskCreate.saving}
+                errors={taskCreate.errors}
+                columns={props.taskBoardColumns ?? []}
+                categories={props.taskCategories ?? []}
+                lockedLinks={taskLinks}
+                subtitle={t("pages.agent_workspace.task_form.subtitle_lead", { name: lead.client_name ?? "" })}
+            />
             <LeadCreateModals
-                open={createKind}
+                open={createKind === "task" ? null : createKind}
                 onClose={() => setCreateKind(null)}
                 meetingTypes={props.meetingTypes ?? []}
                 taskBoardColumns={props.taskBoardColumns ?? []}
