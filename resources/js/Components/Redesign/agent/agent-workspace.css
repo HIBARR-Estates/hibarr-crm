@@ -1258,3 +1258,140 @@ button .agent-new-tag {
     color: var(--dr-text-hint);
     font-size: 12px;
 }
+
+/* Create deal dialog (canvas L7-34). */
+.agent-cdm {
+    padding: 16px 20px 8px;
+}
+.agent-cdm__diamond {
+    width: 13px;
+    height: 13px;
+    border-radius: 2px;
+    background: var(--dr-blue);
+    transform: rotate(45deg);
+}
+.agent-cdm__steps {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0 0 18px;
+    padding: 0;
+    list-style: none;
+}
+.agent-cdm__stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--dr-text-muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+.agent-cdm__stepper + .agent-cdm__stepper::before {
+    content: "";
+    width: 36px;
+    height: 1px;
+    margin-right: 6px;
+    background: var(--dr-border);
+}
+.agent-cdm__num {
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--dr-border);
+    border-radius: 50%;
+    font-size: 11.5px;
+    font-weight: 700;
+}
+.agent-cdm__stepper--current {
+    color: var(--dr-text);
+}
+.agent-cdm__stepper--current .agent-cdm__num {
+    border-color: var(--dr-navy);
+    background: var(--dr-navy);
+    color: var(--dr-white);
+}
+.agent-cdm__stepper--done .agent-cdm__num {
+    border-color: var(--dr-green);
+    background: var(--dr-green);
+    color: var(--dr-white);
+}
+.agent-cdm__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 14px;
+}
+.agent-cdm__grid > * {
+    min-width: 0;
+}
+.agent-cdm .modal-field > label {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--dr-text);
+}
+.agent-cdm__f--name {
+    order: 0;
+    grid-column: 1 / -1;
+}
+.agent-cdm__f--pipeline { order: 1; }
+.agent-cdm__f--stage { order: 2; }
+.agent-cdm__f--agent { order: 3; }
+.agent-cdm__f--category { order: 4; }
+.agent-cdm__f--package { order: 5; }
+.agent-cdm__f--product { order: 6; }
+.agent-cdm__f--value { order: 7; }
+.agent-cdm__kickoff {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    border: 1.5px solid var(--dr-blue);
+    border-radius: 10px;
+    background: var(--dr-blue-light);
+    color: var(--dr-text);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.agent-cdm__kickoff input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--dr-blue);
+}
+.agent-cdm__step {
+    color: var(--dr-text-muted);
+    font-size: 13px;
+}
+@media (max-width: 560px) {
+    .agent-cdm__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .agent-cdm__stepper + .agent-cdm__stepper::before {
+        width: 14px;
+    }
+}
+
+/* A pill row with an action after its tabs: the tab list joins the row's flex. */
+.agent-pills__tabs {
+    display: contents;
+}
+
+/* "+ New deal" after a person's pills (canvas L7-34): a light filled action. */
+.agent-pills__pill--new,
+.agent-pills__pill--new:visited,
+.agent-pills__pill--new:active {
+    border-color: var(--dr-navy-soft);
+    background: var(--dr-navy-soft);
+    color: var(--dr-navy);
+    font-weight: 600;
+    cursor: pointer;
+}
+.agent-pills__pill--new:hover:not(:disabled) {
+    border-color: var(--dr-white);
+    background: var(--dr-white);
+    color: var(--dr-navy);
+}

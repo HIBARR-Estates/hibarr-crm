@@ -333,8 +333,10 @@ class LeadContactController extends AccountBaseController
         // Only qualified leads have deals, and once one exists the page is
         // about the deal: open on the first deal the viewer may see (open
         // deals first). The deal page runs its own access check.
+        // "+ New deal" on a deal page comes here with ?new_deal=1 to open the
+        // create-deal form on the person, so that one request stays.
         $deals = $contactDeals->forLead((int) $id, user());
-        if ($deals !== []) {
+        if ($deals !== [] && ! $request->boolean('new_deal')) {
             return redirect()->route('agent.people.deal', ['lead' => (int) $id, 'deal' => $deals[0]['id']]);
         }
 

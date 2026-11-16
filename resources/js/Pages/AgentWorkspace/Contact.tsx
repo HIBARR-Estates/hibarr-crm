@@ -158,6 +158,21 @@ function ContactLead(props: LeadRedesignProps) {
         };
     }, [mission, resumePending]);
     const dealCreate = useLeadDealCreate(lead);
+    // "+ New deal" on a deal page lands here with ?new_deal=1 (the page
+    // otherwise redirects to the first deal): open the form straight away,
+    // and go back to that deal if the agent cancels.
+    const [newDealFromDeal, setNewDealFromDeal] = useState(
+        () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new_deal") === "1",
+    );
+    useEffect(() => {
+        if (!newDealFromDeal) return;
+        mission.openCreateDeal();
+        const url = new URL(window.location.href);
+        url.searchParams.delete("new_deal");
+        window.history.replaceState(window.history.state, "", url.toString());
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on arrival
+    }, []);
+    const canStartDeal = lifecycle.statusKey === "qualified" || newDealFromDeal;
     const deleteLead = useLeadDelete(lead);
     const duplicates = useLeadDuplicates(lead.id);
     const afterMerge = useAgentMerge(lead.id);
@@ -322,6 +337,13 @@ function ContactLead(props: LeadRedesignProps) {
                     onChange={() => {}}
                     ariaLabel={t("pages.agent_workspace.contact.views_aria")}
                     idPrefix="agent-contact"
+                    trailing={
+                        canStartDeal ? (
+                            <button type="button" className="agent-pills__pill agent-pills__pill--new" onClick={mission.openCreateDeal}>
+                                + {t("pages.agent_workspace.contact.new_deal")}
+                            </button>
+                        ) : undefined
+                    }
                 />
             </AgentSecondRow>
 
@@ -468,6 +490,16 @@ function ContactLead(props: LeadRedesignProps) {
                 onCloseQualification={() => setQualificationOpen(false)}
                 pageProps={props}
                 onDealCreated={(deal) => router.visit(dealHref(deal.id))}
+                createDealAgent={{
+                    subtitle: [lead.client_name, t("pages.agent_workspace.contact.lead_pill", { status: td(lifecycle.statusLabel, { source: "en" }) })]
+                        .filter(Boolean)
+                        .join(" · "),
+                }}
+                onCreateDealCancelled={() => {
+                    if (!newDealFromDeal) return;
+                    setNewDealFromDeal(false);
+                    window.history.back();
+                }}
                 qualificationPlacement="under-dock"
             />
             <LeadTaskDetailModal

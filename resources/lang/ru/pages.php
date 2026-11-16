@@ -4257,6 +4257,7 @@ return [
             'brief' => [
                 'open' => 'Бриф',
             ],
+            'new_deal' => 'Новая сделка',
         ],
         'deal' => [
             'facts' => [

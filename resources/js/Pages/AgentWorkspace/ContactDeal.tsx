@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Head, usePage } from "@inertiajs/react";
+import { Head, Link, usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
 import { AgentLinkPills, AgentRelatedRecord, AgentSecondRow, AgentWorkspaceLayout, useMinuteClock } from "@/Components/Redesign/agent";
 import { initialsFromName } from "@/Components/Redesign";
@@ -438,7 +438,18 @@ function ContactDealInner(props: ContactDealProps) {
         <NewActivityProvider value={newActivityScope}>
             <Head title={name} />
             <AgentSecondRow>
-                <AgentLinkPills pills={dealPills} ariaLabel={t("pages.agent_workspace.contact.deals_aria")} />
+                <AgentLinkPills
+                    pills={dealPills}
+                    ariaLabel={t("pages.agent_workspace.contact.deals_aria")}
+                    trailing={
+                        // A new deal is made on the person (canvas L7-34); the deal-only view can't open them.
+                        !restricted && leadId ? (
+                            <Link href={`${route("agent.people.show", { lead: leadId })}?new_deal=1`} className="agent-pills__pill agent-pills__pill--new">
+                                + {t("pages.agent_workspace.contact.new_deal")}
+                            </Link>
+                        ) : undefined
+                    }
+                />
             </AgentSecondRow>
             <DealPinnedBar
                 visible={scrolledPast && !contactEditing}

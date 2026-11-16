@@ -4218,6 +4218,7 @@ return [
             'brief' => [
                 'open' => 'Brifing',
             ],
+            'new_deal' => 'Yeni anlaşma',
         ],
         'deal' => [
             'facts' => [

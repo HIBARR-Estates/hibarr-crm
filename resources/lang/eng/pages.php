@@ -4397,6 +4397,7 @@ return [
             'brief' => [
                 'open' => 'Brief',
             ],
+            'new_deal' => 'New deal',
         ],
         'deal' => [
             'facts' => [
