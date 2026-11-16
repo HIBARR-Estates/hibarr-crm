@@ -45,6 +45,8 @@ import AiSummaryPanel from "./contact/AiSummaryPanel";
 import LeadFilesSection from "./contact/LeadFilesSection";
 import { NewActivityProvider } from "./contact/NewActivityContext";
 import ContactHeader, { leadPhone } from "./contact/ContactHeader";
+import BookingBanner, { BookingPendingRow } from "./contact/BookingBanner";
+import { bookingPendingOf, firstNameOf } from "./contact/bookingPending";
 import GoalPanel from "./contact/GoalPanel";
 import KeyFacts from "./contact/KeyFacts";
 import { LeadPathSteps } from "./contact/LeadStatusPath";
@@ -134,6 +136,15 @@ function ContactLead(props: LeadRedesignProps) {
     // A person with a deal is shown in the deal's state, so deals open there.
     const dealHref = useCallback((dealId: number) => route("agent.people.deal", { lead: lead.id, deal: dealId }), [lead.id]);
     const mission = useLeadMissionFlow({ qualification, deals, changeStatus, setQualificationOpen, dealHref });
+    // Booking pending (canvas L7-26): qualified, the consultation link went out
+    // at the wrap-up, and no deal yet. The booking's webhook creates the deal.
+    const booking = useMemo(
+        () =>
+            showQualification && lifecycle.bannerMode === "qualified" && deals.length === 0
+                ? bookingPendingOf(qualification.current)
+                : null,
+        [deals.length, lifecycle.bannerMode, qualification.current, showQualification],
+    );
     // "Continue qualification" on the call card, from any page, lands here and opens the running one.
     // The page opens first; the qualification follows a frame later (canvas L8).
     const resumeRequest = useResumeQualificationRequest(lead.id);
@@ -377,6 +388,7 @@ function ContactLead(props: LeadRedesignProps) {
                                     onMoreAction={onMoreAction}
                                 />
                             </div>
+                            {booking ? <BookingBanner pending={booking} name={firstNameOf(lead.client_name)} nowMs={nowMs} timeZone={timezone} /> : null}
                             <StatusBar
                                 label={t("pages.agent_workspace.contact.status.title")}
                                 note={t("pages.agent_workspace.contact.status.note")}
@@ -425,6 +437,7 @@ function ContactLead(props: LeadRedesignProps) {
                                 onOpenTask={setOpenTaskId}
                                 onOpenMeeting={setOpenMeetingId}
                                 onOpenNote={setOpenNoteId}
+                                comingUpPinned={booking ? <BookingPendingRow name={firstNameOf(lead.client_name)} /> : undefined}
                             />
                         </div>
                     </div>
@@ -437,6 +450,9 @@ function ContactLead(props: LeadRedesignProps) {
                                 qualification={qualification}
                                 busy={qualification.isStartingFlow || qualification.resumingId != null}
                                 onAction={mission.handleMissionAction}
+                                booking={booking}
+                                nowMs={nowMs}
+                                timeZone={timezone}
                             />
                         </aside>
                     ) : null}

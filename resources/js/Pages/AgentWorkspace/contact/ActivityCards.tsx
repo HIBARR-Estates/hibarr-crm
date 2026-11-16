@@ -58,6 +58,8 @@ interface ActivityCardsProps {
     onOpenNote: (id: number) => void;
     /** Opens the brief for an upcoming meeting (the deal state); left out where there is none. */
     onOpenBrief?: (id: number) => void;
+    /** A row held at the top of Coming up that is not a task or meeting yet (a pending booking). */
+    comingUpPinned?: ReactNode;
     /**
      * The deal-only view: no Last touches (the timeline also carries the lead's
      * own events), Notes titled for the deal, and these cards after them.
@@ -179,7 +181,18 @@ function shortDay(ms: number, nowMs: number, timeZone: string, locale: string, t
 
 type ComingUpFilter = "all" | "task" | "meeting";
 
-function ComingUpCard({ source, comingUpTitle, nowMs, timeZone, permissions, onCreate, onOpenTask, onOpenMeeting, onOpenBrief }: ActivityCardsProps) {
+function ComingUpCard({
+    source,
+    comingUpTitle,
+    nowMs,
+    timeZone,
+    permissions,
+    onCreate,
+    onOpenTask,
+    onOpenMeeting,
+    onOpenBrief,
+    comingUpPinned,
+}: ActivityCardsProps) {
     const { t, locale } = useTranslation();
     const [filter, setFilter] = useState<ComingUpFilter>("all");
     const todayLabel = t("pages.agent_workspace.today.title");
@@ -194,6 +207,8 @@ function ComingUpCard({ source, comingUpTitle, nowMs, timeZone, permissions, onC
     );
     const loading = (tasksLoading && tasks.length === 0) || (meetingsLoading && meetings.length === 0);
     const shown = filter === "all" ? items : items.filter((item) => item.kind === filter);
+    // The pinned row is a meeting to be: it stays under All and Meetings.
+    const pinned = comingUpPinned && filter !== "task" ? comingUpPinned : null;
     // Filters only help when the card can hold both kinds.
     const filterable = permissions.viewTasks && permissions.viewMeetings && items.length > 0;
 
@@ -235,7 +250,7 @@ function ComingUpCard({ source, comingUpTitle, nowMs, timeZone, permissions, onC
         >
             {loading ? (
                 <CardSkeleton />
-            ) : items.length === 0 ? (
+            ) : items.length === 0 && !comingUpPinned ? (
                 // Nothing ahead: shown in amber as needing input (canvas L7-47), since
                 // an open lead or deal should always have a next step.
                 <div className="agent-card__gap" role="status">
@@ -247,10 +262,11 @@ function ComingUpCard({ source, comingUpTitle, nowMs, timeZone, permissions, onC
                     </span>
                     <NewActivityButton onCreate={onCreate} allowed={permissions.create} size="sm" tone="navy" />
                 </div>
-            ) : shown.length === 0 ? (
+            ) : shown.length === 0 && !pinned ? (
                 <NoMatch />
             ) : (
                 <ul className="agent-card__list">
+                    {pinned}
                     {shown.map((item) => (
                         <li key={`${item.kind}-${item.id}`} className={`agent-upcoming agent-ts--${item.state}`}>
                             <button

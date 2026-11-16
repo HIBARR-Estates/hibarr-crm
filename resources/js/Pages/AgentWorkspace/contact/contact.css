@@ -1232,3 +1232,175 @@
     }
 }
 .agent-statusbar__main > .agent-path__chip { align-self: flex-start; }
+
+/* ---------- booking pending (canvas L7-26) ---------- */
+.agent-booking {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 12px;
+    margin: 0 20px 14px;
+    padding: 11px 14px;
+    border: 1px solid var(--dr-time-soon-border);
+    border-radius: 12px;
+    background: var(--dr-time-soon-bg);
+    color: var(--dr-text);
+}
+
+.agent-booking__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border: 1px solid var(--dr-time-soon-border);
+    border-radius: 999px;
+    background: var(--dr-white);
+    color: var(--dr-time-soon-text);
+    font-size: 12px;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.agent-booking__pill::before,
+.agent-upcoming--pending .agent-upcoming__state::before {
+    width: 7px;
+    height: 7px;
+    flex: 0 0 7px;
+    border-radius: 50%;
+    background: var(--dr-time-soon-solid);
+    content: "";
+}
+
+.agent-booking__text {
+    flex: 1 1 320px;
+    min-width: 0;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.agent-booking__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.agent-booking__btn {
+    display: inline-flex;
+    height: 30px;
+    align-items: center;
+    gap: 6px;
+    padding: 0 11px;
+    border: 1px solid #cdd3dc;
+    border-radius: 8px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-booking__btn:hover {
+    border-color: var(--dr-time-soon-solid);
+    color: var(--dr-text);
+}
+
+.agent-booking__btn:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+.agent-upcoming--pending .agent-upcoming__open {
+    border-color: var(--dr-time-soon-border);
+    background: var(--dr-time-soon-bg);
+    cursor: default;
+}
+
+.agent-upcoming--pending .agent-upcoming__day,
+.agent-upcoming--pending .agent-upcoming__state {
+    color: var(--dr-time-soon-text);
+}
+
+.agent-upcoming--pending .agent-upcoming__state {
+    border: 1px solid var(--dr-time-soon-border);
+}
+
+/* Goal panel while the booking is pending: a checklist of what is left. */
+.agent-goal__checks {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 2px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-goal__check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 11px;
+    border-radius: 9px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+}
+
+.agent-goal__check--done {
+    background: color-mix(in srgb, var(--dr-white) 14%, transparent);
+    color: var(--dr-white);
+}
+
+.agent-goal__box {
+    display: inline-flex;
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--dr-text-hint);
+    border-radius: 5px;
+}
+
+.agent-goal__check--done .agent-goal__box {
+    border-color: var(--dr-white);
+    background: var(--dr-white);
+    color: var(--goal-ink);
+}
+
+.agent-goal__check-body {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 1px;
+    font-size: 13px;
+}
+
+.agent-goal__check-body > span {
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.agent-goal__note {
+    margin: 2px 0 0;
+    color: color-mix(in srgb, var(--dr-white) 82%, transparent);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+@media (max-width: 767px) {
+    .agent-booking {
+        margin: 0 14px 14px;
+    }
+
+    .agent-booking__actions {
+        width: 100%;
+    }
+
+    .agent-booking__btn {
+        height: 40px;
+        flex: 1 1 0;
+        justify-content: center;
+    }
+}

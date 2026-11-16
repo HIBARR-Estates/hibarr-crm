@@ -20,6 +20,7 @@ import type useLeadQualificationWorkspace from "@/Pages/Leads/Redesign/hooks/use
 import type { LeadMissionCtaAction } from "@/Pages/Leads/Redesign/types";
 import type { Lead } from "@/Types/api/leads";
 import type { Segment } from "@/Types/qualification";
+import { firstNameOf, stampIn, type BookingPending } from "./bookingPending";
 
 interface GoalPanelProps {
     lead: Lead;
@@ -28,6 +29,10 @@ interface GoalPanelProps {
     /** A qualification call is starting or resuming. */
     busy: boolean;
     onAction: (action: LeadMissionCtaAction) => void;
+    /** Set while a consultation booking from the wrap-up is pending (canvas L7-26). */
+    booking?: BookingPending | null;
+    nowMs: number;
+    timeZone: string;
 }
 
 interface Step {
@@ -42,8 +47,8 @@ interface Step {
  * reactivate. While a qualification runs, its questions are listed with
  * the ones already answered ticked.
  */
-export default function GoalPanel({ lead, lifecycle, qualification, busy, onAction }: GoalPanelProps) {
-    const { t } = useTranslation();
+export default function GoalPanel({ lead, lifecycle, qualification, busy, onAction, booking, nowMs, timeZone }: GoalPanelProps) {
+    const { t, locale } = useTranslation();
     const { td } = useTd();
     const mode = lifecycle.bannerMode;
     const config = LIFECYCLE_BANNER_CONFIG[mode];
@@ -98,6 +103,62 @@ export default function GoalPanel({ lead, lifecycle, qualification, busy, onActi
           : td(config.primaryCta.label, { source: "en" });
     const secondary = config.secondaryCta && config.secondaryCta.action !== "view_answers" ? config.secondaryCta : null;
     const description = (lead.lead_lifecycle_status as { description?: string | null } | undefined)?.description?.trim();
+
+    if (booking && mode === "qualified") {
+        const qualifiedAt = booking.qualifiedAt
+            ? stampIn(booking.qualifiedAt, nowMs, timeZone, locale, t("pages.agent_workspace.today.title"))
+            : "";
+        const checks = [
+            {
+                key: "qualified",
+                done: true,
+                title: t("pages.agent_workspace.contact.booking.goal.qualified"),
+                sub: [qualifiedAt, t("pages.agent_workspace.contact.booking.goal.answers", { count: booking.answers })]
+                    .filter(Boolean)
+                    .join(" · "),
+            },
+            {
+                key: "booked",
+                done: false,
+                title: t("pages.agent_workspace.contact.booking.goal.booked"),
+                sub: t("pages.agent_workspace.contact.booking.goal.booked_sub"),
+            },
+            {
+                key: "deal",
+                done: false,
+                title: t("pages.agent_workspace.contact.booking.goal.deal"),
+                sub: t("pages.agent_workspace.contact.booking.goal.deal_sub"),
+            },
+        ];
+
+        return (
+            <section className="agent-goal agent-goal--pending" aria-labelledby="agent-goal-title">
+                <p className="agent-goal__eyebrow">{t("pages.agent_workspace.contact.booking.goal.eyebrow")}</p>
+                <h2 id="agent-goal-title" className="agent-goal__title">
+                    {t("pages.agent_workspace.contact.booking.goal.title", { name: firstNameOf(lead.client_name) })}
+                </h2>
+                <ul className="agent-goal__checks">
+                    {checks.map((check) => (
+                        <li key={check.key} className={`agent-goal__check${check.done ? " agent-goal__check--done" : ""}`}>
+                            <span className="agent-goal__box" aria-hidden="true">
+                                {check.done ? <Icon name="check" size={12} /> : null}
+                            </span>
+                            <span className="agent-goal__check-body">
+                                <b>{check.title}</b>
+                                <span>{check.sub}</span>
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+                <p className="agent-goal__note">{t("pages.agent_workspace.contact.booking.goal.note")}</p>
+                <div className="agent-goal__actions">
+                    <Button variant="ghost" className="agent-goal__primary" onClick={() => onAction("view_answers")}>
+                        {t("pages.agent_workspace.contact.booking.goal.view_answers")}
+                    </Button>
+                </div>
+            </section>
+        );
+    }
 
     return (
         <section className={`agent-goal agent-goal--${mode}`} aria-labelledby="agent-goal-title">
