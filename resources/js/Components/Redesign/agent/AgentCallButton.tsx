@@ -3,14 +3,17 @@ import { App, message } from "antd";
 import type { PageProps } from "@/Components/DashboardLayout";
 import ClickToCallButton from "@/Components/ClickToCallButton";
 import useClickToCall from "@/Hooks/useClickToCall";
-import useSoftphone, { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
+import useSoftphone, { canPlaceCrmCall } from "@/Hooks/useSoftphone";
 import useTranslation from "@/Hooks/useTranslation";
+import type { LeadCallPhone } from "@/lib/leadCallPhones";
 import Button from "../primitives/Button";
 import Icon from "../primitives/Icon";
 
 interface AgentCallButtonProps {
     /** The number to dial; empty when the person has none (the button then says so). */
     phone: string;
+    /** When set, more than one number opens a picker instead of dialling `phone`. */
+    phones?: LeadCallPhone[];
     /** What the call is logged against. */
     entity: { type: "lead" | "deal"; id: number };
     /** Button text; "Call" by default. */
@@ -23,17 +26,25 @@ interface AgentCallButtonProps {
  * has for this agent (the same check as the lead page's quick actions).
  * Renders nothing when neither is set up, like there.
  */
-export default function AgentCallButton({ phone, entity, label, className = "" }: AgentCallButtonProps) {
+export default function AgentCallButton({ phone, phones, entity, label, className = "" }: AgentCallButtonProps) {
     const { t } = useTranslation();
     const { props } = usePage<PageProps>();
     const { message: appMessage } = App.useApp();
     const toast = appMessage ?? message;
     const { isEnabled: olEnabled } = useClickToCall();
-    const { isEnabled: softphoneFeatureEnabled } = useSoftphone();
+    const { isEnabled: softphoneFeatureEnabled, devices } = useSoftphone();
 
-    const softphoneEnabled = softphoneFeatureEnabled && props.featureFlags?.["crm.softphone"] === true;
-    const canUseLine = (softphoneEnabled && canMakeSoftphoneCalls(props.auth?.user, props.auth?.permissions)) || olEnabled;
+    const canUseLine = canPlaceCrmCall({
+        softphoneEnabled: softphoneFeatureEnabled && props.featureFlags?.["crm.softphone"] === true,
+        user: props.auth?.user,
+        permissions: props.auth?.permissions,
+        deviceCount: devices.length,
+        clickToCallEnabled: olEnabled,
+    });
     if (!canUseLine) return null;
+
+    const callPhones = (phones ?? []).filter((item) => item.phone.trim());
+    const primaryPhone = callPhones[0]?.phone || phone.trim();
 
     const content = (
         <>
@@ -42,7 +53,7 @@ export default function AgentCallButton({ phone, entity, label, className = "" }
         </>
     );
 
-    if (!phone.trim()) {
+    if (!primaryPhone) {
         return (
             <Button
                 variant="call"
@@ -57,7 +68,8 @@ export default function AgentCallButton({ phone, entity, label, className = "" }
 
     return (
         <ClickToCallButton
-            phone={phone.trim()}
+            phone={primaryPhone}
+            phones={callPhones}
             entity={entity}
             variant="link"
             className={`dr-btn dr-btn-call ${className}`.trim()}

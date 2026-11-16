@@ -204,10 +204,10 @@ export default function SoftphoneCallPoolManager({
                 tierScope="admin_fallback"
                 title="Admin Fallback Tier"
                 tierBadge="Tier 4: Admin Escalation"
-                description="Users on this list receive calls if neither the lead owner, line agents, nor the default fallback tier answer. Admins and managers can toggle 'Route Calls to Me' off to prevent fallback calls from routing to them."
-                emptyStateMessage="No specific users assigned. All active administrators with call reception enabled will receive the call as the default fallback."
-                addLabel="Add user to admin fallback tier"
-                placeholder="Search active users and admins"
+                description="Users on this list receive calls if neither the lead owner, line agents, nor the default fallback tier answer. Only users with the admin role can be added to this list."
+                emptyStateMessage="No administrators assigned. Calls will not escalate to admins unless they are added to this list."
+                addLabel="Add admin to fallback tier"
+                placeholder="Search active administrators"
             />
         </div>
     );

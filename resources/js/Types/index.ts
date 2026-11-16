@@ -631,6 +631,8 @@ export interface User {
     roles: Role[];
     timezone?: string | null;
     timezone_locked?: boolean | number | null;
+    can_receive_calls?: boolean;
+    is_on_call_list?: boolean;
     /** Tour ids this user has already finished/skipped — drives ProductTour auto-launch. */
     seen_product_tours?: string[];
 }
