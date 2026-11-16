@@ -49,7 +49,9 @@ export default function DealMeetingDetailModal({
     const { generateLink, generating } = useDealMeetingLinkGenerate();
     // A Zoho meeting whose link failed: the deal's agent (who gets the alert)
     // or anyone who may edit it can ask for the link again.
-    const responsibleUserId = getMeetingOwner(deal)?.id;
+    // With no agent on the deal, the alert goes to the lead's owner.
+    const responsibleUserId =
+        getMeetingOwner(deal)?.id ?? deal.contact?.lead_owner?.id;
     const canRetryLink =
         meeting != null &&
         usesAutoMeetingLink(meeting.location) &&

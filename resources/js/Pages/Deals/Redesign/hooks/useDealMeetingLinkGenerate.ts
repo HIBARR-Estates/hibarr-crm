@@ -19,7 +19,7 @@ export default function useDealMeetingLinkGenerate() {
             setGenerating(true);
             try {
                 const response = await axios.post(route("deals.generate-meeting-link"), { followup_id: followUpId });
-                const link: string | null = response.data?.data?.meeting_link ?? null;
+                const link: string | null = response.data?.meeting_link ?? null;
                 if (response.data?.status !== "success" || !link) {
                     message.error(t("pages.deals.workspace.meetings.generate_link_failed"));
                     return null;

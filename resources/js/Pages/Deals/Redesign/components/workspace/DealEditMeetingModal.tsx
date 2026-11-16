@@ -10,6 +10,7 @@ import {
     requiresManualMeetingLink,
     requiresMeetingParticipants,
     requiresPhysicalLocationDetail,
+    usesAutoMeetingLink,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import { buildMeetingFormFromFollowup, getMeetingOwner } from "./meetingFormUtils";
 import useDealMeetingUpdate from "../../hooks/useDealMeetingUpdate";
@@ -56,7 +57,7 @@ export default function DealEditMeetingModal({
     const [localErrors, setLocalErrors] = useState<string[]>([]);
     const { updateMeeting, isUpdating, errors, clearErrors } =
         useDealMeetingUpdate(deal);
-    const { generateLink } = useDealMeetingLinkGenerate();
+    const { generateLink, generating } = useDealMeetingLinkGenerate();
 
     const initialForm = useMemo(() => {
         if (!open || !followup) return null;
@@ -153,14 +154,20 @@ export default function DealEditMeetingModal({
         <EditMeetingModal
             open={open}
             onClose={handleClose}
-            saving={isUpdating}
+            saving={isUpdating || generating}
             errors={[...localErrors, ...errors]}
             meetingTypes={meetingTypes}
             initialForm={initialForm}
             onSubmit={handleSubmit}
             mustIncludeOwner={mustIncludeOwner}
             participantDirectory={participantDirectory}
-            onGenerateLink={followup ? () => generateLink(followup.id) : undefined}
+            // The server generates for the saved platform, so a platform
+            // change has to be saved before a link can be generated.
+            onGenerateLink={
+                followup && usesAutoMeetingLink(followup.location)
+                    ? () => generateLink(followup.id)
+                    : undefined
+            }
             labels={{
                 title: t("pages.deals.workspace.meetings.edit_meeting"),
                 cancel: t("pages.deals.common.cancel"),
