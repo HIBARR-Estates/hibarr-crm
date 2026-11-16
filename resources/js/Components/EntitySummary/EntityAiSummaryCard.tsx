@@ -12,6 +12,9 @@ import EntityAiSummaryHeader from "./EntityAiSummaryHeader";
 import EntityAiSummaryNextStep from "./EntityAiSummaryNextStep";
 import { SummaryPersonalizationProvider } from "./SummaryPersonalization";
 import { buildLeadTokenValues, personalizeSummaryText } from "./summaryTokens";
+import { usePage } from "@inertiajs/react";
+import useClickToCall from "@/Hooks/useClickToCall";
+import useSoftphone, { canPlaceCrmCall } from "@/Hooks/useSoftphone";
 import { executeSummaryAction, isExecutableAction } from "./summaryActions";
 import "./entity-summary.css";
 
@@ -34,9 +37,22 @@ export default function EntityAiSummaryCard({
     onRequestDocuments,
     onAdvanceStage,
     onReviewStaleDeal,
+    onSummaryChange,
 }: EntityAiSummaryCardProps) {
     const { t } = useTranslation();
     const { td } = useTd();
+    const { props } = usePage();
+    const { isEnabled: clickToCallEnabled } = useClickToCall();
+    const { isEnabled: softphoneFeatureEnabled, devices } = useSoftphone();
+    const canDial = canPlaceCrmCall({
+        softphoneEnabled:
+            softphoneFeatureEnabled &&
+            props.featureFlags?.["crm.softphone"] === true,
+        user: props.auth?.user,
+        permissions: props.auth?.permissions,
+        deviceCount: devices.length,
+        clickToCallEnabled,
+    });
     const isRedesign = variant === "redesign";
 
     // The summary text names the lead with tokens (the model never sees the name);
@@ -53,6 +69,7 @@ export default function EntityAiSummaryCard({
             // Lead summaries write themselves on load when missing or stale (never over a
             // current one); deal summaries stay manual.
             autoGenerate: entityType === "lead",
+            onSummaryChange,
         });
 
     const wasLoadingRef = useRef(false);
@@ -134,7 +151,7 @@ export default function EntityAiSummaryCard({
             nextStep: summary.next_step,
             entityType,
             entityId,
-            leadPhone,
+            leadPhone: canDial ? leadPhone : null,
             onQualifyLead,
             onCreateTask,
             onScheduleCall,

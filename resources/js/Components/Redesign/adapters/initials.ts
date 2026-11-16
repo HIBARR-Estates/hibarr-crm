@@ -9,7 +9,8 @@ export function initialsFromName(name?: string | null): string {
     const initials = name
         .split(" ")
         .map((part) => part.trim())
-        .filter(Boolean)
+        // Skip separators such as "·" or "-" in "Becker · Iskele apartment".
+        .filter((part) => /[\p{L}\p{N}]/u.test(part[0] ?? ""))
         .map((part) => part[0])
         .slice(0, 2)
         .join("")

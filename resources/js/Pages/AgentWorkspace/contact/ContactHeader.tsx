@@ -1,6 +1,6 @@
+import { Dropdown } from "antd";
 import type { ReactNode } from "react";
 import { usePage } from "@inertiajs/react";
-import { Dropdown, type MenuProps } from "antd";
 import type { PageProps } from "@/Components/DashboardLayout";
 import AgentCallButton from "@/Components/Redesign/agent/AgentCallButton";
 import { initialsFromName } from "@/Components/Redesign";
@@ -10,20 +10,17 @@ import useTranslation from "@/Hooks/useTranslation";
 import { getDossierFieldValue, isMeaningfulDossierValue } from "@/Pages/Leads/Redesign/adapters/dossierAdapter";
 import LeadAvatarButton from "@/Pages/Leads/Redesign/components/header/LeadAvatarButton";
 import MoreMenu from "@/Pages/Leads/Redesign/components/header/MoreMenu";
+import { NewActivityButton, type ExtraActivity } from "./NewActivityButton";
 import type { LeadCreateKind } from "@/Pages/Leads/Redesign/components/workspace/LeadCreateModals";
 import { formatLeadTemperature } from "@/Pages/Leads/Redesign/config/leadTemperature";
 import type { MoreMenuActionId } from "@/Pages/Leads/Redesign/config/moreMenuItems";
 import type { Lead } from "@/Types/api/leads";
+import { leadCallPhones } from "@/lib/leadCallPhones";
+
+export type { ExtraActivity };
+export { NewActivityButton };
 
 const TEMPERATURE_PILL: Record<string, string> = { hot: "red", warm: "amber", cold: "blue" };
-
-/** A New activity entry that isn't one of the lead page's create forms. */
-export interface ExtraActivity {
-    key: string;
-    icon: ReactNode;
-    label: string;
-    onSelect: () => void;
-}
 
 interface ContactHeaderProps {
     lead: Lead;
@@ -34,6 +31,11 @@ interface ContactHeaderProps {
     allowedCreate: Partial<Record<LeadCreateKind, boolean>>;
     /** Edit details; left out when the viewer can't edit. */
     onEdit: () => void;
+    /**
+     * Turns Edit details into a menu (canvas L8-06): the deal state offers the
+     * contact's details and the deal's. Entries left out are not editable.
+     */
+    editMenu?: EditMenuEntry[];
     /** The lead's ⋯ menu. Left out in the deal state, whose menu sits on the deal. */
     onMoreAction?: (id: MoreMenuActionId) => void;
     /** Replaces the lead's ⋯ menu (the deal state's own). */
@@ -62,6 +64,7 @@ export default function ContactHeader({
     onCreate,
     allowedCreate,
     onEdit,
+    editMenu,
     onMoreAction,
     moreMenu,
     extraActivities,
@@ -129,9 +132,15 @@ export default function ContactHeader({
                 </div>
             </div>
             <div className="agent-contact__actions">
-                <AgentCallButton phone={leadPhone(lead)} entity={callEntity ?? { type: "lead", id: lead.id }} />
+                <AgentCallButton
+                    phone={leadPhone(lead)}
+                    phones={leadCallPhones(lead)}
+                    entity={callEntity ?? { type: "lead", id: lead.id }}
+                />
                 <NewActivityButton onCreate={onCreate} allowed={allowedCreate} extra={extraActivities} />
-                {canEdit ? (
+                {editMenu && editMenu.length > 0 ? (
+                    <EditDetailsButton entries={editMenu} />
+                ) : canEdit && !editMenu ? (
                     <Button variant="ghost" onClick={onEdit}>
                         <Icon name="edit" size={14} />
                         {t("pages.agent_workspace.contact.edit_details")}
@@ -146,62 +155,45 @@ export default function ContactHeader({
     );
 }
 
-/**
- * One "New activity" button for every kind of record (task, meeting, note, a
- * logged activity), each opening the lead page's own create form.
- */
-export function NewActivityButton({
-    onCreate,
-    allowed,
-    size = "base",
-    extra = [],
-}: {
-    onCreate: (kind: LeadCreateKind) => void;
-    /** Kinds the viewer may not create are left out (permissions). */
-    allowed?: Partial<Record<LeadCreateKind, boolean>>;
-    size?: "base" | "sm";
-    extra?: ExtraActivity[];
-}) {
-    const { t } = useTranslation();
-    const all: Array<{ key: LeadCreateKind; icon: ReactNode; label: string }> = [
-        { key: "task", icon: <Icon name="check-square" size={14} />, label: t("pages.agent_workspace.contact.new_task") },
-        { key: "meeting", icon: <Icon name="calendar" size={14} />, label: t("pages.agent_workspace.contact.new_meeting") },
-        { key: "note", icon: <Icon name="file-text" size={14} />, label: t("pages.agent_workspace.contact.new_note") },
-        { key: "log", icon: <Icon name="activity" size={14} />, label: t("pages.agent_workspace.contact.log_activity") },
-    ];
-    const items: MenuProps["items"] = [
-        ...all.filter((item) => allowed?.[item.key] !== false),
-        ...extra.map((item) => ({ key: item.key, icon: item.icon, label: item.label })),
-    ];
-    if (items.length === 0) return null;
-
-    return (
-        <Dropdown
-            menu={{
-                items,
-                onClick: ({ key }) => {
-                    const entry = extra.find((item) => item.key === key);
-                    if (entry) entry.onSelect();
-                    else onCreate(key as LeadCreateKind);
-                },
-            }}
-            trigger={["click"]}
-            placement="bottomRight"
-        >
-            {/* antd positions the menu from a DOM node; the span gives it one. */}
-            <span className="agent-contact__menu-anchor">
-                <Button size={size} className="agent-btn-soft" aria-haspopup="menu">
-                    <Icon name="plus" size={size === "sm" ? 12 : 14} />
-                    {t("pages.agent_workspace.contact.new_activity")}
-                    <Icon name="chevron-down" size={size === "sm" ? 12 : 14} />
-                </Button>
-            </span>
-        </Dropdown>
-    );
-}
-
 /** The lead's mobile, formatted for dialling; empty when there is none. */
 export function leadPhone(lead: Lead): string {
     const raw = getDossierFieldValue(lead, "mobile");
     return raw && isMeaningfulDossierValue(raw) ? raw.trim() : "";
+}
+
+export type EditMenuEntry = { key: string; label: string; onSelect: () => void };
+
+/**
+ * "Edit details": one button when there is one thing to edit, a small menu
+ * when there are two (the person and the deal, canvas L8-06).
+ */
+export function EditDetailsButton({ entries, size }: { entries: EditMenuEntry[]; size?: "sm" }) {
+    const { t } = useTranslation();
+    if (entries.length === 0) return null;
+    if (entries.length === 1) {
+        return (
+            <Button size={size} variant="ghost" onClick={entries[0].onSelect}>
+                <Icon name="edit" size={size ? 13 : 14} />
+                {t("pages.agent_workspace.contact.edit_details")}
+            </Button>
+        );
+    }
+    return (
+        <Dropdown
+            menu={{
+                items: entries.map((entry) => ({ key: entry.key, label: entry.label })),
+                onClick: ({ key }) => entries.find((entry) => entry.key === key)?.onSelect(),
+            }}
+            trigger={["click"]}
+            placement="bottomRight"
+        >
+            <span className="agent-contact__menu-anchor">
+                <Button size={size} variant="ghost" aria-haspopup="menu">
+                    <Icon name="edit" size={size ? 13 : 14} />
+                    {t("pages.agent_workspace.contact.edit_details")}
+                    <Icon name="chevron-down" size={size ? 12 : 13} />
+                </Button>
+            </span>
+        </Dropdown>
+    );
 }

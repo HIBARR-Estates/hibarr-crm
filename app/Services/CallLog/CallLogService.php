@@ -303,6 +303,7 @@ class CallLogService
                 'filename' => $canPlay ? $recording?->filename : null,
                 'play_url' => $canPlay && $recording ? route('call-recordings.play', $recording->id, false) : null,
                 'download_url' => $canPlay && $recording ? route('call-recordings.download', $recording->id, false) : null,
+                'open_url' => $canPlay && $recording?->opensInNewTab() ? route('call-recordings.open', $recording->id, false) : null,
             ],
         ];
     }
@@ -361,7 +362,7 @@ class CallLogService
             }
         });
 
-        $recordings = $query->get(['id', 'call_ref', 'user_id', 'filename', 'duration_seconds', 'expires_at', 'company_id']);
+        $recordings = $query->get(['id', 'call_ref', 'user_id', 'filename', 'mime_type', 'external_url', 'duration_seconds', 'expires_at', 'company_id']);
 
         $byKey = [];
         foreach ($recordings as $rec) {

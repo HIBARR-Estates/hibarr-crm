@@ -1,5 +1,6 @@
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { handleOptionGroupArrows } from "./optionGroupNav";
+import { useAgentAnalysis } from "../agent/AgentAnalysisContext";
 
 type RadioOption = string | { value: string; label: string };
 function getVal(o: RadioOption) { return typeof o === "string" ? o : o.value; }
@@ -12,6 +13,7 @@ interface RadioInputProps {
 }
 
 export default function RadioInput({ value, options, onChange }: RadioInputProps) {
+    const agent = useAgentAnalysis();
     return (
         <div
             className="flex flex-wrap gap-2"
@@ -32,11 +34,17 @@ export default function RadioInput({ value, options, onChange }: RadioInputProps
                         role="radio"
                         aria-checked={value === v}
                         onClick={() => onChange(v)}
-                        className="px-4 py-2 rounded-md text-sm font-medium transition-all border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1"
+                        className={
+                            agent
+                                ? `agent-an__chip${value === v ? " agent-an__chip--on" : ""}`
+                                : "px-4 py-2 rounded-md text-sm font-medium transition-all border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1"
+                        }
                         style={
-                            value === v
-                                ? { backgroundColor: T.NAVY, color: "#fff", borderColor: T.NAVY }
-                                : { backgroundColor: "#fff", color: T.TEXT_MUTED, borderColor: T.BORDER }
+                            agent
+                                ? undefined
+                                : value === v
+                                  ? { backgroundColor: T.NAVY, color: "#fff", borderColor: T.NAVY }
+                                  : { backgroundColor: "#fff", color: T.TEXT_MUTED, borderColor: T.BORDER }
                         }
                     >
                         {getLbl(opt)}

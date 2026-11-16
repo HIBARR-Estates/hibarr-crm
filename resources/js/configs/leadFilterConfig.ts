@@ -185,6 +185,20 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
                 })) || [],
         },
         {
+            key: "lead_origin",
+            label: "Origin",
+            type: "multiselect",
+            control: "pills",
+            facetKey: "lead_origin",
+            sentence: "origin",
+            section: "Assignment & Source",
+            options:
+                props.origins?.map((origin: { id: number; name: string }) => ({
+                    value: origin.id,
+                    label: origin.name,
+                })) || [],
+        },
+        {
             key: "category_id",
             label: "Categories",
             type: "multiselect",
@@ -364,7 +378,8 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
 
         // ── Campaign attribution (UTM) ───────────────────────────
-        // Values come from what is actually recorded in lead_marketing.
+        // Values come from what is actually recorded for leads: the first touch
+        // (lead_marketing) and every later touch (lead_utm_touches).
         {
             key: "utm_source",
             label: "UTM Source",

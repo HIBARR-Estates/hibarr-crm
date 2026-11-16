@@ -4,6 +4,7 @@ import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
 import { AgentCallButton, taskTimeState, type TimeState } from "@/Components/Redesign/agent";
+import { LIFECYCLE_BANNER_MODE } from "@/Pages/Leads/Redesign/config/lifecycleBanners";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type { QueueTask, RelatedRecord } from "@/Types/personal-work";
@@ -52,15 +53,37 @@ function personOf(task: QueueTask): string {
     return task.related?.person || task.related?.name || "";
 }
 
+/** A number worth dialling: at least six digits, so "--" or a bare country code never counts. */
+export function hasDialablePhone(phone: string | null | undefined): phone is string {
+    return typeof phone === "string" && phone.replace(/\D/g, "").length >= 6;
+}
+
+/**
+ * Whether the card may offer a call. Only a task wired to the call action (its
+ * category's quick-action is "call") or a qualification call (the heading says so) on a lead
+ * that is still being qualified, and only when the person has a number to dial. A task
+ * about anything else never shows a call button.
+ */
+export function offersCall(task: QueueTask): boolean {
+    const related = task.related;
+    if (!related || !hasDialablePhone(related.phone)) return false;
+    if (task.category?.action === "call") return true;
+    const mode = related.type === "lead" && related.status_key ? LIFECYCLE_BANNER_MODE[related.status_key] : undefined;
+    return (mode === "qualify_start" || mode === "qualify_resume") && /qualif/i.test(task.heading) && /\bcall\b/i.test(task.heading);
+}
+
 /**
  * "Do this first": the first open task in due-date order, as the board's
- * hero card. With a person behind it, the actions are to call them and to
- * open their page; without one, Done and Reschedule.
+ * hero card. The card is about the action, so the task is the title and the
+ * main button is what to do about it: call (only for a call task or a
+ * qualification call, and only with a number), otherwise Done. The person is a
+ * line under the title, and their page is one click away.
  */
 export function NextUpCard({ task, handlers }: { task: QueueTask; handlers: TaskHandlers }) {
     const { t, done, state, due } = useTaskView(task, handlers);
     const person = personOf(task);
     const related = task.related;
+    const call = offersCall(task);
 
     return (
         <section className={`agent-next agent-ts--${state}`} aria-labelledby="agent-next-title">
@@ -69,39 +92,42 @@ export function NextUpCard({ task, handlers }: { task: QueueTask; handlers: Task
                 {t("pages.agent_workspace.today.next.label")} · {due}
             </p>
             <div className="agent-next__main">
-                <Avatar initials={initialsFromName(person || task.heading)} size={60} type="agent" />
+                <span className="agent-next__icon" aria-hidden="true">
+                    <Icon name={call ? "phone" : "check-square"} size={26} />
+                </span>
                 <div className="agent-next__body">
                     <button type="button" id="agent-next-title" className="agent-next__title" onClick={() => handlers.onOpen(task)}>
-                        {person ? `${person} · ${task.heading}` : task.heading}
+                        {task.heading}
                     </button>
                     <div className="agent-next__meta">
+                        {person ? <span className="agent-next__person">{person}</span> : null}
                         {related ? <RecordBadge record={related} /> : null}
                         {related && related.person && related.type === "deal" ? <span>{related.name}</span> : null}
                     </div>
                 </div>
                 <div className="agent-next__actions">
-                    {related ? (
-                        <>
-                            <AgentCallButton
-                                phone={related.phone ?? ""}
-                                entity={{ type: related.type, id: related.id }}
-                                label={t("pages.agent_workspace.today.next.call_name", { name: (person.split(" ")[0] || person) })}
-                            />
-                            <Link href={recordHref(related)} className="dr-btn dr-btn-ghost">
-                                {t("pages.agent_workspace.today.next.open_contact")}
-                            </Link>
-                        </>
-                    ) : (
-                        <TaskActions
-                            name={task.heading}
-                            done={done}
-                            emphasis
-                            completing={handlers.isCompleting(task.id)}
-                            rescheduling={handlers.isRescheduling(task.id)}
-                            onComplete={() => handlers.onComplete(task)}
-                            onReschedule={() => handlers.onReschedule(task)}
+                    {call && related ? (
+                        <AgentCallButton
+                            phone={related.phone ?? ""}
+                            entity={{ type: related.type, id: related.id }}
+                            label={t("pages.agent_workspace.today.next.call_name", { name: person.split(" ")[0] || person })}
                         />
-                    )}
+                    ) : null}
+                    <TaskActions
+                        name={task.heading}
+                        done={done}
+                        emphasis={!call}
+                        completing={handlers.isCompleting(task.id)}
+                        rescheduling={handlers.isRescheduling(task.id)}
+                        onComplete={() => handlers.onComplete(task)}
+                        onReschedule={() => handlers.onReschedule(task)}
+                    />
+                    {related ? (
+                        <Link href={recordHref(related)} className="dr-btn dr-btn-ghost">
+                            <Icon name="user" size={14} />
+                            {t("pages.agent_workspace.today.next.open_contact")}
+                        </Link>
+                    ) : null}
                 </div>
             </div>
         </section>

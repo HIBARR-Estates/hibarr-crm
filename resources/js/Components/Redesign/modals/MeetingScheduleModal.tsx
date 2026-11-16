@@ -18,6 +18,8 @@ export interface MeetingScheduleModalProps {
     onSuccess?: () => void;
     /** Calendar slot click — redesign dialog only. */
     initialStart?: { date: string; startTime: string };
+    /** Opens on this record instead of asking for one; redesign dialog only. */
+    initialRecord?: { type: "deal" | "lead"; id: number };
 }
 
 /**
@@ -37,6 +39,7 @@ export default function MeetingScheduleModal({
     meetingTypes: meetingTypesProp,
     onSuccess,
     initialStart,
+    initialRecord,
 }: MeetingScheduleModalProps) {
     const redesign = useMeetingsPageRedesignFlag();
     const meetingTypes = useMeetingTypesForSchedule(
@@ -69,6 +72,7 @@ export default function MeetingScheduleModal({
             userLeads={userLeads}
             meetingTypes={meetingTypes}
             initialStart={initialStart}
+            initialRecord={initialRecord}
         />
     );
 }

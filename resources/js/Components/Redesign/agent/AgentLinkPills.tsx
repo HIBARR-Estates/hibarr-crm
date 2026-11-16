@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "@inertiajs/react";
+import AgentNewTag from "./AgentNewTag";
 
 export interface AgentLinkPill {
     key: string;
@@ -9,6 +10,8 @@ export interface AgentLinkPill {
     dot?: string | null;
     title?: string;
     current: boolean;
+    /** Why the pill is held, when its page is not built yet: it shows disabled with a New tag. */
+    heldHint?: string;
 }
 
 interface AgentLinkPillsProps {
@@ -26,7 +29,13 @@ interface AgentLinkPillsProps {
 export default function AgentLinkPills({ pills, ariaLabel, trailing }: AgentLinkPillsProps) {
     return (
         <nav aria-label={ariaLabel} className="agent-pills">
-            {pills.map((pill) => (
+            {pills.map((pill) =>
+                pill.heldHint ? (
+                    <span key={pill.key} className="agent-pills__pill agent-pills__pill--held" aria-disabled="true">
+                        {pill.label}
+                        <AgentNewTag hint={pill.heldHint} />
+                    </span>
+                ) : (
                 <Link
                     key={pill.key}
                     href={pill.href}
@@ -40,7 +49,8 @@ export default function AgentLinkPills({ pills, ariaLabel, trailing }: AgentLink
                     {pill.dot ? <span className="agent-pills__dot" style={{ background: pill.dot }} aria-hidden="true" /> : null}
                     {pill.label}
                 </Link>
-            ))}
+                ),
+            )}
             {trailing}
         </nav>
     );

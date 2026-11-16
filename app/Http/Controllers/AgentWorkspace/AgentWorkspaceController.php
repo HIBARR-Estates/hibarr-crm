@@ -4,9 +4,14 @@ namespace App\Http\Controllers\AgentWorkspace;
 
 use App\Http\Controllers\AccountBaseController;
 use App\Models\Company;
+use App\Models\Lead;
 use App\Models\TaskboardColumn;
 use App\Models\TaskCategory;
+use App\Services\AgentWorkspace\CallerGlance;
+use App\Services\AgentWorkspace\DealAnalysisProgress;
 use App\Services\Dashboard\DashboardMetricsService;
+use App\Services\MeetingVisibilityService;
+use App\Services\PermissionService;
 use App\Support\UserTimezone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -65,6 +70,19 @@ class AgentWorkspaceController extends AccountBaseController
             ),
             'taskCategories' => Inertia::defer(fn () => TaskCategory::allCategories(), 'queue'),
 
+            // Behind "Add > Meeting": the deals and leads this agent may schedule on, the same permission-scoped
+            // queries the Meetings page's schedule dialog uses.
+            'userDeals' => Inertia::defer(fn () => MeetingVisibilityService::schedulableDealsQuery()->get(['id', 'name']), 'meetingOptions'),
+            'userLeads' => Inertia::defer(
+                fn () => MeetingVisibilityService::schedulableLeadsQuery()
+                    ->get(['id', 'client_name', 'company_name'])
+                    ->map(fn (Lead $lead) => [
+                        'id' => $lead->id,
+                        'name' => $lead->company_name ? "{$lead->client_name} ({$lead->company_name})" : $lead->client_name,
+                    ]),
+                'meetingOptions'
+            ),
+
             'stats' => Inertia::defer(fn () => $metrics->personalStats($userId), 'stats'),
             // null for anyone without a lead_agent record: the chip is dropped
             // rather than showing a zero that reads as "you earned nothing".
@@ -95,7 +113,7 @@ class AgentWorkspaceController extends AccountBaseController
      * next one ahead, so going forward or back is instant. Dates are days in
      * the viewer's own zone, like Today's schedule.
      */
-    public function agenda(Request $request, DashboardMetricsService $metrics): JsonResponse
+    public function agenda(Request $request, DashboardMetricsService $metrics, DealAnalysisProgress $analysis): JsonResponse
     {
         $validated = $request->validate([
             'from' => ['required', 'date_format:Y-m-d'],
@@ -114,17 +132,45 @@ class AgentWorkspaceController extends AccountBaseController
 
         $userId = (int) user()->id;
 
+        $meetings = $metrics->meetingsBetween($userId, $from, $to, self::AGENDA_ROWS);
+
         return response()->json([
-            'meetings' => $metrics->meetingsBetween($userId, $from, $to, self::AGENDA_ROWS),
+            'meetings' => $meetings,
             'tasks' => $metrics->personalTasksBetween($userId, $from, $to, self::AGENDA_ROWS),
+            // Each deal's analysis progress, for the meeting chips (canvas L7-02).
+            'analysis' => (object) $analysis->forDeals(array_column($meetings, 'deal_id')),
         ]);
     }
 
     /** The zone the viewer reads days in: theirs, else the company's. */
+    /** One meeting as the meeting modal opens it, for a row that only carries its id. 404 unless the viewer may see it. */
+    public function meeting(int $meeting, DashboardMetricsService $metrics): JsonResponse
+    {
+        $row = $metrics->meetingById((int) user()->id, $meeting);
+        abort_if($row === null, 404);
+
+        return response()->json(['meeting' => $row]);
+    }
+
     private function viewerZone(): string
     {
         $company = company();
 
         return UserTimezone::forViewer(user(), $company instanceof Company ? $company : null);
+    }
+
+    /**
+     * The incoming-call card's facts about a caller that is a known lead: its
+     * status, open deal, next meeting and last touch. Only for a lead the
+     * viewer may open; for any other the card shows no lead facts at all.
+     */
+    public function caller(int $lead, CallerGlance $glance): JsonResponse
+    {
+        $person = Lead::query()->with('lifecycleStatus:id,key,label,label_color')->findOrFail($lead);
+        // The lead page's own rule: the caller's name and facts go only to someone who may open the lead.
+        $access = PermissionService::checkAccess(user(), 'view_lead', $person, ['added' => 'added_by', 'owned' => 'lead_owner']);
+        abort_unless($access['canAccess'] ?? false, 403);
+
+        return response()->json(['status' => 'success', 'data' => $glance->forLead($person, user())]);
     }
 }

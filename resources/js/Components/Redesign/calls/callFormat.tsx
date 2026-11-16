@@ -44,6 +44,7 @@ export function formatCallFailure(
         registration_required: "Line not registered",
         temporarily_unavailable: "Temporarily unavailable",
         browser_unsupported: "Browser unsupported",
+        connection_failed: "Connection failed",
     };
     return friendly[reason] ?? reason.replace(/_/g, " ");
 }

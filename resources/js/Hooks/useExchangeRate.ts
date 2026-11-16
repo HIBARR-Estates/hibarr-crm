@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 
 interface ExchangeRateState {
@@ -7,39 +7,53 @@ interface ExchangeRateState {
     loading: boolean;
     /** The live rate couldn't be fetched (network or no published rate). */
     unavailable: boolean;
+    /** Fetch the live rate again. No-op when the pair is the same currency. */
+    reload: () => void;
+}
+
+function idleState(active: boolean, identity: boolean): Omit<ExchangeRateState, "reload"> {
+    if (!active) return { rate: null, loading: false, unavailable: false };
+    if (identity) return { rate: 1, loading: false, unavailable: false };
+    return { rate: null, loading: true, unavailable: false };
 }
 
 /**
  * Live reference rate from `exchange-rate.show` (cached server-side, 12h).
  * Pass `enabled: false` to skip fetching, e.g. while a modal is closed.
+ *
+ * The rate is a suggestion: callers prefill an editable field with it and
+ * keep whatever the user confirms.
  */
 export default function useExchangeRate(
     from: string | null | undefined,
     to: string | null | undefined,
     enabled = true,
 ): ExchangeRateState {
-    const [state, setState] = useState<ExchangeRateState>({
-        rate: null,
-        loading: false,
-        unavailable: false,
-    });
+    const fromCode = from?.toUpperCase() ?? "";
+    const toCode = to?.toUpperCase() ?? "";
+    const active = Boolean(enabled && fromCode && toCode);
+    const identity = active && fromCode === toCode;
+    const [attempt, setAttempt] = useState(0);
+    const requestKey = `${attempt}|${active ? "1" : "0"}|${identity ? "1" : "0"}|${fromCode}|${toCode}`;
+
+    const [requestKeyState, setRequestKeyState] = useState(requestKey);
+    const [state, setState] = useState(() => idleState(active, identity));
+
+    // Drop a rate that belongs to the previous pair before paint, so a
+    // currency switch never briefly applies the old rate to the new one.
+    if (requestKey !== requestKeyState) {
+        setRequestKeyState(requestKey);
+        setState(idleState(active, identity));
+    }
 
     useEffect(() => {
-        if (!enabled || !from || !to) {
-            setState({ rate: null, loading: false, unavailable: false });
-            return undefined;
-        }
-        if (from.toUpperCase() === to.toUpperCase()) {
-            setState({ rate: 1, loading: false, unavailable: false });
-            return undefined;
-        }
+        if (!active || identity) return undefined;
 
         let cancelled = false;
-        setState({ rate: null, loading: true, unavailable: false });
 
         axios
             .get(route("exchange-rate.show"), {
-                params: { from, to },
+                params: { from: fromCode, to: toCode },
                 headers: { Accept: "application/json" },
             })
             .then(({ data }) => {
@@ -58,7 +72,9 @@ export default function useExchangeRate(
         return () => {
             cancelled = true;
         };
-    }, [enabled, from, to]);
+    }, [active, identity, fromCode, toCode, attempt]);
 
-    return state;
+    const reload = useCallback(() => setAttempt((n) => n + 1), []);
+
+    return { ...state, reload };
 }

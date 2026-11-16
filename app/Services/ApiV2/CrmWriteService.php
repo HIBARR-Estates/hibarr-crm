@@ -14,6 +14,7 @@ use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Models\LeadNote;
 use App\Models\Payment;
+use App\Models\PaymentDocument;
 use App\Models\SallyMeetingInsight;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
@@ -374,6 +375,17 @@ class CrmWriteService
         $wasComplete = $existing !== null && $existing->status === 'complete';
         $payment = $existing ?? new Payment;
 
+        // Issued invoices and receipts are frozen copies of the amount, so it
+        // cannot change underneath them.
+        if ($existing !== null
+            && (round((float) $existing->amount, 2) !== round((float) $data['amount'], 2)
+                || (int) $existing->currency_id !== (int) $currencyId)
+            && PaymentDocument::query()->where('payment_id', $existing->id)->exists()) {
+            throw ValidationException::withMessages([
+                'amount' => 'An invoice or receipt has already been issued for this payment, so its amount and currency can no longer change.',
+            ]);
+        }
+
         $payment->company_id = $companyId;
         $payment->deal_id = $deal->id;
         $payment->external_reference = $externalReference;
@@ -438,7 +450,8 @@ class CrmWriteService
         }
 
         // OL pushing a completed payment (online payment settled, or a review
-        // decision) wins the deal, same as a confirm from the CRM side.
+        // decision) records it as received, same as a confirm from the CRM side.
+        // The deal is marked won only when accepted payments cover its value.
         if (! $wasComplete && $payment->status === 'complete') {
             app(DealPaymentService::class)->markConfirmed($payment);
         }

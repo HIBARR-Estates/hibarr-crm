@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { REDESIGN_TOKENS as T, initialsFromName } from "@/Components/Redesign";
 import useTranslation from "@/Hooks/useTranslation";
+import { onBehalfOfName } from "@/Components/CrmEvents/onBehalfOf";
 import type { CrmEvent } from "@/Types/api/crm-event";
 
 // Extended here rather than relied on from CrmEventItem: this panel must not
@@ -102,9 +103,16 @@ export default function ActivityFeed({
     return (
         <div style={{ display: "flex", flexDirection: "column" }}>
             {events.map((event, index) => {
-                const actor =
+                const behalfName = onBehalfOfName(event.metadata);
+                const actorName =
                     event.user?.name ??
                     t("pages.dashboard.personal.activity.system");
+                const actor = behalfName
+                    ? t("app.impersonation.onBehalfOf", {
+                          admin: actorName,
+                          name: behalfName,
+                      })
+                    : actorName;
                 const label =
                     event.event_type?.name ??
                     t("pages.dashboard.personal.activity.fallback");

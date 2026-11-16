@@ -464,6 +464,7 @@ class AttemptToAuthenticate
             return $this->throwFailedAuthenticationException($request);
         }
 
+        \App\Support\AuditLog\AuthTrigger::mark(\App\Support\AuditLog\AuthTrigger::PASSWORD);
         $this->guard->login($user, $request->filled('remember'));
         \session()->forget('isRtl');
 

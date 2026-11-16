@@ -310,6 +310,7 @@ class User extends BaseModel implements AuthenticatableContract, AuthorizableCon
         'two_factor_expires_at	' => 'array',
         'salutation' => Salutation::class,
         'timezone_locked' => 'boolean',
+        'can_receive_calls' => 'boolean',
     ];
 
     protected $appends = ['image_url', 'modules', 'mobile_with_phone_code', 'name_salutation', 'phone_number', 'country_code', 'phone_number', 'country_code'];

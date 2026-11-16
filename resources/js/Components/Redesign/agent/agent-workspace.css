@@ -118,6 +118,15 @@
     font-size: 15px;
 }
 
+.agent-ws__logo {
+    display: block;
+    height: 36px;
+    width: auto;
+    max-width: 150px;
+    flex: 0 1 auto;
+    object-fit: contain;
+}
+
 .agent-ws__bell {
     display: inline-flex;
     align-items: center;
@@ -127,16 +136,6 @@
     border: 1px solid var(--dr-navy-line);
     border-radius: 50%;
     background: var(--dr-navy-pressed);
-}
-
-/* The CRM's own notification dropdown, recoloured for the navy band. */
-.agent-ws__bell .ant-btn,
-.agent-ws__bell .ant-btn .anticon {
-    color: var(--dr-navy-mid) !important;
-}
-
-.agent-ws__bell .ant-btn:hover {
-    background: transparent !important;
 }
 
 /* Agent | Classic switch styles live in agent-switch.css (the classic sidebar loads it too). */
@@ -312,6 +311,87 @@
     background: var(--dr-white);
     color: var(--dr-navy);
     font-weight: 600;
+}
+
+.agent-pills__pill[aria-pressed="true"] {
+    border-color: var(--dr-white);
+    background: var(--dr-white);
+    color: var(--dr-navy);
+    font-weight: 600;
+}
+
+/* Pills are links as often as buttons; without these an anchor turns the
+   browser/Bootstrap link blue on hover and after a visit. */
+.agent-pills__pill:visited,
+.agent-pills__pill:active {
+    color: var(--dr-navy-soft);
+    text-decoration: none;
+}
+
+.agent-pills__pill:hover:not(:disabled):not([aria-disabled="true"]) {
+    border-color: var(--dr-navy-mid);
+    color: var(--dr-white);
+    text-decoration: none;
+}
+
+.agent-pills__pill[aria-selected="true"]:hover,
+.agent-pills__pill[aria-selected="true"]:visited,
+.agent-pills__pill[aria-current="page"]:hover,
+.agent-pills__pill[aria-current="page"]:visited,
+.agent-pills__pill[aria-pressed="true"]:hover,
+.agent-pills__pill[aria-pressed="true"]:visited {
+    border-color: var(--dr-white);
+    color: var(--dr-navy);
+}
+
+/* An action in the row (not a place): dashed, dimmer. */
+.agent-pills__pill--action {
+    border-style: dashed;
+    color: var(--dr-navy-mid);
+}
+
+.agent-pills__pill:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
+/* In a row of pills or inside a button the tag centres on the label. */
+.agent-pills__pill .agent-new-tag,
+button .agent-new-tag {
+    align-self: center;
+}
+
+/* A pill whose page is not built yet: held in place, not clickable. */
+.agent-pills__pill--held {
+    border-style: dashed;
+    color: var(--dr-navy-mid);
+    cursor: default;
+}
+
+/* The dashed purple "New" tag: something the approved screen shows that the CRM has no data for yet. */
+.agent-new-tag {
+    display: inline-block;
+    align-self: flex-start;
+    padding: 3px 6px;
+    border: 1px dashed var(--dr-purple);
+    border-radius: 4px;
+    background: var(--dr-purple-soft);
+    color: var(--dr-purple);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.agent-new-tag__hint {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
 }
 
 .agent-pills__dot {
@@ -490,8 +570,9 @@
         justify-content: center;
     }
 
+    /* Typing opens a dropdown, so the field needs little room of its own; the dock must not push into the corner. */
     .agent-dock__search:focus-within {
-        width: 180px;
+        width: 128px;
         padding: 0 10px;
     }
 
@@ -625,4 +706,692 @@
 .agent-btn-soft.dr-btn:hover:not(:disabled) {
     border-color: var(--dr-blue);
     background: var(--dr-blue-mid);
+}
+
+/* A removing action that repeats down a list ("Remove reminder"): outlined in
+   red, never a solid red block. */
+.agent-btn-danger-soft.dr-btn {
+    border-color: var(--dr-red-mid);
+    background: var(--dr-white);
+    color: var(--dr-red);
+}
+
+.agent-btn-danger-soft.dr-btn:hover:not(:disabled) {
+    border-color: var(--dr-red);
+    background: var(--dr-red-soft);
+    color: var(--dr-red);
+}
+
+/* ---------- in-list search, in the title block on the band ---------- */
+.agent-list-head {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.agent-list-search-row {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 14px;
+}
+
+.agent-list-search {
+    position: relative;
+    display: flex;
+    width: 280px;
+    max-width: 100%;
+    height: 38px;
+    align-items: center;
+}
+
+.agent-list-search svg {
+    position: absolute;
+    left: 11px;
+    color: var(--dr-text-hint);
+    pointer-events: none;
+}
+
+.agent-list-search input {
+    width: 100%;
+    height: 100%;
+    padding: 0 11px 0 32px;
+    border: 1px solid var(--dr-white);
+    border-radius: 9px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 14px;
+}
+
+.agent-list-search input::placeholder {
+    color: var(--dr-text-hint);
+}
+
+.agent-list-search input:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 1px;
+}
+
+@media (max-width: 639px) {
+    .agent-list-search {
+        width: 100%;
+    }
+}
+
+/* ---------- shared: filter chips on the navy band ---------- */
+/* Deals, Tasks, People and the Earnings ledger all open with a row of
+   count chips. A page keeps its own class beside these only for what is
+   its own (the row's layout and the narrow-screen sizes). */
+.agent-band-chip {
+    display: flex;
+    min-width: 104px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 9px 14px;
+    border: 1px solid var(--dr-navy-raised-line);
+    border-radius: 12px;
+    background: var(--dr-navy-raised);
+    color: var(--dr-white);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.agent-band-chip:hover:not(:disabled):not([aria-disabled="true"]) {
+    border-color: var(--dr-navy-mid);
+}
+
+.agent-band-chip[aria-pressed="true"] {
+    border-color: var(--dr-white);
+    background: var(--dr-white);
+    color: var(--dr-navy);
+}
+
+.agent-band-chip:focus-visible {
+    outline: 2px solid var(--dr-white);
+    outline-offset: 2px;
+}
+
+.agent-band-chip__label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--dr-navy-soft);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-band-chip[aria-pressed="true"] .agent-band-chip__label {
+    color: var(--dr-navy);
+}
+
+/* The colour square: set with --mark, or with a background where it is dynamic. */
+.agent-band-chip__mark {
+    width: 9px;
+    height: 9px;
+    flex: none;
+    border-radius: 2px;
+    background: var(--mark, var(--dr-time-none-solid));
+}
+
+.agent-band-chip__value {
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.agent-band-chip.is-loading .agent-band-chip__value {
+    border-radius: 4px;
+    background: var(--dr-navy-raised-line);
+    color: transparent;
+}
+
+.agent-band-chip[aria-pressed="true"].is-loading .agent-band-chip__value {
+    background: var(--dr-skeleton);
+}
+
+/* ---------- shared: list tables ---------- */
+/* The frame and the column headers of the Deals, Tasks, People and Earnings
+   tables. Each page sets its own --cols and its rows. */
+.agent-table {
+    overflow: hidden;
+    border: 1px solid var(--dr-border);
+    border-radius: 14px;
+    background: var(--dr-white);
+}
+
+.agent-table__th {
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.agent-table__th[aria-sort] {
+    color: var(--dr-navy);
+}
+
+/* ---------- pager under a paged list ---------- */
+.agent-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px;
+    border: 1px solid var(--dr-border);
+    border-radius: 14px;
+    background: var(--dr-surface-hover);
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+.agent-pager__buttons {
+    display: flex;
+    gap: 8px;
+}
+
+@media (max-width: 639px) {
+    .agent-pager {
+        flex-wrap: wrap;
+    }
+}
+
+/* ---------- shared: search and filters inside a card (canvas L8) ---------- */
+/* Every list card on the contact page narrows its own rows: a search field
+   and/or a row of one-tap chips under the title. The selected chip is solid
+   navy, the rest bordered white. */
+.agent-cardctl {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.agent-cardctl__search {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    height: 32px;
+    flex: 1 1 150px;
+    align-items: center;
+}
+
+.agent-cardctl__search svg {
+    position: absolute;
+    left: 10px;
+    color: var(--dr-text-hint);
+    pointer-events: none;
+}
+
+.agent-cardctl__search input {
+    width: 100%;
+    height: 100%;
+    padding: 0 10px 0 30px;
+    border: 1px solid var(--dr-border);
+    border-radius: 8px;
+    background: var(--dr-surface-2);
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 13px;
+}
+
+.agent-cardctl__search input::placeholder {
+    color: var(--dr-text-hint);
+}
+
+.agent-cardctl__search input:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 1px;
+}
+
+.agent-cardctl__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.agent-cardctl__chip {
+    display: inline-flex;
+    height: 28px;
+    align-items: center;
+    padding: 0 11px;
+    border: 1px solid var(--dr-border);
+    border-radius: 999px;
+    background: var(--dr-white);
+    color: var(--dr-gray-darker);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-cardctl__chip:hover {
+    background: var(--dr-surface-hover);
+}
+
+.agent-cardctl__chip[aria-pressed="true"] {
+    border-color: var(--dr-navy);
+    background: var(--dr-navy);
+    color: var(--dr-white);
+    font-weight: 600;
+}
+
+.agent-cardctl__chip:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+.agent-cardctl__aside {
+    margin-left: auto;
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+@media (max-width: 1023px) {
+    .agent-cardctl__chip {
+        height: 34px;
+    }
+
+    .agent-cardctl__search {
+        height: 38px;
+    }
+}
+
+/* ── Agent dialog (canvas L8-07 itinerary, L8-08 meeting brief) ── */
+.redesign-modal-overlay.agent-dlg-overlay {
+    background: rgba(15, 28, 56, 0.58);
+}
+
+.agent-dlg {
+    display: flex;
+    width: 100%;
+    max-height: calc(100vh - 48px);
+    min-width: 0;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 20px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font-family: inherit;
+    outline: none;
+}
+
+.agent-dlg__head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--dr-border);
+}
+
+.agent-dlg__icon {
+    display: inline-flex;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: #eaf2fb;
+    color: #14538c;
+}
+
+.agent-dlg__titles {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.agent-dlg__eyebrow,
+.agent-dlg__cap {
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.agent-dlg__title {
+    margin: 0;
+    color: var(--dr-text);
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.agent-dlg__subtitle {
+    color: var(--dr-text-muted);
+    font-size: 12.5px;
+}
+
+.agent-dlg__aside {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.agent-dlg__close {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--dr-border);
+    border-radius: 8px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    cursor: pointer;
+}
+
+.agent-dlg__close:hover {
+    background: var(--dr-surface-2, #f2f4f7);
+}
+
+.agent-dlg__close:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+.agent-dlg__strip {
+    display: grid;
+    margin: 0;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    border-bottom: 1px solid var(--dr-border);
+}
+
+.agent-dlg__cell {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 22px;
+    border-right: 1px solid #eef0f3;
+}
+
+.agent-dlg__cell dt {
+    color: var(--dr-text-muted);
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.agent-dlg__cell dd {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.agent-dlg__body {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.agent-dlg__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 22px;
+    border-top: 1px solid var(--dr-border);
+    background: #fafbfc;
+}
+
+/* A form dialog: the footer is part of the white sheet. */
+.agent-dlg--form .agent-dlg__foot {
+    background: var(--dr-white);
+}
+
+.agent-dlg__spacer {
+    flex: 1 1 auto;
+}
+
+.agent-dlg__note {
+    color: var(--dr-text-muted);
+    font-size: 12.5px;
+}
+
+.agent-dlg__section {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.agent-dlg__section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+@media (max-width: 767px) {
+    .redesign-modal-overlay.agent-dlg-overlay {
+        padding: 0;
+        align-items: stretch;
+    }
+
+    .agent-dlg {
+        max-width: 100% !important;
+        max-height: 100%;
+        border-radius: 0;
+    }
+
+    .agent-dlg__head {
+        flex-wrap: wrap;
+        padding: 14px 16px;
+    }
+
+    .agent-dlg__titles {
+        flex-basis: calc(100% - 96px);
+    }
+
+    .agent-dlg__aside {
+        order: 3;
+        width: 100%;
+    }
+
+    .agent-dlg__cell {
+        padding: 10px 16px;
+    }
+
+    .agent-dlg__foot {
+        padding: 12px 16px;
+    }
+}
+
+/* Schedule meeting dialog (canvas L7-32): server errors above the columns. */
+.agent-meeting__errors {
+    margin: 16px 20px 0;
+    padding: 10px 12px;
+    list-style: none;
+    border: 1px solid #f1c9c9;
+    border-radius: 10px;
+    background: #fbebeb;
+    color: #9f1d1d;
+    font-size: 13px;
+}
+
+/* Read-only "Related record" field on agent create forms (canvas L7-32). */
+.agent-related {
+    display: flex;
+    min-height: 40px;
+    align-items: center;
+    gap: 9px;
+    padding: 0 12px;
+    border: 1px solid var(--dr-border);
+    border-radius: 8px;
+    background: var(--dr-surface-2);
+    color: var(--dr-text-muted);
+    font-size: 14px;
+}
+.agent-related__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.agent-related__mark {
+    width: 9px;
+    height: 9px;
+    flex: 0 0 9px;
+    border-radius: 50%;
+    background: var(--dr-text-muted);
+}
+.agent-related__mark--deal {
+    border-radius: 1px;
+    transform: rotate(45deg);
+}
+.agent-related__hint {
+    margin: 6px 0 0;
+    color: var(--dr-text-hint);
+    font-size: 12px;
+}
+
+/* Create deal dialog (canvas L7-34). */
+.agent-cdm {
+    padding: 16px 20px 8px;
+}
+.agent-cdm__diamond {
+    width: 13px;
+    height: 13px;
+    border-radius: 2px;
+    background: var(--dr-blue);
+    transform: rotate(45deg);
+}
+.agent-cdm__steps {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0 0 18px;
+    padding: 0;
+    list-style: none;
+}
+.agent-cdm__stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--dr-text-muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+.agent-cdm__stepper + .agent-cdm__stepper::before {
+    content: "";
+    width: 36px;
+    height: 1px;
+    margin-right: 6px;
+    background: var(--dr-border);
+}
+.agent-cdm__num {
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--dr-border);
+    border-radius: 50%;
+    font-size: 11.5px;
+    font-weight: 700;
+}
+.agent-cdm__stepper--current {
+    color: var(--dr-text);
+}
+.agent-cdm__stepper--current .agent-cdm__num {
+    border-color: var(--dr-navy);
+    background: var(--dr-navy);
+    color: var(--dr-white);
+}
+.agent-cdm__stepper--done .agent-cdm__num {
+    border-color: var(--dr-green);
+    background: var(--dr-green);
+    color: var(--dr-white);
+}
+.agent-cdm__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 14px;
+}
+.agent-cdm__grid > * {
+    min-width: 0;
+}
+.agent-cdm .modal-field > label {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--dr-text);
+}
+.agent-cdm__f--name {
+    order: 0;
+    grid-column: 1 / -1;
+}
+.agent-cdm__f--pipeline { order: 1; }
+.agent-cdm__f--stage { order: 2; }
+.agent-cdm__f--agent { order: 3; }
+.agent-cdm__f--category { order: 4; }
+.agent-cdm__f--package { order: 5; }
+.agent-cdm__f--product { order: 6; }
+.agent-cdm__f--value { order: 7; }
+.agent-cdm__kickoff {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    border: 1.5px solid var(--dr-blue);
+    border-radius: 10px;
+    background: var(--dr-blue-light);
+    color: var(--dr-text);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.agent-cdm__kickoff input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--dr-blue);
+}
+.agent-cdm__step {
+    color: var(--dr-text-muted);
+    font-size: 13px;
+}
+@media (max-width: 560px) {
+    .agent-cdm__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .agent-cdm__stepper + .agent-cdm__stepper::before {
+        width: 14px;
+    }
+}
+
+/* A pill row with an action after its tabs: the tab list joins the row's flex. */
+.agent-pills__tabs {
+    display: contents;
+}
+
+/* "+ New deal" after a person's pills (canvas L7-34): a light filled action. */
+.agent-pills__pill--new,
+.agent-pills__pill--new:visited,
+.agent-pills__pill--new:active {
+    border-color: var(--dr-navy-soft);
+    background: var(--dr-navy-soft);
+    color: var(--dr-navy);
+    font-weight: 600;
+    cursor: pointer;
+}
+.agent-pills__pill--new:hover:not(:disabled) {
+    border-color: var(--dr-white);
+    background: var(--dr-white);
+    color: var(--dr-navy);
 }

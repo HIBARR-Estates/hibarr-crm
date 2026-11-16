@@ -119,6 +119,8 @@ export interface EntityAiSummaryCardProps {
     onRequestDocuments?: () => void;
     onAdvanceStage?: () => void;
     onReviewStaleDeal?: () => void;
+    /** Called when this card generates or loads a newer summary. */
+    onSummaryChange?: (summary: EntitySummaryPayload | null) => void;
 }
 
 export function isLeadSummaryPayload(

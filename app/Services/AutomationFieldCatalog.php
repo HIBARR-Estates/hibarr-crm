@@ -168,6 +168,7 @@ class AutomationFieldCatalog
         'temperature' => 'Lead Temperature',
         'category_id' => 'Lead Category',
         'source_id' => 'Lead Source',
+        'lead_origin_id' => 'Lead Origin',
         'lead_lifecycle_status_id' => 'Lead Status',
         'lead_owner' => 'Lead Owner (User ID)',
         'referred_by_agent_id' => 'Referring Agent (ID)',
@@ -318,6 +319,8 @@ class AutomationFieldCatalog
                 ->get(['id', 'category_name as name']),
             'leadSources' => \App\Models\LeadSource::orderBy('sort_order')
                 ->get(['id', 'type as name']),
+            'leadOrigins' => \App\Models\LeadOrigin::query()
+                ->get(['id', 'name']),
             'leadLifecycleStatuses' => \App\Models\LeadLifecycleStatus::orderBy('sort_order')
                 ->get(['id', 'label as name']),
             'leadAgents' => \App\Models\LeadAgent::with('user:id,name')

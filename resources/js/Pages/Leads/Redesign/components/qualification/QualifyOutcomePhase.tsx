@@ -53,7 +53,12 @@ import useLeadMeetingCreate, {
 import useLeadFieldUpdate from "../../hooks/useLeadFieldUpdate";
 import { useScriptMapping } from "@/Features/Leads/QualificationMapping/mappingApi";
 import { Empty, Spin, message } from "antd";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import useTranslation from "@/Hooks/useTranslation";
+import OutcomeCards, { type OutcomeCardItem } from "@/Components/Redesign/agent/flow/qualify/OutcomeCards";
+import SayBar from "@/Components/Redesign/agent/flow/qualify/SayBar";
+import ScriptText from "@/Components/Redesign/agent/flow/qualify/ScriptText";
+import "@/Components/Redesign/agent/flow/qualify/agent-qualify.css";
 
 type QualificationFlow = ReturnType<typeof useQualificationFlow>;
 
@@ -498,6 +503,10 @@ interface QualifyOutcomePhaseProps {
     onBack: () => void;
     onCompleted: (qualification: LeadQualification) => void;
     onDone: (qualification: LeadQualification) => void;
+    /** Under the agent dock: the outcome cards and the detail share one screen (canvas L7-08). */
+    agentLayout?: boolean;
+    /** Name of the step before, for the agent footer's back button. */
+    previousLabel?: ReactNode;
 }
 
 export default function QualifyOutcomePhase({
@@ -512,12 +521,54 @@ export default function QualifyOutcomePhase({
     onBack,
     onCompleted,
     onDone,
+    agentLayout = false,
+    previousLabel,
 }: QualifyOutcomePhaseProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
+    const lifecycleStatusFor = useOutcomeLifecycleStatus();
     const choices = useMemo(
         () => getAllOutcomeChoices(flow.templateTree),
         [flow.templateTree],
     );
+    const renderCards = (disabled: boolean): ReactNode =>
+        agentLayout ? (
+        <OutcomeCards
+            disabled={disabled}
+            items={choices.map(
+                (choice): OutcomeCardItem => {
+                    const status = lifecycleStatusFor(choice.key);
+                    const color = status?.label_color && /^#[0-9a-fA-F]{6}$/.test(status.label_color) ? status.label_color : T.NAVY;
+                    return {
+                        key: choice.key,
+                        title: td(choice.label, { source: "en" }),
+                        description: td(OUTCOME_CARD_META[choice.key].description, { source: "en" }),
+                        status: status ? { label: td(status.label, { source: "en" }), color } : null,
+                    };
+                },
+            )}
+            selected={selectedOutcome}
+            onSelect={(key) => onSelectOutcome(key as QualificationOutcome)}
+        />
+    ) : null;
+
+    if (agentLayout && !selectedOutcome) {
+        return (
+            <div className="agent-qo">
+                <div className="agent-qo__scroll">
+                    <p className="agent-qs__cap">{t("pages.agent_workspace.flow.outcome")}</p>
+                    <p className="agent-qs__hint">{t("pages.agent_workspace.flow.outcome_pick")}</p>
+                    {renderCards(false)}
+                </div>
+                <footer className="agent-flow__foot">
+                    <button type="button" className="agent-flow__btn" onClick={onBack}>
+                        <span aria-hidden="true">←</span>
+                        <span className="agent-flow__foot-name">{previousLabel ?? t("pages.agent_workspace.flow.previous")}</span>
+                    </button>
+                </footer>
+            </div>
+        );
+    }
 
     if (!selectedOutcome) {
         return (
@@ -568,6 +619,9 @@ export default function QualifyOutcomePhase({
             onBack={onBack}
             onCompleted={onCompleted}
             onDone={onDone}
+            agentLayout={agentLayout}
+            renderCards={renderCards}
+            previousLabel={previousLabel}
         />
     );
 }
@@ -583,7 +637,13 @@ function OutcomeDetail({
     onBack,
     onCompleted,
     onDone,
+    agentLayout = false,
+    renderCards = null,
+    previousLabel,
 }: {
+    agentLayout?: boolean;
+    renderCards?: ((disabled: boolean) => ReactNode) | null;
+    previousLabel?: ReactNode;
     flow: QualificationFlow;
     lead: Lead;
     agentLanguage: string;
@@ -596,12 +656,15 @@ function OutcomeDetail({
     onDone: (qualification: LeadQualification) => void;
 }) {
     const { td } = useTd();
+    const { t } = useTranslation();
+    const lifecycleStatusFor = useOutcomeLifecycleStatus();
     const { formatDateTime } = useUserDateTime();
     const { props: pageProps } = usePage();
     const userId = pageProps.auth?.user?.id;
     const userEmail = pageProps.auth?.user?.email;
-    // Calendly guest: the lead's assigned agent, or whoever is qualifying.
-    const calendlyGuestEmail = lead.lead_owner?.email || userEmail;
+    // Calendly guest: the agent doing the booking (signed-in user), so the
+    // invite lands on their calendar. Lead owner is only a fallback.
+    const calendlyGuestEmail = userEmail || lead.lead_owner?.email;
     const meetingCreate = useLeadMeetingCreate(lead);
     const { updateField } = useLeadFieldUpdate();
     const [busy, setBusy] = useState(false);
@@ -1112,39 +1175,53 @@ function OutcomeDetail({
 
     return (
         <DynamicTranslationProvider locale={agentLanguage}>
-            <div className="flex flex-col flex-1 min-h-0">
-                <div className="flex-1 min-h-0 overflow-y-auto px-6 pt-5 pb-4">
-                    <div className="flex gap-4 mb-7">
-                        <NumberBadge
-                            number="★"
-                            answered={Boolean(selectedValues.length)}
-                        />
-                        <div className="flex-1 min-w-0">
-                            <p
-                                className="text-xs font-semibold uppercase tracking-wider mb-2"
-                                style={{ color: T.TEXT_MUTED }}
-                            >
-                                {td("Outcome", { source: "en" })}
-                            </p>
-                            <p
-                                className="text-base font-semibold mb-2 leading-snug"
-                                style={{ color: T.TEXT }}
-                            >
-                                {td(title, { source: "en" })}
-                            </p>
-                            <OutcomeBody
-                                text={bodyText}
-                                translateScript={flow.translateScript}
+            <div className={agentLayout ? "agent-qo" : "flex flex-col flex-1 min-h-0"}>
+                <div className={agentLayout ? "agent-qo__scroll" : "flex-1 min-h-0 overflow-y-auto px-6 pt-5 pb-4"}>
+                    <div className={agentLayout ? "agent-qo__main" : "flex gap-4 mb-7"}>
+                        {agentLayout ? null : (
+                            <NumberBadge
+                                number="★"
+                                answered={Boolean(selectedValues.length)}
                             />
-                            <p
-                                className="text-sm mt-3 mb-4"
-                                style={{ color: T.TEXT_MUTED }}
-                            >
-                                {td(
-                                    "Confirm the outcome with the lead, then continue.",
-                                    { source: "en" },
-                                )}
-                            </p>
+                        )}
+                        <div className="flex-1 min-w-0">
+                            {agentLayout ? (
+                                <>
+                                    <p className="agent-qs__cap">{t("pages.agent_workspace.flow.outcome")}</p>
+                                    <SayBar>
+                                        <ScriptText text={bodyText} translateScript={flow.translateScript} />
+                                    </SayBar>
+                                    {renderCards?.(busy || flow.completing)}
+                                </>
+                            ) : (
+                                <>
+                                    <p
+                                        className="text-xs font-semibold uppercase tracking-wider mb-2"
+                                        style={{ color: T.TEXT_MUTED }}
+                                    >
+                                        {td("Outcome", { source: "en" })}
+                                    </p>
+                                    <p
+                                        className="text-base font-semibold mb-2 leading-snug"
+                                        style={{ color: T.TEXT }}
+                                    >
+                                        {td(title, { source: "en" })}
+                                    </p>
+                                    <OutcomeBody
+                                        text={bodyText}
+                                        translateScript={flow.translateScript}
+                                    />
+                                    <p
+                                        className="text-sm mt-3 mb-4"
+                                        style={{ color: T.TEXT_MUTED }}
+                                    >
+                                        {td(
+                                            "Confirm the outcome with the lead, then continue.",
+                                            { source: "en" },
+                                        )}
+                                    </p>
+                                </>
+                            )}
 
                             {optionChoices.length > 0 ? (
                                 <div className="mb-4">
@@ -1179,6 +1256,35 @@ function OutcomeDetail({
                                 disabled={busy || flow.completing}
                             />
 
+                            {outcome === "bookMeeting" && agentLayout && (
+                                <>
+                                    <p className="agent-qs__cap agent-qo__cap-gap">{t("pages.agent_workspace.flow.how_to_book")}</p>
+                                    <div className="agent-qo__tracks" role="radiogroup">
+                                        {(
+                                            [
+                                                { key: "specialist" as const, title: t("pages.agent_workspace.flow.book_agent_title"), subtitle: t("pages.agent_workspace.flow.book_agent_sub") },
+                                                { key: "ceo" as const, title: t("pages.agent_workspace.flow.book_ceo_title"), subtitle: t("pages.agent_workspace.flow.book_ceo_sub") },
+                                            ]
+                                        ).map((track) => (
+                                            <button
+                                                key={track.key}
+                                                type="button"
+                                                role="radio"
+                                                aria-checked={bookTrack === track.key}
+                                                disabled={busy || flow.completing}
+                                                onClick={() => setBookTrack(track.key)}
+                                                className={`agent-qo__track${bookTrack === track.key ? " agent-qo__track--on" : ""}`}
+                                            >
+                                                <span className="agent-qo__radio" aria-hidden="true" />
+                                                <span className="agent-qo__track-text">
+                                                    <span className="agent-qo__track-title">{track.title}</span>
+                                                    <span className="agent-qo__track-sub">{track.subtitle}</span>
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
                             {(outcome === "bookMeeting" ||
                                 outcome === "callback") && (
                                 <div
@@ -1193,15 +1299,17 @@ function OutcomeDetail({
                                         className="text-sm font-semibold mb-4"
                                         style={{ color: T.TEXT }}
                                     >
-                                        {td(
-                                            outcome === "callback"
-                                                ? "Schedule the callback"
-                                                : "Book the consultation",
-                                            { source: "en" },
-                                        )}
+                                        {agentLayout && usesCeoCalendly
+                                            ? t("pages.agent_workspace.flow.calendly_title")
+                                            : td(
+                                                  outcome === "callback"
+                                                      ? "Schedule the callback"
+                                                      : "Book the consultation",
+                                                  { source: "en" },
+                                              )}
                                     </p>
 
-                                    {outcome === "bookMeeting" && (
+                                    {outcome === "bookMeeting" && !agentLayout && (
                                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 mb-4">
                                             {(
                                                 [
@@ -1289,7 +1397,49 @@ function OutcomeDetail({
                                             ))}
                                         </div>
                                     )}
-                                    {usesCeoCalendly ? (
+                                    {usesCeoCalendly && agentLayout ? (
+                                        <div className="agent-qo__calendly">
+                                            <p className="agent-qo__calendly-lead">
+                                                {t("pages.agent_workspace.flow.calendly_prefilled")}
+                                            </p>
+                                            <div className="agent-qo__chips">
+                                                {[
+                                                    {
+                                                        key: "name",
+                                                        label: t("pages.agent_workspace.contact.edit.fields.name"),
+                                                        value: lead.client_name,
+                                                    },
+                                                    {
+                                                        key: "email",
+                                                        label: t("pages.agent_workspace.contact.edit.fields.email"),
+                                                        value: lead.client_email,
+                                                    },
+                                                    {
+                                                        key: "phone",
+                                                        label: t("pages.agent_workspace.contact.edit.fields.mobile"),
+                                                        value:
+                                                            resolveLeadPhoneDisplay(lead.mobile, lead.mobile_with_phonecode) ||
+                                                            resolveLeadPhoneDisplay(lead.cell),
+                                                    },
+                                                    {
+                                                        key: "guest",
+                                                        label: t("pages.agent_workspace.flow.guest"),
+                                                        value: calendlyGuestEmail,
+                                                    },
+                                                ]
+                                                    .filter((chip) => chip.value)
+                                                    .map((chip) => (
+                                                        <span className="agent-qo__chip" key={chip.key}>
+                                                            <span className="agent-qo__chip-label">{chip.label}</span>
+                                                            <strong>{chip.value}</strong>
+                                                        </span>
+                                                    ))}
+                                            </div>
+                                            <p className="agent-qo__calendly-note">
+                                                {t("pages.agent_workspace.flow.calendly_note")}
+                                            </p>
+                                        </div>
+                                    ) : usesCeoCalendly ? (
                                         <div
                                             className="rounded-lg p-3"
                                             style={{
@@ -1868,21 +2018,49 @@ function OutcomeDetail({
                     </div>
                 </div>
 
+                {agentLayout ? (
+                    <footer className="agent-flow__foot">
+                        <button type="button" className="agent-flow__btn" onClick={onBack}>
+                            <span aria-hidden="true">←</span>
+                            <span className="agent-flow__foot-name">{previousLabel ?? t("pages.agent_workspace.flow.previous")}</span>
+                        </button>
+                        <span className="agent-flow__saved">
+                            {lifecycleStatusFor(outcome)
+                                ? t("pages.agent_workspace.flow.status_becomes", {
+                                      status: td(lifecycleStatusFor(outcome)!.label, { source: "en" }),
+                                  })
+                                : ""}
+                        </span>
+                        <button
+                            type="button"
+                            className="agent-flow__btn agent-flow__btn--green"
+                            disabled={
+                                busy ||
+                                flow.completing ||
+                                (outcome === "inviteWebinar" && !selectedSessionId)
+                            }
+                            onClick={() => void handleCta()}
+                        >
+                            {busy || flow.completing ? td("Working…", { source: "en" }) : td(ctaLabel, { source: "en" })}
+                        </button>
+                    </footer>
+                ) : (
                 <OutcomeFooter
-                    onBack={onBack}
-                    backLabel={td("Previous", { source: "en" })}
-                    onPrimary={() => void handleCta()}
-                    primaryLabel={
-                        busy || flow.completing
-                            ? td("Working…", { source: "en" })
-                            : td(ctaLabel, { source: "en" })
-                    }
-                    primaryDisabled={
-                        busy ||
-                        flow.completing ||
-                        (outcome === "inviteWebinar" && !selectedSessionId)
-                    }
-                />
+                        onBack={onBack}
+                        backLabel={td("Previous", { source: "en" })}
+                        onPrimary={() => void handleCta()}
+                        primaryLabel={
+                            busy || flow.completing
+                                ? td("Working…", { source: "en" })
+                                : td(ctaLabel, { source: "en" })
+                        }
+                        primaryDisabled={
+                            busy ||
+                            flow.completing ||
+                            (outcome === "inviteWebinar" && !selectedSessionId)
+                        }
+                    />
+                )}
             </div>
         </DynamicTranslationProvider>
     );

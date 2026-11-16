@@ -23,10 +23,12 @@ class DealMetricsService
         return $this->createdQuery($agentIds, $start, $end)
             ->with([
                 'leadAgent.user:id,name',
-                'contact:id,client_name,client_email',
-                'leadStage:id,name',
+                'contact:id,client_name,client_email,source_id',
+                'contact.leadSource:id,type',
+                'leadStage:id,name,label_color',
+                'currency:id,currency_symbol',
             ])
-            ->select(['id', 'name', 'value', 'agent_id', 'lead_id', 'pipeline_stage_id', 'created_at'])
+            ->select(['id', 'name', 'value', 'currency_id', 'agent_id', 'lead_id', 'pipeline_stage_id', 'created_at'])
             ->orderByDesc('created_at')
             ->paginate($perPage);
     }
@@ -41,9 +43,11 @@ class DealMetricsService
         return $this->closedQuery($agentIds, $start, $end)
             ->with([
                 'leadAgent.user:id,name',
-                'contact:id,client_name,client_email',
+                'contact:id,client_name,client_email,source_id',
+                'contact.leadSource:id,type',
+                'currency:id,currency_symbol',
             ])
-            ->select(['id', 'name', 'value', 'agent_id', 'lead_id', 'close_date', 'outcome_status'])
+            ->select(['id', 'name', 'value', 'currency_id', 'agent_id', 'lead_id', 'close_date', 'outcome_status'])
             ->orderByDesc('close_date')
             ->paginate($perPage);
     }

@@ -361,6 +361,7 @@ export default function DealTimelineEventRow({
                         <RecordingPlayer
                             playUrl={event.call.playUrl}
                             downloadUrl={event.call.downloadUrl}
+                            openUrl={event.call.openUrl}
                             durationSeconds={event.call.durationSeconds}
                             filename={event.call.filename ?? undefined}
                             expired={event.call.expired}

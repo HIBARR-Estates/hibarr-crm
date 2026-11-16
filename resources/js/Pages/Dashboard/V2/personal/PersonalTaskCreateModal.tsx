@@ -6,6 +6,7 @@ import useTasksWorkspaceMutations from "@/Pages/Tasks/Redesign/hooks/useTasksWor
 import {
     formLinksPayload,
     type TaskFormValues,
+    type TaskLinkRef,
 } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
 
 interface CategoryOption {
@@ -19,6 +20,8 @@ interface PersonalTaskCreateModalProps {
     onClose: () => void;
     /** Fires after a successful create — the caller decides how to refresh. */
     onCreated: () => void;
+    /** Pins the task to a record (a person's page in the agent workspace); none for a free-standing task. */
+    lockedLinks?: TaskLinkRef[];
 }
 
 /**
@@ -41,6 +44,7 @@ export default function PersonalTaskCreateModal({
     taskBoardColumns,
     onClose,
     onCreated,
+    lockedLinks,
 }: PersonalTaskCreateModalProps) {
     const { props } = usePage();
     const noopSetTasks = useCallback(() => {}, []);
@@ -53,6 +57,7 @@ export default function PersonalTaskCreateModal({
                 open={open}
                 mode="create"
                 columns={taskBoardColumns}
+                lockedLinks={lockedLinks}
                 categories={
                     (props.taskCategories as unknown as
                         | CategoryOption[]

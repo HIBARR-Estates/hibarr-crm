@@ -8,8 +8,7 @@ interface WorkspacePaymentsTabProps {
 }
 
 /**
- * Deal-scoped Payments tab — same create / confirm / history UI as the
- * dossier rail Payment section, given primary-tab discoverability.
+ * Deal-scoped Payments tab. The dossier rail does not repeat this.
  */
 export default function WorkspacePaymentsTab({
     deal,

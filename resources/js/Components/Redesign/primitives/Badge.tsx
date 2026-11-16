@@ -60,6 +60,7 @@ export default function Badge({
                 color: v.color,
                 border: `1px solid ${v.border}`,
                 whiteSpace: "nowrap",
+                flexShrink: 0,
                 ...style,
             }}
         >

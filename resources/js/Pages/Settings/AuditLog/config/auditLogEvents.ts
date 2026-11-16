@@ -11,6 +11,8 @@ export const AUDIT_EVENT_STYLE: Record<AuditEvent, { variant: BadgeVariant; icon
     logout: { variant: "gray", icon: "lock" },
     login_failed: { variant: "amber", icon: "ban" },
     password_reset: { variant: "amber", icon: "lock" },
+    impersonation_started: { variant: "navy", icon: "users" },
+    impersonation_ended: { variant: "gray", icon: "users" },
 };
 
 /** Events that change a record's fields (and so carry a before/after diff). */

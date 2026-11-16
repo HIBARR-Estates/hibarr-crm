@@ -44,6 +44,7 @@ class FieldResolverService
         'temperature',
         'category_id',
         'source_id',
+        'lead_origin_id',
         'lead_lifecycle_status_id',
         'lead_owner',
         'referred_by_agent_id',

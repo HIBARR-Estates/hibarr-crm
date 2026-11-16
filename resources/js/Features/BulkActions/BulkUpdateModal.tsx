@@ -338,9 +338,10 @@ export default function BulkUpdateModal({
                         options={field.options}
                         value={asArray(value)}
                         onChange={(next) => setFieldValue(field.key, next)}
-                        searchPlaceholder={td("Search people…", {
-                            source: "en",
-                        })}
+                        searchPlaceholder={
+                            field.searchPlaceholder ??
+                            td("Search people…", { source: "en" })
+                        }
                     />
                 );
             case "checklist-single":
@@ -351,9 +352,10 @@ export default function BulkUpdateModal({
                         onChange={(next) =>
                             setFieldValue(field.key, takeSingle(next))
                         }
-                        searchPlaceholder={td("Search people…", {
-                            source: "en",
-                        })}
+                        searchPlaceholder={
+                            field.searchPlaceholder ??
+                            td("Search people…", { source: "en" })
+                        }
                     />
                 );
             default:

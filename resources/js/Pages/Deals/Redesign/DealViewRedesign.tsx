@@ -177,8 +177,6 @@ function DealViewRedesignInner(
         dealInfoCategories,
         analysisProgress,
         employees,
-        canCreatePaymentRequest,
-        canConfirmPaymentTransfer,
         advanceToNextStage,
         dealFileVisibilityMap,
     } = model;
@@ -360,13 +358,6 @@ function DealViewRedesignInner(
                                     onNavigateToSubTab={nav.setTab}
                                     onSwitchToDealInfo={() =>
                                         nav.goToDealInfo("general")
-                                    }
-                                    showOnlinePayment={props.showOnlinePayment}
-                                    canCreatePaymentRequest={
-                                        canCreatePaymentRequest
-                                    }
-                                    canConfirmPaymentTransfer={
-                                        canConfirmPaymentTransfer
                                     }
                                 />
                             </div>

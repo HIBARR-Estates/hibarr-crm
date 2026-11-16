@@ -1,0 +1,292 @@
+/* Preferences (L7-40). Colours come from the --dr-* tokens; nothing here casts
+   a shadow and no card is edged with a side border. */
+.agent-ws:has(.agent-pr) {
+    --agent-band-height: 250px;
+}
+
+.agent-pr {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.agent-pr__heading h1 {
+    margin: 0;
+    color: var(--dr-white);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.agent-pr__heading p {
+    margin: 4px 0 0;
+    color: var(--dr-navy-mid);
+    font-size: 14px;
+}
+
+.agent-pr__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 16px;
+}
+
+.agent-pr__column {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ---------- cards ---------- */
+.agent-pr__card {
+    display: flex;
+    flex-direction: column;
+    padding: 16px 18px;
+    border: 1px solid var(--dr-border);
+    border-radius: 16px;
+    background: var(--dr-white);
+}
+
+.agent-pr__card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 30px;
+}
+
+.agent-pr__label {
+    margin: 0;
+    color: var(--dr-gray-darker);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.agent-pr__row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 0;
+    border-top: 1px solid var(--dr-border-soft);
+}
+
+.agent-pr__card-head + .agent-pr__row {
+    margin-top: 4px;
+}
+
+.agent-pr__row-text {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.agent-pr__row-text b {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.agent-pr__row-text small {
+    color: var(--dr-text-muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.agent-pr__row-control {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+}
+
+.agent-pr__select.ant-select {
+    width: 240px;
+    max-width: 100%;
+}
+
+.agent-pr__more {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding-bottom: 12px;
+}
+
+.agent-pr__alert-settings {
+    max-width: 100%;
+    padding: 12px;
+    border: 1px solid var(--dr-border);
+    border-radius: 12px;
+    background: var(--dr-surface-hover);
+}
+
+/* ---------- meeting reminders ---------- */
+.agent-pr__sub {
+    margin: 8px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--dr-border-soft);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.agent-pr__off {
+    margin: 8px 0 0;
+    padding: 10px 12px;
+    border: 1px solid var(--dr-time-soon-border);
+    border-radius: 10px;
+    background: var(--dr-time-soon-bg);
+    color: var(--dr-time-soon-text);
+    font-size: 12px;
+}
+
+.agent-pr__reminders {
+    display: flex;
+    flex-direction: column;
+}
+
+.agent-pr__reminder {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-top: 1px solid var(--dr-border-soft);
+}
+
+.agent-pr__reminders > .agent-pr__reminder:first-child {
+    margin-top: 6px;
+}
+
+.agent-pr__number {
+    width: 80px;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--dr-border);
+    border-radius: 8px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 14px;
+}
+
+.agent-pr__number:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 1px;
+}
+
+.agent-pr__reminder-text {
+    flex: 1;
+    min-width: 0;
+    color: var(--dr-text-muted);
+    font-size: 13px;
+}
+
+.agent-pr__add {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--dr-border-soft);
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+/* ---------- unsaved changes bar ---------- */
+.agent-pr__bar-slot {
+    position: sticky;
+    bottom: 16px;
+    z-index: 20;
+    margin-top: -12px;
+}
+.agent-pr__bar-slot:empty {
+    display: none;
+}
+
+.agent-pr__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 12px;
+    padding: 12px 16px;
+    border: 1px solid var(--dr-time-soon-border);
+    border-radius: 14px;
+    background: var(--dr-time-soon-bg);
+}
+
+.agent-pr__bar b {
+    flex: 1;
+    min-width: 180px;
+    color: var(--dr-time-soon-text);
+    font-size: 13px;
+}
+
+.agent-pr__bar-dot {
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--dr-time-soon-solid);
+}
+
+/* ---------- loading ---------- */
+.agent-pr__skeleton {
+    border-radius: 6px;
+    background: var(--dr-skeleton);
+}
+
+.agent-pr__skeleton--label {
+    width: 120px;
+    height: 12px;
+    margin-bottom: 8px;
+}
+
+.agent-pr__skeleton--text {
+    flex: 1;
+    height: 34px;
+}
+
+.agent-pr__skeleton--control {
+    width: 120px;
+    height: 28px;
+}
+
+/* ---------- narrower screens ---------- */
+@media (max-width: 899px) {
+    .agent-pr__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .agent-pr__bar-slot {
+        bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    }
+}
+
+@media (max-width: 639px) {
+    .agent-ws:has(.agent-pr) {
+        --agent-band-height: 220px;
+    }
+
+    /* Only the row with the zone picker stacks; switches and buttons stay beside their text. */
+    .agent-pr__row:has(.agent-pr__select) {
+        flex-wrap: wrap;
+    }
+
+    .agent-pr__row:has(.agent-pr__select) .agent-pr__row-control {
+        width: 100%;
+    }
+
+    .agent-pr__select.ant-select {
+        width: 100%;
+    }
+
+    .agent-pr__remove-label {
+        display: none;
+    }
+
+    .agent-pr__bar > .dr-btn {
+        flex: 1;
+    }
+}

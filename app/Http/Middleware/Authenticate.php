@@ -68,6 +68,7 @@ class Authenticate extends Middleware
             });
 
             if (!$isActive) {
+                \App\Support\AuditLog\AuthTrigger::mark(\App\Support\AuditLog\AuthTrigger::ACCOUNT_DISABLED);
                 auth()->logout();
                 session()->flush();
 

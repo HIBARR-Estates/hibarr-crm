@@ -164,8 +164,8 @@ class TodayQueryBudgetTest extends TestCase
 
     public function test_rows_carry_the_records_status_person_and_phone(): void
     {
-        DB::table('lead_lifecycle_statuses')->insert(['id' => 4, 'company_id' => 1, 'label' => 'Qualifying']);
-        DB::table('pipeline_stages')->insert(['id' => 6, 'company_id' => 1, 'name' => 'Viewing']);
+        DB::table('lead_lifecycle_statuses')->insert(['id' => 4, 'company_id' => 1, 'label' => 'Qualifying', 'label_color' => '#5b4fa0']);
+        DB::table('pipeline_stages')->insert(['id' => 6, 'company_id' => 1, 'name' => 'Viewing', 'label_color' => '#1a6bb5']);
         DB::table('leads')->where('id', 1)->update(['lead_lifecycle_status_id' => 4, 'mobile' => '+49 151 2384 7720']);
         DB::table('leads')->insert(['id' => 2, 'company_id' => 1, 'client_name' => 'No Number', 'mobile' => 'n/a', 'lead_owner' => self::USER]);
         DB::table('deals')->where('id', 1)->update(['pipeline_stage_id' => 6]);
@@ -178,10 +178,11 @@ class TodayQueryBudgetTest extends TestCase
             ->mapWithKeys(fn (array $row) => [$row['id'] => $row['related']]);
 
         $this->assertSame(
-            ['type' => 'deal', 'id' => 1, 'name' => 'Jana · Kyrenia', 'status' => 'Viewing', 'person' => 'Jana Hoffmann', 'phone' => '+4915123847720'],
+            ['type' => 'deal', 'id' => 1, 'name' => 'Jana · Kyrenia', 'status' => 'Viewing', 'status_color' => '#1a6bb5', 'person' => 'Jana Hoffmann', 'phone' => '+4915123847720'],
             $related[1]
         );
         $this->assertSame('Qualifying', $related[2]['status']);
+        $this->assertSame('#5b4fa0', $related[2]['status_color']);
         $this->assertSame('Jana Hoffmann', $related[2]['person']);
         $this->assertSame('+4915123847720', $related[2]['phone']);
         // A number with no digits is no number: no Call or Copy on that row.
@@ -380,11 +381,13 @@ class TodayQueryBudgetTest extends TestCase
             $table->increments('id');
             $table->unsignedInteger('company_id')->nullable();
             $table->string('label')->nullable();
+            $table->string('label_color')->nullable();
         });
         Schema::create('pipeline_stages', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('company_id')->nullable();
             $table->string('name')->nullable();
+            $table->string('label_color')->nullable();
         });
         Schema::create('lead_agents', function (Blueprint $table) {
             $table->increments('id');

@@ -3,6 +3,9 @@
 namespace Tests\Feature\AuditLog;
 
 use App\Models\AuditLog;
+use App\Support\AuditLog\AuthTrigger;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Schema\Blueprint;
@@ -42,6 +45,8 @@ class AuditRecorderTest extends TestCase
             $table->string('name');
             $table->string('email')->nullable();
             $table->string('password')->nullable();
+            $table->timestamp('last_login')->nullable();
+            $table->timestamps();
         });
     }
 
@@ -140,6 +145,31 @@ class AuditRecorderTest extends TestCase
         AuditWidget::create(['name' => 'After migration']);
 
         $this->assertSame(['After migration'], AuditLog::pluck('auditable_label')->all());
+    }
+
+    public function test_only_a_named_sign_in_is_recorded(): void
+    {
+        $actor = AuditActor::create(['company_id' => 3, 'name' => 'Ada', 'email' => 'ada@acme.test', 'password' => 'secret']);
+
+        event(new Login('web', $actor, false));
+        $this->assertSame(0, AuditLog::where('event', 'login')->count());
+
+        AuthTrigger::mark(AuthTrigger::SSO);
+        event(new Login('web', $actor, true));
+
+        $log = AuditLog::where('event', 'login')->sole();
+        $this->assertSame('sso', $log->new_values['trigger']);
+        $this->assertSame($actor->id, $log->user_id);
+        $this->assertSame('Ada', $log->auditable_label);
+    }
+
+    public function test_an_unmarked_logout_is_not_a_sign_out(): void
+    {
+        $actor = AuditActor::create(['name' => 'Ada', 'email' => 'ada@acme.test', 'password' => 'secret']);
+
+        event(new Logout('web', $actor));
+
+        $this->assertSame(0, AuditLog::where('event', 'logout')->count());
     }
 
     public function test_a_broken_audit_table_never_breaks_the_write(): void

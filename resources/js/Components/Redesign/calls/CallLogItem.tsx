@@ -158,6 +158,8 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
                 <RecordingPlayer
                     playUrl={rec.play_url}
                     downloadUrl={rec.download_url}
+                    openUrl={rec.open_url}
+                    opensInNewTab={Boolean(rec.open_url)}
                     durationSeconds={rec.duration_seconds}
                     filename={rec.filename ?? undefined}
                     expired={rec.expired}

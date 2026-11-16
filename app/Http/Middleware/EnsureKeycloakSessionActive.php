@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\AuditLog\AuthTrigger;
 use App\Support\KeycloakBackchannelLogout;
 use Closure;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ class EnsureKeycloakSessionActive
             return $next($request);
         }
 
+        AuthTrigger::mark(AuthTrigger::KEYCLOAK_SESSION_ENDED);
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

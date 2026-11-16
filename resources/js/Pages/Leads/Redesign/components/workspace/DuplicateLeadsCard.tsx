@@ -12,6 +12,10 @@ interface DuplicateLeadsCardProps {
     isLoading: boolean;
     onDismiss: () => void;
     onMerged?: () => void;
+    /** Where to go after a merge, for hosts outside the classic lead page (the agent workspace). */
+    onMergedInto?: (keptId: number) => void;
+    /** "agent" opens the merge dialog drawn for the agent workspace. */
+    variant?: "agent";
 }
 
 function candidateMeta(candidate: LeadDuplicateCandidate): string {
@@ -35,6 +39,8 @@ export default function DuplicateLeadsCard({
     isLoading,
     onDismiss,
     onMerged,
+    onMergedInto,
+    variant,
 }: DuplicateLeadsCardProps) {
     const { td } = useTd();
     const [expanded, setExpanded] = useState(false);
@@ -170,6 +176,8 @@ export default function DuplicateLeadsCard({
                     open
                     primaryId={leadId}
                     duplicateId={reviewCandidateId}
+                    onMerged={onMergedInto}
+                    variant={variant}
                     onClose={(merged) => {
                         setReviewCandidateId(null);
                         if (merged) onMerged?.();

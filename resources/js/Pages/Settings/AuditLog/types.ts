@@ -6,7 +6,9 @@ export type AuditEvent =
     | "login"
     | "logout"
     | "login_failed"
-    | "password_reset";
+    | "password_reset"
+    | "impersonation_started"
+    | "impersonation_ended";
 
 export type AuditSource = "web" | "api" | "console" | "queue";
 

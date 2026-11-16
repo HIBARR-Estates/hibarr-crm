@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { router } from "@inertiajs/react";
 import "@/Components/Redesign/redesign.css";
 import "./LeadMergeReviewModal.css";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
+import ModalShell from "@/Components/Redesign/primitives/ModalShell";
 import Button from "@/Components/Redesign/primitives/Button";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import Icon from "@/Components/Redesign/primitives/Icon";
@@ -29,6 +30,19 @@ import type {
 interface Props extends IModalProps {
     primaryId: number;
     duplicateId: number;
+    /**
+     * After a successful merge: the host decides where to go and what to
+     * refresh. `keptId` is the lead that now holds everything (the one the
+     * dialog was opened from, unless the person swapped the pair). Without it
+     * the classic lead page behaviour applies.
+     */
+    onMerged?: (keptId: number) => void;
+    /**
+     * "agent" draws the dialog as the agent workspace's canvas (L7-35): icon
+     * header, navy confirm button, short dates and full screen on a phone.
+     * The comparison, picks and merge itself are the same.
+     */
+    variant?: "agent";
 }
 
 type View = "differences" | "all";
@@ -95,6 +109,15 @@ function formatDate(iso: string | null | undefined): string | null {
     return date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
+/** "28 Oct": the year only when it is not this year. */
+function shortDate(iso: string | null | undefined, locale: string): string | null {
+    if (!iso) return null;
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return null;
+    const sameYear = date.getFullYear() === new Date().getFullYear();
+    return date.toLocaleDateString(locale, { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) });
+}
+
 function sameList(a: string[], b: string[]): boolean {
     return a.length === b.length && a.every((v) => b.includes(v));
 }
@@ -105,8 +128,10 @@ function sameList(a: string[], b: string[]): boolean {
  * the lead cards and field comparison scroll, the "Moves to the kept lead"
  * summary and the footer stay in view.
  */
-export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onClose }: Props) {
-    const { t } = useTranslation();
+export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onClose, onMerged, variant }: Props) {
+    const { t, locale } = useTranslation();
+    const agent = variant === "agent";
+    const titleId = useId();
     const { td } = useTd();
     const [keptId, setKeptId] = useState(primaryId);
     const [otherId, setOtherId] = useState(duplicateId);
@@ -181,7 +206,9 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
                         return;
                     }
                     onClose(true);
-                    if (keptId !== primaryId) {
+                    if (onMerged) {
+                        onMerged(keptId);
+                    } else if (keptId !== primaryId) {
                         // The lead this dialog was opened from is now the archived
                         // one; open the lead that was kept.
                         router.visit(route("lead-contact.show", keptId));
@@ -302,14 +329,17 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
     };
 
     const leadCard = (summary: LeadMergeSummary, kept: boolean, counts?: Record<string, number>) => {
-        const created = formatDate(summary.created_at);
+        const created = agent ? shortDate(summary.created_at, locale) : formatDate(summary.created_at);
         const meta = [
             t("pages.lead_merge.lead_number", { id: String(summary.id) }),
             created ? t("pages.lead_merge.created_on", { date: created }) : null,
             summary.owner_name ? t("pages.lead_merge.owner_name", { name: summary.owner_name }) : t("pages.lead_merge.no_owner"),
-            ...(["deals", "notes", "tasks"] as const)
-                .filter((k) => (counts?.[k] ?? 0) > 0)
-                .map((k) => moveLabel(k, counts?.[k] ?? 0)),
+            // What moves is listed once, under the comparison, on the agent dialog.
+            ...(agent
+                ? []
+                : (["deals", "notes", "tasks"] as const)
+                      .filter((k) => (counts?.[k] ?? 0) > 0)
+                      .map((k) => moveLabel(k, counts?.[k] ?? 0))),
         ].filter(Boolean);
 
         return (
@@ -418,6 +448,55 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
         );
     }
 
+    const note = mergeError ? (
+        <span className="lm-footer-note is-error" role="alert">
+            {t("pages.lead_merge.merge_failed")}
+        </span>
+    ) : (
+        <span className="lm-footer-note">{t("pages.lead_merge.footer_note")}</span>
+    );
+
+    if (agent) {
+        return (
+            <ModalShell
+                open={open}
+                onClose={() => onClose()}
+                ariaLabelledBy={titleId}
+                zIndex={1500}
+                panelClassName="modal-panel lm-agent-panel"
+                initialFocus="panel"
+                trapFocus
+            >
+                <header className="lm-ahead">
+                    <span className="lm-ahead-icon" aria-hidden="true">
+                        <Icon name="swap" size={17} />
+                    </span>
+                    <div className="lm-ahead-text">
+                        <h2 id={titleId}>{t("pages.lead_merge.title")}</h2>
+                        <p>{t("pages.lead_merge.subtitle")}</p>
+                    </div>
+                    <button type="button" className="lm-ahead-close" onClick={() => onClose()} aria-label={t("pages.lead_merge.close")}>
+                        <Icon name="x" size={18} />
+                    </button>
+                </header>
+                <div className="lm-agent" style={{ display: "flex", flexDirection: "column", flex: "1 1 auto", minHeight: 0, fontFamily: REDESIGN_FONT_STACK }}>
+                    {body}
+                </div>
+                <footer className="lm-afoot">
+                    {note}
+                    <div className="lm-afoot-actions">
+                        <Button variant="ghost" onClick={() => onClose()}>
+                            {t("pages.lead_merge.cancel")}
+                        </Button>
+                        <Button variant="navy" loading={status === "pending"} disabled={!ready} onClick={handleConfirm}>
+                            {t("pages.lead_merge.confirm")}
+                        </Button>
+                    </div>
+                </footer>
+            </ModalShell>
+        );
+    }
+
     return (
         <Modal
             open={open}
@@ -431,13 +510,7 @@ export default function LeadMergeReviewModal({ open, primaryId, duplicateId, onC
             zIndex={1500}
             footer={
                 <>
-                    {mergeError ? (
-                        <span className="lm-footer-note is-error" role="alert">
-                            {t("pages.lead_merge.merge_failed")}
-                        </span>
-                    ) : (
-                        <span className="lm-footer-note">{t("pages.lead_merge.footer_note")}</span>
-                    )}
+                    {note}
                     <Button variant="ghost" onClick={() => onClose()}>
                         {t("pages.lead_merge.cancel")}
                     </Button>

@@ -1,5 +1,8 @@
 
-import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";interface Props {
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import { useAgentAnalysis } from "../agent/AgentAnalysisContext";
+
+interface Props {
     number?: number;
     answered: boolean;
     label?: string;
@@ -9,6 +12,21 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";interface Pr
 }
 
 export default function AnalysisFieldRow({ number, answered, label, isRequired, isConditional, children }: Props) {
+    // Under the agent dock (canvas L7-12) the question is a bold line over its
+    // input, with no numbered badge beside it.
+    if (useAgentAnalysis()) {
+        return (
+            <div className={`agent-an__field${isConditional ? " agent-an__field--conditional" : ""}`}>
+                {label && (
+                    <p className="agent-an__label">
+                        {label}
+                        {isRequired && <span className="agent-an__required">*</span>}
+                    </p>
+                )}
+                {children}
+            </div>
+        );
+    }
     return (
         <div
             className={`flex gap-4 mb-7${isConditional ? " pl-7 border-l-2 border-indigo-200 ml-3" : ""}`}

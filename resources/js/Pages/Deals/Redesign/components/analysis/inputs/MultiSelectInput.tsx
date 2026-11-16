@@ -1,5 +1,6 @@
 import type { FieldOption } from "./fieldValueCodecs";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import { useAgentAnalysis } from "../agent/AgentAnalysisContext";
 
 interface MultiSelectInputProps {
     value: string[];
@@ -9,6 +10,7 @@ interface MultiSelectInputProps {
 }
 
 export default function MultiSelectInput({ value, options, disabled, onChange }: MultiSelectInputProps) {
+    const agent = useAgentAnalysis();
     const toggle = (opt: string) => {
         if (disabled) return;
         onChange(value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt]);
@@ -24,14 +26,20 @@ export default function MultiSelectInput({ value, options, disabled, onChange }:
                         type="button"
                         disabled={disabled}
                         onClick={() => toggle(o.value)}
-                        className="px-3 py-1.5 rounded-md text-sm font-medium transition-all border flex items-center gap-1.5 disabled:opacity-40"
+                        className={
+                            agent
+                                ? `agent-an__chip${selected ? " agent-an__chip--on" : ""}`
+                                : "px-3 py-1.5 rounded-md text-sm font-medium transition-all border flex items-center gap-1.5 disabled:opacity-40"
+                        }
                         style={
-                            selected
-                                ? { backgroundColor: T.NAVY, color: "#fff", borderColor: T.NAVY }
-                                : { backgroundColor: "#fff", color: T.TEXT_MUTED, borderColor: T.BORDER }
+                            agent
+                                ? undefined
+                                : selected
+                                  ? { backgroundColor: T.NAVY, color: "#fff", borderColor: T.NAVY }
+                                  : { backgroundColor: "#fff", color: T.TEXT_MUTED, borderColor: T.BORDER }
                         }
                     >
-                        {selected && (
+                        {selected && !agent && (
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ color: T.SKY }}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                             </svg>

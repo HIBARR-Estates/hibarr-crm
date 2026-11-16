@@ -4,7 +4,9 @@ namespace App\Http\Middleware;
 
 use App\Email\EmailFeature;
 use App\Models\UserNotificationAlertSetting;
+use App\Models\SoftphoneCallPoolAgent;
 use App\Models\UserProductTour;
+use App\Services\EmployeeImpersonationService;
 use App\Services\I18nTranslationService;
 use App\Support\AgentWorkspaceAccess;
 use App\Support\AppBuild;
@@ -78,6 +80,10 @@ class HandleInertiaRequests extends Middleware
             'appName' => fn () => function_exists('companyOrGlobalSetting')
                 ? (companyOrGlobalSetting()->app_name ?? config('app.name'))
                 : config('app.name'),
+            // The company logo made for dark backgrounds (the agent workspace's navy band); null until one is uploaded.
+            'companyLogoOnDark' => fn () => function_exists('companyOrGlobalSetting') && companyOrGlobalSetting()?->logo
+                ? companyOrGlobalSetting()->dark_logo_url
+                : null,
             'appTheme' => fn () => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
             'notificationAlertSettings' => fn () => $request->user()
                 ? Inertia::defer(fn () => UserNotificationAlertSetting::forUser((int) $request->user()->id))
@@ -106,8 +112,14 @@ class HandleInertiaRequests extends Middleware
             // access (the sidebar's Agent switch); manageUrl for admins (the
             // access list), who manage it whether or not they have access.
             'agentWorkspace' => fn () => $this->getAgentWorkspace($request),
+            // Null unless the user is in a department picked for the marketing
+            // lead flow (Lead settings); the leads list and sidebar offer it then.
+            'marketingLeadIntake' => fn () => $this->getMarketingLeadIntake($request),
             'emailPilot' => fn () => EmailFeature::enabled() && $request->user()?->hasRole('admin')
                 ? ['manageUrl' => '/account/settings/email-pilot']
+                : null,
+            'impersonation' => fn () => session()->has(EmployeeImpersonationService::SESSION_ID)
+                ? ['active' => true]
                 : null,
             'viewerTimezone' => fn () => UserTimezone::forViewer(
                 $request->user(),
@@ -119,6 +131,21 @@ class HandleInertiaRequests extends Middleware
             'pipelineFieldScopeMap' => fn () => $this->getPipelineFieldScopeMap($request),
             'stages' => fn () => $this->getPipelineStages($request),
         ]);
+    }
+
+    /**
+     * @return array{url: string}|null
+     */
+    private function getMarketingLeadIntake(Request $request): ?array
+    {
+        try {
+            return \App\Support\MarketingLeadIntake::allows($request->user())
+                ? ['url' => '/account/marketing-leads']
+                : null;
+        } catch (\Illuminate\Database\QueryException) {
+            // Before the lead origins migration has run.
+            return null;
+        }
     }
 
     /**
@@ -309,6 +336,16 @@ class HandleInertiaRequests extends Middleware
             'seen_product_tours',
             UserProductTour::seenTourIdsForUser((int) $user->id)
         );
+
+        $isOnCallList = false;
+        if (! empty($user->company_id)) {
+            try {
+                $isOnCallList = SoftphoneCallPoolAgent::isUserEligibleToReceiveCalls((int) $user->company_id, (int) $user->id);
+            } catch (\Throwable) {
+                $isOnCallList = false;
+            }
+        }
+        $shared->setAttribute('is_on_call_list', $isOnCallList);
 
         return $shared;
     }

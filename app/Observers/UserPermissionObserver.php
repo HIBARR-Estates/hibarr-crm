@@ -40,7 +40,7 @@ class UserPermissionObserver
         ], true);
 
         if (! $granted) {
-            SoftphoneCallPoolAgent::where('user_id', $permission->user_id)->delete();
+            SoftphoneCallPoolAgent::query()->where('user_id', $permission->user_id)->update(['active' => false]);
 
             return;
         }
@@ -69,17 +69,24 @@ class UserPermissionObserver
             return;
         }
 
-        SoftphoneCallPoolAgent::firstOrCreate(
-            [
-                'device_id' => $defaultDeviceId,
-                'user_id' => $permission->user_id,
-            ],
-            [
-                'company_id' => $companyId,
-                'priority' => 100,
-                'active' => true,
-                'added_by' => $permission->user_id,
-            ]
-        );
+        $hasExistingPoolEntry = SoftphoneCallPoolAgent::query()
+            ->where('company_id', $companyId)
+            ->where('user_id', $permission->user_id)
+            ->exists();
+
+        if (! $hasExistingPoolEntry) {
+            SoftphoneCallPoolAgent::query()->firstOrCreate(
+                [
+                    'device_id' => $defaultDeviceId,
+                    'user_id' => $permission->user_id,
+                ],
+                [
+                    'company_id' => $companyId,
+                    'priority' => 100,
+                    'active' => true,
+                    'added_by' => $permission->user_id,
+                ]
+            );
+        }
     }
 }

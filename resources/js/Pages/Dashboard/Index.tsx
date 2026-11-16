@@ -250,7 +250,8 @@ const Index: React.FC<IndexProps> = ({
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-10" />
 
                         <div className="relative px-8 py-16">
-                            <div className="max-w-7xl mx-auto">
+                            <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+                                <div>
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -315,6 +316,8 @@ const Index: React.FC<IndexProps> = ({
                                         </span>
                                     </div>
                                 </motion.div>
+                                </div>
+
                             </div>
                         </div>
                     </motion.div>

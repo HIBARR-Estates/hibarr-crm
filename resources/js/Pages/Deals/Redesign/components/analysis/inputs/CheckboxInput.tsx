@@ -1,6 +1,7 @@
 import type { FieldOption } from "./fieldValueCodecs";
 import { handleOptionGroupArrows } from "./optionGroupNav";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import { useAgentAnalysis } from "../agent/AgentAnalysisContext";
 
 interface CheckboxInputProps {
     value: string[];
@@ -10,6 +11,7 @@ interface CheckboxInputProps {
 }
 
 export default function CheckboxInput({ value, options, disabled, onChange }: CheckboxInputProps) {
+    const agent = useAgentAnalysis();
     const toggle = (opt: string) => {
         if (disabled) return;
         const next = value.includes(opt)
@@ -32,27 +34,39 @@ export default function CheckboxInput({ value, options, disabled, onChange }: Ch
                         key={o.value}
                         // The real checkbox is sr-only with the tick drawn separately, so
                         // without focus-within a keyboard user gets no focus indicator at all.
-                        className="inline-flex items-center gap-2.5 rounded-xl px-3 py-2.5 cursor-pointer transition-colors border max-w-full focus-within:ring-2 focus-within:ring-sky-400 focus-within:ring-offset-1"
-                        style={{
-                            backgroundColor: checked ? T.SKY_SOFT : "#fff",
-                            borderColor: checked ? T.SKY : T.BORDER,
-                            cursor: disabled ? "not-allowed" : "pointer",
-                            opacity: disabled ? 0.5 : 1,
-                        }}
+                        className={
+                            agent
+                                ? `agent-an__chip${checked ? " agent-an__chip--on" : ""}`
+                                : "inline-flex items-center gap-2.5 rounded-xl px-3 py-2.5 cursor-pointer transition-colors border max-w-full focus-within:ring-2 focus-within:ring-sky-400 focus-within:ring-offset-1"
+                        }
+                        style={
+                            agent
+                                ? disabled
+                                    ? { cursor: "not-allowed", opacity: 0.5 }
+                                    : undefined
+                                : {
+                                      backgroundColor: checked ? T.SKY_SOFT : "#fff",
+                                      borderColor: checked ? T.SKY : T.BORDER,
+                                      cursor: disabled ? "not-allowed" : "pointer",
+                                      opacity: disabled ? 0.5 : 1,
+                                  }
+                        }
                     >
-                        <div
-                            className="w-4 h-4 rounded flex items-center justify-center shrink-0 transition-all"
-                            style={{
-                                backgroundColor: checked ? T.NAVY : "#fff",
-                                border: checked ? "none" : "1.5px solid #cbd5e1",
-                            }}
-                        >
-                            {checked && (
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={3}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
-                            )}
-                        </div>
+                        {!agent && (
+                            <div
+                                className="w-4 h-4 rounded flex items-center justify-center shrink-0 transition-all"
+                                style={{
+                                    backgroundColor: checked ? T.NAVY : "#fff",
+                                    border: checked ? "none" : "1.5px solid #cbd5e1",
+                                }}
+                            >
+                                {checked && (
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={3}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                )}
+                            </div>
+                        )}
                         <input
                             type="checkbox"
                             checked={checked}
@@ -60,7 +74,7 @@ export default function CheckboxInput({ value, options, disabled, onChange }: Ch
                             onChange={() => toggle(o.value)}
                             className="sr-only"
                         />
-                        <span className="text-sm text-dr-text">{o.label}</span>
+                        <span className={agent ? undefined : "text-sm text-dr-text"}>{o.label}</span>
                     </label>
                 );
             })}

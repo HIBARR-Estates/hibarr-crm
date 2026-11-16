@@ -13,6 +13,7 @@ import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlerts
 import { MeetingAttendanceConfirmationMount } from "@/Components/MeetingAttendanceConfirmation/MeetingAttendanceConfirmationMount";
 import { NotificationAlertSettingsProvider } from "@/contexts/NotificationAlertSettingsContext";
 import StaleBuildBanner from "@/Components/StaleBuildBanner";
+import ImpersonationBanner from "@/Components/ImpersonationBanner";
 
 function NotificationAlertsGate({
     children,
@@ -56,6 +57,7 @@ export const InnerProviders: React.FC<{ children: React.ReactNode }> = ({
             <DynamicTranslationProvider>
                 <AntdConfigProvider>
                     <UserTimezoneCapture />
+                    <ImpersonationBanner />
                     <StaleBuildBanner />
                     <CompanyDateTimeProvider>
                         <UserDateTimeProvider>

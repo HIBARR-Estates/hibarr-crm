@@ -6,6 +6,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import { groupByDay } from "../agenda/model";
 import { addDays } from "../agenda/range";
 import { useUpcomingDays } from "../agenda/useAgendaData";
+import AddActivityMenu, { type ActivityKind } from "./AddActivityMenu";
 import { DayItems, useDayItems, type MeetingHandlers } from "./DayItems";
 import type { TaskHandlers } from "./TaskQueue";
 import type { TodaySchedule as TodayScheduleData } from "./types";
@@ -19,6 +20,8 @@ interface TodayScheduleProps extends MeetingHandlers {
     handlers: TaskHandlers;
     /** Opens the agenda, on a given day or on today. */
     onOpenAgenda: (day?: string) => void;
+    /** Opens the task or meeting form to put something on the day. */
+    onAdd: (kind: ActivityKind) => void;
 }
 
 /**
@@ -27,7 +30,7 @@ interface TodayScheduleProps extends MeetingHandlers {
  * time stay in the queue and are only counted here. Under it, how much the
  * next few days hold, each opening the agenda on that day.
  */
-export default function TodaySchedule({ schedule, today, handlers, onOpenAgenda, ...meetingHandlers }: TodayScheduleProps) {
+export default function TodaySchedule({ schedule, today, handlers, onOpenAgenda, onAdd, ...meetingHandlers }: TodayScheduleProps) {
     const { t, locale } = useTranslation();
     // "Mon 9 Nov", as on the board; the header above already says the full date.
     const dateLabel = new Date(`${today}T12:00:00Z`).toLocaleDateString(locale || undefined, {
@@ -46,9 +49,12 @@ export default function TodaySchedule({ schedule, today, handlers, onOpenAgenda,
                     {t("pages.agent_workspace.today.schedule.title")}
                     <span className="agent-panel__title-sub"> · {dateLabel}</span>
                 </h2>
-                <Button size="sm" className="agent-btn-soft" icon={<Icon name="calendar" size={13} />} onClick={() => onOpenAgenda()}>
-                    {t("pages.agent_workspace.today.schedule.open_agenda")}
-                </Button>
+                <div className="agent-panel__head-actions">
+                    <AddActivityMenu onAdd={onAdd} />
+                    <Button size="sm" className="agent-btn-soft" icon={<Icon name="calendar" size={13} />} onClick={() => onOpenAgenda()}>
+                        {t("pages.agent_workspace.today.schedule.open_agenda")}
+                    </Button>
+                </div>
             </header>
             {items.length === 0 ? (
                 <EmptyState

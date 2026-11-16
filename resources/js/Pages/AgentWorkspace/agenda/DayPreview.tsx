@@ -177,6 +177,7 @@ function MeetingCard({ meeting, handlers, meetingHandlers }: { meeting: Schedule
                 ) : null}
                 {view.record ? (
                     <Link className="dr-btn dr-btn-ghost dr-btn-sm" href={view.record}>
+                        <Icon name="user" size={13} />
                         {t("pages.agent_workspace.agenda.contact_page")}
                     </Link>
                 ) : null}

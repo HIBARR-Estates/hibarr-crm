@@ -66,6 +66,7 @@ use App\Http\Controllers\KnowledgeBaseFileController;
 use App\Http\Controllers\LeadBoardController;
 use App\Http\Controllers\LeadCategoryController;
 use App\Http\Controllers\LeadContactController;
+use App\Http\Controllers\MarketingLeadController;
 use App\Http\Controllers\LeadContactFileController;
 use App\Http\Controllers\LeadContactMethodController;
 use App\Http\Controllers\LeadCustomFormController;
@@ -555,6 +556,9 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     // The bytes are streamed through the app instead of handing out the raw
     // object-storage link, which is a durable bearer credential.
     Route::get('call-recordings/{callRecording}/download', [\App\Http\Controllers\CallRecordingController::class, 'download'])->name('call-recordings.download');
+    // WebM recordings play in Bunny's own player, so this one redirects there
+    // (after the same checks); anything else is streamed like download.
+    Route::get('call-recordings/{callRecording}/open', [\App\Http\Controllers\CallRecordingController::class, 'open'])->name('call-recordings.open');
 
     // Follow up
     Route::get('deals/follow-up/{leadID}', [DealController::class, 'followUpCreate'])->name('deals.follow_up');
@@ -659,6 +663,12 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     // Static i18n dictionaries (auth-protected; cached per locale)
     Route::get('api/i18n/{locale}.json', [I18nController::class, 'show'])->name('i18n.show');
     // deals route
+
+    // Marketing lead flow — members of the departments picked in Lead settings only
+    Route::get('marketing-leads', [MarketingLeadController::class, 'page'])->name('marketing-leads.index');
+    Route::get('marketing-leads/options', [MarketingLeadController::class, 'options'])->name('marketing-leads.options');
+    Route::get('marketing-leads/utm-configs', [MarketingLeadController::class, 'utmConfigs'])->name('marketing-leads.utm-configs');
+    Route::post('marketing-leads', [MarketingLeadController::class, 'store'])->name('marketing-leads.store');
 
     // Lead Contact routes (explicit to avoid Route::resource overriding PUT/PATCH)
     Route::get('lead-contact', [LeadContactController::class, 'index'])->name('lead-contact.index');
@@ -1114,7 +1124,7 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
         Route::get('/meetings', [AgentReportController::class, 'meetings'])->name('meetings');
         Route::get('/deal-notes', [AgentReportController::class, 'dealNotes'])->name('deal-notes');
         Route::get('/lead-notes', [AgentReportController::class, 'leadNotes'])->name('lead-notes');
-        Route::post('/ai-summary', [AgentReportController::class, 'aiSummary'])->name('ai-summary');
+        Route::post('/ai-summary', [AgentReportController::class, 'aiSummary'])->middleware('throttle:10,1')->name('ai-summary');
         Route::get('/saved-summaries', [AgentReportController::class, 'savedSummaries'])->name('saved-summaries.index');
         Route::post('/saved-summaries', [AgentReportController::class, 'saveSummary'])->name('saved-summaries.store');
         Route::delete('/saved-summaries/{summary}', [AgentReportController::class, 'destroySummary'])->name('saved-summaries.destroy');
@@ -1446,6 +1456,11 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('deals/{deal}/payment-request', [DealPaymentController::class, 'show'])->name('deals.payment-request.show');
     Route::post('deals/{deal}/payment-requests', [DealPaymentController::class, 'store'])->name('deals.payment-requests.store');
     Route::post('deals/{deal}/payment-request/confirm', [DealPaymentController::class, 'confirm'])->name('deals.payment-request.confirm');
+    Route::post('deals/{deal}/payment-request/cancel', [DealPaymentController::class, 'cancel'])->name('deals.payment-request.cancel');
+    Route::post('deals/{deal}/payment-requests/{payment}/retry', [DealPaymentController::class, 'retry'])->name('deals.payment-requests.retry');
+    Route::get('deals/{deal}/payment-requests/{payment}/documents/{kind}', [DealPaymentController::class, 'document'])
+        ->whereIn('kind', ['invoice', 'receipt'])
+        ->name('deals.payment-requests.document');
     Route::get('payment-requests', [App\Http\Controllers\PaymentRequestController::class, 'index'])->name('payment-requests.index');
 
     Route::post('telephony/calls', [TelephonyCallController::class, 'store'])->name('telephony.calls.store');
@@ -1460,6 +1475,8 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::post('telephony/softphone/devices', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'store'])->name('telephony.softphone.devices.store');
     Route::get('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'show'])->name('telephony.softphone.devices.show')->whereNumber('id');
     Route::get('telephony/softphone/devices/{id}/credentials', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'credentials'])->name('telephony.softphone.devices.credentials')->whereNumber('id');
+    Route::post('telephony/softphone/devices/{id}/capacity/reserve', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'reserveCapacity'])->name('telephony.softphone.devices.capacity.reserve')->whereNumber('id');
+    Route::post('telephony/softphone/devices/{id}/capacity/release', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'releaseCapacity'])->name('telephony.softphone.devices.capacity.release')->whereNumber('id');
 
     Route::put('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'update'])->name('telephony.softphone.devices.update')->whereNumber('id');
     Route::delete('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'destroy'])->name('telephony.softphone.devices.destroy')->whereNumber('id');
@@ -1470,6 +1487,10 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('telephony/softphone/call-pool/eligible', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'eligibleAgents'])->name('telephony.softphone.call-pool.eligible');
     Route::post('telephony/softphone/call-pool', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'store'])->name('telephony.softphone.call-pool.store');
     Route::post('telephony/softphone/call-pool/toggle-permission', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'togglePermission'])->name('telephony.softphone.call-pool.toggle-permission');
+    Route::post('telephony/softphone/toggle-receive-calls', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'toggleUserAvailability'])->name('telephony.softphone.toggle-receive-calls');
+    Route::post('telephony/softphone/upload-voicemail', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'uploadVoicemailFile'])->name('telephony.softphone.upload-voicemail');
+    Route::delete('telephony/softphone/voicemail-file', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'deleteVoicemailFile'])->name('telephony.softphone.voicemail-file.destroy');
+    Route::post('telephony/softphone/toggle-voicemail', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'toggleVoicemail'])->name('telephony.softphone.toggle-voicemail');
     Route::put('telephony/softphone/call-pool/{id}', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'update'])->name('telephony.softphone.call-pool.update')->whereNumber('id');
     Route::delete('telephony/softphone/call-pool/{id}', [\App\Http\Controllers\TelephonySoftphoneCallPoolController::class, 'destroy'])->name('telephony.softphone.call-pool.destroy')->whereNumber('id');
 

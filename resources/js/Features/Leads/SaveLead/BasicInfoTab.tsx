@@ -216,6 +216,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         <Form
             id={formId}
             form={form}
+            initialValues={data || undefined}
             layout="vertical"
             onFinish={handleSubmit}
             onValuesChange={() => {
@@ -285,6 +286,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         <Col xs={24} md={8}>
                             <Form.Item label="Mobile" name="mobile">
                                 <PhoneInput
+                                    id="mobile"
                                     enableSearch
                                     placeholder="—"
                                     country=""

@@ -1,0 +1,568 @@
+/* The call: the dock's green pill, its card (canvas L7-06) and the strip inside
+   a qualification or analysis (L7-07, L7-12). Colours are the redesign tokens. */
+
+.agent-dock__phone-wrap {
+    position: relative;
+    display: inline-flex;
+    margin-left: 2px;
+}
+
+.agent-dock__phone-wrap .agent-dock__phone {
+    margin-left: 0;
+}
+
+button.agent-dock__phone {
+    border: 0;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.agent-dock__phone--call:hover {
+    background: var(--dr-green-pressed);
+}
+
+/* Where the dock shrinks to icons, the pill is the phone icon again. */
+.agent-dock__phone-icon {
+    display: none;
+}
+
+@media (max-width: 1023px) {
+    .agent-dock__phone--call::before {
+        display: none;
+    }
+
+    .agent-dock__phone-icon {
+        display: inline-flex;
+    }
+}
+
+.agent-dock__phone-time {
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+.agent-dock__phone-caret {
+    margin-left: 6px;
+    font-size: 10px;
+}
+
+/* A little dot before "On call", as on the board. */
+.agent-dock__phone--call::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--dr-green-mid);
+    flex: 0 0 7px;
+}
+
+/* ---------- card ---------- */
+.agent-call {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 420px;
+    max-width: calc(100vw - 24px);
+    padding: 14px;
+    border: 2px solid var(--dr-green);
+    border-radius: 16px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    text-align: left;
+    box-sizing: border-box;
+}
+
+.agent-call--popover {
+    position: absolute;
+    top: calc(100% + 9px);
+    right: -7px;
+    z-index: 60;
+}
+
+.agent-call__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.agent-call__avatar {
+    display: inline-flex;
+    flex: 0 0 38px;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--dr-navy);
+    color: var(--dr-white);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.agent-call__who {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.agent-call__name {
+    overflow: hidden;
+    color: var(--dr-text);
+    font-size: 15px;
+    font-weight: 700;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+a.agent-call__name:hover {
+    color: var(--dr-blue);
+}
+
+.agent-call__sub {
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+.agent-call__time {
+    padding: 4px 8px;
+    border-radius: 7px;
+    background: var(--dr-green);
+    color: var(--dr-white);
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.agent-call__controls {
+    display: flex;
+    gap: 6px;
+}
+
+.agent-call__btn,
+.agent-call__collapse {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid var(--dr-ghost-border, var(--dr-border));
+    background: var(--dr-white);
+    color: var(--dr-gray-darker);
+    font-family: inherit;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-call__btn {
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-size: 13px;
+}
+
+.agent-call__btn:hover:not(:disabled),
+.agent-call__collapse:hover {
+    background: var(--dr-gray);
+    color: var(--dr-text);
+}
+
+.agent-call__btn[aria-pressed="true"] {
+    border-color: var(--dr-navy);
+    background: var(--dr-navy);
+    color: var(--dr-white);
+}
+
+.agent-call__btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.agent-call__btn--end,
+.agent-call__btn--end:hover:not(:disabled) {
+    border-color: var(--dr-red);
+    background: var(--dr-red);
+    color: var(--dr-white);
+    font-weight: 600;
+}
+
+.agent-call__foot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.agent-call__continue {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 11px;
+    border: 1px solid var(--dr-button-primary-bg);
+    border-radius: 8px;
+    background: var(--dr-button-primary-bg);
+    color: var(--dr-button-primary-text);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-call__continue:hover {
+    background: var(--dr-button-primary-hover-bg);
+}
+
+.agent-call__collapse {
+    height: 32px;
+    margin-left: auto;
+    padding: 0 11px;
+    border-radius: 8px;
+    border-color: var(--dr-border);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.agent-call button:focus-visible,
+.agent-call a:focus-visible,
+.agent-call-strip__btn:focus-visible,
+.agent-dock__phone--call:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+/* ---------- strip inside a flow's header ---------- */
+.agent-call-strip {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 6px 6px 12px;
+    border-radius: 10px;
+    background: var(--dr-green);
+    color: var(--dr-white);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-call-strip__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--dr-green-mid);
+    flex: 0 0 7px;
+}
+
+.agent-call-strip__time {
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+.agent-call-strip__btn {
+    padding: 5px 9px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--dr-green-pressed);
+    color: var(--dr-white);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.agent-call-strip__btn:hover:not(:disabled) {
+    filter: brightness(1.12);
+}
+
+.agent-call-strip__btn[aria-pressed="true"] {
+    background: var(--dr-white);
+    color: var(--dr-green-pressed);
+}
+
+.agent-call-strip__btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.agent-call-strip__btn--end {
+    background: var(--dr-red);
+}
+
+.agent-call-strip__btn--end:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+
+/* ---------- phone sheet (rendered only on a phone) ---------- */
+.agent-call-sheet {
+    position: fixed;
+    right: 12px;
+    bottom: calc(var(--agent-tabbar-height, 64px) + env(safe-area-inset-bottom, 0px) + 10px);
+    left: 12px;
+    z-index: 45;
+}
+
+@media (max-width: 639px) {
+    .agent-call--sheet {
+        width: auto;
+        max-width: none;
+    }
+
+    .agent-call-sheet__bar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        height: 44px;
+        border: 0;
+        border-radius: 14px;
+        background: var(--dr-green);
+        color: var(--dr-white);
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .agent-call-sheet__time {
+        font-family: ui-monospace, "IBM Plex Mono", monospace;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* The strip leaves the title its own line so the title keeps its room. */
+    .agent-flow__head {
+        flex-wrap: wrap;
+    }
+
+    .agent-flow__trailing + .agent-call-strip,
+    .agent-flow__head > .agent-call-strip {
+        order: 5;
+        flex: 1 0 100%;
+        justify-content: flex-start;
+    }
+}
+
+/* ---------- incoming call (L7-13, hidden caller L7-31) ---------- */
+.agent-dock__phone--incoming,
+button.agent-dock__phone--incoming {
+    background: var(--dr-blue);
+}
+
+.agent-dock__phone--incoming:hover {
+    background: var(--dr-blue-pressed);
+}
+
+.agent-dock__phone--incoming::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--dr-green-mid);
+    flex: 0 0 7px;
+}
+
+@media (max-width: 1023px) {
+    .agent-dock__phone--incoming::before {
+        display: none;
+    }
+}
+
+.agent-call--incoming {
+    width: 430px;
+    border-color: var(--dr-blue);
+}
+
+.agent-incoming__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.agent-incoming__cap {
+    color: var(--dr-blue);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.agent-incoming__clock {
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+.agent-incoming__line {
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+.agent-incoming__avatar {
+    display: inline-flex;
+    flex: 0 0 42px;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--dr-green);
+    color: var(--dr-white);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.agent-incoming__avatar--anon {
+    background: var(--dr-gray-mid);
+    color: var(--dr-gray-dark);
+    font-size: 16px;
+}
+
+.agent-call--incoming .agent-call__name {
+    font-size: 16px;
+}
+
+.agent-incoming__number {
+    font-variant-numeric: tabular-nums;
+    word-spacing: 0.15em;
+}
+
+.agent-incoming__chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.agent-incoming__status {
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--tag, var(--dr-green));
+    color: var(--dr-white);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.agent-incoming__deal {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--dr-surface-hover);
+    color: var(--dr-gray-darker);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.agent-incoming__deal-mark {
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 2px;
+    background: var(--stage, var(--dr-navy));
+}
+
+.agent-incoming__chip-skeleton {
+    width: 120px;
+    height: 24px;
+    border-radius: 6px;
+    background: var(--dr-skeleton);
+}
+
+.agent-incoming__why {
+    margin: 0;
+    padding: 9px 11px;
+    border-radius: 10px;
+    background: var(--dr-surface-2);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.agent-incoming__lock {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    padding: 9px 11px;
+    border: 1px dashed var(--dr-gray-mid);
+    border-radius: 10px;
+    background: var(--dr-surface-2);
+    color: var(--dr-gray-darker);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.agent-incoming__lock svg {
+    margin-top: 2px;
+    color: var(--dr-text-muted);
+}
+
+.agent-incoming__actions {
+    display: flex;
+    gap: 8px;
+}
+
+.agent-incoming__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding: 0 16px;
+    border: 1px solid var(--dr-ghost-border, var(--dr-border));
+    border-radius: 10px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-incoming__btn:hover {
+    background: var(--dr-gray);
+}
+
+.agent-incoming__btn--answer,
+.agent-incoming__btn--answer:hover {
+    flex: 1;
+    border-color: var(--dr-green);
+    background: var(--dr-green);
+    color: var(--dr-white);
+    font-weight: 600;
+}
+
+.agent-incoming__btn--answer:hover {
+    background: var(--dr-green-pressed);
+}
+
+.agent-incoming__btn--decline {
+    border-color: var(--dr-red-mid);
+    color: var(--dr-red);
+    font-weight: 600;
+}
+
+.agent-incoming__btn--decline:hover {
+    background: var(--dr-red-soft);
+}
+
+.agent-call--incoming button:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+/* Phone: the sheet is the card, with a one-line blue bar when folded. */
+@media (max-width: 639px) {
+    .agent-call--incoming.agent-call--sheet {
+        width: auto;
+    }
+
+    .agent-call-sheet__bar--incoming {
+        background: var(--dr-blue);
+    }
+}

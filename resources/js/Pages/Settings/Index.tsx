@@ -20,6 +20,8 @@ import {
     DollarOutlined,
     PhoneOutlined,
     TeamOutlined,
+    FileDoneOutlined,
+    ReloadOutlined,
 } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import TaskCategoryManager from "./TaskCategoryManager";
@@ -166,6 +168,16 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
               ]
             : []),
         {
+            key: "employees",
+            icon: <TeamOutlined />,
+            iconBg: "bg-slate-50",
+            iconColor: "text-slate-600",
+            title: t("app.menu.employees"),
+            description: t("app.settingsHub.employeesDesc"),
+            connected: true,
+            onOpen: () => router.visit(route("settings-employees.index")),
+        },
+        {
             key: "audit-log",
             icon: <AuditOutlined />,
             iconBg: "bg-slate-100",
@@ -187,6 +199,20 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
                       connected: true,
                       onOpen: () =>
                           router.visit(route("company-dashboard-access.index")),
+                  },
+              ]
+            : []),
+        ...(isAdmin
+            ? [
+                  {
+                      key: "cache-refresh",
+                      icon: <ReloadOutlined />,
+                      iconBg: "bg-slate-50",
+                      iconColor: "text-slate-600",
+                      title: t("pages.cache_refresh.title"),
+                      description: t("pages.cache_refresh.card_desc"),
+                      connected: true,
+                      onOpen: () => router.visit(route("cache-refresh.index")),
                   },
               ]
             : []),
@@ -252,6 +278,17 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
                       connected: true,
                       onOpen: () =>
                           router.visit(route("package-settings.index")),
+                  },
+                  {
+                      key: "payment-documents",
+                      icon: <FileDoneOutlined />,
+                      iconBg: "bg-teal-50",
+                      iconColor: "text-teal-700",
+                      title: t("pages.payment_document_settings.title"),
+                      description: t("pages.payment_document_settings.card_desc"),
+                      connected: true,
+                      onOpen: () =>
+                          router.visit(route("payment-document-settings.index")),
                   },
               ]
             : []),

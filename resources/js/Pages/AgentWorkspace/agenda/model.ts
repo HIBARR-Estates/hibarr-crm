@@ -81,6 +81,8 @@ export interface PlacedBlock<T> {
     /** Column inside its group of overlapping blocks, and how many columns that group has. */
     lane: number;
     lanes: number;
+    /** Which group of overlapping blocks this one belongs to, counted from 0 in time order. */
+    group: number;
 }
 
 /**
@@ -94,12 +96,14 @@ export function placeBlocks<T>(blocks: Array<{ item: T; start: number; end: numb
     let group: Array<PlacedBlock<T>> = [];
     let laneEnds: number[] = [];
     let groupEnd = -1;
+    let groupIndex = -1;
 
     const closeGroup = () => {
         const lanes = Math.max(1, laneEnds.length);
         for (const block of group) block.lanes = lanes;
         group = [];
         laneEnds = [];
+        groupIndex += 1;
     };
 
     for (const block of sorted) {
@@ -111,7 +115,7 @@ export function placeBlocks<T>(blocks: Array<{ item: T; start: number; end: numb
         } else {
             laneEnds[lane] = block.end;
         }
-        const entry = { ...block, lane, lanes: 1 };
+        const entry = { ...block, lane, lanes: 1, group: groupIndex };
         group.push(entry);
         placed.push(entry);
         groupEnd = Math.max(groupEnd, block.end);

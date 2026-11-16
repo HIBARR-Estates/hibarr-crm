@@ -1,0 +1,256 @@
+/* Search results (L7-24). Colours come from the --dr-* tokens; nothing here
+   casts a shadow or edges a card with a side border. The rows share the
+   dropdown's visuals (.agent-sr__*, in Components/Redesign/agent/search). */
+
+.agent-ws:has(.agent-sp) {
+    --agent-band-height: 300px;
+}
+
+@media (max-width: 639px) {
+    .agent-ws:has(.agent-sp) {
+        --agent-band-height: 292px;
+    }
+}
+
+.agent-sp {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.agent-sp__top {
+    min-height: 62px;
+}
+
+.agent-sp__top h1 {
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: var(--dr-white);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.agent-sp__top p {
+    min-height: 21px;
+    margin: 4px 0 0;
+    color: var(--dr-navy-mid);
+    font-size: 14px;
+}
+
+/* ---------- group pills ---------- */
+.agent-sp__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.agent-sp__tab {
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--dr-navy-raised-line);
+    border-radius: 999px;
+    background: var(--dr-navy-raised);
+    color: var(--dr-white);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-sp__tab:hover:not(:disabled) {
+    border-color: var(--dr-navy-mid);
+}
+
+.agent-sp__tab[aria-pressed="true"] {
+    border-color: var(--dr-white);
+    background: var(--dr-white);
+    color: var(--dr-navy);
+}
+
+.agent-sp__tab:disabled {
+    cursor: default;
+    opacity: 0.5;
+}
+
+.agent-sp__tab:focus-visible {
+    outline: 2px solid var(--dr-white);
+    outline-offset: 2px;
+}
+
+/* ---------- panels ---------- */
+.agent-sp__cols {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+
+.agent-sp__col {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.agent-sp__single {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.agent-sp__panel {
+    overflow: hidden;
+    border: 1px solid var(--dr-border);
+    border-radius: 14px;
+    background: var(--dr-white);
+}
+
+.agent-sp__head {
+    height: auto;
+    min-height: 38px;
+    margin: 0;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--dr-border);
+    background: var(--dr-surface-hover);
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.agent-sp__rows {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-sp__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px 0 0;
+    border-top: 1px solid var(--dr-border);
+}
+
+.agent-sp__row:first-child {
+    border-top: 0;
+}
+
+.agent-sp__row:hover,
+.agent-sp__row:focus-within {
+    background: var(--dr-blue-light);
+}
+
+.agent-sp__main {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 0 10px 16px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.agent-sp__main:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: -2px;
+}
+
+.agent-sp__actions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 8px;
+}
+
+.agent-sp__actions .dr-btn {
+    height: 32px;
+    min-height: 32px;
+    padding: 0 14px;
+    font-size: 13px;
+}
+
+.agent-sp .agent-sr__title {
+    font-size: 15px;
+}
+
+.agent-sp .agent-sr__meta {
+    font-size: 13px;
+}
+
+.agent-sp__empty {
+    padding: 8px 0;
+}
+
+/* ---------- loading ---------- */
+.agent-sp__skeleton-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border-top: 1px solid var(--dr-border);
+}
+
+.agent-sp__skeleton-icon {
+    width: 34px;
+    height: 34px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--dr-skeleton);
+}
+
+.agent-sp__skeleton-line {
+    width: 55%;
+    height: 12px;
+    border-radius: 6px;
+    background: var(--dr-skeleton);
+}
+
+.agent-sp__head:empty {
+    height: 38px;
+}
+
+/* ---------- narrower screens ---------- */
+@media (max-width: 1023px) {
+    .agent-sp__cols {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 639px) {
+    .agent-sp__tabs {
+        margin-right: -16px;
+        margin-left: -16px;
+        padding: 0 16px 2px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .agent-sp__tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .agent-sp__row {
+        flex-wrap: wrap;
+        padding: 0 12px 12px 0;
+    }
+
+    .agent-sp__main {
+        flex-basis: 100%;
+        padding-bottom: 8px;
+    }
+
+    .agent-sp__actions {
+        margin-left: 60px;
+    }
+
+    .agent-sr__meta {
+        white-space: normal;
+    }
+}

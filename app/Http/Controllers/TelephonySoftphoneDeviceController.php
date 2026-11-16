@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SoftphoneDevice;
+use App\Services\CallBridge\LineConcurrencyManager;
 use App\Support\FeatureFlags;
 use App\Support\SipProviderRegistry;
 use Illuminate\Http\JsonResponse;
@@ -42,7 +43,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
             })
             ->orderByDesc('is_default')
             ->orderBy('label')
-            ->get(['id', 'label', 'is_default', 'is_active']);
+            ->get(['id', 'label', 'is_default', 'is_active', 'max_concurrent_calls', 'provider']);
 
         return response()->json([
             'status' => 'success',
@@ -82,6 +83,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
                 'display_name' => $device->display_name,
                 'is_default' => $device->is_default,
                 'is_active' => $device->is_active !== false,
+                'max_concurrent_calls' => LineConcurrencyManager::maxConcurrentCalls($device),
                 'has_password' => $device->authorization_password !== null
                     && $device->authorization_password !== '',
             ],
@@ -127,8 +129,59 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
                 'authorization_username' => $device->authorization_username,
                 'authorization_password' => $device->authorization_password,
                 'display_name' => $device->display_name,
+                'stun_url' => SipProviderRegistry::stunUrl($device->provider),
+                'max_concurrent_calls' => LineConcurrencyManager::maxConcurrentCalls($device),
             ],
         ]);
+    }
+
+    /**
+     * Take one of the line's concurrent-call slots for the caller before an
+     * outbound call is dialled. `available` is false when the line is full.
+     */
+    public function reserveCapacity(int $id): JsonResponse
+    {
+        $device = $this->findCallableDevice($id);
+
+        abort_if($device->is_active === false, 423, 'This line is disabled.');
+
+        $reserved = LineConcurrencyManager::reserve($device, (int) user()->id);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => ['available' => $reserved] + LineConcurrencyManager::capacityInfo($device, (int) user()->id),
+        ]);
+    }
+
+    /** Free the caller's slot on the line once their call is over. */
+    public function releaseCapacity(int $id): JsonResponse
+    {
+        $device = $this->findCallableDevice($id);
+
+        LineConcurrencyManager::release((int) $device->id, (int) user()->id);
+
+        return response()->json(['status' => 'success']);
+    }
+
+    /** A line of this company that the current user may call on. */
+    private function findCallableDevice(int $id): SoftphoneDevice
+    {
+        $this->assertSoftphoneEnabled();
+
+        abort_403(
+            ! user()->hasRole('admin')
+            && ! in_array(user()->permission('make_softphone_calls'), ['all', 'added'], true)
+        );
+
+        if (! user()->hasRole('admin')) {
+            $allowedLines = \App\Models\SoftphoneCallPoolAgent::allowedDeviceIdsForUser(
+                (int) company()->id,
+                (int) user()->id
+            );
+            abort_if($allowedLines !== null && ! in_array($id, $allowedLines, true), 403);
+        }
+
+        return SoftphoneDevice::findOrFail($id);
     }
 
     public function store(Request $request): JsonResponse
@@ -213,6 +266,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
         $device = $this->findManageableDevice($id);
         $wasDefault = (bool) $device->is_default;
         $device->delete();
+        LineConcurrencyManager::clearDevice($id);
 
         // Promote another line if we just removed the default.
         if ($wasDefault) {
@@ -262,6 +316,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
             'authorization_password' => $passwordRule,
             'display_name' => 'sometimes|nullable|string|max:120',
             'is_default' => 'sometimes|boolean',
+            'max_concurrent_calls' => 'sometimes|nullable|integer|min:1|max:100',
         ], [
             // OL may already list a platform this CRM build has no defaults
             // for; the registry is what the line's connection is resolved
@@ -270,6 +325,16 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
         ]);
 
         $this->applyProviderDefaults($validated, $device);
+
+        // An empty limit means "the platform's default" on create and
+        // "unchanged" on update; the column itself is never null.
+        if (($validated['max_concurrent_calls'] ?? null) === null) {
+            if ($device === null) {
+                $validated['max_concurrent_calls'] = SipProviderRegistry::defaultMaxConcurrentCalls($validated['provider'] ?? null);
+            } else {
+                unset($validated['max_concurrent_calls']);
+            }
+        }
 
         // On update an empty password means "keep the stored one".
         if ($device !== null && ($validated['authorization_password'] ?? null) === null) {
@@ -351,7 +416,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
         // Only overwrite connection fields that were actually sent. On create
         // they are all present (explicitly or resolved from the platform); on
         // update an absent key means "unchanged" rather than "clear it".
-        foreach (['provider', 'wss_url', 'uri', 'authorization_username', 'display_name'] as $field) {
+        foreach (['provider', 'wss_url', 'uri', 'authorization_username', 'display_name', 'max_concurrent_calls'] as $field) {
             if (array_key_exists($field, $validated)) {
                 $device->{$field} = $validated[$field];
             }
@@ -377,6 +442,8 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
             'label' => $device->label,
             'is_default' => $device->is_default,
             'is_active' => $device->is_active !== false,
+            'max_concurrent_calls' => LineConcurrencyManager::maxConcurrentCalls($device),
+            'provider' => $device->provider,
         ];
     }
 

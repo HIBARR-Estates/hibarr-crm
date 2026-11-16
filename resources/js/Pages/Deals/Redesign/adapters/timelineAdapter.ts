@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { onBehalfOfName } from "@/Components/CrmEvents/onBehalfOf";
 import type {
     CrmEvent,
     CrmEventDirection,
@@ -54,6 +55,8 @@ export interface TimelineEventViewModel {
          * storage URL is a durable bearer credential and is never exposed.
          */
         downloadUrl: string | null;
+        /** Opens the recording in its own tab (Bunny's player for WebM). */
+        openUrl: string | null;
         expired: boolean;
         userId?: number | null;
     };
@@ -101,6 +104,12 @@ function buildCallDetails(event: CrmEvent): TimelineEventViewModel["call"] {
         downloadUrl:
             recordingId !== null
                 ? route("call-recordings.download", recordingId)
+                : null,
+        // Offered when the player cannot play the file (WebM recordings play
+        // only in Bunny's own player, which this opens in a new tab).
+        openUrl:
+            recordingId !== null
+                ? route("call-recordings.open", recordingId)
                 : null,
         // Expiry is not carried in the event metadata; the play endpoint
         // answers 410 for an expired recording and the player surfaces that.
@@ -178,7 +187,7 @@ export function getTimelineDirectionLabel(
  */
 export function crmEventToTimelineViewModel(
     event: CrmEvent,
-    t: (key: string) => string,
+    t: (key: string, options?: Record<string, string | number>) => string,
 ): TimelineEventViewModel {
     const type: TimelineEventViewModel["type"] =
         event.generation_type === "user_generated"
@@ -201,10 +210,18 @@ export function crmEventToTimelineViewModel(
     const titleLocalized = callSummary !== null;
 
     const call = buildCallDetails(event);
-    const meta = `${actor} · ${dayjs(event.occurred_at).fromNow()}`;
+    const metadata = event.metadata ?? {};
+    const behalfName = onBehalfOfName(metadata);
+    const actorLabel =
+        behalfName !== ""
+            ? t("app.impersonation.onBehalfOf", {
+                  admin: actor,
+                  name: behalfName,
+              })
+            : actor;
+    const meta = `${actorLabel} · ${dayjs(event.occurred_at).fromNow()}`;
     const hideStatusChip = isCallStartedEvent(event);
 
-    const metadata = event.metadata ?? {};
     const changes = metadata?.changes;
     const grouped =
         typeof metadata?.grouped === "string" ? metadata.grouped : undefined;

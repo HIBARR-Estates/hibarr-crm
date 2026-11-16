@@ -161,6 +161,8 @@ export function conditionValueOptions(fieldKey: string | null | undefined, catal
             return catalogLookupOptions(catalog.leadCategories);
         case "source_id":
             return catalogLookupOptions(catalog.leadSources);
+        case "lead_origin_id":
+            return catalogLookupOptions(catalog.leadOrigins ?? []);
         case "lead_lifecycle_status_id":
             return catalogLookupOptions(catalog.leadLifecycleStatuses);
         case "lead_owner":
@@ -334,6 +336,7 @@ const LEAD_FIELD_TYPES: Record<string, FieldValueType> = {
     temperature: "select",
     category_id: "select",
     source_id: "select",
+    lead_origin_id: "select",
     lead_lifecycle_status_id: "select",
     lead_owner: "select",
     referred_by_agent_id: "select",

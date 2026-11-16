@@ -1,5 +1,6 @@
 export type DealPaymentUiState =
     | "pending_payment"
+    | "cash_pending"
     | "bank_transfer_pending"
     | "processing_online"
     | "paid_online"
@@ -9,8 +10,8 @@ export type DealPaymentUiState =
 
 export interface DealPaymentVerifiedBy {
     id: number;
-    name: string;
-    email: string;
+    name: string | null;
+    email: string | null;
 }
 
 export interface DealPaymentRequest {
@@ -28,7 +29,10 @@ export interface DealPaymentRequest {
     base_currency_symbol: string | null;
     /** 1 base_currency = rate currency. */
     rate: number | null;
+    /** Worksuite rate stored on the payment (amount × exchange_rate = company amount). */
+    exchange_rate: number | null;
     gateway: string | null;
+    transaction_id: string | null;
     crm_status: string;
     ol_status: string | null;
     ol_payment_type: string | null;
@@ -40,18 +44,38 @@ export interface DealPaymentRequest {
     verified_by_user_id: number | null;
     verified_by: DealPaymentVerifiedBy | null;
     verified_at: string | null;
+    paid_on: string | null;
     invalidated_at: string | null;
+    invalidated_by: DealPaymentVerifiedBy | null;
     invalidation_reason: string | null;
+    added_by: DealPaymentVerifiedBy | null;
+    last_updated_by: DealPaymentVerifiedBy | null;
+    remarks: string | null;
+    /** Proof file name. `proof_url` is the link to open it. */
+    bill: string | null;
     proof_url: string | null;
     updated_at: string | null;
     created_at: string | null;
 }
 
 export interface DealPaymentCreateInput {
-    /** ISO code; the server converts the deal value into it at the live rate. */
+    /** ISO code; the server converts the requested company-currency amount into it. */
     currency: string;
-    /** Optional. Omit so OL checkout lets the client choose how to pay. */
-    provider_key?: "manual-bank-transfer" | "nowpayments";
+    /**
+     * Company-currency slice of the deal to request. Omit to request whatever
+     * confirmed payments have not covered. Cannot exceed that remainder.
+     */
+    base_amount?: number;
+    /**
+     * Units of `currency` per 1 company-currency unit. Omit to use the live
+     * rate. Ignored when `currency` is already the company currency.
+     */
+    exchange_rate?: number;
+    /**
+     * Optional. Omit so checkout lets the client choose how to pay.
+     * `cash` is recorded in the CRM and is not sent to the payment service.
+     */
+    provider_key?: "manual-bank-transfer" | "nowpayments" | "cash";
 }
 
 /** A deal's current request plus its full history, newest first. */

@@ -50,6 +50,7 @@ interface DevicePayload {
     authorization_password: string;
     display_name?: string | null;
     is_default?: boolean;
+    max_concurrent_calls?: number;
 }
 
 interface ProviderOption {
@@ -117,6 +118,7 @@ export default function SoftphoneDeviceManager() {
     const [displayName, setDisplayName] = useState("");
     const [isDefault, setIsDefault] = useState(false);
     const [hasPassword, setHasPassword] = useState(false);
+    const [maxConcurrentCalls, setMaxConcurrentCalls] = useState(2);
     // True while the edit form is waiting for the line's stored settings.
     const [detailsLoading, setDetailsLoading] = useState(false);
     // Only a test run since the modal opened is shown in it; older results stay
@@ -241,6 +243,7 @@ export default function SoftphoneDeviceManager() {
         setDisplayName("");
         setIsDefault(false);
         setHasPassword(false);
+        setMaxConcurrentCalls(2);
         setDetailsLoading(false);
         detailsRequest.current += 1;
         lineTest.clear("draft");
@@ -386,6 +389,7 @@ export default function SoftphoneDeviceManager() {
                 setDisplayName(details.display_name ?? "");
                 setIsDefault(details.is_default);
                 setHasPassword(details.has_password);
+                setMaxConcurrentCalls(details.max_concurrent_calls ?? 2);
                 setDetailsLoading(false);
             })
             .catch(() => {
@@ -410,6 +414,7 @@ export default function SoftphoneDeviceManager() {
             provider,
             authorization_password: password,
             is_default: isDefault,
+            max_concurrent_calls: maxConcurrentCalls,
         };
 
         if (editing) {
@@ -485,20 +490,25 @@ export default function SoftphoneDeviceManager() {
                     <div className="p-4">
                         <EmptyState
                             title="No phone lines yet"
-                            description="Add a sipgate Neo channel to use as an outbound caller ID."
+                            description="Add a phone line to use as an outbound caller ID."
                         />
                     </div>
                 ) : (
                     <div className="flex flex-col">
                         {devices.map((device) => (
                             <div key={device.id} className={ROW_GRID}>
-                                <span
-                                    className="min-w-0 truncate text-sm font-medium"
-                                    style={{ color: T.TEXT }}
-                                    title={device.label}
-                                >
-                                    {device.label}
-                                </span>
+                                <div className="flex flex-col min-w-0">
+                                    <span
+                                        className="min-w-0 truncate text-sm font-medium"
+                                        style={{ color: T.TEXT }}
+                                        title={device.label}
+                                    >
+                                        {device.label}
+                                    </span>
+                                    <span className="text-xs" style={{ color: T.TEXT_MUTED }}>
+                                        {t("pages.calls.max_concurrent_calls")}: {device.max_concurrent_calls ?? 2}
+                                    </span>
+                                </div>
                                 <span className="text-sm" style={{ color: T.TEXT_MUTED }}>
                                     {device.is_default ? (
                                         <StarFilled style={{ color: T.AMBER_TEXT ?? T.ORANGE }} />
@@ -701,6 +711,22 @@ export default function SoftphoneDeviceManager() {
                     className="dr-input"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
+                />
+
+                <FieldLabel
+                    htmlFor="sp-concurrent"
+                    text={t("pages.calls.max_concurrent_calls")}
+                    tooltip={t("pages.calls.max_concurrent_calls_tooltip")}
+                />
+                <input
+                    id="sp-concurrent"
+                    type="number"
+                    min={1}
+                    max={100}
+                    disabled={detailsLoading}
+                    className="dr-input"
+                    value={maxConcurrentCalls}
+                    onChange={(e) => setMaxConcurrentCalls(Math.max(1, parseInt(e.target.value, 10) || 1))}
                 />
 
                 {draftTest?.status === "done" && draftTest.testedAt >= openedAt && (

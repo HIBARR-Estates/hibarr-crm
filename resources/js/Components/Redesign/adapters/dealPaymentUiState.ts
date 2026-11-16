@@ -5,6 +5,8 @@ export function paymentUiStateLabel(uiState: DealPaymentUiState): string {
     switch (uiState) {
         case "pending_payment":
             return "Pending payment";
+        case "cash_pending":
+            return "Cash pending confirmation";
         case "bank_transfer_pending":
             return "Bank transfer pending review";
         case "processing_online":
@@ -26,6 +28,8 @@ export function paymentUiStateBadgeVariant(uiState: DealPaymentUiState): BadgeVa
     switch (uiState) {
         case "pending_payment":
             return "amber";
+        case "cash_pending":
+            return "navy";
         case "bank_transfer_pending":
             return "blue";
         case "processing_online":

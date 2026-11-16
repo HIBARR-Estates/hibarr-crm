@@ -100,6 +100,25 @@ class ContactDealsTest extends TestCase
         $this->assertSame([], (new ContactDeals)->forLead(99, $this->viewer('all')));
     }
 
+    public function test_the_people_list_gets_each_persons_open_deals_in_one_pass(): void
+    {
+        $byLead = (new ContactDeals)->openForLeads([7, 8, 99], $this->viewer('all'));
+
+        // Won and lost deals are left out; oldest open deal first.
+        $this->assertSame([11, 12], array_column($byLead[7], 'id'));
+        $this->assertSame(['id' => 20, 'name' => 'Someone else', 'stage' => 'Viewing', 'stage_color' => '#123456'], $byLead[8][0]);
+        $this->assertArrayNotHasKey(99, $byLead);
+        $this->assertSame([], (new ContactDeals)->openForLeads([], $this->viewer('all')));
+    }
+
+    public function test_the_people_list_only_shows_deals_the_viewer_may_open(): void
+    {
+        $byLead = (new ContactDeals)->openForLeads([7], $this->viewer('added'));
+
+        $this->assertSame([12], array_column($byLead[7], 'id'));
+        $this->assertSame([], (new ContactDeals)->openForLeads([7], $this->viewer('none')));
+    }
+
     /** A viewer (id 5) whose view_deals permission has the given scope. */
     private function viewer(string $scope): User
     {

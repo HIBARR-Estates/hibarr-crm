@@ -1,6 +1,5 @@
 import { lazy, Suspense, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { message } from "antd";
 import axios from "axios";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
@@ -21,36 +20,18 @@ const OUTCOMES: MeetingAttendanceOutcome[] = ["attended", "no_show", "reschedule
 /**
  * The meetings still waiting on "did it happen?" — the same list the
  * reminders dock shows (MeetingAttendanceConfirmationController), with each
- * outcome one tap away. An answer leaves the list at once and is sent in the
- * background; a failure puts it back.
+ * outcome opening the same dialog the reminders dock uses, with that outcome
+ * already picked so a note can be added before it is saved. Snooze hides all of them
+ * at once and says until when.
  */
 export function useAgendaOutcomes(enabled: boolean, onSaved: () => void) {
-    const { t } = useTranslation();
     const queryClient = useQueryClient();
-    const { items, remove, restore } = useMeetingAttendanceConfirmations(enabled);
+    const { items, remove, restore, snoozeMinutes } = useMeetingAttendanceConfirmations(enabled);
 
     // Tells the dock's own copy of the list, which polls the same endpoint.
     const refreshPending = useCallback(
         () => queryClient.invalidateQueries({ queryKey: [route("meetings.api.attendance_confirmation.pending")] }),
         [queryClient],
-    );
-
-    const confirm = useCallback(
-        (item: PendingMeetingAttendanceConfirmation, outcome: MeetingAttendanceOutcome) => {
-            remove(item.id);
-            axios
-                .post(route("meetings.api.attendance_confirmation.confirm", { followUp: item.id }), { outcome })
-                .then(() => {
-                    message.success(t("pages.agent_workspace.agenda.outcome.saved"));
-                    void refreshPending();
-                    onSaved();
-                })
-                .catch(() => {
-                    restore(item);
-                    message.error(t("pages.agent_workspace.agenda.outcome.failed"));
-                });
-        },
-        [remove, restore, refreshPending, onSaved, t],
     );
 
     const snooze = useCallback(
@@ -74,7 +55,16 @@ export function useAgendaOutcomes(enabled: boolean, onSaved: () => void) {
         [remove, refreshPending, onSaved],
     );
 
-    return { items: enabled ? items : [], confirm, snooze, confirmedInDialog };
+    return { items: enabled ? items : [], snooze, confirmedInDialog, snoozeMinutes };
+}
+
+function untilText(at: number, locale: string, timeZone: string): string {
+    const iso = new Date(at).toISOString();
+    const day = (value: number) => new Date(value).toLocaleDateString("en-CA", { timeZone: timeZone || undefined });
+    const time = instantTime(iso, timeZone);
+    if (day(at) === day(Date.now())) return time;
+    const weekday = new Date(at).toLocaleDateString(locale || undefined, { weekday: "short", timeZone: timeZone || undefined });
+    return `${weekday} ${time}`;
 }
 
 interface OutcomePanelProps {
@@ -85,10 +75,14 @@ interface OutcomePanelProps {
 export default function OutcomePanel({ outcomes, timeZone }: OutcomePanelProps) {
     const { t, locale } = useTranslation();
     const { td } = useTd();
-    const [noteFor, setNoteFor] = useState<PendingMeetingAttendanceConfirmation | null>(null);
+    // The meeting whose dialog is open, and the outcome the button pressed (none when the name was).
+    const [noteFor, setNoteFor] = useState<{ item: PendingMeetingAttendanceConfirmation; outcome: MeetingAttendanceOutcome | null } | null>(null);
     const key = "pages.agent_workspace.agenda.outcome";
 
     if (outcomes.items.length === 0) return null;
+
+    // "until 14:30" today, "until Tue 14:30" past midnight: when every meeting here comes back.
+    const snoozeUntil = outcomes.snoozeMinutes ? untilText(Date.now() + outcomes.snoozeMinutes * 60_000, locale, timeZone) : null;
 
     return (
         <section className="agent-panel agent-outcome" aria-labelledby="agent-outcome-title">
@@ -113,8 +107,8 @@ export default function OutcomePanel({ outcomes, timeZone }: OutcomePanelProps) 
                         .join(" · ");
                     return (
                         <li key={item.id} className="agent-outcome__item">
-                            <button type="button" className="agent-outcome__name" onClick={() => setNoteFor(item)}>
-                                <b>{when}</b> · {name || t(`${key}.meeting`)}
+                            <button type="button" className="agent-outcome__name" onClick={() => setNoteFor({ item, outcome: null })}>
+                                {when} · {name || t(`${key}.meeting`)}
                             </button>
                             <div className="agent-outcome__choices" role="group" aria-label={t(`${key}.choices_label`, { name: name || when })}>
                                 {OUTCOMES.map((outcome) => (
@@ -122,7 +116,7 @@ export default function OutcomePanel({ outcomes, timeZone }: OutcomePanelProps) 
                                         key={outcome}
                                         type="button"
                                         className="dr-btn dr-btn-ghost dr-btn-sm"
-                                        onClick={() => outcomes.confirm(item, outcome)}
+                                        onClick={() => setNoteFor({ item, outcome })}
                                     >
                                         {t(`${key}.${outcome}`)}
                                     </button>
@@ -140,18 +134,19 @@ export default function OutcomePanel({ outcomes, timeZone }: OutcomePanelProps) 
                         icon={<Icon name="clock" size={13} />}
                         onClick={() => outcomes.items.forEach((item) => outcomes.snooze(item))}
                     >
-                        {t(`${key}.snooze_all`)}
+                        {snoozeUntil ? t(`${key}.snooze_all_until`, { when: snoozeUntil }) : t(`${key}.snooze_all`)}
                     </Button>
                 ) : null}
             </div>
             {noteFor ? (
                 <Suspense fallback={null}>
                     <ConfirmationModal
-                        key={noteFor.id}
-                        meeting={noteFor}
+                        key={`${noteFor.item.id}-${noteFor.outcome ?? "none"}`}
+                        meeting={noteFor.item}
+                        initialOutcome={noteFor.outcome}
                         onDismiss={() => setNoteFor(null)}
                         onConfirmed={() => {
-                            outcomes.confirmedInDialog(noteFor.id);
+                            outcomes.confirmedInDialog(noteFor.item.id);
                             setNoteFor(null);
                         }}
                     />

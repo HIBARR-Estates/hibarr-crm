@@ -28,6 +28,7 @@ import type {
 } from "./today/types";
 import useTodayWork, { MEETING_RELOAD_KEYS } from "./today/useTodayWork";
 import Agenda from "./agenda/Agenda";
+import { type ActivityKind } from "./today/AddActivityMenu";
 import AgendaHeader from "./agenda/AgendaHeader";
 import { useAgendaOutcomes } from "./agenda/OutcomePanel";
 import { AGENDA_VIEWS, isDayKey, shiftDate, type AgendaView } from "./agenda/range";
@@ -43,6 +44,9 @@ const loadSnoozeModal = () => import("@/Components/Redesign/modals/TaskSnoozeMod
 const QueueTaskModal = lazy(loadTaskModal);
 const MeetingActionModals = lazy(loadMeetingModals);
 const TaskSnoozeModal = lazy(loadSnoozeModal);
+// The forms behind "Add": the personal dashboard's task form and the Meetings page's schedule dialog.
+const PersonalTaskCreateModal = lazy(() => import("@/Pages/Dashboard/V2/personal/PersonalTaskCreateModal"));
+const MeetingScheduleModal = lazy(() => import("@/Components/Redesign/modals/MeetingScheduleModal"));
 
 interface TodayProps {
     pageTitle: string;
@@ -55,6 +59,9 @@ interface TodayProps {
     queue?: PersonalQueue;
     taskBoardColumns?: TaskboardColumn[];
     taskCategories?: TaskCategoryOption[];
+    /** Deals and leads a meeting may be scheduled on, for "Add > Meeting". */
+    userDeals?: Array<{ id: number; name: string }>;
+    userLeads?: Array<{ id: number; name: string }>;
     stats?: PersonalStats;
     commission?: CommissionSummary | null;
     openDeals?: PipelineRow[];
@@ -120,6 +127,8 @@ export default function Today({
     windowDays,
     queue,
     taskBoardColumns,
+    userDeals,
+    userLeads,
     stats,
     commission,
     openDeals,
@@ -141,6 +150,8 @@ export default function Today({
     const [openTask, setOpenTask] = useState<Task | null>(null);
     const [openMeeting, setOpenMeeting] = useState<ScheduleEntry | null>(null);
     const [snoozeTask, setSnoozeTask] = useState<QueueTask | null>(null);
+    // The form "Add" opened, if any.
+    const [adding, setAdding] = useState<ActivityKind | null>(null);
 
     const agenda = useAgendaData(agendaView, date, tab === "agenda");
     const outcomesEnabled = useMeetingAttendanceConfirmationFlag();
@@ -271,6 +282,7 @@ export default function Today({
                         timeZone={timezone}
                         onNavigate={navigateAgenda}
                         onStep={(direction) => navigateAgenda(agendaView, shiftDate(agendaView, date, direction))}
+                        onAdd={setAdding}
                     />
                     <Agenda
                         view={agendaView}
@@ -340,6 +352,7 @@ export default function Today({
                                         today={today}
                                         handlers={handlers}
                                         onOpenAgenda={openAgenda}
+                                        onAdd={setAdding}
                                         {...meetingHandlers}
                                     />
                                 ) : (
@@ -384,6 +397,33 @@ export default function Today({
                         markingHeld={work.isHeldPending(openMeeting.id)}
                         reloadKeys={MEETING_RELOAD_KEYS}
                         onRescheduled={() => void agenda.refresh()}
+                    />
+                ) : null}
+                {adding === "task" ? (
+                    <PersonalTaskCreateModal
+                        open
+                        taskBoardColumns={taskBoardColumns ?? []}
+                        onClose={() => setAdding(null)}
+                        onCreated={() => {
+                            setAdding(null);
+                            // A new task is a new row for the server to place, so the queue, the schedule and the agenda re-read.
+                            work.reloadTasks();
+                            void agenda.refresh();
+                        }}
+                    />
+                ) : null}
+                {/* The deals and leads arrive as a deferred group; opening before they do would offer nothing to schedule on, so the dialog waits for them. */}
+                {adding === "meeting" && userDeals !== undefined && userLeads !== undefined ? (
+                    <MeetingScheduleModal
+                        open
+                        onClose={() => setAdding(null)}
+                        userDeals={userDeals}
+                        userLeads={userLeads}
+                        onSuccess={() => {
+                            setAdding(null);
+                            void agenda.refresh();
+                            router.reload({ only: MEETING_RELOAD_KEYS });
+                        }}
                     />
                 ) : null}
                 {snoozeTask ? (

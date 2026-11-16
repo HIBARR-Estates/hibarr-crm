@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\SoftphoneDevice;
 use App\Models\User;
+use App\Services\CallBridge\LineConcurrencyManager;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -219,6 +220,104 @@ class TelephonySoftphoneDeviceValidationTest extends TestCase
         $this->assertSame('sip:4711@sipgate.de', $device->uri);
     }
 
+    public function test_a_line_created_defaults_to_provider_max_concurrent_calls(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsAdmin();
+
+        $response = $this->postJson(route('telephony.softphone.devices.store'), [
+            'label' => 'German',
+            'provider' => 'sipgate',
+            'authorization_username' => '4711',
+            'authorization_password' => 'secret',
+        ])->assertOk();
+
+        $id = $response->json('data.id');
+        $device = DB::table('softphone_devices')->find($id);
+
+        $this->assertSame(2, (int) $device->max_concurrent_calls);
+    }
+
+    public function test_a_line_can_be_created_with_custom_max_concurrent_calls(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsAdmin();
+
+        $response = $this->postJson(route('telephony.softphone.devices.store'), [
+            'label' => 'Swedish',
+            'provider' => 'sipgate',
+            'authorization_username' => '4712',
+            'authorization_password' => 'secret',
+            'max_concurrent_calls' => 5,
+        ])->assertOk();
+
+        $id = $response->json('data.id');
+        $device = DB::table('softphone_devices')->find($id);
+
+        $this->assertSame(5, (int) $device->max_concurrent_calls);
+    }
+
+    public function test_a_line_can_update_max_concurrent_calls(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsAdmin();
+
+        $line = new SoftphoneDevice();
+        $line->company_id = self::COMPANY_ID;
+        $line->label = 'Primary';
+        $line->provider = 'sipgate';
+        $line->wss_url = 'wss://sip.sipgate.de';
+        $line->uri = 'sip:4711@sipgate.de';
+        $line->authorization_username = '4711';
+        $line->authorization_password = 'secret';
+        $line->max_concurrent_calls = 2;
+        $line->save();
+
+        $this->putJson(route('telephony.softphone.devices.update', $line->id), [
+            'label' => 'Primary Updated',
+            'max_concurrent_calls' => 8,
+        ])->assertOk();
+
+        $device = DB::table('softphone_devices')->find($line->id);
+        $this->assertSame(8, (int) $device->max_concurrent_calls);
+    }
+
+    public function test_reserving_capacity_takes_a_slot_until_it_is_released(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsAdmin();
+
+        $line = new SoftphoneDevice();
+        $line->company_id = self::COMPANY_ID;
+        $line->label = 'Line A';
+        $line->provider = 'sipgate';
+        $line->wss_url = 'wss://sip.sipgate.de';
+        $line->uri = 'sip:4711@sipgate.de';
+        $line->authorization_username = '4711';
+        $line->authorization_password = 'secret';
+        $line->max_concurrent_calls = 1;
+        $line->save();
+
+        // Another agent is already on the line's only slot.
+        LineConcurrencyManager::reserve($line, 999);
+
+        $this->postJson(route('telephony.softphone.devices.capacity.reserve', $line->id))
+            ->assertOk()
+            ->assertJsonPath('data.available', false)
+            ->assertJsonPath('data.max_concurrent_calls', 1)
+            ->assertJsonPath('data.active_calls_count', 1);
+
+        LineConcurrencyManager::release((int) $line->id, 999);
+
+        $this->postJson(route('telephony.softphone.devices.capacity.reserve', $line->id))
+            ->assertOk()
+            ->assertJsonPath('data.available', true);
+        $this->assertSame(1, LineConcurrencyManager::activeCallsCount((int) $line->id));
+
+        $this->postJson(route('telephony.softphone.devices.capacity.release', $line->id))->assertOk();
+        $this->assertSame(0, LineConcurrencyManager::activeCallsCount((int) $line->id));
+    }
+
     // ─── Helpers ────────────────────────────────────────────────────────
 
     private function actingAsAdmin(): void
@@ -249,6 +348,8 @@ class TelephonySoftphoneDeviceValidationTest extends TestCase
             $table->text('authorization_password'); // encrypted at rest
             $table->string('display_name')->nullable();
             $table->boolean('is_default')->default(false);
+            $table->boolean('is_active')->default(true);
+            $table->unsignedInteger('max_concurrent_calls')->default(2);
             $table->unsignedInteger('added_by')->nullable();
             $table->unsignedInteger('last_updated_by')->nullable();
             $table->timestamps();

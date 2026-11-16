@@ -8,11 +8,11 @@ use Illuminate\Http\Request;
 
 /**
  * Live reference FX rates for the deal value modal and the payment request
- * modal's preview — see ExchangeRateService for the source and caching.
+ * modal — see ExchangeRateService for the source and caching.
  *
- * The rate is only ever a *suggestion* on the value modal: the deal snapshots
- * whatever rate is saved, and the field stays editable, so a failure here
- * degrades to "type it yourself" rather than an error.
+ * The rate is only ever a suggestion: both modals prefill an editable field
+ * and snapshot whatever rate is confirmed, so a failure here degrades to
+ * "type it yourself" rather than an error.
  */
 class ExchangeRateController extends Controller
 {

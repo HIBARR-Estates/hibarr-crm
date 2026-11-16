@@ -76,5 +76,8 @@ export function useMeetingAttendanceConfirmations(enabled: boolean) {
         );
     }, []);
 
-    return { items, remove, snoozeLocally, restore };
+    // How long a snooze lasts, as the pending list reports it; null until the first response.
+    const snoozeMinutes = (response as { snooze_minutes?: number } | undefined)?.snooze_minutes ?? null;
+
+    return { items, remove, snoozeLocally, restore, snoozeMinutes };
 }

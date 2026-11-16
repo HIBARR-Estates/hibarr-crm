@@ -233,6 +233,113 @@ class CallRecordingAccessTest extends TestCase
         $response->assertHeader('Content-Disposition', 'attachment; filename="call-8.mp3"');
     }
 
+    // ─── Open in a new tab (WebM) ───────────────────────────────────────
+
+    public function test_a_webm_recording_opens_its_bunny_link(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsUser();
+
+        $recording = $this->insertRecording([
+            'user_id' => self::USER_ID,
+            'filename' => 'call-20.webm',
+            'mime_type' => 'video/webm',
+            'external_url' => 'https://iframe.mediadelivery.net/embed/123/abc-guid',
+        ]);
+
+        $this->get($this->openUrl($recording))->assertRedirect('https://iframe.mediadelivery.net/embed/123/abc-guid');
+    }
+
+    public function test_a_webm_recording_renamed_to_m4a_still_opens_its_bunny_link(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsUser();
+
+        $recording = $this->insertRecording([
+            'user_id' => self::USER_ID,
+            'filename' => 'call-21.m4a',
+            'mime_type' => 'video/webm',
+            'external_url' => 'https://iframe.mediadelivery.net/embed/123/abc-guid',
+        ]);
+
+        $this->get($this->openUrl($recording))->assertRedirect('https://iframe.mediadelivery.net/embed/123/abc-guid');
+    }
+
+    public function test_any_other_recording_is_streamed_not_redirected(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsUser();
+
+        $recording = $this->insertRecording([
+            'user_id' => self::USER_ID,
+            'filename' => 'call-22.mp3',
+            'mime_type' => 'audio/mpeg',
+            'external_url' => 'https://minio.test/call-recordings/99/call-22.mp3',
+        ]);
+
+        Http::fake([
+            '*' => Http::response('audio-bytes', 200, ['Content-Type' => 'audio/mpeg']),
+        ]);
+
+        $response = $this->get($this->openUrl($recording));
+
+        $response->assertOk();
+        $this->assertNull($response->headers->get('Location'));
+    }
+
+    public function test_opening_is_forbidden_for_another_agents_recording(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsUser();
+
+        $recording = $this->insertRecording([
+            'user_id' => self::USER_ID + 1,
+            'mime_type' => 'video/webm',
+            'external_url' => 'https://iframe.mediadelivery.net/embed/123/abc-guid',
+        ]);
+
+        $this->get($this->openUrl($recording))->assertForbidden();
+    }
+
+    public function test_opening_is_gone_once_the_recording_has_expired(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsUser();
+
+        $recording = $this->insertRecording([
+            'user_id' => self::USER_ID,
+            'mime_type' => 'video/webm',
+            'external_url' => 'https://iframe.mediadelivery.net/embed/123/abc-guid',
+            'expires_at' => now()->subDay(),
+        ]);
+
+        $this->get($this->openUrl($recording))->assertStatus(410);
+    }
+
+    public function test_the_listing_offers_a_new_tab_only_for_webm_recordings(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsUser();
+
+        $webm = $this->insertRecording([
+            'user_id' => self::USER_ID,
+            'mime_type' => 'video/webm',
+            'external_url' => 'https://iframe.mediadelivery.net/embed/123/abc-guid',
+        ]);
+        $mp3 = $this->insertRecording([
+            'user_id' => self::USER_ID,
+            'external_url' => 'https://minio.test/call-recordings/99/call-23.mp3',
+        ]);
+
+        $response = $this->getJson(route('call-recordings.index'))->assertOk();
+        $rows = collect($response->json('data'))->keyBy('id');
+
+        $this->assertSame(route('call-recordings.open', $webm, false), $rows[$webm]['open_url']);
+        $this->assertNull($rows[$mp3]['open_url']);
+        // The Bunny link itself still never appears in page data.
+        $this->assertStringNotContainsString('mediadelivery', $response->getContent());
+    }
+
     // ─── Upload ─────────────────────────────────────────────────────────
 
     public function test_store_rejects_a_line_from_another_company(): void
@@ -456,6 +563,11 @@ class CallRecordingAccessTest extends TestCase
     private function downloadUrl(int $recordingId): string
     {
         return route('call-recordings.download', $this->bindRecording($recordingId));
+    }
+
+    private function openUrl(int $recordingId): string
+    {
+        return route('call-recordings.open', $this->bindRecording($recordingId));
     }
 
     private function bindRecording(int $recordingId): CallRecording

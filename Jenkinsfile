@@ -37,7 +37,7 @@ pipeline {
                 beforeAgent true
                 allOf {
                     not { changeRequest() }
-                    anyOf { branch 'main'; branch 'master'; branch 'staging'; branch 'develop' }
+                    anyOf { branch 'main'; branch 'develop' }
                 }
             }
             steps {

@@ -356,10 +356,19 @@ class DashboardController extends AccountBaseController
         $leadsConstraint($leadsQuery);
         $allLeads = $leadsQuery->get()->toBase();
         
-        // Get required custom fields for leads
-        $leadCustomFields = \App\Models\CustomField::where('custom_field_group_id', function($q) {
-            $q->select('id')->from('custom_field_groups')->where('model', 'App\Models\Lead');
-        })->where('required', 'yes')->get();
+        // Get required custom fields for leads. whereIn, not an equality
+        // subquery: a company can have more than one Lead field group, and
+        // `= (select id ...)` then throws a cardinality error (1242).
+        $leadGroupIds = \App\Models\CustomFieldGroup::query()
+            ->where('model', \App\Models\Lead::CUSTOM_FIELD_MODEL)
+            ->pluck('id');
+
+        $leadCustomFields = $leadGroupIds->isEmpty()
+            ? collect()
+            : \App\Models\CustomField::query()
+                ->whereIn('custom_field_group_id', $leadGroupIds)
+                ->where('required', 'yes')
+                ->get();
 
         // Analyze deals for data quality (only if enabled)
         $poorDataQualityDeals = $enableDataQualityMonitor ? $allDeals->map(function ($deal) {

@@ -42,4 +42,21 @@ class CallRecording extends Model
     protected $casts = [
         'expires_at' => 'datetime',
     ];
+
+    /** Recorded in a WebM container (older uploads, before transcoding). */
+    public function isWebm(): bool
+    {
+        return str_contains(strtolower((string) $this->mime_type), 'webm')
+            || str_ends_with(strtolower((string) $this->filename), '.webm');
+    }
+
+    /**
+     * WebM uploads were filed by Bunny as video, so their link is a Bunny
+     * Stream player page rather than an audio file: it cannot play inline
+     * and is opened in a new tab instead.
+     */
+    public function opensInNewTab(): bool
+    {
+        return $this->isWebm() && ! empty($this->external_url);
+    }
 }

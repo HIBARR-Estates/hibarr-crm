@@ -60,6 +60,82 @@
     gap: 8px;
 }
 
+/* ── search (filters and their options) ── */
+.lfm-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 260px;
+    height: 34px;
+    border: 1px solid var(--lfm-border);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--lfm-dim);
+    cursor: text;
+}
+.lfm-search:focus-within {
+    border-color: var(--lfm-accent);
+    box-shadow: 0 0 0 3px var(--lfm-accent-soft);
+}
+.lfm-search__icon {
+    flex: none;
+    margin: 0 8px 0 11px;
+}
+.lfm-search__input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    border: 0;
+    outline: none;
+    background: transparent;
+    font: inherit;
+    font-size: 13px;
+    color: var(--lfm-ink);
+}
+.lfm-search__input::placeholder {
+    color: var(--lfm-faint);
+}
+.lfm-search__input::-webkit-search-cancel-button {
+    display: none;
+}
+.lfm-search__clear {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    margin-right: 3px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--lfm-dim);
+    font-size: 11px;
+    cursor: pointer;
+}
+.lfm-search__clear:hover {
+    background: var(--lfm-surface-2);
+    color: var(--lfm-ink);
+}
+.lfm-search-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 9px 12px;
+    border-radius: 9px;
+    background: var(--lfm-surface-2);
+    border: 1px solid var(--lfm-line);
+    font-size: 12.5px;
+    color: var(--lfm-dim);
+}
+.lfm-search-summary__reset {
+    border: 0;
+    background: none;
+    padding: 0;
+    font: inherit;
+    font-weight: 600;
+    color: var(--lfm-accent);
+    cursor: pointer;
+}
+
 /* ── buttons ── */
 .lfm-btn {
     height: 34px;
@@ -1054,6 +1130,17 @@
 
 /* ── responsive ── */
 @media (max-width: 820px) {
+    .lfm-header {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .lfm-header__actions {
+        width: 100%;
+    }
+    .lfm-search {
+        flex: 1;
+        width: auto;
+    }
     .lfm-rail {
         display: none;
     }

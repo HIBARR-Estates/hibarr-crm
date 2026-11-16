@@ -70,7 +70,7 @@ export default function AgentAccountMenu({ name, image }: AgentAccountMenuProps)
                     <li role="none" className="agent-menu__name">
                         {name}
                     </li>
-                    {item(t("pages.agent_workspace.preferences"), () => router.visit("/account/settings/preferences"))}
+                    {item(t("pages.agent_workspace.preferences"), () => router.visit("/agent/preferences"))}
                     <li role="none" className="agent-menu__group" id={`${menuId}-language`}>
                         {t("pages.agent_workspace.language")}
                     </li>

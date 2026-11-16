@@ -27,10 +27,12 @@ export default function AuditLogRow({ entry, expanded, onToggle }: AuditLogRowPr
     const { t } = useTranslation();
     const { td } = useTd();
     const style = AUDIT_EVENT_STYLE[entry.event] ?? AUDIT_EVENT_STYLE.updated;
-    const changes = fieldChanges(entry);
+    const changes = visibleChanges(entry);
     const isRecordEvent = RECORD_EVENTS.includes(entry.event);
 
     const summary = (() => {
+        const trigger = authTriggerSummary(entry, t);
+        if (trigger) return trigger;
         if (!isRecordEvent) return entry.ip_address ?? "—";
         if (changes.length === 0) return "—";
         const count =
@@ -117,7 +119,7 @@ export default function AuditLogRow({ entry, expanded, onToggle }: AuditLogRowPr
 function AuditLogEntryDetail({ entry }: { entry: AuditLogEntry }) {
     const { t } = useTranslation();
     const { td } = useTd();
-    const changes = fieldChanges(entry);
+    const changes = visibleChanges(entry);
     const showBefore = entry.event === "updated" || entry.event === "deleted";
     const showAfter = entry.event !== "deleted";
 
@@ -233,4 +235,27 @@ function AuditLogEntryDetail({ entry }: { entry: AuditLogEntry }) {
             </div>
         </div>
     );
+}
+
+const AUTH_META_KEYS = ["trigger", "on_behalf_of_id", "on_behalf_of_name"];
+
+function visibleChanges(entry: AuditLogEntry) {
+    return fieldChanges(entry).filter((change) => !AUTH_META_KEYS.includes(change.key));
+}
+
+function authTriggerSummary(
+    entry: AuditLogEntry,
+    t: (key: string, options?: Record<string, string>) => string,
+): string | null {
+    const trigger = entry.new_values?.trigger;
+
+    if (typeof trigger !== "string" || trigger === "") {
+        return null;
+    }
+
+    const name = entry.new_values?.on_behalf_of_name;
+
+    return t(`app.auditLog.triggers.${trigger}`, {
+        name: typeof name === "string" ? name : "",
+    });
 }

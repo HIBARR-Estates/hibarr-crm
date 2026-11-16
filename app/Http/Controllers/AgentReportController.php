@@ -244,7 +244,8 @@ class AgentReportController extends AccountBaseController
         // Build a cache key unique to this user + filters
         $cacheKey = 'ai_summary:' . user()->id . ':' . md5(implode(',', $agentIds ?? []) . $start . $end);
 
-        $summary = Cache::get($cacheKey);
+        // Regenerate asks for a fresh one; without it the hour's cached summary is served.
+        $summary = $request->boolean('refresh') ? null : Cache::get($cacheKey);
 
         if ($summary) {
             \Illuminate\Support\Facades\Log::info('AI Summary served from cache', ['cache_key' => $cacheKey]);

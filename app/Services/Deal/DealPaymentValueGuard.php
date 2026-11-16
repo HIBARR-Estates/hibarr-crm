@@ -12,7 +12,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  * the commission-lock check at every value-writing entry point.
  *
  * - No active request, or a failed/invalidated one: nothing to do.
- * - Unpaid (pending_payment): the value may change, but only once the caller
+ * - Unpaid (pending_payment or cash not yet confirmed): the value may change, but only once the caller
  *   has confirmed it understands the request will be invalidated — without
  *   that, the answer is a 409 the frontend turns into a warning and a retry.
  *   With it, the request is cancelled at OL *before* the write.
@@ -50,7 +50,7 @@ class DealPaymentValueGuard
             return null;
         }
 
-        if (DealPaymentService::uiStateOf($active) !== 'pending_payment') {
+        if (! in_array(DealPaymentService::uiStateOf($active), ['pending_payment', 'cash_pending'], true)) {
             return $this->locked();
         }
 

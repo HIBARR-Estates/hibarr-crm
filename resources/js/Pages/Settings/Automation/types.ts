@@ -297,6 +297,8 @@ export interface AutomationCatalog {
     leadCustomFields: CustomFieldOption[];
     leadCategories: { id: number; name: string }[];
     leadSources: { id: number; name: string }[];
+    /** Lead origins (Lead settings); optional until every payload carries it. */
+    leadOrigins?: { id: number; name: string }[];
     leadLifecycleStatuses: { id: number; name: string }[];
     leadAgents: { id: number; name: string | null }[];
     hibarrFields: Record<string, string>;

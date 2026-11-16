@@ -13,6 +13,8 @@
         "NAVY_MID": "#c7d0de",
         "NAVY_PRESSED": "#0f1c38",
         "NAVY_LINE": "#2a3f66",
+        "NAVY_RAISED": "#22375e",
+        "NAVY_RAISED_LINE": "#34507f",
         "BLUE": "#1a6bb5",
         "BLUE_LIGHT": "#e8f1fb",
         "BLUE_MID": "#b8d4f0",

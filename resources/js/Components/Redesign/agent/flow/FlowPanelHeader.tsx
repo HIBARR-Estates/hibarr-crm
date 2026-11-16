@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import Icon from "../../primitives/Icon";
+import AgentCallStrip from "../call/AgentCallStrip";
+import { useRegisterOpenFlow } from "../call/agentCallBridge";
 import "./agent-flow.css";
 
 interface FlowPanelHeaderProps {
@@ -16,17 +18,21 @@ interface FlowPanelHeaderProps {
     subscribeSaving?: (cb: (saving: boolean) => void) => () => void;
     /** Controls the flow already has (script language, focus mode). */
     trailing?: ReactNode;
+    /** The lead the flow is about; a call to them shows its controls in the header. */
+    leadId?: number | null;
     onClose: () => void;
 }
 
 /**
  * Header of a qualification or deal analysis opened under the agent dock
  * (canvas L7-07, L7-12): the person's initials, what is running for whom,
- * where the script stands, and the close button. White, so the dock above
+ * where the script stands, the call controls while the person is on the phone
+ * with them, and the close button. White, so the dock above
  * stays the darkest thing on screen.
  */
-export default function FlowPanelHeader({ titleId, name, title, subtitle, subscribeSaving, trailing, onClose }: FlowPanelHeaderProps) {
+export default function FlowPanelHeader({ titleId, name, title, subtitle, subscribeSaving, trailing, leadId, onClose }: FlowPanelHeaderProps) {
     const { t } = useTranslation();
+    useRegisterOpenFlow();
     const [saving, setSaving] = useState(false);
     useEffect(() => subscribeSaving?.(setSaving), [subscribeSaving]);
 
@@ -45,6 +51,7 @@ export default function FlowPanelHeader({ titleId, name, title, subtitle, subscr
                 </p>
             </div>
             {trailing ? <div className="agent-flow__trailing">{trailing}</div> : null}
+            <AgentCallStrip leadId={leadId} />
             <button type="button" className="agent-flow__close" aria-label={t("pages.agent_workspace.flow.close")} onClick={onClose}>
                 <Icon name="x" size={18} />
             </button>

@@ -31,6 +31,8 @@ export interface BulkUpdateFieldDef {
      */
     confirmNote?: string | string[];
     options: FilterOption[];
+    /** Search box placeholder for checklist controls (default "Search people…"). */
+    searchPlaceholder?: string;
     /** Request body fragment for the drafted value. */
     toPayload: (value: BulkUpdateValue) => Record<string, unknown>;
 }

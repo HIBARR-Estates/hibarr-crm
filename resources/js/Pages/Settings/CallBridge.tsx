@@ -8,6 +8,7 @@ import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { SoftphoneDeviceSummary } from "@/Types/api/softphone";
 import SoftphoneDeviceManager from "./SoftphoneDeviceManager";
 import SoftphoneCallPoolManager from "./SoftphoneCallPoolManager";
+import SoftphoneTimingManager from "./SoftphoneTimingManager";
 import SoftphoneRecordingsPanel from "./SoftphoneRecordingsPanel";
 import SoftphoneCallLogPanel from "./SoftphoneCallLogPanel";
 import { canManageCalls } from "@/Hooks/useSoftphone";
@@ -17,7 +18,7 @@ import "@/Components/CallRecordingPlayer.css";
 import "./CallBridgeSettings.css";
 
 type TabKey = "lines" | "routing" | "calls" | "recordings";
-export const CALL_BRIDGE_TABS = ["lines", "routing", "calls", "recordings"] as const;
+export const CALL_BRIDGE_TABS = ["lines", "routing", "timing", "calls", "recordings"] as const;
 export type CallBridgeTab = (typeof CALL_BRIDGE_TABS)[number];
 
 interface DevicesResponse {
@@ -63,7 +64,12 @@ export default function CallBridge({
             ? [
                   {
                       key: "routing" as const,
-                      label: td("Call routing", { source: "en" }),
+                      label: td("Routing", { source: "en" }),
+                      count: null as number | null,
+                  },
+                  {
+                      key: "timing" as const,
+                      label: td("Call rotation & timing", { source: "en" }),
                       count: null as number | null,
                   },
               ]
@@ -133,6 +139,12 @@ export default function CallBridge({
                             {isAdmin && (
                                 <SoftphoneCallPoolManager
                                     devices={devices}
+                                />
+                            )}
+                        </div>
+                        <div className="cb-panel" id="timing" hidden={activeTab !== "timing"}>
+                            {isAdmin && (
+                                <SoftphoneTimingManager
                                     initialFallbackSeconds={fallbackSeconds ?? 20}
                                 />
                             )}
