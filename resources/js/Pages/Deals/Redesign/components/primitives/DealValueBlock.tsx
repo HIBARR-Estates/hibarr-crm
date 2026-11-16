@@ -11,6 +11,7 @@ import {
 } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import Button from "@/Components/Redesign/primitives/Button";
+import Segmented from "@/Components/Redesign/primitives/Segmented";
 import CopyValueButton from "@/Components/Redesign/primitives/CopyValueButton";
 import DealValueEditorModal from "./DealValueEditorModal";
 import useDealReferralCommission from "../../hooks/useDealReferralCommission";
@@ -522,17 +523,32 @@ function ReferralShareFields({
 }) {
     const { t } = useTranslation();
     const share = referral!;
+    type Mode = "percentage" | "amount";
+    const savedMode: Mode = share.applied === "fixed" ? "amount" : "percentage";
+    const [mode, setMode] = useState<Mode>(savedMode);
     const [percent, setPercent] = useState(
-        share.deal_percentage == null ? "" : String(share.deal_percentage),
+        share.deal_percentage == null
+            ? share.partner_percentage == null
+                ? ""
+                : String(share.partner_percentage)
+            : String(share.deal_percentage),
     );
     const [amount, setAmount] = useState(
         share.fixed_amount == null ? "" : String(share.fixed_amount),
     );
 
     useEffect(() => {
-        setPercent(share.deal_percentage == null ? "" : String(share.deal_percentage));
+        if (saving) return;
+        setMode(share.applied === "fixed" ? "amount" : "percentage");
+        setPercent(
+            share.deal_percentage == null
+                ? share.partner_percentage == null
+                    ? ""
+                    : String(share.partner_percentage)
+                : String(share.deal_percentage),
+        );
         setAmount(share.fixed_amount == null ? "" : String(share.fixed_amount));
-    }, [share.deal_percentage, share.fixed_amount]);
+    }, [saving, share.applied, share.deal_percentage, share.partner_percentage, share.fixed_amount]);
 
     const parse = (value: string) => {
         const trimmed = value.trim();
@@ -543,9 +559,15 @@ function ReferralShareFields({
 
     const percentValue = parse(percent);
     const amountValue = parse(amount);
+    const percentUnchanged =
+        share.deal_percentage == null
+            ? percentValue === (share.partner_percentage ?? null)
+            : percentValue === share.deal_percentage;
     const dirty =
-        percentValue !== (share.deal_percentage ?? null) ||
-        amountValue !== (share.fixed_amount ?? null);
+        mode === "percentage"
+            ? savedMode !== "percentage" || !percentUnchanged
+            : amountValue !== null &&
+              (savedMode !== "amount" || amountValue !== share.fixed_amount);
 
     const inputStyle = {
         width: "100%",
@@ -558,71 +580,97 @@ function ReferralShareFields({
         background: "#fff",
     };
 
+    const usingPartnerDefault =
+        mode === "percentage" &&
+        share.deal_percentage == null &&
+        share.partner_percentage != null &&
+        percentValue === share.partner_percentage;
+
     return (
         <div style={{ marginBottom: 8 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: T.TEXT, marginBottom: 6 }}>
                 {share.referrer_name}
             </div>
             {editable ? (
-                <div style={{ display: "flex", gap: 8 }}>
-                    <label style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ display: "block", fontSize: 11, color: T.TEXT_HINT, marginBottom: 2 }}>
-                            {t("pages.deals.info.value_insight.referral_percent")}
-                        </span>
-                        <input
-                            type="number"
-                            min={0}
-                            max={100}
-                            step="0.01"
-                            disabled={saving}
-                            value={percent}
-                            placeholder={
-                                share.partner_percentage != null
-                                    ? t("pages.deals.info.value_insight.referral_using_partner", {
-                                          rate: share.partner_percentage,
-                                      })
-                                    : ""
-                            }
-                            onChange={(event) => setPercent(event.target.value)}
-                            style={inputStyle}
-                        />
-                    </label>
-                    <label style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ display: "block", fontSize: 11, color: T.TEXT_HINT, marginBottom: 2 }}>
-                            {t("pages.deals.info.value_insight.referral_agreed")}
-                        </span>
-                        <input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            disabled={saving}
-                            value={amount}
-                            onChange={(event) => setAmount(event.target.value)}
-                            style={{ ...inputStyle, paddingRight: 28 }}
-                        />
-                        <span style={{ display: "block", marginTop: 2, fontSize: 11, color: T.TEXT_HINT }}>
-                            {currencySymbol}
-                        </span>
-                    </label>
+                <div>
+                    <Segmented<Mode>
+                        fullWidth
+                        ariaLabel={t("pages.deals.info.value_insight.referral_percent")}
+                        value={mode}
+                        onChange={(next) => {
+                            if (!saving) setMode(next);
+                        }}
+                        options={[
+                            {
+                                value: "percentage",
+                                label: t("pages.deals.info.value_insight.referral_mode_percent"),
+                            },
+                            {
+                                value: "amount",
+                                label: t("pages.deals.info.value_insight.referral_mode_amount"),
+                            },
+                        ]}
+                    />
+                    {mode === "percentage" ? (
+                        <label style={{ display: "block", marginTop: 8 }}>
+                            <span style={{ display: "block", fontSize: 11, color: T.TEXT_HINT, marginBottom: 2 }}>
+                                {t("pages.deals.info.value_insight.referral_percent")}
+                            </span>
+                            <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                step="0.01"
+                                disabled={saving}
+                                value={percent}
+                                onChange={(event) => setPercent(event.target.value)}
+                                style={inputStyle}
+                            />
+                            {usingPartnerDefault && (
+                                <span style={{ display: "block", marginTop: 4, fontSize: 12, color: T.TEXT_HINT }}>
+                                    {t("pages.deals.info.value_insight.referral_from_partner")}
+                                </span>
+                            )}
+                        </label>
+                    ) : (
+                        <label style={{ display: "block", marginTop: 8 }}>
+                            <span style={{ display: "block", fontSize: 11, color: T.TEXT_HINT, marginBottom: 2 }}>
+                                {t("pages.deals.info.value_insight.referral_agreed")}
+                            </span>
+                            <input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                disabled={saving}
+                                value={amount}
+                                onChange={(event) => setAmount(event.target.value)}
+                                style={inputStyle}
+                            />
+                            <span style={{ display: "block", marginTop: 2, fontSize: 11, color: T.TEXT_HINT }}>
+                                {currencySymbol}
+                            </span>
+                        </label>
+                    )}
                 </div>
             ) : (
                 <div style={{ fontSize: 12, color: T.TEXT_MUTED }}>
-                    <div>
-                        {share.deal_percentage != null
-                            ? `${share.deal_percentage}%`
-                            : share.partner_percentage != null
-                              ? t("pages.deals.info.value_insight.referral_using_partner", {
-                                    rate: share.partner_percentage,
-                                })
-                              : t("pages.deals.info.value_insight.referral_none")}
-                    </div>
-                    {share.fixed_amount != null && (
+                    {share.applied === "fixed" && share.fixed_amount != null ? (
                         <div>
                             {t("pages.deals.info.value_insight.referral_agreed")}: {currencySymbol}
                             {Number(share.fixed_amount).toLocaleString(undefined, {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2,
                             })}
+                        </div>
+                    ) : (
+                        <div>
+                            {share.deal_percentage != null
+                                ? `${share.deal_percentage}%`
+                                : share.partner_percentage != null
+                                  ? t("pages.deals.info.value_insight.referral_using_partner", {
+                                        rate: share.partner_percentage,
+                                    })
+                                  : t("pages.deals.info.value_insight.referral_none")}
                         </div>
                     )}
                 </div>
@@ -663,10 +711,20 @@ function ReferralShareFields({
                     style={{ marginTop: 8 }}
                     disabled={saving}
                     onClick={() =>
-                        onSave({
-                            referral_pool_rate: percentValue,
-                            referral_fixed_amount: amountValue,
-                        })
+                        onSave(
+                            mode === "percentage"
+                                ? {
+                                      referral_pool_rate:
+                                          percentValue === share.partner_percentage
+                                              ? null
+                                              : percentValue,
+                                      referral_fixed_amount: null,
+                                  }
+                                : {
+                                      referral_pool_rate: share.deal_percentage,
+                                      referral_fixed_amount: amountValue,
+                                  },
+                        )
                     }
                 >
                     {t("pages.deals.info.value_insight.referral_save")}
