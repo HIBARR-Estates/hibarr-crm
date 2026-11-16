@@ -308,6 +308,8 @@ class DashboardMetricsService
                 'meetingType',
                 'meetingSummary',
                 'addedBy:id,name,image',
+                // The agenda's next meeting names its host under "Who joins".
+                'host:id,name',
             ]);
     }
 
