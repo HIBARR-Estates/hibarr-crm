@@ -2439,14 +2439,11 @@ class DealController extends AccountBaseController
     }
 
     /**
-     * Patch (partial update) a deal record.
-     * Allows updating any subset of deal fields.
-     */
-    /**
      * Set this deal's referral percentage and agreed amount.
      *
      * The percentage, left empty, uses the partner's default. An agreed amount
-     * replaces that percentage. Both are frozen once commission has been calculated.
+     * replaces that percentage. Both are frozen once commission has been calculated,
+     * and the agreed amount can never exceed the commission the deal can carry.
      */
     public function updateReferralCommission(Request $request, $id)
     {
@@ -2474,11 +2471,23 @@ class DealController extends AccountBaseController
             'referral_fixed_amount' => 'nullable|numeric|min:0|max:9999999999999.99',
         ]);
 
-        $blocked = DB::transaction(function () use ($request, $deal, $validated) {
+        $maxAmount = null;
+
+        $blocked = DB::transaction(function () use ($request, $deal, $validated, &$maxAmount) {
             $locked = Deal::query()->whereKey($deal->id)->lockForUpdate()->first();
 
             if (! $locked || $locked->isCommissionLocked()) {
-                return true;
+                return 'locked';
+            }
+
+            if ($request->exists('referral_fixed_amount') && $validated['referral_fixed_amount'] !== null) {
+                // Checked against the locked row so a concurrent value or
+                // ceiling change cannot slip a larger amount through.
+                $maxAmount = app(\App\Services\MlmCommissionService::class)->maxReferralAmount($locked);
+
+                if (round((float) $validated['referral_fixed_amount'], 2) > $maxAmount) {
+                    return 'exceeds';
+                }
             }
 
             if ($request->exists('referral_pool_rate')) {
@@ -2491,10 +2500,19 @@ class DealController extends AccountBaseController
 
             $locked->save();
 
-            return false;
+            return null;
         });
 
-        if ($blocked) {
+        if ($blocked === 'exceeds') {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealReferralAmountTooHigh', [
+                    'max' => number_format((float) $maxAmount, 2),
+                ]),
+            ], 422);
+        }
+
+        if ($blocked === 'locked') {
             return response()->json([
                 'success' => false,
                 'message' => __('messages.dealReferralLockedByCommission'),
@@ -2507,6 +2525,10 @@ class DealController extends AccountBaseController
         ]);
     }
 
+    /**
+     * Patch (partial update) a deal record.
+     * Allows updating any subset of deal fields.
+     */
     public function patch(PatchRequest $request, $id)
     {
         $deal = Deal::with('contact')->findOrFail($id);

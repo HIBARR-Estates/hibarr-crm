@@ -1346,6 +1346,7 @@ return [
                 'referral_percent_of_pool' => 'Share of the commission pool',
                 'referral_percent_of_package' => 'Share of the package commission',
                 'referral_percent_invalid' => 'Enter a percentage between 0 and 100.',
+                'referral_amount_too_high' => 'The agreed amount can\'t be more than the commission this deal can carry ({{max}}).',
                 'your_commission' => 'Your commission',
                 'your_commission_projected' => 'Your commission (projected)',
                 'revenue_to_company' => 'Revenue to company',

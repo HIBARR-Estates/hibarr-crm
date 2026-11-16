@@ -50,6 +50,7 @@ return [
     'dealPaymentRequestInvalidationRequired' => 'Changing the deal value will cancel the current payment request — the client will no longer be able to pay with its link.',
     'dealAgentLockedByCommission' => 'Commission has already been calculated for this deal, so its agent can no longer be changed.',
     'dealReferralLockedByCommission' => 'Commission has already been calculated for this deal, so the referral share can no longer be changed.',
+    'dealReferralAmountTooHigh' => 'The agreed referral amount can\'t exceed the commission this deal can carry (:max).',
     'leadUpdateSuccess' => 'Contact updated successfully.',
     'leadReferrerImmutable' => 'The referrer is already set and cannot be changed.',
     'propertyUpdateSuccess' => 'Property updated successfully.',

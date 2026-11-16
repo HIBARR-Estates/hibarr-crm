@@ -568,6 +568,7 @@ function ReferralShareFields({
     const percentValue = parse(percent);
     const amountValue = parse(amount);
     const percentInvalid = percentValue !== null && percentValue > 100;
+    const amountTooHigh = amountValue !== null && amountValue > share.max_amount;
     const dirty =
         mode === "excluded"
             ? savedMode !== "excluded"
@@ -575,6 +576,7 @@ function ReferralShareFields({
               ? !percentInvalid && (savedMode !== "percentage" || percentValue !== savedPercent)
               : amountValue !== null &&
                 amountValue > 0 &&
+                !amountTooHigh &&
                 (savedMode !== "amount" || amountValue !== savedAmount);
 
     const usingPartnerDefault =
@@ -664,6 +666,13 @@ function ReferralShareFields({
                                 ariaLabel={t("pages.deals.info.value_insight.referral_agreed")}
                                 onChange={setAmount}
                             />
+                            {amountTooHigh &&
+                                hint(
+                                    t("pages.deals.info.value_insight.referral_amount_too_high", {
+                                        max: formatMoney(share.max_amount),
+                                    }),
+                                    T.RED,
+                                )}
                         </label>
                     )}
                     {mode === "excluded" &&

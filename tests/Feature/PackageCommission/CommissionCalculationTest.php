@@ -396,6 +396,48 @@ class CommissionCalculationTest extends PackageCommissionTestCase
         $this->assertNull($referral['percentage']);
     }
 
+    public function test_package_referral_amount_never_exceeds_the_commission_the_deal_can_carry(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $packageId = $this->seedPackage($ctx['company'], 8000, 'percentage', 5);
+        $this->attachPackage($ctx['deal'], $packageId);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->refer($ctx, $referrerId, 25, null, 5000);
+
+        $service = app(MlmCommissionService::class);
+        $deal = Deal::withoutGlobalScopes()->findOrFail($ctx['deal']);
+
+        $this->assertSame(100.0, $service->maxReferralAmount($deal), '10% ceiling of a 1000 deal.');
+
+        $referral = collect($service->preview($deal))->firstWhere('type', MlmCommissionType::Referral->value);
+        $this->assertSame(100.0, (float) $referral['amount'], 'An agreed 5000 is cut to the 100 the deal can carry.');
+    }
+
+    public function test_package_referral_percentage_is_also_held_to_the_deal_commission(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $packageId = $this->seedPackage($ctx['company'], 8000, 'percentage', 5);
+        $this->attachPackage($ctx['deal'], $packageId);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->refer($ctx, $referrerId, 100);
+
+        $referral = collect(app(MlmCommissionService::class)->preview(
+            Deal::withoutGlobalScopes()->findOrFail($ctx['deal'])
+        ))->firstWhere('type', MlmCommissionType::Referral->value);
+
+        $this->assertSame(100.0, (float) $referral['amount'], '100% of the 400 package fee is still cut to 100.');
+    }
+
+    public function test_max_referral_amount_is_zero_on_a_zero_value_deal(): void
+    {
+        $ctx = $this->seedDealWithUpline(0);
+
+        $this->assertSame(
+            0.0,
+            app(MlmCommissionService::class)->maxReferralAmount(Deal::withoutGlobalScopes()->findOrFail($ctx['deal']))
+        );
+    }
+
     public function test_a_small_company_remainder_survives_a_fixed_referral(): void
     {
         $ctx = $this->seedDealWithUpline(1000000);

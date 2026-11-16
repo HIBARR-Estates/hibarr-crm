@@ -23,6 +23,7 @@ return [
     'dealUpdateSuccess' => 'Angebot erfolgreich aktualisiert.',
     'dealLocked' => 'Dieses Angebot ist gesperrt und kann nicht geändert werden.',
     'dealReferralLockedByCommission' => 'Die Provision für dieses Angebot wurde bereits berechnet, daher kann der Empfehlungsanteil nicht mehr geändert werden.',
+    'dealReferralAmountTooHigh' => 'Der vereinbarte Empfehlungsbetrag darf die für dieses Angebot mögliche Provision (:max) nicht übersteigen.',
     'leadUpdateSuccess' => 'Kontakt erfolgreich aktualisiert.',
     'leadReferrerImmutable' => 'Der Empfehlungsgeber ist bereits gesetzt und kann nicht geändert werden.',
     'propertyUpdateSuccess' => 'Immobilie erfolgreich aktualisiert.',

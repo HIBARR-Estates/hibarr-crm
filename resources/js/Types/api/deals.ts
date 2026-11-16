@@ -202,6 +202,8 @@ export interface Deal {
                 applied: "fixed" | "percentage";
                 percentage_amount: number | null;
                 capped: boolean;
+                /** Most commission this deal can carry; an agreed amount can't exceed it. */
+                max_amount: number;
                 base: "package" | "pool";
             } | null;
         } | null;

@@ -785,6 +785,25 @@ class MlmCommissionService
     }
 
     /**
+     * The most commission this deal can ever carry: its ceiling percentage of
+     * the deal value, in company currency. A referral share, whether a
+     * percentage or an agreed amount, never exceeds this.
+     */
+    public function maxReferralAmount(Deal $deal, ?LeadAgent $closer = null, ?float $dealValue = null): float
+    {
+        $closer ??= $deal->agent_id
+            ? LeadAgent::withoutGlobalScopes()->find($deal->agent_id)
+            : null;
+        $dealValue ??= (float) ($deal->value ?? 0) * (float) ($deal->exchange_rate ?? 1);
+
+        if ($dealValue <= 0) {
+            return 0.0;
+        }
+
+        return max(0.0, $this->calculateAmount($dealValue, $this->ceilingFor($deal, $closer)));
+    }
+
+    /**
      * Who referred this deal's lead, and the percentage and agreed amount that
      * decide their leg. Null when the lead has no referrer.
      *
@@ -887,6 +906,9 @@ class MlmCommissionService
             'applied' => $fixed !== null ? 'fixed' : 'percentage',
             'percentage_amount' => $percentageAmount,
             'capped' => $capped,
+            'max_amount' => $isPackageDeal
+                ? $this->maxReferralAmount($deal, $closer, $dealValue)
+                : $pool,
             'base' => $isPackageDeal ? 'package' : 'pool',
         ];
     }
@@ -918,6 +940,13 @@ class MlmCommissionService
         $percentage = $settings['deal_percentage'] ?? $settings['partner_percentage'];
         $fixed = $settings['fixed_amount'];
 
+        // On a level deal the company's remainder is already the tighter bound.
+        // A package deal has no remainder, so the deal's own commission ceiling
+        // is what stops a share from out-paying the deal.
+        $limit = $roomAmount !== null
+            ? max(0.0, round($roomAmount, 2))
+            : $this->maxReferralAmount($deal, $closer, $dealValue);
+
         if ($fixed !== null) {
             $raw = round($fixed, 2);
 
@@ -925,7 +954,7 @@ class MlmCommissionService
                 return null;
             }
 
-            $amount = $roomAmount !== null ? min($raw, max(0, round($roomAmount, 2))) : $raw;
+            $amount = min($raw, $limit);
 
             if ($amount <= 0) {
                 return null;
@@ -952,7 +981,7 @@ class MlmCommissionService
             return null;
         }
 
-        $amount = $roomAmount !== null ? min($raw, max(0, round($roomAmount, 2))) : $raw;
+        $amount = min($raw, $limit);
 
         if ($amount <= 0) {
             return null;

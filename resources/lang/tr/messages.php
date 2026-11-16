@@ -23,6 +23,7 @@ return [
     'dealUpdateSuccess' => 'Anlaşma başarıyla güncellendi.',
     'dealLocked' => 'Bu anlaşma kilitli ve değiştirilemez.',
     'dealReferralLockedByCommission' => 'Bu anlaşmanın komisyonu zaten hesaplandı, bu yüzden yönlendirme payı artık değiştirilemez.',
+    'dealReferralAmountTooHigh' => 'Kararlaştırılan yönlendirme tutarı bu anlaşmanın taşıyabileceği komisyonu (:max) aşamaz.',
     'leadUpdateSuccess' => 'İletişim başarıyla güncellendi.',
     'leadReferrerImmutable' => 'Yönlendiren zaten belirlenmiş ve değiştirilemez.',
     'propertyUpdateSuccess' => 'Mülk başarıyla güncellendi.',
