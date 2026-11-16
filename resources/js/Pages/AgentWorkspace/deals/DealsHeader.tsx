@@ -54,15 +54,15 @@ export default function DealsHeader({ title, subtitle, layout, onLayout, counts,
                                     <li key={key}>
                                         <button
                                             type="button"
-                                            className={`agent-dp__chip${value === undefined ? " agent-dp__chip--loading" : ""}`}
+                                            className={`agent-band-chip agent-dp__chip${value === undefined ? " is-loading" : ""}`}
                                             aria-pressed={pressed}
                                             onClick={() => onChip(key === "all" ? null : key)}
                                         >
-                                            <span className="agent-dp__chip-label">
-                                                {mark ? <span className="agent-dp__chip-mark" style={{ ["--mark" as string]: mark }} aria-hidden="true" /> : null}
+                                            <span className="agent-band-chip__label agent-dp__chip-label">
+                                                {mark ? <span className="agent-band-chip__mark agent-dp__chip-mark" style={{ ["--mark" as string]: mark }} aria-hidden="true" /> : null}
                                                 {t(`pages.agent_workspace.deals.chips.${key}`)}
                                             </span>
-                                            <b className="agent-dp__chip-value">{value ?? "00"}</b>
+                                            <b className="agent-band-chip__value agent-dp__chip-value">{value ?? "00"}</b>
                                         </button>
                                     </li>
                                 );

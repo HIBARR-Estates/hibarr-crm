@@ -86,76 +86,15 @@
     list-style: none;
 }
 
-.agent-ea__chip {
-    display: flex;
-    min-width: 104px;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    padding: 9px 14px;
-    border: 1px solid var(--dr-navy-raised-line);
-    border-radius: 12px;
-    background: var(--dr-navy-raised);
-    color: var(--dr-white);
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-}
-
-.agent-ea__chip:hover:not(:disabled):not([aria-disabled="true"]) {
-    border-color: var(--dr-navy-mid);
-}
-
-.agent-ea__chip[aria-pressed="true"] {
-    border-color: var(--dr-white);
-    background: var(--dr-white);
-    color: var(--dr-navy);
-}
-
 .agent-ea__chip.is-held {
     border-style: dashed;
     cursor: default;
 }
 
-.agent-ea__chip:focus-visible,
 .agent-ea__tab:focus-visible,
 .agent-ea__switch button:focus-visible {
     outline: 2px solid var(--dr-white);
     outline-offset: 2px;
-}
-
-.agent-ea__chip-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--dr-navy-soft);
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.agent-ea__chip[aria-pressed="true"] .agent-ea__chip-label {
-    color: var(--dr-navy);
-}
-
-.agent-ea__chip-mark {
-    width: 9px;
-    height: 9px;
-    flex: none;
-    border-radius: 2px;
-}
-
-.agent-ea__chip-value {
-    font-family: ui-monospace, "IBM Plex Mono", monospace;
-    font-size: 22px;
-    font-weight: 700;
-    line-height: 1;
-}
-
-.agent-ea__chip.is-loading .agent-ea__chip-value {
-    border-radius: 4px;
-    background: var(--dr-navy-raised-line);
-    color: transparent;
 }
 
 .agent-ea__search {
@@ -409,10 +348,6 @@
     --cols: minmax(0, 1.9fr) minmax(0, 1.7fr) minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 0.5fr) minmax(0, 0.8fr);
 
     min-width: 0;
-    overflow: hidden;
-    border: 1px solid var(--dr-border);
-    border-radius: 14px;
-    background: var(--dr-white);
 }
 
 .agent-ea__table--network {
@@ -437,19 +372,6 @@
     padding: 11px 16px;
     border-bottom: 1px solid var(--dr-border);
     background: var(--dr-surface-hover);
-}
-
-.agent-ea__th {
-    color: var(--dr-text-muted);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-
-.agent-ea__th[aria-sort] {
-    color: var(--dr-navy);
 }
 
 .agent-ea__row {
