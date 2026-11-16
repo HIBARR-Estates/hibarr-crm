@@ -2938,6 +2938,9 @@ return [
         'failure_temporarily_unavailable' => 'Temporarily unavailable',
         'failure_browser_unsupported' => 'Browser unsupported',
         'failure_terminated' => 'Call terminated',
+        'failure_connection_failed' => 'Connection failed',
+        'max_concurrent_calls' => 'Max concurrent calls',
+        'max_concurrent_calls_tooltip' => 'Maximum number of concurrent calls permitted on this phone line.',
         'yesterday' => 'Yesterday',
     ],
 
@@ -3076,6 +3079,9 @@ return [
     ],
 
     'softphone' => [
+        'connection_failed' => 'Connection failed',
+        'connecting_to_provider' => 'Connecting to :provider…',
+        'line_capacity_reached' => 'This phone line has reached its limit of :max concurrent calls. Try again shortly or switch lines.',
         'answered_elsewhere' => 'Answered elsewhere',
         'call_disconnected' => 'Call disconnected',
         'call_ended' => 'Call ended',
@@ -3120,8 +3126,7 @@ return [
         'live_monitor' => 'Hear live in headphones (avoid feedback)',
         'mic_gain_boost' => 'Mic Gain Boost (Pre-Amp)',
         'mic_gain_desc' => 'Boosts quiet microphone volume and sharpens vocal clarity before transmission.',
-        'mic_gain_default' => 'Reset to Default (2.5x / +8 dB)',
-        'reset_gain' => 'Reset',
+        'mic_gain_default' => 'Reset to Default (2.5x / +8 dB)',        'reset_gain' => 'Reset',
         'microphone' => 'Microphone',
         'incoming_calls_active' => 'Receiving Calls',
         'incoming_calls_paused' => 'Calls Paused',

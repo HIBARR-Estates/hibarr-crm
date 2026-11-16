@@ -413,24 +413,14 @@ export default function QualifyLeadContextPanel({
                 </div>
 
                 <div className="flex gap-2">
-                    {phones[0] ? (
-                        telephonyEnabled ? (
-                            <ClickToCallButton
-                                phone={phones[0]}
-                                entity={{ type: "lead", id: lead.id }}
-                                variant="link"
-                                label={td("Call", { source: "en" })}
-                                className="flex flex-1 items-center justify-center gap-0.5 py-1.5 rounded-md text-xs font-medium text-white bg-dr-navy transition-colors disabled:opacity-60"
-                            />
-                        ) : (
-                            <a
-                                href={`tel:${phones[0]}`}
-                                className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-white transition-colors"
-                                style={{ backgroundColor: T.NAVY }}
-                            >
-                                {td("Call", { source: "en" })}
-                            </a>
-                        )
+                    {phones[0] && telephonyEnabled ? (
+                        <ClickToCallButton
+                            phone={phones[0]}
+                            entity={{ type: "lead", id: lead.id }}
+                            variant="link"
+                            label={td("Call", { source: "en" })}
+                            className="flex flex-1 items-center justify-center gap-0.5 py-1.5 rounded-md text-xs font-medium text-white bg-dr-navy transition-colors disabled:opacity-60"
+                        />
                     ) : null}
                     {email ? (
                         <a

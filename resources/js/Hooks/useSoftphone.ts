@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import axios from "axios";
 import { usePage } from "@inertiajs/react";
+import i18n from "@/lib/i18n";
 import { softphone, type OutboundAudioDiagnostics } from "@/lib/softphone/SoftphoneClient";
 import { SoftphoneTabLease } from "@/lib/softphone/SoftphoneTabLease";
 import type {
@@ -457,6 +458,36 @@ function retainSoftphoneRuntime(): () => void {
  * and switch the active line without creating competing leases or tearing down
  * the active SIP registration when individual buttons mount or unmount.
  */
+interface LineCapacity {
+    available: boolean;
+    max_concurrent_calls: number;
+    active_calls_count: number;
+}
+
+/**
+ * Ask the server for a slot on the line. Null when the check itself failed:
+ * the call then goes ahead, since the SIP platform enforces its own limit and
+ * a CRM hiccup must not stop agents from dialling.
+ */
+async function reserveLineCapacity(deviceId: number): Promise<LineCapacity | null> {
+    try {
+        const response = await axios.post<{ data: LineCapacity }>(
+            route("telephony.softphone.devices.capacity.reserve", deviceId),
+        );
+        return response.data?.data ?? null;
+    } catch {
+        return null;
+    }
+}
+
+function releaseLineCapacity(deviceId: number): void {
+    void axios
+        .post(route("telephony.softphone.devices.capacity.release", deviceId))
+        .catch(() => {
+            // The slot expires on its own if this never arrives.
+        });
+}
+
 export default function useSoftphone() {
     const { props } = usePage();
     const isEnabled = props.featureFlags?.[FEATURE_FLAG] === true;
@@ -579,12 +610,31 @@ export default function useSoftphone() {
                         softphone.getState().registrationError ||
                         lastActivationError ||
                         "Your phone line isn't connected — pick a line in the phone panel.";
-                    softphone.reportSetupFailure(target, reason, context ?? null);
+                    softphone.reportSetupFailure(target, reason, context ?? null, "connection_failed");
+                    throw new Error(reason);
+                }
+
+                // Take one of the line's concurrent-call slots before dialling;
+                // the dock frees it when the call ends.
+                const capacity = await reserveLineCapacity(targetDeviceId);
+                if (capacity?.available === false) {
+                    const reason = i18n.t("pages.softphone.line_capacity_reached", {
+                        max: capacity.max_concurrent_calls,
+                    });
+                    softphone.reportSetupFailure(target, reason, context ?? null, "connection_failed");
                     throw new Error(reason);
                 }
             }
 
-            await softphone.call(target, context ?? null);
+            try {
+                await softphone.call(target, context ?? null);
+            } catch (error) {
+                // No call came of it, so the dock never sees one end.
+                if (targetDeviceId !== null) {
+                    releaseLineCapacity(targetDeviceId);
+                }
+                throw error;
+            }
         },
         [],
     );

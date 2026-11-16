@@ -2754,6 +2754,9 @@ return [
         'failure_temporarily_unavailable' => 'Временно недоступен',
         'failure_browser_unsupported' => 'Браузер не поддерживается',
         'failure_terminated' => 'Звонок завершен',
+        'failure_connection_failed' => 'Ошибка соединения',
+        'max_concurrent_calls' => 'Макс. одновременных звонков',
+        'max_concurrent_calls_tooltip' => 'Максимальное количество одновременных звонков на этой телефонной линии.',
         'yesterday' => 'Вчера',
     ],
 
@@ -2930,6 +2933,9 @@ return [
     ],
 
     'softphone' => [
+        'connection_failed' => 'Ошибка соединения',
+        'connecting_to_provider' => 'Подключение к :provider…',
+        'line_capacity_reached' => 'Эта телефонная линия достигла лимита в :max одновременных звонков. Повторите попытку позже или смените линию.',
         'answered_elsewhere' => 'Отвечено на другом устройстве',
         'call_disconnected' => 'Звонок прерван',
         'call_ended' => 'Звонок завершен',
@@ -2974,8 +2980,7 @@ return [
         'live_monitor' => 'Слушать в наушниках в реальном времени',
         'mic_gain_boost' => 'Усиление микрофона (Предусилитель)',
         'mic_gain_desc' => 'Увеличивает громкость тихого микрофона и улучшает четкость речи.',
-        'mic_gain_default' => 'Сбросить на значение по умолчанию (2.5x / +8 дБ)',
-        'reset_gain' => 'Сброс',
+        'mic_gain_default' => 'Сбросить на значение по умолчанию (2.5x / +8 дБ)',        'reset_gain' => 'Сброс',
         'microphone' => 'Микрофон',
         'incoming_calls_active' => 'Прием звонков',
         'incoming_calls_paused' => 'Звонки на паузе',

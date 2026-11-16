@@ -2759,6 +2759,9 @@ return [
         'failure_temporarily_unavailable' => 'Geçici olarak kullanılamıyor',
         'failure_browser_unsupported' => 'Tarayıcı desteklenmiyor',
         'failure_terminated' => 'Arama sonlandırıldı',
+        'failure_connection_failed' => 'Bağlantı başarısız',
+        'max_concurrent_calls' => 'Maksimum eşzamanlı arama',
+        'max_concurrent_calls_tooltip' => 'Bu telefon hattında izin verilen maksimum eşzamanlı arama sayısı.',
         'yesterday' => 'Dün',
     ],
 
@@ -2897,6 +2900,9 @@ return [
     ],
 
     'softphone' => [
+        'connection_failed' => 'Bağlantı başarısız',
+        'connecting_to_provider' => ':provider sağlayıcısına bağlanıyor…',
+        'line_capacity_reached' => 'Bu telefon hattı :max eşzamanlı arama sınırına ulaştı. Kısa süre sonra tekrar deneyin veya hat değiştirin.',
         'answered_elsewhere' => 'Başka cihazda yanıtlandı',
         'call_disconnected' => 'Arama bağlantısı kesildi',
         'call_ended' => 'Arama bitti',
@@ -2941,8 +2947,7 @@ return [
         'live_monitor' => 'Kulaklıkla canlı dinle (yankıya dikkat)',
         'mic_gain_boost' => 'Mikrofon Kazanç Artışı (Pre-Amp)',
         'mic_gain_desc' => 'Kısık mikrofon sesini yükseltir ve ses netliğini artırır.',
-        'mic_gain_default' => 'Varsayılana Sıfırla (2.5x / +8 dB)',
-        'reset_gain' => 'Sıfırla',
+        'mic_gain_default' => 'Varsayılana Sıfırla (2.5x / +8 dB)',        'reset_gain' => 'Sıfırla',
         'microphone' => 'Mikrofon',
         'incoming_calls_active' => 'Aramalar Aktif',
         'incoming_calls_paused' => 'Aramalar Duraklatıldı',

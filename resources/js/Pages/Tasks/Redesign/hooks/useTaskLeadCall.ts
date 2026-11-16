@@ -31,6 +31,8 @@ export interface TaskLeadCall {
     softphoneEnabled: boolean;
     /** The user holds make_softphone_calls, so the softphone path is usable. */
     canCall: boolean;
+    /** True when the user can place calls via softphone (with permission) or 3CX/OL. */
+    canUseCall: boolean;
     /** Available softphone lines when multiple lines are configured. */
     devices: SoftphoneDeviceSummary[];
     /** False when the user has no assigned line, so the action falls back to tel:. */
@@ -191,6 +193,7 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
         calling,
         softphoneEnabled,
         canCall,
+        canUseCall: (softphoneEnabled && canCall) || clickToCall.isEnabled,
         devices,
         hasLine,
         activeDeviceId,
