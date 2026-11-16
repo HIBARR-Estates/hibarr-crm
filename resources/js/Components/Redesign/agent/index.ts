@@ -4,6 +4,7 @@ export { default as AgentPillRow, agentPillPanelProps } from "./AgentPillRow";
 export type { AgentPill } from "./AgentPillRow";
 export { default as AgentLinkPills } from "./AgentLinkPills";
 export { default as AgentListSearch } from "./AgentListSearch";
+export { default as AgentPager } from "./AgentPager";
 export { default as AgentNewTag } from "./AgentNewTag";
 export { default as AgentCallButton } from "./AgentCallButton";
 export type { AgentLinkPill } from "./AgentLinkPills";
