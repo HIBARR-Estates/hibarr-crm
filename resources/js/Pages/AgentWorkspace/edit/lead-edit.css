@@ -646,3 +646,46 @@
         font-size: 16px;
     }
 }
+
+/* Contact details / Deal details, in the deal state (canvas L8-06). */
+.agent-edit__switch {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 10px;
+    background: #f2f4f7;
+}
+
+.agent-edit__switch-btn {
+    padding: 7px 14px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--dr-text-muted);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.agent-edit__switch-btn[aria-pressed="true"] {
+    border-color: var(--dr-border);
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font-weight: 600;
+    cursor: default;
+}
+
+.agent-edit__switch-btn:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+    .agent-edit__switch {
+        width: 100%;
+    }
+
+    .agent-edit__switch-btn {
+        flex: 1 1 0;
+        min-height: 40px;
+    }
+}

@@ -514,6 +514,29 @@
     text-overflow: ellipsis;
 }
 
+.agent-wk__more {
+    position: absolute;
+    right: 2px;
+    z-index: 3;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 4px 0 0;
+    border: 1px solid var(--dr-navy);
+    border-radius: 7px;
+    background: var(--dr-white);
+    color: var(--dr-navy);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+
+.agent-wk__more:hover {
+    background: var(--dr-blue-wash-soft);
+}
+
 .agent-wk__block-time {
     font-weight: 700;
     font-variant-numeric: tabular-nums;
@@ -768,6 +791,7 @@
 
 .agent-wk__day:focus-visible,
 .agent-wk__block:focus-visible,
+.agent-wk__more:focus-visible,
 .agent-wk__chip:focus-visible,
 .agent-mo__date:focus-visible,
 .agent-mo__chip:focus-visible,
@@ -883,5 +907,80 @@
 @media (prefers-reduced-motion: reduce) {
     .agent-agenda {
         transition: none;
+    }
+}
+
+/* ---------- the next meeting, opened up (canvas L7-02) ---------- */
+.agent-sched--list .agent-sched__item--open {
+    flex-wrap: wrap;
+}
+.agent-sched__detail {
+    flex: 0 0 100%;
+    min-width: 0;
+    margin-top: 12px;
+}
+.agent-sched__facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+.agent-sched__fact {
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--ts-border, var(--dr-border));
+    border-radius: 10px;
+    background: var(--dr-white);
+}
+.agent-sched__fact h4 {
+    margin: 0 0 4px;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.agent-sched__fact p {
+    margin: 0;
+    color: var(--dr-text);
+    font-size: 13px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+.agent-sched__detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* Deal analysis progress on a meeting: grey while open, green once ready. */
+.agent-sched__analysis {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 9px;
+    border: 1px solid var(--dr-border);
+    border-radius: 999px;
+    background: var(--dr-surface-2);
+    color: var(--dr-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.agent-sched__analysis .agent-sched__state-dot {
+    background: var(--dr-text-hint);
+}
+.agent-sched__analysis--ready {
+    border-color: var(--dr-green-mid);
+    background: var(--dr-green-light);
+    color: var(--dr-green);
+}
+.agent-sched__analysis--ready .agent-sched__state-dot {
+    background: var(--dr-green);
+}
+@media (max-width: 720px) {
+    .agent-sched__facts {
+        grid-template-columns: minmax(0, 1fr);
     }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Button from "@/Components/Redesign/primitives/Button";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import Icon from "@/Components/Redesign/primitives/Icon";
@@ -32,6 +32,10 @@ interface LeadEditPageProps {
     /** After a merge: refreshes this lead, or opens the one that was kept. */
     onMergedInto: (keptId: number) => void;
     onClose: () => void;
+    /** Replaces the status line: the deal state explains why status is locked there (canvas L8-06). */
+    statusNotice?: ReactNode;
+    /** Before Cancel in the header: the deal state's Contact details / Deal details switch. */
+    headerSwitch?: ReactNode;
 }
 
 const PREFIX = "pages.agent_workspace.contact.edit";
@@ -41,7 +45,7 @@ const PREFIX = "pages.agent_workspace.contact.edit";
  * mode, section by section, with the changes and what the key facts will read
  * after saving always in view. The lifecycle status is never a field here.
  */
-export default function LeadEditPage({ options, statusLabel, duplicates, onMergedInto, onClose }: LeadEditPageProps) {
+export default function LeadEditPage({ options, statusLabel, duplicates, onMergedInto, onClose, statusNotice, headerSwitch }: LeadEditPageProps) {
     const { t, locale } = useTranslation();
     const { td } = useTd();
     const { lead } = useLeadWorkspace();
@@ -268,6 +272,7 @@ export default function LeadEditPage({ options, statusLabel, duplicates, onMerge
                         <p>{subtitle}</p>
                     </div>
                     <div className="agent-edit__head-actions">
+                        {headerSwitch}
                         <Button variant="ghost" onClick={close} disabled={saving}>
                             {t(`${PREFIX}.cancel`)}
                         </Button>
@@ -279,9 +284,11 @@ export default function LeadEditPage({ options, statusLabel, duplicates, onMerge
 
                 <div className="agent-edit__status">
                     <span className="agent-edit__dot" aria-hidden="true" />
-                    <span>
-                        <b>{t(`${PREFIX}.status_lead`, { status: td(statusLabel, { source: "en" }) })}</b> {t(`${PREFIX}.status_stays`)}
-                    </span>
+                    {statusNotice ?? (
+                        <span>
+                            <b>{t(`${PREFIX}.status_lead`, { status: td(statusLabel, { source: "en" }) })}</b> {t(`${PREFIX}.status_stays`)}
+                        </span>
+                    )}
                     <span className="agent-edit__locked">
                         <Icon name="lock" size={12} />
                         {t(`${PREFIX}.status_locked`)}

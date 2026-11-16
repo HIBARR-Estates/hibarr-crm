@@ -18,6 +18,10 @@ interface StepBodyProps {
     /** 1-based place among the script's questions, for the caption. */
     questionNumber: number;
     questionTotal: number;
+    /** Script lines that lead into this question, shown in the Say bar above it. */
+    linesBefore?: Segment[];
+    /** Script lines after the last question, shown under it. */
+    linesAfter?: Segment[];
 }
 
 /**
@@ -26,7 +30,7 @@ interface StepBodyProps {
  * as buttons (single and multiple choice, yes / no) or a text field, and a
  * note field for context from the call. Answers save as they are given.
  */
-export default function StepBody({ flow, segment, agentLanguage, questionNumber, questionTotal }: StepBodyProps) {
+export default function StepBody({ flow, segment, agentLanguage, questionNumber, questionTotal, linesBefore, linesAfter }: StepBodyProps) {
     const { t } = useTranslation();
     const answer = flow.answers[segment.key];
     const values = answer?.answer_values ?? [];
@@ -66,6 +70,8 @@ export default function StepBody({ flow, segment, agentLanguage, questionNumber,
                         <p className="agent-qs__hint">{t("pages.agent_workspace.flow.instruction_note")}</p>
                     </>
                 ) : null}
+
+                {isQuestion ? <ScriptLines lines={linesBefore} translateScript={flow.translateScript} /> : null}
 
                 {isQuestion ? (
                     <section className="agent-qs__question" aria-labelledby={`qs-${segment.key}`}>
@@ -145,8 +151,24 @@ export default function StepBody({ flow, segment, agentLanguage, questionNumber,
                         />
                     </section>
                 ) : null}
+
+                {isQuestion ? <ScriptLines lines={linesAfter} translateScript={flow.translateScript} /> : null}
             </div>
         </DynamicTranslationProvider>
+    );
+}
+
+/** Lines to say (navy bar) or do (note bar) around a question. */
+function ScriptLines({ lines, translateScript }: { lines?: Segment[]; translateScript: (text: string) => string }) {
+    if (!lines || lines.length === 0) return null;
+    return (
+        <div className="agent-qs__lines">
+            {lines.map((line) => (
+                <SayBar key={line.key} tone={line.type === "instruction" ? "note" : "say"}>
+                    <ScriptText text={line.label} translateScript={translateScript} />
+                </SayBar>
+            ))}
+        </div>
     );
 }
 

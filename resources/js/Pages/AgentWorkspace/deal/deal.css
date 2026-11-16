@@ -105,106 +105,6 @@
     justify-content: center;
 }
 
-/* ---------- AI brief strip ---------- */
-.agent-brief {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin: 0 20px 16px;
-    padding: 11px 14px;
-    border: 1px solid var(--agent-ai-border, #e1dff4);
-    border-radius: 12px;
-    background: var(--agent-ai-bg, #f8f7fd);
-}
-
-.agent-brief__badge {
-    display: inline-flex;
-    align-items: center;
-    flex-shrink: 0;
-    height: 20px;
-    padding: 0 6px;
-    border-radius: 5px;
-    background: var(--agent-ai, #4c4f8f);
-    color: var(--dr-white);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-}
-
-.agent-brief__text {
-    min-width: 0;
-    flex: 1 1 auto;
-    margin: 0;
-    color: var(--dr-text);
-    font-size: 13px;
-    line-height: 1.5;
-}
-
-.agent-brief__age {
-    color: var(--dr-text-muted);
-    font-size: 12px;
-    white-space: nowrap;
-}
-
-.agent-brief__actions {
-    display: flex;
-    flex-shrink: 0;
-    align-items: center;
-    gap: 8px;
-}
-
-.agent-brief__open,
-.agent-brief__refresh {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    height: 30px;
-    border: 1px solid var(--agent-ai-soft-border, #d6d4ef);
-    border-radius: 8px;
-    font: inherit;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.agent-brief__open {
-    padding: 0 11px;
-    background: var(--agent-ai-soft, #efeefa);
-    color: var(--agent-ai-ink, #3f3f86);
-}
-
-.agent-brief__refresh {
-    width: 30px;
-    border-color: var(--dr-border);
-    background: var(--dr-white);
-    color: var(--dr-text);
-}
-
-.agent-brief__refresh--text {
-    width: auto;
-    padding: 0 11px;
-    border-color: var(--agent-ai-soft-border, #d6d4ef);
-    background: var(--agent-ai-soft, #efeefa);
-    color: var(--agent-ai-ink, #3f3f86);
-}
-
-.agent-brief__open:hover,
-.agent-brief__refresh:hover:not(:disabled) {
-    border-color: var(--agent-ai, #4c4f8f);
-}
-
-.agent-brief__open:focus-visible,
-.agent-brief__refresh:focus-visible {
-    outline: 2px solid var(--dr-blue);
-    outline-offset: 2px;
-}
-
-.agent-brief__refresh:disabled {
-    opacity: 0.55;
-    cursor: default;
-}
-
 /* ---------- stage ---------- */
 .agent-deal .agent-contact__section {
     padding: 14px 20px;
@@ -575,41 +475,32 @@
 }
 
 /* ---------- sections ---------- */
+/* Three cards a row, every row one height (canvas L8-04): rows scroll
+   inside a card, never stretch it. */
 .agent-deal__sections {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.agent-deal__band {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
-    align-items: stretch;
-    gap: 12px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: var(--agent-card-height, 330px);
+    gap: 14px;
 }
 
-.agent-deal__band--trail {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+/* The history reads best wide: it takes two columns of its row. */
+.agent-deal__sections > .agent-deal__section--history {
+    grid-column: span 2;
 }
 
-
-/* A band with a card or two missing (payments or analysis off) keeps the
-   remaining cards at the board's proportions. */
-@media (min-width: 1280px) {
-    .agent-deal__band:has(> :nth-child(2):last-child) {
-        grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-    }
-
-    .agent-deal__band:has(> :only-child),
-    .agent-deal__band--trail:has(> :only-child) {
-        grid-template-columns: minmax(0, 1fr);
-    }
+/* The lead page has three cards above it, so its history gets the whole row. */
+.agent-deal__sections--lead > .agent-deal__section--history {
+    grid-column: 1 / -1;
 }
 
 .agent-deal__section {
     display: flex;
     min-width: 0;
+    min-height: 0;
     flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
     padding: 14px 16px 12px;
     border: 1px solid var(--dr-border);
     border-radius: 16px;
@@ -638,6 +529,16 @@
     color: var(--dr-text);
     font-size: 15px;
     font-weight: 700;
+}
+
+.agent-deal__section-body {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    margin-right: -8px;
+    padding-right: 8px;
 }
 
 .agent-deal__section-empty {
@@ -749,7 +650,7 @@ button.agent-deal__row:disabled {
 .agent-deal__row--file,
 .agent-deal__row--expose {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 12px;
 }
@@ -828,25 +729,6 @@ button.agent-deal__row:disabled {
 
 .agent-deal__row--struck .agent-deal__row-title {
     text-decoration: line-through;
-}
-
-/* Exposés and itinerary share one card: two blocks under one title. */
-.agent-deal__section--split {
-    gap: 0;
-}
-
-.agent-deal__block {
-    padding: 4px 0 10px;
-}
-
-.agent-deal__block + .agent-deal__block {
-    padding-top: 10px;
-    border-top: 1px solid var(--dr-border-soft);
-}
-
-.agent-deal__block-action {
-    display: flex;
-    margin-top: 6px;
 }
 
 .agent-deal__thumb {
@@ -998,16 +880,12 @@ button.agent-deal__row:disabled {
 
 /* ---------- tablet: one column, conditions under the card ---------- */
 @media (max-width: 1279px) {
-    .agent-deal__band {
+    .agent-deal__sections {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .agent-deal__band > :last-child:nth-child(odd) {
+    .agent-deal__sections > .agent-deal__section--history {
         grid-column: 1 / -1;
-    }
-
-    .agent-deal__band--trail {
-        grid-template-columns: minmax(0, 1fr);
     }
 }
 
@@ -1061,29 +939,6 @@ button.agent-deal__row:disabled {
         padding: 14px;
     }
 
-    .agent-brief {
-        flex-wrap: wrap;
-        margin: 0 14px 14px;
-    }
-
-    .agent-brief__text {
-        flex-basis: calc(100% - 40px);
-    }
-
-    .agent-brief__actions {
-        width: 100%;
-    }
-
-    .agent-brief__open {
-        flex: 1 1 auto;
-        height: 38px;
-    }
-
-    .agent-brief__refresh {
-        width: 38px;
-        height: 38px;
-    }
-
     .agent-deal .agent-contact__section,
     .agent-deal .agent-facts {
         padding: 14px;
@@ -1103,11 +958,17 @@ button.agent-deal__row:disabled {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .agent-deal__band {
+    .agent-deal__sections {
         grid-template-columns: minmax(0, 1fr);
+        /* One card per row: no row to match, so a card is only as tall as it needs, up to a cap. */
+        grid-auto-rows: auto;
     }
 
-    .agent-deal__band > :last-child:nth-child(odd) {
+    .agent-deal__sections > .agent-deal__section {
+        max-height: var(--agent-card-height-phone, 380px);
+    }
+
+    .agent-deal__sections > .agent-deal__section--history {
         grid-column: auto;
     }
 
@@ -1237,4 +1098,325 @@ button.agent-deal__row:disabled {
     overflow: visible;
     text-overflow: clip;
     white-space: normal;
+}
+
+/* ── Flight rows and the trip dialog (canvas L8-04, L8-07) ── */
+.agent-deal__leg {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+}
+
+.agent-deal__leg-icon {
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: #eaf2fb;
+    color: #14538c;
+}
+
+.agent-deal__leg-icon--departure svg {
+    transform: scaleX(-1);
+}
+
+.agent-trip__legs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    padding: 18px 22px;
+}
+
+.agent-trip__leg {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--dr-border);
+    border-radius: 14px;
+}
+
+.agent-trip__leg.is-focus {
+    border-color: #1a6bb5;
+}
+
+.agent-trip__leg-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.agent-trip__leg-titles {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+}
+
+.agent-trip__leg-titles b {
+    font-size: 16px;
+}
+
+.agent-trip__airport b {
+    font-size: 18px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.agent-trip__facts {
+    display: grid;
+    margin: 0;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    font-size: 13px;
+}
+
+.agent-trip__facts dt {
+    color: var(--dr-text-muted);
+    font-weight: 400;
+}
+
+.agent-trip__facts dd {
+    margin: 0;
+    font-weight: 700;
+}
+
+.agent-trip__transfer {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.agent-trip__lower {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 18px;
+    padding: 0 22px 18px;
+}
+
+.agent-trip__stay {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-trip__stay li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid #eef0f3;
+}
+
+.agent-trip__day {
+    flex: 0 0 auto;
+    min-width: 76px;
+    color: var(--dr-text-muted);
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+}
+
+.agent-trip__stay-body {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.agent-trip__stay-title {
+    font-size: 13.5px;
+    font-weight: 600;
+}
+
+.agent-trip__stay-sub,
+.agent-trip__empty {
+    margin: 0;
+    color: var(--dr-text-muted);
+    font-size: 12.5px;
+}
+
+.agent-trip__tickets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.agent-trip__ticket {
+    display: flex;
+    width: 118px;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    text-decoration: none;
+}
+
+.agent-trip__ticket img {
+    width: 118px;
+    height: 78px;
+    border: 1px solid var(--dr-border);
+    border-radius: 9px;
+    background: #e9eef4;
+    object-fit: cover;
+}
+
+.agent-trip__ticket:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+.agent-trip__warn {
+    margin-top: 6px;
+    padding: 10px 12px;
+    border: 1px solid #f0cf8f;
+    border-radius: 10px;
+    background: #fdf6e7;
+    color: #7a4d00;
+    font-size: 12.5px;
+}
+
+.agent-dlg__danger {
+    color: #b42318;
+}
+
+@media (max-width: 767px) {
+    .agent-deal__leg {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .agent-deal__leg .dr-pill {
+        grid-column: 2;
+        justify-self: start;
+    }
+
+    .agent-trip__legs {
+        grid-template-columns: 1fr;
+        padding: 14px 16px;
+    }
+
+    .agent-trip__lower {
+        grid-template-columns: 1fr;
+        padding: 0 16px 16px;
+    }
+}
+
+/* ── Meeting brief (canvas L8-08) ── */
+.agent-brief2 {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 24px;
+    padding: 20px 22px;
+}
+
+.agent-brief2__col {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.agent-brief2__goal {
+    padding: 12px 14px;
+    border: 1px solid #bcd5ef;
+    border-radius: 12px;
+    background: #eaf2fb;
+    color: #14538c;
+    font-size: 14px;
+}
+
+.agent-brief2__conds {
+    margin: 8px 0 0;
+    padding-left: 18px;
+    font-size: 13px;
+}
+
+.agent-brief2__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-brief2__list > li {
+    border-bottom: 1px solid #eef0f3;
+}
+
+.agent-brief2__ask,
+.agent-brief2__ready {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+}
+
+.agent-brief2__box {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    border: 2px solid #9fb3c8;
+    border-radius: 5px;
+}
+
+.agent-brief2__ask-text {
+    min-width: 0;
+    flex: 1 1 auto;
+    font-size: 13.5px;
+}
+
+.agent-brief2__sub {
+    color: var(--dr-text-muted);
+    font-size: 12px;
+}
+
+.agent-brief2__since {
+    display: flex;
+    gap: 12px;
+    padding: 7px 0;
+    font-size: 13px;
+}
+
+.agent-brief2__watch {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 9px 11px;
+    border: 1px solid #f0cf8f;
+    border-radius: 10px;
+    background: #fdf6e7;
+    color: #4a3300;
+    font-size: 13px;
+}
+
+.agent-brief2__watch svg {
+    flex: 0 0 auto;
+    margin-top: 2px;
+    color: #7a4d00;
+}
+
+.agent-brief2__ready > svg {
+    flex: 0 0 auto;
+    color: #14538c;
+}
+
+.agent-brief2__ready-text {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+}
+
+.agent-brief2__ready-title {
+    font-size: 13.5px;
+    font-weight: 600;
+}
+
+@media (max-width: 767px) {
+    .agent-brief2 {
+        grid-template-columns: 1fr;
+        padding: 14px 16px;
+    }
 }

@@ -23,6 +23,8 @@ interface NewActivityButtonProps {
     allowed?: Partial<Record<LeadCreateKind, boolean>>;
     size?: "base" | "sm";
     extra?: ExtraActivity[];
+    /** "navy" where it is the one way forward, as in an empty Coming up card. */
+    tone?: "soft" | "navy";
 }
 
 /**
@@ -33,7 +35,7 @@ interface NewActivityButtonProps {
  * meeting, each opening the lead page's own form; notes and logged activities
  * are added from their cards. Extra entries such as Email follow.
  */
-export function NewActivityButton({ onCreate, allowed, size = "base", extra = [] }: NewActivityButtonProps) {
+export function NewActivityButton({ onCreate, allowed, size = "base", extra = [], tone = "soft" }: NewActivityButtonProps) {
     const { t } = useTranslation();
     const scope = useNewActivityScope();
     const [open, setOpen] = useState(false);
@@ -102,7 +104,13 @@ export function NewActivityButton({ onCreate, allowed, size = "base", extra = []
         <Dropdown open={open} onOpenChange={setOpen} popupRender={() => panel} trigger={["click"]} placement="bottomRight">
             {/* antd positions the panel from a DOM node; the span gives it one. */}
             <span className="agent-contact__menu-anchor">
-                <Button size={size} className="agent-btn-soft" aria-haspopup="dialog" aria-expanded={open}>
+                <Button
+                    size={size}
+                    variant={tone === "navy" ? "navy" : "ghost"}
+                    className={tone === "navy" ? undefined : "agent-btn-soft"}
+                    aria-haspopup="dialog"
+                    aria-expanded={open}
+                >
                     <Icon name="plus" size={size === "sm" ? 12 : 14} />
                     {t("pages.agent_workspace.contact.new_activity")}
                     <Icon name="chevron-down" size={size === "sm" ? 12 : 14} />

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 import { usePage } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import type { Deal } from "@/Types/api/deals";
@@ -13,6 +13,8 @@ interface DealScheduleMeetingModalProps {
     deal: Deal;
     meetingTypes: Array<{ id: number; name: string; color?: string }>;
     sourceEmailMessageId?: string | null;
+    /** The agent workspace's wide two-column dialog, with its subtitle and record field. */
+    agent?: { subtitle?: string; relatedField?: ReactNode; closeLabel?: string };
 }
 
 export default function DealScheduleMeetingModal({
@@ -21,6 +23,7 @@ export default function DealScheduleMeetingModal({
     deal,
     meetingTypes,
     sourceEmailMessageId = null,
+    agent,
 }: DealScheduleMeetingModalProps) {
     const { t } = useTranslation();
     const { props } = usePage();
@@ -72,8 +75,12 @@ export default function DealScheduleMeetingModal({
             initialForm={initialForm}
             onSubmit={handleSubmit}
             mustIncludeOwner={mustIncludeOwner}
+            variant={agent ? "agent" : "default"}
+            relatedField={agent?.relatedField}
+            closeLabel={agent?.closeLabel}
             labels={{
                 title: t("pages.deals.workspace.meetings.schedule"),
+                subtitle: agent?.subtitle,
                 cancel: t("pages.deals.common.cancel"),
                 submit: t("pages.deals.workspace.meetings.schedule_button"),
             }}

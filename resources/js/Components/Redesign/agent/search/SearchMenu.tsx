@@ -100,6 +100,7 @@ export default function SearchMenu({ id, query, results, hits, loading, failed, 
             <div className="agent-sm__foot">
                 <span className="agent-sm__hint">
                     ↑↓ {label("hint_move")} · ↵ {label("hint_open")}
+                    {hits.some((hit) => hit.kind === "person" && hit.person.phone) ? <> · C {label("hint_call")}</> : null}
                 </span>
                 {results && results.total > 0 ? (
                     <button type="button" className="agent-sm__all" onClick={onSeeAll}>

@@ -14,7 +14,7 @@ const OPERATOR_LABEL: Record<string, string> = {
     changed: "has changed",
 };
 
-const humanize = (field: string) =>
+export const humanize = (field: string) =>
     (field.split(".").pop() ?? field).replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 const formatValue = (value: unknown): string => (Array.isArray(value) ? value.map(formatValue).join(", ") : String(value ?? ""));

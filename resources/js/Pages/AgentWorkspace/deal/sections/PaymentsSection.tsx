@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AgentCardControls, AgentCardFilters } from "@/Components/Redesign/agent";
 import { paymentUiStateBadgeVariant, paymentUiStateLabel } from "@/Components/Redesign/adapters/dealPaymentUiState";
 import PaymentRequestDetailModal, {
     type PaymentRequestDetail,
@@ -23,7 +24,16 @@ import useDealPayment from "@/Pages/Deals/Redesign/hooks/useDealPayment";
 import { formatMoneyAmount } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import type { Deal } from "@/Types/api/deals";
 import type { DealPaymentRequest } from "@/Types/api/deal-payment";
-import SectionCard, { SectionEmpty, SectionSkeleton } from "./SectionCard";
+import SectionCard, { SectionEmpty, SectionNoMatch, SectionSkeleton } from "./SectionCard";
+
+type PaymentFilter = "all" | "awaiting" | "paid" | "closed";
+
+/** Which chip a request sits under: paid, still awaiting, or closed without payment. */
+function paymentGroup(request: DealPaymentRequest): Exclude<PaymentFilter, "all"> {
+    if (request.ui_state === "confirmed" || request.ui_state === "paid_online") return "paid";
+    if (isTerminalPaymentState(request.ui_state) || isCheckoutLinkExpired(request)) return "closed";
+    return "awaiting";
+}
 
 interface PaymentsSectionProps {
     deal: Deal;
@@ -71,6 +81,7 @@ export default function PaymentsSection({ deal, canCreate, canConfirmTransfer }:
     const [cancelOpen, setCancelOpen] = useState(false);
     const [retryTarget, setRetryTarget] = useState<DealPaymentRequest | null>(null);
     const [selectedId, setSelectedId] = useState<number | null>(null);
+    const [filter, setFilter] = useState<PaymentFilter>("all");
 
     const mapped = mapDealPaymentUiState(paymentRequest);
     const ordered = [...paymentRequests].sort((a, b) => {
@@ -81,6 +92,8 @@ export default function PaymentsSection({ deal, canCreate, canConfirmTransfer }:
     });
     const sequence = new Map(ordered.map((request, index) => [request.id, index + 1]));
     const newestFirst = [...ordered].reverse();
+    const groups = new Set(newestFirst.map(paymentGroup));
+    const shown = newestFirst.filter((request) => filter === "all" || paymentGroup(request) === filter);
     const canReplace = canCreate || canConfirmTransfer;
     const newestExpired = newestFirst.find((request) => isCheckoutLinkExpired(request));
     const canRetry = (request: DealPaymentRequest) =>
@@ -100,7 +113,29 @@ export default function PaymentsSection({ deal, canCreate, canConfirmTransfer }:
     return (
         <SectionCard
             id="deal-payments"
-            title={t("pages.agent_workspace.deal.payments.title")}
+            title={
+                <>
+                    {t("pages.agent_workspace.deal.payments.title")}
+                    {paymentRequests.length > 0 ? <span className="agent-card__count"> · {paymentRequests.length}</span> : null}
+                </>
+            }
+            controls={
+                groups.size > 1 ? (
+                    <AgentCardControls>
+                        <AgentCardFilters<PaymentFilter>
+                            value={filter}
+                            onChange={setFilter}
+                            label={t("pages.agent_workspace.contact.cards.filter_aria")}
+                            options={[
+                                { value: "all" as PaymentFilter, label: t("pages.agent_workspace.contact.cards.all") },
+                                ...(["awaiting", "paid", "closed"] as const)
+                                    .filter((group) => groups.has(group))
+                                    .map((group) => ({ value: group as PaymentFilter, label: t(`pages.agent_workspace.deal.payments.filter_${group}`) })),
+                            ]}
+                        />
+                    </AgentCardControls>
+                ) : null
+            }
             action={
                 canRequestMore ? (
                     <Button size="sm" className="agent-btn-soft" onClick={() => setCreateOpen(true)}>
@@ -114,9 +149,11 @@ export default function PaymentsSection({ deal, canCreate, canConfirmTransfer }:
                 <SectionSkeleton />
             ) : paymentRequests.length === 0 ? (
                 <SectionEmpty>{t("pages.agent_workspace.deal.payments.empty")}</SectionEmpty>
+            ) : shown.length === 0 ? (
+                <SectionNoMatch />
             ) : (
                 <ul className="agent-deal__rows">
-                    {newestFirst.map((request) => {
+                    {shown.map((request) => {
                         const live = request.id === paymentRequest?.id;
                         const number = sequence.get(request.id);
                         const expired = isCheckoutLinkExpired(request);

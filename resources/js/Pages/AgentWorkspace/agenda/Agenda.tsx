@@ -101,6 +101,7 @@ export default function Agenda({
                 today={today}
                 handlers={handlers}
                 meetingHandlers={meetingHandlers}
+                analysis={data?.analysis}
                 aside={outcomes.items.length > 0 ? <OutcomePanel outcomes={outcomes} timeZone={handlers.timeZone} /> : undefined}
             />
         );

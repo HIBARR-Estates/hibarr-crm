@@ -41,7 +41,9 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
     const user = props.auth?.user as { name?: string; image_url?: string | null } | undefined;
     const appName = (props.appName as string | undefined) ?? "";
     const logo = (props.companyLogoOnDark as string | null | undefined) ?? null;
-    const active = activeDestinationKey(url);
+    // A deal whose lead belongs to another agent is reached as a deal, not a person
+    // of yours (canvas L7-30), so the dock lights up Deals there.
+    const active = props.leadRestricted ? "deals" : activeDestinationKey(url);
     const [slot, setSlot] = useState<HTMLElement | null>(null);
     const { t } = useTranslation();
     const [top, setTop] = useState<HTMLElement | null>(null);

@@ -37,6 +37,8 @@ export default function AgentDockSearch({ variant = "dock" }: { variant?: "dock"
     const [activeKey, setActiveKey] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
     const wrapRef = useRef<HTMLDivElement | null>(null);
+    /** True after an arrow key picked a row, until the agent types again: only then does "C" call instead of typing. */
+    const navigatingRef = useRef(false);
     const menuId = useId();
 
     // The field follows the page: the word of the results page, empty anywhere else.
@@ -127,8 +129,18 @@ export default function AgentDockSearch({ variant = "dock" }: { variant?: "dock"
             close();
             return;
         }
+        if ((event.key === "c" || event.key === "C") && navigatingRef.current && !event.metaKey && !event.ctrlKey && !event.altKey) {
+            const active = hits.find((hit) => hit.key === activeKey);
+            const call = active?.kind === "person" ? document.getElementById(`${menuId}-${active.key}`)?.querySelector<HTMLElement>('[data-action="call"]') : null;
+            if (call) {
+                event.preventDefault();
+                call.click();
+                return;
+            }
+        }
         if ((event.key === "ArrowDown" || event.key === "ArrowUp") && hits.length > 0) {
             event.preventDefault();
+            navigatingRef.current = true;
             const at = hits.findIndex((hit) => hit.key === activeKey);
             const next = event.key === "ArrowDown" ? (at + 1) % hits.length : (at <= 0 ? hits.length : at) - 1;
             setActiveKey(hits[next].key);
@@ -142,7 +154,10 @@ export default function AgentDockSearch({ variant = "dock" }: { variant?: "dock"
                 ref={inputRef}
                 type="search"
                 value={value}
-                onChange={(event) => setValue(event.target.value)}
+                onChange={(event) => {
+                    navigatingRef.current = false;
+                    setValue(event.target.value);
+                }}
                 onFocus={() => setFocused(true)}
                 onKeyDown={onKeyDown}
                 placeholder={t("pages.agent_workspace.search")}

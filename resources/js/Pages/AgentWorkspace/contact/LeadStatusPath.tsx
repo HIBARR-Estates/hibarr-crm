@@ -1,33 +1,26 @@
-import Button from "@/Components/Redesign/primitives/Button";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { buildLeadPath, type LeadStatusOption } from "./model";
 
-interface LeadStatusPathProps {
+interface LeadPathStepsProps {
     statuses: LeadStatusOption[];
     currentKey: string;
-    /** Shown only when the agent may edit the lead and it isn't lost already. */
-    onMarkLost?: () => void;
-    saving?: boolean;
 }
 
 /**
  * The lead's lifecycle as a path: New → Contacted → Qualifying → Qualified
- * (the goal), with the company's other statuses as chips off the path. It
- * reads the status; it doesn't set it. Status moves with the qualification
- * and the actions that already move it; the one exception is Mark as lost.
+ * (the goal). It sits in the status bar (canvas L8-01), whose Status menu
+ * changes it; an off-path status leaves every step ahead.
  */
-export default function LeadStatusPath({ statuses, currentKey, onMarkLost, saving = false }: LeadStatusPathProps) {
+export function LeadPathSteps({ statuses, currentKey }: LeadPathStepsProps) {
     const { t } = useTranslation();
     const { td } = useTd();
     const path = buildLeadPath(statuses, currentKey);
     const last = path.steps.length - 1;
+    const offCurrent = path.offPath.find((status) => status.current);
 
     return (
-        <section className="agent-contact__section agent-path" aria-labelledby="agent-path-title">
-            <h2 id="agent-path-title" className="agent-contact__label">
-                {t("pages.agent_workspace.contact.status.title")}
-            </h2>
+        <>
             <ol className="agent-path__steps" aria-label={t("pages.agent_workspace.contact.status.path_aria")}>
                 {path.steps.map((step, index) => (
                     <li
@@ -47,36 +40,12 @@ export default function LeadStatusPath({ statuses, currentKey, onMarkLost, savin
                     </li>
                 ))}
             </ol>
-            {path.offPath.length > 0 || onMarkLost ? (
-                <div className="agent-path__off">
-                    {path.offPath.length > 0 ? (
-                        <>
-                            <span className="agent-path__off-label">{t("pages.agent_workspace.contact.status.off_path")}</span>
-                            <ul className="agent-path__chips">
-                                {path.offPath.map((status) => (
-                                    <li
-                                        key={status.key}
-                                        className={`agent-path__chip${status.current ? " agent-path__chip--current" : ""}`}
-                                        aria-current={status.current ? "true" : undefined}
-                                    >
-                                        {/* Navy dots, red for Lost: the path reads as one ramp, not the config's colours. */}
-                                        <span
-                                            className={`agent-path__dot${status.key === "lost" ? " agent-path__dot--lost" : ""}`}
-                                            aria-hidden="true"
-                                        />
-                                        {td(status.label, { source: "en" })}
-                                    </li>
-                                ))}
-                            </ul>
-                        </>
-                    ) : null}
-                    {onMarkLost ? (
-                        <Button variant="ghost" className="agent-path__lost" onClick={onMarkLost} loading={saving}>
-                            {t("pages.agent_workspace.contact.status.mark_lost")}
-                        </Button>
-                    ) : null}
-                </div>
+            {offCurrent ? (
+                <span className="agent-path__chip agent-path__chip--current">
+                    <span className={`agent-path__dot${offCurrent.key === "lost" ? " agent-path__dot--lost" : ""}`} aria-hidden="true" />
+                    {t("pages.agent_workspace.contact.status.off_now", { status: td(offCurrent.label, { source: "en" }) })}
+                </span>
             ) : null}
-        </section>
+        </>
     );
 }

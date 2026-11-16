@@ -150,28 +150,6 @@
     font-weight: 500;
 }
 
-.agent-path__off {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 10px;
-    margin-top: 14px;
-}
-
-.agent-path__off-label {
-    color: var(--dr-text-muted);
-    font-size: 12px;
-}
-
-.agent-path__chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
 .agent-path__chip {
     display: inline-flex;
     align-items: center;
@@ -203,10 +181,6 @@
     background: var(--dr-time-late-solid);
 }
 
-.agent-path__lost {
-    margin-left: auto;
-}
-
 /* ---------- key facts ---------- */
 .agent-facts__head {
     display: flex;
@@ -217,6 +191,51 @@
 
 .agent-facts__head .dr-btn {
     gap: 4px;
+}
+
+/* During a call: one line of label + value pairs, cut at the edge. */
+.agent-facts--strip {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.agent-facts--strip .agent-contact__label {
+    flex: none;
+    margin: 0;
+}
+
+.agent-facts--strip .dr-btn {
+    flex: none;
+    gap: 4px;
+}
+
+.agent-facts__strip {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    gap: 18px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    list-style: none;
+    white-space: nowrap;
+    mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+}
+
+.agent-facts__chip {
+    flex: none;
+    color: var(--dr-text-muted);
+    font-size: 13px;
+}
+
+.agent-facts__chip b {
+    color: var(--dr-text);
+    font-weight: 700;
+}
+
+.agent-facts__chip--empty b {
+    color: var(--dr-amber);
 }
 
 .agent-facts__grid {
@@ -261,6 +280,21 @@
     line-height: 1.45;
 }
 
+/* How to reach them: a phone number or an email address never breaks
+   mid-word; one too long for the card is cut, and shows in full on hover. */
+.agent-fact--reach .agent-fact__lead,
+.agent-fact--reach .agent-fact__line {
+    overflow: hidden;
+    overflow-wrap: normal;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-fact--reach .agent-fact__lead {
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
 /* Nothing recorded: needs input. */
 .agent-fact--empty {
     border: 1px dashed var(--dr-amber-border);
@@ -280,7 +314,6 @@
 .agent-activity {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    align-items: start;
     gap: 16px;
 }
 
@@ -341,6 +374,36 @@
     padding: 18px 8px;
 }
 
+/* Coming up with nothing ahead: needs input, so amber and dashed like an
+   empty field in edit mode, with the way forward under it. */
+.agent-card__gap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 28px 16px;
+    border: 1px dashed var(--dr-amber-border);
+    border-radius: 12px;
+    background: var(--dr-amber-bg);
+    color: var(--dr-amber);
+    text-align: center;
+}
+
+.agent-card__gap-title {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.agent-card__gap-text {
+    max-width: 260px;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.agent-card__gap .agent-contact__menu-anchor {
+    margin-top: 6px;
+}
+
 .agent-card__more {
     margin: 0;
     color: var(--dr-text-muted);
@@ -357,6 +420,79 @@
     height: 52px;
     border-radius: 12px;
     background: var(--dr-skeleton);
+}
+
+/* Equal height (canvas L8): the cards of a row share one height and their
+   rows scroll inside, so a long list never stretches the row. */
+.agent-activity {
+    grid-auto-rows: var(--agent-card-height, 330px);
+    align-items: stretch;
+}
+
+.agent-card--fixed {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.agent-activity__slot {
+    min-height: 0;
+}
+
+.agent-card__scroll {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    /* Room for the scrollbar beside the rows. */
+    margin-right: -8px;
+    padding-right: 8px;
+}
+
+.agent-card__nomatch {
+    margin: 0;
+    padding: 18px 4px;
+    color: var(--dr-text-muted);
+    font-size: 13px;
+    text-align: center;
+}
+
+.agent-card__load {
+    width: 100%;
+    margin-top: 8px;
+}
+
+.agent-upcoming {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.agent-upcoming__brief {
+    display: inline-flex;
+    height: 26px;
+    align-self: flex-end;
+    align-items: center;
+    gap: 5px;
+    padding: 0 10px;
+    border: 1px solid var(--dr-border);
+    border-radius: 8px;
+    background: var(--dr-white);
+    color: var(--dr-blue-dark);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.agent-upcoming__brief:hover {
+    border-color: var(--dr-blue);
+}
+
+.agent-upcoming__brief:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
 }
 
 /* Coming up: filled by time state. */
@@ -696,13 +832,6 @@
         scroll-snap-align: start;
     }
 
-    .agent-path__lost {
-        width: 100%;
-        min-height: 44px;
-        margin-left: 0;
-        justify-content: center;
-    }
-
     .agent-facts__grid {
         grid-template-columns: minmax(0, 1fr);
     }
@@ -735,6 +864,7 @@
     .agent-activity[data-active="notes"] .agent-activity__slot[data-card="notes"],
     .agent-activity[data-active="files"] .agent-activity__slot[data-card="files"] {
         display: block;
+        height: var(--agent-card-height-phone, 380px);
     }
 
     .agent-card {
@@ -844,4 +974,433 @@
     border-top: 1px solid var(--dr-border-soft);
     color: var(--dr-text-muted);
     font-size: 12px;
+}
+
+/* ---------- status / stage bar (canvas L8-01, L8-03) ---------- */
+.agent-statusbar {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.agent-statusbar__main {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.agent-statusbar__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 16px;
+}
+
+.agent-statusbar__note {
+    color: var(--dr-text-muted);
+    font-size: 11.5px;
+}
+
+.agent-statusbar .agent-path__steps,
+.agent-statusbar .dr-stage-ramp__steps {
+    margin-top: 0;
+}
+
+.agent-statusbar .agent-path__bar,
+.agent-deal .agent-statusbar .dr-stage-ramp__bar {
+    height: 6px;
+    border-radius: 3px;
+}
+
+.agent-statusbar .agent-path__name,
+.agent-statusbar .dr-stage-ramp__name {
+    font-size: 12px;
+}
+
+.agent-statusbar__anchor .dr-btn {
+    min-height: 34px;
+}
+
+.agent-statusbar__menu {
+    min-width: 270px;
+}
+
+.agent-statusbar__item {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+}
+
+.agent-statusbar__check {
+    display: inline-flex;
+    width: 14px;
+    flex: 0 0 14px;
+    padding-top: 2px;
+    color: var(--dr-blue);
+}
+
+.agent-statusbar__item-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.agent-statusbar__item-name {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.agent-statusbar__item-sub {
+    color: var(--dr-text-muted);
+    font-size: 11.5px;
+}
+
+@media (max-width: 767px) {
+    .agent-statusbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .agent-statusbar__anchor,
+    .agent-statusbar__anchor .dr-btn {
+        width: 100%;
+        min-height: 44px;
+        justify-content: center;
+    }
+}
+
+/* ---------- AI summary in place (canvas L8-01, L8-03) ---------- */
+.agent-ai {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--dr-border);
+    background: #fbfbfe;
+}
+
+.agent-ai__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+}
+
+.agent-ai__badge {
+    padding: 3px 6px;
+    border-radius: 4px;
+    background: #4c4f8f;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.agent-ai__line {
+    min-width: 0;
+    flex: 1 1 240px;
+    color: var(--dr-text);
+    font-size: 15px;
+    line-height: 1.35;
+}
+
+.agent-ai__age {
+    color: var(--dr-text-muted);
+    font-size: 11px;
+}
+
+.agent-ai__refresh {
+    width: 30px;
+    min-height: 30px;
+    padding: 0;
+    justify-content: center;
+}
+
+.agent-ai__writing {
+    margin: 0;
+    color: var(--dr-text-muted);
+    font-size: 12.5px;
+}
+
+.agent-ai .entity-ai-summary-prose {
+    margin: 0;
+    color: var(--dr-text);
+    font-size: 13.5px;
+    line-height: 1.55;
+}
+
+.agent-ai__chips {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.agent-ai__chip {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 1px;
+    padding: 7px 11px;
+    border: 1px solid var(--chip-bd, var(--dr-border));
+    border-radius: 10px;
+    background: var(--chip-bg, var(--dr-white));
+}
+
+.agent-ai__chip--green { --chip-bg: #e7f5ef; --chip-bd: #a9dcc6; --chip-fg: #177a5b; }
+.agent-ai__chip--amber { --chip-bg: #fdf6e7; --chip-bd: #f0cf8f; --chip-fg: #7a4d00; }
+.agent-ai__chip--red { --chip-bg: #fdecea; --chip-bd: #f2c4bf; --chip-fg: #8f1d14; }
+.agent-ai__chip--gray { --chip-bg: #f2f4f7; --chip-bd: #d5dae1; --chip-fg: #5b6472; }
+
+.agent-ai__chip-label {
+    color: var(--chip-fg, var(--dr-text-muted));
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.agent-ai__chip-value {
+    overflow: hidden;
+    color: var(--dr-text);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-ai__bullets {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.agent-ai__bullets li {
+    margin: 0 0 3px;
+}
+
+.agent-ai__bullets .entity-ai-summary-prose {
+    display: inline;
+    font-size: 13px;
+}
+
+.agent-ai__next {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 9px 12px;
+    border: 1px solid #bcd5ef;
+    border-radius: 10px;
+    background: #eaf2fb;
+}
+
+.agent-ai__next-cap {
+    color: #14538c;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.agent-ai__next-text {
+    min-width: 0;
+    flex: 1 1 220px;
+    font-size: 13px;
+}
+
+.agent-ai__next-why {
+    color: var(--dr-text-muted);
+}
+
+@media (max-width: 1023px) {
+    .agent-ai__chips {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767px) {
+    .agent-ai {
+        padding: 14px;
+    }
+
+    .agent-ai__next .dr-btn {
+        width: 100%;
+        min-height: 44px;
+        justify-content: center;
+    }
+}
+.agent-statusbar__main > .agent-path__chip { align-self: flex-start; }
+
+/* ---------- booking pending (canvas L7-26) ---------- */
+.agent-booking {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 12px;
+    margin: 0 20px 14px;
+    padding: 11px 14px;
+    border: 1px solid var(--dr-time-soon-border);
+    border-radius: 12px;
+    background: var(--dr-time-soon-bg);
+    color: var(--dr-text);
+}
+
+.agent-booking__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border: 1px solid var(--dr-time-soon-border);
+    border-radius: 999px;
+    background: var(--dr-white);
+    color: var(--dr-time-soon-text);
+    font-size: 12px;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.agent-booking__pill::before,
+.agent-upcoming--pending .agent-upcoming__state::before {
+    width: 7px;
+    height: 7px;
+    flex: 0 0 7px;
+    border-radius: 50%;
+    background: var(--dr-time-soon-solid);
+    content: "";
+}
+
+.agent-booking__text {
+    flex: 1 1 320px;
+    min-width: 0;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.agent-booking__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.agent-booking__btn {
+    display: inline-flex;
+    height: 30px;
+    align-items: center;
+    gap: 6px;
+    padding: 0 11px;
+    border: 1px solid #cdd3dc;
+    border-radius: 8px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-booking__btn:hover {
+    border-color: var(--dr-time-soon-solid);
+    color: var(--dr-text);
+}
+
+.agent-booking__btn:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+.agent-upcoming--pending .agent-upcoming__open {
+    border-color: var(--dr-time-soon-border);
+    background: var(--dr-time-soon-bg);
+    cursor: default;
+}
+
+.agent-upcoming--pending .agent-upcoming__day,
+.agent-upcoming--pending .agent-upcoming__state {
+    color: var(--dr-time-soon-text);
+}
+
+.agent-upcoming--pending .agent-upcoming__state {
+    border: 1px solid var(--dr-time-soon-border);
+}
+
+/* Goal panel while the booking is pending: a checklist of what is left. */
+.agent-goal__checks {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 2px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.agent-goal__check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 11px;
+    border-radius: 9px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+}
+
+.agent-goal__check--done {
+    background: color-mix(in srgb, var(--dr-white) 14%, transparent);
+    color: var(--dr-white);
+}
+
+.agent-goal__box {
+    display: inline-flex;
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--dr-text-hint);
+    border-radius: 5px;
+}
+
+.agent-goal__check--done .agent-goal__box {
+    border-color: var(--dr-white);
+    background: var(--dr-white);
+    color: var(--goal-ink);
+}
+
+.agent-goal__check-body {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 1px;
+    font-size: 13px;
+}
+
+.agent-goal__check-body > span {
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.agent-goal__note {
+    margin: 2px 0 0;
+    color: color-mix(in srgb, var(--dr-white) 82%, transparent);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+@media (max-width: 767px) {
+    .agent-booking {
+        margin: 0 14px 14px;
+    }
+
+    .agent-booking__actions {
+        width: 100%;
+    }
+
+    .agent-booking__btn {
+        height: 40px;
+        flex: 1 1 0;
+        justify-content: center;
+    }
 }

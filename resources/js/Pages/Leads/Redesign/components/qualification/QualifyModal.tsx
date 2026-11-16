@@ -598,6 +598,31 @@ function QualifyModalContent({
         () => walkSegments.filter((s) => s.type === "question"),
         [walkSegments],
     );
+    // Under the agent dock only questions are steps (canvas L7-07). The lines
+    // to say or do before a question show in its Say bar; lines after the
+    // last question show under it. Without questions every segment is a step.
+    const agentSteps = questionSegments.length > 0 ? questionSegments : walkSegments;
+    const agentLines = useMemo(() => {
+        const before = new Map<string, Segment[]>();
+        let pending: Segment[] = [];
+        walkSegments.forEach((walkSegment) => {
+            if (walkSegment.type === "question") {
+                before.set(walkSegment.key, pending);
+                pending = [];
+            } else if (walkSegment.type === "say" || walkSegment.type === "instruction") {
+                pending.push(walkSegment);
+            }
+        });
+        return { before, after: pending };
+    }, [walkSegments]);
+    // The question a script line leads into (the last question for lines after it).
+    const agentTargetOf = (key: string | undefined): Segment | null => {
+        if (questionSegments.length === 0 || !key) return null;
+        const index = walkSegments.findIndex((s) => s.key === key);
+        if (index < 0) return null;
+        const ahead = walkSegments.slice(index).find((s) => s.type === "question");
+        return ahead ?? questionSegments[questionSegments.length - 1];
+    };
     const totalFields = questionSegments.length;
     const totalFilled = useMemo(
         () =>
@@ -629,6 +654,15 @@ function QualifyModalContent({
         }
         setConfirmIntent("close");
     };
+
+    useEffect(() => {
+        if (!open || !underDock || phase !== "script") return;
+        const current = flow.currentSegment;
+        if (!current || current.type === "question" || current.type === "outcome") return;
+        const target = agentTargetOf(current.key);
+        if (target && target.key !== current.key) void flow.jumpToSegment(target.key);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- follow the current step only
+    }, [open, underDock, phase, flow.currentSegment?.key]);
 
     useEffect(() => {
         if (!open) return;
@@ -686,6 +720,15 @@ function QualifyModalContent({
         ? questionSegments.findIndex((s) => s.key === segment.key) + 1
         : 0;
 
+    // The question on screen under the dock: a script line stands for the
+    // question it leads into until the redirect above lands.
+    const agentSegment =
+        segment && segment.type !== "question" && questionSegments.length > 0
+            ? (agentTargetOf(segment.key) ?? segment)
+            : segment;
+    const agentIndex = agentSegment ? agentSteps.findIndex((s) => s.key === agentSegment.key) : -1;
+    const agentIsLast = agentIndex === agentSteps.length - 1;
+
     const progressPct =
         totalFields > 0 ? Math.round((totalFilled / totalFields) * 100) : 0;
 
@@ -720,6 +763,21 @@ function QualifyModalContent({
             }
             await flow.jumpToSegment(next.key);
         }
+    };
+
+    const handleNextFromAgentStep = async (options?: { skipValidation?: boolean }) => {
+        if (flow.validationError && !options?.skipValidation) {
+            await flow.goNext(options);
+            return;
+        }
+        const next = agentIndex >= 0 ? agentSteps[agentIndex + 1] : undefined;
+        if (next) {
+            await flow.jumpToSegment(next.key);
+            return;
+        }
+        setPhase("outcome");
+        setSelectedOutcome(null);
+        setRightRailTab("answers");
     };
 
     const handleBackFromOutcome = () => {
@@ -907,15 +965,15 @@ function QualifyModalContent({
 
     // The script's steps, then the outcome, for the list under the dock.
     const flowSteps: FlowStep[] = [
-        ...walkSegments.map((walkSegment, index): FlowStep => ({
+        ...agentSteps.map((walkSegment, index): FlowStep => ({
             key: walkSegment.key,
             label: <SegmentLabel segment={walkSegment} translateScript={flow.translateScript} />,
             state:
-                !inOutcome && walkSegment.key === segment?.key
+                !inOutcome && walkSegment.key === agentSegment?.key
                     ? "current"
                     : (walkSegment.type === "question"
                             ? hasAnswerContent(flow.answers[walkSegment.key])
-                            : inOutcome || index < flow.walkIndex)
+                            : inOutcome || index < agentIndex)
                       ? "done"
                       : "todo",
         })),
@@ -929,7 +987,7 @@ function QualifyModalContent({
 
     // Under the agent dock the step, its footer and the outcome are the boards' own
     // screens (canvas L7-07, L7-08), built on the same flow state as the classic ones.
-    const lastWalkSegment = walkSegments[walkSegments.length - 1];
+    const lastWalkSegment = agentSteps[agentSteps.length - 1];
     const agentCenter = inOutcome ? (
         <QualifyOutcomePhase
             flow={flow}
@@ -954,13 +1012,15 @@ function QualifyModalContent({
     ) : (
         <div className="agent-qs__panel">
             <div className="agent-qs__scroll">
-                {segment ? (
+                {agentSegment ? (
                     <StepBody
                         flow={flow}
-                        segment={segment}
+                        segment={agentSegment}
                         agentLanguage={agentLanguage}
-                        questionNumber={Math.max(questionNumber, 1)}
-                        questionTotal={Math.max(totalFields, 1)}
+                        questionNumber={Math.max(agentIndex + 1, 1)}
+                        questionTotal={Math.max(agentSteps.length, 1)}
+                        linesBefore={agentLines.before.get(agentSegment.key)}
+                        linesAfter={agentIsLast ? agentLines.after : undefined}
                     />
                 ) : (
                     <p className="agent-qs__hint">{td("No steps available for this template.", { source: "en" })}</p>
@@ -968,8 +1028,10 @@ function QualifyModalContent({
             </div>
             <StepFooter
                 flow={flow}
-                isLast={flow.walkIndex === walkSegments.length - 1 || flow.isLastWalkSegment}
-                onNext={handleNextFromScript}
+                isLast={agentIsLast}
+                onNext={handleNextFromAgentStep}
+                previous={agentIndex > 0 ? agentSteps[agentIndex - 1] : null}
+                next={agentIsLast ? null : (agentSteps[agentIndex + 1] ?? null)}
             />
         </div>
     );
@@ -1033,10 +1095,10 @@ function QualifyModalContent({
                             templateTree.name,
                             inOutcome
                                 ? t("pages.agent_workspace.flow.outcome")
-                                : walkSegments.length > 0
+                                : agentSteps.length > 0
                                   ? t("pages.agent_workspace.flow.step_of", {
-                                        current: Math.min(flow.walkIndex + 1, walkSegments.length),
-                                        total: walkSegments.length,
+                                        current: Math.min(Math.max(agentIndex + 1, 1), agentSteps.length),
+                                        total: agentSteps.length,
                                     })
                                   : "",
                             t("pages.agent_workspace.flow.saves"),
