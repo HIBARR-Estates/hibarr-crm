@@ -4135,7 +4135,7 @@ return [
                 'path_aria' => 'Lebenszyklus',
                 'now' => 'jetzt',
                 'goal' => 'Ziel',
-                'off_path' => 'Außerhalb des Pfads:',
+                'off_path' => 'Außerhalb des Pfads',
                 'mark_lost' => 'Als verloren markieren',
                 'lost_title' => '{{name}} als verloren markieren?',
                 'lost_message' => 'Der Lead verlässt den Pfad. Sie können ihn später reaktivieren.',
@@ -4280,7 +4280,6 @@ return [
                 'title' => 'Deal-Details',
             ],
             'exposes' => [
-                'title' => 'Exposés · Reiseplan',
                 'exposes' => 'Exposés',
                 'add' => 'Exposé hinzufügen',
                 'empty' => 'Noch keine Exposés.',

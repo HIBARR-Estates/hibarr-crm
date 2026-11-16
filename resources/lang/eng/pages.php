@@ -4292,7 +4292,7 @@ return [
                 'path_aria' => 'Lifecycle path',
                 'now' => 'now',
                 'goal' => 'goal',
-                'off_path' => 'Off the path:',
+                'off_path' => 'Off the path',
                 'mark_lost' => 'Mark as lost',
                 'lost_title' => 'Mark {{name}} as lost?',
                 'lost_message' => 'The lead leaves the path. You can reactivate it later.',
@@ -4437,7 +4437,6 @@ return [
                 'title' => 'Deal details',
             ],
             'exposes' => [
-                'title' => 'Exposés · Itinerary',
                 'exposes' => 'Exposés',
                 'add' => 'Add exposé',
                 'empty' => 'No exposés yet.',

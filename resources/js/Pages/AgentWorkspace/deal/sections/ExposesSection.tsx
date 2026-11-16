@@ -62,7 +62,7 @@ export default function ExposesSection({ deal, canEdit }: { deal: Deal; canEdit:
             id="deal-exposes"
             title={
                 <>
-                    {t("pages.agent_workspace.deal.exposes.title")}
+                    {t("pages.agent_workspace.deal.exposes.exposes")}
                     {exposes.length > 0 ? <span className="agent-card__count"> · {exposes.length}</span> : null}
                 </>
             }

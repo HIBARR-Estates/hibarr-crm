@@ -150,28 +150,6 @@
     font-weight: 500;
 }
 
-.agent-path__off {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 10px;
-    margin-top: 14px;
-}
-
-.agent-path__off-label {
-    color: var(--dr-text-muted);
-    font-size: 12px;
-}
-
-.agent-path__chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
 .agent-path__chip {
     display: inline-flex;
     align-items: center;
@@ -201,10 +179,6 @@
 
 .agent-path__dot--lost {
     background: var(--dr-time-late-solid);
-}
-
-.agent-path__lost {
-    margin-left: auto;
 }
 
 /* ---------- key facts ---------- */
@@ -856,13 +830,6 @@
         min-width: 112px;
         flex: 1 0 112px;
         scroll-snap-align: start;
-    }
-
-    .agent-path__lost {
-        width: 100%;
-        min-height: 44px;
-        margin-left: 0;
-        justify-content: center;
     }
 
     .agent-facts__grid {

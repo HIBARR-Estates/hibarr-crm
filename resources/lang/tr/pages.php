@@ -4113,7 +4113,7 @@ return [
                 'path_aria' => 'Yaşam döngüsü',
                 'now' => 'şimdi',
                 'goal' => 'hedef',
-                'off_path' => 'Yolun dışında:',
+                'off_path' => 'Yolun dışında',
                 'mark_lost' => 'Kaybedildi olarak işaretle',
                 'lost_title' => '{{name}} kaybedildi olarak işaretlensin mi?',
                 'lost_message' => 'Lead yoldan çıkar. Daha sonra yeniden etkinleştirebilirsiniz.',
@@ -4258,7 +4258,6 @@ return [
                 'title' => 'Anlaşma ayrıntıları',
             ],
             'exposes' => [
-                'title' => 'Sunumlar · Gezi planı',
                 'exposes' => 'Sunumlar',
                 'add' => 'Sunum ekle',
                 'empty' => 'Henüz sunum yok.',

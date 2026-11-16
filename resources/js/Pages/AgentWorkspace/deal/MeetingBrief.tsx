@@ -233,7 +233,12 @@ function Brief({ meeting, deal, stage, analysis, events, notes, documents, showE
                             <p className="agent-trip__empty">{t("pages.agent_workspace.deal.brief.ready_none")}</p>
                         ) : (
                             <ul className="agent-brief2__list">
-                                {showExposes ? <ExposesReady dealId={deal.id} /> : null}
+                                {showExposes ? (
+                                    <ExposesReady
+                                        dealId={deal.id}
+                                        emptyText={awaiting.length + files.length === 0 ? t("pages.agent_workspace.deal.brief.ready_none") : null}
+                                    />
+                                ) : null}
                                 {awaiting.map((request) => (
                                     <li key={`payment-${request.id}`} className="agent-brief2__ready">
                                         <Icon name="wallet" size={15} />
@@ -279,10 +284,17 @@ function Brief({ meeting, deal, stage, analysis, events, notes, documents, showE
 }
 
 /** The deal's exposés as rows of Have ready; only mounted when the viewer may see them. */
-function ExposesReady({ dealId }: { dealId: number }) {
+function ExposesReady({ dealId, emptyText }: { dealId: number; emptyText: string | null }) {
     const { t } = useTranslation();
     const { td } = useTd();
-    const { exposes } = useDealExposes({ type: "deal", dealId });
+    const { exposes, loading } = useDealExposes({ type: "deal", dealId });
+    if (exposes.length === 0 && emptyText && !loading) {
+        return (
+            <li>
+                <p className="agent-trip__empty">{emptyText}</p>
+            </li>
+        );
+    }
     return (
         <>
             {exposes.slice(0, 3).map((expose) => (

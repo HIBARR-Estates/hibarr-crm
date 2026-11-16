@@ -377,7 +377,6 @@ function ContactDealInner(props: ContactDealProps) {
         emailQuickAction != null && !restricted
             ? [{ key: "email", icon: <Icon name="mail" size={14} />, label: t("pages.agent_workspace.deal.new_email"), onSelect: () => openCommunication(null) }]
             : [];
-    const openDetails = dealPermissions.canEdit ? () => setDetails({ section: "general" }) : undefined;
 
     // Edit details: the person's details (they stay editable after qualification) and the deal's.
     const canEditContact =
@@ -413,7 +412,7 @@ function ContactDealInner(props: ContactDealProps) {
                 <AgentLinkPills pills={dealPills} ariaLabel={t("pages.agent_workspace.contact.deals_aria")} />
             </AgentSecondRow>
             <DealPinnedBar
-                visible={scrolledPast}
+                visible={scrolledPast && !contactEditing}
                 name={name}
                 initials={initialsFromName(contact?.client_name ?? name)}
                 stageName={stageName}
@@ -422,7 +421,7 @@ function ContactDealInner(props: ContactDealProps) {
                 callEntityId={deal.id}
                 allowedCreate={canCreate}
                 onCreate={setCreateKind}
-                onEdit={openDetails}
+                editMenu={editMenu}
                 pills={sectionPills}
                 active={activeSection}
                 onJump={jump}

@@ -489,6 +489,11 @@
     grid-column: span 2;
 }
 
+/* The lead page has three cards above it, so its history gets the whole row. */
+.agent-deal__sections--lead > .agent-deal__section--history {
+    grid-column: 1 / -1;
+}
+
 .agent-deal__section {
     display: flex;
     min-width: 0;
@@ -955,7 +960,12 @@ button.agent-deal__row:disabled {
 
     .agent-deal__sections {
         grid-template-columns: minmax(0, 1fr);
-        grid-auto-rows: var(--agent-card-height-phone, 380px);
+        /* One card per row: no row to match, so a card is only as tall as it needs, up to a cap. */
+        grid-auto-rows: auto;
+    }
+
+    .agent-deal__sections > .agent-deal__section {
+        max-height: var(--agent-card-height-phone, 380px);
     }
 
     .agent-deal__sections > .agent-deal__section--history {
