@@ -13,6 +13,7 @@ import {
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import { buildMeetingFormFromFollowup, getMeetingOwner } from "./meetingFormUtils";
 import useDealMeetingUpdate from "../../hooks/useDealMeetingUpdate";
+import useDealMeetingLinkGenerate from "../../hooks/useDealMeetingLinkGenerate";
 import type { DealMeetingCreateInput } from "../../hooks/useDealMeetingCreate";
 
 interface DealEditMeetingModalProps {
@@ -55,6 +56,7 @@ export default function DealEditMeetingModal({
     const [localErrors, setLocalErrors] = useState<string[]>([]);
     const { updateMeeting, isUpdating, errors, clearErrors } =
         useDealMeetingUpdate(deal);
+    const { generateLink } = useDealMeetingLinkGenerate();
 
     const initialForm = useMemo(() => {
         if (!open || !followup) return null;
@@ -158,6 +160,7 @@ export default function DealEditMeetingModal({
             onSubmit={handleSubmit}
             mustIncludeOwner={mustIncludeOwner}
             participantDirectory={participantDirectory}
+            onGenerateLink={followup ? () => generateLink(followup.id) : undefined}
             labels={{
                 title: t("pages.deals.workspace.meetings.edit_meeting"),
                 cancel: t("pages.deals.common.cancel"),

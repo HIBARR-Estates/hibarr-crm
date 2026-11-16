@@ -74,6 +74,12 @@ interface MeetingFormFieldsProps {
      * off since the meeting keeps the zone it was booked in.
      */
     showTimezone?: boolean;
+    /**
+     * Saved meetings on an automatic-link platform only: asks the platform for
+     * the link again when it failed. Resolves to the new link, or null when it
+     * failed again (the caller says why).
+     */
+    onGenerateLink?: () => Promise<string | null>;
 }
 
 const REMINDER_UNIT_OPTIONS: Array<{
@@ -102,6 +108,7 @@ export default function MeetingFormFields({
     participantDirectory = [],
     section,
     showTimezone = true,
+    onGenerateLink,
 }: MeetingFormFieldsProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -137,6 +144,7 @@ export default function MeetingFormFields({
     const isVideoMeeting = isVideoPlatform(form.platform);
     const isPhysicalMeeting = isPhysicalPlatform(form.platform);
     const autoLink = usesAutoMeetingLink(form.platform);
+    const [generatingLink, setGeneratingLink] = useState(false);
     const needsManualLink = requiresManualMeetingLink(form.platform);
     const canOpenExternalCreate = supportsExternalMeetingCreate(form.platform);
     const physicalVenue: PhysicalVenue =
@@ -753,6 +761,26 @@ export default function MeetingFormFields({
                                             { source: "en" },
                                         )}
                                     </p>
+                                    {onGenerateLink ? (
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="ml-auto flex-shrink-0"
+                                            disabled={disabled || generatingLink}
+                                            loading={generatingLink}
+                                            onClick={async () => {
+                                                setGeneratingLink(true);
+                                                try {
+                                                    const link = await onGenerateLink();
+                                                    if (link) onChange({ meetingLink: link });
+                                                } finally {
+                                                    setGeneratingLink(false);
+                                                }
+                                            }}
+                                        >
+                                            {t("pages.deals.workspace.meetings.generate_link")}
+                                        </Button>
+                                    ) : null}
                                 </div>
                             )}
                             {form.meetingLink && (

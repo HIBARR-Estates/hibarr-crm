@@ -1810,6 +1810,8 @@ return [
                 'join' => 'Beitreten',
                 'auto_generated_link_hint' => 'Wird nach der Planung automatisch für Videobesprechungen erzeugt.',
                 'existing_link_hint' => 'Der bestehende Besprechungslink wird zur Referenz angezeigt.',
+                'generate_link' => 'Link erzeugen',
+                'generate_link_failed' => 'Der Besprechungslink konnte nicht erzeugt werden. Versuche es erneut oder wähle eine andere Plattform.',
                 'host_field' => 'Besprechungsverantwortlicher',
                 'participants_field' => 'Besprechungsteilnehmer',
                 'reminders' => 'Erinnerungen',
