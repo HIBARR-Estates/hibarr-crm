@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import type { MenuProps } from "antd";
 import { Head, router, usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
-import { AgentPillRow, AgentSecondRow, AgentWorkspaceLayout, agentPillPanelProps, useMinuteClock } from "@/Components/Redesign/agent";
+import { AgentPillRow, AgentRelatedRecord, AgentSecondRow, AgentWorkspaceLayout, agentPillPanelProps, useMinuteClock } from "@/Components/Redesign/agent";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
@@ -446,6 +446,18 @@ function ContactLead(props: LeadRedesignProps) {
                 meetingTypes={props.meetingTypes ?? []}
                 taskBoardColumns={props.taskBoardColumns ?? []}
                 taskCategories={props.taskCategories ?? []}
+                meetingAgent={{
+                    subtitle: lead.client_name ?? "",
+                    closeLabel: t("pages.agent_workspace.meeting_form.close"),
+                    relatedField: (
+                        <AgentRelatedRecord
+                            kind="lead"
+                            label={t("pages.agent_workspace.meeting_form.related")}
+                            name={lead.client_name ?? ""}
+                            hint={t("pages.agent_workspace.meeting_form.from_lead")}
+                        />
+                    ),
+                }}
             />
             <LeadMissionModals
                 flow={mission}

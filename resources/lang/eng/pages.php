@@ -1821,6 +1821,7 @@ return [
                 'start_time' => 'Start time',
                 'end_time' => 'End time',
                 'hide_duration' => 'Hide duration',
+                'timezone' => 'Timezone',
                 'add_duration' => 'Add duration',
                 'meeting_link' => 'Meeting link',
                 'video_call' => 'Video call',
@@ -4686,6 +4687,12 @@ return [
             'cancel' => 'Cancel',
             'submit' => 'Add task',
             'saving' => 'Saving…',
+        ],
+        'meeting_form' => [
+            'related' => 'Related record',
+            'from_deal' => 'Set from the deal you are on',
+            'from_lead' => 'Set from the person you are on',
+            'close' => 'Close',
         ],
     ],
     'marketing_leads' => [

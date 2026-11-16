@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Head, usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
-import { AgentLinkPills, AgentSecondRow, AgentWorkspaceLayout, useMinuteClock } from "@/Components/Redesign/agent";
+import { AgentLinkPills, AgentRelatedRecord, AgentSecondRow, AgentWorkspaceLayout, useMinuteClock } from "@/Components/Redesign/agent";
 import { initialsFromName } from "@/Components/Redesign";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { REDESIGN_TOKENS } from "@/Components/Redesign/tokens";
@@ -664,6 +664,18 @@ function ContactDealInner(props: ContactDealProps) {
                 deal={deal}
                 meetingTypes={meetingTypes}
                 sourceEmailMessageId={sourceEmailMessageId}
+                agent={{
+                    subtitle: [restricted ? null : contact?.client_name, deal.name].filter(Boolean).join(" · "),
+                    closeLabel: t("pages.agent_workspace.meeting_form.close"),
+                    relatedField: (
+                        <AgentRelatedRecord
+                            kind="deal"
+                            label={t("pages.agent_workspace.meeting_form.related")}
+                            name={deal.name ?? ""}
+                            hint={t("pages.agent_workspace.meeting_form.from_deal")}
+                        />
+                    ),
+                }}
             />
             <DealAddNoteModal open={createKind === "note"} onClose={closeCreate} dealId={deal.id} sourceEmailMessageId={sourceEmailMessageId} />
             <LogActionModal

@@ -1782,6 +1782,7 @@ return [
                 'start_time' => 'Başlangıç saati',
                 'end_time' => 'Bitiş saati',
                 'hide_duration' => 'Süreyi gizle',
+                'timezone' => 'Saat dilimi',
                 'add_duration' => 'Süre ekle',
                 'meeting_link' => 'Toplantı bağlantısı',
                 'video_call' => 'Görüntülü arama',
@@ -4507,6 +4508,12 @@ return [
             'cancel' => 'İptal',
             'submit' => 'Görev ekle',
             'saving' => 'Kaydediliyor…',
+        ],
+        'meeting_form' => [
+            'related' => 'İlgili kayıt',
+            'from_deal' => 'Açık olan anlaşmadan alındı',
+            'from_lead' => 'Açık olan kişiden alındı',
+            'close' => 'Kapat',
         ],
     ],
     'marketing_leads' => [

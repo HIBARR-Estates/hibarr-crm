@@ -1803,6 +1803,7 @@ return [
                 'start_time' => 'Startzeit',
                 'end_time' => 'Endzeit',
                 'hide_duration' => 'Dauer ausblenden',
+                'timezone' => 'Zeitzone',
                 'add_duration' => 'Dauer hinzufügen',
                 'meeting_link' => 'Besprechungslink',
                 'video_call' => 'Videoanruf',
@@ -4529,6 +4530,12 @@ return [
             'cancel' => 'Abbrechen',
             'submit' => 'Aufgabe hinzufügen',
             'saving' => 'Wird gespeichert…',
+        ],
+        'meeting_form' => [
+            'related' => 'Verknüpfter Datensatz',
+            'from_deal' => 'Aus dem geöffneten Deal übernommen',
+            'from_lead' => 'Aus der geöffneten Person übernommen',
+            'close' => 'Schließen',
         ],
     ],
     'marketing_leads' => [
