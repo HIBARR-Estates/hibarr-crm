@@ -30,6 +30,21 @@ class SipProviderRegistryTest extends TestCase
         $this->assertNull(SipProviderRegistry::wssUrl('twilio'));
     }
 
+    public function test_platform_decides_default_max_concurrent_calls(): void
+    {
+        $this->assertSame(2, SipProviderRegistry::defaultMaxConcurrentCalls('sipgate'));
+        $this->assertSame(2, SipProviderRegistry::defaultMaxConcurrentCalls('unknown'));
+    }
+
+    public function test_platform_decides_stun_url(): void
+    {
+        $this->assertSame(
+            'stun:stun.sipgate.de:3478',
+            SipProviderRegistry::stunUrl('sipgate'),
+        );
+        $this->assertNull(SipProviderRegistry::stunUrl('unknown'));
+    }
+
     public function test_platform_resolves_the_sip_uri_from_the_username(): void
     {
         $this->assertSame(

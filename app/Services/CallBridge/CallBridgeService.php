@@ -738,7 +738,7 @@ class CallBridgeService
             in_array($raw, ['call.declined', 'call.rejected', 'declined', 'rejected', 'call_declined'], true) => ['call_declined', CrmEventStatus::REJECTED],
             in_array($raw, ['call.voicemail', 'voicemail', 'voice_mail', 'call_voicemail'], true) => ['call_voicemail', CrmEventStatus::COMPLETED],
             in_array($raw, ['call.busy', 'busy', 'call_busy'], true) => ['call_busy', CrmEventStatus::MISSED],
-            in_array($raw, ['call.failed', 'failed', 'error', 'call_failed'], true) => ['call_failed', CrmEventStatus::ERROR_OCCURRED],
+            in_array($raw, ['call.failed', 'failed', 'error', 'call_failed', 'call.connection_failed', 'connection_failed'], true) => ['call_failed', CrmEventStatus::ERROR_OCCURRED],
             // Started (once per call; CRM-initiated calls already log this via startCall).
             in_array($raw, ['call.started', 'call.initiated', 'started', 'initiated', 'call_started', 'call_answered', 'incoming_call', 'outgoing_call'], true) => ['call_started', CrmEventStatus::COMPLETED],
             // Everything else — ringing, dialing, status pings — is not logged.

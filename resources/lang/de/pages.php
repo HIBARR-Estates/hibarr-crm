@@ -2782,6 +2782,9 @@ return [
         'failure_temporarily_unavailable' => 'Vorübergehend nicht erreichbar',
         'failure_browser_unsupported' => 'Browser nicht unterstützt',
         'failure_terminated' => 'Anruf beendet',
+        'failure_connection_failed' => 'Verbindung fehlgeschlagen',
+        'max_concurrent_calls' => 'Max. gleichzeitige Anrufe',
+        'max_concurrent_calls_tooltip' => 'Maximale Anzahl gleichzeitiger Anrufe auf dieser Telefonleitung.',
         'yesterday' => 'Gestern',
     ],
 
@@ -2920,6 +2923,9 @@ return [
     ],
 
     'softphone' => [
+        'connection_failed' => 'Verbindung fehlgeschlagen',
+        'connecting_to_provider' => 'Verbindung zu {{provider}} wird hergestellt…',
+        'line_capacity_reached' => 'Diese Telefonleitung hat ihr Limit von {{max}} gleichzeitigen Anrufen erreicht. Versuchen Sie es in Kürze erneut oder wechseln Sie die Leitung.',
         'answered_elsewhere' => 'Auf anderem Gerät angenommen',
         'call_disconnected' => 'Anruf getrennt',
         'call_ended' => 'Anruf beendet',

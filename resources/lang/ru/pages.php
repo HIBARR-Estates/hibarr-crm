@@ -2755,6 +2755,9 @@ return [
         'failure_temporarily_unavailable' => 'Временно недоступен',
         'failure_browser_unsupported' => 'Браузер не поддерживается',
         'failure_terminated' => 'Звонок завершен',
+        'failure_connection_failed' => 'Ошибка соединения',
+        'max_concurrent_calls' => 'Макс. одновременных звонков',
+        'max_concurrent_calls_tooltip' => 'Максимальное количество одновременных звонков на этой телефонной линии.',
         'yesterday' => 'Вчера',
     ],
 
@@ -2931,6 +2934,9 @@ return [
     ],
 
     'softphone' => [
+        'connection_failed' => 'Ошибка соединения',
+        'connecting_to_provider' => 'Подключение к {{provider}}…',
+        'line_capacity_reached' => 'Эта телефонная линия достигла лимита в {{max}} одновременных звонков. Повторите попытку позже или смените линию.',
         'answered_elsewhere' => 'Отвечено на другом устройстве',
         'call_disconnected' => 'Звонок прерван',
         'call_ended' => 'Звонок завершен',

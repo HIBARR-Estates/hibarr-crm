@@ -363,9 +363,9 @@ class TelephonySoftphoneCallPoolController extends AccountBaseController
                 ], 422);
             }
 
-            if ($tier === SoftphoneCallPoolAgent::TIER_LINE) {
-                $this->ensureSoftphonePermission($userId);
-            }
+            // Every tier rings through the softphone, so a listed user needs
+            // the permission to run it or they are a silent slot in rotation.
+            $this->ensureSoftphonePermission($userId);
 
             $agent = SoftphoneCallPoolAgent::updateOrCreate(
                 [

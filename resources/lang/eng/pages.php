@@ -2939,6 +2939,9 @@ return [
         'failure_temporarily_unavailable' => 'Temporarily unavailable',
         'failure_browser_unsupported' => 'Browser unsupported',
         'failure_terminated' => 'Call terminated',
+        'failure_connection_failed' => 'Connection failed',
+        'max_concurrent_calls' => 'Max concurrent calls',
+        'max_concurrent_calls_tooltip' => 'Maximum number of concurrent calls permitted on this phone line.',
         'yesterday' => 'Yesterday',
     ],
 
@@ -3077,6 +3080,9 @@ return [
     ],
 
     'softphone' => [
+        'connection_failed' => 'Connection failed',
+        'connecting_to_provider' => 'Connecting to {{provider}}…',
+        'line_capacity_reached' => 'This phone line has reached its limit of {{max}} concurrent calls. Try again shortly or switch lines.',
         'answered_elsewhere' => 'Answered elsewhere',
         'call_disconnected' => 'Call disconnected',
         'call_ended' => 'Call ended',

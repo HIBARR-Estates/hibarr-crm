@@ -204,16 +204,19 @@ describe("Header Call Status & Access Visibility Specs", () => {
             if (!matchingLeads || matchingLeads.length === 0) {
                 return null;
             }
-            // Prefer match with assigned lead owner
-            const lead = matchingLeads.find((l) => l.lead_owner && l.owner) || matchingLeads[0];
-            const owner = lead.owner;
-            if (
-                owner &&
-                owner.status === "active" &&
-                owner.login !== "disable" &&
-                (owner.can_receive_calls ?? true)
-            ) {
-                return { id: owner.id, name: owner.name };
+            // Candidate lead whose assigned owner is active, available, and holds softphone permission
+            for (const lead of matchingLeads) {
+                if (!lead.lead_owner || !lead.owner) continue;
+                const owner = lead.owner;
+                const hasPerm = owner.role === "admin" || (owner.has_softphone_permission ?? true);
+                if (
+                    owner.status === "active" &&
+                    owner.login !== "disable" &&
+                    (owner.can_receive_calls ?? true) &&
+                    hasPerm
+                ) {
+                    return { id: owner.id, name: owner.name };
+                }
             }
             return null;
         }
@@ -310,6 +313,193 @@ describe("Header Call Status & Access Visibility Specs", () => {
             assert.equal(sequence[0].id, 50);
             assert.equal(sequence[0].role, "owner"); // Kept as owner at index 0
             assert.equal(sequence[1].id, 51);
+        });
+
+        test("Tier 4 escalation only includes admins explicitly on the fallback list, not all company admins", () => {
+            const allCompanyAdmins = [
+                { id: 1, name: "Admin 1 (Not on list)", role: "admin" },
+                { id: 2, name: "Admin 2 (On list)", role: "admin" },
+                { id: 3, name: "Admin 3 (Not on list)", role: "admin" },
+            ];
+            const configuredTier4List = [
+                { id: 2, name: "Admin 2 (On list)", role: "admin_fallback" },
+            ];
+            const lineAgents = [{ id: 10, name: "Agent Bob", role: "line" }];
+            const defaultFallback = [{ id: 20, name: "Fallback Dan", role: "default_fallback" }];
+
+            // Sequence must ONLY include the configured Tier 4 admin (id 2), not id 1 or 3
+            const sequence = buildRotationSequence(null, lineAgents, defaultFallback, configuredTier4List);
+            assert.equal(sequence.length, 3);
+            assert.equal(sequence[0].id, 10);
+            assert.equal(sequence[1].id, 20);
+            assert.equal(sequence[2].id, 2);
+            assert.equal(sequence[2].role, "admin_fallback");
+
+            const sequenceIds = sequence.map((u) => u.id);
+            assert.equal(sequenceIds.includes(1), false);
+            assert.equal(sequenceIds.includes(3), false);
+        });
+
+        test("When Tier 4 fallback list is empty, sequence ends at Tier 3 and unlisted admins do not ring", () => {
+            const lineAgents = [{ id: 10, name: "Agent Bob", role: "line" }];
+            const defaultFallback = [{ id: 20, name: "Fallback Dan", role: "default_fallback" }];
+            const emptyTier4List = [];
+
+            const sequence = buildRotationSequence(null, lineAgents, defaultFallback, emptyTier4List);
+            assert.equal(sequence.length, 2);
+
+            const sequenceIds = sequence.map((u) => u.id);
+            // Any admin id (e.g. 1) not on the list must have can_ring = false
+            const adminId = 1;
+            const canRing = sequenceIds.includes(adminId);
+            assert.equal(canRing, false);
+        });
+
+        test("Lead owner without softphone permission does NOT route as Tier 1 owner; falls back to round-robin pool", () => {
+            const matchingLeads = [
+                {
+                    id: 401,
+                    lead_owner: 99,
+                    owner: {
+                        id: 99,
+                        name: "Perm-less Owner",
+                        status: "active",
+                        login: "enable",
+                        can_receive_calls: true,
+                        has_softphone_permission: false,
+                        role: "employee",
+                    },
+                },
+            ];
+            const lineAgents = [
+                { id: 10, name: "Line Agent Bob", role: "line" },
+                { id: 11, name: "Line Agent Carol", role: "line" },
+            ];
+            const defaultFallback = [{ id: 20, name: "Fallback Agent Dan", role: "default_fallback" }];
+
+            const owner = resolveLeadOwnerFromMatches(matchingLeads);
+            assert.equal(owner, null);
+
+            const sequence = buildRotationSequence(owner, lineAgents, defaultFallback, []);
+            assert.equal(sequence.length, 3);
+            assert.equal(sequence[0].id, 10);
+            assert.equal(sequence[0].role, "line");
+            assert.equal(sequence[1].id, 11);
+            assert.equal(sequence[2].id, 20);
+            assert.equal(sequence[2].role, "default_fallback");
+        });
+    });
+
+    describe("Default Fallback Tier User Eligibility", () => {
+        function isEligibleForDefaultFallback(user) {
+            return (
+                user &&
+                user.status === "active" &&
+                user.login !== "disable" &&
+                !(user.roles ?? []).some((r) => r === "client" || r?.name === "client")
+            );
+        }
+
+        test("Any active company user (non-client) is eligible for default fallback, even without softphone permission", () => {
+            const regularEmployee = {
+                id: 5,
+                name: "Regular Staff",
+                status: "active",
+                login: "enable",
+                roles: ["employee"],
+                has_softphone_permission: false,
+            };
+            assert.equal(isEligibleForDefaultFallback(regularEmployee), true);
+        });
+
+        test("Client user is NOT eligible for default fallback list", () => {
+            const clientUser = {
+                id: 15,
+                name: "Client John",
+                status: "active",
+                login: "enable",
+                roles: ["client"],
+            };
+            assert.equal(isEligibleForDefaultFallback(clientUser), false);
+        });
+
+        test("Inactive or disabled user is NOT eligible for default fallback list", () => {
+            const inactiveUser = {
+                id: 6,
+                name: "Inactive Staff",
+                status: "inactive",
+                login: "enable",
+                roles: ["employee"],
+            };
+            const disabledUser = {
+                id: 7,
+                name: "Disabled Staff",
+                status: "active",
+                login: "disable",
+                roles: ["employee"],
+            };
+            assert.equal(isEligibleForDefaultFallback(inactiveUser), false);
+            assert.equal(isEligibleForDefaultFallback(disabledUser), false);
+        });
+    });
+
+    describe("Create Contact Modal Phone Number Normalization & Prefill", () => {
+        function parseAndNormalizeMobile(mobile) {
+            if (!mobile) return "";
+            if (typeof mobile === "object") return mobile;
+            if (typeof mobile === "string") {
+                const trimmed = mobile.trim();
+                if (!trimmed) return "";
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    if (typeof parsed === "object" && parsed !== null) {
+                        if ("countryCode" in parsed || "phoneNumber" in parsed) {
+                            return parsed;
+                        }
+                        return "";
+                    }
+                } catch {}
+                const digits = trimmed.replace(/\D/g, "");
+                if (!digits) return "";
+                if (trimmed.startsWith("+") || trimmed.startsWith("00")) {
+                    const intl = trimmed.startsWith("00") ? digits.replace(/^00/, "") : digits;
+                    return intl ? `+${intl}` : "";
+                }
+                if (digits.length === 11 && digits.startsWith("05")) {
+                    return `+90${digits.slice(1)}`;
+                }
+                if (digits.length === 10 && digits.startsWith("5")) {
+                    return `+90${digits}`;
+                }
+                if (digits.length >= 11 && !digits.startsWith("0")) {
+                    return `+${digits}`;
+                }
+                return trimmed;
+            }
+            return mobile;
+        }
+
+        test("Normalizes local Cyprus/Turkey 0533 number with trunk 0 to +90533 E.164", () => {
+            assert.equal(parseAndNormalizeMobile("05338773001"), "+905338773001");
+        });
+
+        test("Normalizes 10-digit national number 533 to +90533 E.164", () => {
+            assert.equal(parseAndNormalizeMobile("5338773001"), "+905338773001");
+        });
+
+        test("Normalizes international 00-prefixed number to + prefix", () => {
+            assert.equal(parseAndNormalizeMobile("00447911123456"), "+447911123456");
+        });
+
+        test("Preserves valid E.164 numbers", () => {
+            assert.equal(parseAndNormalizeMobile("+905338773001"), "+905338773001");
+            assert.equal(parseAndNormalizeMobile("+14155552671"), "+14155552671");
+        });
+
+        test("Preserves parsed JSON phone objects from antd-phone-input", () => {
+            const json = JSON.stringify({ countryCode: 90, phoneNumber: "5338773001" });
+            const result = parseAndNormalizeMobile(json);
+            assert.deepEqual(result, { countryCode: 90, phoneNumber: "5338773001" });
         });
     });
 

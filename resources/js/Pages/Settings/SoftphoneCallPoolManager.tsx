@@ -63,7 +63,7 @@ export default function SoftphoneCallPoolManager({
                 <div>
                     <strong style={{ fontSize: "14px" }}>Incoming Call Routing Sequence (Tiers 1 – 4):</strong>
                     <div style={{ marginTop: "4px", color: "var(--dr-text-muted)" }}>
-                        When an incoming call matches a lead in the CRM, the call routes to <strong>Tier 1: Lead Owner</strong> first. If the caller is not matched to a lead, or if the lead owner is unavailable, has paused calls, or does not answer within the ring window, calls advance to <strong>Tier 2: Line Routing</strong>, then <strong>Tier 3: Default Fallback Tier</strong>, and finally <strong>Tier 4: Admin Fallback Tier</strong> before automated voicemail. Configure rotation timings and voicemail greeting under the <strong>Call Rotation & Timing</strong> tab.
+                        When an incoming call matches a lead in the CRM and the assigned Lead Owner has the <strong>Make Calls</strong> permission, the call routes to <strong>Tier 1: Lead Owner</strong> first. If the caller is not matched to a lead, or if the lead owner lacks the Make Calls permission, is unavailable, has paused calls, or does not answer within the ring window, calls advance to <strong>Tier 2: Line Routing</strong>, then <strong>Tier 3: Default Fallback Tier</strong>, and finally <strong>Tier 4: Admin Fallback Tier</strong> before automated voicemail. Configure rotation timings and voicemail greeting under the <strong>Call Rotation & Timing</strong> tab.
                     </div>
                 </div>
             </div>
@@ -81,7 +81,7 @@ export default function SoftphoneCallPoolManager({
                             </span>
                         </div>
                         <p style={{ margin: "6px 0 0", fontSize: "13px", color: "var(--dr-text-muted)", maxWidth: "820px" }}>
-                            Whenever an incoming caller's phone number matches an existing lead or contact in the CRM, the call routes <strong>directly to the assigned Lead Owner first</strong>. If the lead has no owner, the owner has paused calls, or does not answer within the ring window, the call automatically advances to <strong>Tier 2: Line Routing</strong>.
+                            Whenever an incoming caller's phone number matches an existing lead or contact in the CRM, the call routes <strong>directly to the assigned Lead Owner first</strong> — provided they hold the <strong>Make Calls</strong> permission and are ready for calls. If the lead has no owner, the owner lacks permission, has paused calls, or does not answer within the ring window, the call automatically advances to <strong>Tier 2: Line Routing</strong> (available agents ring one at a time, in priority order).
                         </p>
                     </div>
                 </div>
@@ -137,7 +137,7 @@ export default function SoftphoneCallPoolManager({
                         </div>
                         <div>
                             <div style={{ fontWeight: 600, color: "var(--dr-text)" }}>Lead Owner Rings First</div>
-                            <div style={{ fontSize: "12px", color: "var(--dr-text-muted)" }}>Direct to owner's softphone</div>
+                            <div style={{ fontSize: "12px", color: "var(--dr-text-muted)" }}>Direct to owner's softphone (requires Make Calls permission)</div>
                         </div>
                     </div>
 
@@ -159,7 +159,7 @@ export default function SoftphoneCallPoolManager({
                         </div>
                         <div>
                             <div style={{ fontWeight: 600, color: "var(--dr-text)" }}>Automatic Escalation</div>
-                            <div style={{ fontSize: "12px", color: "var(--dr-text-muted)" }}>Advances to Tier 2 if missed/paused</div>
+                            <div style={{ fontSize: "12px", color: "var(--dr-text-muted)" }}>Advances to Tier 2 if no permission, missed, or paused</div>
                         </div>
                     </div>
                 </div>
