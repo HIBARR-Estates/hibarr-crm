@@ -152,12 +152,14 @@ export default function RecordingPlayer({
                         href={openUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="cb-icon-btn cb-icon-btn--plain"
+                        className="cb-open"
+                        title="Plays in Bunny's player in a new tab"
                         aria-label={`Open ${filename ?? "recording"} in a new tab`}
                     >
-                        <ExportOutlined aria-hidden="true" /> Open recording
+                        <ExportOutlined aria-hidden="true" />
+                        <span>Open recording</span>
                     </a>
-                    {total ? <span className="cb-time cb-num">{formatTime(total)}</span> : null}
+                    {total ? <span className="cb-time cb-num cb-time--end">{formatTime(total)}</span> : null}
                 </div>
             </div>
         );
