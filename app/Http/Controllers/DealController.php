@@ -799,7 +799,8 @@ class DealController extends AccountBaseController
                     ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
                     ->with('employeeDetail.designation:id,name')
                     ->where('users.status', '!=', 'deactive')
-                    ->orderBy('users.name');
+                    ->orderBy('users.name')
+                    ->orderBy('users.id');
             },
             'dealParticipants' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
@@ -4225,7 +4226,14 @@ class DealController extends AccountBaseController
         $candidates = [
             $deal?->agent_id ? \App\Models\LeadAgent::query()->whereKey($deal->agent_id)->value('user_id') : null,
             $leadId ? Lead::query()->whereKey($leadId)->value('lead_owner') : null,
-            $deal?->dealWatchers()->value('users.id'),
+            // Same first watcher the deal page shows (active, by name), so the
+            // alerted watcher is the one who sees Generate link.
+            $deal?->dealWatchers()
+                ->withoutGlobalScope(ActiveScope::class)
+                ->where('users.status', '!=', 'deactive')
+                ->orderBy('users.name')
+                ->orderBy('users.id')
+                ->value('users.id'),
             $followUp->added_by,
         ];
 
