@@ -2955,6 +2955,38 @@ return [
         'availability_updated_active' => 'Artık gelen aramalar için aktifsiniz.',
         'availability_updated_paused' => 'Hesabınız için gelen aramalar duraklatıldı.',
     ],
+    'cache_refresh' => [
+        'title' => 'Önbelleği yenile',
+        'card_desc' => 'Önbelleğe alınan listeleri ve çevirileri sürelerinin dolmasını beklemeden yenileyin.',
+        'heading' => 'Önbelleğe alınan veriler',
+        'intro' => 'Bu listeler sayfaların hızlı açılması için önbelleğe alınır ve kendiliğinden yenilenir. Yeni bir değişiklik henüz görünmüyorsa buradan yenileyin.',
+        'refresh' => 'Yenile',
+        'refresh_all' => 'Tümünü yenile',
+        'refreshed' => 'Yenilendi',
+        'failed' => 'Önbellek yenilenemedi. Tekrar deneyin.',
+        'expires_minutes_one' => 'Her {{count}} dakikada bir kendiliğinden yenilenir',
+        'expires_minutes_other' => 'Her {{count}} dakikada bir kendiliğinden yenilenir',
+        'expires_hours_one' => 'Her {{count}} saatte bir kendiliğinden yenilenir',
+        'expires_hours_other' => 'Her {{count}} saatte bir kendiliğinden yenilenir',
+        'groups' => [
+            'lead_utm_values' => [
+                'title' => 'Lead filtresi UTM değerleri',
+                'description' => 'Lead filtresinde sunulan UTM kaynak, ortam, kampanya, içerik, terim ve kitle değerleri.',
+            ],
+            'dropdown_lists' => [
+                'title' => 'Açılır listeler',
+                'description' => 'Formlarda ve filtrelerde kullanılan hitaplar, cinsiyetler, yaş aralıkları, sıcaklıklar, iletişim saatleri, ülkeler ve para birimleri.',
+            ],
+            'translations' => [
+                'title' => 'Çeviriler',
+                'description' => 'Tüm diller için arayüz metinleri.',
+            ],
+            'expose_branding' => [
+                'title' => 'Exposé markalaması',
+                'description' => 'Oluşturulan exposé PDF\'lerine gömülen logolar ve marka görselleri.',
+            ],
+        ],
+    ],
     'company_dashboard_access' => [
         'title' => 'Şirket paneli erişimi',
         'card_desc' => 'Şirket genelindeki paneli kimlerin görebileceğini seçin.',

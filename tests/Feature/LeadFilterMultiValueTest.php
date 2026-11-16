@@ -157,6 +157,24 @@ class LeadFilterMultiValueTest extends TestCase
         $this->assertSame($expected, $ids);
     }
 
+    public function test_utm_filter_also_matches_a_later_touch(): void
+    {
+        // First touch google, came back later through facebook.
+        $returningId = $this->insertLead(['client_name' => 'Returning']);
+        $this->insertMarketing($returningId, ['utm_source' => 'google']);
+        $this->insertUtmTouch($returningId, ['utm_source' => 'google', 'is_first_touch' => true]);
+        $this->insertUtmTouch($returningId, ['utm_source' => 'facebook']);
+
+        $googleOnlyId = $this->insertLead(['client_name' => 'Google only']);
+        $this->insertMarketing($googleOnlyId, ['utm_source' => 'google']);
+
+        $this->assertSame([$returningId], $this->filteredLeadIds(['utm_source' => 'facebook']));
+
+        $ids = $this->filteredLeadIds(['utm_source' => 'google']);
+        sort($ids);
+        $this->assertSame([$returningId, $googleOnlyId], $ids);
+    }
+
     public function test_referrer_filter_matches_any_of_the_selected_partners(): void
     {
         $partnerA = $this->insertLead(['client_name' => 'From A', 'referred_by_agent_id' => 3]);
@@ -348,11 +366,22 @@ class LeadFilterMultiValueTest extends TestCase
         ], $attributes));
     }
 
+    private function insertUtmTouch(int $leadId, array $attributes): void
+    {
+        DB::table('lead_utm_touches')->insert(array_merge([
+            'lead_id' => $leadId,
+            'is_first_touch' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], $attributes));
+    }
+
     private function resetSchema(): void
     {
         Schema::dropIfExists('users');
         Schema::dropIfExists('lead_qualification_answers');
         Schema::dropIfExists('lead_qualifications');
+        Schema::dropIfExists('lead_utm_touches');
         Schema::dropIfExists('lead_marketing');
         Schema::dropIfExists('lead_lead_category');
         Schema::dropIfExists('lead_category');
@@ -418,6 +447,20 @@ class LeadFilterMultiValueTest extends TestCase
             $table->unsignedInteger('lead_qualification_id');
             $table->string('segment_key');
             $table->json('answer_values')->nullable();
+        });
+
+        Schema::create('lead_utm_touches', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('lead_id');
+            $table->string('utm_source')->nullable();
+            $table->string('utm_medium')->nullable();
+            $table->string('utm_campaign')->nullable();
+            $table->string('utm_content')->nullable();
+            $table->string('utm_term')->nullable();
+            $table->string('utm_audience')->nullable();
+            $table->string('origin', 50)->nullable();
+            $table->boolean('is_first_touch')->default(false);
+            $table->timestamps();
         });
 
         Schema::create('lead_marketing', function (Blueprint $table) {

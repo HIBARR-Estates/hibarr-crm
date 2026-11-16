@@ -378,7 +378,8 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
 
         // ── Campaign attribution (UTM) ───────────────────────────
-        // Values come from what is actually recorded in lead_marketing.
+        // Values come from what is actually recorded for leads: the first touch
+        // (lead_marketing) and every later touch (lead_utm_touches).
         {
             key: "utm_source",
             label: "UTM Source",

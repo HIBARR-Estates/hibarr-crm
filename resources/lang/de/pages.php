@@ -2977,6 +2977,38 @@ return [
         'availability_updated_active' => 'Sie sind jetzt für eingehende Anrufe verfügbar.',
         'availability_updated_paused' => 'Eingehende Anrufe wurden pausiert.',
     ],
+    'cache_refresh' => [
+        'title' => 'Cache aktualisieren',
+        'card_desc' => 'Zwischengespeicherte Listen und Übersetzungen aktualisieren, ohne auf den Ablauf zu warten.',
+        'heading' => 'Zwischengespeicherte Daten',
+        'intro' => 'Diese Listen werden zwischengespeichert, damit Seiten schnell laden, und aktualisieren sich von selbst. Aktualisieren Sie hier eine Liste, wenn eine kürzliche Änderung noch nicht sichtbar ist.',
+        'refresh' => 'Aktualisieren',
+        'refresh_all' => 'Alle aktualisieren',
+        'refreshed' => 'Aktualisiert',
+        'failed' => 'Der Cache konnte nicht aktualisiert werden. Bitte erneut versuchen.',
+        'expires_minutes_one' => 'Aktualisiert sich automatisch jede Minute',
+        'expires_minutes_other' => 'Aktualisiert sich automatisch alle {{count}} Minuten',
+        'expires_hours_one' => 'Aktualisiert sich automatisch jede Stunde',
+        'expires_hours_other' => 'Aktualisiert sich automatisch alle {{count}} Stunden',
+        'groups' => [
+            'lead_utm_values' => [
+                'title' => 'UTM-Werte im Lead-Filter',
+                'description' => 'Die im Lead-Filter angebotenen Werte für UTM-Quelle, -Medium, -Kampagne, -Inhalt, -Begriff und -Zielgruppe.',
+            ],
+            'dropdown_lists' => [
+                'title' => 'Auswahllisten',
+                'description' => 'Anreden, Geschlechter, Altersgruppen, Temperaturen, Kontaktzeiten, Länder und Währungen in Formularen und Filtern.',
+            ],
+            'translations' => [
+                'title' => 'Übersetzungen',
+                'description' => 'Die Oberflächentexte für alle Sprachen.',
+            ],
+            'expose_branding' => [
+                'title' => 'Exposé-Branding',
+                'description' => 'Logos und Markenbilder, die in erzeugte Exposé-PDFs eingebettet werden.',
+            ],
+        ],
+    ],
     'company_dashboard_access' => [
         'title' => 'Zugriff auf das Unternehmens-Dashboard',
         'card_desc' => 'Legen Sie fest, wer das unternehmensweite Dashboard sehen darf.',

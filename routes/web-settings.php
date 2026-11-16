@@ -11,6 +11,7 @@ use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\AttendanceSettingController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\CacheRefreshController;
 use App\Http\Controllers\CompanyDashboardAccessController;
 use App\Http\Controllers\AutomationSettingController;
 use App\Http\Controllers\BusinessAddressController;
@@ -131,6 +132,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('company-dashboard-access', [CompanyDashboardAccessController::class, 'index'])->name('company-dashboard-access.index');
     Route::post('company-dashboard-access', [CompanyDashboardAccessController::class, 'store'])->name('company-dashboard-access.store');
     Route::delete('company-dashboard-access/{userId}', [CompanyDashboardAccessController::class, 'destroy'])->whereNumber('userId')->name('company-dashboard-access.destroy');
+
+    /* Cache refresh — clear the expiring data caches on demand (admin-only) */
+    Route::get('cache-refresh', [CacheRefreshController::class, 'index'])->name('cache-refresh.index');
+    Route::post('cache-refresh', [CacheRefreshController::class, 'clear'])->name('cache-refresh.clear');
 
     /* Agent workspace access list (crm.agent-workspace + admin; 404 while the flag is off) */
     Route::get('agent-workspace-access', [AgentWorkspaceAccessController::class, 'index'])->name('agent-workspace-access.index');
