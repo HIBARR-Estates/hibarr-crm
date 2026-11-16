@@ -12,6 +12,9 @@ import EntityAiSummaryHeader from "./EntityAiSummaryHeader";
 import EntityAiSummaryNextStep from "./EntityAiSummaryNextStep";
 import { SummaryPersonalizationProvider } from "./SummaryPersonalization";
 import { buildLeadTokenValues, personalizeSummaryText } from "./summaryTokens";
+import { usePage } from "@inertiajs/react";
+import useClickToCall from "@/Hooks/useClickToCall";
+import useSoftphone, { canPlaceCrmCall } from "@/Hooks/useSoftphone";
 import { executeSummaryAction, isExecutableAction } from "./summaryActions";
 import "./entity-summary.css";
 
@@ -38,6 +41,18 @@ export default function EntityAiSummaryCard({
 }: EntityAiSummaryCardProps) {
     const { t } = useTranslation();
     const { td } = useTd();
+    const { props } = usePage();
+    const { isEnabled: clickToCallEnabled } = useClickToCall();
+    const { isEnabled: softphoneFeatureEnabled, devices } = useSoftphone();
+    const canDial = canPlaceCrmCall({
+        softphoneEnabled:
+            softphoneFeatureEnabled &&
+            props.featureFlags?.["crm.softphone"] === true,
+        user: props.auth?.user,
+        permissions: props.auth?.permissions,
+        deviceCount: devices.length,
+        clickToCallEnabled,
+    });
     const isRedesign = variant === "redesign";
 
     // The summary text names the lead with tokens (the model never sees the name);
@@ -136,7 +151,7 @@ export default function EntityAiSummaryCard({
             nextStep: summary.next_step,
             entityType,
             entityId,
-            leadPhone,
+            leadPhone: canDial ? leadPhone : null,
             onQualifyLead,
             onCreateTask,
             onScheduleCall,

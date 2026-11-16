@@ -53,7 +53,7 @@ export default function TaskCategoryAction({
         calling,
         softphoneEnabled,
         canCall,
-        canUseCall,
+        canDial,
         devices,
         activeDeviceId,
         startCall,
@@ -123,7 +123,7 @@ export default function TaskCategoryAction({
 
     const items: MenuProps["items"] = [];
 
-    if (phone && canUseCall) {
+    if (phone && canDial) {
         if (hasLineChoice) {
             items.push({
                 key: "call",
@@ -171,7 +171,7 @@ export default function TaskCategoryAction({
 
     // With no phone on the lead there is nothing to call, so the trigger becomes
     // the qualification action rather than a "Call" button that can't call.
-    const onlyQualification = !phone || !canUseCall;
+    const onlyQualification = !phone || !canDial;
     const triggerLabel = td(
         onlyQualification ? "Begin qualification" : ACTION_LABEL.call,
         { source: "en" },

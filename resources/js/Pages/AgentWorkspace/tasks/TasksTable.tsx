@@ -7,7 +7,7 @@ const COLUMNS = ["task", "linked", "priority", "due", "assignee"] as const;
 
 export function TasksTableSkeleton() {
     return (
-        <div className="agent-tk__table" aria-busy="true">
+        <div className="agent-table agent-tk__table" aria-busy="true">
             {Array.from({ length: 8 }).map((_, index) => (
                 <div key={index} className="agent-tk__skeleton-row">
                     <span className="agent-tk__skeleton-bar" style={{ width: "70%" }} />
@@ -27,7 +27,7 @@ export default function TasksTable({ views, handlers }: { views: TaskView[]; han
 
     if (views.length === 0) {
         return (
-            <div className="agent-tk__table">
+            <div className="agent-table agent-tk__table">
                 <EmptyState
                     icon="check-square"
                     title={t("pages.agent_workspace.tasks.empty_title")}
@@ -38,10 +38,10 @@ export default function TasksTable({ views, handlers }: { views: TaskView[]; han
     }
 
     return (
-        <div className="agent-tk__table" role="table" aria-label={t("pages.agent_workspace.tasks.title")}>
+        <div className="agent-table agent-tk__table" role="table" aria-label={t("pages.agent_workspace.tasks.title")}>
             <div role="row" className="agent-tk__head">
                 {COLUMNS.map((column) => (
-                    <span key={column} role="columnheader" className="agent-tk__th" aria-sort={column === "due" ? "ascending" : undefined}>
+                    <span key={column} role="columnheader" className="agent-table__th agent-tk__th" aria-sort={column === "due" ? "ascending" : undefined}>
                         {t(`pages.agent_workspace.tasks.cols.${column}`)}
                         {column === "due" ? " ↑" : ""}
                     </span>
