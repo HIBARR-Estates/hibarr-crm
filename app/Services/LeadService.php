@@ -965,8 +965,13 @@ class LeadService
             }
 
             $values = $this->toValueArray($request->get($field));
-            $query->whereHas('marketing', function ($q) use ($field, $values) {
-                $q->whereIn($field, $values);
+
+            // A lead matches on its first touch (lead_marketing) or on any
+            // later touch (lead_utm_touches). Both are checked because a first
+            // touch written outside LeadUtmService has no history row.
+            $query->where(function ($q) use ($field, $values) {
+                $q->whereHas('marketing', fn ($m) => $m->whereIn($field, $values))
+                    ->orWhereHas('utmTouches', fn ($t) => $t->whereIn($field, $values));
             });
         }
     }

@@ -3134,6 +3134,38 @@ return [
         'availability_updated_active' => 'You are now active for incoming calls.',
         'availability_updated_paused' => 'Incoming calls paused for your account.',
     ],
+    'cache_refresh' => [
+        'title' => 'Cache refresh',
+        'card_desc' => 'Refresh cached lists and translations without waiting for them to expire.',
+        'heading' => 'Cached data',
+        'intro' => 'These lists are cached to keep pages fast and refresh on their own. Refresh one here when a recent change is not showing yet.',
+        'refresh' => 'Refresh',
+        'refresh_all' => 'Refresh all',
+        'refreshed' => 'Refreshed',
+        'failed' => 'Couldn\'t refresh the cache. Try again.',
+        'expires_minutes_one' => 'Refreshes on its own every {{count}} minute',
+        'expires_minutes_other' => 'Refreshes on its own every {{count}} minutes',
+        'expires_hours_one' => 'Refreshes on its own every {{count}} hour',
+        'expires_hours_other' => 'Refreshes on its own every {{count}} hours',
+        'groups' => [
+            'lead_utm_values' => [
+                'title' => 'Lead filter UTM values',
+                'description' => 'The UTM source, medium, campaign, content, term and audience values offered in the lead filter.',
+            ],
+            'dropdown_lists' => [
+                'title' => 'Dropdown lists',
+                'description' => 'Salutations, genders, age ranges, temperatures, contact times, countries and currencies used in forms and filters.',
+            ],
+            'translations' => [
+                'title' => 'Translations',
+                'description' => 'The interface text for every language.',
+            ],
+            'expose_branding' => [
+                'title' => 'Exposé branding',
+                'description' => 'Logos and branding images embedded in generated exposé PDFs.',
+            ],
+        ],
+    ],
     'company_dashboard_access' => [
         'title' => 'Company dashboard access',
         'card_desc' => 'Choose who can see the company-wide dashboard.',
