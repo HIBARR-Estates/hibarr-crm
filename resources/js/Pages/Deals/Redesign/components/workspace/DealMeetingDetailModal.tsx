@@ -50,11 +50,12 @@ export default function DealMeetingDetailModal({
     // A Zoho meeting whose link failed: the deal's agent (who gets the alert)
     // or anyone who may edit it can ask for the link again.
     // Mirrors who gets the alert on the server: agent, else lead owner, else
-    // the deal watcher. The creator can already edit their own meeting.
+    // the first deal watcher, else whoever created the meeting.
     const responsibleUserId =
         getMeetingOwner(deal)?.id ??
         deal.contact?.lead_owner?.id ??
         deal.deal_watchers?.[0]?.id ??
+        meeting?.added_by?.id ??
         undefined;
     const canRetryLink =
         meeting != null &&
