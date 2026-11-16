@@ -79,6 +79,7 @@ import { STATUS_DOT, STAGE_LABEL } from "./dock/types";
 import { formatDuration, initialsOf, useElapsed } from "./dock/utils";
 import CallIdentity from "./dock/components/CallIdentity";
 import CallStateBadge from "./dock/components/CallStateBadge";
+import CallWaitingBanner from "./dock/components/CallWaitingBanner";
 import CallFailedNotice from "./dock/components/CallFailedNotice";
 import { publishIncomingCall } from "./dock/incomingCallBridge";
 
@@ -138,6 +139,8 @@ export default function SoftphoneDock({
         answer,
         reject,
         hangup,
+        answerWaiting,
+        dismissWaiting,
         setMuted,
         setHold,
         isActiveTab,
@@ -923,6 +926,101 @@ export default function SoftphoneDock({
             // Local pass already hid the call on this browser.
         }
     }, [activeCall, stopRinging, activeDeviceId, callRef, followServerRotation]);
+
+    // ─── Call waiting ────────────────────────────────────────────────────
+    // A second call that arrived while this agent is on one. It goes through
+    // the same routing as any ringing call, and is only offered here when the
+    // rotation says it is this agent's turn — which, for an agent already on
+    // a call, means nobody else is free.
+    const waitingCall = state.waitingCall;
+    const [waitingRoute, setWaitingRoute] = useState<CallRouting | null>(null);
+
+    useEffect(() => {
+        if (!waitingCall || !isActiveTab) {
+            setWaitingRoute(null);
+            return;
+        }
+        let cancelled = false;
+        const lookup = async () => {
+            try {
+                const response = await axios.get(route("telephony.softphone.lead-match"), {
+                    params: { phone: waitingCall.peer, device_id: activeDeviceId, call_id: waitingCall.id },
+                });
+                if (!cancelled) {
+                    setWaitingRoute((response.data?.data as CallRouting | null) ?? null);
+                }
+            } catch {
+                if (!cancelled) {
+                    setWaitingRoute(null);
+                }
+            }
+        };
+        void lookup();
+        const poll = window.setInterval(() => void lookup(), LEAD_MATCH_POLL_MS);
+        return () => {
+            cancelled = true;
+            window.clearInterval(poll);
+        };
+    }, [waitingCall?.id, isActiveTab, activeDeviceId]);
+
+    /** Who the waiting call is ringing right now, per the shared rotation. */
+    const waitingTarget = useMemo<RotationUser | null>(() => {
+        const users = waitingRoute?.rotation_users ?? [];
+        if (typeof waitingRoute?.rotation_index === "number") {
+            return users[waitingRoute.rotation_index] ?? null;
+        }
+        const passed = waitingRoute?.passed_user_ids ?? [];
+        return users.find((u) => !passed.includes(Number(u.id))) ?? null;
+    }, [waitingRoute]);
+
+    const showCallWaiting =
+        waitingCall !== null &&
+        activeCall !== null &&
+        canReceiveCalls &&
+        waitingRoute !== null &&
+        waitingRoute.can_ring &&
+        waitingRoute.call_status !== "answered" &&
+        !(waitingRoute.passed_user_ids ?? []).includes(currentUserId) &&
+        waitingTarget !== null &&
+        Number(waitingTarget.id) === currentUserId;
+
+    // One short chime when the waiting call is first offered — the looping
+    // ring would play over the conversation.
+    const chimedWaitingIdRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (showCallWaiting && waitingCall && chimedWaitingIdRef.current !== waitingCall.id) {
+            chimedWaitingIdRef.current = waitingCall.id;
+            playIncoming();
+        }
+    }, [showCallWaiting, waitingCall?.id, playIncoming]);
+
+    const handleAnswerWaiting = useCallback(() => {
+        void answerWaiting();
+    }, [answerWaiting]);
+
+    const handleDeclineWaiting = useCallback(() => {
+        if (!waitingCall) return;
+        dismissWaiting();
+        // Hand it to the next agent now rather than when this turn times out.
+        void axios
+            .post(
+                route("telephony.softphone.pass"),
+                { phone: waitingCall.peer, device_id: activeDeviceId, call_id: waitingCall.id },
+                { timeout: 5000 },
+            )
+            .catch(() => {
+                // The rotation moves on by itself when the turn times out.
+            });
+    }, [waitingCall, dismissWaiting, activeDeviceId]);
+
+    const callWaitingBanner = showCallWaiting && waitingCall ? (
+        <CallWaitingBanner
+            name={waitingRoute?.name ?? null}
+            peer={waitingCall.peer}
+            onAnswer={handleAnswerWaiting}
+            onDecline={handleDeclineWaiting}
+        />
+    ) : null;
 
     const handleDeclineInbound = useCallback(async () => {
         if (!activeCall) return;
@@ -2020,6 +2118,13 @@ export default function SoftphoneDock({
                 </section>
             )}
 
+            {/* Call waiting, when the live call is drawn outside the dock */}
+            {!liveCallInDock && callWaitingBanner && (
+                <section className="sp sp--waiting" aria-label="Phone, call waiting">
+                    <div className="sp__body">{callWaitingBanner}</div>
+                </section>
+            )}
+
             {/* Live / outbound call */}
             {liveCallInDock && inCall && activeCall && (
                 <section className="sp sp--active" aria-label="Phone, in call">
@@ -2067,6 +2172,7 @@ export default function SoftphoneDock({
                         </span>
                     </header>
                     <div className="sp__body">
+                        {callWaitingBanner}
                         <CallIdentity name={titleName} peer={activeCall.peer} leadUrl={displayLeadUrl}>
                             {isAdmin && isForwarded && lastForwardedUser ? (
                                 <span className="sp__lead" data-forwarded="true">

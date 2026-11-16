@@ -132,6 +132,7 @@ const STATUS_LABELS: Record<CrmEventStatus, string> = {
     error_occurred: "Error",
     missed: "Missed",
     rejected: "Rejected",
+    voicemail: "Connected · voicemail",
 };
 
 const DIRECTION_LABELS: Record<CrmEventDirection, string> = {
@@ -161,6 +162,7 @@ const STATUS_TONES: Record<CrmEventStatus, string> = {
     error_occurred: "dr-pill-red",
     missed: "dr-pill-amber",
     rejected: "dr-pill-red",
+    voicemail: "dr-pill-blue",
 };
 
 export function getTimelineStatusTone(status: CrmEventStatus): string {

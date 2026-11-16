@@ -2660,7 +2660,7 @@ return [
         'completed' => 'tamamlandı',
         'missed' => 'cevapsız — yanıt yok',
         'declined' => 'reddedildi',
-        'voicemail' => 'sesli mesaj',
+        'voicemail' => 'bağlandı — sesli mesaja düştü',
         'busy' => 'hat meşgul',
         'failed' => 'bağlantı kurulamadı',
         'recording_available' => 'Kayıt mevcut',
@@ -2904,6 +2904,9 @@ return [
     ],
 
     'softphone' => [
+        'call_waiting' => 'Bekleyen arama',
+        'end_and_answer' => 'Bitir ve yanıtla',
+        'decline_waiting' => 'Reddet',
         'connection_failed' => 'Bağlantı başarısız',
         'connecting_to_provider' => '{{provider}} sağlayıcısına bağlanıyor…',
         'line_capacity_reached' => 'Bu telefon hattı {{max}} eşzamanlı arama sınırına ulaştı. Kısa süre sonra tekrar deneyin veya hat değiştirin.',

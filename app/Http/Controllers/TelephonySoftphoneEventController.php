@@ -134,6 +134,14 @@ class TelephonySoftphoneEventController extends AccountBaseController
             $this->getAvailableAdminFallbackUsers($companyId),
         );
 
+        // Agents already on a call are skipped while anyone else can take it:
+        // their browser turns a second call away, so their turn would only
+        // make the caller wait. Once this call is answered the agent who took
+        // it is on a call too, so the list is left alone from then on.
+        if ($statusVal !== 'answered') {
+            $rotationUsers = $this->withoutAgentsOnCall($companyId, $rotationUsers);
+        }
+
         // With an id every agent shares, the order is frozen and the position
         // advances on the server, so all browsers agree on who rings now.
         $sharedCallKey = $this->sharedCallKey($callId);
@@ -207,6 +215,28 @@ class TelephonySoftphoneEventController extends AccountBaseController
             $matchingLeads->first(fn (Lead $lead) => ! empty($lead->lead_owner)) ?? $matchingLeads->first(),
             null,
         ];
+    }
+
+    /**
+     * The rotation minus agents who are on a call, unless that leaves nobody:
+     * then the busy agents are still the only ones the call can go to.
+     *
+     * @param  array<int, array{id: int, name: string, role: string, priority?: int}>  $rotationUsers
+     * @return array<int, array{id: int, name: string, role: string, priority?: int}>
+     */
+    private function withoutAgentsOnCall(int $companyId, array $rotationUsers): array
+    {
+        $onCall = LineConcurrencyManager::usersOnCall($companyId);
+        if ($onCall === []) {
+            return $rotationUsers;
+        }
+
+        $free = array_values(array_filter(
+            $rotationUsers,
+            fn (array $user): bool => ! in_array((int) $user['id'], $onCall, true),
+        ));
+
+        return $free !== [] ? $free : $rotationUsers;
     }
 
     /** Admins and holders of make_softphone_calls can run the softphone. */

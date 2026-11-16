@@ -2839,7 +2839,7 @@ return [
         'completed' => 'completed',
         'missed' => 'missed — no answer',
         'declined' => 'declined',
-        'voicemail' => 'voicemail',
+        'voicemail' => 'connected — went to voicemail',
         'busy' => 'line busy',
         'failed' => 'failed to connect',
         'recording_available' => 'Recording available',
@@ -3083,6 +3083,9 @@ return [
     ],
 
     'softphone' => [
+        'call_waiting' => 'Call waiting',
+        'end_and_answer' => 'End & answer',
+        'decline_waiting' => 'Decline',
         'connection_failed' => 'Connection failed',
         'connecting_to_provider' => 'Connecting to {{provider}}…',
         'line_capacity_reached' => 'This phone line has reached its limit of {{max}} concurrent calls. Try again shortly or switch lines.',

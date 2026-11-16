@@ -28,6 +28,7 @@ import {
     CloseCircleOutlined,
     ExclamationCircleOutlined,
     MinusCircleOutlined,
+    MessageOutlined,
     ArrowDownOutlined,
     ArrowUpOutlined,
 } from "@ant-design/icons";
@@ -120,6 +121,11 @@ const STATUS_CONFIG: Record<
         label: "Rejected",
         icon: <MinusCircleOutlined />,
         color: "volcano",
+    },
+    voicemail: {
+        label: "Connected · voicemail",
+        icon: <MessageOutlined />,
+        color: "blue",
     },
 };
 
