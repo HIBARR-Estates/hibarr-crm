@@ -39,6 +39,7 @@ interface Stats {
 
 interface Props {
     pageTitle: string;
+    canManageCommissionProfile?: boolean;
     agents: {
         data: PartnerAgent[];
         current_page: number;
@@ -80,7 +81,7 @@ const StatTile = ({ label, value }: { label: string; value: number }) => (
     </div>
 );
 
-const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Props) => {
+const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canManageCommissionProfile = false }: Props) => {
     const { td } = useTd();
 
     const [rows, setRows] = useState<PartnerAgent[]>(agents.data);
@@ -280,6 +281,7 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
                                         ? td("Enabled", { source: "en" })
                                         : td("Disabled", { source: "en" })}
                                 </Badge>
+                                {canManageCommissionProfile ? (
                                 <Link
                                     href={route("mlm.agent_dashboard", agent.id)}
                                     style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}
@@ -291,6 +293,16 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
                                           )
                                         : td("No referral share", { source: "en" })}
                                 </Link>
+                                ) : (
+                                <span style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}>
+                                    {agent.referral_pool_rate != null
+                                        ? td(":rate% referral share", { source: "en" }).replace(
+                                              ":rate",
+                                              String(agent.referral_pool_rate),
+                                          )
+                                        : td("No referral share", { source: "en" })}
+                                </span>
+                                )}
                                 <Badge variant="blue">
                                     {td(":count leads referred", { source: "en" }).replace(
                                         ":count",

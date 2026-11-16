@@ -106,6 +106,28 @@ class PartnerCommissionReconciliationTest extends TestCase
         $this->assertSame(300.0, $forecast['amount'], 'Forecast included a System leg or another agent\'s leg');
     }
 
+    public function test_forecast_does_not_let_zero_referrals_expose_one_deal(): void
+    {
+        $partner = $this->makeAgent(userId: 40);
+
+        foreach (range(1, 3) as $_) {
+            $this->openReferredDeal($partner, sellerAgentId: $partner);
+        }
+
+        $engine = Mockery::mock(MlmCommissionService::class);
+        $engine->shouldReceive('preview')->andReturn(
+            [],
+            [],
+            [['agent_id' => $partner, 'type' => MlmCommissionType::Referral->value, 'amount' => 80.0]],
+        );
+
+        $forecast = $this->metrics()->partnerForecast($partner, $engine);
+
+        $this->assertSame(3, $forecast['deal_count']);
+        $this->assertTrue($forecast['suppressed']);
+        $this->assertNull($forecast['amount']);
+    }
+
     public function test_forecast_ignores_won_deals_and_other_partners_referrals(): void
     {
         $partner = $this->makeAgent(userId: 30);

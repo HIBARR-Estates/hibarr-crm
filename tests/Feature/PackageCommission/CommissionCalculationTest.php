@@ -396,6 +396,20 @@ class CommissionCalculationTest extends PackageCommissionTestCase
         $this->assertNull($referral['percentage']);
     }
 
+    public function test_a_small_company_remainder_survives_a_fixed_referral(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000000);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->refer($ctx, $referrerId, 25, null, 39995);
+
+        $legs = collect(app(MlmCommissionService::class)->preview(
+            Deal::withoutGlobalScopes()->findOrFail($ctx['deal'])
+        ));
+
+        $this->assertSame(39995.0, (float) $legs->firstWhere('type', MlmCommissionType::Referral->value)['amount']);
+        $this->assertSame(5.0, (float) $legs->firstWhere('type', MlmCommissionType::System->value)['amount']);
+    }
+
     public function test_referrer_who_closed_the_deal_gets_both_legs(): void
     {
         $ctx = $this->seedDealWithUpline(1000);

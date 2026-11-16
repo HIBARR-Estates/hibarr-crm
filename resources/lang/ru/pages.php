@@ -9,6 +9,12 @@
 
 return [
 
+    'agents' => [
+        'referral_share' => 'Доля реферала',
+        'referral_share_of_pool' => '{{rate}}% пула комиссии',
+        'referral_share_none' => 'Доля реферала не задана',
+    ],
+
     'telephony' => [
         'call' => 'Позвонить',
         'select_line' => 'Выберите линию для звонка',
@@ -1293,6 +1299,7 @@ return [
                 'referral_capped' => 'Ограничено тем, что компания ещё удерживает. Остальная часть пула уже распределена между закрывающим агентом и вышестоящими.',
                 'referral_package_base' => 'Процент от комиссии пакета.',
                 'referral_save' => 'Сохранить реферал',
+                'referral_save_failed' => 'Не удалось сохранить долю реферала.',
                 'your_commission' => 'Ваша комиссия',
                 'your_commission_projected' => 'Ваша комиссия (прогноз)',
                 'revenue_to_company' => 'Доход компании',

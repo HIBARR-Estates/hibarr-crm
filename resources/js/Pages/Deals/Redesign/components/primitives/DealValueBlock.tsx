@@ -574,6 +574,7 @@ function ReferralShareFields({
                             min={0}
                             max={100}
                             step="0.01"
+                            disabled={saving}
                             value={percent}
                             placeholder={
                                 share.partner_percentage != null
@@ -594,6 +595,7 @@ function ReferralShareFields({
                             type="number"
                             min={0}
                             step="0.01"
+                            disabled={saving}
                             value={amount}
                             onChange={(event) => setAmount(event.target.value)}
                             style={{ ...inputStyle, paddingRight: 28 }}
@@ -625,7 +627,10 @@ function ReferralShareFields({
                     )}
                 </div>
             )}
-            {share.applied === "fixed" && share.fixed_amount != null && share.fixed_amount > 0 && (
+            {share.applied === "fixed" &&
+                share.fixed_amount != null &&
+                share.fixed_amount > 0 &&
+                share.percentage_amount != null && (
                 <div style={{ fontSize: 12, color: T.TEXT_HINT, marginTop: 4 }}>
                     {t("pages.deals.info.value_insight.referral_replaced", {
                         amount: `${currencySymbol}${Number(share.percentage_amount).toLocaleString(undefined, {

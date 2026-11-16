@@ -60,6 +60,7 @@ export interface AgentShowProps {
         edit_lead_agent: string;
         delete_lead_agent: string;
         view_deals: string;
+        manage_partner_network?: boolean;
     };
 }
 

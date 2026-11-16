@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
 import axios from "axios";
+import { App, message } from "antd";
+import useTranslation from "@/Hooks/useTranslation";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 export interface ReferralCommissionInput {
@@ -13,6 +15,9 @@ export interface ReferralCommissionInput {
  */
 export default function useDealReferralCommission(dealId: number) {
     const { setDeal } = useDealWorkspace();
+    const { t } = useTranslation();
+    const { message: appMessage } = App.useApp();
+    const toast = appMessage ?? message;
     const [saving, setSaving] = useState(false);
 
     const save = useCallback(
@@ -26,11 +31,20 @@ export default function useDealReferralCommission(dealId: number) {
                 if (response.data?.status === "success" && response.data?.data) {
                     setDeal(response.data.data);
                 }
+            } catch (error) {
+                const serverMessage = axios.isAxiosError(error)
+                    ? error.response?.data?.message
+                    : null;
+                toast.error(
+                    typeof serverMessage === "string" && serverMessage !== ""
+                        ? serverMessage
+                        : t("pages.deals.info.value_insight.referral_save_failed"),
+                );
             } finally {
                 setSaving(false);
             }
         },
-        [dealId, setDeal],
+        [dealId, setDeal, t, toast],
     );
 
     return { save, saving };

@@ -17,6 +17,12 @@
 
 return [
 
+    'agents' => [
+        'referral_share' => 'Referral share',
+        'referral_share_of_pool' => '{{rate}}% of the commission pool',
+        'referral_share_none' => 'No referral share',
+    ],
+
     'telephony' => [
         'call' => 'Call',
         'select_line' => 'Select line to call',
@@ -1329,6 +1335,7 @@ return [
                 'referral_capped' => 'Capped at what the company still holds. The rest of the pool is already allocated to the closer and uplines.',
                 'referral_package_base' => 'Percentage of the package commission.',
                 'referral_save' => 'Save referral',
+                'referral_save_failed' => 'The referral share could not be saved.',
                 'your_commission' => 'Your commission',
                 'your_commission_projected' => 'Your commission (projected)',
                 'revenue_to_company' => 'Revenue to company',

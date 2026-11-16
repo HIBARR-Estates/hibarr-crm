@@ -2012,7 +2012,8 @@ class DashboardMetricsService
      * Counts the legs preview() would write to this partner, including a
      * referral leg on deals whose lead they introduced. The company (system)
      * leg is excluded. Upline legs still pay nothing while agent_hierarchy is
-     * empty. Below three open deals the sum is suppressed.
+     * empty. Below three deals that actually pay this partner, the sum is
+     * suppressed. A deal that pays nothing does not count toward that three.
      *
      * ponytail: N previews for N open referred deals (single digits today).
      * Batch the level and hierarchy lookups if a partner ever carries hundreds.
@@ -2032,16 +2033,18 @@ class DashboardMetricsService
         // Only the legs distribute() would write *to this partner*: the System
         // leg is addressed to the deal's own agent too, so a partner who sold
         // the deal themselves would otherwise be forecast the house's cut.
-        $amount = $deals->sum(
-            fn (Deal $deal) => collect($commissions->preview($deal))
+        $contributions = $deals->map(
+            fn (Deal $deal) => round((float) collect($commissions->preview($deal))
                 ->where('agent_id', $leadAgentId)
                 ->where('type', '!=', MlmCommissionType::System->value)
-                ->sum('amount')
+                ->sum('amount'), 2)
         );
+        $amount = round((float) $contributions->sum(), 2);
+        $contributing = $contributions->filter(fn (float $share) => $share > 0)->count();
 
-        // Two open deals plus a known rate is one subtraction away from a deal
-        // value, so the number only appears once it is genuinely aggregated.
-        $suppressed = $deals->count() > 0 && $deals->count() < self::FORECAST_MIN_DEALS;
+        // A deal that pays nothing must not pad the count. Two agreed-zero
+        // referrals plus one paying deal would otherwise publish that one amount.
+        $suppressed = $contributing > 0 && $contributing < self::FORECAST_MIN_DEALS;
 
         return [
             'deal_count' => $deals->count(),

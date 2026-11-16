@@ -87,6 +87,19 @@ class ProcessDealWonJob implements ShouldQueue
         }
 
         DB::transaction(function () use ($deal, $agent, $metricsService, $levelService, $commissionService, $cycleService) {
+            $locked = Deal::query()->whereKey($deal->id)->lockForUpdate()->first();
+
+            if (! $locked || $locked->commission_locked) {
+                Log::info("ProcessDealWonJob: Deal {$deal->id} already commission-locked, skipping");
+
+                return;
+            }
+
+            // Referral settings can change until this lock. Distribute from the
+            // locked row, not the copy read before the transaction opened.
+            $deal->setRawAttributes(array_merge($deal->getAttributes(), $locked->getAttributes()));
+            $deal->syncOriginal();
+
             Log::info("ProcessDealWonJob: Starting MLM pipeline for deal {$deal->id}, agent {$agent->id}");
 
             // Step 1: Update agent metrics (all-time + cycle)

@@ -230,24 +230,37 @@ class MlmCommissionService
         if ($referralLeg !== null) {
             $records[] = $referralLeg;
 
-            if ($dealValue > 0) {
-                $cumulativePct += ((float) $referralLeg['amount'] / $dealValue) * 100;
+            // A fixed referral does not land on a clean percentage, so the
+            // remainder is whatever currency is still under the ceiling.
+            $ceilingAmount = round($this->calculateAmount($dealValue, $maxCommission), 2);
+            $remainingAmount = round($ceilingAmount - (float) collect($records)->sum('amount'), 2);
+
+            if ($remainingAmount > 0) {
+                $records[] = $this->leg(
+                    deal: $deal,
+                    agent: $agent,
+                    sourceAgent: $agent,
+                    level: null,
+                    percentage: $dealValue > 0 ? round($remainingAmount / $dealValue * 100, 2) : null,
+                    amount: $remainingAmount,
+                    type: MlmCommissionType::System
+                );
             }
-        }
+        } else {
+            // 3. System commission (remaining %)
+            $remainingPct = $maxCommission - $cumulativePct;
 
-        // 3. System commission (remaining %)
-        $remainingPct = $maxCommission - $cumulativePct;
-
-        if ($remainingPct > 0.001) {
-            $records[] = $this->leg(
-                deal: $deal,
-                agent: $agent,
-                sourceAgent: $agent,
-                level: null,
-                percentage: round($remainingPct, 2),
-                amount: $this->calculateAmount($dealValue, $remainingPct),
-                type: MlmCommissionType::System
-            );
+            if ($remainingPct > 0.001) {
+                $records[] = $this->leg(
+                    deal: $deal,
+                    agent: $agent,
+                    sourceAgent: $agent,
+                    level: null,
+                    percentage: round($remainingPct, 2),
+                    amount: $this->calculateAmount($dealValue, $remainingPct),
+                    type: MlmCommissionType::System
+                );
+            }
         }
 
         Log::info('MlmCommissionService: Resolved '.count($records)." commission legs for deal {$deal->id} (total {$cumulativePct}% of {$maxCommission}% max)".($useSnapshots ? ' [snapshot]' : ''));
@@ -391,7 +404,7 @@ class MlmCommissionService
             'paid_total' => round($paidTotal, 2),
             'revenue_to_company' => round($revenueToCompany, 2),
             'is_projected' => $isProjected,
-            'referral' => $this->referralDisplay($deal, $isPackageDeal, $dealValueInCompanyCurrency, $legs),
+            'referral' => $this->referralDisplay($deal, $isPackageDeal, $dealValueInCompanyCurrency, $legs, ! $isProjected),
             // Every leg that paid a person, in engine order (agent first, then
             // uplines outward). Excludes the system leg, so these always sum to
             // paid_total rather than to something the reader has to unpick.
@@ -783,13 +796,21 @@ class MlmCommissionService
             return null;
         }
 
-        $referrerId = Lead::withoutGlobalScopes()
+        $lead = Lead::withoutGlobalScopes()
             ->where('id', $deal->lead_id)
-            ->value('referred_by_agent_id');
+            ->first(['id', 'company_id', 'referred_by_agent_id']);
 
-        if (! $referrerId) {
+        if (! $lead || ! $lead->referred_by_agent_id) {
             return null;
         }
+
+        // preview() runs without a logged-in company, so the lead is loaded
+        // without scopes. A deal must not pay, or display, another company's referrer.
+        if ($deal->company_id && (int) $lead->company_id !== (int) $deal->company_id) {
+            return null;
+        }
+
+        $referrerId = $lead->referred_by_agent_id;
 
         $referrer = LeadAgent::withoutGlobalScopes()
             ->with('user:id,name')
@@ -825,6 +846,7 @@ class MlmCommissionService
         bool $isPackageDeal,
         float $dealValue,
         \Illuminate\Support\Collection $legs,
+        bool $settled = false,
     ): ?array {
         $settings = $this->referralSettings($deal);
 
@@ -834,20 +856,27 @@ class MlmCommissionService
 
         $percentage = $settings['deal_percentage'] ?? $settings['partner_percentage'];
         $fixed = $settings['fixed_amount'];
+        $inherited = $settings['deal_percentage'] === null;
         $closer = $deal->agent_id
             ? LeadAgent::withoutGlobalScopes()->find($deal->agent_id)
             : null;
         $pool = $isPackageDeal
             ? round((float) $legs->where('type', MlmCommissionType::Agent->value)->sum('amount'), 2)
             : $this->calculateAmount($dealValue, $this->ceilingFor($deal, $closer));
-        $percentageAmount = ($percentage !== null && $percentage > 0 && $pool > 0)
-            ? round($pool * ($percentage / 100), 2)
-            : 0.0;
+        // A settled inherited share was frozen on the ledger. The partner
+        // default may have changed since, so it cannot reconstruct that figure.
+        $rateForAmount = $inherited && $settled ? null : $percentage;
+        $percentageAmount = ($rateForAmount !== null && $rateForAmount > 0 && $pool > 0)
+            ? round($pool * ($rateForAmount / 100), 2)
+            : null;
         $referralLeg = $legs->first(
             fn (array $leg) => $leg['type'] === MlmCommissionType::Referral->value
         );
         $paid = $referralLeg ? (float) $referralLeg['amount'] : 0.0;
-        $raw = $fixed !== null ? $fixed : $percentageAmount;
+        $raw = $fixed !== null ? $fixed : ($percentageAmount ?? 0.0);
+        $capped = $percentageAmount !== null || $fixed !== null
+            ? $raw > 0 && ($paid + 0.009) < $raw
+            : false;
 
         return [
             'referrer_name' => $settings['agent']->user?->name ?: 'Unknown',
@@ -857,7 +886,7 @@ class MlmCommissionService
             'fixed_amount' => $fixed,
             'applied' => $fixed !== null ? 'fixed' : 'percentage',
             'percentage_amount' => $percentageAmount,
-            'capped' => $raw > 0 && ($paid + 0.009) < $raw,
+            'capped' => $capped,
             'base' => $isPackageDeal ? 'package' : 'pool',
         ];
     }

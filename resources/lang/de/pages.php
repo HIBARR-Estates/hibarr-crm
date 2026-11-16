@@ -9,6 +9,12 @@
 
 return [
 
+    'agents' => [
+        'referral_share' => 'Empfehlungsanteil',
+        'referral_share_of_pool' => '{{rate}}% des Provisionspools',
+        'referral_share_none' => 'Kein Empfehlungsanteil',
+    ],
+
     'telephony' => [
         'call' => 'Anrufen',
         'select_line' => 'Leitung für den Anruf wählen',
@@ -1312,6 +1318,7 @@ return [
                 'referral_capped' => 'Begrenzt auf den Anteil, den das Unternehmen noch behält. Der Rest des Pools ist bereits dem Abschlusspartner und den Uplines zugeordnet.',
                 'referral_package_base' => 'Prozentsatz der Paketprovision.',
                 'referral_save' => 'Empfehlung speichern',
+                'referral_save_failed' => 'Der Empfehlungsanteil konnte nicht gespeichert werden.',
                 'your_commission' => 'Ihre Provision',
                 'your_commission_projected' => 'Ihre Provision (Prognose)',
                 'revenue_to_company' => 'Umsatz für das Unternehmen',

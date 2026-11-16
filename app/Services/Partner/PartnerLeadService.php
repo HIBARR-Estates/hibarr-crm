@@ -203,7 +203,11 @@ class PartnerLeadService
                 'packages:id,value,currency,commission_type,commission_value',
             ])
             ->orderByDesc('created_at')
-            ->get(['id', 'name', 'lead_id', 'value', 'currency_id', 'outcome_status', 'won_at', 'close_date', 'created_at'])
+            ->get([
+                'id', 'name', 'lead_id', 'agent_id', 'company_id', 'value', 'currency_id',
+                'exchange_rate', 'max_commission_percentage', 'referral_pool_rate',
+                'referral_fixed_amount', 'outcome_status', 'won_at', 'close_date', 'created_at',
+            ])
             ->reject(fn (Deal $deal) => $this->paysNothing($deal, $agent, $overrides))
             ->groupBy('lead_id');
     }

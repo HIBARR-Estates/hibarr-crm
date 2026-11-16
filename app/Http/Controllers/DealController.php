@@ -2469,27 +2469,37 @@ class DealController extends AccountBaseController
             || ($editPermission == 'both' && ($deal->added_by == user()->id || $hasTeamAccess))
         ));
 
-        if ($deal->isCommissionLocked()) {
-            return response()->json([
-                'success' => false,
-                'message' => __('messages.dealReferralLockedByCommission'),
-            ], 403);
-        }
-
         $validated = $request->validate([
             'referral_pool_rate' => 'nullable|numeric|min:0|max:100',
             'referral_fixed_amount' => 'nullable|numeric|min:0',
         ]);
 
-        if ($request->exists('referral_pool_rate')) {
-            $deal->referral_pool_rate = $validated['referral_pool_rate'];
-        }
+        $blocked = DB::transaction(function () use ($request, $deal, $validated) {
+            $locked = Deal::query()->whereKey($deal->id)->lockForUpdate()->first();
 
-        if ($request->exists('referral_fixed_amount')) {
-            $deal->referral_fixed_amount = $validated['referral_fixed_amount'];
-        }
+            if (! $locked || $locked->isCommissionLocked()) {
+                return true;
+            }
 
-        $deal->save();
+            if ($request->exists('referral_pool_rate')) {
+                $locked->referral_pool_rate = $validated['referral_pool_rate'];
+            }
+
+            if ($request->exists('referral_fixed_amount')) {
+                $locked->referral_fixed_amount = $validated['referral_fixed_amount'];
+            }
+
+            $locked->save();
+
+            return false;
+        });
+
+        if ($blocked) {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealReferralLockedByCommission'),
+            ], 403);
+        }
 
         return response()->json([
             'status' => 'success',

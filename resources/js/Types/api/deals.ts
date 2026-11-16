@@ -200,7 +200,7 @@ export interface Deal {
                 percentage: number | null;
                 fixed_amount: number | null;
                 applied: "fixed" | "percentage";
-                percentage_amount: number;
+                percentage_amount: number | null;
                 capped: boolean;
                 base: "package" | "pool";
             } | null;

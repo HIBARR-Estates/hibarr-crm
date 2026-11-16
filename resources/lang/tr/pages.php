@@ -9,6 +9,12 @@
 
 return [
 
+    'agents' => [
+        'referral_share' => 'Yönlendirme payı',
+        'referral_share_of_pool' => 'Komisyon havuzunun %{{rate}} kadarı',
+        'referral_share_none' => 'Yönlendirme payı yok',
+    ],
+
     'telephony' => [
         'call' => 'Ara',
         'select_line' => 'Arama için hat seçin',
@@ -1296,6 +1302,7 @@ return [
                 'referral_capped' => 'Şirketin elinde kalan tutarla sınırlandı. Havuzun geri kalanı kapatan temsilciye ve üst hatta ayrıldı.',
                 'referral_package_base' => 'Paket komisyonunun yüzdesi.',
                 'referral_save' => 'Yönlendirmeyi kaydet',
+                'referral_save_failed' => 'Yönlendirme payı kaydedilemedi.',
                 'your_commission' => 'Komisyonunuz',
                 'your_commission_projected' => 'Komisyonunuz (tahmini)',
                 'revenue_to_company' => 'Şirket geliri',
