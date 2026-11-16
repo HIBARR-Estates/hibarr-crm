@@ -54,6 +54,7 @@ import QuickStats from "./components/workspace/QuickStats";
 import WorkspaceCard from "./components/workspace/WorkspaceCard";
 import LeadDossier from "./components/dossier/LeadDossier";
 import DossierQuickActions from "./components/dossier/DossierQuickActions";
+import { leadCallPhones } from "@/lib/leadCallPhones";
 import CommunicationModal from "@/Email/CommunicationModal";
 import { subscribeOpenSourceEmail } from "@/Email/openSourceEmail";
 import type { EmailFollowUpKind, EmailQuickAction } from "@/Email/types";
@@ -164,6 +165,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         sallyInsightsError,
         refetchSallyInsights,
     } = useLeadWorkspace();
+    const callPhones = leadCallPhones(lead);
     // Unlike the other gated tabs, Sally visibility depends on an async client
     // fetch, so it must stay in play until the query settles — otherwise a
     // ?tab=sally deep link is reset to overview before the data arrives.
@@ -765,10 +767,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                 <div className="mb-4">
                                     <DossierQuickActions
                                         leadId={lead.id}
-                                        phone={getDossierFieldValue(
-                                            lead,
-                                            "mobile",
-                                        )}
+                                        phones={callPhones}
+                                        phone={callPhones[0]?.phone}
                                         onLogAction={() =>
                                             setCreateKind("log")
                                         }
@@ -859,7 +859,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             {!quickActionsInMainColumn && (
                                 <DossierQuickActions
                                     leadId={lead.id}
-                                    phone={getDossierFieldValue(lead, "mobile")}
+                                    phones={callPhones}
+                                    phone={callPhones[0]?.phone}
                                     onLogAction={() =>
                                         setCreateKind("log")
                                     }

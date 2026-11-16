@@ -144,7 +144,7 @@ class CallBridgeClient
             'call.missed', 'call_missed' => 'call_missed',
             'call.declined', 'call_declined' => 'call_ended',
             'call.busy', 'call_busy' => 'call_ended',
-            'call.failed', 'call_failed' => 'call_ended',
+            'call.failed', 'call_failed', 'call.connection_failed', 'connection_failed' => 'call_ended',
             'leg.update' => 'leg_update',
             default => ($direction === 'inbound') ? 'incoming_call' : 'outgoing_call',
         };
@@ -168,7 +168,7 @@ class CallBridgeClient
             $status = match ($rawEvent) {
                 'call.declined', 'call_declined' => 'rejected',
                 'call.busy', 'call_busy' => 'busy',
-                'call.failed', 'call_failed' => 'failed',
+                'call.failed', 'call_failed', 'call.connection_failed', 'connection_failed' => 'failed',
                 default => match ($event) {
                     'incoming_call', 'outgoing_call' => 'initiated',
                     'call_answered' => 'answered',

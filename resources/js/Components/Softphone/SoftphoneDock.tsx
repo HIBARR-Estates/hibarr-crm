@@ -38,7 +38,7 @@ type MatchedLead = {
 type RotationUser = {
     id: number;
     name: string;
-    role: "owner" | "pool";
+    role: "owner" | "pool" | "default_fallback" | "admin_fallback";
     priority?: number;
 };
 
@@ -54,6 +54,12 @@ type CallRouting = {
     can_ring: boolean;
     pool_user_ids: number[];
     rotation_users?: RotationUser[];
+    /** Server-held position in `rotation_users`; equal to its length once the rotation is exhausted. */
+    rotation_index?: number;
+    /** Seconds left in the current rotation step, by the server clock. */
+    slot_remaining_seconds?: number;
+    /** The line is at its concurrent-call limit, so this call rings nobody. */
+    capacity_reached?: boolean;
     passed_user_ids?: number[];
     fallback_seconds: number;
     fallback_voice_message?: {
@@ -189,20 +195,46 @@ export default function SoftphoneDock({
         answeredByUserId: number | null;
     } | null>(null);
     const fallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    /**
+     * Where the server says the call is in its rotation. Every agent's browser
+     * follows this instead of counting on its own, so a browser that joins
+     * late or misses a poll still agrees with the others on who rings now.
+     */
+    const serverSlotRef = useRef<{ index: number; deadline: number } | null>(null);
+    const followServerRotation = useCallback((data: CallRouting | null) => {
+        if (typeof data?.rotation_index !== "number") {
+            return;
+        }
+        const index = data.rotation_index;
+        serverSlotRef.current = {
+            index,
+            deadline:
+                Date.now() +
+                (data.slot_remaining_seconds ?? data.fallback_seconds) * 1000,
+        };
+        // Never step back: the local timer may reach the next step a moment
+        // before the server reports it.
+        setRotationIndex((prev) => Math.max(prev, index));
+    }, []);
     const routeInitializedCallIdRef = useRef<string | null>(null);
     // Guards against double-logging when Answer is clicked in the dock while the island alert for the same call is also on screen.
     const inboundLoggedRef = useRef<string | null>(null);
 
+    const isOnCallList = Boolean((props.auth?.user as any)?.is_on_call_list ?? false);
     const [canReceiveCalls, setCanReceiveCalls] = useState<boolean>(() => {
         return (props.auth?.user as any)?.can_receive_calls ?? true;
     });
+    const lastToggledAtRef = useRef<number>(0);
     const [togglingReceiveCalls, setTogglingReceiveCalls] = useState(false);
     const [isPlayingVoiceMessage, setIsPlayingVoiceMessage] = useState(false);
     const [voiceMessageStatus, setVoiceMessageStatus] = useState<string | null>(null);
 
     useEffect(() => {
         if (typeof inboundRoute?.user_can_receive_calls === "boolean") {
-            setCanReceiveCalls(inboundRoute.user_can_receive_calls);
+            const isRecentToggle = Date.now() - lastToggledAtRef.current < 5000;
+            if (!isRecentToggle) {
+                setCanReceiveCalls(inboundRoute.user_can_receive_calls);
+            }
         }
     }, [inboundRoute?.user_can_receive_calls]);
 
@@ -210,7 +242,9 @@ export default function SoftphoneDock({
         const onAvailabilityChanged = (event: Event) => {
             const ce = event as CustomEvent<{ can_receive_calls: boolean }>;
             if (typeof ce.detail?.can_receive_calls === "boolean") {
+                lastToggledAtRef.current = Date.now();
                 setCanReceiveCalls(ce.detail.can_receive_calls);
+                setInboundRoute((prev) => (prev ? { ...prev, user_can_receive_calls: ce.detail.can_receive_calls } : prev));
             }
         };
         window.addEventListener("softphone:availability-changed", onAvailabilityChanged);
@@ -219,6 +253,9 @@ export default function SoftphoneDock({
 
     const handleToggleReceiveCalls = async () => {
         const nextVal = !canReceiveCalls;
+        lastToggledAtRef.current = Date.now();
+        setCanReceiveCalls(nextVal);
+        setInboundRoute((prev) => (prev ? { ...prev, user_can_receive_calls: nextVal } : prev));
         setTogglingReceiveCalls(true);
         try {
             await axios.post(
@@ -226,7 +263,6 @@ export default function SoftphoneDock({
                 { can_receive_calls: nextVal },
                 { headers: { Accept: "application/json" } },
             );
-            setCanReceiveCalls(nextVal);
             if (props.auth?.user) {
                 (props.auth.user as any).can_receive_calls = nextVal;
             }
@@ -236,7 +272,10 @@ export default function SoftphoneDock({
                 }),
             );
         } catch {
-            // best-effort
+            // rollback on failure
+            lastToggledAtRef.current = 0;
+            setCanReceiveCalls(!nextVal);
+            setInboundRoute((prev) => (prev ? { ...prev, user_can_receive_calls: !nextVal } : prev));
         } finally {
             setTogglingReceiveCalls(false);
         }
@@ -330,6 +369,13 @@ export default function SoftphoneDock({
         return callRefRef.current;
     }, [activeCall?.id]);
 
+    const lastActiveCallRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (callRef) {
+            lastActiveCallRef.current = callRef;
+        }
+    }, [callRef]);
+
     /** Why this call reached this agent. Shown in the ringing popup and stored on the recording so the audio can be traced back to its cause. */
     const callRoutingReason = useMemo(() => {
         if (activeCall?.direction !== "inbound") {
@@ -365,26 +411,19 @@ export default function SoftphoneDock({
         (activeCall !== null && passedCallId === activeCall.id) ||
         passedUserIds.includes(currentUserId);
 
-    // Owner-first / step-by-step rotation: while a specific user in rotationUsers is active, only that user rings (plus admins once the call has been forwarded). Once all individual rotation steps have timed out, all eligible pool agents and admins ring.
-    const isCurrentRotationSession =
-        inboundRoute === null ||
-        rotationUsers.length === 0 ||
-        (currentRotationTarget !== null
-            ? Number(currentRotationTarget.id) === currentUserId
-            : true);
-
-    const isEligibleSession =
-        inboundRoute === null ||
-        (currentRotationTarget !== null &&
-            Number(currentRotationTarget.id) === currentUserId) ||
-        inboundRoute.can_ring ||
-        isAdmin;
+    // Step-by-step rotation: only the one user at rotationIndex rings. Nothing
+    // rings until the route resolves, so users outside the rotation never do.
+    const isMyRotationTurn =
+        inboundRoute !== null &&
+        inboundRoute.can_ring &&
+        currentRotationTarget !== null &&
+        Number(currentRotationTarget.id) === currentUserId;
 
     const ringingInbound =
         activeCall?.phase === "inbound" &&
+        canReceiveCalls &&
         !hasPassedCurrentCall &&
-        isCurrentRotationSession &&
-        isEligibleSession;
+        isMyRotationTurn;
 
     useEffect(() => {
         try {
@@ -555,6 +594,7 @@ export default function SoftphoneDock({
         if (call === null) {
             matchedLeadRef.current = null;
             routeInitializedCallIdRef.current = null;
+            serverSlotRef.current = null;
             setMatchedLead(null);
             setMatchCount(null);
             setInboundRoute(null);
@@ -572,6 +612,7 @@ export default function SoftphoneDock({
             setLastInboundPhone(phone);
             if (routeInitializedCallIdRef.current !== call.id) {
                 routeInitializedCallIdRef.current = call.id;
+                serverSlotRef.current = null;
                 setRotationIndex(0);
                 setPassedCallId(null);
                 if (isActiveTab) {
@@ -637,11 +678,20 @@ export default function SoftphoneDock({
                 }
                 if (call.direction === "inbound") {
                     // Routing only applies to inbound calls.
+                    followServerRotation(data);
                     setInboundRoute((prev) => {
                         if (prev === null) {
                             setRoutingMode(data?.route === "owner" ? "owner" : "all");
                         }
-                        return data;
+                        if (!data) return null;
+                        const isRecentToggle = Date.now() - lastToggledAtRef.current < 5000;
+                        const effectiveCanReceive = isRecentToggle
+                            ? canReceiveCalls
+                            : (typeof data.user_can_receive_calls === "boolean" ? data.user_can_receive_calls : canReceiveCalls);
+                        return {
+                            ...data,
+                            user_can_receive_calls: effectiveCanReceive,
+                        };
                     });
                 }
                 const lead = data?.matched && data.lead_id ? {
@@ -717,6 +767,14 @@ export default function SoftphoneDock({
     useEffect(() => {
         if (!activeCall || activeCall.phase !== "inbound" || !hasInboundRoute) return;
 
+        // How long this step rings: until the server's shared deadline when it
+        // tracks the call, otherwise a full window from now.
+        const serverSlot = serverSlotRef.current;
+        const slotMs =
+            serverSlot !== null && serverSlot.index === rotationIndex
+                ? Math.max(250, serverSlot.deadline - Date.now())
+                : Math.max(1, routeFallbackSeconds ?? 20) * 1000;
+
         if (rotationIndex >= rotationUsers.length) {
             setRoutingMode("pool");
 
@@ -756,7 +814,7 @@ export default function SoftphoneDock({
                 stopRinging();
                 stopAll();
                 void reject();
-            }, Math.max(1, routeFallbackSeconds ?? 20) * 1000);
+            }, slotMs);
 
             return () => {
                 if (fallbackRef.current) {
@@ -792,7 +850,7 @@ export default function SoftphoneDock({
                 }
             }
             setRotationIndex((prev) => Math.min(rotationUsers.length, prev + 1));
-        }, Math.max(1, routeFallbackSeconds ?? 20) * 1000);
+        }, slotMs);
 
         return () => {
             if (fallbackRef.current) {
@@ -852,12 +910,19 @@ export default function SoftphoneDock({
             });
             const updated = res.data?.data as CallRouting | null;
             if (updated) {
-                setInboundRoute(updated);
+                followServerRotation(updated);
+                const isRecentToggle = Date.now() - lastToggledAtRef.current < 5000;
+                setInboundRoute({
+                    ...updated,
+                    user_can_receive_calls: isRecentToggle
+                        ? canReceiveCalls
+                        : (typeof updated.user_can_receive_calls === "boolean" ? updated.user_can_receive_calls : canReceiveCalls),
+                });
             }
         } catch {
             // Local pass already hid the call on this browser.
         }
-    }, [activeCall, stopRinging, activeDeviceId, callRef]);
+    }, [activeCall, stopRinging, activeDeviceId, callRef, followServerRotation]);
 
     const handleDeclineInbound = useCallback(async () => {
         if (!activeCall) return;
@@ -935,6 +1000,30 @@ export default function SoftphoneDock({
         };
     } | null>(null);
     const endedLoggedRef = useRef<string | null>(null);
+
+    // Free this agent's slot on the line whenever their call is over, however
+    // it ended (hung up, failed, never connected). Only the tab that owns the
+    // call does it; a call that never took a slot makes this a no-op.
+    const lineSlotDeviceRef = useRef<number | null>(null);
+    useEffect(() => {
+        if (!isActiveTab) {
+            lineSlotDeviceRef.current = null;
+            return;
+        }
+        if (activeCall) {
+            lineSlotDeviceRef.current = activeDeviceId ?? null;
+            return;
+        }
+        const deviceId = lineSlotDeviceRef.current;
+        lineSlotDeviceRef.current = null;
+        if (deviceId !== null) {
+            void axios
+                .post(route("telephony.softphone.devices.capacity.release", deviceId))
+                .catch(() => {
+                    // The slot expires on its own if this never arrives.
+                });
+        }
+    }, [activeCall?.id, activeDeviceId, isActiveTab]);
     useEffect(() => {
         // Every open tab mounts the dock and passive tabs mirror the owner's
         // call; only the tab that owns the call logs it, or each extra tab
@@ -1028,7 +1117,7 @@ export default function SoftphoneDock({
                 lastCallHadLeadRef.current = true;
             }
         }
-    }, [activeCall?.id, activeCall?.context?.leadId, matchedLead?.id, matchCount, inboundRoute?.matched]);
+    }, [activeCall, matchedLead?.id, matchCount, inboundRoute?.matched]);
 
     useEffect(() => {
         if (activeCall === null && prevCallRef.current !== null) {
@@ -1044,10 +1133,16 @@ export default function SoftphoneDock({
                 inboundNoticeDetails?.isAnsweredElsewhere ||
                 state.callFailure?.code === "answered_elsewhere";
 
-            // If confirmed unmatched on an inbound call, and call wasn't answered elsewhere by someone else
+            const wasAnsweredByMe =
+                endedCall.answeredAt !== null ||
+                endedCall.connectedAt !== null ||
+                endedCall.phase === "active";
+
+            // Only show the post-call Create Lead prompt to the user who actually answered the call
             if (
                 isConfirmedUnmatched &&
                 endedCall.direction === "inbound" &&
+                wasAnsweredByMe &&
                 !hadLead &&
                 !isAnsweredElsewhere &&
                 endedCall.peer &&
@@ -1413,12 +1508,20 @@ export default function SoftphoneDock({
                     ? { event: "call.missed", status: "missed" }
                     : { event: "call.failed", status: "failed" });
 
+        const effectiveCallRef =
+            callRef ||
+            lastActiveCallRef.current ||
+            (typeof crypto !== "undefined" && "randomUUID" in crypto
+                ? crypto.randomUUID()
+                : `call-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+
         const fwd = forwardedInfoRef.current;
         void axios
             .post(route("telephony.softphone.events.store"), {
                 phone: callFailure.peer,
                 device_id: activeDeviceId,
-                ...(callRef ? { call_id: callRef, call_ref: callRef } : {}),
+                call_id: effectiveCallRef,
+                call_ref: effectiveCallRef,
                 ...(leadId ? { entity_type: "lead", entity_id: leadId } : {}),
                 direction: callFailure.direction,
                 failure_reason: callFailure.code,
@@ -1465,6 +1568,7 @@ export default function SoftphoneDock({
                 ? "fair"
                 : "good";
 
+    const connectingLine = devices.find((d) => d.id === activeDeviceId);
     const statusDotClass =
         state.registration === "registered"
             ? "sp__dot sp__dot--registered"
@@ -1682,7 +1786,11 @@ export default function SoftphoneDock({
                             </p>
                         )}
                         {state.registration === "registering" && (
-                            <p className="sp__note">Connecting to sipgate…</p>
+                            <p className="sp__note">
+                                {t("pages.softphone.connecting_to_provider", {
+                                    provider: connectingLine?.provider || connectingLine?.label || "",
+                                })}
+                            </p>
                         )}
                         {devices.length === 0 && (
                             <p className="sp__note">No phone lines configured — add one in Settings.</p>
@@ -1794,38 +1902,40 @@ export default function SoftphoneDock({
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         {headerTitle}
-                        <button
-                            type="button"
-                            onClick={() => void handleToggleReceiveCalls()}
-                            disabled={togglingReceiveCalls}
-                            title={canReceiveCalls ? "You are receiving calls. Click to pause." : "Incoming calls paused. Click to receive calls."}
-                            style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 4,
-                                fontSize: 11,
-                                padding: "2px 8px",
-                                borderRadius: 999,
-                                border: "1px solid",
-                                borderColor: canReceiveCalls ? "rgba(16, 185, 129, 0.4)" : "rgba(148, 163, 184, 0.4)",
-                                background: canReceiveCalls ? "rgba(16, 185, 129, 0.1)" : "rgba(148, 163, 184, 0.1)",
-                                color: canReceiveCalls ? "#10b981" : "#94a3b8",
-                                cursor: "pointer",
-                                fontWeight: 600,
-                                marginLeft: "auto",
-                                marginRight: 6,
-                            }}
-                        >
-                            <span
+                        {isOnCallList && (
+                            <button
+                                type="button"
+                                onClick={() => void handleToggleReceiveCalls()}
+                                disabled={togglingReceiveCalls}
+                                title={canReceiveCalls ? "You are receiving calls. Click to pause." : "Incoming calls paused. Click to receive calls."}
                                 style={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: "50%",
-                                    background: canReceiveCalls ? "#10b981" : "#94a3b8",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    fontSize: 11,
+                                    padding: "2px 8px",
+                                    borderRadius: 999,
+                                    border: "1px solid",
+                                    borderColor: canReceiveCalls ? "rgba(16, 185, 129, 0.4)" : "rgba(148, 163, 184, 0.4)",
+                                    background: canReceiveCalls ? "rgba(16, 185, 129, 0.1)" : "rgba(148, 163, 184, 0.1)",
+                                    color: canReceiveCalls ? "#10b981" : "#94a3b8",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                    marginLeft: "auto",
+                                    marginRight: 6,
                                 }}
-                            />
-                            {canReceiveCalls ? "Calls ON" : "Calls OFF"}
-                        </button>
+                            >
+                                <span
+                                    style={{
+                                        width: 6,
+                                        height: 6,
+                                        borderRadius: "50%",
+                                        background: canReceiveCalls ? "#10b981" : "#94a3b8",
+                                    }}
+                                />
+                                {canReceiveCalls ? "Calls ON" : "Calls OFF"}
+                            </button>
+                        )}
                         <span className="sp__signal" data-quality={quality} title={`Connection: ${connectionQuality}`}>
                             <i />
                             <i />
@@ -1916,38 +2026,40 @@ export default function SoftphoneDock({
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         {headerTitle}
-                        <button
-                            type="button"
-                            onClick={() => void handleToggleReceiveCalls()}
-                            disabled={togglingReceiveCalls}
-                            title={canReceiveCalls ? "You are receiving calls. Click to pause." : "Incoming calls paused. Click to receive calls."}
-                            style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 4,
-                                fontSize: 11,
-                                padding: "2px 8px",
-                                borderRadius: 999,
-                                border: "1px solid",
-                                borderColor: canReceiveCalls ? "rgba(16, 185, 129, 0.4)" : "rgba(148, 163, 184, 0.4)",
-                                background: canReceiveCalls ? "rgba(16, 185, 129, 0.1)" : "rgba(148, 163, 184, 0.1)",
-                                color: canReceiveCalls ? "#10b981" : "#94a3b8",
-                                cursor: "pointer",
-                                fontWeight: 600,
-                                marginLeft: "auto",
-                                marginRight: 6,
-                            }}
-                        >
-                            <span
+                        {isOnCallList && (
+                            <button
+                                type="button"
+                                onClick={() => void handleToggleReceiveCalls()}
+                                disabled={togglingReceiveCalls}
+                                title={canReceiveCalls ? "You are receiving calls. Click to pause." : "Incoming calls paused. Click to receive calls."}
                                 style={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: "50%",
-                                    background: canReceiveCalls ? "#10b981" : "#94a3b8",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    fontSize: 11,
+                                    padding: "2px 8px",
+                                    borderRadius: 999,
+                                    border: "1px solid",
+                                    borderColor: canReceiveCalls ? "rgba(16, 185, 129, 0.4)" : "rgba(148, 163, 184, 0.4)",
+                                    background: canReceiveCalls ? "rgba(16, 185, 129, 0.1)" : "rgba(148, 163, 184, 0.1)",
+                                    color: canReceiveCalls ? "#10b981" : "#94a3b8",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                    marginLeft: "auto",
+                                    marginRight: 6,
                                 }}
-                            />
-                            {canReceiveCalls ? "Calls ON" : "Calls OFF"}
-                        </button>
+                            >
+                                <span
+                                    style={{
+                                        width: 6,
+                                        height: 6,
+                                        borderRadius: "50%",
+                                        background: canReceiveCalls ? "#10b981" : "#94a3b8",
+                                    }}
+                                />
+                                {canReceiveCalls ? "Calls ON" : "Calls OFF"}
+                            </button>
+                        )}
                         <span className="sp__signal" data-quality={quality} title={`Connection: ${connectionQuality}`}>
                             <i />
                             <i />

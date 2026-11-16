@@ -35,6 +35,7 @@ export default function AgentCallAvailabilityToggle({
         props.auth?.user,
         props.auth?.permissions,
     );
+    const isOnCallList = Boolean((props.auth?.user as any)?.is_on_call_list ?? false);
 
     const initialCanReceive = Boolean(props.auth?.user?.can_receive_calls ?? true);
     const [canReceive, setCanReceive] = useState<boolean>(initialCanReceive);
@@ -59,7 +60,7 @@ export default function AgentCallAvailabilityToggle({
         return () => window.removeEventListener("softphone:availability-changed", onAvailabilityChanged);
     }, []);
 
-    if (!isSoftphoneEnabled || !hasSoftphonePermission) {
+    if (!isSoftphoneEnabled || !hasSoftphonePermission || !isOnCallList) {
         return null;
     }
 

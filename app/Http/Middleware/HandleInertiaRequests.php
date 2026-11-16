@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Email\EmailFeature;
 use App\Models\UserNotificationAlertSetting;
+use App\Models\SoftphoneCallPoolAgent;
 use App\Models\UserProductTour;
 use App\Services\EmployeeImpersonationService;
 use App\Services\I18nTranslationService;
@@ -335,6 +336,16 @@ class HandleInertiaRequests extends Middleware
             'seen_product_tours',
             UserProductTour::seenTourIdsForUser((int) $user->id)
         );
+
+        $isOnCallList = false;
+        if (! empty($user->company_id)) {
+            try {
+                $isOnCallList = SoftphoneCallPoolAgent::isUserEligibleToReceiveCalls((int) $user->company_id, (int) $user->id);
+            } catch (\Throwable) {
+                $isOnCallList = false;
+            }
+        }
+        $shared->setAttribute('is_on_call_list', $isOnCallList);
 
         return $shared;
     }

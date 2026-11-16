@@ -27,6 +27,7 @@ class SoftphoneDevice extends BaseModel
         'is_default',
         // false = disabled: no credentials, so the line can neither call nor ring.
         'is_active',
+        'max_concurrent_calls',
         'added_by',
         'last_updated_by',
     ];
@@ -39,5 +40,6 @@ class SoftphoneDevice extends BaseModel
         'authorization_password' => 'encrypted',
         'is_default' => 'boolean',
         'is_active' => 'boolean',
+        'max_concurrent_calls' => 'integer',
     ];
 }

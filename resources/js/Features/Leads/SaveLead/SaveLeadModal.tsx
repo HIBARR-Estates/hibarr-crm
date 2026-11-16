@@ -170,10 +170,12 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         if (!mobile) return "";
         if (typeof mobile === "object") return mobile;
         if (typeof mobile === "string") {
+            const trimmed = mobile.trim();
+            if (!trimmed) return "";
             try {
-                const parsed = JSON.parse(mobile);
+                const parsed = JSON.parse(trimmed);
                 if (typeof parsed === "object" && parsed !== null) {
-                    if ("countryCode" in parsed && "phoneNumber" in parsed) {
+                    if ("countryCode" in parsed || "phoneNumber" in parsed) {
                         return parsed;
                     }
                     return "";
@@ -181,6 +183,22 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
             } catch {
                 // Not JSON, treat as plain phone string
             }
+            const digits = trimmed.replace(/\D/g, "");
+            if (!digits) return "";
+            if (trimmed.startsWith("+") || trimmed.startsWith("00")) {
+                const intl = trimmed.startsWith("00") ? digits.replace(/^00/, "") : digits;
+                return intl ? `+${intl}` : "";
+            }
+            if (digits.length === 11 && digits.startsWith("05")) {
+                return `+90${digits.slice(1)}`;
+            }
+            if (digits.length === 10 && digits.startsWith("5")) {
+                return `+90${digits}`;
+            }
+            if (digits.length >= 11 && !digits.startsWith("0")) {
+                return `+${digits}`;
+            }
+            return trimmed;
         }
         return mobile;
     };

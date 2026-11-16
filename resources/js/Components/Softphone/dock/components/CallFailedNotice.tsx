@@ -104,7 +104,11 @@ export default function CallFailedNotice({
                 <div className="sp__avatar sp__avatar--failed" aria-hidden="true">
                     <PhoneOff size={30} strokeWidth={1.7} />
                 </div>
-                <h2 className="sp__name">Call failed</h2>
+                <h2 className="sp__name">
+                    {failure.code === "connection_failed"
+                        ? t("pages.softphone.connection_failed")
+                        : "Call failed"}
+                </h2>
                 <p className="sp__number">
                     {failure.direction === "outbound" ? "To" : "From"}{" "}
                     {failure.context?.leadName || failure.peer}

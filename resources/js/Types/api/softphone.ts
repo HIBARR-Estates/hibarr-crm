@@ -5,6 +5,9 @@ export interface SoftphoneConfig {
     authorization_username: string | null;
     authorization_password: string;
     display_name: string | null;
+    provider?: string | null;
+    stun_url?: string | null;
+    max_concurrent_calls?: number;
 }
 
 /** A device/line as listed for the picker + settings (no secrets). */
@@ -14,6 +17,10 @@ export interface SoftphoneDeviceSummary {
     is_default: boolean;
     /** false = disabled: no credentials, cannot place or receive calls. */
     is_active?: boolean;
+    /** Maximum concurrent calls allowed on this line (defaults to 2). */
+    max_concurrent_calls?: number;
+    provider?: string | null;
+    phone_number?: string | null;
 }
 
 export interface SoftphoneDevicesResponse {
@@ -35,6 +42,7 @@ export interface SoftphoneDeviceDetails extends SoftphoneDeviceSummary {
     authorization_username: string | null;
     display_name: string | null;
     has_password: boolean;
+    max_concurrent_calls?: number;
 }
 
 /** Full credentials for one device so the browser can register it. */
@@ -43,6 +51,7 @@ export interface SoftphoneDeviceCredentials extends SoftphoneConfig {
     label: string;
     /** SIP platform the line belongs to (e.g. sipgate), when known. */
     provider: string | null;
+    max_concurrent_calls?: number;
 }
 
 export interface SoftphoneDeviceCredentialsResponse {
@@ -131,6 +140,7 @@ export type SoftphoneCallFailureCode =
     | "terminated"
     | "answered_elsewhere"
     | "disconnected"
+    | "connection_failed"
     | "unknown";
 
 /**

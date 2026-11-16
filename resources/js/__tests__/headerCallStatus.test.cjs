@@ -204,16 +204,19 @@ describe("Header Call Status & Access Visibility Specs", () => {
             if (!matchingLeads || matchingLeads.length === 0) {
                 return null;
             }
-            // Prefer match with assigned lead owner
-            const lead = matchingLeads.find((l) => l.lead_owner && l.owner) || matchingLeads[0];
-            const owner = lead.owner;
-            if (
-                owner &&
-                owner.status === "active" &&
-                owner.login !== "disable" &&
-                (owner.can_receive_calls ?? true)
-            ) {
-                return { id: owner.id, name: owner.name };
+            // Candidate lead whose assigned owner is active, available, and holds softphone permission
+            for (const lead of matchingLeads) {
+                if (!lead.lead_owner || !lead.owner) continue;
+                const owner = lead.owner;
+                const hasPerm = owner.role === "admin" || (owner.has_softphone_permission ?? true);
+                if (
+                    owner.status === "active" &&
+                    owner.login !== "disable" &&
+                    (owner.can_receive_calls ?? true) &&
+                    hasPerm
+                ) {
+                    return { id: owner.id, name: owner.name };
+                }
             }
             return null;
         }
@@ -311,6 +314,193 @@ describe("Header Call Status & Access Visibility Specs", () => {
             assert.equal(sequence[0].role, "owner"); // Kept as owner at index 0
             assert.equal(sequence[1].id, 51);
         });
+
+        test("Tier 4 escalation only includes admins explicitly on the fallback list, not all company admins", () => {
+            const allCompanyAdmins = [
+                { id: 1, name: "Admin 1 (Not on list)", role: "admin" },
+                { id: 2, name: "Admin 2 (On list)", role: "admin" },
+                { id: 3, name: "Admin 3 (Not on list)", role: "admin" },
+            ];
+            const configuredTier4List = [
+                { id: 2, name: "Admin 2 (On list)", role: "admin_fallback" },
+            ];
+            const lineAgents = [{ id: 10, name: "Agent Bob", role: "line" }];
+            const defaultFallback = [{ id: 20, name: "Fallback Dan", role: "default_fallback" }];
+
+            // Sequence must ONLY include the configured Tier 4 admin (id 2), not id 1 or 3
+            const sequence = buildRotationSequence(null, lineAgents, defaultFallback, configuredTier4List);
+            assert.equal(sequence.length, 3);
+            assert.equal(sequence[0].id, 10);
+            assert.equal(sequence[1].id, 20);
+            assert.equal(sequence[2].id, 2);
+            assert.equal(sequence[2].role, "admin_fallback");
+
+            const sequenceIds = sequence.map((u) => u.id);
+            assert.equal(sequenceIds.includes(1), false);
+            assert.equal(sequenceIds.includes(3), false);
+        });
+
+        test("When Tier 4 fallback list is empty, sequence ends at Tier 3 and unlisted admins do not ring", () => {
+            const lineAgents = [{ id: 10, name: "Agent Bob", role: "line" }];
+            const defaultFallback = [{ id: 20, name: "Fallback Dan", role: "default_fallback" }];
+            const emptyTier4List = [];
+
+            const sequence = buildRotationSequence(null, lineAgents, defaultFallback, emptyTier4List);
+            assert.equal(sequence.length, 2);
+
+            const sequenceIds = sequence.map((u) => u.id);
+            // Any admin id (e.g. 1) not on the list must have can_ring = false
+            const adminId = 1;
+            const canRing = sequenceIds.includes(adminId);
+            assert.equal(canRing, false);
+        });
+
+        test("Lead owner without softphone permission does NOT route as Tier 1 owner; falls back to round-robin pool", () => {
+            const matchingLeads = [
+                {
+                    id: 401,
+                    lead_owner: 99,
+                    owner: {
+                        id: 99,
+                        name: "Perm-less Owner",
+                        status: "active",
+                        login: "enable",
+                        can_receive_calls: true,
+                        has_softphone_permission: false,
+                        role: "employee",
+                    },
+                },
+            ];
+            const lineAgents = [
+                { id: 10, name: "Line Agent Bob", role: "line" },
+                { id: 11, name: "Line Agent Carol", role: "line" },
+            ];
+            const defaultFallback = [{ id: 20, name: "Fallback Agent Dan", role: "default_fallback" }];
+
+            const owner = resolveLeadOwnerFromMatches(matchingLeads);
+            assert.equal(owner, null);
+
+            const sequence = buildRotationSequence(owner, lineAgents, defaultFallback, []);
+            assert.equal(sequence.length, 3);
+            assert.equal(sequence[0].id, 10);
+            assert.equal(sequence[0].role, "line");
+            assert.equal(sequence[1].id, 11);
+            assert.equal(sequence[2].id, 20);
+            assert.equal(sequence[2].role, "default_fallback");
+        });
+    });
+
+    describe("Default Fallback Tier User Eligibility", () => {
+        function isEligibleForDefaultFallback(user) {
+            return (
+                user &&
+                user.status === "active" &&
+                user.login !== "disable" &&
+                !(user.roles ?? []).some((r) => r === "client" || r?.name === "client")
+            );
+        }
+
+        test("Any active company user (non-client) is eligible for default fallback, even without softphone permission", () => {
+            const regularEmployee = {
+                id: 5,
+                name: "Regular Staff",
+                status: "active",
+                login: "enable",
+                roles: ["employee"],
+                has_softphone_permission: false,
+            };
+            assert.equal(isEligibleForDefaultFallback(regularEmployee), true);
+        });
+
+        test("Client user is NOT eligible for default fallback list", () => {
+            const clientUser = {
+                id: 15,
+                name: "Client John",
+                status: "active",
+                login: "enable",
+                roles: ["client"],
+            };
+            assert.equal(isEligibleForDefaultFallback(clientUser), false);
+        });
+
+        test("Inactive or disabled user is NOT eligible for default fallback list", () => {
+            const inactiveUser = {
+                id: 6,
+                name: "Inactive Staff",
+                status: "inactive",
+                login: "enable",
+                roles: ["employee"],
+            };
+            const disabledUser = {
+                id: 7,
+                name: "Disabled Staff",
+                status: "active",
+                login: "disable",
+                roles: ["employee"],
+            };
+            assert.equal(isEligibleForDefaultFallback(inactiveUser), false);
+            assert.equal(isEligibleForDefaultFallback(disabledUser), false);
+        });
+    });
+
+    describe("Create Contact Modal Phone Number Normalization & Prefill", () => {
+        function parseAndNormalizeMobile(mobile) {
+            if (!mobile) return "";
+            if (typeof mobile === "object") return mobile;
+            if (typeof mobile === "string") {
+                const trimmed = mobile.trim();
+                if (!trimmed) return "";
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    if (typeof parsed === "object" && parsed !== null) {
+                        if ("countryCode" in parsed || "phoneNumber" in parsed) {
+                            return parsed;
+                        }
+                        return "";
+                    }
+                } catch {}
+                const digits = trimmed.replace(/\D/g, "");
+                if (!digits) return "";
+                if (trimmed.startsWith("+") || trimmed.startsWith("00")) {
+                    const intl = trimmed.startsWith("00") ? digits.replace(/^00/, "") : digits;
+                    return intl ? `+${intl}` : "";
+                }
+                if (digits.length === 11 && digits.startsWith("05")) {
+                    return `+90${digits.slice(1)}`;
+                }
+                if (digits.length === 10 && digits.startsWith("5")) {
+                    return `+90${digits}`;
+                }
+                if (digits.length >= 11 && !digits.startsWith("0")) {
+                    return `+${digits}`;
+                }
+                return trimmed;
+            }
+            return mobile;
+        }
+
+        test("Normalizes local Cyprus/Turkey 0533 number with trunk 0 to +90533 E.164", () => {
+            assert.equal(parseAndNormalizeMobile("05338773001"), "+905338773001");
+        });
+
+        test("Normalizes 10-digit national number 533 to +90533 E.164", () => {
+            assert.equal(parseAndNormalizeMobile("5338773001"), "+905338773001");
+        });
+
+        test("Normalizes international 00-prefixed number to + prefix", () => {
+            assert.equal(parseAndNormalizeMobile("00447911123456"), "+447911123456");
+        });
+
+        test("Preserves valid E.164 numbers", () => {
+            assert.equal(parseAndNormalizeMobile("+905338773001"), "+905338773001");
+            assert.equal(parseAndNormalizeMobile("+14155552671"), "+14155552671");
+        });
+
+        test("Preserves parsed JSON phone objects from antd-phone-input", () => {
+            const json = JSON.stringify({ countryCode: 90, phoneNumber: "5338773001" });
+            const result = parseAndNormalizeMobile(json);
+            assert.deepEqual(result, { countryCode: 90, phoneNumber: "5338773001" });
+        });
     });
 
     describe("Call Availability Toggle Softphone Permission Gate", () => {
@@ -335,28 +525,34 @@ describe("Header Call Status & Access Visibility Specs", () => {
         }
 
         function shouldRenderCallAvailabilityToggle(isSoftphoneEnabled, user, permissions) {
-            return Boolean(isSoftphoneEnabled && hasAnySoftphonePermission(user, permissions));
+            const isOnCallList = Boolean(user?.is_on_call_list ?? false);
+            return Boolean(isSoftphoneEnabled && hasAnySoftphonePermission(user, permissions) && isOnCallList);
         }
 
-        test("Toggle renders for Admin users when softphone enabled", () => {
-            const adminUser = { roles: [{ name: "admin" }] };
+        test("Toggle renders for Admin users when softphone enabled and on call list", () => {
+            const adminUser = { roles: [{ name: "admin" }], is_on_call_list: true };
             assert.equal(shouldRenderCallAvailabilityToggle(true, adminUser, {}), true);
         });
 
-        test("Toggle renders for users with make_softphone_calls = 'all'", () => {
-            const agentUser = { roles: [{ name: "employee" }] };
+        test("Toggle is hidden for Admin users when not on any call list", () => {
+            const adminUser = { roles: [{ name: "admin" }], is_on_call_list: false };
+            assert.equal(shouldRenderCallAvailabilityToggle(true, adminUser, {}), false);
+        });
+
+        test("Toggle renders for users with make_softphone_calls = 'all' when on call list", () => {
+            const agentUser = { roles: [{ name: "employee" }], is_on_call_list: true };
             const permissions = { make_softphone_calls: "all" };
             assert.equal(shouldRenderCallAvailabilityToggle(true, agentUser, permissions), true);
         });
 
-        test("Toggle renders for users with make_softphone_calls = 'added'", () => {
-            const agentUser = { roles: [{ name: "employee" }] };
+        test("Toggle renders for users with make_softphone_calls = 'added' when on call list", () => {
+            const agentUser = { roles: [{ name: "employee" }], is_on_call_list: true };
             const permissions = { make_softphone_calls: "added" };
             assert.equal(shouldRenderCallAvailabilityToggle(true, agentUser, permissions), true);
         });
 
-        test("Toggle renders for users with manage_calls = 'all'", () => {
-            const managerUser = { roles: [{ name: "manager" }] };
+        test("Toggle renders for users with manage_calls = 'all' when on call list", () => {
+            const managerUser = { roles: [{ name: "manager" }], is_on_call_list: true };
             const permissions = { manage_calls: "all" };
             assert.equal(shouldRenderCallAvailabilityToggle(true, managerUser, permissions), true);
         });
@@ -377,6 +573,145 @@ describe("Header Call Status & Access Visibility Specs", () => {
             const adminUser = { roles: [{ name: "admin" }] };
             const permissions = { make_softphone_calls: "all" };
             assert.equal(shouldRenderCallAvailabilityToggle(false, adminUser, permissions), false);
+        });
+    });
+
+    describe("Inbound Session Ring Eligibility", () => {
+        function computeIsEligibleSession(userCanReceiveCalls, inboundRoute, currentRotationTarget, currentUserId) {
+            return Boolean(
+                userCanReceiveCalls &&
+                (inboundRoute === null ||
+                    (currentRotationTarget !== null &&
+                        Number(currentRotationTarget.id) === currentUserId) ||
+                    inboundRoute.can_ring)
+            );
+        }
+
+        test("Admin with can_receive_calls = false does NOT ring", () => {
+            const inboundRoute = { can_ring: true, rotation_users: [{ id: 1 }] };
+            const isEligible = computeIsEligibleSession(false, inboundRoute, { id: 1 }, 1);
+            assert.equal(isEligible, false);
+        });
+
+        test("Admin not on the rotation list does NOT ring even if can_receive_calls = true", () => {
+            const inboundRoute = { can_ring: false, rotation_users: [{ id: 2 }] };
+            const isEligible = computeIsEligibleSession(true, inboundRoute, { id: 2 }, 1);
+            assert.equal(isEligible, false);
+        });
+
+        test("Admin on the list rings during their turn", () => {
+            const inboundRoute = { can_ring: true, rotation_users: [{ id: 1 }] };
+            const isEligible = computeIsEligibleSession(true, inboundRoute, { id: 1 }, 1);
+            assert.equal(isEligible, true);
+        });
+    });
+
+    describe("Lead Owner & Call List Eligibility for Inbound Routing & Availability", () => {
+        function resolveUserCallEligibility(isOnCallList, isLeadOwner) {
+            return Boolean(isOnCallList || isLeadOwner);
+        }
+
+        test("User on call pool list is eligible to receive calls and toggle availability", () => {
+            assert.equal(resolveUserCallEligibility(true, false), true);
+        });
+
+        test("Assigned Lead Owner outside call lists is eligible to receive calls and toggle availability", () => {
+            assert.equal(resolveUserCallEligibility(false, true), true);
+        });
+
+        test("User neither on call list nor assigned lead owner is ineligible", () => {
+            assert.equal(resolveUserCallEligibility(false, false), false);
+        });
+    });
+
+    describe("SoftphoneDock Authoritative Availability State & Stale Snapshot Protection", () => {
+        function reconcileRouteSnapshot(currentCanReceive, incomingRouteCanReceive, lastToggledAt, now = Date.now()) {
+            const isRecentToggle = now - lastToggledAt < 5000;
+            return isRecentToggle
+                ? currentCanReceive
+                : (typeof incomingRouteCanReceive === "boolean" ? incomingRouteCanReceive : currentCanReceive);
+        }
+
+        test("A freshly toggled availability state is not overwritten by an older in-flight snapshot", () => {
+            const now = 10000;
+            const lastToggledAt = 9000; // toggled 1s ago to false
+            const currentCanReceive = false;
+            const staleInboundRouteValue = true; // older snapshot from server
+
+            const effectiveState = reconcileRouteSnapshot(
+                currentCanReceive,
+                staleInboundRouteValue,
+                lastToggledAt,
+                now
+            );
+
+            assert.equal(effectiveState, false);
+        });
+
+        test("Route snapshot syncs normally when outside recent toggle window", () => {
+            const now = 20000;
+            const lastToggledAt = 10000; // toggled 10s ago
+            const currentCanReceive = false;
+            const serverRouteValue = true;
+
+            const effectiveState = reconcileRouteSnapshot(
+                currentCanReceive,
+                serverRouteValue,
+                lastToggledAt,
+                now
+            );
+
+            assert.equal(effectiveState, true);
+        });
+    });
+
+    describe("Telephony Settings Configuration Guard & Persistence Safety", () => {
+        function validateRequestedSettings(updates, existingColumns) {
+            const unsupported = Object.keys(updates).filter(
+                (key) => !existingColumns.includes(key)
+            );
+            if (unsupported.length > 0) {
+                return {
+                    status: "error",
+                    code: 422,
+                    message: `The following telephony settings are not supported: ${unsupported.join(", ")}`,
+                };
+            }
+            return {
+                status: "success",
+                code: 200,
+                persisted: updates,
+            };
+        }
+
+        test("Rejects settings update with 422 if any requested column is absent in schema", () => {
+            const existingColumns = ["incoming_call_fallback_seconds", "fallback_voice_message_enabled"];
+            const updates = {
+                incoming_call_fallback_seconds: 30,
+                fallback_voice_message_repeat_count: 2, // absent column
+            };
+
+            const result = validateRequestedSettings(updates, existingColumns);
+            assert.equal(result.status, "error");
+            assert.equal(result.code, 422);
+            assert.match(result.message, /fallback_voice_message_repeat_count/);
+        });
+
+        test("Accepts settings update and persists when all requested columns exist", () => {
+            const existingColumns = [
+                "incoming_call_fallback_seconds",
+                "fallback_voice_message_enabled",
+                "fallback_voice_message_repeat_count",
+            ];
+            const updates = {
+                incoming_call_fallback_seconds: 30,
+                fallback_voice_message_repeat_count: 2,
+            };
+
+            const result = validateRequestedSettings(updates, existingColumns);
+            assert.equal(result.status, "success");
+            assert.equal(result.code, 200);
+            assert.deepEqual(result.persisted, updates);
         });
     });
 });

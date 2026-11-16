@@ -118,7 +118,7 @@ function LedgerControls({ subtitle, counts, filter, onFilter, query, onQuery }: 
                         <li key={key}>
                             <button
                                 type="button"
-                                className={`agent-ea__chip${counts ? "" : " is-loading"}${held ? " is-held" : ""}`}
+                                className={`agent-band-chip agent-ea__chip${counts ? "" : " is-loading"}${held ? " is-held" : ""}`}
                                 aria-pressed={held ? undefined : pressed}
                                 aria-disabled={held ? true : undefined}
                                 disabled={!counts && !held}
@@ -126,14 +126,14 @@ function LedgerControls({ subtitle, counts, filter, onFilter, query, onQuery }: 
                                     if (!held) onFilter(key as Filter);
                                 }}
                             >
-                                <span className="agent-ea__chip-label">
-                                    {CHIP_MARKS[key] ? <span className="agent-ea__chip-mark" style={{ background: CHIP_MARKS[key] }} aria-hidden="true" /> : null}
+                                <span className="agent-band-chip__label agent-ea__chip-label">
+                                    {CHIP_MARKS[key] ? <span className="agent-band-chip__mark agent-ea__chip-mark" style={{ background: CHIP_MARKS[key] }} aria-hidden="true" /> : null}
                                     {t(`pages.agent_workspace.earnings.chips.${key}`)}
                                 </span>
                                 {held ? (
                                     <AgentNewTag hint={t("pages.agent_workspace.earnings.held.approved")} />
                                 ) : (
-                                    <span className="agent-ea__chip-value">{counts ? counts[key as Filter] : 0}</span>
+                                    <span className="agent-band-chip__value agent-ea__chip-value">{counts ? counts[key as Filter] : 0}</span>
                                 )}
                             </button>
                         </li>
@@ -150,7 +150,7 @@ function LedgerControls({ subtitle, counts, filter, onFilter, query, onQuery }: 
 
 function TableSkeleton() {
     return (
-        <div className="agent-ea__table" aria-busy="true">
+        <div className="agent-table agent-ea__table" aria-busy="true">
             {Array.from({ length: 6 }).map((_, index) => (
                 <div key={index} className="agent-ea__row agent-ea__row--skeleton">
                     <div className="dr-skeleton" style={{ height: 32, borderRadius: 16 }} />

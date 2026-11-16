@@ -33,10 +33,10 @@ interface TableProps<T> {
 function ReportTable<T>({ label, columns, rows, rowKey, sorted }: TableProps<T>) {
     const cols = columns.map((column) => `minmax(0, ${column.width ?? "1fr"})`).join(" ");
     return (
-        <div role="table" aria-label={label} className="agent-ea__table agent-ea__table--report" style={{ ["--cols" as string]: cols }}>
+        <div role="table" aria-label={label} className="agent-table agent-ea__table agent-ea__table--report" style={{ ["--cols" as string]: cols }}>
             <div role="row" className="agent-ea__head">
                 {columns.map((column) => (
-                    <span key={column.key} role="columnheader" className="agent-ea__th" aria-sort={sorted === column.key ? "descending" : undefined}>
+                    <span key={column.key} role="columnheader" className="agent-table__th agent-ea__th" aria-sort={sorted === column.key ? "descending" : undefined}>
                         {column.label}
                         {sorted === column.key ? " ↑" : ""}
                     </span>
@@ -57,7 +57,7 @@ function ReportTable<T>({ label, columns, rows, rowKey, sorted }: TableProps<T>)
 
 function Skeleton() {
     return (
-        <div className="agent-ea__table agent-ea__table--report" aria-busy="true">
+        <div className="agent-table agent-ea__table agent-ea__table--report" aria-busy="true">
             {Array.from({ length: 4 }).map((_, index) => (
                 <div key={index} className="agent-ea__row agent-ea__row--skeleton">
                     <i className="agent-ea__skeleton-dot" />

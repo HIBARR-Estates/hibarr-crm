@@ -1472,6 +1472,8 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::post('telephony/softphone/devices', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'store'])->name('telephony.softphone.devices.store');
     Route::get('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'show'])->name('telephony.softphone.devices.show')->whereNumber('id');
     Route::get('telephony/softphone/devices/{id}/credentials', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'credentials'])->name('telephony.softphone.devices.credentials')->whereNumber('id');
+    Route::post('telephony/softphone/devices/{id}/capacity/reserve', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'reserveCapacity'])->name('telephony.softphone.devices.capacity.reserve')->whereNumber('id');
+    Route::post('telephony/softphone/devices/{id}/capacity/release', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'releaseCapacity'])->name('telephony.softphone.devices.capacity.release')->whereNumber('id');
 
     Route::put('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'update'])->name('telephony.softphone.devices.update')->whereNumber('id');
     Route::delete('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'destroy'])->name('telephony.softphone.devices.destroy')->whereNumber('id');

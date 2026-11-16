@@ -267,6 +267,9 @@ class Company extends BaseModel
         'meeting_attendance_confirmation_enabled_at' => 'datetime',
         'meeting_attendance_confirmation_delay_minutes' => 'integer',
         'meeting_attendance_confirmation_snooze_minutes' => 'integer',
+        'incoming_call_fallback_seconds' => 'integer',
+        'fallback_voice_message_enabled' => 'boolean',
+        'fallback_voice_message_repeat_count' => 'integer',
     ];
     protected $appends = [
         'logo_url',

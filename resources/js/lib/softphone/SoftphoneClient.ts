@@ -13,6 +13,7 @@ import type {
     SoftphoneCallFailureCode,
     SoftphoneCallStage,
     SoftphoneConfig,
+    SoftphoneRegistrationState,
     SoftphoneState,
 } from "@/Types/api/softphone";
 import {
@@ -30,6 +31,17 @@ import {
     type BoostedMicProcessor,
     type MicProfileName,
 } from "./micAudioProcessor";
+
+export type {
+    SoftphoneCall,
+    SoftphoneCallContext,
+    SoftphoneCallFailure,
+    SoftphoneCallFailureCode,
+    SoftphoneCallStage,
+    SoftphoneConfig,
+    SoftphoneRegistrationState,
+    SoftphoneState,
+};
 
 /**
  * Thin SIP.js wrapper that turns sipgate Neo into an in-browser softphone.
@@ -102,8 +114,8 @@ const FAILURE_BY_STATUS: Record<
     { code: SoftphoneCallFailureCode; reason: string }
 > = {
     403: {
-        code: "unknown",
-        reason: "This extension is not allowed to place calls.",
+        code: "connection_failed",
+        reason: "This line is not allowed to place calls or could not connect.",
     },
     404: {
         code: "not-found",
@@ -116,6 +128,26 @@ const FAILURE_BY_STATUS: Record<
     },
     486: { code: "busy", reason: "The line is busy." },
     487: { code: "cancelled", reason: "The call was cancelled." },
+    488: {
+        code: "connection_failed",
+        reason: "The call connection was not acceptable by the network.",
+    },
+    500: {
+        code: "connection_failed",
+        reason: "The telephone server encountered an internal error.",
+    },
+    502: {
+        code: "connection_failed",
+        reason: "The telephone network gateway is unreachable.",
+    },
+    503: {
+        code: "connection_failed",
+        reason: "The telephone service is temporarily unavailable.",
+    },
+    504: {
+        code: "connection_failed",
+        reason: "The telephone gateway connection timed out.",
+    },
     603: { code: "declined", reason: "The call was declined." },
     606: { code: "declined", reason: "The call was declined." },
 };
@@ -238,16 +270,26 @@ class SoftphoneClient {
                 this.config = config;
                 this.setState({ ...EMPTY_STATE, registration: "registering" });
                 const rawUri = (config.uri || "").trim();
+                const lineDomain = domainOf(rawUri) || (config.provider ? `${config.provider}.de` : "sipgate.de");
                 const normalizedUri = /^sips?:/i.test(rawUri)
                     ? rawUri
                     : rawUri.includes("@")
                         ? `sip:${rawUri}`
                         : config.authorization_username
-                            ? `sip:${config.authorization_username}@sipgate.de`
+                            ? `sip:${config.authorization_username}@${lineDomain}`
                             : `sip:${rawUri}`;
                 const uri = UserAgent.makeURI(normalizedUri);
                 if (!uri) {
                     throw new Error(`Invalid SIP URI: ${config.uri}`);
+                }
+
+                const iceServers: Array<{ urls: string }> = [
+                    { urls: "stun:stun.l.google.com:19302" },
+                ];
+                if (config.stun_url) {
+                    iceServers.push({ urls: config.stun_url });
+                } else if (lineDomain) {
+                    iceServers.push({ urls: `stun:stun.${lineDomain}:3478` });
                 }
 
                 const userAgent = new UserAgent({
@@ -260,10 +302,7 @@ class SoftphoneClient {
                     displayName: config.display_name || undefined,
                     sessionDescriptionHandlerFactoryOptions: {
                         peerConnectionConfiguration: {
-                            iceServers: [
-                                { urls: "stun:stun.l.google.com:19302" },
-                                { urls: "stun:stun.sipgate.de:3478" },
-                            ],
+                            iceServers,
                         },
                     },
                     logLevel: "error",
@@ -433,10 +472,11 @@ class SoftphoneClient {
             throw new Error("No phone line is registered for this browser.");
         }
         if (!this.userAgent || this.state.registration !== "registered") {
+            const providerLabel = this.config.provider || "the provider";
             const reason =
                 this.state.registrationError ||
-                "Your phone line isn't connected to sipgate. Pick a line in the phone panel, then retry.";
-            this.reportSetupFailure(target, reason, context);
+                `Your phone line isn't connected to ${providerLabel}. Pick a line in the phone panel, then retry.`;
+            this.reportSetupFailure(target, reason, context, "connection_failed");
             throw new Error(
                 this.state.registrationError ||
                 "Your phone line isn't connected.",
@@ -517,11 +557,12 @@ class SoftphoneClient {
             // to build the request. This is the failure agents hit most often
             // (offline, no line, bad number) and it used to look like nothing
             // had happened at all.
+            const providerName = this.config?.provider || "the provider";
             this.failCall(
-                "unknown",
+                "connection_failed",
                 detail
                     ? `The call could not be placed: ${detail}`
-                    : "The call could not be placed — the request to sipgate failed.",
+                    : `The call could not be placed — the request to ${providerName} failed.`,
             );
             throw error;
         }
@@ -925,10 +966,11 @@ class SoftphoneClient {
         peer: string,
         reason: string,
         context: SoftphoneCallContext | null,
+        code: SoftphoneCallFailureCode = "connection_failed",
     ): void {
         this.setState({
             callFailure: {
-                code: "unknown",
+                code,
                 reason,
                 peer,
                 direction: "outbound",

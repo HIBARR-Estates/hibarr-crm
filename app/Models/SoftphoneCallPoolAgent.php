@@ -135,41 +135,65 @@ class SoftphoneCallPoolAgent extends Model
         return $rows->pluck('device_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
     }
 
-    /** Active company users (admins and staff) who can be added to the fallback list. */
+    /** Active company users with the admin role who can be added to the admin fallback list. */
+    public static function eligibleAdminFallbackUsersForCompany(int $companyId)
+    {
+        return User::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->where('login', '!=', 'disable')
+            ->whereExists(function ($query): void {
+                $query->select(DB::raw(1))
+                    ->from('role_user')
+                    ->join('roles', 'roles.id', '=', 'role_user.role_id')
+                    ->whereColumn('role_user.user_id', 'users.id')
+                    ->where('roles.name', 'admin');
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+    }
+
+    /** Active company users who can be added to the default fallback list. */
     public static function eligibleFallbackUsersForCompany(int $companyId)
     {
         return User::query()
             ->where('company_id', $companyId)
             ->where('status', 'active')
             ->where('login', '!=', 'disable')
-            ->where(function ($query): void {
-                $query->whereExists(function ($adminQuery): void {
-                    $adminQuery->select(DB::raw(1))
-                        ->from('role_user')
-                        ->join('roles', 'roles.id', '=', 'role_user.role_id')
-                        ->whereColumn('role_user.user_id', 'users.id')
-                        ->where('roles.name', 'admin');
-                })->orWhere(function ($staffQuery): void {
-                    $staffQuery->whereNotExists(function ($clientQuery): void {
-                        $clientQuery->select(DB::raw(1))
-                            ->from('role_user')
-                            ->join('roles', 'roles.id', '=', 'role_user.role_id')
-                            ->whereColumn('role_user.user_id', 'users.id')
-                            ->where('roles.name', 'client');
-                    })->whereExists(function ($permQuery): void {
-                        $permQuery->select(DB::raw(1))
-                            ->from('user_permissions')
-                            ->join('permissions', 'permissions.id', '=', 'user_permissions.permission_id')
-                            ->whereColumn('user_permissions.user_id', 'users.id')
-                            ->where('permissions.name', 'make_softphone_calls')
-                            ->whereIn('user_permissions.permission_type_id', [
-                                PermissionType::ALL,
-                                PermissionType::ADDED,
-                            ]);
-                    });
-                });
+            ->whereNotExists(function ($clientQuery): void {
+                $clientQuery->select(DB::raw(1))
+                    ->from('role_user')
+                    ->join('roles', 'roles.id', '=', 'role_user.role_id')
+                    ->whereColumn('role_user.user_id', 'users.id')
+                    ->where('roles.name', 'client');
             })
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
+    }
+
+    /**
+     * Whether a user is eligible to receive inbound softphone calls in a company,
+     * either via an active assignment on a call list/pool or as an assigned lead owner.
+     */
+    public static function isUserEligibleToReceiveCalls(int $companyId, int $userId): bool
+    {
+        $onCallList = static::query()
+            ->where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->where('active', true)
+            ->exists();
+
+        if ($onCallList) {
+            return true;
+        }
+
+        try {
+            return \App\Models\Lead::query()
+                ->where('company_id', $companyId)
+                ->where('lead_owner', $userId)
+                ->exists();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 }

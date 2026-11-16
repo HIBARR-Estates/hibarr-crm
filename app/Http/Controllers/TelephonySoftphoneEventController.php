@@ -2,24 +2,46 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use App\Models\CrmEvent;
 use App\Models\CrmEventType;
 use App\Models\Deal;
-use App\Models\SoftphoneCallPoolAgent;
 use App\Models\Lead;
+use App\Models\SoftphoneCallPoolAgent;
+use App\Models\SoftphoneDevice;
 use App\Models\User;
 use App\Services\CallBridge\CallBridgeService;
+use App\Services\CallBridge\InboundCallRotation;
 use App\Services\CallBridge\LeadPhoneMatcher;
+use App\Services\CallBridge\LineConcurrencyManager;
 use App\Services\PermissionService;
 use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class TelephonySoftphoneEventController extends AccountBaseController
 {
+    private const DEFAULT_FALLBACK_SECONDS = 20;
+
+    private static ?bool $hasCanReceiveCallsColumn = null;
+
+    private static function supportsCanReceiveCalls(): bool
+    {
+        if (self::$hasCanReceiveCallsColumn === null) {
+            try {
+                self::$hasCanReceiveCallsColumn = Schema::hasColumn('users', 'can_receive_calls');
+            } catch (\Throwable) {
+                self::$hasCanReceiveCallsColumn = false;
+            }
+        }
+
+        return self::$hasCanReceiveCallsColumn;
+    }
+
     public function __construct(
         private readonly CallBridgeService $callBridge,
         private readonly LeadPhoneMatcher $leadMatcher,
@@ -27,17 +49,16 @@ class TelephonySoftphoneEventController extends AccountBaseController
         parent::__construct();
     }
 
-
     /**
      * Match an incoming caller's phone number to a lead and return routing details.
+     *
+     * Every agent on the line polls this while the call rings, so the routing
+     * (owner, rotation order and position) must come out identical for all of
+     * them; only the lead's identity depends on who is asking.
      */
     public function leadByPhone(Request $request): JsonResponse
     {
-        if (! user()->hasRole('admin') && ! in_array(user()->permission('make_softphone_calls'), ['all', 'added'])) {
-            // Incoming matching is still available to anyone who can view leads;
-            // callers without softphone permission get an explicit 403.
-            abort_403(true);
-        }
+        abort_403(! $this->canUseSoftphone(user()));
 
         $request->validate([
             'phone' => 'required|string|max:100',
@@ -54,7 +75,8 @@ class TelephonySoftphoneEventController extends AccountBaseController
         }
 
         $companyId = (int) company()->id;
-        $deviceId = $this->ringingDeviceId();
+        $line = $this->ringingDevice();
+        $deviceId = $line?->id;
 
         $authoritativeCallKey = $this->isAuthoritativeCallId($callId)
             ? $callId
@@ -63,181 +85,194 @@ class TelephonySoftphoneEventController extends AccountBaseController
         $passedUserIds = $this->passedUserIdsForCall($companyId, $deviceId, $incoming, $callId);
         $callStatus = $this->getCallStatus($companyId, $authoritativeCallKey);
         $statusVal = $callStatus['status'] ?? null;
-        $answeredByUserId = isset($callStatus['user_id']) ? (int) $callStatus['user_id'] : null;
 
-        // Routing (match count, owner, rotation) is derived from every matching
-        // lead so it is identical for all viewers; the viewer's own access only
-        // decides whether the lead's identity is revealed (see below).
         $matchingLeads = $this->leadMatcher->findLeads($companyId, $incoming)->values();
-        $matchCount = $matchingLeads->count();
+        $company = Company::query()->whereKey($companyId)->first();
+        $fallbackSeconds = (int) ($company?->incoming_call_fallback_seconds ?? self::DEFAULT_FALLBACK_SECONDS);
 
-        // Emit an incoming_call event to the call bridge (OL) once per incoming call
-        $emitCallKey = $authoritativeCallKey ?? $callId ?? $callRef;
-        if (! empty($emitCallKey)) {
-            $emitLockKey = sprintf('softphone:inbound_emitted:%d:%s', $companyId, trim((string) $emitCallKey));
-            if (Cache::add($emitLockKey, 1, 120)) {
-                try {
-                    $firstLead = $matchingLeads->first();
-                    $emitPayload = [
-                        'event' => 'incoming_call',
-                        'call_id' => trim((string) $emitCallKey),
-                        'direction' => 'inbound',
-                        'phone_number' => $request->input('phone'),
-                        'status' => 'ringing',
-                    ];
-                    if ($firstLead) {
-                        $emitPayload['entity_type'] = 'lead';
-                        $emitPayload['entity_id'] = (int) $firstLead->id;
-                    }
-                    $this->callBridge->emitCallEvent($emitPayload);
-                } catch (\Throwable $e) {
-                    Log::warning('TelephonySoftphoneEventController: failed to emit incoming_call event to OL', [
-                        'error' => $e->getMessage(),
-                        'call_id' => $emitCallKey,
-                        'phone' => $request->input('phone'),
-                    ]);
-                }
-            }
-        }
+        $routing = [
+            'id' => null,
+            'lead_id' => null,
+            'name' => null,
+            'url' => null,
+            'owner_id' => null,
+            'owner_name' => null,
+            'matched' => false,
+            'match_count' => $matchingLeads->count(),
+            'route' => 'pool',
+            'can_ring' => false,
+            'pool_user_ids' => [],
+            'rotation_users' => [],
+            'passed_user_ids' => $passedUserIds,
+            'fallback_seconds' => $fallbackSeconds,
+            'fallback_voice_message' => null,
+            'user_can_receive_calls' => (bool) (user()->can_receive_calls ?? true),
+            'current_user_id' => user()->id,
+            'call_status' => $statusVal,
+            'answered_by_user_id' => isset($callStatus['user_id']) ? (int) $callStatus['user_id'] : null,
+        ];
 
-                $poolUsers = $this->getAvailableAgentsForTier($companyId, SoftphoneCallPoolAgent::TIER_LINE, $deviceId, 'pool');
-        $poolUserIds = array_column($poolUsers, 'id');
-
-        $defaultFallbackUsers = $this->getAvailableAgentsForTier($companyId, SoftphoneCallPoolAgent::TIER_DEFAULT_FALLBACK, null, 'default_fallback');
-        $adminFallbackUsers = $this->getAvailableAdminFallbackUsers($companyId);
-
-        $fallbackSeconds = (int) (\App\Models\Company::query()->whereKey($companyId)->value('incoming_call_fallback_seconds') ?? 20);
-        $fallbackVoiceMessage = $this->resolveFallbackVoiceMessageConfig($companyId);
-$userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
-
-        // If no lead matches the caller's phone, route directly to the line pool sequence
-        if ($matchCount === 0) {
-            $rotationUsers = $this->buildRotationSequence(null, null, $poolUsers, $defaultFallbackUsers, $adminFallbackUsers);
-            $canRing = in_array((int) user()->id, array_column($rotationUsers, 'id'), true)
-                || ($rotationUsers === [] && user()->hasRole('admin') && $userCanReceiveCalls);
-
+        // A full line cannot carry another call, so nobody rings. Once someone
+        // has answered, that call is one of the live ones and must not count
+        // against itself for the agents still polling.
+        if ($line !== null && $statusVal !== 'answered' && ! LineConcurrencyManager::hasCapacity($line)) {
             return response()->json([
                 'status' => 'success',
-                'data' => [
-                    'id' => null,
-                    'lead_id' => null,
-                    'name' => null,
-                    'url' => null,
-                    'owner_id' => null,
-                    'owner_name' => null,
-                    'matched' => false,
-                    'match_count' => 0,
-                    'route' => 'pool',
-                    'can_ring' => $canRing,
-                    'pool_user_ids' => $poolUserIds,
-                    'rotation_users' => $rotationUsers,
-                    'passed_user_ids' => $passedUserIds,
-                    'fallback_seconds' => $fallbackSeconds,
-                    'fallback_voice_message' => $fallbackVoiceMessage,
-                    'user_can_receive_calls' => $userCanReceiveCalls,
-                    'current_user_id' => user()->id,
-                    'call_status' => $statusVal,
-                    'answered_by_user_id' => $answeredByUserId,
-                ],
+                'data' => ['capacity_reached' => true] + $routing,
             ]);
         }
 
-        // Tier 1: Call matched to lead -> route to the assigned Lead Owner first
-        /** @var Lead $lead */
-        $lead = null;
-        $activeOwner = null;
+        $this->emitIncomingCallOnce($companyId, $authoritativeCallKey ?? $callId ?? $callRef, $request->input('phone'), $matchingLeads->first());
 
-        // Find matching lead whose assigned owner is active and available
-        foreach ($matchingLeads as $candidateLead) {
-            if (empty($candidateLead->lead_owner)) {
+        $poolUsers = $this->getAvailableAgentsForTier($companyId, SoftphoneCallPoolAgent::TIER_LINE, $deviceId, 'pool');
+        [$lead, $owner] = $this->resolveLeadAndOwner($matchingLeads, $companyId, $deviceId);
+
+        $rotationUsers = $this->buildRotationSequence(
+            $owner,
+            $poolUsers,
+            $this->getAvailableAgentsForTier($companyId, SoftphoneCallPoolAgent::TIER_DEFAULT_FALLBACK, null, 'default_fallback'),
+            $this->getAvailableAdminFallbackUsers($companyId),
+        );
+
+        // With an id every agent shares, the order is frozen and the position
+        // advances on the server, so all browsers agree on who rings now.
+        $sharedCallKey = $this->sharedCallKey($callId);
+        if ($sharedCallKey !== null) {
+            $rotation = InboundCallRotation::resolve($companyId, $sharedCallKey, $rotationUsers, $passedUserIds, $fallbackSeconds);
+            $rotationUsers = $rotation['users'];
+            $routing['rotation_index'] = $rotation['index'];
+            $routing['slot_remaining_seconds'] = $rotation['slot_remaining_seconds'];
+        }
+
+        $ownerEntry = collect($rotationUsers)->firstWhere('role', 'owner');
+
+        $routing = array_merge($routing, [
+            'owner_id' => $ownerEntry['id'] ?? null,
+            'owner_name' => $ownerEntry['name'] ?? null,
+            'route' => $ownerEntry !== null ? 'owner' : 'pool',
+            'can_ring' => in_array((int) user()->id, array_column($rotationUsers, 'id'), true),
+            'pool_user_ids' => array_column($poolUsers, 'id'),
+            'rotation_users' => $rotationUsers,
+            'fallback_voice_message' => $this->resolveFallbackVoiceMessageConfig($company),
+        ]);
+
+        if ($lead !== null) {
+            $routing['matched'] = true;
+
+            // Identity is only revealed to viewers who may open the lead.
+            $canViewLead = (bool) (PermissionService::checkAccess(user(), 'view_lead', $lead, [
+                'added' => 'added_by',
+                'owned' => 'lead_owner',
+            ])['canAccess'] ?? false);
+
+            if ($canViewLead) {
+                $leadName = trim((string) ($lead->client_name ?? $lead->client_name_salutation ?? ''));
+                $routing = array_merge($routing, [
+                    'id' => $lead->id,
+                    'lead_id' => $lead->id,
+                    'name' => $leadName !== '' ? $leadName : ('Lead #' . $lead->id),
+                    'url' => route('lead-contact.show', $lead->id),
+                ]);
+            }
+        }
+
+        return response()->json(['status' => 'success', 'data' => $routing]);
+    }
+
+    /**
+     * The lead a call is about and, when they can take it, its owner.
+     *
+     * Tier 1 goes to the first matching lead whose owner can actually ring on
+     * this line. With no such owner the first owned lead is still returned so
+     * the caller is identified, and the call starts at the line pool.
+     *
+     * @param  Collection<int, Lead>  $matchingLeads
+     * @return array{0: ?Lead, 1: ?User}
+     */
+    private function resolveLeadAndOwner(Collection $matchingLeads, int $companyId, ?int $deviceId): array
+    {
+        foreach ($matchingLeads as $lead) {
+            if (empty($lead->lead_owner)) {
                 continue;
             }
-            $candidateOwner = User::query()
-                ->where('company_id', $companyId)
-                ->find((int) $candidateLead->lead_owner);
 
-            $hasSoftphonePerm = $candidateOwner !== null
-                && ($candidateOwner->hasRole('admin') || in_array($candidateOwner->permission('make_softphone_calls'), ['all', 'added'], true));
+            $owner = User::query()->where('company_id', $companyId)->find((int) $lead->lead_owner);
 
-            $hasLineAccess = true;
-            if ($candidateOwner !== null && $ringingDeviceId !== null && ! $candidateOwner->hasRole('admin')) {
-                $allowedLines = SoftphoneCallPoolAgent::allowedDeviceIdsForUser($companyId, (int) $candidateOwner->id);
-                if ($allowedLines !== null && ! in_array((int) $ringingDeviceId, $allowedLines, true)) {
-                    $hasLineAccess = false;
-                }
-            }
-
-            if (
-                $candidateOwner !== null
-                && (($candidateOwner->status ?? 'active') === 'active')
-                && (($candidateOwner->login ?? 'enable') !== 'disable')
-                && ($candidateOwner->can_receive_calls ?? true)
-                && $hasSoftphonePerm
-                && $hasLineAccess
-            ) {
-                $lead = $candidateLead;
-                $activeOwner = $candidateOwner;
-                break;
+            if ($owner !== null && $this->canRingOnLine($owner, $companyId, $deviceId)) {
+                return [$lead, $owner];
             }
         }
 
-        if ($lead === null) {
-            $lead = $matchingLeads->first(fn (Lead $l) => ! empty($l->lead_owner)) ?? $matchingLeads->first();
-            $rawOwnerId = $lead->lead_owner ? (int) $lead->lead_owner : null;
-            $owner = $rawOwnerId
-                ? User::query()->where('company_id', $companyId)->find($rawOwnerId)
-                : null;
-            $isActiveOwner = $owner !== null
-                && (($owner->status ?? 'active') === 'active')
-                && (($owner->login ?? 'enable') !== 'disable')
-                && ($owner->can_receive_calls ?? true);
-            if ($isActiveOwner) {
-                $activeOwner = $owner;
-            }
+        return [
+            $matchingLeads->first(fn (Lead $lead) => ! empty($lead->lead_owner)) ?? $matchingLeads->first(),
+            null,
+        ];
+    }
+
+    /** Admins and holders of make_softphone_calls can run the softphone. */
+    private function canUseSoftphone(User $user): bool
+    {
+        return $user->hasRole('admin')
+            || in_array($user->permission('make_softphone_calls'), ['all', 'added'], true);
+    }
+
+    /** Active, not paused, and allowed to run the softphone. */
+    private function isAvailableForCalls(User $user): bool
+    {
+        return (($user->status ?? 'active') === 'active')
+            && (($user->login ?? 'enable') !== 'disable')
+            && ($user->can_receive_calls ?? true)
+            && $this->canUseSoftphone($user);
+    }
+
+    /** Available, and able to register on the line the call arrived on. */
+    private function canRingOnLine(User $user, int $companyId, ?int $deviceId): bool
+    {
+        if (! $this->isAvailableForCalls($user)) {
+            return false;
         }
 
-        $canViewLead = (bool) (PermissionService::checkAccess(user(), 'view_lead', $lead, [
-            'added' => 'added_by',
-            'owned' => 'lead_owner',
-        ])['canAccess'] ?? false);
+        if ($deviceId === null || $user->hasRole('admin')) {
+            return true;
+        }
 
-        $ownerId = $activeOwner ? (int) $activeOwner->id : null;
-        $ownerName = $activeOwner
-            ? (trim((string) ($activeOwner->name ?? '')) ?: ('User #' . $activeOwner->id))
-            : null;
+        $allowedLines = SoftphoneCallPoolAgent::allowedDeviceIdsForUser($companyId, (int) $user->id);
 
-        $rotationUsers = $this->buildRotationSequence($ownerId, $ownerName, $poolUsers, $defaultFallbackUsers, $adminFallbackUsers);
-        $leadName = trim((string) ($lead->client_name ?? $lead->client_name_salutation ?? ''));
-        $canRing = in_array((int) user()->id, array_column($rotationUsers, 'id'), true)
-            || ($rotationUsers === [] && user()->hasRole('admin') && $userCanReceiveCalls);
+        return $allowedLines === null || in_array($deviceId, $allowedLines, true);
+    }
 
-        return response()->json([
-            'status' => 'success',
-            'data' => [
-                // Identity is only revealed to viewers who may open the lead.
-                'id' => $canViewLead ? $lead->id : null,
-                'lead_id' => $canViewLead ? $lead->id : null,
-                'name' => $canViewLead
-                    ? ($leadName !== '' ? $leadName : ('Lead #' . $lead->id))
-                    : null,
-                'url' => $canViewLead ? route('lead-contact.show', $lead->id) : null,
-                'matched' => true,
-                'match_count' => $matchCount,
-                'owner_id' => $ownerId,
-                'owner_name' => $ownerName,
-                'route' => ($ownerId !== null) ? 'owner' : 'pool',
-                'can_ring' => $canRing,
-                'pool_user_ids' => $poolUserIds,
-                'rotation_users' => $rotationUsers,
-                'passed_user_ids' => $passedUserIds,
-                'fallback_seconds' => $fallbackSeconds,
-                'fallback_voice_message' => $fallbackVoiceMessage,
-                'user_can_receive_calls' => $userCanReceiveCalls,
-                'current_user_id' => user()->id,
-                'call_status' => $statusVal,
-                'answered_by_user_id' => $answeredByUserId,
-            ],
-        ]);
+    /** Tell the call bridge (OL) about an incoming call, once per call. */
+    private function emitIncomingCallOnce(int $companyId, ?string $callKey, ?string $phone, ?Lead $lead): void
+    {
+        $callKey = trim((string) $callKey);
+        if ($callKey === '') {
+            return;
+        }
+
+        if (! Cache::add(sprintf('softphone:inbound_emitted:%d:%s', $companyId, $callKey), 1, 120)) {
+            return;
+        }
+
+        try {
+            $payload = [
+                'event' => 'incoming_call',
+                'call_id' => $callKey,
+                'direction' => 'inbound',
+                'phone_number' => $phone,
+                'status' => 'ringing',
+            ];
+            if ($lead !== null) {
+                $payload['entity_type'] = 'lead';
+                $payload['entity_id'] = (int) $lead->id;
+            }
+            $this->callBridge->emitCallEvent($payload);
+        } catch (\Throwable $e) {
+            Log::warning('TelephonySoftphoneEventController: failed to emit incoming_call event to OL', [
+                'error' => $e->getMessage(),
+                'call_id' => $callKey,
+                'phone' => $phone,
+            ]);
+        }
     }
 
     /**
@@ -246,10 +281,7 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
      */
     public function passCall(Request $request): JsonResponse
     {
-        abort_403(
-            ! user()->hasRole('admin')
-            && ! in_array(user()->permission('make_softphone_calls'), ['all', 'added'], true)
-        );
+        abort_403(! $this->canUseSoftphone(user()));
 
         $request->validate([
             'phone' => 'required|string|max:100',
@@ -265,15 +297,7 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
         $passingUserId = (int) user()->id;
         $passingUserName = (string) user()->name;
 
-        if ($incoming !== '' || ($callId !== null && trim($callId) !== '')) {
-            $this->recordPassedUser(
-                $companyId,
-                $this->ringingDeviceId(),
-                $incoming,
-                $passingUserId,
-                $callId
-            );
-        }
+        $this->recordPassedUser($companyId, $this->ringingDeviceId(), $incoming, $passingUserId, $callId);
 
         // Persist a durable, trusted server-side forwarding transition keyed to the call
         $declinedTypeId = CrmEventType::withoutGlobalScopes()
@@ -334,21 +358,24 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
      */
     private function passedUserIdsForCall(int $companyId, ?int $deviceId, string $incoming, ?string $callId = null): array
     {
-        if ($callId !== null && trim($callId) !== '') {
-            $cached = Cache::get($this->passCallIdCacheKey($companyId, trim($callId)));
-            if (is_array($cached)) {
-                return array_values(array_unique(array_map('intval', $cached)));
-            }
+        $cached = Cache::get($this->passKeyForCall($companyId, $deviceId, $incoming, $callId));
 
-            return [];
-        }
+        return is_array($cached) ? array_values(array_unique(array_map('intval', $cached))) : [];
+    }
 
-        $cached = Cache::get($this->passCacheKey($companyId, $deviceId, $incoming));
-        if (! is_array($cached)) {
-            return [];
-        }
+    /**
+     * Where the passed list of a call lives: under its shared call id when it
+     * has one, otherwise under the line and caller number. A browser-local id
+     * ("call-3") means a different call in every browser, so it never keys
+     * state that agents share.
+     */
+    private function passKeyForCall(int $companyId, ?int $deviceId, string $incoming, ?string $callId): string
+    {
+        $sharedCallKey = $this->sharedCallKey($callId);
 
-        return array_values(array_unique(array_map('intval', $cached)));
+        return $sharedCallKey !== null
+            ? $this->passCallIdCacheKey($companyId, $sharedCallKey)
+            : $this->passCacheKey($companyId, $deviceId, $incoming);
     }
 
     /**
@@ -356,26 +383,18 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
      */
     private function recordPassedUser(int $companyId, ?int $deviceId, string $incoming, int $userId, ?string $callId = null): void
     {
-        if ($callId !== null && trim($callId) !== '') {
-            $key = $this->passCallIdCacheKey($companyId, trim($callId));
-            $current = Cache::get($key);
-            $current = is_array($current) ? array_values(array_unique(array_map('intval', $current))) : [];
-            if (! in_array($userId, $current, true)) {
-                $current[] = $userId;
-            }
-            Cache::put($key, $current, now()->addSeconds(90));
+        if ($incoming === '' && $this->sharedCallKey($callId) === null) {
             return;
         }
 
-        if ($incoming !== '') {
-            $key = $this->passCacheKey($companyId, $deviceId, $incoming);
-            $current = Cache::get($key);
-            $current = is_array($current) ? array_values(array_unique(array_map('intval', $current))) : [];
-            if (! in_array($userId, $current, true)) {
-                $current[] = $userId;
-            }
-            Cache::put($key, $current, now()->addSeconds(90));
+        $passed = $this->passedUserIdsForCall($companyId, $deviceId, $incoming, $callId);
+        if (! in_array($userId, $passed, true)) {
+            $passed[] = $userId;
         }
+
+        // Outlives the longest rotation, so a passed agent is never rung again
+        // for the same call.
+        Cache::put($this->passKeyForCall($companyId, $deviceId, $incoming, $callId), $passed, InboundCallRotation::TTL_SECONDS);
     }
 
     /**
@@ -383,8 +402,9 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
      */
     private function clearPassedUsers(int $companyId, ?int $deviceId, string $incoming, ?string $callId = null): void
     {
-        if ($callId !== null && trim($callId) !== '') {
-            Cache::forget($this->passCallIdCacheKey($companyId, trim($callId)));
+        $sharedCallKey = $this->sharedCallKey($callId);
+        if ($sharedCallKey !== null) {
+            Cache::forget($this->passCallIdCacheKey($companyId, $sharedCallKey));
         }
         if ($incoming !== '') {
             Cache::forget($this->passCacheKey($companyId, $deviceId, $incoming));
@@ -409,6 +429,12 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
         }
 
         return true;
+    }
+
+    /** The call's id when every agent's browser reports the same one, else null. */
+    private function sharedCallKey(?string $callId): ?string
+    {
+        return $this->isAuthoritativeCallId($callId) ? trim((string) $callId) : null;
     }
 
     /**
@@ -454,18 +480,24 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
      */
     private function ringingDeviceId(): ?int
     {
+        return $this->ringingDevice()?->id;
+    }
+
+    /** The line named by the request, or null when it is not this company's. */
+    private function ringingDevice(): ?SoftphoneDevice
+    {
         $deviceId = request()->input('device_id');
 
         if (! is_numeric($deviceId) || (int) $deviceId <= 0) {
             return null;
         }
 
-        $device = \App\Models\SoftphoneDevice::find((int) $deviceId);
+        $device = SoftphoneDevice::find((int) $deviceId);
         if ($device === null || (int) $device->company_id !== (int) company()->id) {
             return null;
         }
 
-        return (int) $device->id;
+        return $device;
     }
 
     /**
@@ -473,10 +505,7 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
      */
     public function store(Request $request): JsonResponse
     {
-        abort_403(
-            ! user()->hasRole('admin')
-            && ! in_array(user()->permission('make_softphone_calls'), ['all', 'added'], true)
-        );
+        abort_403(! $this->canUseSoftphone(user()));
 
         $validated = $request->validate([
             'phone' => 'required|string|max:50',
@@ -550,10 +579,17 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
             : ($this->isAuthoritativeCallId($callRef) ? $callRef : null);
 
         $companyId = (int) company()->id;
-        if (in_array($validated['direction'] ?? null, ['inbound', 'incoming'], true)) {
+        if ($isInbound) {
             $eventSlug = $validated['event'] ?? 'call.started';
             if ($eventSlug === 'call.started') {
-                $this->clearPassedUsers($companyId, $this->ringingDeviceId(), $incomingDigits, $callId);
+                // The answering agent now occupies one of the line's slots; the
+                // dock frees it when the call ends (outbound calls take theirs
+                // before dialling, see reserveCapacity).
+                $line = $this->ringingDevice();
+                if ($line !== null) {
+                    LineConcurrencyManager::reserve($line, (int) user()->id, force: true);
+                }
+                $this->clearPassedUsers($companyId, $line?->id, $incomingDigits, $callId);
                 $this->recordCallStatus($companyId, $authoritativeKey, 'answered', (int) user()->id);
             } elseif (in_array($eventSlug, ['call.ended', 'call.completed', 'call.failed', 'call.declined'], true)) {
                 $this->recordCallStatus($companyId, $authoritativeKey, 'ended', (int) user()->id);
@@ -606,7 +642,7 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
             ]);
 
             if (! empty($validated['call_ref'])) {
-                $events = \App\Models\CrmEvent::withoutGlobalScopes()
+                $events = CrmEvent::withoutGlobalScopes()
                     ->where('company_id', (int) company()->id)
                     ->where('metadata->call_ref', $validated['call_ref'])
                     ->whereNull('metadata->recording_id')
@@ -672,9 +708,13 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
                 if (! in_array($emitEvent, ['call.started', 'call.answered', 'call_answered', 'incoming_call', 'outgoing_call', 'call.ended', 'call_ended', 'call.missed', 'call_missed', 'call.declined', 'call_declined', 'call.busy', 'call_busy', 'call.failed', 'call_failed', 'call_voicemail'], true)) {
                     $emitEvent = ($emitDirection === 'inbound') ? 'incoming_call' : 'call.started';
                 }
+                $callId = $validated['call_id'] ?? $validated['call_ref'] ?? null;
+                if (empty($callId)) {
+                    $callId = sprintf('call-%s-%d-%s', $emitDirection, now()->timestamp, \Illuminate\Support\Str::random(6));
+                }
                 $emitPayload = [
                     'event' => $emitEvent,
-                    'call_id' => $validated['call_id'] ?? $validated['call_ref'] ?? null,
+                    'call_id' => $callId,
                     'direction' => $emitDirection,
                     'phone_number' => $validated['phone'],
                     'status' => $validated['status'] ?? null,
@@ -740,24 +780,25 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
      */
     private function getAvailableAgentsForTier(int $companyId, string $tier, ?int $deviceId, string $role): array
     {
+        $userSelect = ['id', 'name', 'status', 'login'];
+        if (self::supportsCanReceiveCalls()) {
+            $userSelect[] = 'can_receive_calls';
+        }
+
         return SoftphoneCallPoolAgent::query()
             ->where('company_id', $companyId)
             ->where('active', true)
             ->where('tier', $tier)
             ->when($deviceId !== null, fn ($q) => $q->where('device_id', $deviceId))
             ->when($deviceId === null && $tier !== SoftphoneCallPoolAgent::TIER_LINE, fn ($q) => $q->whereNull('device_id'))
-            ->with(['user' => fn ($q) => $q->select('id', 'name', 'status', 'login', 'can_receive_calls')])
+            ->with(['user' => fn ($q) => $q->select($userSelect)])
             ->orderBy('priority')
             ->orderBy('id')
             ->get()
-            ->filter(function (SoftphoneCallPoolAgent $agent): bool {
-                $user = $agent->user;
-
-                return $user !== null
-                    && (($user->status ?? 'active') === 'active')
-                    && (($user->login ?? 'enable') !== 'disable')
-                    && ($user->can_receive_calls ?? true);
-            })
+            // A listed user who cannot run the softphone would be a silent
+            // slot the caller waits through, so they are left out.
+            ->filter(fn (SoftphoneCallPoolAgent $agent): bool => $agent->user !== null
+                && $this->isAvailableForCalls($agent->user))
             ->unique('user_id')
             ->map(fn (SoftphoneCallPoolAgent $agent): array => [
                 'id' => (int) $agent->user_id,
@@ -770,50 +811,22 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
     }
 
     /**
-     * Resolve admin fallback tier users. If no agents are configured, falls back to active company admins.
+     * Resolve admin fallback tier users. Only users explicitly configured on the admin fallback tier list (and who hold the admin role) are returned.
      *
      * @return array<int, array{id: int, name: string, role: string, priority: int}>
      */
     private function getAvailableAdminFallbackUsers(int $companyId): array
     {
-        $configuredAgents = $this->getAvailableAgentsForTier(
+        $agents = $this->getAvailableAgentsForTier(
             $companyId,
             SoftphoneCallPoolAgent::TIER_ADMIN_FALLBACK,
             null,
             'admin_fallback'
         );
 
-        $hasConfiguredTierAgents = SoftphoneCallPoolAgent::query()
-            ->where('company_id', $companyId)
-            ->where('tier', SoftphoneCallPoolAgent::TIER_ADMIN_FALLBACK)
-            ->exists();
+        $adminUserIds = SoftphoneCallPoolAgent::adminUserIds($companyId);
 
-        if ($hasConfiguredTierAgents) {
-            return $configuredAgents;
-        }
-
-        return User::query()
-            ->where('company_id', $companyId)
-            ->where('status', 'active')
-            ->where('login', '!=', 'disable')
-            ->where(fn ($q) => $q->whereNull('can_receive_calls')->orWhere('can_receive_calls', true))
-            ->whereExists(function ($q): void {
-                $q->select(DB::raw(1))
-                    ->from('role_user')
-                    ->join('roles', 'roles.id', '=', 'role_user.role_id')
-                    ->whereColumn('role_user.user_id', 'users.id')
-                    ->where('roles.name', 'admin');
-            })
-            ->orderBy('id')
-            ->get(['id', 'name'])
-            ->map(fn ($admin): array => [
-                'id' => (int) $admin->id,
-                'name' => trim((string) $admin->name) ?: ('Admin #' . $admin->id),
-                'role' => 'admin_fallback',
-                'priority' => 999,
-            ])
-            ->values()
-            ->all();
+        return array_values(array_filter($agents, fn ($agent) => in_array((int) $agent['id'], $adminUserIds, true)));
     }
 
     /**
@@ -822,8 +835,7 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
      * @return array<int, array{id: int, name: string, role: string, priority?: int}>
      */
     private function buildRotationSequence(
-        ?int $ownerId,
-        ?string $ownerName,
+        ?User $owner,
         array $lineUsers,
         array $defaultFallbackUsers,
         array $adminFallbackUsers
@@ -831,10 +843,11 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
         $sequence = [];
         $seenUserIds = [];
 
-        if ($ownerId !== null) {
+        if ($owner !== null) {
+            $ownerId = (int) $owner->id;
             $sequence[] = [
                 'id' => $ownerId,
-                'name' => $ownerName ?? "User #{$ownerId}",
+                'name' => trim((string) ($owner->name ?? '')) ?: "User #{$ownerId}",
                 'role' => 'owner',
             ];
             $seenUserIds[$ownerId] = true;
@@ -858,9 +871,8 @@ $userCanReceiveCalls = (bool) (user()?->can_receive_calls ?? true);
      *
      * @return array{enabled: bool, url: ?string, text: string, repeat_count: int}
      */
-    private function resolveFallbackVoiceMessageConfig(int $companyId): array
+    private function resolveFallbackVoiceMessageConfig(?Company $company): array
     {
-        $company = \App\Models\Company::query()->whereKey($companyId)->first();
         $isFlagEnabled = FeatureFlags::enabled('softphone.voicemail');
         $isCompanyEnabled = (bool) ($company?->fallback_voice_message_enabled ?? false);
 
