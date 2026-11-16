@@ -85,6 +85,9 @@ class CallRecordingController extends AccountBaseController
                     // fetch the audio without a session, without the ownership
                     // check and without the expiry.
                     'download_url' => route('call-recordings.download', $recording->id, false),
+                    // Set only for WebM recordings, which play in Bunny's own
+                    // player in a new tab (see CallRecording::opensInNewTab).
+                    'open_url' => $recording->opensInNewTab() ? route('call-recordings.open', $recording->id, false) : null,
                 ];
             });
 
@@ -930,5 +933,26 @@ class CallRecordingController extends AccountBaseController
         $disposition = request()->boolean('download') ? 'attachment' : 'inline';
 
         return $this->streamRecording($callRecording, $disposition);
+    }
+
+    /**
+     * Open a recording in its own tab.
+     *
+     * A WebM recording is sent on to its Bunny link: Bunny filed it as video,
+     * so that link is a Bunny Stream player page, which is the only place it
+     * plays. The access and expiry checks still run on every click, and the
+     * link is never placed in page data. Every other recording keeps the rule
+     * above and is streamed through the app.
+     */
+    public function open(CallRecording $callRecording)
+    {
+        $this->authorizeRecordingAccess($callRecording);
+
+        $externalUrl = (string) $callRecording->external_url;
+        if ($callRecording->opensInNewTab() && str_starts_with(strtolower($externalUrl), 'https://')) {
+            return redirect()->away($externalUrl);
+        }
+
+        return $this->streamRecording($callRecording, 'inline');
     }
 }

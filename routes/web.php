@@ -556,6 +556,9 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     // The bytes are streamed through the app instead of handing out the raw
     // object-storage link, which is a durable bearer credential.
     Route::get('call-recordings/{callRecording}/download', [\App\Http\Controllers\CallRecordingController::class, 'download'])->name('call-recordings.download');
+    // WebM recordings play in Bunny's own player, so this one redirects there
+    // (after the same checks); anything else is streamed like download.
+    Route::get('call-recordings/{callRecording}/open', [\App\Http\Controllers\CallRecordingController::class, 'open'])->name('call-recordings.open');
 
     // Follow up
     Route::get('deals/follow-up/{leadID}', [DealController::class, 'followUpCreate'])->name('deals.follow_up');

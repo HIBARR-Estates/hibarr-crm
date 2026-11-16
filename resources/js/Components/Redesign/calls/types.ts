@@ -13,6 +13,8 @@ export interface CallLogRecording {
     filename: string | null;
     play_url: string | null;
     download_url: string | null;
+    /** Set for WebM recordings, which open in Bunny's player in a new tab. */
+    open_url?: string | null;
 }
 
 export type CallOutcome =
