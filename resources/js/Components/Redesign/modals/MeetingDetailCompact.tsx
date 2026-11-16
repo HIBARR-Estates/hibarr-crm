@@ -58,6 +58,9 @@ interface MeetingDetailCompactProps {
     initialPanel?: Panel;
     onOpenSourceEmail?: () => void;
     openSourceEmailLabel?: string;
+    /** Retries a failed automatic meeting link; shown only when the caller passes it. */
+    onGenerateLink?: () => void;
+    generatingLink?: boolean;
 }
 
 /** One icon + label + value line of the details list. */
@@ -140,6 +143,8 @@ export default function MeetingDetailCompact({
     initialPanel = "info",
     onOpenSourceEmail,
     openSourceEmailLabel,
+    onGenerateLink,
+    generatingLink = false,
 }: MeetingDetailCompactProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -231,6 +236,16 @@ export default function MeetingDetailCompact({
                             </Button>
                         )}
                         <span style={{ flex: 1 }} />
+                        {onGenerateLink ? (
+                            <Button
+                                variant="ghost"
+                                onClick={onGenerateLink}
+                                disabled={isUpdating || generatingLink}
+                                loading={generatingLink}
+                            >
+                                {t("pages.deals.workspace.meetings.generate_link")}
+                            </Button>
+                        ) : null}
                         {onOpenSourceEmail && openSourceEmailLabel ? (
                             <Button
                                 variant="ghost"

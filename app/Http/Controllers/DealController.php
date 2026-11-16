@@ -4175,7 +4175,11 @@ class DealController extends AccountBaseController
         }
 
         $this->editPermission = user()->permission('edit_lead_follow_up');
-        abort_403(! ($this->editPermission == 'all' || ($this->editPermission == 'added' && $followUp->added_by == user()->id)));
+        // The deal's own agent gets the "link failed" alert, so they may retry the link
+        // on any meeting of their deal, even one someone else booked.
+        abort_403(! ($this->editPermission == 'all'
+            || ($this->editPermission == 'added' && $followUp->added_by == user()->id)
+            || $this->isResponsibleAgentForFollowUp($followUp, (int) user()->id)));
 
         try {
             Log::info('Calling triggerFollowUpAutomation', [
@@ -4211,6 +4215,22 @@ class DealController extends AccountBaseController
     /**
      * Notify agent when meeting link generation fails
      */
+    /**
+     * The deal's agent, or the lead's owner when the deal has no agent: the person
+     * notifyAgentOfMeetingLinkFailure() alerts, so the one who must be able to retry.
+     */
+    private function isResponsibleAgentForFollowUp(DealFollowUp $followUp, int $userId): bool
+    {
+        $deal = $followUp->deal;
+        if ($deal && $deal->agent_id) {
+            return (int) \App\Models\LeadAgent::query()->whereKey($deal->agent_id)->value('user_id') === $userId;
+        }
+
+        $leadId = $followUp->lead_id ?: $deal?->lead_id;
+
+        return $leadId !== null && (int) Lead::query()->whereKey($leadId)->value('lead_owner') === $userId;
+    }
+
     private function notifyAgentOfMeetingLinkFailure(DealFollowUp $followUp, string $errorMessage)
     {
         try {

@@ -9,6 +9,8 @@ import { openSourceEmailMessage } from "@/Email/openSourceEmail";
 import useTranslation from "@/Hooks/useTranslation";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useDealMeetingUpdate from "../../hooks/useDealMeetingUpdate";
+import useDealMeetingLinkGenerate from "../../hooks/useDealMeetingLinkGenerate";
+import { getMeetingOwner, usesAutoMeetingLink } from "@/Components/Redesign/meeting/meetingFormUtils";
 import DealEditMeetingModal from "./DealEditMeetingModal";
 import DealRescheduleMeetingModal from "./DealRescheduleMeetingModal";
 import { buildMeetingFormFromFollowup } from "./meetingFormUtils";
@@ -44,6 +46,15 @@ export default function DealMeetingDetailModal({
     const currentUserId = props.auth?.user?.id;
     const { updateMeeting, isUpdating } = useDealMeetingUpdate(deal);
     const sourceEmailId = meeting?.source_email_message_id ?? null;
+    const { generateLink, generating } = useDealMeetingLinkGenerate();
+    // A Zoho meeting whose link failed: the deal's agent (who gets the alert)
+    // or anyone who may edit it can ask for the link again.
+    const responsibleUserId = getMeetingOwner(deal)?.id;
+    const canRetryLink =
+        meeting != null &&
+        usesAutoMeetingLink(meeting.location) &&
+        !meeting.meeting_link &&
+        (canEdit || (currentUserId != null && responsibleUserId === currentUserId));
 
     const handleCancelMeeting = () => {
         if (!meeting) return;
@@ -133,6 +144,8 @@ export default function DealMeetingDetailModal({
                     : undefined
             }
             renderNestedModals={nested}
+            onGenerateLink={canRetryLink && meeting ? () => void generateLink(meeting.id) : undefined}
+            generatingLink={generating}
             fallback={
                 <MeetingDetailModal
                     meeting={meeting}
