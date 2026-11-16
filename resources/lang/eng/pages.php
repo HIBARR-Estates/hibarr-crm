@@ -3263,6 +3263,7 @@ return [
             'retry' => 'Try again',
             'hint_move' => 'to move',
             'hint_open' => 'to open',
+            'hint_call' => 'to call',
             'see_all' => 'See all {{count}} results',
             'results_label' => 'Search results',
             'tabs' => [
@@ -4090,6 +4091,8 @@ return [
         'bell' => [
             'title' => 'Notifications',
             'label_new' => 'Notifications, {{count}} new',
+            'open' => 'Open',
+            'add_link' => 'Add link',
             'mark_all' => 'Mark all read',
             'settings' => 'Alert settings',
             'tabs' => [
@@ -4296,6 +4299,7 @@ return [
                 'title' => 'Key facts',
                 'collapse' => 'Collapse',
                 'expand' => 'Show',
+                'show_all' => 'Show all',
                 'reach' => 'Reach them',
                 'who' => 'Who',
                 'where' => 'Where',
@@ -4328,6 +4332,10 @@ return [
                 'deal_title' => 'Coming up on this deal',
                 'title' => 'Coming up',
                 'empty' => 'Nothing planned yet',
+                'empty_deal' => 'Nothing planned on this deal',
+                'empty_deal_text' => 'Every open deal keeps a next step until it is won.',
+                'empty_lead' => 'Nothing planned for this lead',
+                'empty_lead_text' => 'Add a next step so the lead keeps moving.',
                 'task' => 'Task',
                 'meeting' => 'Meeting',
                 'overdue' => 'overdue',

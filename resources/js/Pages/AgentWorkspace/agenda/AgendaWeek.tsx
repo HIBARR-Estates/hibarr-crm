@@ -14,6 +14,12 @@ const DEFAULT_FIRST_HOUR = 8;
 const DEFAULT_LAST_HOUR = 19;
 /** A task has no length; it gets this much room on the grid. */
 const TASK_MINUTES = 30;
+/**
+ * More than two items at once would leave slivers too narrow to read, so a
+ * busier stretch shows its first item and a "+N" chip that opens the day.
+ */
+const MAX_LANES = 2;
+const MORE_CHIP_PX = 34;
 
 type Block = { kind: "meeting"; meeting: ScheduleEntry } | { kind: "task"; task: QueueTask };
 
@@ -100,7 +106,18 @@ export default function AgendaWeek({ days, byDay, today, selected, handlers, onS
                         untimed.push(task);
                     }
                 }
-                return { key, placed: placeBlocks(blocks), untimed };
+                const all = placeBlocks(blocks);
+                const placed = all.filter((block) => block.lanes <= MAX_LANES || block.lane === 0);
+                const overflow = new Map<number, { start: number; end: number; hidden: number }>();
+                for (const block of all) {
+                    if (block.lanes <= MAX_LANES) continue;
+                    const group = overflow.get(block.group) ?? { start: block.start, end: block.end, hidden: 0 };
+                    group.start = Math.min(group.start, block.start);
+                    group.end = Math.max(group.end, block.end);
+                    if (block.lane > 0) group.hidden += 1;
+                    overflow.set(block.group, group);
+                }
+                return { key, placed, overflow: [...overflow.values()], untimed };
             }),
         [days, byDay, timeZone],
     );
@@ -170,11 +187,12 @@ export default function AgendaWeek({ days, byDay, today, selected, handlers, onS
                         onClick={() => onSelect(column.key)}
                     >
                         {column.placed.map(({ item, start, end, lane, lanes }) => {
+                            const crowded = lanes > MAX_LANES;
                             const style: CSSProperties = {
                                 top: top(start),
                                 height: Math.max(22, ((end - start) / 60) * HOUR_PX - 2),
-                                left: `calc(${(lane / lanes) * 100}% + 2px)`,
-                                width: `calc(${100 / lanes}% - 4px)`,
+                                left: crowded ? 2 : `calc(${(lane / lanes) * 100}% + 2px)`,
+                                width: crowded ? `calc(100% - ${MORE_CHIP_PX + 6}px)` : `calc(${100 / lanes}% - 4px)`,
                             };
                             // Under 45 minutes there is only room for one line.
                             const short = end - start < 45;
@@ -219,6 +237,26 @@ export default function AgendaWeek({ days, byDay, today, selected, handlers, onS
                                 </button>
                             );
                         })}
+                        {column.overflow.map((group) => (
+                            <button
+                                key={`more${group.start}`}
+                                type="button"
+                                className="agent-wk__more"
+                                style={{
+                                    top: top(group.start),
+                                    height: Math.max(22, ((group.end - group.start) / 60) * HOUR_PX - 2),
+                                    width: MORE_CHIP_PX,
+                                }}
+                                title={t("pages.agent_workspace.agenda.more", { count: group.hidden })}
+                                aria-label={t("pages.agent_workspace.agenda.more", { count: group.hidden })}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onSelect(column.key);
+                                }}
+                            >
+                                +{group.hidden}
+                            </button>
+                        ))}
                         {column.key === today && nowMinute >= first * 60 && nowMinute <= last * 60 ? (
                             <div className="agent-wk__now" style={{ top: top(nowMinute) }} aria-hidden="true" />
                         ) : null}

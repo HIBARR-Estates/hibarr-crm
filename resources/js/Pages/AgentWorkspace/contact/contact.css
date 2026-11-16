@@ -219,6 +219,51 @@
     gap: 4px;
 }
 
+/* During a call: one line of label + value pairs, cut at the edge. */
+.agent-facts--strip {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.agent-facts--strip .agent-contact__label {
+    flex: none;
+    margin: 0;
+}
+
+.agent-facts--strip .dr-btn {
+    flex: none;
+    gap: 4px;
+}
+
+.agent-facts__strip {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    gap: 18px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    list-style: none;
+    white-space: nowrap;
+    mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+}
+
+.agent-facts__chip {
+    flex: none;
+    color: var(--dr-text-muted);
+    font-size: 13px;
+}
+
+.agent-facts__chip b {
+    color: var(--dr-text);
+    font-weight: 700;
+}
+
+.agent-facts__chip--empty b {
+    color: var(--dr-amber);
+}
+
 .agent-facts__grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
@@ -259,6 +304,21 @@
     color: var(--dr-text-muted);
     font-size: 12px;
     line-height: 1.45;
+}
+
+/* How to reach them: a phone number or an email address never breaks
+   mid-word; one too long for the card is cut, and shows in full on hover. */
+.agent-fact--reach .agent-fact__lead,
+.agent-fact--reach .agent-fact__line {
+    overflow: hidden;
+    overflow-wrap: normal;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-fact--reach .agent-fact__lead {
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
 }
 
 /* Nothing recorded: needs input. */
@@ -339,6 +399,36 @@
 
 .agent-card__empty {
     padding: 18px 8px;
+}
+
+/* Coming up with nothing ahead: needs input, so amber and dashed like an
+   empty field in edit mode, with the way forward under it. */
+.agent-card__gap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 28px 16px;
+    border: 1px dashed var(--dr-amber-border);
+    border-radius: 12px;
+    background: var(--dr-amber-bg);
+    color: var(--dr-amber);
+    text-align: center;
+}
+
+.agent-card__gap-title {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.agent-card__gap-text {
+    max-width: 260px;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.agent-card__gap .agent-contact__menu-anchor {
+    margin-top: 6px;
 }
 
 .agent-card__more {

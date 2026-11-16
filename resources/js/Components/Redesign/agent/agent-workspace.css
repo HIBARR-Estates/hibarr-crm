@@ -708,6 +708,20 @@ button .agent-new-tag {
     background: var(--dr-blue-mid);
 }
 
+/* A removing action that repeats down a list ("Remove reminder"): outlined in
+   red, never a solid red block. */
+.agent-btn-danger-soft.dr-btn {
+    border-color: var(--dr-red-mid);
+    background: var(--dr-white);
+    color: var(--dr-red);
+}
+
+.agent-btn-danger-soft.dr-btn:hover:not(:disabled) {
+    border-color: var(--dr-red);
+    background: var(--dr-red-soft);
+    color: var(--dr-red);
+}
+
 /* ---------- in-list search, in the title block on the band ---------- */
 .agent-list-head {
     display: flex;

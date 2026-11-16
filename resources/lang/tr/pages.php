@@ -3084,6 +3084,7 @@ return [
             'retry' => 'Tekrar dene',
             'hint_move' => 'gezinmek için',
             'hint_open' => 'açmak için',
+            'hint_call' => 'aramak için',
             'see_all' => '{{count}} sonucun tümünü gör',
             'results_label' => 'Arama sonuçları',
             'tabs' => [
@@ -3911,6 +3912,8 @@ return [
         'bell' => [
             'title' => 'Bildirimler',
             'label_new' => 'Bildirimler, {{count}} yeni',
+            'open' => 'Aç',
+            'add_link' => 'Bağlantı ekle',
             'mark_all' => 'Tümünü okundu yap',
             'settings' => 'Uyarı ayarları',
             'tabs' => [
@@ -4117,6 +4120,7 @@ return [
                 'title' => 'Temel bilgiler',
                 'collapse' => 'Daralt',
                 'expand' => 'Göster',
+                'show_all' => 'Tümünü göster',
                 'reach' => 'İletişim',
                 'who' => 'Kim',
                 'where' => 'Nerede',
@@ -4149,6 +4153,10 @@ return [
                 'deal_title' => 'Bu anlaşmada sırada',
                 'title' => 'Sıradakiler',
                 'empty' => 'Henüz bir plan yok',
+                'empty_deal' => 'Bu anlaşmada planlanmış bir şey yok',
+                'empty_deal_text' => 'Açık her anlaşmanın, kazanılana kadar bir sonraki adımı olmalı.',
+                'empty_lead' => 'Bu aday için planlanmış bir şey yok',
+                'empty_lead_text' => 'Adayın ilerlemesi için bir sonraki adım ekleyin.',
                 'task' => 'Görev',
                 'meeting' => 'Toplantı',
                 'overdue' => 'gecikmiş',

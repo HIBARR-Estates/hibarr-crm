@@ -199,11 +199,17 @@ function ComingUpCard({ source, comingUpTitle, nowMs, timeZone, permissions, onC
             {loading ? (
                 <CardSkeleton />
             ) : items.length === 0 ? (
-                <EmptyState
-                    icon="calendar"
-                    title={t("pages.agent_workspace.contact.coming_up.empty")}
-                    className="agent-card__empty"
-                />
+                // Nothing ahead: shown in amber as needing input (canvas L7-47), since
+                // an open lead or deal should always have a next step.
+                <div className="agent-card__gap" role="status">
+                    <b className="agent-card__gap-title">
+                        {t(`pages.agent_workspace.contact.coming_up.${comingUpTitle ? "empty_deal" : "empty_lead"}`)}
+                    </b>
+                    <span className="agent-card__gap-text">
+                        {t(`pages.agent_workspace.contact.coming_up.${comingUpTitle ? "empty_deal_text" : "empty_lead_text"}`)}
+                    </span>
+                    <NewActivityButton onCreate={onCreate} allowed={permissions.create} size="sm" tone="navy" />
+                </div>
             ) : (
                 <ul className="agent-card__list">
                     {items.slice(0, ROWS).map((item) => (

@@ -3106,6 +3106,7 @@ return [
             'retry' => 'Erneut versuchen',
             'hint_move' => 'zum Bewegen',
             'hint_open' => 'zum Öffnen',
+            'hint_call' => 'zum Anrufen',
             'see_all' => 'Alle {{count}} Ergebnisse ansehen',
             'results_label' => 'Suchergebnisse',
             'tabs' => [
@@ -3933,6 +3934,8 @@ return [
         'bell' => [
             'title' => 'Benachrichtigungen',
             'label_new' => 'Benachrichtigungen, {{count}} neu',
+            'open' => 'Öffnen',
+            'add_link' => 'Link hinzufügen',
             'mark_all' => 'Alle als gelesen markieren',
             'settings' => 'Hinweis-Einstellungen',
             'tabs' => [
@@ -4139,6 +4142,7 @@ return [
                 'title' => 'Wichtige Fakten',
                 'collapse' => 'Einklappen',
                 'expand' => 'Anzeigen',
+                'show_all' => 'Alle anzeigen',
                 'reach' => 'Erreichbarkeit',
                 'who' => 'Wer',
                 'where' => 'Wo',
@@ -4171,6 +4175,10 @@ return [
                 'deal_title' => 'Als Nächstes in diesem Deal',
                 'title' => 'Als Nächstes',
                 'empty' => 'Noch nichts geplant',
+                'empty_deal' => 'Für diesen Deal ist nichts geplant',
+                'empty_deal_text' => 'Jeder offene Deal braucht einen nächsten Schritt, bis er gewonnen ist.',
+                'empty_lead' => 'Für diesen Lead ist nichts geplant',
+                'empty_lead_text' => 'Legen Sie einen nächsten Schritt fest, damit der Lead in Bewegung bleibt.',
                 'task' => 'Aufgabe',
                 'meeting' => 'Meeting',
                 'overdue' => 'überfällig',

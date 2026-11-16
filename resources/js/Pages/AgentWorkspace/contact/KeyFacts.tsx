@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useSoftphone from "@/Hooks/useSoftphone";
 import useTranslation from "@/Hooks/useTranslation";
 import type { KeyFactGroup } from "./model";
 
@@ -23,15 +24,50 @@ function initialOpen(): boolean {
  * Key facts in small filled cards: how to reach them, who they are, where,
  * the lead's value and where they came from. A card with nothing recorded is
  * shown in amber as needing input. Collapsible, so the activity below can
- * come up the page.
+ * come up the page. During a call they fold to one line, so the call card
+ * and the activity keep the room; "Show all" opens the cards again.
  */
 export default function KeyFacts({ groups, title }: { groups: KeyFactGroup[]; /** Replaces "Key facts" (the deal-only view reads "Deal facts"). */ title?: string }) {
     const { t } = useTranslation();
     const { td } = useTd();
     const [open, setOpen] = useState(initialOpen);
+    const [showAllOnCall, setShowAllOnCall] = useState(false);
     const bodyId = useId();
+    const { isEnabled, state } = useSoftphone();
+    const onCall = Boolean(isEnabled && state.call && (state.call.phase === "active" || state.call.phase === "outbound"));
+
+    if (onCall && !showAllOnCall) {
+        return (
+            <section className="agent-contact__section agent-facts agent-facts--strip" aria-labelledby="agent-facts-title">
+                <h2 id="agent-facts-title" className="agent-contact__label">
+                    {title ?? t("pages.agent_workspace.contact.facts.title")}
+                </h2>
+                <ul className="agent-facts__strip">
+                    {groups.map((group) => {
+                        const empty = group.empty ?? !group.lead;
+                        const label = group.label ? td(group.label, { source: "en" }) : t(`pages.agent_workspace.contact.facts.${group.id}`);
+                        const value = empty ? group.lead || t("pages.agent_workspace.contact.facts.empty") : group.lead;
+                        return (
+                            <li key={group.id} className={`agent-facts__chip${empty ? " agent-facts__chip--empty" : ""}`} title={`${label}: ${value}`}>
+                                <span>{label}</span> <b>{value}</b>
+                            </li>
+                        );
+                    })}
+                </ul>
+                <Button variant="ghost" size="sm" onClick={() => setShowAllOnCall(true)} aria-expanded={false}>
+                    <Icon name="chevron-down" size={12} />
+                    {t("pages.agent_workspace.contact.facts.show_all")}
+                </Button>
+            </section>
+        );
+    }
 
     const toggle = () => {
+        if (onCall) {
+            // On a call, collapsing goes back to the one-line strip.
+            setShowAllOnCall(false);
+            return;
+        }
         const next = !open;
         try {
             window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
@@ -47,25 +83,25 @@ export default function KeyFacts({ groups, title }: { groups: KeyFactGroup[]; /*
                 <h2 id="agent-facts-title" className="agent-contact__label">
                     {title ?? t("pages.agent_workspace.contact.facts.title")}
                 </h2>
-                <Button variant="ghost" size="sm" onClick={toggle} aria-expanded={open} aria-controls={bodyId}>
-                    <Icon name={open ? "chevron-up" : "chevron-down"} size={12} />
-                    {open ? t("pages.agent_workspace.contact.facts.collapse") : t("pages.agent_workspace.contact.facts.expand")}
+                <Button variant="ghost" size="sm" onClick={toggle} aria-expanded={open || onCall} aria-controls={bodyId}>
+                    <Icon name={open || onCall ? "chevron-up" : "chevron-down"} size={12} />
+                    {open || onCall ? t("pages.agent_workspace.contact.facts.collapse") : t("pages.agent_workspace.contact.facts.expand")}
                 </Button>
             </div>
-            {open ? (
+            {open || onCall ? (
                 <ul id={bodyId} className="agent-facts__grid">
                     {groups.map((group) => {
                         const empty = group.empty ?? !group.lead;
                         return (
-                            <li key={group.id} className={`agent-fact${empty ? " agent-fact--empty" : ""}`}>
+                            <li key={group.id} className={`agent-fact agent-fact--${group.id}${empty ? " agent-fact--empty" : ""}`}>
                                 <span className="agent-fact__label">
                                     {group.label ? td(group.label, { source: "en" }) : t(`pages.agent_workspace.contact.facts.${group.id}`)}
                                 </span>
-                                <span className="agent-fact__lead">
+                                <span className="agent-fact__lead" title={group.id === "reach" && !empty ? group.lead : undefined}>
                                     {empty ? group.lead || t("pages.agent_workspace.contact.facts.empty") : group.lead}
                                 </span>
                                 {group.lines.map((line) => (
-                                    <span key={line} className="agent-fact__line">
+                                    <span key={line} className="agent-fact__line" title={group.id === "reach" ? line : undefined}>
                                         {line}
                                     </span>
                                 ))}
