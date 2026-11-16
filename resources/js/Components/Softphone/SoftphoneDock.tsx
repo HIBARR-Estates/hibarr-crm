@@ -184,9 +184,20 @@ export default function SoftphoneDock({
     const [isRetryingUpload, setIsRetryingUpload] = useState(false);
     const [lastRecordingUrl, setLastRecordingUrl] = useState<string | null>(null);
     const [recordings, setRecordings] = useState<CallRecordingItem[]>([]);
-    const [matchedLead, setMatchedLead] = useState<MatchedLead | null>(null);
-    const [matchCount, setMatchCount] = useState<number | null>(null);
-    const [inboundRoute, setInboundRoute] = useState<CallRouting | null>(null);
+    const [matchedLeadState, setMatchedLead] = useState<MatchedLead | null>(null);
+    const [matchCountState, setMatchCount] = useState<number | null>(null);
+    const [inboundRouteState, setInboundRoute] = useState<CallRouting | null>(null);
+    /** The call the lead/route lookup above belongs to. */
+    const [lookupCallId, setLookupCallId] = useState<string | null>(null);
+    // The lookup results belong to one call. A waiting call promoted straight
+    // after the last one ended can render without an empty call in between;
+    // until its own lookup lands, the previous call's lead and route must not
+    // be shown or logged against it. With no call (the ended-call notices),
+    // the last lookup stays readable.
+    const lookupIsForOtherCall = activeCall !== null && lookupCallId !== activeCall.id;
+    const matchedLead = lookupIsForOtherCall ? null : matchedLeadState;
+    const matchCount = lookupIsForOtherCall ? null : matchCountState;
+    const inboundRoute = lookupIsForOtherCall ? null : inboundRouteState;
     const [routingMode, setRoutingMode] = useState<"owner" | "pool" | "all">("all");
     const [rotationIndex, setRotationIndex] = useState(0);
     const [passedCallId, setPassedCallId] = useState<string | null>(null);
@@ -356,20 +367,26 @@ export default function SoftphoneDock({
         return null;
     }, [activeCall?.context, matchedLead]);
 
-    /** Stable reference for the current call. Shared by the hang-up timeline event and the recording upload so the two can be linked afterwards. */
-    const callRefRef = useRef<string | null>(null);
+    /**
+     * Stable reference for the current call. Shared by the hang-up timeline event and the recording upload so the two can be linked afterwards.
+     * Owned by one call id: a waiting call promoted straight after the last one ended can arrive without an empty render in between, and must not inherit its reference.
+     */
+    const callRefRef = useRef<{ callId: string; ref: string } | null>(null);
     const callRef = useMemo(() => {
         if (activeCall === null) {
             callRefRef.current = null;
             return null;
         }
-        if (callRefRef.current === null) {
-            callRefRef.current =
-                typeof crypto !== "undefined" && "randomUUID" in crypto
-                    ? crypto.randomUUID()
-                    : `call-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        if (callRefRef.current?.callId !== activeCall.id) {
+            callRefRef.current = {
+                callId: activeCall.id,
+                ref:
+                    typeof crypto !== "undefined" && "randomUUID" in crypto
+                        ? crypto.randomUUID()
+                        : `call-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+            };
         }
-        return callRefRef.current;
+        return callRefRef.current.ref;
     }, [activeCall?.id]);
 
     const lastActiveCallRef = useRef<string | null>(null);
@@ -592,9 +609,11 @@ export default function SoftphoneDock({
     const callPhaseRef = useRef<SoftphoneCallPhase | null>(null);
     callPhaseRef.current = activeCall?.phase ?? null;
 
+    const lookupStartedForCallIdRef = useRef<string | null>(null);
     useEffect(() => {
         const call = activeCall;
         if (call === null) {
+            lookupStartedForCallIdRef.current = null;
             matchedLeadRef.current = null;
             routeInitializedCallIdRef.current = null;
             serverSlotRef.current = null;
@@ -605,6 +624,16 @@ export default function SoftphoneDock({
             setRotationIndex(0);
             setPassedCallId(null);
             return;
+        }
+
+        if (lookupStartedForCallIdRef.current !== call.id) {
+            lookupStartedForCallIdRef.current = call.id;
+            matchedLeadRef.current = null;
+            setMatchedLead(null);
+            setMatchCount(null);
+            setInboundRoute(null);
+            setRoutingMode("all");
+            setLookupCallId(call.id);
         }
 
         const phone = call.peer;

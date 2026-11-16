@@ -13,15 +13,22 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $this->move('completed', 'voicemail');
+        $this->moveVoicemailCalls();
     }
 
+    /**
+     * The previous code has no "voicemail" status, so every row carrying it
+     * (whatever its type) goes back to "completed" — otherwise it could not
+     * be read at all.
+     */
     public function down(): void
     {
-        $this->move('voicemail', 'completed');
+        if (Schema::hasTable('crm_events')) {
+            DB::table('crm_events')->where('status', 'voicemail')->update(['status' => 'completed']);
+        }
     }
 
-    private function move(string $from, string $to): void
+    private function moveVoicemailCalls(): void
     {
         if (! Schema::hasTable('crm_events') || ! Schema::hasTable('crm_event_types')) {
             return;
@@ -34,7 +41,7 @@ return new class extends Migration
 
         DB::table('crm_events')
             ->whereIn('event_type_id', $typeIds)
-            ->where('status', $from)
-            ->update(['status' => $to]);
+            ->where('status', 'completed')
+            ->update(['status' => 'voicemail']);
     }
 };

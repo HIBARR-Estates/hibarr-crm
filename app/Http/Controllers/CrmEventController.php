@@ -126,7 +126,7 @@ class CrmEventController extends Controller
             'events.*.model_id' => 'nullable|integer',
             'events.*.user_id' => 'nullable|integer',
             'events.*.generation_type' => 'nullable|string|in:user_generated,system_generated,external',
-            'events.*.status' => 'nullable|string|in:completed,error_occurred,missed,rejected',
+            'events.*.status' => 'nullable|string|in:completed,error_occurred,missed,rejected,voicemail',
             'events.*.direction' => 'nullable|string|in:inbound,outbound',
             'events.*.correlation_id' => 'nullable|string|max:36',
             'events.*.causation_id' => 'nullable|integer',

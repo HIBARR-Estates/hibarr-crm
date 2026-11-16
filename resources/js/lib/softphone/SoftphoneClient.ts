@@ -647,7 +647,7 @@ class SoftphoneClient {
         } catch {
             // ignore — session will terminate regardless
         }
-        this.endCall();
+        this.endCallIfCurrent(session);
     }
 
     /**
@@ -699,7 +699,19 @@ class SoftphoneClient {
         } catch {
             // ignore
         }
-        this.endCall();
+        this.endCallIfCurrent(session);
+    }
+
+    /**
+     * End the call only if `session` is still the live one. While a hang-up
+     * was awaiting the network, the session's own "terminated" handler may
+     * already have ended it and promoted a waiting call; that call must not
+     * be torn down by the late cleanup of the old one.
+     */
+    private endCallIfCurrent(session: ManagedSession): void {
+        if (this.session === session) {
+            this.endCall();
+        }
     }
 
     /**

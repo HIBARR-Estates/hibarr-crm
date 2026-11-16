@@ -995,18 +995,21 @@
     gap: 8px;
 }
 
+/* Labels may wrap (German/Russian are long); the buttons shrink with the dock. */
 .sp__waiting-btn {
     flex: 1;
-    height: 32px;
-    border-radius: 999px;
+    min-width: 0;
+    min-height: 32px;
+    border-radius: 16px;
     border: 1px solid var(--line);
     background: var(--surface);
     color: var(--muted);
     font: inherit;
     font-size: 12px;
     font-weight: 600;
-    white-space: nowrap;
-    padding: 0 10px;
+    line-height: 1.25;
+    white-space: normal;
+    padding: 6px 10px;
     cursor: pointer;
     transition: background 0.12s, border-color 0.12s;
 }
