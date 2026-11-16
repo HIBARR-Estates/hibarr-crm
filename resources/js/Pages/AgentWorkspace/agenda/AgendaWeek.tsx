@@ -125,7 +125,8 @@ export default function AgendaWeek({ days, byDay, today, selected, handlers, onS
     let first = DEFAULT_FIRST_HOUR;
     let last = DEFAULT_LAST_HOUR;
     for (const column of columns) {
-        for (const block of column.placed) {
+        // Hidden items count too: the "+N" chip spans them and must fit on the grid.
+        for (const block of [...column.placed, ...column.overflow]) {
             first = Math.min(first, Math.floor(block.start / 60));
             last = Math.max(last, Math.ceil(Math.min(block.end, 24 * 60) / 60));
         }

@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -33,12 +33,33 @@ export default function KeyFacts({ groups, title }: { groups: KeyFactGroup[]; /*
     const [open, setOpen] = useState(initialOpen);
     const [showAllOnCall, setShowAllOnCall] = useState(false);
     const bodyId = useId();
+    const sectionRef = useRef<HTMLElement | null>(null);
+    /** Set when the agent swaps strip and cards, so the control that replaces the pressed one takes focus. */
+    const refocusRef = useRef(false);
     const { isEnabled, state } = useSoftphone();
     const onCall = Boolean(isEnabled && state.call && (state.call.phase === "active" || state.call.phase === "outbound"));
 
+    // "Show all" holds for this call only; the next call starts folded again.
+    const [wasOnCall, setWasOnCall] = useState(onCall);
+    if (wasOnCall !== onCall) {
+        setWasOnCall(onCall);
+        if (!onCall) setShowAllOnCall(false);
+    }
+
+    useEffect(() => {
+        if (!refocusRef.current) return;
+        refocusRef.current = false;
+        sectionRef.current?.querySelector<HTMLButtonElement>("button[data-facts-toggle]")?.focus();
+    }, [showAllOnCall]);
+
+    const setShowAll = (next: boolean) => {
+        refocusRef.current = true;
+        setShowAllOnCall(next);
+    };
+
     if (onCall && !showAllOnCall) {
         return (
-            <section className="agent-contact__section agent-facts agent-facts--strip" aria-labelledby="agent-facts-title">
+            <section ref={sectionRef} className="agent-contact__section agent-facts agent-facts--strip" aria-labelledby="agent-facts-title">
                 <h2 id="agent-facts-title" className="agent-contact__label">
                     {title ?? t("pages.agent_workspace.contact.facts.title")}
                 </h2>
@@ -54,7 +75,7 @@ export default function KeyFacts({ groups, title }: { groups: KeyFactGroup[]; /*
                         );
                     })}
                 </ul>
-                <Button variant="ghost" size="sm" onClick={() => setShowAllOnCall(true)} aria-expanded={false}>
+                <Button variant="ghost" size="sm" onClick={() => setShowAll(true)} aria-expanded={false} data-facts-toggle="">
                     <Icon name="chevron-down" size={12} />
                     {t("pages.agent_workspace.contact.facts.show_all")}
                 </Button>
@@ -65,7 +86,7 @@ export default function KeyFacts({ groups, title }: { groups: KeyFactGroup[]; /*
     const toggle = () => {
         if (onCall) {
             // On a call, collapsing goes back to the one-line strip.
-            setShowAllOnCall(false);
+            setShowAll(false);
             return;
         }
         const next = !open;
@@ -78,12 +99,12 @@ export default function KeyFacts({ groups, title }: { groups: KeyFactGroup[]; /*
     };
 
     return (
-        <section className="agent-contact__section agent-facts" aria-labelledby="agent-facts-title">
+        <section ref={sectionRef} className="agent-contact__section agent-facts" aria-labelledby="agent-facts-title">
             <div className="agent-facts__head">
                 <h2 id="agent-facts-title" className="agent-contact__label">
                     {title ?? t("pages.agent_workspace.contact.facts.title")}
                 </h2>
-                <Button variant="ghost" size="sm" onClick={toggle} aria-expanded={open || onCall} aria-controls={bodyId}>
+                <Button variant="ghost" size="sm" onClick={toggle} aria-expanded={open || onCall} aria-controls={bodyId} data-facts-toggle="">
                     <Icon name={open || onCall ? "chevron-up" : "chevron-down"} size={12} />
                     {open || onCall ? t("pages.agent_workspace.contact.facts.collapse") : t("pages.agent_workspace.contact.facts.expand")}
                 </Button>
