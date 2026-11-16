@@ -9,6 +9,7 @@ use App\DataTables\LeadGDPRDataTable;
 use App\DataTables\ProposalDataTable;
 use App\Email\EmailFeature;
 use App\Email\FollowUps\AttachesSourceEmail;
+use App\Enums\AgeRange;
 use App\Enums\MlmCommissionStatus;
 use App\Enums\OutcomeStatus;
 use App\Enums\Salutation;
@@ -575,9 +576,30 @@ class DealController extends AccountBaseController
             $siblings = array_values(array_filter($siblings, fn (array $summary) => (int) $summary['id'] === (int) $deal));
         }
 
+        // The person's details stay editable once they have a deal (canvas
+        // L8-06): the same permission and options the lead page edits with,
+        // the options loaded after first paint.
+        $contactEdit = $restricted ? [] : [
+            'editLeadPermission' => user()->permission('edit_lead'),
+            'contactEditOptions' => Inertia::defer(fn () => [
+                'salutations' => collect(Salutation::cases())->map(fn (Salutation $salutation) => [
+                    'value' => $salutation->value,
+                    'label' => $salutation->label(),
+                ])->values(),
+                'ageRanges' => collect(AgeRange::cases())->map(fn (AgeRange $ageRange) => [
+                    'value' => $ageRange->value,
+                    'label' => $ageRange->label(),
+                ])->values(),
+                'countries' => countries(),
+                'sources' => LeadSource::all(),
+                'categories' => LeadCategory::all(),
+            ]),
+        ];
+
         return Inertia::render('AgentWorkspace/ContactDeal', array_merge(
             Arr::except($props, self::AGENT_CONTACT_UNUSED_PROPS),
             ['contactDeals' => $siblings],
+            $contactEdit,
         ));
     }
 

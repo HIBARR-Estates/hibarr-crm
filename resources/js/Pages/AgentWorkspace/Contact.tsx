@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { MenuProps } from "antd";
 import { Head, router, usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
 import { AgentPillRow, AgentSecondRow, AgentWorkspaceLayout, agentPillPanelProps, useMinuteClock } from "@/Components/Redesign/agent";
@@ -26,19 +27,24 @@ import useLeadLifecycleChange from "@/Pages/Leads/Redesign/hooks/useLeadLifecycl
 import useLeadMissionFlow from "@/Pages/Leads/Redesign/hooks/useLeadMissionFlow";
 import useLeadQualificationWorkspace from "@/Pages/Leads/Redesign/hooks/useLeadQualificationWorkspace";
 import type { LeadRedesignProps } from "@/Pages/Leads/Redesign/types";
-import { LEAD_TIMELINE_MODEL_TYPE } from "@/Pages/Deals/Redesign/hooks/useDealTimeline";
+import useDealTimeline, { LEAD_TIMELINE_MODEL_TYPE } from "@/Pages/Deals/Redesign/hooks/useDealTimeline";
+import HistorySection from "./deal/sections/HistorySection";
+import MarketingSection from "./deal/sections/MarketingSection";
+import QualificationSection from "./deal/sections/QualificationSection";
 import type { Note } from "@/Types/api/note";
 import LeadEditPage from "./edit/LeadEditPage";
 import useAgentMerge from "./contact/useAgentMerge";
 import type { EditOptions } from "./edit/leadEditForm";
 import ActivityCards, { type ActivityPermissions, type ActivitySource } from "./contact/ActivityCards";
-import AiBriefStrip from "./contact/AiBriefStrip";
+import AiSummaryPanel from "./contact/AiSummaryPanel";
+import LeadFilesSection from "./contact/LeadFilesSection";
 import { NewActivityProvider } from "./contact/NewActivityContext";
 import ContactHeader, { leadPhone } from "./contact/ContactHeader";
 import GoalPanel from "./contact/GoalPanel";
 import KeyFacts from "./contact/KeyFacts";
-import LeadStatusPath from "./contact/LeadStatusPath";
-import { buildKeyFacts } from "./contact/model";
+import { LeadPathSteps } from "./contact/LeadStatusPath";
+import StatusBar, { StatusMenuLabel } from "./contact/StatusBar";
+import { buildKeyFacts, buildLeadPath } from "./contact/model";
 import useKeyFactLabels from "./contact/useKeyFactLabels";
 import { buildQualificationFact } from "./contact/qualificationFact";
 import "@/Components/Redesign/redesign.css";
@@ -124,12 +130,28 @@ function ContactLead(props: LeadRedesignProps) {
     const dealHref = useCallback((dealId: number) => route("agent.people.deal", { lead: lead.id, deal: dealId }), [lead.id]);
     const mission = useLeadMissionFlow({ qualification, deals, changeStatus, setQualificationOpen, dealHref });
     // "Continue qualification" on the call card, from any page, lands here and opens the running one.
+    // The page opens first; the qualification follows a frame later (canvas L8).
     const resumeRequest = useResumeQualificationRequest(lead.id);
+    const [resumePending, setResumePending] = useState(false);
     useEffect(() => {
         if (!resumeRequest.requested) return;
         resumeRequest.consume();
-        if (showQualification) mission.handleMissionAction("qualify_resume");
-    }, [mission, resumeRequest, showQualification]);
+        if (showQualification) setResumePending(true);
+    }, [resumeRequest, showQualification]);
+    useEffect(() => {
+        if (!resumePending) return undefined;
+        let second = 0;
+        const first = window.requestAnimationFrame(() => {
+            second = window.requestAnimationFrame(() => {
+                setResumePending(false);
+                mission.handleMissionAction("qualify_resume");
+            });
+        });
+        return () => {
+            window.cancelAnimationFrame(first);
+            window.cancelAnimationFrame(second);
+        };
+    }, [mission, resumePending]);
     const dealCreate = useLeadDealCreate(lead);
     const deleteLead = useLeadDelete(lead);
     const duplicates = useLeadDuplicates(lead.id);
@@ -193,6 +215,66 @@ function ContactLead(props: LeadRedesignProps) {
     const hasLost = statuses.some((status) => status.key === "lost");
     const canMarkLost = canEdit && hasLost && lifecycle.statusKey !== "lost";
 
+    // The status menu (canvas L8-02): the path, Qualified set only by the
+    // qualification outcome, the other statuses, then Mark as lost.
+    const path = useMemo(() => buildLeadPath(statuses, lifecycle.statusKey), [lifecycle.statusKey, statuses]);
+    const statusMenu: MenuProps["items"] = canEdit
+        ? [
+              {
+                  type: "group",
+                  key: "path",
+                  label: t("pages.agent_workspace.contact.status.on_path"),
+                  children: path.steps.map((step) => {
+                      const current = step.key === lifecycle.statusKey;
+                      const qualified = step.key === "qualified";
+                      return {
+                          key: step.key,
+                          disabled: current || qualified,
+                          label: (
+                              <StatusMenuLabel
+                                  name={td(step.label, { source: "en" })}
+                                  current={current}
+                                  sub={current ? t("pages.agent_workspace.contact.status.current") : qualified ? t("pages.agent_workspace.contact.status.qualified_by_outcome") : undefined}
+                              />
+                          ),
+                      };
+                  }),
+              },
+              ...(path.offPath.some((status) => status.key !== "lost")
+                  ? [
+                        { type: "divider" as const, key: "d1" },
+                        {
+                            type: "group" as const,
+                            key: "off",
+                            label: t("pages.agent_workspace.contact.status.off_path"),
+                            children: path.offPath
+                                .filter((status) => status.key !== "lost")
+                                .map((status) => ({
+                                    key: status.key,
+                                    disabled: status.current,
+                                    label: <StatusMenuLabel name={td(status.label, { source: "en" })} current={status.current} />,
+                                })),
+                        },
+                    ]
+                  : []),
+              ...(canMarkLost
+                  ? [
+                        { type: "divider" as const, key: "d2" },
+                        {
+                            key: "lost",
+                            danger: true,
+                            label: <StatusMenuLabel name={t("pages.agent_workspace.contact.status.mark_lost_menu")} sub={t("pages.agent_workspace.contact.status.mark_lost_sub")} />,
+                        },
+                    ]
+                  : []),
+          ]
+        : [];
+    const onStatusSelect = (key: string) => {
+        if (key === "lost") setConfirmLost(true);
+        else void changeStatus(key);
+    };
+    const timeline = useDealTimeline(lead.id, LEAD_TIMELINE_MODEL_TYPE);
+
     const onMoreAction = (id: MoreMenuActionId) => {
         if (id === "task" || id === "note") setCreateKind(id);
         else if (id === "deal") mission.openCreateDeal();
@@ -251,8 +333,18 @@ function ContactLead(props: LeadRedesignProps) {
                                     onMoreAction={onMoreAction}
                                 />
                             </div>
+                            <StatusBar
+                                label={t("pages.agent_workspace.contact.status.title")}
+                                note={t("pages.agent_workspace.contact.status.note")}
+                                menuLabel={t("pages.agent_workspace.contact.status.menu")}
+                                menuItems={statusMenu}
+                                onMenuSelect={onStatusSelect}
+                                busy={statusSaving}
+                            >
+                                <LeadPathSteps statuses={statuses} currentKey={lifecycle.statusKey} />
+                            </StatusBar>
                             {showAiSummary ? (
-                                <AiBriefStrip
+                                <AiSummaryPanel
                                     entityType="lead"
                                     entityId={lead.id}
                                     initialSummary={props.leadAiSummary}
@@ -276,12 +368,6 @@ function ContactLead(props: LeadRedesignProps) {
                                     />
                                 </div>
                             ) : null}
-                            <LeadStatusPath
-                                statuses={statuses}
-                                currentKey={lifecycle.statusKey}
-                                onMarkLost={canMarkLost ? () => setConfirmLost(true) : undefined}
-                                saving={statusSaving}
-                            />
                             <KeyFacts groups={keyFacts} />
                         </section>
 
@@ -310,6 +396,13 @@ function ContactLead(props: LeadRedesignProps) {
                             />
                         </aside>
                     ) : null}
+                </div>
+
+                <div className="agent-deal__sections agent-deal__sections--lead">
+                    {showQualification ? <QualificationSection leadId={lead.id} enabled /> : null}
+                    <LeadFilesSection canUpload={canEdit} />
+                    <MarketingSection marketing={lead.marketing} />
+                    <HistorySection recordId={lead.id} recordType="lead" timeline={timeline} emailEnabled={false} onOpenEmailMessage={() => undefined} />
                 </div>
             </div>
             )}

@@ -1,3 +1,4 @@
+import { Dropdown } from "antd";
 import type { ReactNode } from "react";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
@@ -30,6 +31,11 @@ interface ContactHeaderProps {
     allowedCreate: Partial<Record<LeadCreateKind, boolean>>;
     /** Edit details; left out when the viewer can't edit. */
     onEdit: () => void;
+    /**
+     * Turns Edit details into a menu (canvas L8-06): the deal state offers the
+     * contact's details and the deal's. Entries left out are not editable.
+     */
+    editMenu?: Array<{ key: string; label: string; onSelect: () => void }>;
     /** The lead's ⋯ menu. Left out in the deal state, whose menu sits on the deal. */
     onMoreAction?: (id: MoreMenuActionId) => void;
     /** Replaces the lead's ⋯ menu (the deal state's own). */
@@ -58,6 +64,7 @@ export default function ContactHeader({
     onCreate,
     allowedCreate,
     onEdit,
+    editMenu,
     onMoreAction,
     moreMenu,
     extraActivities,
@@ -131,7 +138,29 @@ export default function ContactHeader({
                     entity={callEntity ?? { type: "lead", id: lead.id }}
                 />
                 <NewActivityButton onCreate={onCreate} allowed={allowedCreate} extra={extraActivities} />
-                {canEdit ? (
+                {editMenu && editMenu.length > 1 ? (
+                    <Dropdown
+                        menu={{
+                            items: editMenu.map((entry) => ({ key: entry.key, label: entry.label })),
+                            onClick: ({ key }) => editMenu.find((entry) => entry.key === key)?.onSelect(),
+                        }}
+                        trigger={["click"]}
+                        placement="bottomRight"
+                    >
+                        <span className="agent-contact__menu-anchor">
+                            <Button variant="ghost" aria-haspopup="menu">
+                                <Icon name="edit" size={14} />
+                                {t("pages.agent_workspace.contact.edit_details")}
+                                <Icon name="chevron-down" size={13} />
+                            </Button>
+                        </span>
+                    </Dropdown>
+                ) : editMenu && editMenu.length === 1 ? (
+                    <Button variant="ghost" onClick={editMenu[0].onSelect}>
+                        <Icon name="edit" size={14} />
+                        {t("pages.agent_workspace.contact.edit_details")}
+                    </Button>
+                ) : canEdit && !editMenu ? (
                     <Button variant="ghost" onClick={onEdit}>
                         <Icon name="edit" size={14} />
                         {t("pages.agent_workspace.contact.edit_details")}
