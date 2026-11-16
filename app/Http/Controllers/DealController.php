@@ -2471,7 +2471,7 @@ class DealController extends AccountBaseController
 
         $validated = $request->validate([
             'referral_pool_rate' => 'nullable|numeric|min:0|max:100',
-            'referral_fixed_amount' => 'nullable|numeric|min:0',
+            'referral_fixed_amount' => 'nullable|numeric|min:0|max:9999999999999.99',
         ]);
 
         $blocked = DB::transaction(function () use ($request, $deal, $validated) {

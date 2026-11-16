@@ -281,6 +281,7 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                         style={{
                             ...floatStyle,
                             minWidth: 340,
+                            maxWidth: 400,
                             padding: 14,
                             textAlign: "left",
                         }}
@@ -527,33 +528,41 @@ function ReferralShareFields({
     const { t } = useTranslation();
     const share = referral!;
     const name = share.referrer_name;
-    // A deal-level 0% with no agreed amount writes no referral leg: that is
-    // what "not paid on this deal" is stored as.
-    const excluded = share.fixed_amount == null && share.deal_percentage === 0;
+    // "Not paid" is stored as a deal-level 0% with no agreed amount. An agreed
+    // zero pays nothing too, so it reads the same way.
+    const excluded =
+        share.fixed_amount === 0 || (share.fixed_amount == null && share.deal_percentage === 0);
     const savedMode: ReferralMode = excluded
         ? "excluded"
         : share.applied === "fixed"
           ? "amount"
           : "percentage";
-    const savedPercent = excluded ? share.partner_percentage : (share.deal_percentage ?? share.partner_percentage);
+    const savedPercent =
+        share.deal_percentage != null && share.deal_percentage > 0
+            ? share.deal_percentage
+            : share.partner_percentage;
+    const savedAmount = share.fixed_amount != null && share.fixed_amount > 0 ? share.fixed_amount : null;
     const toText = (value: number | null) => (value == null ? "" : String(value));
 
     const [mode, setMode] = useState<ReferralMode>(savedMode);
     const [percent, setPercent] = useState(toText(savedPercent));
-    const [amount, setAmount] = useState(toText(share.fixed_amount));
+    const [amount, setAmount] = useState(toText(savedAmount));
 
+    // Only a changed saved value resets the inputs, so a failed save keeps
+    // what was typed.
     useEffect(() => {
-        if (saving) return;
         setMode(savedMode);
         setPercent(toText(savedPercent));
-        setAmount(toText(share.fixed_amount));
-    }, [saving, savedMode, savedPercent, share.fixed_amount]);
+        setAmount(toText(savedAmount));
+    }, [savedMode, savedPercent, savedAmount]);
 
+    // Both columns are decimal(…, 2); comparing unrounded input would keep
+    // Save visible after the server rounds it.
     const parse = (value: string) => {
         const trimmed = value.trim();
         if (trimmed === "") return null;
         const number = Number(trimmed);
-        return Number.isNaN(number) ? null : number;
+        return Number.isNaN(number) ? null : Math.round(number * 100) / 100;
     };
 
     const percentValue = parse(percent);
@@ -565,7 +574,8 @@ function ReferralShareFields({
             : mode === "percentage"
               ? !percentInvalid && (savedMode !== "percentage" || percentValue !== savedPercent)
               : amountValue !== null &&
-                (savedMode !== "amount" || amountValue !== share.fixed_amount);
+                amountValue > 0 &&
+                (savedMode !== "amount" || amountValue !== savedAmount);
 
     const usingPartnerDefault =
         share.partner_percentage != null && percentValue === share.partner_percentage;
@@ -674,8 +684,13 @@ function ReferralShareFields({
                               : t("pages.deals.info.value_insight.referral_none")}
                 </div>
             )}
-            {mode !== "excluded" && !excluded && (
+            {/* These describe the saved setting, so they hide while another option is being edited. */}
+            {mode === savedMode && !excluded && (
                 <>
+                    {!editable &&
+                        share.base === "package" &&
+                        share.applied === "percentage" &&
+                        hint(t("pages.deals.info.value_insight.referral_package_base"))}
                     {share.applied === "fixed" &&
                         share.fixed_amount != null &&
                         share.fixed_amount > 0 &&
@@ -708,7 +723,10 @@ function ReferralShareFields({
                                         referral_fixed_amount: null,
                                     }
                                   : {
-                                        referral_pool_rate: excluded ? null : share.deal_percentage,
+                                        referral_pool_rate:
+                                            share.deal_percentage != null && share.deal_percentage > 0
+                                                ? share.deal_percentage
+                                                : null,
                                         referral_fixed_amount: amountValue,
                                     },
                         )
