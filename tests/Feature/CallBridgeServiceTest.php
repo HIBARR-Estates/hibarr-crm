@@ -328,7 +328,8 @@ class CallBridgeServiceTest extends TestCase
 
         $this->assertNotNull($event);
         $this->assertSame('call_voicemail', $event->eventType->slug);
-        $this->assertSame('completed', $event->status->value);
+        // Connected, but not to a person: never reported as completed.
+        $this->assertSame('voicemail', $event->status->value);
 
         // A voicemail is not an answered conversation — the callback stays open.
         $this->assertNull(DB::table('tasks')->where('id', $taskId)->value('completed_on'));

@@ -675,6 +675,15 @@ export default function useSoftphone() {
         if (!storeState.isActiveTab) return;
         await softphone.hangup();
     }, []);
+    /** End the current call and answer the one waiting behind it. */
+    const answerWaiting = useCallback(async () => {
+        if (!storeState.isActiveTab) return;
+        await softphone.answerWaiting();
+    }, []);
+    const dismissWaiting = useCallback(() => {
+        if (!storeState.isActiveTab) return;
+        softphone.dismissWaiting();
+    }, []);
     const setMuted = useCallback(
         (muted: boolean) => softphone.setMuted(muted),
         [],
@@ -716,7 +725,7 @@ export default function useSoftphone() {
         refreshDevices: refreshSoftphoneDevices,
         state: shared.isActiveTab
             ? state
-            : { ...state, call: shared.mirroredCall },
+            : { ...state, call: shared.mirroredCall, waitingCall: null },
         isActiveTab: shared.isActiveTab,
         attachRemoteAudio,
         call,
@@ -724,6 +733,8 @@ export default function useSoftphone() {
         answer,
         reject,
         hangup,
+        answerWaiting,
+        dismissWaiting,
         setMuted,
         setHold,
         getLocalSendStream,

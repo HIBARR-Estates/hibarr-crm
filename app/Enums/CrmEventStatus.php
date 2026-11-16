@@ -11,6 +11,8 @@ enum CrmEventStatus: string
     case ERROR_OCCURRED = 'error_occurred';
     case MISSED = 'missed';
     case REJECTED = 'rejected';
+    /** A call that connected, but to voicemail rather than a person. */
+    case VOICEMAIL = 'voicemail';
 
     /**
      * Get the human-readable label for this status.
@@ -22,6 +24,7 @@ enum CrmEventStatus: string
             self::ERROR_OCCURRED => 'Error Occurred',
             self::MISSED => 'Missed',
             self::REJECTED => 'Rejected',
+            self::VOICEMAIL => 'Connected · voicemail',
         };
     }
 
@@ -35,6 +38,7 @@ enum CrmEventStatus: string
             self::ERROR_OCCURRED => 'red',
             self::MISSED => 'orange',
             self::REJECTED => 'volcano',
+            self::VOICEMAIL => 'blue',
         };
     }
 }

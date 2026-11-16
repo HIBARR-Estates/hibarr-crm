@@ -2655,7 +2655,7 @@ return [
         'completed' => 'завершён',
         'missed' => 'пропущен — нет ответа',
         'declined' => 'отклонён',
-        'voicemail' => 'голосовое сообщение',
+        'voicemail' => 'соединено — голосовая почта',
         'busy' => 'занято',
         'failed' => 'не удалось соединиться',
         'recording_available' => 'Запись доступна',
@@ -2937,6 +2937,9 @@ return [
     ],
 
     'softphone' => [
+        'call_waiting' => 'Ожидающий вызов',
+        'end_and_answer' => 'Завершить и ответить',
+        'decline_waiting' => 'Отклонить',
         'connection_failed' => 'Ошибка соединения',
         'connecting_to_provider' => 'Подключение к {{provider}}…',
         'line_capacity_reached' => 'Эта телефонная линия достигла лимита в {{max}} одновременных звонков. Повторите попытку позже или смените линию.',

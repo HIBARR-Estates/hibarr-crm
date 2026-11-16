@@ -2682,7 +2682,7 @@ return [
         'completed' => 'abgeschlossen',
         'missed' => 'verpasst — keine Antwort',
         'declined' => 'abgelehnt',
-        'voicemail' => 'Sprachnachricht',
+        'voicemail' => 'verbunden — Mailbox',
         'busy' => 'Leitung besetzt',
         'failed' => 'Verbindung fehlgeschlagen',
         'recording_available' => 'Aufnahme verfügbar',
@@ -2926,6 +2926,9 @@ return [
     ],
 
     'softphone' => [
+        'call_waiting' => 'Anklopfen',
+        'end_and_answer' => 'Beenden & annehmen',
+        'decline_waiting' => 'Ablehnen',
         'connection_failed' => 'Verbindung fehlgeschlagen',
         'connecting_to_provider' => 'Verbindung zu {{provider}} wird hergestellt…',
         'line_capacity_reached' => 'Diese Telefonleitung hat ihr Limit von {{max}} gleichzeitigen Anrufen erreicht. Versuchen Sie es in Kürze erneut oder wechseln Sie die Leitung.',

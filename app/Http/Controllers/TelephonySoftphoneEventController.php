@@ -134,14 +134,24 @@ class TelephonySoftphoneEventController extends AccountBaseController
             $this->getAvailableAdminFallbackUsers($companyId),
         );
 
+        // Agents already on a call are skipped while anyone else can take it,
+        // so their turn does not make the caller wait. Once this call is
+        // answered the agent who took it is on a call too, so nobody counts as
+        // busy from then on.
+        $busyUserIds = $statusVal !== 'answered' ? LineConcurrencyManager::usersOnCall($companyId) : [];
+
         // With an id every agent shares, the order is frozen and the position
-        // advances on the server, so all browsers agree on who rings now.
+        // advances on the server, so all browsers agree on who rings now. The
+        // whole roster is frozen, busy agents included, so they can still be
+        // rung if everyone free has passed or timed out.
         $sharedCallKey = $this->sharedCallKey($callId);
         if ($sharedCallKey !== null) {
-            $rotation = InboundCallRotation::resolve($companyId, $sharedCallKey, $rotationUsers, $passedUserIds, $fallbackSeconds);
+            $rotation = InboundCallRotation::resolve($companyId, $sharedCallKey, $rotationUsers, $passedUserIds, $fallbackSeconds, $busyUserIds);
             $rotationUsers = $rotation['users'];
             $routing['rotation_index'] = $rotation['index'];
             $routing['slot_remaining_seconds'] = $rotation['slot_remaining_seconds'];
+        } else {
+            $rotationUsers = $this->withoutBusyAgents($rotationUsers, $passedUserIds, $busyUserIds);
         }
 
         $ownerEntry = collect($rotationUsers)->firstWhere('role', 'owner');
@@ -207,6 +217,32 @@ class TelephonySoftphoneEventController extends AccountBaseController
             $matchingLeads->first(fn (Lead $lead) => ! empty($lead->lead_owner)) ?? $matchingLeads->first(),
             null,
         ];
+    }
+
+    /**
+     * For a call without a shared id (no server-held rotation): the rotation
+     * minus busy agents, unless no free agent who has not passed is left —
+     * then the busy agents are the only ones the call can still go to.
+     *
+     * @param  array<int, array{id: int, name: string, role: string, priority?: int}>  $rotationUsers
+     * @param  array<int, int>  $passedUserIds
+     * @param  array<int, int>  $busyUserIds
+     * @return array<int, array{id: int, name: string, role: string, priority?: int}>
+     */
+    private function withoutBusyAgents(array $rotationUsers, array $passedUserIds, array $busyUserIds): array
+    {
+        if ($busyUserIds === []) {
+            return $rotationUsers;
+        }
+
+        $isBusy = fn (array $user): bool => in_array((int) $user['id'], $busyUserIds, true);
+        $hasFreeUnpassed = collect($rotationUsers)->contains(
+            fn (array $user): bool => ! $isBusy($user) && ! in_array((int) $user['id'], $passedUserIds, true),
+        );
+
+        return $hasFreeUnpassed
+            ? array_values(array_filter($rotationUsers, fn (array $user): bool => ! $isBusy($user)))
+            : $rotationUsers;
     }
 
     /** Admins and holders of make_softphone_calls can run the softphone. */

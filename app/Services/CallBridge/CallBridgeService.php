@@ -727,7 +727,7 @@ class CallBridgeService
         return match (true) {
             // Status-driven outcomes (the most specific signal OL sends).
             in_array($olStatus, ['answered', 'connected'], true) => ['call_ended', CrmEventStatus::COMPLETED],
-            in_array($olStatus, ['voicemail', 'voice_mail', 'voice mail', 'vm'], true) => ['call_voicemail', CrmEventStatus::COMPLETED],
+            in_array($olStatus, ['voicemail', 'voice_mail', 'voice mail', 'vm'], true) => ['call_voicemail', CrmEventStatus::VOICEMAIL],
             in_array($olStatus, ['declined', 'reject', 'rejected'], true) => ['call_declined', CrmEventStatus::REJECTED],
             in_array($olStatus, ['busy', 'busy_line'], true) => ['call_busy', CrmEventStatus::MISSED],
             in_array($olStatus, ['failed', 'failure', 'error', 'cancel', 'cancelled', 'canceled'], true) => ['call_failed', CrmEventStatus::ERROR_OCCURRED],
@@ -736,7 +736,7 @@ class CallBridgeService
             in_array($raw, ['call.ended', 'call.completed', 'ended', 'completed', 'call_ended', 'call_completed'], true) => ['call_ended', CrmEventStatus::COMPLETED],
             in_array($raw, ['call.missed', 'missed', 'call_missed'], true) => ['call_missed', CrmEventStatus::MISSED],
             in_array($raw, ['call.declined', 'call.rejected', 'declined', 'rejected', 'call_declined'], true) => ['call_declined', CrmEventStatus::REJECTED],
-            in_array($raw, ['call.voicemail', 'voicemail', 'voice_mail', 'call_voicemail'], true) => ['call_voicemail', CrmEventStatus::COMPLETED],
+            in_array($raw, ['call.voicemail', 'voicemail', 'voice_mail', 'call_voicemail'], true) => ['call_voicemail', CrmEventStatus::VOICEMAIL],
             in_array($raw, ['call.busy', 'busy', 'call_busy'], true) => ['call_busy', CrmEventStatus::MISSED],
             in_array($raw, ['call.failed', 'failed', 'error', 'call_failed', 'call.connection_failed', 'connection_failed'], true) => ['call_failed', CrmEventStatus::ERROR_OCCURRED],
             // Started (once per call; CRM-initiated calls already log this via startCall).

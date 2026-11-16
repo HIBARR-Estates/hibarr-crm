@@ -13,6 +13,7 @@ import {
     CloseCircleOutlined,
     ExclamationCircleOutlined,
     MinusCircleOutlined,
+    MessageOutlined,
     DownOutlined,
     UpOutlined,
     ArrowDownOutlined,
@@ -129,6 +130,11 @@ const STATUS_CONFIG: Record<
         label: "Rejected",
         icon: <MinusCircleOutlined />,
         className: "text-gray-500 bg-gray-100",
+    },
+    voicemail: {
+        label: "Connected · voicemail",
+        icon: <MessageOutlined />,
+        className: "text-blue-600 bg-blue-50",
     },
 };
 
