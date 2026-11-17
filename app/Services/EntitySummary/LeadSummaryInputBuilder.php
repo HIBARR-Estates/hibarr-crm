@@ -132,6 +132,28 @@ class LeadSummaryInputBuilder
         ];
     }
 
+    /**
+     * The lead's own side for a meeting's talking points: who they are, what they
+     * first wrote, what the qualification calls answered and the lead's fields.
+     * Leaves out the lead's deals, so it never triggers a deal summary.
+     *
+     * @return array<string, mixed>
+     */
+    public function buildMeetingContext(Lead $lead): array
+    {
+        $lead->loadMissing(['lifecycleStatus']);
+
+        $redactor = LeadSummaryRedactor::forLead($lead);
+
+        return array_filter([
+            'qualification' => $this->buildQualification($lead),
+            'profile' => $this->buildProfile($lead, $redactor),
+            'initial_message' => $redactor->clean($lead->note, self::NOTE_CHARS),
+            'qualification_calls' => $this->buildQualificationCalls($lead, Carbon::now(), $redactor),
+            'lead_details' => $this->buildLeadDetails($lead, $redactor),
+        ], fn ($value) => $value !== null && $value !== '' && $value !== []);
+    }
+
     public function inputHash(Lead $lead): string
     {
         $dealIds = Deal::where('lead_id', $lead->id)->select('id');

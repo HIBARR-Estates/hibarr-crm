@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Play } from "lucide-react";
-import { AgentDialog, AgentDialogSection, AgentNewTag } from "@/Components/Redesign/agent";
+import { AgentDialog, AgentDialogSection } from "@/Components/Redesign/agent";
 import { paymentUiStateLabel } from "@/Components/Redesign/adapters/dealPaymentUiState";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
@@ -21,6 +21,7 @@ import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { Note } from "@/Types/api/note";
 import { humanize } from "./StageConditionsPanel";
 import type { NextStageConditions } from "./stageConditions";
+import useMeetingTalkingPoints, { type MeetingBriefContext } from "./useMeetingTalkingPoints";
 
 interface MeetingBriefProps {
     meeting: DealFollowup | null;
@@ -34,6 +35,8 @@ interface MeetingBriefProps {
     /** The exposés list is behind its flag and view_lead_proposals. */
     showExposes: boolean;
     showPayments: boolean;
+    /** AI talking points ride on the AI summary flag (sales.ai-entity-summary). */
+    showTalkingPoints: boolean;
     onOpenFiles: () => void;
     onClose: () => void;
 }
@@ -50,13 +53,14 @@ const plain = (html: string) =>
  * holds, not a copy of its summary: what the meeting must achieve (the next
  * stage's open conditions), what to ask (open analysis questions), what changed
  * since the last meeting, what the notes warn about, and what to have ready.
- * AI talking points have nothing behind them yet: held and marked New.
+ * The talking points are the one written part: AI lines built from the deal,
+ * the lead and this meeting, stored per meeting and rewritten when either changes.
  */
 export default function MeetingBrief(props: MeetingBriefProps) {
     return props.meeting ? <Brief {...props} meeting={props.meeting} /> : null;
 }
 
-function Brief({ meeting, deal, stage, analysis, events, notes, documents, showExposes, showPayments, onOpenFiles, onClose }: MeetingBriefProps & { meeting: DealFollowup }) {
+function Brief({ meeting, deal, stage, analysis, events, notes, documents, showExposes, showPayments, showTalkingPoints, onOpenFiles, onClose }: MeetingBriefProps & { meeting: DealFollowup }) {
     const { t } = useTranslation();
     const { td } = useTd();
     const preview = toWorkspaceMeetingPreview(meeting);
@@ -271,12 +275,17 @@ function Brief({ meeting, deal, stage, analysis, events, notes, documents, showE
                         )}
                     </AgentDialogSection>
 
-                    <AgentDialogSection
-                        title={t("pages.agent_workspace.deal.brief.talking")}
-                        tag={<AgentNewTag hint={t("pages.agent_workspace.deal.brief.talking_held")} />}
-                    >
-                        <p className="agent-trip__empty">{t("pages.agent_workspace.deal.brief.talking_held")}</p>
-                    </AgentDialogSection>
+                    {showTalkingPoints ? (
+                        <TalkingPoints
+                            dealId={deal.id}
+                            meetingId={meeting.id}
+                            context={{
+                                next_stage: stage.next?.name ?? null,
+                                open_conditions: left.map(({ condition }) => condition.label?.trim() || humanize(condition.field)),
+                                open_questions: openQuestions.map((question) => question.label),
+                            }}
+                        />
+                    ) : null}
                 </div>
             </div>
         </AgentDialog>
@@ -312,5 +321,56 @@ function ExposesReady({ dealId, emptyText }: { dealId: number; emptyText: string
                 </li>
             ))}
         </>
+    );
+}
+
+/** The brief's AI talking points (canvas L8-08): a short list, written in the background. */
+function TalkingPoints({ dealId, meetingId, context }: { dealId: number; meetingId: number; context: MeetingBriefContext }) {
+    const { t } = useTranslation();
+    const { td } = useTd();
+    const { talkingPoints, loading, error, regenerate } = useMeetingTalkingPoints(dealId, meetingId, context, true);
+    const points = talkingPoints?.points ?? [];
+
+    return (
+        <AgentDialogSection
+            title={t("pages.agent_workspace.deal.brief.talking")}
+            tag={
+                <>
+                    <span className="agent-brief2__ai">AI</span>
+                    {points.length > 0 || error ? (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="agent-brief2__refresh"
+                            onClick={regenerate}
+                            disabled={loading}
+                            aria-label={t("pages.agent_workspace.deal.brief.talking_refresh")}
+                            title={t("pages.agent_workspace.deal.brief.talking_refresh")}
+                        >
+                            <Icon name="refresh" size={13} />
+                        </Button>
+                    ) : null}
+                </>
+            }
+        >
+            <div aria-live="polite" aria-busy={loading || undefined}>
+                {points.length > 0 ? (
+                    <ul className={`agent-brief2__points${loading ? " is-updating" : ""}`}>
+                        {points.map((point, index) => (
+                            <li key={`${index}-${point}`}>{td(point, { source: "en" })}</li>
+                        ))}
+                    </ul>
+                ) : loading ? (
+                    <div className="agent-brief2__writing">
+                        <span className="agent-brief2__skel" />
+                        <span className="agent-brief2__skel agent-brief2__skel--short" />
+                        <span className="agent-brief2__sub">{t("pages.agent_workspace.deal.brief.talking_writing")}</span>
+                    </div>
+                ) : error ? (
+                    <p className="agent-trip__empty">{t("pages.agent_workspace.deal.brief.talking_error")}</p>
+                ) : null}
+                {points.length > 0 && error && !loading ? <p className="agent-brief2__sub">{t("pages.agent_workspace.deal.brief.talking_kept")}</p> : null}
+            </div>
+        </AgentDialogSection>
     );
 }

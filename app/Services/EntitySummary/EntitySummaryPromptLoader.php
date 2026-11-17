@@ -24,6 +24,13 @@ class EntitySummaryPromptLoader
         );
     }
 
+    public function loadMeetingTalkingPointsPrompt(): string
+    {
+        return $this->extractSystemPromptFromMarkdown(
+            base_path('meeting-talking-points-agent-prompt.md')
+        );
+    }
+
     private function extractSystemPromptFromMarkdown(string $path): string
     {
         if (! is_file($path)) {

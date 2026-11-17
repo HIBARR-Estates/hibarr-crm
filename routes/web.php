@@ -763,6 +763,11 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('deals/{deal}/refresh', [DealController::class, 'refresh'])->name('deals.refresh');
     Route::get('deals/{deal}/ai-summary', [\App\Http\Controllers\DealSummaryController::class, 'show'])->name('deals.ai-summary');
     Route::post('deals/{deal}/ai-summary/regenerate', [\App\Http\Controllers\DealSummaryController::class, 'regenerate'])->name('deals.ai-summary.regenerate');
+    // The agent workspace meeting brief's AI talking points, per meeting on the deal.
+    Route::get('deals/{deal}/meetings/{meeting}/talking-points', [\App\Http\Controllers\DealMeetingTalkingPointsController::class, 'show'])
+        ->whereNumber('meeting')->name('deals.meeting-talking-points');
+    Route::post('deals/{deal}/meetings/{meeting}/talking-points', [\App\Http\Controllers\DealMeetingTalkingPointsController::class, 'generate'])
+        ->whereNumber('meeting')->name('deals.meeting-talking-points.generate');
     Route::get('deals/{deal}/edit', [DealController::class, 'edit'])->name('deals.edit');
     Route::put('deals/{deal}', [DealController::class, 'update'])->name('deals.update');
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
