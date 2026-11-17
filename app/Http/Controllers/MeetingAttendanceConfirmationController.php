@@ -38,7 +38,11 @@ class MeetingAttendanceConfirmationController extends Controller
 
     public function confirm(Request $request, DealFollowUp $followUp): JsonResponse
     {
-        if (! $this->authorizedFor($followUp)) {
+        // The prompt is only *sent* to the assignee, but anyone who can see
+        // the meeting may answer it — same rule as update(). Gating on
+        // authorizedFor() alone 403'd people the pending list had shown it
+        // to (e.g. a lead owner whose lead's deal has a different agent).
+        if (! $this->authorizedFor($followUp) && ! $this->canSeeMeeting($followUp)) {
             return response()->json([
                 'status' => 'fail',
                 'message' => 'You do not have permission to confirm this meeting.',
@@ -53,6 +57,17 @@ class MeetingAttendanceConfirmationController extends Controller
         $outcome = MeetingAttendanceOutcome::from($validated['outcome']);
 
         $followUp = $this->service->confirm($followUp, user(), $outcome, $validated['note'] ?? null);
+
+        // confirm() no-ops on a meeting that isn't eligible (feature off, not
+        // ended long enough ago, cancelled, pre-activation). Say so instead
+        // of reporting a save that didn't happen — the dock would otherwise
+        // drop the card and the next poll would bring it straight back.
+        if (! $followUp->attendance_outcome_logged_at) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'This meeting can\'t be confirmed yet. Try again once it has ended.',
+            ], 422);
+        }
 
         return response()->json([
             'status' => 'success',
