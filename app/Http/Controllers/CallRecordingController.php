@@ -308,7 +308,7 @@ class CallRecordingController extends AccountBaseController
             'duration_seconds' => $duration,
             'object_path' => $objectPath,
             'external_url' => $externalUrl,
-            'expires_at' => now()->addDays(30),
+            'expires_at' => now()->addDays(90),
         ]);
 
         Log::info('CallRecordingController: recording created', [
