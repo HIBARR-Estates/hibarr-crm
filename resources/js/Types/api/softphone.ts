@@ -156,6 +156,8 @@ export interface SoftphoneCallFailure {
     direction: "outbound" | "inbound";
     /** Kept so "Try again" redials the same number with the same context. */
     context: SoftphoneCallContext | null;
+    /** SIP Call-ID of the failed call, shared with every other agent's leg of it. */
+    callId?: string;
 }
 
 /** A second inbound call that arrived while this agent was on a call. */

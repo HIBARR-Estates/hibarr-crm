@@ -180,7 +180,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 $routing = array_merge($routing, [
                     'id' => $lead->id,
                     'lead_id' => $lead->id,
-                    'name' => $leadName !== '' ? $leadName : ('Lead #' . $lead->id),
+                    'name' => $leadName !== '' ? $leadName : ('Lead #'.$lead->id),
                     'url' => route('lead-contact.show', $lead->id),
                 ]);
             }
@@ -628,7 +628,14 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 $this->clearPassedUsers($companyId, $line?->id, $incomingDigits, $callId);
                 $this->recordCallStatus($companyId, $authoritativeKey, 'answered', (int) user()->id);
             } elseif (in_array($eventSlug, ['call.ended', 'call.completed', 'call.failed', 'call.declined'], true)) {
-                $this->recordCallStatus($companyId, $authoritativeKey, 'ended', (int) user()->id);
+                // Missed/declined legs carry the shared SIP Call-ID, so an agent
+                // passing late must not end a call another agent has answered.
+                $current = $this->getCallStatus($companyId, $authoritativeKey);
+                $answeredByOther = ($current['status'] ?? null) === 'answered'
+                    && (int) ($current['user_id'] ?? 0) !== (int) user()->id;
+                if (! $answeredByOther) {
+                    $this->recordCallStatus($companyId, $authoritativeKey, 'ended', (int) user()->id);
+                }
             }
         }
 
@@ -838,7 +845,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
             ->unique('user_id')
             ->map(fn (SoftphoneCallPoolAgent $agent): array => [
                 'id' => (int) $agent->user_id,
-                'name' => trim((string) ($agent->user?->name ?? '')) ?: ('User #' . $agent->user_id),
+                'name' => trim((string) ($agent->user?->name ?? '')) ?: ('User #'.$agent->user_id),
                 'role' => $role,
                 'priority' => (int) $agent->priority,
             ])

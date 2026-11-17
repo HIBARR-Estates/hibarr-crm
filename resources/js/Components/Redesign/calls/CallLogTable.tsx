@@ -8,6 +8,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { formatCallDuration } from "@/lib/crmEvents/callSummary";
+import CallLegs from "./CallLegs";
 import { CallDirectionIcon, OUTCOME_KEYS, formatCallFailure, getRecordingStatus } from "./callFormat";
 import type { CallLogRow } from "./types";
 
@@ -40,8 +41,9 @@ const subText: CSSProperties = {
 };
 
 /**
- * The company call log as a table: When · Call · Lead or deal · Agent ·
- * Duration · Recording. Playing a recording opens the player in a full-width
+ * The company call log as a table, one row per call however many agents it
+ * rang: When · Call · Lead or deal · Who it rang / who answered · Duration ·
+ * Recording. Playing a recording opens the player in a full-width
  * row under the call. Scrolls sideways inside its box on narrow screens.
  */
 export default function CallLogTable({ rows }: { rows: CallLogRow[] }) {
@@ -58,7 +60,7 @@ export default function CallLogTable({ rows }: { rows: CallLogRow[] }) {
                         <th scope="col" style={{ ...headCell, paddingLeft: 18 }}>{t("pages.calls.col_when")}</th>
                         <th scope="col" style={headCell}>{t("pages.calls.col_call")}</th>
                         <th scope="col" style={headCell}>{t("pages.calls.col_entity")}</th>
-                        <th scope="col" style={headCell}>{t("pages.calls.agent")}</th>
+                        <th scope="col" style={headCell}>{t("pages.calls.col_agents")}</th>
                         <th scope="col" style={headCell}>{t("pages.calls.col_duration")}</th>
                         <th scope="col" style={{ ...headCell, paddingRight: 18 }}>{t("pages.calls.col_recording")}</th>
                     </tr>
@@ -75,7 +77,7 @@ export default function CallLogTable({ rows }: { rows: CallLogRow[] }) {
                         const outcome = outcomeKey
                             ? t(`pages.call_summary.${outcomeKey}`)
                             : td(row.outcome, { source: "en" });
-                        const missed = row.outcome === "missed" || row.outcome === "failed";
+                        const missed = row.outcome === "missed" || row.outcome === "failed" || (row.answered === false && row.direction === "inbound");
                         const failureText = formatCallFailure(row.failure_reason, row.failure_message, t);
                         const rec = row.recording;
                         const recState = getRecordingStatus(row);
@@ -133,7 +135,9 @@ export default function CallLogTable({ rows }: { rows: CallLogRow[] }) {
                                             <Badge variant="amber">{t("pages.calls.no_lead_matched")}</Badge>
                                         )}
                                     </td>
-                                    <td style={bodyCell}>{row.user_name ?? "—"}</td>
+                                    <td style={{ ...bodyCell, maxWidth: 320 }}>
+                                        <CallLegs row={row} />
+                                    </td>
                                     <td style={{ ...bodyCell, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
                                         {row.duration ? (
                                             formatCallDuration(row.duration, t)

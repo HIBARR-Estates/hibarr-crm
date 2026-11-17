@@ -181,6 +181,101 @@ class CallLogServiceTest extends TestCase
         $this->assertNotNull($summary['last_at']);
     }
 
+    // ─── One row per call ───────────────────────────────────────────────
+
+    public function test_a_call_that_rang_several_agents_is_one_row_with_every_leg(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $this->insertUser(self::VIEWER_ID, 'Ana');
+        $this->insertUser(self::OTHER_AGENT_ID, 'Ben');
+        $this->insertUser(101, 'Cem');
+        $recordingId = $this->insertRecording(self::VIEWER_ID);
+        $sip = ['call_id' => 'sip-abc', 'phone_number' => '+49 170 1'];
+        $inbound = ['direction' => 'inbound', 'model_type' => \App\Models\Lead::class, 'model_id' => self::LEAD_ID];
+
+        $this->insertEvent($inbound + ['user_id' => self::OTHER_AGENT_ID, 'slug' => 'call_declined', 'metadata' => $sip, 'occurred_at' => now()->subSeconds(40)]);
+        $this->insertEvent($inbound + ['user_id' => 101, 'slug' => 'call_declined', 'metadata' => $sip, 'occurred_at' => now()->subSeconds(30)]);
+        $this->insertEvent($inbound + ['user_id' => self::VIEWER_ID, 'slug' => 'call_started', 'metadata' => $sip + ['call_ref' => 'r1'], 'occurred_at' => now()->subSeconds(20)]);
+        $answered = $this->insertEvent($inbound + ['user_id' => self::VIEWER_ID, 'metadata' => $sip + ['call_ref' => 'r1', 'duration' => 15, 'recording_id' => $recordingId]]);
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50));
+
+        $this->assertCount(1, $rows, 'Every leg of one call must fold into one row.');
+        $row = $rows[0];
+        $this->assertSame($answered, $row['id']);
+        $this->assertSame('ended', $row['outcome']);
+        $this->assertTrue($row['answered']);
+        $this->assertSame('Ana', $row['answered_by_user_name']);
+        $this->assertSame(15, $row['duration']);
+        $this->assertSame('playable', $row['recording']['state']);
+        $this->assertSame(3, $row['rang_count']);
+        $this->assertSame(
+            [['Ben', 'declined'], ['Cem', 'declined'], ['Ana', 'ended']],
+            array_map(fn ($leg) => [$leg['user_name'], $leg['outcome']], $row['legs'])
+        );
+    }
+
+    public function test_older_unanswered_legs_with_per_browser_ids_still_fold_into_one_call(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+
+        foreach ([self::VIEWER_ID, self::OTHER_AGENT_ID, 101] as $i => $agent) {
+            $ref = 'browser-'.$agent;
+            $this->insertEvent([
+                'direction' => 'inbound',
+                'user_id' => $agent,
+                'slug' => 'call_missed',
+                'metadata' => ['call_id' => $ref, 'call_ref' => $ref, 'phone_number' => '+49 170 2'],
+                'occurred_at' => now()->startOfMinute()->addSeconds($i * 5),
+            ]);
+        }
+        // Another caller at the same moment stays its own call.
+        $this->insertEvent([
+            'direction' => 'inbound',
+            'slug' => 'call_missed',
+            'metadata' => ['call_id' => 'x', 'call_ref' => 'x', 'phone_number' => '+49 170 3'],
+            'occurred_at' => now()->startOfMinute(),
+        ]);
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50));
+
+        $this->assertCount(2, $rows);
+        $grouped = collect($rows)->firstWhere('phone_number', '+49 170 2');
+        $this->assertSame('missed', $grouped['outcome']);
+        $this->assertFalse($grouped['answered']);
+        $this->assertSame(3, $grouped['rang_count']);
+        $this->assertNull($grouped['user_id'], 'Nobody answered, so no single agent owns the call.');
+    }
+
+    public function test_filters_and_summary_judge_the_call_not_its_legs(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $inbound = ['direction' => 'inbound', 'model_type' => \App\Models\Lead::class, 'model_id' => self::LEAD_ID];
+
+        // Answered by the viewer after another agent passed it.
+        $this->insertEvent($inbound + ['user_id' => self::OTHER_AGENT_ID, 'slug' => 'call_declined', 'metadata' => ['call_id' => 'a']]);
+        $this->insertEvent($inbound + ['metadata' => ['call_id' => 'a', 'duration' => 40]]);
+        // Rang two agents, nobody answered.
+        $this->insertEvent($inbound + ['slug' => 'call_missed', 'metadata' => ['call_id' => 'b']]);
+        $this->insertEvent($inbound + ['user_id' => self::OTHER_AGENT_ID, 'slug' => 'call_declined', 'metadata' => ['call_id' => 'b']]);
+
+        $service = app(CallLogService::class);
+
+        $missed = $this->rows($service->paginate($viewer, self::COMPANY_ID, ['outcome' => 'missed'], null, 50));
+        $this->assertCount(1, $missed, 'A call someone answered is not missed because another agent passed it.');
+        $this->assertSame(2, $missed[0]['rang_count']);
+
+        $byAgent = $service->paginate($viewer, self::COMPANY_ID, ['user_id' => self::OTHER_AGENT_ID], null, 50);
+        $this->assertSame(2, $byAgent->total(), 'Both calls rang the other agent.');
+        $this->assertSame(2, $this->rows($byAgent)[0]['rang_count'], 'The agent filter still shows the whole call.');
+
+        $summary = $service->summary(self::COMPANY_ID, ['lead_ids' => [self::LEAD_ID]]);
+        $this->assertSame(2, $summary['total']);
+        $this->assertSame(1, $summary['connected']);
+        $this->assertSame(40, $summary['connected_seconds']);
+        $this->assertSame(1, $summary['missed']);
+    }
+
     // ─── Endpoint gate ──────────────────────────────────────────────────
 
     public function test_the_company_call_log_needs_manage_calls(): void
@@ -229,6 +324,7 @@ class CallLogServiceTest extends TestCase
         $flags = Mockery::mock(FeatureFlagService::class);
         $flags->shouldReceive('isEnabled')->andReturn(true);
         $flags->shouldReceive('all')->andReturn([]);
+        $flags->shouldReceive('clearTestingOverrides')->andReturnNull();
         $this->instance(FeatureFlagService::class, $flags);
     }
 
@@ -259,6 +355,11 @@ class CallLogServiceTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ], $attributes));
+    }
+
+    private function insertUser(int $id, string $name): void
+    {
+        DB::table('users')->insert(['id' => $id, 'name' => $name, 'company_id' => self::COMPANY_ID, 'created_at' => now(), 'updated_at' => now()]);
     }
 
     private function insertRecording(int $userId, $expiresAt = null): int
@@ -301,8 +402,8 @@ class CallLogServiceTest extends TestCase
             DB::table('crm_event_types')->insert([
                 'company_id' => null,
                 'category_id' => $categoryId,
-                'name' => 'call_' . $outcome,
-                'slug' => 'call_' . $outcome,
+                'name' => 'call_'.$outcome,
+                'slug' => 'call_'.$outcome,
                 'is_system' => true,
                 'is_active' => true,
                 'created_at' => now(),

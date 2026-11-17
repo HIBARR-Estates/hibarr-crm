@@ -9,6 +9,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { formatCallDuration } from "@/lib/crmEvents/callSummary";
 import type { CallLogRow } from "./types";
+import CallLegs from "./CallLegs";
 import { CallDirectionIcon, OUTCOME_KEYS, formatCallFailure, getRecordingStatus } from "./callFormat";
 
 interface CallLogItemProps {
@@ -40,7 +41,7 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
     const outcome = outcomeKey ? t(`pages.call_summary.${outcomeKey}`) : td(row.outcome, { source: "en" });
     const when = timeOnly ? formatTime(row.occurred_at) : formatDateTime(row.occurred_at);
     const duration = row.duration ? formatCallDuration(row.duration, t) : "";
-    const meta = [when, duration, row.user_name, row.phone_number].filter(Boolean).join(" · ");
+    const meta = [when, duration, row.phone_number].filter(Boolean).join(" · ");
 
     const failureText = formatCallFailure(row.failure_reason, row.failure_message);
     const rec = row.recording;
@@ -73,6 +74,7 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
                         )}
                     </div>
                     <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>{meta}</span>
+                    <CallLegs row={row} compact />
                 </div>
 
                 {showEntity &&
