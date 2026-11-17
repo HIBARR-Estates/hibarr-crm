@@ -1346,3 +1346,569 @@ a.agent-ea__name:focus-visible {
         margin-left: 0;
     }
 }
+
+/* ---------- Network tree (L9-C branch map, L9-C phone outline) ---------- */
+/* The panel groups only matter for the strip under the tree; beside the list and in the sheet they are transparent. */
+.agent-ea__panel-group {
+    display: contents;
+}
+
+.agent-ea__tree-wrap {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.agent-ea-tree {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--dr-border);
+    border-radius: 14px;
+    background: var(--dr-white);
+}
+
+.agent-ea-tree__bar {
+    display: flex;
+    min-height: 48px;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px 8px 16px;
+    border-bottom: 1px solid var(--dr-border);
+}
+
+.agent-ea-tree__hint {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    color: var(--dr-text-muted);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-ea-tree__found {
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.agent-ea-tree__search {
+    position: relative;
+    display: flex;
+    width: 200px;
+    height: 30px;
+    flex: none;
+    align-items: center;
+}
+
+.agent-ea-tree__search svg {
+    position: absolute;
+    left: 10px;
+    color: var(--dr-text-muted);
+    pointer-events: none;
+}
+
+.agent-ea-tree__search input {
+    width: 100%;
+    height: 100%;
+    padding: 0 10px 0 30px;
+    border: 1px solid var(--dr-border);
+    border-radius: 8px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 12px;
+}
+
+.agent-ea-tree__search input::placeholder {
+    color: var(--dr-text-hint);
+}
+
+.agent-ea-tree__search input:focus-visible {
+    border-color: var(--dr-blue);
+    outline: 1px solid var(--dr-blue);
+}
+
+.agent-ea-tree__btn {
+    display: inline-flex;
+    height: 30px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    border: 1px solid #cdd3dc;
+    border-radius: 9px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-ea-tree__btn:hover:not(:disabled) {
+    background: var(--dr-surface-hover);
+}
+
+.agent-ea-tree__btn:disabled {
+    color: var(--dr-text-hint);
+    cursor: default;
+}
+
+.agent-ea-tree__btn:focus-visible,
+.agent-ea-tree__node:focus-visible,
+.agent-ea-tree__fold:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+/* The map scrolls sideways (and down on a big network) inside its card. */
+.agent-ea-tree__scroll {
+    max-height: 640px;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.agent-ea-tree__canvas {
+    position: relative;
+}
+
+.agent-ea-tree__col {
+    position: absolute;
+    top: 14px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.agent-ea-tree__col .agent-ea__cap {
+    margin: 0;
+}
+
+.agent-ea-tree__count {
+    color: var(--dr-text-muted);
+    font-size: 11px;
+}
+
+.agent-ea-tree__band {
+    position: absolute;
+    border: 1px solid #cfe0f3;
+    border-radius: 14px;
+    background: #f1f6fc;
+}
+
+.agent-ea-tree__lines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: visible;
+    pointer-events: none;
+}
+
+.agent-ea-tree__line {
+    fill: none;
+    stroke: #b8c0cc;
+    stroke-width: 1.5;
+}
+
+.agent-ea-tree__line.is-lit {
+    stroke: var(--dr-blue);
+    stroke-width: 2;
+}
+
+.agent-ea-tree__line.is-dashed {
+    stroke-dasharray: 4 3;
+}
+
+.agent-ea-tree__node {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 0 10px;
+    border: 1px solid #d5dae1;
+    border-radius: 12px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font: inherit;
+    text-align: left;
+}
+
+button.agent-ea-tree__node {
+    cursor: pointer;
+}
+
+button.agent-ea-tree__node:hover {
+    border-color: var(--dr-blue-mid);
+}
+
+.agent-ea-tree__node--self {
+    border-color: var(--dr-navy);
+    background: var(--dr-navy);
+    color: var(--dr-white);
+}
+
+.agent-ea-tree__node--upline {
+    border-style: dashed;
+    border-color: #b8c0cc;
+    background: var(--dr-surface-2);
+}
+
+.agent-ea-tree__node.is-picked {
+    padding: 0 9px;
+    border: 2px solid var(--dr-blue);
+}
+
+.agent-ea-tree__node.is-match:not(.is-picked) {
+    border-color: var(--dr-blue);
+    background: var(--dr-blue-wash);
+}
+
+.agent-ea-tree__avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 11px;
+}
+
+.agent-ea-tree__avatar--sm {
+    width: 26px;
+    height: 26px;
+    font-size: 10px;
+}
+
+.agent-ea-tree__who {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.agent-ea-tree__who b {
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-ea-tree__tags {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.agent-ea-tree__level {
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--dr-navy-raised);
+    color: var(--dr-white);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.agent-ea-tree__level.is-unranked {
+    background: #7b8798;
+}
+
+.agent-ea-tree__fresh {
+    color: var(--dr-green);
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.agent-ea-tree__nums {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+}
+
+.agent-ea-tree__nums b,
+.agent-ea-tree__pair {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.agent-ea-tree__nums b span,
+.agent-ea-tree__pair span {
+    color: var(--dr-text-muted);
+    font-weight: 400;
+}
+
+.agent-ea-tree__nums > span {
+    color: var(--dr-text-muted);
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.agent-ea-tree__node--self .agent-ea-tree__nums > span,
+.agent-ea-tree__node--self .agent-ea-tree__nums b span,
+.agent-ea-tree__node--self .agent-ea-tree__pair span,
+.agent-ea-tree__node--self .agent-ea-tree__sub {
+    color: var(--dr-navy-mid);
+}
+
+.agent-ea-tree__node--self .agent-ea-tree__level {
+    background: var(--dr-navy-raised);
+}
+
+.agent-ea-tree__fold {
+    position: absolute;
+    z-index: 1;
+    display: flex;
+    min-width: 22px;
+    height: 22px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    border: 1px solid #cdd3dc;
+    border-radius: 11px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transform: translate(-50%, -50%);
+}
+
+.agent-ea-tree__fold.is-folded {
+    border-color: var(--dr-blue);
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+}
+
+.agent-ea-tree__chip {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 12px;
+    border: 1px solid #cfe0f3;
+    border-radius: 10px;
+    background: var(--dr-blue-light);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.agent-ea-tree__chip .agent-ea__cap {
+    margin: 0;
+    color: var(--dr-blue-dark);
+}
+
+/* The strip under the tree: who, all-time metrics, then history and deals. */
+.agent-ea__panel--strip {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr) minmax(0, 1.25fr);
+    align-items: start;
+    gap: 24px;
+}
+
+.agent-ea__panel--strip .agent-ea__panel-group {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.agent-ea__panel--strip .agent-ea__panel-group--id {
+    gap: 12px;
+}
+
+.agent-ea__panel--strip .agent-ea__panel-group--id .agent-ea__btn {
+    align-self: flex-start;
+}
+
+.agent-ea__panel--strip .agent-ea__cap {
+    margin: 0;
+}
+
+.agent-ea__panel--strip .agent-ea__cap ~ .agent-ea__cap {
+    margin-top: 6px;
+}
+
+/* Loading or failed: the skeleton or the message takes the two columns beside the name. */
+.agent-ea__panel--strip > :not(.agent-ea__panel-group) {
+    grid-column: 2 / -1;
+}
+
+.agent-ea__panel--strip > :only-child {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 1279px) {
+    .agent-ea__panel--strip {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .agent-ea__panel--strip .agent-ea__panel-group:last-child {
+        grid-column: 1 / -1;
+    }
+}
+
+/* ---------- phone: indented outline and the details sheet ---------- */
+.agent-ea-tree--outline .agent-ea-tree__bar {
+    flex-wrap: wrap;
+    border-bottom: 0;
+    padding: 12px 12px 0;
+}
+
+.agent-ea-tree--outline .agent-ea-tree__search {
+    width: 100%;
+    height: 36px;
+}
+
+.agent-ea-tree--outline .agent-ea-tree__search input {
+    font-size: 14px;
+}
+
+.agent-ea-tree__outline {
+    position: relative;
+    margin-bottom: 8px;
+}
+
+.agent-ea-tree__outline-head {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    left: 12px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.agent-ea-tree__outline-head .agent-ea__cap {
+    margin: 0;
+}
+
+.agent-ea-tree__row {
+    gap: 8px;
+    padding: 0 8px;
+    border-radius: 10px;
+}
+
+.agent-ea-tree__row.is-picked {
+    padding: 0 7px;
+}
+
+.agent-ea-tree__row .agent-ea-tree__who {
+    gap: 1px;
+}
+
+.agent-ea-tree__row .agent-ea-tree__who b {
+    font-size: 12px;
+}
+
+.agent-ea-tree__sub {
+    overflow: hidden;
+    color: var(--dr-text-muted);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-ea-tree__pair {
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.agent-ea-tree__fold--row {
+    right: 12px;
+    min-width: 30px;
+    height: 30px;
+    border-radius: 15px;
+    transform: translateY(-50%);
+}
+
+.agent-ea-sheet {
+    position: fixed;
+    right: 0;
+    bottom: calc(var(--agent-tabbar-height) + env(safe-area-inset-bottom));
+    left: 0;
+    z-index: 35;
+    display: flex;
+    max-height: calc(100dvh - var(--agent-tabbar-height) - 72px);
+    flex-direction: column;
+    gap: 10px;
+    padding: 8px 16px 14px;
+    border-top: 1px solid #cdd3dc;
+    border-radius: 18px 18px 0 0;
+    background: var(--dr-white);
+}
+
+.agent-ea-sheet__grip {
+    width: 36px;
+    height: 4px;
+    flex: none;
+    align-self: center;
+    border-radius: 2px;
+    background: #cdd3dc;
+}
+
+.agent-ea-sheet__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.agent-ea-sheet__head .agent-ea__who {
+    flex: 1;
+}
+
+.agent-ea-sheet__head .agent-ea-tree__btn {
+    height: 36px;
+}
+
+.agent-ea-sheet__nums {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.agent-ea-sheet__nums span {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    border: 1px solid var(--dr-border);
+    border-radius: 10px;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+}
+
+.agent-ea-sheet__nums b {
+    color: var(--dr-text);
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 16px;
+}
+
+.agent-ea-sheet__body {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.agent-ea-sheet__body .agent-ea__panel--sheet {
+    padding: 0;
+    border: 0;
+}
+
+/* Room under the outline so the sheet never covers the last agent. */
+@media (max-width: 639px) {
+    .agent-ea__tree-wrap {
+        padding-bottom: 150px;
+    }
+}
