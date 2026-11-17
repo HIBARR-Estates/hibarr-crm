@@ -60,7 +60,7 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
             }}
         >
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
-                <CallDirectionIcon direction={row.direction} outcome={row.outcome} />
+                <CallDirectionIcon direction={row.direction} />
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 280px", minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>

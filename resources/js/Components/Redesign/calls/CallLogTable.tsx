@@ -93,7 +93,7 @@ export default function CallLogTable({ rows }: { rows: CallLogRow[] }) {
                                     </td>
                                     <td style={bodyCell}>
                                         <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                                            <CallDirectionIcon direction={row.direction} outcome={row.outcome} size={28} />
+                                            <CallDirectionIcon direction={row.direction} size={28} />
                                             <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                                                     <span style={{ fontWeight: 600, color: missed ? T.RED : T.TEXT }}>
