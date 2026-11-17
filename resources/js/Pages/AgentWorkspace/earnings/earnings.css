@@ -1710,6 +1710,15 @@ button.agent-ea-tree__node:hover {
     color: var(--dr-blue-dark);
 }
 
+/* The branch has agents the payload did not load: the sales are what is loaded, not the whole branch. */
+.agent-ea-tree__chip-note {
+    max-width: 220px;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    line-height: 1.35;
+    white-space: normal;
+}
+
 /* The strip under the tree: who, all-time metrics, then history and deals. */
 .agent-ea__panel--strip {
     display: grid;
@@ -1770,6 +1779,13 @@ button.agent-ea-tree__node:hover {
 .agent-ea-tree--outline .agent-ea-tree__search {
     width: 100%;
     height: 36px;
+}
+
+/* The outline starts at you, so the upline is named here. */
+.agent-ea-tree__upline {
+    width: 100%;
+    color: var(--dr-text-muted);
+    font-size: 12px;
 }
 
 .agent-ea-tree--outline .agent-ea-tree__search input {

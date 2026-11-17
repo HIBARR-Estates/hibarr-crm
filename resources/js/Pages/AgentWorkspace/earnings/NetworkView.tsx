@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Deferred } from "@inertiajs/react";
+import { Deferred, router } from "@inertiajs/react";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import { AgentNewTag } from "@/Components/Redesign/agent";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
@@ -9,7 +9,7 @@ import { avatarFill } from "../people/format";
 import AgentPanel from "./AgentPanel";
 import AgentSheet from "./AgentSheet";
 import NetworkTree from "./NetworkTree";
-import { buildNetworkTree } from "./networkTree";
+import { buildNetworkTree } from "./networkTreeModel";
 import EarningsHeader from "./EarningsHeader";
 import { joinedRecently, monthYear } from "./format";
 import type { NetworkPayload, NetworkRow } from "./types";
@@ -25,8 +25,22 @@ const INDENT = 26;
 type NetworkLayout = "list" | "tree";
 
 /** List or tree, kept in ?layout= so a reload or a shared link opens the same view; switching never leaves the page. */
+function readLayout(): NetworkLayout {
+    return typeof window !== "undefined" && new URLSearchParams(window.location.search).get("layout") === "tree" ? "tree" : "list";
+}
+
 function useNetworkLayout() {
-    const [layout, setLayoutState] = useState<NetworkLayout>(() => (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("layout") === "tree" ? "tree" : "list"));
+    const [layout, setLayoutState] = useState<NetworkLayout>(readLayout);
+    // An Inertia visit or back/forward can change the URL while this view stays mounted; follow it.
+    useEffect(() => {
+        const sync = () => setLayoutState(readLayout());
+        const stop = router.on("navigate", sync);
+        window.addEventListener("popstate", sync);
+        return () => {
+            stop();
+            window.removeEventListener("popstate", sync);
+        };
+    }, []);
     const setLayout = useCallback((next: NetworkLayout) => {
         setLayoutState(next);
         const url = new URL(window.location.href);

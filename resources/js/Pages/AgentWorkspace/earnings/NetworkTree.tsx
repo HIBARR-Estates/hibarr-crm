@@ -3,7 +3,7 @@ import { initialsFromName } from "@/Components/Redesign/adapters/initials";
 import useTranslation from "@/Hooks/useTranslation";
 import { avatarFill } from "../people/format";
 import { joinedRecently } from "./format";
-import { ancestors, descendants, layoutTree, outlineRows, type NetworkTree as Tree, type TreeNode } from "./networkTree";
+import { ancestors, descendants, layoutTree, outlineRows, type NetworkTree as Tree, type TreeNode } from "./networkTreeModel";
 
 /* Geometry of the branch map (L9-C): one column per generation, one row slot per leaf. */
 const LEFT = 20;
@@ -243,25 +243,33 @@ function BranchMap({ tree, folded, onToggleFold, onExpandAll, lit, picked, match
         top: number;
         agents: number;
         sales: number;
+        partial: boolean;
     } | null = null;
-    if (picked && pickedPlace && !pickedPlace.folded && picked.children.length > 0) {
+    if (picked && pickedPlace) {
+        // The totals show for any pick, folded or leaf; the band only when the branch is drawn open.
         const below = descendants(picked);
-        const shown = below.map((node) => layout.byId.get(node.row.id)).filter((entry): entry is NonNullable<typeof entry> => !!entry);
-        const rows = [pickedPlace.row, ...shown.map((entry) => entry.row)];
-        const lastCol = Math.max(pickedPlace.col, ...shown.map((entry) => entry.col));
-        const top = TOP + Math.min(...rows) * ROW_H - 10;
-        const bottom = TOP + Math.max(...rows) * ROW_H + NODE_H + 10;
-        band = {
-            left: x(pickedPlace.col) - 12,
-            top,
-            width: x(lastCol) + NODE_W + 12 - (x(pickedPlace.col) - 12),
-            height: bottom - top,
-        };
+        // `direct` is the full count from the server, so a node with fewer loaded children is missing some below it (row cap or depth cut-off).
+        const partial = [picked, ...below].some((node) => node.row.direct > node.children.length);
+        let lastCol = pickedPlace.col;
+        if (!pickedPlace.folded && picked.children.length > 0) {
+            const shown = below.map((node) => layout.byId.get(node.row.id)).filter((entry): entry is NonNullable<typeof entry> => !!entry);
+            const rows = [pickedPlace.row, ...shown.map((entry) => entry.row)];
+            lastCol = Math.max(pickedPlace.col, ...shown.map((entry) => entry.col));
+            const top = TOP + Math.min(...rows) * ROW_H - 10;
+            const bottom = TOP + Math.max(...rows) * ROW_H + NODE_H + 10;
+            band = {
+                left: x(pickedPlace.col) - 12,
+                top,
+                width: x(lastCol) + NODE_W + 12 - (x(pickedPlace.col) - 12),
+                height: bottom - top,
+            };
+        }
         chip = {
             left: x(lastCol) + NODE_W + 40,
             top: cy(pickedPlace.row) - 26,
             agents: below.length,
             sales: [picked, ...below].reduce((sum, node) => sum + node.row.nsa, 0),
+            partial,
         };
     }
 
@@ -388,13 +396,16 @@ function BranchMap({ tree, folded, onToggleFold, onExpandAll, lit, picked, match
                     })}
 
                     {chip && picked ? (
-                        <span className="agent-ea-tree__chip" style={{ left: chip.left, top: chip.top }}>
+                        <span className="agent-ea-tree__chip" style={{ left: chip.left, top: chip.top }} title={chip.partial ? t("pages.agent_workspace.earnings.network.tree.branch_partial") : undefined}>
                             <span className="agent-ea__cap">{t("pages.agent_workspace.earnings.network.tree.branch_title", { name: text(picked).plainName })}</span>
                             <span>
                                 {t(chip.agents === 1 ? "pages.agent_workspace.earnings.network.tree.branch_agents_one" : "pages.agent_workspace.earnings.network.tree.branch_agents", { count: chip.agents })}
                                 {" · "}
-                                {t(chip.sales === 1 ? "pages.agent_workspace.earnings.network.tree.branch_sales_one" : "pages.agent_workspace.earnings.network.tree.branch_sales", { count: chip.sales })}
+                                {chip.partial
+                                    ? t(chip.sales === 1 ? "pages.agent_workspace.earnings.network.tree.branch_sales_loaded_one" : "pages.agent_workspace.earnings.network.tree.branch_sales_loaded", { count: chip.sales })
+                                    : t(chip.sales === 1 ? "pages.agent_workspace.earnings.network.tree.branch_sales_one" : "pages.agent_workspace.earnings.network.tree.branch_sales", { count: chip.sales })}
                             </span>
+                            {chip.partial ? <span className="agent-ea-tree__chip-note">{t("pages.agent_workspace.earnings.network.tree.branch_partial")}</span> : null}
                         </span>
                     ) : null}
                 </div>
@@ -452,11 +463,15 @@ interface PhoneOutlineProps {
 function PhoneOutline({ tree, folded, onToggleFold, lit, pickedId, matchIds, onPick, text, header }: PhoneOutlineProps) {
     const { t } = useTranslation();
     const rows = useMemo(() => outlineRows(tree, folded), [tree, folded]);
+    const upline = tree.root && tree.root.row.kind === "upline" ? tree.root : null;
     const height = OUT_TOP + rows.length * OUT_ROW;
 
     return (
         <section className="agent-ea-tree agent-ea-tree--outline" aria-label={t("pages.agent_workspace.earnings.network.tree.label")}>
-            <div className="agent-ea-tree__bar">{header}</div>
+            <div className="agent-ea-tree__bar">
+                {header}
+                {upline ? <span className="agent-ea-tree__upline">{t("pages.agent_workspace.earnings.network.tree.upline_line", { name: text(upline).plainName })}</span> : null}
+            </div>
             <div className="agent-ea-tree__outline" style={{ height }}>
                 <div className="agent-ea-tree__outline-head">
                     <span className="agent-ea__cap">{t("pages.agent_workspace.earnings.network.tree.branches")}</span>
