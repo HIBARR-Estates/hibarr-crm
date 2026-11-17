@@ -8,6 +8,7 @@ use App\Models\DealFollowUp;
 use App\Services\AgentWorkspace\ContactDeals;
 use App\Services\AgentWorkspace\LeadVisibility;
 use App\Services\MeetingAttendanceConfirmationService;
+use App\Services\PermissionService;
 use App\Support\MeetingAttendanceConfirmationFeature;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -199,6 +200,18 @@ class MeetingAttendanceConfirmationController extends Controller
         if ($followUp->isVisibleToUser($userId)
             || (int) $followUp->host_id === $userId
             || $followUp->confirmationAssigneeUserId() === $userId) {
+            return true;
+        }
+
+        // The deal's team (agent + participants), or anyone else who may
+        // edit the deal, can always record or correct its meetings' outcomes
+        // — the same edit rule DealController applies to the deal's own
+        // follow-ups. Checked before the follow-up view permission below so
+        // a deal editor isn't shut out just for lacking that one.
+        if ($followUp->deal && PermissionService::checkAccess($user, 'edit_deals', $followUp->deal, [
+            'added' => 'added_by',
+            'owned' => fn ($u, $deal) => $deal->hasTeamMemberAccess((int) $u->id),
+        ])['canAccess']) {
             return true;
         }
 
