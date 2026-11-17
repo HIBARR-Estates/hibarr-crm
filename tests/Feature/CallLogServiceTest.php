@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\CallLog\CallKey;
 use App\Services\CallLog\CallLogService;
 use App\Services\FeatureFlagService;
 use Illuminate\Database\Schema\Blueprint;
@@ -35,6 +36,9 @@ class CallLogServiceTest extends TestCase
     private const VISIBLE_DEAL_ID = 20;
 
     private const HIDDEN_DEAL_ID = 21;
+
+    /** Key rows as they are inserted (the created hook); off to test the backfill. */
+    private bool $keyOnInsert = true;
 
     protected function setUp(): void
     {
@@ -350,6 +354,27 @@ class CallLogServiceTest extends TestCase
         $this->assertSame([$second], collect($rows)->first(fn ($r) => in_array($second, $r['event_ids'], true))['event_ids']);
     }
 
+    public function test_the_backfill_keys_existing_rows_the_same_way_as_writes_do(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $this->keyOnInsert = false;
+        $to = ['direction' => 'outbound'];
+
+        $this->insertEvent($to + ['slug' => 'call_started', 'metadata' => ['phone_number' => '+90 2'], 'occurred_at' => now()->subSeconds(30)]);
+        $this->insertEvent($to + ['metadata' => ['phone_number' => '+90 2', 'call_ref' => 'ref-1', 'duration' => 12]]);
+        $this->insertEvent(['direction' => 'inbound', 'slug' => 'call_started', 'metadata' => ['call_id' => 'sip-7', 'phone_number' => '3']]);
+        $this->assertSame(3, DB::table('crm_events')->whereNull('call_key')->count());
+
+        $this->assertSame(3, app(CallKey::class)->backfill(2));
+        $this->assertSame(0, DB::table('crm_events')->whereNull('call_key')->count());
+        $this->assertSame(0, app(CallKey::class)->backfill(), 'Re-running only fills rows still missing a key.');
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50));
+        $this->assertCount(2, $rows);
+        $this->assertSame(['started', 'ended'], array_column($rows, 'outcome'), 'Newest first: the inbound call, then the outbound one folded into one row.');
+        $this->assertCount(2, $rows[1]['event_ids']);
+    }
+
     public function test_filters_and_summary_judge_the_call_not_its_legs(): void
     {
         $viewer = $this->actingAsUser(['manage_calls' => 'all']);
@@ -441,7 +466,7 @@ class CallLogServiceTest extends TestCase
         $metadata = $attributes['metadata'] ?? [];
         unset($attributes['metadata']);
 
-        return (int) DB::table('crm_events')->insertGetId(array_merge([
+        $id = (int) DB::table('crm_events')->insertGetId(array_merge([
             'uuid' => (string) Str::uuid(),
             'company_id' => self::COMPANY_ID,
             'event_type_id' => (int) DB::table('crm_event_types')->where('slug', $slug)->value('id'),
@@ -458,6 +483,14 @@ class CallLogServiceTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ], $attributes));
+
+        // Keyed as CrmEvent::created does in production, unless the test
+        // checks the backfill.
+        if ($this->keyOnInsert) {
+            app(CallKey::class)->assignFor(\App\Models\CrmEvent::withoutGlobalScopes()->findOrFail($id));
+        }
+
+        return $id;
     }
 
     private function insertUser(int $id, string $name): void
@@ -591,6 +624,7 @@ class CallLogServiceTest extends TestCase
             $table->string('model_type')->nullable();
             $table->unsignedBigInteger('model_id')->nullable();
             $table->uuid('correlation_id')->nullable();
+            $table->string('call_key', 191)->nullable();
             $table->unsignedInteger('causation_id')->nullable();
             $table->string('source')->nullable();
             $table->string('ip_address')->nullable();

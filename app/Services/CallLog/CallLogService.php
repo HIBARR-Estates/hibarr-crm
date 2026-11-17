@@ -4,7 +4,6 @@ namespace App\Services\CallLog;
 
 use App\Models\CallRecording;
 use App\Models\CrmEvent;
-use App\Models\CrmEventType;
 use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\User;
@@ -53,9 +52,6 @@ class CallLogService
     /** Ranks counted as "missed" on the summary tiles. */
     private const MISSED_RANKS = [2, 3, 4, 5];
 
-    /** How far back a legacy missed leg looks for its own ringing event. */
-    private const RING_LOOKBACK_SECONDS = 300;
-
     /**
      * One row per call: every agent's leg of the same call is folded into
      * one entry that says who it rang, who answered and how it ended.
@@ -69,12 +65,13 @@ class CallLogService
         $query = $this->baseQuery($companyId, $types, $scope);
         $this->applyEventFilters($query, $filters);
 
-        $key = $this->callKeyExpression($query, $types);
         $rank = $this->rankExpression($types);
 
+        // call_key is set when each event is written (see CallKey), so this
+        // groups and looks up on the indexed (company_id, call_key) column.
         $calls = (clone $query)->toBase()
-            ->selectRaw("{$key} as call_key, MIN(crm_events.occurred_at) as started_at, MAX(crm_events.id) as last_id")
-            ->groupBy('call_key');
+            ->selectRaw('crm_events.call_key as call_key, MIN(crm_events.occurred_at) as started_at, MAX(crm_events.id) as last_id')
+            ->groupBy('crm_events.call_key');
         $this->applyCallFilters($calls, $rank, $filters);
 
         $paginator = $calls
@@ -87,8 +84,8 @@ class CallLogService
         $events = $keys === []
             ? new \Illuminate\Database\Eloquent\Collection
             : (clone $query)
-                ->select(['crm_events.*', DB::raw("{$key} as call_key")])
-                ->whereRaw("{$key} in (".implode(',', array_fill(0, count($keys), '?')).')', $keys)
+                ->select('crm_events.*')
+                ->whereIn('crm_events.call_key', $keys)
                 ->with(['user:id,name', 'eventType:id,slug'])
                 ->orderBy('crm_events.occurred_at')
                 ->orderBy('crm_events.id')
@@ -124,7 +121,7 @@ class CallLogService
             $query->where('crm_events.occurred_at', '>=', $from);
         }
 
-        $key = $this->callKeyExpression($query, $types);
+        $key = 'crm_events.call_key';
         $rank = $this->rankExpression($types);
         $grammar = $query->getQuery()->getGrammar();
         $duration = $grammar->wrap('crm_events.metadata->duration');
@@ -141,7 +138,7 @@ class CallLogService
                 ."MAX(CASE WHEN {$recordingId} IS NOT NULL THEN 1 ELSE 0 END) as has_recording, "
                 .'MAX(crm_events.model_id) as model_id, MAX(crm_events.occurred_at) as last_at'
             )
-            ->groupBy('call_key');
+            ->groupBy('crm_events.call_key');
 
         $missed = implode(',', self::MISSED_RANKS);
         $totals = DB::connection($query->getQuery()->getConnection()->getName())
@@ -169,127 +166,6 @@ class CallLogService
             'unlinked' => (int) ($totals->unlinked ?? 0),
             'last_at' => $lastAt !== null ? \Illuminate\Support\Carbon::parse($lastAt)->toIso8601String() : null,
         ];
-    }
-
-    /**
-     * SQL for "which call is this event part of".
-     *
-     * In order:
-     *
-     * 1. The event's own id: the shared SIP Call-ID (`call_id`), else its
-     *    `call_ref`, which the answering browser puts on both the start and
-     *    the end of its call. Placeholder ids ("call-179") are reused across
-     *    calls and never count.
-     * 2. Older missed/declined legs logged under a per-browser id (call_id =
-     *    call_ref) take the SIP Call-ID of the ringing event (`incoming_call`,
-     *    stored as call_started) for the same caller number just before them,
-     *    preferring the same agent's own, within five minutes, so they land in
-     *    the same call as the answered and ringing legs. With no ringing event,
-     *    caller number within a three-minute window.
-     * 3. An outbound "started" with no id of its own (click-to-call logs it as
-     *    it dials) takes the id of the next outcome the same agent logged for
-     *    the same number, within two hours and before that agent dialled the
-     *    number again, so "started" and "completed" are one call while
-     *    back-to-back attempts stay apart.
-     * 4. The bridge correlation id; else the event stands alone.
-     *
-     * @param  Collection<string, int>  $types
-     */
-    private function callKeyExpression(Builder $query, Collection $types): string
-    {
-        $grammar = $query->getQuery()->getGrammar();
-        $callId = $grammar->wrap('crm_events.metadata->call_id');
-        $callRef = $grammar->wrap('crm_events.metadata->call_ref');
-        $phone = $grammar->wrap('crm_events.metadata->phone_number');
-        $sqlite = $query->getQuery()->getConnection()->getDriverName() === 'sqlite';
-
-        // An id that identifies one call, or NULL.
-        $usable = fn (string $expr) => "(CASE WHEN {$expr} IS NULL OR {$expr} = '' OR {$expr} LIKE 'call-%' THEN NULL ELSE {$expr} END)";
-        $ownId = fn (string $alias) => 'COALESCE('
-            .$usable($grammar->wrap("{$alias}.metadata->call_id")).', '
-            .$usable($grammar->wrap("{$alias}.metadata->call_ref")).')';
-
-        $bucket = $sqlite
-            ? "CAST(CAST(strftime('%s', crm_events.occurred_at) AS INTEGER) / 180 AS TEXT)"
-            : 'CAST(FLOOR(UNIX_TIMESTAMP(crm_events.occurred_at) / 180) AS CHAR)';
-        $id = $sqlite ? 'CAST(crm_events.id AS TEXT)' : 'CAST(crm_events.id AS CHAR)';
-        $concat = fn (string ...$parts) => $sqlite
-            ? '('.implode(' || ', $parts).')'
-            : 'CONCAT('.implode(', ', $parts).')';
-
-        $legacyKey = $concat("'p:'", $phone, "':'", $bucket);
-
-        $startedId = isset($types['call_started']) ? (int) $types['call_started'] : null;
-        if ($startedId !== null) {
-            $ringCallId = $grammar->wrap('ring.metadata->call_id');
-            $ringCallRef = $grammar->wrap('ring.metadata->call_ref');
-            $ringPhone = $grammar->wrap('ring.metadata->phone_number');
-            $lookback = (int) self::RING_LOOKBACK_SECONDS;
-            $since = $sqlite
-                ? "datetime(crm_events.occurred_at, '-{$lookback} seconds')"
-                : "crm_events.occurred_at - INTERVAL {$lookback} SECOND";
-
-            // Latest ringing event for this number just before the leg; the
-            // outer row is only referenced in WHERE (SQLite rejects it in
-            // ORDER BY), so "same agent first" is two lookups, not one sort.
-            $ringing = fn (string $extra) => "(SELECT {$ringCallId} FROM crm_events ring"
-                .' WHERE ring.company_id = crm_events.company_id'
-                ." AND ring.event_type_id = {$startedId}"
-                ." AND ring.direction = 'inbound'"
-                ." AND {$ringPhone} = {$phone}"
-                .' AND '.$usable($ringCallId).' IS NOT NULL'
-                ." AND ({$ringCallRef} IS NULL OR {$ringCallId} <> {$ringCallRef})"
-                ." AND ring.occurred_at BETWEEN {$since} AND crm_events.occurred_at"
-                .$extra
-                .' ORDER BY ring.occurred_at DESC, ring.id DESC'
-                .' LIMIT 1)';
-
-            $legacyKey = 'COALESCE('
-                .$ringing(' AND ring.user_id = crm_events.user_id').', '
-                .$ringing('').', '
-                ."{$legacyKey})";
-        }
-
-        $fallback = 'COALESCE(crm_events.correlation_id, '.$concat("'e:'", $id).')';
-        $outboundStart = null;
-
-        if ($startedId !== null) {
-            $outcomePhone = $grammar->wrap('outcome.metadata->phone_number');
-            $redialPhone = $grammar->wrap('redial.metadata->phone_number');
-            $window = 7200;
-            $until = $sqlite
-                ? "datetime(crm_events.occurred_at, '+{$window} seconds')"
-                : "crm_events.occurred_at + INTERVAL {$window} SECOND";
-
-            $nextOutcome = '(SELECT '.$ownId('outcome').' FROM crm_events outcome'
-                .' WHERE outcome.company_id = crm_events.company_id'
-                ." AND outcome.event_type_id <> {$startedId}"
-                .' AND outcome.event_type_id IN ('.implode(',', array_map('intval', $types->values()->all())).')'
-                ." AND outcome.direction = 'outbound'"
-                .' AND outcome.user_id = crm_events.user_id'
-                ." AND {$outcomePhone} = {$phone}"
-                ." AND outcome.occurred_at BETWEEN crm_events.occurred_at AND {$until}"
-                .' AND '.$ownId('outcome').' IS NOT NULL'
-                .' AND NOT EXISTS (SELECT 1 FROM crm_events redial'
-                .' WHERE redial.company_id = crm_events.company_id'
-                ." AND redial.event_type_id = {$startedId}"
-                ." AND redial.direction = 'outbound'"
-                .' AND redial.user_id = crm_events.user_id'
-                ." AND {$redialPhone} = {$phone}"
-                .' AND redial.occurred_at > crm_events.occurred_at'
-                .' AND redial.occurred_at < outcome.occurred_at)'
-                .' ORDER BY outcome.occurred_at, outcome.id'
-                .' LIMIT 1)';
-
-            $outboundStart = "WHEN crm_events.direction = 'outbound' AND crm_events.event_type_id = {$startedId} AND {$phone} IS NOT NULL "
-                ."THEN COALESCE({$nextOutcome}, {$fallback}) ";
-        }
-
-        return "(CASE WHEN crm_events.direction = 'inbound' AND {$callId} IS NOT NULL AND {$callId} = {$callRef} AND {$phone} IS NOT NULL "
-            ."THEN {$legacyKey} "
-            .'WHEN '.$ownId('crm_events').' IS NOT NULL THEN '.$ownId('crm_events').' '
-            .($outboundStart ?? '')
-            ."ELSE {$fallback} END)";
     }
 
     /** @param  Collection<string, int>  $types */
@@ -340,11 +216,7 @@ class CallLogService
     /** @return Collection<string, int> slug => id */
     private function callTypes(int $companyId): Collection
     {
-        // System types are seeded with company_id NULL and shared by everyone.
-        return CrmEventType::withoutGlobalScopes()
-            ->where(fn ($q) => $q->whereNull('company_id')->orWhere('company_id', $companyId))
-            ->whereIn('slug', array_map(fn ($o) => 'call_'.$o, self::OUTCOMES))
-            ->pluck('id', 'slug');
+        return app(CallKey::class)->callTypes($companyId);
     }
 
     /**
@@ -373,7 +245,7 @@ class CallLogService
         }
 
         // Legs of one call are folded into one row by paginate() and
-        // summary() (see callKeyExpression), so nothing is de-duplicated here.
+        // summary() on call_key (see CallKey), so nothing is de-duplicated here.
 
         return $query;
     }
