@@ -174,18 +174,24 @@ class CallLogService
     /**
      * SQL for "which call is this event part of".
      *
-     * Every agent's browser reports the shared SIP Call-ID as `call_id`, and
-     * bridge events share a correlation id per call, so either joins the legs
-     * of one call.
+     * In order:
      *
-     * Older missed/declined legs were logged with a per-browser id (call_id =
-     * call_ref), so they carry no shared id themselves. Each one is resolved to
-     * the SIP Call-ID of the ringing event (`incoming_call`, stored as
-     * call_started) for the same caller number that came just before it,
-     * preferring the same agent's own ringing event, within five minutes, so it
-     * lands in the same call as the answered and ringing legs. Only a leg with
-     * no such ringing event falls back to caller number within a three-minute
-     * window. Anything else stands alone.
+     * 1. The event's own id: the shared SIP Call-ID (`call_id`), else its
+     *    `call_ref`, which the answering browser puts on both the start and
+     *    the end of its call. Placeholder ids ("call-179") are reused across
+     *    calls and never count.
+     * 2. Older missed/declined legs logged under a per-browser id (call_id =
+     *    call_ref) take the SIP Call-ID of the ringing event (`incoming_call`,
+     *    stored as call_started) for the same caller number just before them,
+     *    preferring the same agent's own, within five minutes, so they land in
+     *    the same call as the answered and ringing legs. With no ringing event,
+     *    caller number within a three-minute window.
+     * 3. An outbound "started" with no id of its own (click-to-call logs it as
+     *    it dials) takes the id of the next outcome the same agent logged for
+     *    the same number, within two hours and before that agent dialled the
+     *    number again, so "started" and "completed" are one call while
+     *    back-to-back attempts stay apart.
+     * 4. The bridge correlation id; else the event stands alone.
      *
      * @param  Collection<string, int>  $types
      */
@@ -196,6 +202,12 @@ class CallLogService
         $callRef = $grammar->wrap('crm_events.metadata->call_ref');
         $phone = $grammar->wrap('crm_events.metadata->phone_number');
         $sqlite = $query->getQuery()->getConnection()->getDriverName() === 'sqlite';
+
+        // An id that identifies one call, or NULL.
+        $usable = fn (string $expr) => "(CASE WHEN {$expr} IS NULL OR {$expr} = '' OR {$expr} LIKE 'call-%' THEN NULL ELSE {$expr} END)";
+        $ownId = fn (string $alias) => 'COALESCE('
+            .$usable($grammar->wrap("{$alias}.metadata->call_id")).', '
+            .$usable($grammar->wrap("{$alias}.metadata->call_ref")).')';
 
         $bucket = $sqlite
             ? "CAST(CAST(strftime('%s', crm_events.occurred_at) AS INTEGER) / 180 AS TEXT)"
@@ -225,7 +237,7 @@ class CallLogService
                 ." AND ring.event_type_id = {$startedId}"
                 ." AND ring.direction = 'inbound'"
                 ." AND {$ringPhone} = {$phone}"
-                ." AND {$ringCallId} IS NOT NULL AND {$ringCallId} <> ''"
+                .' AND '.$usable($ringCallId).' IS NOT NULL'
                 ." AND ({$ringCallRef} IS NULL OR {$ringCallId} <> {$ringCallRef})"
                 ." AND ring.occurred_at BETWEEN {$since} AND crm_events.occurred_at"
                 .$extra
@@ -238,9 +250,46 @@ class CallLogService
                 ."{$legacyKey})";
         }
 
+        $fallback = 'COALESCE(crm_events.correlation_id, '.$concat("'e:'", $id).')';
+        $outboundStart = null;
+
+        if ($startedId !== null) {
+            $outcomePhone = $grammar->wrap('outcome.metadata->phone_number');
+            $redialPhone = $grammar->wrap('redial.metadata->phone_number');
+            $window = 7200;
+            $until = $sqlite
+                ? "datetime(crm_events.occurred_at, '+{$window} seconds')"
+                : "crm_events.occurred_at + INTERVAL {$window} SECOND";
+
+            $nextOutcome = '(SELECT '.$ownId('outcome').' FROM crm_events outcome'
+                .' WHERE outcome.company_id = crm_events.company_id'
+                ." AND outcome.event_type_id <> {$startedId}"
+                .' AND outcome.event_type_id IN ('.implode(',', array_map('intval', $types->values()->all())).')'
+                ." AND outcome.direction = 'outbound'"
+                .' AND outcome.user_id = crm_events.user_id'
+                ." AND {$outcomePhone} = {$phone}"
+                ." AND outcome.occurred_at BETWEEN crm_events.occurred_at AND {$until}"
+                .' AND '.$ownId('outcome').' IS NOT NULL'
+                .' AND NOT EXISTS (SELECT 1 FROM crm_events redial'
+                .' WHERE redial.company_id = crm_events.company_id'
+                ." AND redial.event_type_id = {$startedId}"
+                ." AND redial.direction = 'outbound'"
+                .' AND redial.user_id = crm_events.user_id'
+                ." AND {$redialPhone} = {$phone}"
+                .' AND redial.occurred_at > crm_events.occurred_at'
+                .' AND redial.occurred_at < outcome.occurred_at)'
+                .' ORDER BY outcome.occurred_at, outcome.id'
+                .' LIMIT 1)';
+
+            $outboundStart = "WHEN crm_events.direction = 'outbound' AND crm_events.event_type_id = {$startedId} AND {$phone} IS NOT NULL "
+                ."THEN COALESCE({$nextOutcome}, {$fallback}) ";
+        }
+
         return "(CASE WHEN crm_events.direction = 'inbound' AND {$callId} IS NOT NULL AND {$callId} = {$callRef} AND {$phone} IS NOT NULL "
             ."THEN {$legacyKey} "
-            ."ELSE COALESCE(NULLIF({$callId}, ''), crm_events.correlation_id, ".$concat("'e:'", $id).') END)';
+            .'WHEN '.$ownId('crm_events').' IS NOT NULL THEN '.$ownId('crm_events').' '
+            .($outboundStart ?? '')
+            ."ELSE {$fallback} END)";
     }
 
     /** @param  Collection<string, int>  $types */

@@ -307,6 +307,49 @@ class CallLogServiceTest extends TestCase
         );
     }
 
+    public function test_started_and_completed_sharing_only_a_call_ref_are_one_call(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $meta = ['call_ref' => 'e83fa496', 'phone_number' => '015792530585'];
+
+        $this->insertEvent(['direction' => 'inbound', 'slug' => 'call_started', 'metadata' => $meta, 'correlation_id' => (string) Str::uuid(), 'occurred_at' => now()->subSeconds(16)]);
+        $this->insertEvent(['direction' => 'inbound', 'metadata' => $meta + ['duration' => 15], 'correlation_id' => (string) Str::uuid()]);
+        // A placeholder ref shared by unrelated calls must not merge them.
+        $this->insertEvent(['direction' => 'inbound', 'slug' => 'call_started', 'metadata' => ['call_ref' => 'call-179', 'phone_number' => '1'], 'occurred_at' => now()->subHour()]);
+        $this->insertEvent(['direction' => 'inbound', 'slug' => 'call_started', 'metadata' => ['call_ref' => 'call-179', 'phone_number' => '2'], 'occurred_at' => now()->subHours(2)]);
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50));
+
+        $this->assertCount(3, $rows);
+        $this->assertSame('ended', $rows[0]['outcome']);
+        $this->assertCount(2, $rows[0]['event_ids']);
+        $this->assertSame(15, $rows[0]['duration']);
+    }
+
+    public function test_an_outbound_start_without_ids_joins_the_outcome_that_followed_it(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $to = ['direction' => 'outbound', 'model_type' => \App\Models\Lead::class, 'model_id' => self::LEAD_ID];
+        $base = now()->subHour();
+
+        // Two unanswered attempts, then a third that connected.
+        $first = $this->insertEvent($to + ['slug' => 'call_started', 'metadata' => ['phone_number' => '+90 1'], 'occurred_at' => $base]);
+        $second = $this->insertEvent($to + ['slug' => 'call_started', 'metadata' => ['phone_number' => '+90 1'], 'occurred_at' => $base->copy()->addMinutes(3)]);
+        $this->insertEvent($to + ['slug' => 'call_started', 'metadata' => ['phone_number' => '+90 1'], 'occurred_at' => $base->copy()->addMinutes(6)]);
+        $ended = $this->insertEvent($to + ['metadata' => ['phone_number' => '+90 1', 'call_ref' => '03cc5777', 'duration' => 11], 'occurred_at' => $base->copy()->addMinutes(6)->addSeconds(17)]);
+        // Another agent's call to the same number is not this one.
+        $this->insertEvent($to + ['user_id' => self::OTHER_AGENT_ID, 'slug' => 'call_started', 'metadata' => ['phone_number' => '+90 1'], 'occurred_at' => $base->copy()->addMinutes(5)]);
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50));
+
+        $this->assertCount(4, $rows, 'Three calls by the viewer, one by the other agent.');
+        $connected = collect($rows)->firstWhere('id', $ended);
+        $this->assertSame('ended', $connected['outcome']);
+        $this->assertCount(2, $connected['event_ids'], 'Started and completed are one row.');
+        $this->assertNull(collect($rows)->first(fn ($r) => in_array($first, $r['event_ids'], true) && in_array($ended, $r['event_ids'], true)));
+        $this->assertSame([$second], collect($rows)->first(fn ($r) => in_array($second, $r['event_ids'], true))['event_ids']);
+    }
+
     public function test_filters_and_summary_judge_the_call_not_its_legs(): void
     {
         $viewer = $this->actingAsUser(['manage_calls' => 'all']);
