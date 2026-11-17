@@ -230,60 +230,6 @@ class CallBridgeService
     }
 
     /**
-     * End an active call through OL and log call_ended on the entity timeline.
-     *
-     * @param  array<string, mixed>  $context  Extra context (entity, phone, user) when the caller has it.
-     * @return array<string, mixed>
-     */
-    public function endCall(string $callId, array $context = []): array
-    {
-        $response = $this->client->endCall($callId);
-
-        // Best-effort, same as startCall: the call already ended.
-        try {
-            $this->logCallEvent(array_merge($context, [
-                'call_id' => $callId,
-                'event' => 'call.ended',
-                'duration' => $response['duration'] ?? null,
-                'status' => $response['status'] ?? null,
-                'occurred_at' => now(),
-            ]), CrmEventGenerationType::USER_GENERATED);
-        } catch (\Throwable $e) {
-            Log::warning('CallBridgeService: failed to log call_ended', [
-                'call_id' => $callId,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
-        // Emit the call end event to the OL call bridge so it records
-        // the call ending on its side.
-        if (! empty($callId)) {
-            try {
-                $this->client->emitCallEvent([
-                    'event' => 'call.ended',
-                    'call_id' => $callId,
-                    'status' => $response['status'] ?? null,
-                ]);
-            } catch (\Throwable $e) {
-                Log::warning('CallBridgeService: failed to emit call_ended to OL', [
-                    'call_id' => $callId,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        return $response;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function getCallStatus(string $callId): array
-    {
-        return $this->client->getCallStatus($callId);
-    }
-
-    /**
      * Emit a call event to the OL call bridge.
      *
      * @param  array<string, mixed>  $payload
@@ -325,7 +271,7 @@ class CallBridgeService
                 $summary['fetched']++;
 
                 try {
-                    $result = $this->logCallEvent($olEvent);
+                    $result = $this->logCallEvent(is_array($olEvent) ? $this->withoutNativeUserId($olEvent) : $olEvent);
                     $result ? $summary['logged']++ : $summary['skipped']++;
 
                     // Emit a leg event to the OL call bridge when the call is
@@ -447,6 +393,8 @@ class CallBridgeService
         if ($this->alreadyProcessed($dedupeKey, $olEvent)) {
             return null;
         }
+
+        $olEvent = $this->resolveUserFromEmail($olEvent);
 
         $mapped = $this->mapEventType($olEvent);
 
@@ -855,6 +803,82 @@ class CallBridgeService
         $companyId = $model::withoutGlobalScopes()->whereKey($entityId)->value('company_id');
 
         return $companyId ? (int) $companyId : null;
+    }
+
+    /**
+     * OL's feed names the agent by email — its user ids are not CRM ids. Turn
+     * that into a CRM `user_id` so attribution and the company fallback work.
+     *
+     * An email held by users in several companies is narrowed by the entity's
+     * company; if that still leaves more than one (or none), the event stays
+     * unattributed rather than being pinned to the wrong agent.
+     *
+     * @param  array<string, mixed>  $olEvent
+     * @return array<string, mixed>
+     */
+    private function resolveUserFromEmail(array $olEvent): array
+    {
+        $email = $this->feedAgentEmail($olEvent);
+        if (! empty($olEvent['user_id']) || $email === null) {
+            return $olEvent;
+        }
+
+        $candidates = \App\Models\User::withoutGlobalScopes()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->get(['id', 'company_id']);
+
+        // The event lands in its entity's company (resolveCompanyId), so the
+        // agent must be from that company too — a lone match from another
+        // company is not this agent.
+        $entityCompanyId = $this->companyIdForEntity($olEvent);
+        if ($entityCompanyId !== null) {
+            $candidates = $candidates->where('company_id', $entityCompanyId)->values();
+        } elseif ($candidates->count() > 1) {
+            $candidates = collect();
+        }
+
+        if ($candidates->count() === 1) {
+            $olEvent['user_id'] = (int) $candidates->first()->id;
+        }
+
+        return $olEvent;
+    }
+
+    /**
+     * The agent's email on a feed event, lowercased. OL's feed names it
+     * `user_email`; the CRM sends it as `agentEmail`, so both spellings are
+     * read.
+     *
+     * @param  array<string, mixed>  $olEvent
+     */
+    private function feedAgentEmail(array $olEvent): ?string
+    {
+        foreach (['user_email', 'agent_email', 'agentEmail'] as $key) {
+            $value = $olEvent[$key] ?? null;
+            if (is_string($value) && trim($value) !== '') {
+                return strtolower(trim($value));
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * A feed event's `user_id` is OL's own id, not a CRM one. When the feed
+     * also names the agent by email, the id is dropped so attribution goes
+     * through the email instead. Local callers of logCallEvent() pass CRM ids
+     * and never reach this.
+     *
+     * @param  array<string, mixed>  $olEvent
+     * @return array<string, mixed>
+     */
+    private function withoutNativeUserId(array $olEvent): array
+    {
+        if (! empty($olEvent['user_id']) && $this->feedAgentEmail($olEvent) !== null) {
+            unset($olEvent['user_id']);
+        }
+
+        return $olEvent;
     }
 
     /**

@@ -333,6 +333,34 @@ class CallRecordingController extends AccountBaseController
                 $recording->company_id !== null ? (int) $recording->company_id : null,
                 (int) user()->id,
             );
+
+            // Mirror the recording onto OL's call log. Queued and retried;
+            // a dispatch failure must never fail the upload itself. On the
+            // `sync` connection (the config fallback) the job would run inside
+            // this request and hold the upload response on OL, so it runs
+            // after the response instead (with no queue there is no retry).
+            try {
+                $recordingId = (int) $recording->id;
+                if (config('queue.default') === 'sync') {
+                    app()->terminating(function () use ($recordingId): void {
+                        try {
+                            \App\Jobs\SyncCallRecordingToCallBridgeJob::dispatchSync($recordingId);
+                        } catch (\Throwable $e) {
+                            Log::warning('CallRecordingController: OL recording sync failed after response', [
+                                'recording_id' => $recordingId,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    });
+                } else {
+                    \App\Jobs\SyncCallRecordingToCallBridgeJob::dispatch($recordingId);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('CallRecordingController: could not queue OL recording sync', [
+                    'recording_id' => $recording->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return Reply::successWithData('Recording uploaded', [

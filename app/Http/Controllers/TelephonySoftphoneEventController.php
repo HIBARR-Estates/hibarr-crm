@@ -122,7 +122,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
             ]);
         }
 
-        $this->emitIncomingCallOnce($companyId, $authoritativeCallKey ?? $callId ?? $callRef, $request->input('phone'), $matchingLeads->first());
+        $this->emitIncomingCallOnce($companyId, $authoritativeCallKey ?? $callId ?? $callRef, $request->input('phone'), $matchingLeads->first(), is_scalar($callRef) ? (string) $callRef : null);
 
         $poolUsers = $this->getAvailableAgentsForTier($companyId, SoftphoneCallPoolAgent::TIER_LINE, $deviceId, 'pool');
         [$lead, $owner] = $this->resolveLeadAndOwner($matchingLeads, $companyId, $deviceId);
@@ -278,7 +278,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
     }
 
     /** Tell the call bridge (OL) about an incoming call, once per call. */
-    private function emitIncomingCallOnce(int $companyId, ?string $callKey, ?string $phone, ?Lead $lead): void
+    private function emitIncomingCallOnce(int $companyId, ?string $callKey, ?string $phone, ?Lead $lead, ?string $callRef = null): void
     {
         $callKey = trim((string) $callKey);
         if ($callKey === '') {
@@ -296,6 +296,9 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 'direction' => 'inbound',
                 'phone_number' => $phone,
                 'status' => 'ringing',
+                // Same key the answer/hang-up events and the recording use, so
+                // OL keeps one row per call instead of one per identifier.
+                'call_ref' => $callRef ?: $callKey,
             ];
             if ($lead !== null) {
                 $payload['entity_type'] = 'lead';
@@ -754,6 +757,11 @@ class TelephonySoftphoneEventController extends AccountBaseController
                     'direction' => $emitDirection,
                     'phone_number' => $validated['phone'],
                     'status' => $validated['status'] ?? null,
+                    'duration' => $validated['duration'] ?? null,
+                    // OL keys the call on call_ref, so the recording upload
+                    // (which carries the same ref) lands on the same OL row.
+                    'call_ref' => $validated['call_ref'] ?? $callId,
+                    'agent_email' => user()?->email,
                 ];
                 if (! empty($entityType) && ! empty($entityId)) {
                     $emitPayload['entity_type'] = $entityType;
