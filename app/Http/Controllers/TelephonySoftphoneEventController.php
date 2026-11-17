@@ -15,6 +15,7 @@ use App\Services\CallBridge\InboundCallRotation;
 use App\Services\CallBridge\LeadPhoneMatcher;
 use App\Services\CallBridge\LineConcurrencyManager;
 use App\Services\PermissionService;
+use App\Support\CallRefOwnership;
 use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -572,6 +573,20 @@ class TelephonySoftphoneEventController extends AccountBaseController
             'forwarded_from_user_id' => 'nullable|integer|min:1',
             'forwarded_from_user_name' => 'nullable|string|max:180',
         ]);
+
+        // The call ref comes from the browser and links timeline rows, the
+        // recording and OL's call log. One another company already uses is
+        // dropped before anything stores or forwards it; the event itself is
+        // still logged.
+        if (! empty($validated['call_ref'])
+            && CallRefOwnership::belongsToAnotherCompany((string) $validated['call_ref'], (int) company()->id)) {
+            Log::warning('TelephonySoftphoneEventController: call ref used by another company; dropped', [
+                'user_id' => (int) user()->id,
+                'company_id' => (int) company()->id,
+                'event' => $validated['event'] ?? null,
+            ]);
+            unset($validated['call_ref']);
+        }
 
         $isInbound = in_array($validated['direction'] ?? null, ['inbound', 'incoming'], true);
         $entityType = $validated['entity_type'] ?? null;

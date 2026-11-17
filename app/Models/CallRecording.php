@@ -37,10 +37,14 @@ class CallRecording extends Model
         // recording for a call. Without it here the create() below silently
         // dropped it and no timeline row could ever be annotated.
         'call_ref',
+        'ol_synced_at',
     ];
 
     protected $casts = [
         'expires_at' => 'datetime',
+        // Set once OL's call bridge stored the recording (see
+        // SyncCallRecordingToCallBridgeJob).
+        'ol_synced_at' => 'datetime',
     ];
 
     /** Recorded in a WebM container (older uploads, before transcoding). */

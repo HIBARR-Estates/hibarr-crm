@@ -3,11 +3,11 @@
 namespace App\Jobs;
 
 use App\Models\CallRecording;
-use App\Models\CrmEvent;
 use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\User;
 use App\Services\CallBridge\CallBridgeClient;
+use App\Support\CallRefOwnership;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -19,9 +19,11 @@ use Illuminate\Support\Facades\Log;
  * Register a softphone recording with OL's call bridge so OL's call log holds
  * it as well as the CRM.
  *
- * Queued so the upload response never waits on OL, and retried with backoff
- * because a recording that never reaches OL is not otherwise reconciled.
- * OL upserts on (call_ref, track), so a retry is harmless.
+ * Queued so the upload response never waits on OL, and retried with backoff.
+ * `ol_synced_at` is stamped once OL has stored it; anything left unstamped is
+ * picked up again by `call-recordings:sync-to-call-bridge`, so a failure is
+ * recoverable even on the `sync` queue connection, where nothing retries.
+ * OL upserts on (call_ref, track), so a repeat is harmless.
  */
 class SyncCallRecordingToCallBridgeJob implements ShouldQueue
 {
@@ -45,7 +47,7 @@ class SyncCallRecordingToCallBridgeJob implements ShouldQueue
         }
 
         $recording = CallRecording::withoutGlobalScopes()->find($this->recordingId);
-        if ($recording === null || empty($recording->call_ref)) {
+        if ($recording === null || empty($recording->call_ref) || $recording->ol_synced_at !== null) {
             return;
         }
 
@@ -56,9 +58,10 @@ class SyncCallRecordingToCallBridgeJob implements ShouldQueue
         }
 
         // The call ref comes from the browser. OL files the recording under
-        // it, so a ref that only ever appears on another company's calls must
-        // not be forwarded from this one.
-        if ($this->callRefBelongsToAnotherCompany((string) $recording->call_ref, $recording->company_id)) {
+        // it, so a ref any other company uses must not be forwarded from this
+        // one.
+        $companyId = $recording->company_id !== null ? (int) $recording->company_id : null;
+        if (CallRefOwnership::belongsToAnotherCompany((string) $recording->call_ref, $companyId)) {
             Log::warning('SyncCallRecordingToCallBridgeJob: call ref belongs to another company; not sent to OL', [
                 'recording_id' => $recording->id,
                 'company_id' => $recording->company_id,
@@ -109,26 +112,18 @@ class SyncCallRecordingToCallBridgeJob implements ShouldQueue
 
             throw $e;
         }
-    }
 
-    /**
-     * True when the ref is on another company's call timeline and never on
-     * this company's. A ref seen nowhere yet is allowed: the call's own
-     * events often land after the upload.
-     */
-    private function callRefBelongsToAnotherCompany(string $callRef, mixed $companyId): bool
-    {
-        if ($companyId === null) {
-            return true;
+        // OL has it. A failed stamp only means the sweep sends it once more,
+        // which OL upserts, so it must not fail the job.
+        try {
+            CallRecording::withoutGlobalScopes()
+                ->whereKey($recording->id)
+                ->update(['ol_synced_at' => now()]);
+        } catch (\Throwable $e) {
+            Log::warning('SyncCallRecordingToCallBridgeJob: could not stamp ol_synced_at', [
+                'recording_id' => $recording->id,
+                'error' => $e->getMessage(),
+            ]);
         }
-
-        $owners = CrmEvent::withoutGlobalScopes()
-            ->where('metadata->call_ref', $callRef)
-            ->distinct()
-            ->limit(10)
-            ->pluck('company_id')
-            ->map(fn ($id) => (int) $id);
-
-        return $owners->isNotEmpty() && ! $owners->contains((int) $companyId);
     }
 }

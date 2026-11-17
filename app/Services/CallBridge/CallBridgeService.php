@@ -270,8 +270,14 @@ class CallBridgeService
             foreach ($page['events'] as $olEvent) {
                 $summary['fetched']++;
 
+                // Normalised once, so projection and the retry bookkeeping in
+                // the catch below derive the same dedupe key from the same event.
+                if (is_array($olEvent)) {
+                    $olEvent = $this->withoutNativeUserId($olEvent);
+                }
+
                 try {
-                    $result = $this->logCallEvent(is_array($olEvent) ? $this->withoutNativeUserId($olEvent) : $olEvent);
+                    $result = $this->logCallEvent($olEvent);
                     $result ? $summary['logged']++ : $summary['skipped']++;
 
                     // Emit a leg event to the OL call bridge when the call is
