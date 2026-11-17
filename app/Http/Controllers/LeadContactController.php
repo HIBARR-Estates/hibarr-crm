@@ -639,6 +639,7 @@ class LeadContactController extends AccountBaseController
                 $leadFollowUpsQuery = DealFollowUp::with([
                     'addedBy:id,name,image',
                     'host:id,name,image',
+                    'outcomeLoggedBy:id,name,image',
                     'meetingType',
                     'meetingSummary',
                     'deal:id,name,lead_id',

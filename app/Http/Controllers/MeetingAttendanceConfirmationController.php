@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Enums\MeetingAttendanceOutcome;
 use App\Models\Company;
 use App\Models\DealFollowUp;
+use App\Services\AgentWorkspace\ContactDeals;
+use App\Services\AgentWorkspace\LeadVisibility;
 use App\Services\MeetingAttendanceConfirmationService;
 use App\Support\MeetingAttendanceConfirmationFeature;
 use Illuminate\Http\JsonResponse;
@@ -63,32 +65,21 @@ class MeetingAttendanceConfirmationController extends Controller
     }
 
     /**
-     * Changes an already-logged outcome from the meeting's edit form.
+     * Sets or changes a meeting's outcome from the meeting's own show/edit
+     * view (not the Check-ins dock, which goes through confirm()).
      *
-     * Authorized on ordinary edit permission (same rule MeetingsController's
-     * own report()/reschedule() use) rather than `authorizedFor()` — that
-     * check is about who the confirmation *prompt* goes to, which has
-     * nothing to do with who may edit this meeting's other fields. The
-     * company check still applies on top of it: DealFollowUp carries no
-     * CompanyScope (see belongsToCompany()'s docblock), so an 'all' edit
-     * permission — scoped to the caller's own company — must not be read as
-     * license to touch a followUp id belonging to a different one.
+     * Anyone who can see the meeting may record what happened — the
+     * outcome is stamped with who logged it (attendance_outcome_logged_by)
+     * and the timeline event names them, so there's no need to restrict it
+     * to the host. The Check-ins prompt stays assignee-only: that rule is
+     * about who gets nagged, not who may answer.
      */
     public function update(Request $request, DealFollowUp $followUp): JsonResponse
     {
-        $companyId = user()->company_id ? (int) user()->company_id : null;
-        $editPermission = user()->permission('edit_lead_follow_up');
-        $authorized = $companyId !== null
-            && $followUp->belongsToCompany($companyId)
-            && (
-                $editPermission === 'all'
-                || ($editPermission === 'added' && $followUp->added_by == user()->id)
-            );
-
-        if (! $authorized) {
+        if (! $this->canSeeMeeting($followUp)) {
             return response()->json([
                 'status' => 'fail',
-                'message' => 'You do not have permission to edit this meeting.',
+                'message' => 'You do not have permission to record an outcome for this meeting.',
             ], 403);
         }
 
@@ -97,22 +88,13 @@ class MeetingAttendanceConfirmationController extends Controller
             'note' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        if ($followUp->next_follow_up_date && $followUp->next_follow_up_date->isFuture()) {
+        // A cancelled meeting's outcome is known the moment it's cancelled —
+        // same exception the panel makes client-side.
+        if ($followUp->status !== 'cancelled'
+            && $followUp->next_follow_up_date && $followUp->next_follow_up_date->isFuture()) {
             return response()->json([
                 'status' => 'fail',
                 'message' => 'A meeting outcome can only be recorded once the meeting has started.',
-            ], 422);
-        }
-
-        // This endpoint changes an outcome that's already logged — the first
-        // one still has to go through confirm(), which is gated to the
-        // meeting's specific assignee. Without this check, anyone holding the
-        // much broader "edit this meeting" permission could originate an
-        // outcome for a meeting they were never assigned to confirm.
-        if (! $followUp->attendance_outcome_logged_at) {
-            return response()->json([
-                'status' => 'fail',
-                'message' => 'This meeting has no confirmed outcome to change yet.',
             ], 422);
         }
 
@@ -122,10 +104,13 @@ class MeetingAttendanceConfirmationController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Meeting outcome updated.',
+            'message' => 'Meeting outcome saved.',
             'data' => [
                 'id' => $followUp->id,
                 'attendance_outcome' => $followUp->attendance_outcome,
+                'attendance_outcome_logged_at' => $followUp->attendance_outcome_logged_at?->toIso8601String(),
+                'attendance_outcome_logged_by' => $followUp->attendance_outcome_logged_by,
+                'outcome_logged_by' => $followUp->outcomeLoggedBy()->first(['id', 'name', 'image']),
             ],
         ]);
     }
@@ -172,6 +157,40 @@ class MeetingAttendanceConfirmationController extends Controller
         return $companyId !== null
             && $followUp->belongsToCompany($companyId)
             && $followUp->confirmationAssigneeUserId() === (int) user()->id;
+    }
+
+    /**
+     * Whether the current user can see $followUp anywhere it's shown: on the
+     * meetings list (creator/participant), as its host or confirmation
+     * assignee, or through the deal/lead page it belongs to. Always scoped to
+     * the user's own company — DealFollowUp carries no CompanyScope.
+     */
+    private function canSeeMeeting(DealFollowUp $followUp): bool
+    {
+        $user = user();
+        $companyId = $user->company_id ? (int) $user->company_id : null;
+
+        if ($companyId === null || ! $followUp->belongsToCompany($companyId)) {
+            return false;
+        }
+
+        $userId = (int) $user->id;
+
+        if ($followUp->isVisibleToUser($userId)
+            || (int) $followUp->host_id === $userId
+            || $followUp->confirmationAssigneeUserId() === $userId) {
+            return true;
+        }
+
+        if ($user->permission('view_lead_follow_up') === 'none') {
+            return false;
+        }
+
+        if ($followUp->deal && ContactDeals::canView($user, $followUp->deal)) {
+            return true;
+        }
+
+        return $followUp->lead !== null && LeadVisibility::canView($user, $followUp->lead);
     }
 
     private function snoozeMinutes(): int

@@ -15,6 +15,7 @@ use App\Models\PipelineStage;
 use App\Models\Product;
 use App\Models\Property;
 use App\Models\Task;
+use App\Models\User;
 use App\Services\CrmEventDescriptionBuilder;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -115,7 +116,8 @@ class DealActivityEventService
         Deal $deal,
         DealFollowUp $followUp,
         MeetingAttendanceOutcome $outcome,
-        ?int $noteId = null
+        ?int $noteId = null,
+        ?User $loggedBy = null
     ): void {
         Log::info('[DealActivityEventService::recordMeetingOutcomeLogged] Called.', [
             'deal_id' => $deal->id,
@@ -127,8 +129,13 @@ class DealActivityEventService
         $meetingTypeName = trim((string) ($followUp->meetingType?->name ?? ''));
         $meetingLabel = $meetingTypeName !== '' ? $meetingTypeName : 'Follow-up';
 
+        $loggedByName = $loggedBy?->name ? trim((string) $loggedBy->name) : '';
+
         $this->record('deal_meeting_outcome_logged', $deal, [
-            'comment' => $meetingLabel . ': ' . $outcome->label(),
+            'comment' => $meetingLabel . ': ' . $outcome->label()
+                . ($loggedByName !== '' ? ' (added by ' . $loggedByName . ')' : ''),
+            'logged_by' => $loggedBy?->id,
+            'logged_by_name' => $loggedByName !== '' ? $loggedByName : null,
             'followup_id' => $followUp->id,
             'meeting_type_id' => $followUp->meeting_type_id,
             'meeting_type_name' => $meetingTypeName !== '' ? $meetingTypeName : null,

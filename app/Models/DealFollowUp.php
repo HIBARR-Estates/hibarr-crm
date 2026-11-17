@@ -274,6 +274,12 @@ class DealFollowUp extends BaseModel
         return $this->belongsTo(User::class, 'host_id');
     }
 
+    /** Whoever recorded (or last changed) this meeting's attendance outcome. */
+    public function outcomeLoggedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'attendance_outcome_logged_by');
+    }
+
     /**
      * Resolve the participants JSON into the {id, name, image, email} rows the
      * meeting modals read, and stamp the effective duration.
