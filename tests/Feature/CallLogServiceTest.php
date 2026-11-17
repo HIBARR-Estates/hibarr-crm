@@ -375,6 +375,61 @@ class CallLogServiceTest extends TestCase
         $this->assertCount(2, $rows[1]['event_ids']);
     }
 
+    public function test_a_call_that_connects_after_midnight_keeps_its_outcome_under_a_date_filter(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $inbound = ['direction' => 'inbound', 'user_id' => self::VIEWER_ID];
+
+        $this->insertEvent($inbound + ['slug' => 'call_started', 'metadata' => ['call_id' => 'sip-night', 'call_ref' => 'r', 'phone_number' => '5'], 'occurred_at' => '2026-11-10 23:59:50']);
+        $this->insertEvent($inbound + ['metadata' => ['call_id' => 'sip-night', 'call_ref' => 'r', 'phone_number' => '5', 'duration' => 40], 'occurred_at' => '2026-11-11 00:00:35']);
+        // Entirely on the next day, so outside the range.
+        $this->insertEvent($inbound + ['slug' => 'call_missed', 'metadata' => ['call_id' => 'sip-next', 'phone_number' => '6'], 'occurred_at' => '2026-11-11 09:00:00']);
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, ['from' => '2026-11-10', 'to' => '2026-11-10'], null, 50));
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('ended', $rows[0]['outcome'], 'The connected leg after midnight still counts.');
+        $this->assertTrue($rows[0]['answered']);
+        $this->assertSame(40, $rows[0]['duration']);
+    }
+
+    public function test_only_browser_local_placeholders_are_ignored_as_call_ids(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $inbound = ['direction' => 'inbound', 'slug' => 'call_started'];
+
+        // A PBX id that happens to start with "call-" is a real shared id.
+        $this->insertEvent($inbound + ['user_id' => self::VIEWER_ID, 'metadata' => ['call_id' => 'call-abc@pbx', 'call_ref' => 'a', 'phone_number' => '7']]);
+        $this->insertEvent($inbound + ['user_id' => self::OTHER_AGENT_ID, 'metadata' => ['call_id' => 'call-abc@pbx', 'call_ref' => 'b', 'phone_number' => '7']]);
+        // Browser-local counters repeat across unrelated calls.
+        $this->insertEvent($inbound + ['metadata' => ['call_id' => 'call-3', 'phone_number' => '8'], 'occurred_at' => now()->subHour()]);
+        $this->insertEvent($inbound + ['metadata' => ['call_id' => 'call-3', 'phone_number' => '9'], 'occurred_at' => now()->subHours(2)]);
+        $this->insertEvent($inbound + ['metadata' => ['call_id' => 'call-waiting-2', 'phone_number' => '8'], 'occurred_at' => now()->subHours(3)]);
+        $this->insertEvent($inbound + ['metadata' => ['call_id' => 'call-waiting-2', 'phone_number' => '9'], 'occurred_at' => now()->subHours(4)]);
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50));
+
+        $this->assertCount(5, $rows);
+        $this->assertSame(2, $rows[0]['rang_count'], 'Both legs of the PBX call are one row.');
+    }
+
+    public function test_two_redials_in_the_same_second_stay_separate_calls(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $to = ['direction' => 'outbound'];
+        $at = now()->subMinute()->startOfSecond();
+
+        $first = $this->insertEvent($to + ['slug' => 'call_started', 'metadata' => ['phone_number' => '+90 3'], 'occurred_at' => $at]);
+        $second = $this->insertEvent($to + ['slug' => 'call_started', 'metadata' => ['phone_number' => '+90 3'], 'occurred_at' => $at]);
+        $ended = $this->insertEvent($to + ['metadata' => ['phone_number' => '+90 3', 'call_ref' => 'r-2', 'duration' => 5], 'occurred_at' => $at->copy()->addSeconds(10)]);
+
+        $rows = collect($this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50)));
+
+        $this->assertCount(2, $rows);
+        $this->assertSame([$second, $ended], $rows->firstWhere('id', $ended)['event_ids'], 'Only the later redial joins the outcome.');
+        $this->assertSame([$first], $rows->first(fn ($r) => in_array($first, $r['event_ids'], true))['event_ids']);
+    }
+
     public function test_filters_and_summary_judge_the_call_not_its_legs(): void
     {
         $viewer = $this->actingAsUser(['manage_calls' => 'all']);

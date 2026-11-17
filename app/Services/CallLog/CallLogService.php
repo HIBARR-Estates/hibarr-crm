@@ -69,7 +69,16 @@ class CallLogService
 
         // call_key is set when each event is written (see CallKey), so this
         // groups and looks up on the indexed (company_id, call_key) column.
-        $calls = (clone $query)->toBase()
+        // The date range picks which calls show; a picked call keeps all of
+        // its events, so one that rang before midnight and connected after
+        // still reads as connected.
+        $calls = (clone $query)->toBase();
+        if (! empty($filters['from']) || ! empty($filters['to'])) {
+            $inRange = (clone $query)->toBase()->select('crm_events.call_key')->whereNotNull('crm_events.call_key');
+            $this->applyDateFilters($inRange, $filters);
+            $calls->whereIn('crm_events.call_key', $inRange);
+        }
+        $calls
             ->selectRaw('crm_events.call_key as call_key, MIN(crm_events.occurred_at) as started_at, MAX(crm_events.id) as last_id')
             ->groupBy('crm_events.call_key');
         $this->applyCallFilters($calls, $rank, $filters);
@@ -263,7 +272,7 @@ class CallLogService
     }
 
     /**
-     * Filters that hold for every leg of a call (direction, dates).
+     * Filters that hold for every leg of a call (direction).
      *
      * @param  array<string, mixed>  $filters
      */
@@ -272,6 +281,15 @@ class CallLogService
         if (! empty($filters['direction'])) {
             $query->where('crm_events.direction', $filters['direction']);
         }
+    }
+
+    /**
+     * The date range, applied when picking calls (not when loading them).
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    private function applyDateFilters(\Illuminate\Database\Query\Builder $query, array $filters): void
+    {
         if (! empty($filters['from'])) {
             $query->where('crm_events.occurred_at', '>=', $filters['from']);
         }

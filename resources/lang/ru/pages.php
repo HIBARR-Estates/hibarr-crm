@@ -2722,7 +2722,7 @@ return [
         'answered' => 'Отвечен',
         'answered_by' => 'Ответил(а) {{user}}',
         'nobody_answered' => 'Никто не ответил',
-        'rang_count' => 'Звонил {{count}}',
+        'rang_count' => 'Получили вызов: {{count}}',
         'leg_answered' => 'ответил(а)',
         'leg_rang' => 'звонок',
         'leg_passed' => 'передал(а)',

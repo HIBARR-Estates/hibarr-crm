@@ -460,7 +460,9 @@ class TelephonySoftphoneEventController extends AccountBaseController
         }
 
         $trimmed = trim($callId);
-        if ($trimmed === '' || preg_match('/^call-\d+$/', $trimmed)) {
+        // Browser-local ids ("call-3", "call-waiting-3") mean a different
+        // call in every browser; CallKey applies the same rule.
+        if ($trimmed === '' || preg_match('/^call-(waiting-)?\d+$/', $trimmed)) {
             return false;
         }
 
@@ -495,9 +497,11 @@ class TelephonySoftphoneEventController extends AccountBaseController
     /**
      * Move a call's shared status under one per-call lock, so an agent
      * answering and another passing at the same moment cannot interleave the
-     * check and the write. "answered" always lands (waiting for the lock if it
-     * has to); "ended" never overwrites another agent's answer, and is skipped
-     * if the lock cannot be had rather than written unchecked.
+     * check and the write. "answered" always lands, and always under the
+     * lock: it waits longer than the lock can be held, so a holder that
+     * stalls has its lease expire first. "ended" never overwrites another
+     * agent's answer, and is skipped if the lock cannot be had rather than
+     * written unchecked.
      */
     private function transitionCallStatus(int $companyId, ?string $callId, string $status, int $userId): void
     {
@@ -515,9 +519,17 @@ class TelephonySoftphoneEventController extends AccountBaseController
             $this->recordCallStatus($companyId, $callId, $status, $userId);
         };
 
+        $lease = 5;
+        $wait = $status === 'answered' ? $lease + 2 : 3;
+
         try {
-            Cache::lock(sprintf('softphone:call_status_lock:%d:%s', $companyId, trim((string) $callId)), 5)->block(3, $apply);
+            Cache::lock(sprintf('softphone:call_status_lock:%d:%s', $companyId, trim((string) $callId)), $lease)->block($wait, $apply);
         } catch (\Illuminate\Contracts\Cache\LockTimeoutException) {
+            // Waiting past the lease means no earlier holder can still be
+            // mid-write, so this is only reached when the cache keeps
+            // refusing the lock. Losing the answer would leave the other
+            // browsers ringing, so it is still written; "ended" is dropped.
+            Log::warning('Softphone: call status lock unavailable', ['status' => $status, 'call_id' => $callId]);
             if ($status === 'answered') {
                 $apply();
             }

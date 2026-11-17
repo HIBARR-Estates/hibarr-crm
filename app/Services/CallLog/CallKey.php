@@ -219,8 +219,16 @@ class CallKey
         $phone = $grammar->wrap('crm_events.metadata->phone_number');
         $sqlite = $connection->getDriverName() === 'sqlite';
 
+        // Browser-local placeholders ("call-3", "call-waiting-3") are reused
+        // across calls; every other id identifies one call. Same rule as
+        // TelephonySoftphoneEventController::isAuthoritativeCallId().
+        $placeholder = fn (string $expr) => $sqlite
+            ? "(({$expr} GLOB 'call-[0-9]*' AND SUBSTR({$expr}, 6) NOT GLOB '*[^0-9]*')"
+                ." OR ({$expr} GLOB 'call-waiting-[0-9]*' AND SUBSTR({$expr}, 14) NOT GLOB '*[^0-9]*'))"
+            : "({$expr} REGEXP '^call-(waiting-)?[0-9]+$')";
+
         // An id that identifies one call, or NULL.
-        $usable = fn (string $expr) => "(CASE WHEN {$expr} IS NULL OR {$expr} = '' OR {$expr} LIKE 'call-%' THEN NULL ELSE {$expr} END)";
+        $usable = fn (string $expr) => "(CASE WHEN {$expr} IS NULL OR {$expr} = '' OR ".$placeholder($expr)." THEN NULL ELSE {$expr} END)";
         $ownId = fn (string $alias) => 'COALESCE('
             .$usable($grammar->wrap("{$alias}.metadata->call_id")).', '
             .$usable($grammar->wrap("{$alias}.metadata->call_ref")).')';
@@ -284,7 +292,9 @@ class CallKey
                 ." AND outcome.direction = 'outbound'"
                 .' AND outcome.user_id = crm_events.user_id'
                 ." AND {$outcomePhone} = {$phone}"
-                ." AND outcome.occurred_at BETWEEN crm_events.occurred_at AND {$until}"
+                .' AND (outcome.occurred_at > crm_events.occurred_at'
+                .' OR (outcome.occurred_at = crm_events.occurred_at AND outcome.id > crm_events.id))'
+                ." AND outcome.occurred_at <= {$until}"
                 .' AND '.$ownId('outcome').' IS NOT NULL'
                 .' AND NOT EXISTS (SELECT 1 FROM crm_events redial'
                 .' WHERE redial.company_id = crm_events.company_id'
@@ -292,8 +302,10 @@ class CallKey
                 ." AND redial.direction = 'outbound'"
                 .' AND redial.user_id = crm_events.user_id'
                 ." AND {$redialPhone} = {$phone}"
-                .' AND redial.occurred_at > crm_events.occurred_at'
-                .' AND redial.occurred_at < outcome.occurred_at)'
+                .' AND (redial.occurred_at > crm_events.occurred_at'
+                .' OR (redial.occurred_at = crm_events.occurred_at AND redial.id > crm_events.id))'
+                .' AND (redial.occurred_at < outcome.occurred_at'
+                .' OR (redial.occurred_at = outcome.occurred_at AND redial.id < outcome.id)))'
                 .' ORDER BY outcome.occurred_at, outcome.id'
                 .' LIMIT 1)';
 
