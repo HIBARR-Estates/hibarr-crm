@@ -170,7 +170,7 @@ function MeetingCard({ meeting, handlers, meetingHandlers }: { meeting: Schedule
                         variant={view.canJoin ? "ghost" : "primary"}
                         icon={<Icon name="check" size={13} />}
                         loading={meetingHandlers.isMarkingHeld(meeting.id)}
-                        onClick={() => meetingHandlers.onMarkHeld(meeting.id)}
+                        onClick={(event) => meetingHandlers.onMarkHeld(meeting.id, event.currentTarget)}
                     >
                         {t("pages.agent_workspace.today.actions.mark_held")}
                     </Button>
@@ -216,7 +216,7 @@ function TaskCard({ task, more, handlers }: { task: QueueTask; more: number; han
                     size="sm"
                     completing={handlers.isCompleting(task.id)}
                     rescheduling={handlers.isRescheduling(task.id)}
-                    onComplete={() => handlers.onComplete(task)}
+                    onComplete={(button) => handlers.onComplete(task, button)}
                     onReschedule={() => handlers.onReschedule(task)}
                 />
             </div>

@@ -19,7 +19,8 @@ export type DayItem = { kind: "meeting"; at: number; meeting: ScheduleEntry } | 
 
 export interface MeetingHandlers {
     onOpenMeeting: (meeting: ScheduleEntry) => void;
-    onMarkHeld: (followUpId: number) => void;
+    /** `from` is the Mark held button, for Do next to open under its row. */
+    onMarkHeld: (followUpId: number, from?: HTMLElement | null) => void;
     isMarkingHeld: (followUpId: number) => boolean;
 }
 
@@ -100,7 +101,7 @@ export function DayItems({
                         nowMs={handlers.nowMs}
                         timeZone={handlers.timeZone}
                         onOpen={() => meetingHandlers.onOpenMeeting(item.meeting)}
-                        onMarkHeld={() => meetingHandlers.onMarkHeld(item.meeting.id)}
+                        onMarkHeld={(button) => meetingHandlers.onMarkHeld(item.meeting.id, button)}
                         markingHeld={meetingHandlers.isMarkingHeld(item.meeting.id)}
                         showRecordLink={showRecordLink}
                         layout={layout}
@@ -181,7 +182,7 @@ function MeetingItem({
     nowMs: number;
     timeZone: string;
     onOpen: () => void;
-    onMarkHeld: () => void;
+    onMarkHeld: (button: HTMLElement) => void;
     markingHeld: boolean;
     showRecordLink: boolean;
     layout: DayItemsLayout;
@@ -248,7 +249,7 @@ function MeetingItem({
                                 variant={state === "none" && !canJoin ? "primary" : "ghost"}
                                 icon={<Icon name="check" size={13} />}
                                 loading={markingHeld}
-                                onClick={onMarkHeld}
+                                onClick={(event) => onMarkHeld(event.currentTarget)}
                             >
                                 {t("pages.agent_workspace.today.actions.mark_held")}
                             </Button>
@@ -348,7 +349,7 @@ function TaskItem({
                             size="sm"
                             completing={handlers.isCompleting(task.id)}
                             rescheduling={handlers.isRescheduling(task.id)}
-                            onComplete={() => handlers.onComplete(task)}
+                            onComplete={(button) => handlers.onComplete(task, button)}
                             onReschedule={() => handlers.onReschedule(task)}
                         />
                     ) : (
@@ -358,7 +359,7 @@ function TaskItem({
                             size="sm"
                             doneOnly
                             completing={handlers.isCompleting(task.id)}
-                            onComplete={() => handlers.onComplete(task)}
+                            onComplete={(button) => handlers.onComplete(task, button)}
                             onReschedule={() => handlers.onReschedule(task)}
                         />
                     )}

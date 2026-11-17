@@ -71,6 +71,8 @@ import HistorySection from "./deal/sections/HistorySection";
 import MarketingSection from "./deal/sections/MarketingSection";
 import PaymentsSection from "./deal/sections/PaymentsSection";
 import QualificationSection from "./deal/sections/QualificationSection";
+import { wantsNextStep } from "./donext/doNext";
+import useDoNext, { DoNext } from "./donext/useDoNext";
 import "./contact/contact.css";
 import "./deal/deal.css";
 
@@ -222,7 +224,7 @@ function ContactDealInner(props: ContactDealProps) {
     const restricted = props.leadRestricted ?? null;
 
     // Add task (L7-33): linked to the deal and, where the lead is theirs, the person too.
-    const { setTasks } = useDealWorkspace();
+    const { setTasks, setDealFollowUps } = useDealWorkspace();
     const taskLinks = useMemo<TaskLinkRef[]>(
         () => [
             { type: "deal", id: deal.id, name: deal.name ?? "" },
@@ -401,6 +403,20 @@ function ContactDealInner(props: ContactDealProps) {
 
     const name = contact?.client_name || deal.name || td("Deal", { source: "en" });
     const comingUpTitle = t("pages.agent_workspace.contact.coming_up.deal_title");
+    // Do next from an empty Coming up (L7-47): every open deal keeps a next step until it is won.
+    const doNext = useDoNext();
+    const doNextRecord = useMemo(
+        () => ({
+            type: "deal" as const,
+            id: deal.id,
+            name: deal.name ?? "",
+            person: contact?.client_name ?? null,
+            status: deal.lead_stage?.name ?? null,
+            outcome: deal.outcome_status ?? null,
+        }),
+        [deal.id, deal.name, contact?.client_name, deal.lead_stage?.name, deal.outcome_status],
+    );
+    const canDoNext = canCreate.task && wantsNextStep(doNextRecord);
     const extraActivities: ExtraActivity[] =
         // No lead address to write to in the deal-only view.
         emailQuickAction != null && !restricted
@@ -574,6 +590,7 @@ function ContactDealInner(props: ContactDealProps) {
                                 onOpenMeeting={setOpenMeetingId}
                                 onOpenNote={setOpenNoteId}
                                 onOpenBrief={restricted ? undefined : setBriefId}
+                                onDoNext={canDoNext ? (anchor) => doNext.offer({ record: doNextRecord, anchor }) : undefined}
                                 dealOnly={
                                     restricted
                                         ? {
@@ -696,6 +713,22 @@ function ContactDealInner(props: ContactDealProps) {
                 modelType={DEAL_TIMELINE_MODEL_TYPE}
                 modelId={deal.id}
                 userId={userId}
+            />
+            <DoNext
+                request={doNext.request}
+                onClose={doNext.close}
+                onSaved={(saved) => {
+                    doNext.close();
+                    if (saved.kind === "task" && saved.task) {
+                        const task = saved.task;
+                        setTasks((prev) => [task as unknown as (typeof prev)[number], ...prev.filter((item) => item.id !== task.id)]);
+                    }
+                    if (saved.kind === "meeting" && saved.meeting) {
+                        const meeting = saved.meeting;
+                        setDealFollowUps((prev) => [...prev.filter((item) => item.id !== meeting.id), meeting]);
+                    }
+                }}
+                onAllMeetingFields={() => setCreateKind("meeting")}
             />
             <DealTaskDetailModal
                 task={tasks.find((task) => task.id === openTaskId) ?? null}

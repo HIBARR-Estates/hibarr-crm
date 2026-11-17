@@ -400,7 +400,8 @@
     line-height: 1.45;
 }
 
-.agent-card__gap .agent-contact__menu-anchor {
+.agent-card__gap .agent-contact__menu-anchor,
+.agent-card__gap-action {
     margin-top: 6px;
 }
 

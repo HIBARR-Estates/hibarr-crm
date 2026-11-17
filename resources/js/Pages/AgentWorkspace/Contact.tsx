@@ -54,6 +54,8 @@ import StatusBar, { StatusMenuLabel } from "./contact/StatusBar";
 import { buildKeyFacts, buildLeadPath } from "./contact/model";
 import useKeyFactLabels from "./contact/useKeyFactLabels";
 import { buildQualificationFact } from "./contact/qualificationFact";
+import { wantsNextStep } from "./donext/doNext";
+import useDoNext, { DoNext } from "./donext/useDoNext";
 import "@/Components/Redesign/redesign.css";
 import "@/Pages/Deals/Redesign/deal-redesign.css";
 import "@/Pages/Leads/Redesign/lead-redesign.css";
@@ -191,7 +193,7 @@ function ContactLead(props: LeadRedesignProps) {
     const [createKind, setCreateKind] = useState<LeadCreateKind | null>(null);
 
     // Add task (L7-33), linked to this person.
-    const { addTask, setTasks } = useLeadWorkspace();
+    const { addTask, setTasks, addLeadFollowUp } = useLeadWorkspace();
     const taskLinks = useMemo<TaskLinkRef[]>(() => [{ type: "lead", id: lead.id, name: lead.client_name ?? "" }], [lead.id, lead.client_name]);
     const taskCreate = useAgentTaskCreate({
         onCreated: (task) => {
@@ -224,6 +226,22 @@ function ContactLead(props: LeadRedesignProps) {
             note: allowed(props.notePermissions, "add_lead_note"),
         },
     };
+
+    // Do next from an empty Coming up (L7-47): only while the lead keeps a
+    // next step, which ends once it is qualified (its deal takes over).
+    const doNext = useDoNext();
+    const doNextRecord = useMemo(
+        () => ({
+            type: "lead" as const,
+            id: lead.id,
+            name: lead.client_name ?? "",
+            person: lead.client_name ?? null,
+            status: lifecycle.statusLabel,
+            status_key: lifecycle.statusKey,
+        }),
+        [lead.id, lead.client_name, lifecycle.statusLabel, lifecycle.statusKey],
+    );
+    const canDoNext = activityPermissions.create.task && wantsNextStep(doNextRecord);
 
     const keyFactLabels = useKeyFactLabels();
     const keyFacts = useMemo(
@@ -438,6 +456,7 @@ function ContactLead(props: LeadRedesignProps) {
                                 onOpenMeeting={setOpenMeetingId}
                                 onOpenNote={setOpenNoteId}
                                 comingUpPinned={booking ? <BookingPendingRow name={firstNameOf(lead.client_name)} /> : undefined}
+                                onDoNext={canDoNext ? (anchor) => doNext.offer({ record: doNextRecord, anchor }) : undefined}
                             />
                         </div>
                     </div>
@@ -517,6 +536,16 @@ function ContactLead(props: LeadRedesignProps) {
                     window.history.back();
                 }}
                 qualificationPlacement="under-dock"
+            />
+            <DoNext
+                request={doNext.request}
+                onClose={doNext.close}
+                onSaved={(saved) => {
+                    doNext.close();
+                    if (saved.kind === "task" && saved.task) addTask(saved.task as unknown as Parameters<typeof addTask>[0]);
+                    if (saved.kind === "meeting" && saved.meeting) addLeadFollowUp(saved.meeting);
+                }}
+                onAllMeetingFields={() => setCreateKind("meeting")}
             />
             <LeadTaskDetailModal
                 task={tasks.find((task) => task.id === openTaskId) ?? null}
