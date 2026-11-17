@@ -100,7 +100,10 @@ export default function MeetingConfirmationPanel({
     // MeetingAttendanceConfirmationController::update() authorizes on
     // visibility and stamps who logged it. (The Check-ins dock is separate
     // and stays host/assignee-only.)
-    const canAct = hasConcluded || isCancelled;
+    // A logged outcome stays changeable even on a future meeting (e.g. one
+    // cancelled ahead of time, whose status the save then moved on) — the
+    // server applies the same exception.
+    const canAct = hasConcluded || isCancelled || logged;
     const loggedByName = meeting.outcome_logged_by?.name ?? null;
 
     const handleConfirmed = (

@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
 import dayjs from "dayjs";
 import TaskModalShell from "@/Components/Redesign/primitives/ModalShell";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -71,6 +71,9 @@ export default function MeetingAttendanceConfirmationModal({
         initialOutcome,
     );
     const [note, setNote] = useState("");
+    // The outcome actually sent with the in-flight save — the picker stays
+    // interactive while it's pending, so live `selected` can drift from it.
+    const submittedOutcomeRef = useRef<MeetingAttendanceOutcome | null>(null);
     const [noteFocused, setNoteFocused] = useState(false);
 
     const outcomes: OutcomeDef[] = useMemo(
@@ -160,14 +163,15 @@ export default function MeetingAttendanceConfirmationModal({
             { followUp: meeting.id },
         ),
         mode === "update" ? "PATCH" : "POST",
-        (res) =>
-            selected &&
-            onConfirmed(
-                selected,
+        (res) => {
+            const saved =
                 res && "data" in res
                     ? (res.data as MeetingOutcomeSaveResult)
-                    : undefined,
-            ),
+                    : undefined;
+            const outcome =
+                saved?.attendance_outcome ?? submittedOutcomeRef.current;
+            if (outcome) onConfirmed(outcome, saved);
+        },
     );
 
     const selectedOutcome = outcomes.find((o) => o.key === selected) ?? null;
@@ -191,6 +195,7 @@ export default function MeetingAttendanceConfirmationModal({
 
     const handleConfirm = () => {
         if (!selectedOutcome || confirmMutation.isPending) return;
+        submittedOutcomeRef.current = selectedOutcome.key;
         confirmMutation.mutate({
             outcome: selectedOutcome.key,
             note: note.trim() !== "" ? note.trim() : null,

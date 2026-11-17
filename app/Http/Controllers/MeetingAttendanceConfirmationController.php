@@ -89,8 +89,13 @@ class MeetingAttendanceConfirmationController extends Controller
         ]);
 
         // A cancelled meeting's outcome is known the moment it's cancelled —
-        // same exception the panel makes client-side.
+        // same exception the panel makes client-side. An outcome that's
+        // already logged stays correctable too: saving any non-cancelled
+        // outcome on a future cancelled meeting flips its status to
+        // `completed` (followUpStatus()), which would otherwise lock it until
+        // the original slot passes.
         if ($followUp->status !== 'cancelled'
+            && ! $followUp->attendance_outcome_logged_at
             && $followUp->next_follow_up_date && $followUp->next_follow_up_date->isFuture()) {
             return response()->json([
                 'status' => 'fail',
