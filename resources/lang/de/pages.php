@@ -2751,6 +2751,7 @@ return [
         'nobody_answered' => 'Niemand hat abgenommen',
         'rang_count' => 'Bei {{count}} geklingelt',
         'leg_answered' => 'angenommen',
+        'leg_rang' => 'geklingelt',
         'leg_passed' => 'weitergegeben',
         'leg_missed' => 'verpasst',
         'leg_busy' => 'besetzt',

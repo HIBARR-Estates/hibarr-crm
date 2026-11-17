@@ -33,19 +33,28 @@ class CallLogService
      * four agents: one answers, the rest miss or pass). The lowest rank wins
      * and becomes the call's outcome: answered beats everything, and a call
      * nobody took reads as missed even when some agents passed it.
+     *
+     * Only call_ended means answered (the dock's answer event carries status
+     * "answered", which the bridge stores as call_ended). call_started is
+     * written when a call starts ringing for an agent (`incoming_call`) or is
+     * dialled (click-to-call, before anyone picks up), so it ranks last: any
+     * real outcome on the same call wins over it.
      */
     private const OUTCOME_RANK = [
         'call_ended' => 1,
-        'call_started' => 2,
-        'call_voicemail' => 3,
-        'call_missed' => 4,
-        'call_busy' => 5,
-        'call_declined' => 6,
-        'call_failed' => 7,
+        'call_voicemail' => 2,
+        'call_missed' => 3,
+        'call_busy' => 4,
+        'call_declined' => 5,
+        'call_failed' => 6,
+        'call_started' => 7,
     ];
 
     /** Ranks counted as "missed" on the summary tiles. */
-    private const MISSED_RANKS = [3, 4, 5, 6];
+    private const MISSED_RANKS = [2, 3, 4, 5];
+
+    /** How far back a legacy missed leg looks for its own ringing event. */
+    private const RING_LOOKBACK_SECONDS = 300;
 
     /**
      * One row per call: every agent's leg of the same call is folded into
@@ -60,7 +69,7 @@ class CallLogService
         $query = $this->baseQuery($companyId, $types, $scope);
         $this->applyEventFilters($query, $filters);
 
-        $key = $this->callKeyExpression($query);
+        $key = $this->callKeyExpression($query, $types);
         $rank = $this->rankExpression($types);
 
         $calls = (clone $query)->toBase()
@@ -115,7 +124,7 @@ class CallLogService
             $query->where('crm_events.occurred_at', '>=', $from);
         }
 
-        $key = $this->callKeyExpression($query);
+        $key = $this->callKeyExpression($query, $types);
         $rank = $this->rankExpression($types);
         $grammar = $query->getQuery()->getGrammar();
         $duration = $grammar->wrap('crm_events.metadata->duration');
@@ -167,11 +176,20 @@ class CallLogService
      *
      * Every agent's browser reports the shared SIP Call-ID as `call_id`, and
      * bridge events share a correlation id per call, so either joins the legs
-     * of one call. Older missed/declined legs were logged with a per-browser
-     * id (call_id = call_ref); those are joined by caller number within a
-     * three-minute window instead. Anything else stands alone.
+     * of one call.
+     *
+     * Older missed/declined legs were logged with a per-browser id (call_id =
+     * call_ref), so they carry no shared id themselves. Each one is resolved to
+     * the SIP Call-ID of the ringing event (`incoming_call`, stored as
+     * call_started) for the same caller number that came just before it,
+     * preferring the same agent's own ringing event, within five minutes, so it
+     * lands in the same call as the answered and ringing legs. Only a leg with
+     * no such ringing event falls back to caller number within a three-minute
+     * window. Anything else stands alone.
+     *
+     * @param  Collection<string, int>  $types
      */
-    private function callKeyExpression(Builder $query): string
+    private function callKeyExpression(Builder $query, Collection $types): string
     {
         $grammar = $query->getQuery()->getGrammar();
         $callId = $grammar->wrap('crm_events.metadata->call_id');
@@ -187,8 +205,41 @@ class CallLogService
             ? '('.implode(' || ', $parts).')'
             : 'CONCAT('.implode(', ', $parts).')';
 
+        $legacyKey = $concat("'p:'", $phone, "':'", $bucket);
+
+        $startedId = isset($types['call_started']) ? (int) $types['call_started'] : null;
+        if ($startedId !== null) {
+            $ringCallId = $grammar->wrap('ring.metadata->call_id');
+            $ringCallRef = $grammar->wrap('ring.metadata->call_ref');
+            $ringPhone = $grammar->wrap('ring.metadata->phone_number');
+            $lookback = (int) self::RING_LOOKBACK_SECONDS;
+            $since = $sqlite
+                ? "datetime(crm_events.occurred_at, '-{$lookback} seconds')"
+                : "crm_events.occurred_at - INTERVAL {$lookback} SECOND";
+
+            // Latest ringing event for this number just before the leg; the
+            // outer row is only referenced in WHERE (SQLite rejects it in
+            // ORDER BY), so "same agent first" is two lookups, not one sort.
+            $ringing = fn (string $extra) => "(SELECT {$ringCallId} FROM crm_events ring"
+                .' WHERE ring.company_id = crm_events.company_id'
+                ." AND ring.event_type_id = {$startedId}"
+                ." AND ring.direction = 'inbound'"
+                ." AND {$ringPhone} = {$phone}"
+                ." AND {$ringCallId} IS NOT NULL AND {$ringCallId} <> ''"
+                ." AND ({$ringCallRef} IS NULL OR {$ringCallId} <> {$ringCallRef})"
+                ." AND ring.occurred_at BETWEEN {$since} AND crm_events.occurred_at"
+                .$extra
+                .' ORDER BY ring.occurred_at DESC, ring.id DESC'
+                .' LIMIT 1)';
+
+            $legacyKey = 'COALESCE('
+                .$ringing(' AND ring.user_id = crm_events.user_id').', '
+                .$ringing('').', '
+                ."{$legacyKey})";
+        }
+
         return "(CASE WHEN crm_events.direction = 'inbound' AND {$callId} IS NOT NULL AND {$callId} = {$callRef} AND {$phone} IS NOT NULL "
-            .'THEN '.$concat("'p:'", $phone, "':'", $bucket).' '
+            ."THEN {$legacyKey} "
             ."ELSE COALESCE(NULLIF({$callId}, ''), crm_events.correlation_id, ".$concat("'e:'", $id).') END)';
     }
 
@@ -411,7 +462,9 @@ class CallLogService
             return $leg;
         }, $legs));
 
-        $answered = in_array($row['outcome'], ['ended', 'started'], true);
+        // call_started only means it rang or was dialled; a call is answered
+        // when one of its legs ended as connected (see OUTCOME_RANK).
+        $answered = $row['outcome'] === 'ended';
         if ($answered) {
             // A leg that failed before someone else picked up is not the
             // call's failure.

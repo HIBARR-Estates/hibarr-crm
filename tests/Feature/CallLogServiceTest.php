@@ -247,6 +247,66 @@ class CallLogServiceTest extends TestCase
         $this->assertNull($grouped['user_id'], 'Nobody answered, so no single agent owns the call.');
     }
 
+    public function test_a_call_that_only_rang_two_agents_before_the_caller_hung_up_is_not_answered(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $ringing = ['direction' => 'inbound', 'slug' => 'call_started'];
+
+        // incoming_call from each ringing agent's tab is stored as call_started.
+        $this->insertEvent($ringing + ['user_id' => self::VIEWER_ID, 'metadata' => ['call_id' => 'sip-gone', 'call_ref' => 'ra', 'phone_number' => '+49 1'], 'occurred_at' => now()->subSeconds(20)]);
+        $this->insertEvent($ringing + ['user_id' => self::OTHER_AGENT_ID, 'metadata' => ['call_id' => 'sip-gone', 'call_ref' => 'rb', 'phone_number' => '+49 1'], 'occurred_at' => now()->subSeconds(19)]);
+
+        $row = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50))[0];
+
+        $this->assertFalse($row['answered'], 'Ringing is not answering.');
+        $this->assertNull($row['answered_by_user_id']);
+        $this->assertSame(2, $row['rang_count']);
+        $this->assertSame(0, app(CallLogService::class)->summary(self::COMPANY_ID, null)['connected']);
+    }
+
+    public function test_an_outbound_call_logged_as_started_then_busy_reads_busy(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+
+        // Click-to-call logs call_started when it dials, before anyone answers.
+        $this->insertEvent(['slug' => 'call_started', 'metadata' => ['call_id' => 'out-1'], 'occurred_at' => now()->subSeconds(5)]);
+        $this->insertEvent(['slug' => 'call_busy', 'metadata' => ['call_id' => 'out-1', 'failure_reason' => 'busy']]);
+
+        $row = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50))[0];
+
+        $this->assertSame('busy', $row['outcome']);
+        $this->assertFalse($row['answered']);
+        $this->assertSame('busy', $row['failure_reason'], 'The reason it did not connect is kept.');
+    }
+
+    public function test_an_older_missed_leg_joins_the_call_it_rang_for_across_window_boundaries(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $this->insertUser(self::VIEWER_ID, 'Ana');
+        $this->insertUser(self::OTHER_AGENT_ID, 'Ben');
+        $inbound = ['direction' => 'inbound'];
+        // Straddles a three-minute boundary, which the number-only fallback would split.
+        $ringAt = now()->setTime(10, 2, 50);
+
+        $this->insertEvent($inbound + ['slug' => 'call_started', 'user_id' => self::OTHER_AGENT_ID, 'metadata' => ['call_id' => 'sip-9', 'call_ref' => 'b1', 'phone_number' => '+49 9'], 'occurred_at' => $ringAt]);
+        $this->insertEvent($inbound + ['slug' => 'call_started', 'user_id' => self::VIEWER_ID, 'metadata' => ['call_id' => 'sip-9', 'call_ref' => 'a1', 'phone_number' => '+49 9'], 'occurred_at' => $ringAt]);
+        // Ben's slot timed out; the old dock logged it under a per-browser id.
+        $this->insertEvent($inbound + ['slug' => 'call_missed', 'user_id' => self::OTHER_AGENT_ID, 'metadata' => ['call_id' => 'b1', 'call_ref' => 'b1', 'phone_number' => '+49 9'], 'occurred_at' => $ringAt->copy()->addSeconds(20)]);
+        $this->insertEvent($inbound + ['user_id' => self::VIEWER_ID, 'metadata' => ['call_id' => 'sip-9', 'call_ref' => 'a1', 'phone_number' => '+49 9', 'duration' => 30], 'occurred_at' => $ringAt->copy()->addSeconds(25)]);
+        // A later, separate call from the same number stays its own row.
+        $this->insertEvent($inbound + ['slug' => 'call_missed', 'user_id' => self::OTHER_AGENT_ID, 'metadata' => ['call_id' => 'b2', 'call_ref' => 'b2', 'phone_number' => '+49 9'], 'occurred_at' => $ringAt->copy()->addMinutes(10)]);
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50));
+
+        $this->assertCount(2, $rows);
+        $call = collect($rows)->firstWhere('answered', true);
+        $this->assertSame('Ana', $call['answered_by_user_name']);
+        $this->assertSame(
+            [['Ben', 'missed'], ['Ana', 'ended']],
+            array_map(fn ($leg) => [$leg['user_name'], $leg['outcome']], $call['legs'])
+        );
+    }
+
     public function test_filters_and_summary_judge_the_call_not_its_legs(): void
     {
         $viewer = $this->actingAsUser(['manage_calls' => 'all']);

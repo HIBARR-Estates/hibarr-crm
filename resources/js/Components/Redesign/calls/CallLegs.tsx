@@ -6,8 +6,10 @@ import type { CallLeg, CallLogRow } from "./types";
 function legKey(outcome: string): string {
     switch (outcome) {
         case "ended":
-        case "started":
             return "pages.calls.leg_answered";
+        // It rang for this agent; nothing else came back from their side.
+        case "started":
+            return "pages.calls.leg_rang";
         case "declined":
             return "pages.calls.leg_passed";
         case "busy":
@@ -24,8 +26,11 @@ function legKey(outcome: string): string {
 type CallLegsRow = Pick<CallLogRow, "direction" | "user_name" | "answered" | "answered_by_user_name" | "legs">;
 
 function legColor(outcome: string): string {
-    if (outcome === "ended" || outcome === "started") {
+    if (outcome === "ended") {
         return T.GREEN;
+    }
+    if (outcome === "started") {
+        return T.TEXT_MUTED;
     }
     if (outcome === "declined") {
         return T.AMBER;

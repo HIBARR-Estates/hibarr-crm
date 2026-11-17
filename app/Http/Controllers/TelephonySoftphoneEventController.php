@@ -493,6 +493,38 @@ class TelephonySoftphoneEventController extends AccountBaseController
     }
 
     /**
+     * Move a call's shared status under one per-call lock, so an agent
+     * answering and another passing at the same moment cannot interleave the
+     * check and the write. "answered" always lands (waiting for the lock if it
+     * has to); "ended" never overwrites another agent's answer, and is skipped
+     * if the lock cannot be had rather than written unchecked.
+     */
+    private function transitionCallStatus(int $companyId, ?string $callId, string $status, int $userId): void
+    {
+        if (! $this->isAuthoritativeCallId($callId)) {
+            return;
+        }
+
+        $apply = function () use ($companyId, $callId, $status, $userId): void {
+            if ($status === 'ended') {
+                $current = $this->getCallStatus($companyId, $callId);
+                if (($current['status'] ?? null) === 'answered' && (int) ($current['user_id'] ?? 0) !== $userId) {
+                    return;
+                }
+            }
+            $this->recordCallStatus($companyId, $callId, $status, $userId);
+        };
+
+        try {
+            Cache::lock(sprintf('softphone:call_status_lock:%d:%s', $companyId, trim((string) $callId)), 5)->block(3, $apply);
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException) {
+            if ($status === 'answered') {
+                $apply();
+            }
+        }
+    }
+
+    /**
      * Retrieve the authoritative call status when correlated through an authoritative call identifier.
      */
     private function getCallStatus(int $companyId, ?string $callId): ?array
@@ -626,16 +658,11 @@ class TelephonySoftphoneEventController extends AccountBaseController
                     LineConcurrencyManager::reserve($line, (int) user()->id, force: true);
                 }
                 $this->clearPassedUsers($companyId, $line?->id, $incomingDigits, $callId);
-                $this->recordCallStatus($companyId, $authoritativeKey, 'answered', (int) user()->id);
+                $this->transitionCallStatus($companyId, $authoritativeKey, 'answered', (int) user()->id);
             } elseif (in_array($eventSlug, ['call.ended', 'call.completed', 'call.failed', 'call.declined'], true)) {
                 // Missed/declined legs carry the shared SIP Call-ID, so an agent
                 // passing late must not end a call another agent has answered.
-                $current = $this->getCallStatus($companyId, $authoritativeKey);
-                $answeredByOther = ($current['status'] ?? null) === 'answered'
-                    && (int) ($current['user_id'] ?? 0) !== (int) user()->id;
-                if (! $answeredByOther) {
-                    $this->recordCallStatus($companyId, $authoritativeKey, 'ended', (int) user()->id);
-                }
+                $this->transitionCallStatus($companyId, $authoritativeKey, 'ended', (int) user()->id);
             }
         }
 

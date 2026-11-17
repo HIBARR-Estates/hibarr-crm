@@ -88,9 +88,9 @@ function formatSeconds(secs: number): string {
     return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-/** Icon tile colours: connected green, unanswered red, refused amber. */
+/** Icon tile colours: connected green, unanswered red, refused or not-yet-answered amber. */
 export function outcomeTone(outcome: string): { bg: string; fg: string } {
-    if (outcome === "ended" || outcome === "started") {
+    if (outcome === "ended") {
         return { bg: T.GREEN_LIGHT, fg: T.GREEN };
     }
     if (outcome === "missed" || outcome === "failed") {

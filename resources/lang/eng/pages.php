@@ -2908,6 +2908,7 @@ return [
         'nobody_answered' => 'Nobody answered',
         'rang_count' => 'Rang {{count}}',
         'leg_answered' => 'answered',
+        'leg_rang' => 'rang',
         'leg_passed' => 'passed',
         'leg_missed' => 'missed',
         'leg_busy' => 'busy',

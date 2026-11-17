@@ -2724,6 +2724,7 @@ return [
         'nobody_answered' => 'Никто не ответил',
         'rang_count' => 'Звонил {{count}}',
         'leg_answered' => 'ответил(а)',
+        'leg_rang' => 'звонок',
         'leg_passed' => 'передал(а)',
         'leg_missed' => 'пропустил(а)',
         'leg_busy' => 'занят(а)',

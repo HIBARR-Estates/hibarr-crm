@@ -2729,6 +2729,7 @@ return [
         'nobody_answered' => 'Kimse yanıtlamadı',
         'rang_count' => '{{count}} kişide çaldı',
         'leg_answered' => 'yanıtladı',
+        'leg_rang' => 'çaldı',
         'leg_passed' => 'aktardı',
         'leg_missed' => 'kaçırdı',
         'leg_busy' => 'meşgul',
