@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Car, Plane } from "lucide-react";
-import { AgentDialog, AgentDialogSection, AgentNewTag } from "@/Components/Redesign/agent";
+import { AgentDialog, AgentDialogSection } from "@/Components/Redesign/agent";
 import Button from "@/Components/Redesign/primitives/Button";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import Icon from "@/Components/Redesign/primitives/Icon";
@@ -61,8 +61,8 @@ interface ItineraryViewModalProps {
  * The whole trip in one dialog (canvas L8-07): each flight with its status and
  * transfer, the deal's meetings during the stay, and the ticket images. Edit
  * and delete act on the flight that was opened; marking arrived or departed
- * moves the next flight on. Booking a transfer has no CRM backing yet, so it is
- * held and marked New.
+ * moves the next flight on. Transfers can't be booked from the CRM, so there is
+ * no Book transfer action.
  */
 export default function ItineraryViewModal({ deal, legs, focus, canEdit, onClose }: ItineraryViewModalProps) {
     const { t } = useTranslation();
@@ -160,11 +160,6 @@ export default function ItineraryViewModal({ deal, legs, focus, canEdit, onClose
                                 )}
                             </Button>
                         ) : null}
-                        <Button size="sm" variant="navy" disabled>
-                            <Car size={13} />
-                            {t("pages.agent_workspace.deal.itinerary.book_transfer")}
-                            <AgentNewTag hint={t("pages.agent_workspace.deal.itinerary.book_transfer_held")} />
-                        </Button>
                     </>
                 }
             >

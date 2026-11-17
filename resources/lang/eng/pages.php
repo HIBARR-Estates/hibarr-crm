@@ -4551,8 +4551,6 @@ return [
                 'delete_message' => 'The flight and its ticket are removed from the deal.',
                 'mark_arrived' => 'Mark arrived',
                 'mark_departed' => 'Mark departed',
-                'book_transfer' => 'Book transfer',
-                'book_transfer_held' => 'Transfers can\'t be booked from the CRM yet',
                 'no_flight_number' => 'No flight number',
                 'when' => 'When',
                 'transfer' => 'Transfer',
