@@ -96,6 +96,9 @@ return [
         'base_url' => env('DYNAMIC_TRANSLATION_API_URL', env('AI_BASE_URL', '')),
         'timeout' => (int) env('DYNAMIC_TRANSLATION_API_TIMEOUT', env('AI_TIMEOUT', 30)),
         'api_key' => env('DYNAMIC_TRANSLATION_API_KEY', env('AI_API_KEY')),
+        // When true, legacy lang keys (app/modules/messages/email/permissions) that have
+        // no de/tr/ru value are machine-translated from English instead of shown in English.
+        'legacy_lang_fallback' => (bool) env('DYNAMIC_TRANSLATION_LEGACY_LANG_FALLBACK', false),
     ],
 
     'notification_service' => [
