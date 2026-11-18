@@ -135,6 +135,27 @@ class DealPaymentController extends AccountBaseController
     }
 
     /**
+     * Deletes (soft) a cancelled payment request so it no longer counts
+     * toward any totals. Finance users only, and only for cancelled requests.
+     */
+    public function destroy(Deal $deal, Payment $payment): JsonResponse
+    {
+        $this->assertFeatureEnabled();
+        abort_403(! DealPaymentService::canConfirmTransfer(user()));
+
+        try {
+            $this->dealPaymentService->deleteCancelled($deal, $payment, user());
+        } catch (HttpException $e) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => $e->getMessage(),
+            ], $e->getStatusCode());
+        }
+
+        return response()->json(['status' => 'success']);
+    }
+
+    /**
      * Replaces an expired checkout link: the open request is cancelled, then
      * a new one is created in the same currency from the deal's current value.
      */
