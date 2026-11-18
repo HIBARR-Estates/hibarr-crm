@@ -135,7 +135,7 @@ class DealPaymentController extends AccountBaseController
     }
 
     /**
-     * Permanently deletes a cancelled payment request so it no longer counts
+     * Deletes (soft) a cancelled payment request so it no longer counts
      * toward any totals. Finance users only, and only for cancelled requests.
      */
     public function destroy(Deal $deal, Payment $payment): JsonResponse
@@ -144,7 +144,7 @@ class DealPaymentController extends AccountBaseController
         abort_403(! DealPaymentService::canConfirmTransfer(user()));
 
         try {
-            $this->dealPaymentService->deleteCancelled($deal, $payment);
+            $this->dealPaymentService->deleteCancelled($deal, $payment, user());
         } catch (HttpException $e) {
             return response()->json([
                 'status' => 'fail',

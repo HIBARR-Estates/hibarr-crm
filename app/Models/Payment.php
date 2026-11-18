@@ -5,6 +5,7 @@ namespace App\Models;
 use Carbon\Carbon;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\Deal;
@@ -99,7 +100,7 @@ use App\Models\Deal;
 class Payment extends BaseModel
 {
 
-    use HasCompany;
+    use HasCompany, SoftDeletes;
 
     const FILE_PATH = 'payment-receipt';
 
@@ -108,6 +109,7 @@ class Payment extends BaseModel
         'expires_at' => 'datetime',
         'verified_at' => 'datetime',
         'invalidated_at' => 'datetime',
+        'deleted_at' => 'datetime',
         'payment_gateway_response' => 'object',
     ];
 

@@ -459,8 +459,9 @@ class PaymentRequestListTest extends TestCase
             ->assertOk()
             ->assertJsonPath('status', 'success');
 
-        $this->assertDatabaseMissing('payments', ['id' => $cancelled]);
-        $this->assertDatabaseHas('payments', ['id' => $keep]);
+        // Soft deleted: the row stays as a trace, but nothing counts it.
+        $this->assertSoftDeleted('payments', ['id' => $cancelled]);
+        $this->assertDatabaseHas('payments', ['id' => $keep, 'deleted_at' => null]);
 
         $stats = $this->withHeaders([
             'X-Inertia' => 'true',
@@ -654,6 +655,8 @@ class PaymentRequestListTest extends TestCase
             $table->double('amount', 30, 2)->nullable();
             $table->string('gateway')->nullable();
             $table->string('external_reference')->nullable();
+            $table->softDeletes();
+            $table->unsignedInteger('deleted_by_user_id')->nullable();
             $table->string('checkout_url', 2048)->nullable();
             $table->timestamp('expires_at')->nullable();
             $table->string('status')->default('pending');
