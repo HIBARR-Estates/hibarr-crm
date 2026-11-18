@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { MenuProps } from "antd";
 import { Head, router, usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
-import { AgentPillRow, AgentSecondRow, AgentWorkspaceLayout, agentPillPanelProps, useMinuteClock } from "@/Components/Redesign/agent";
+import { AgentPillRow, AgentRelatedRecord, AgentSecondRow, AgentWorkspaceLayout, agentPillPanelProps, useMinuteClock } from "@/Components/Redesign/agent";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
@@ -26,21 +27,35 @@ import useLeadLifecycleChange from "@/Pages/Leads/Redesign/hooks/useLeadLifecycl
 import useLeadMissionFlow from "@/Pages/Leads/Redesign/hooks/useLeadMissionFlow";
 import useLeadQualificationWorkspace from "@/Pages/Leads/Redesign/hooks/useLeadQualificationWorkspace";
 import type { LeadRedesignProps } from "@/Pages/Leads/Redesign/types";
-import { LEAD_TIMELINE_MODEL_TYPE } from "@/Pages/Deals/Redesign/hooks/useDealTimeline";
+import useDealTimeline, { LEAD_TIMELINE_MODEL_TYPE } from "@/Pages/Deals/Redesign/hooks/useDealTimeline";
+import HistorySection from "./deal/sections/HistorySection";
+import MarketingSection from "./deal/sections/MarketingSection";
+import QualificationSection from "./deal/sections/QualificationSection";
 import type { Note } from "@/Types/api/note";
 import LeadEditPage from "./edit/LeadEditPage";
+import AgentTaskModal from "./tasks/AgentTaskModal";
+import useAgentTaskCreate from "./tasks/useAgentTaskCreate";
+import { patchTaskListExtrasCounts } from "@/Pages/Tasks/Redesign/adapters/taskFormSubmitAdapter";
+import type { TaskLinkRef } from "@/Pages/Tasks/Redesign/adapters/taskFormValues";
+import type { Task as WorkspaceTask } from "@/Types/Task";
 import useAgentMerge from "./contact/useAgentMerge";
 import type { EditOptions } from "./edit/leadEditForm";
 import ActivityCards, { type ActivityPermissions, type ActivitySource } from "./contact/ActivityCards";
-import AiBriefStrip from "./contact/AiBriefStrip";
+import AiSummaryPanel from "./contact/AiSummaryPanel";
+import LeadFilesSection from "./contact/LeadFilesSection";
 import { NewActivityProvider } from "./contact/NewActivityContext";
 import ContactHeader, { leadPhone } from "./contact/ContactHeader";
+import BookingBanner, { BookingPendingRow } from "./contact/BookingBanner";
+import { bookingPendingOf, firstNameOf } from "./contact/bookingPending";
 import GoalPanel from "./contact/GoalPanel";
 import KeyFacts from "./contact/KeyFacts";
-import LeadStatusPath from "./contact/LeadStatusPath";
-import { buildKeyFacts } from "./contact/model";
+import { LeadPathSteps } from "./contact/LeadStatusPath";
+import StatusBar, { StatusMenuLabel } from "./contact/StatusBar";
+import { buildKeyFacts, buildLeadPath } from "./contact/model";
 import useKeyFactLabels from "./contact/useKeyFactLabels";
 import { buildQualificationFact } from "./contact/qualificationFact";
+import { wantsNextStep } from "./donext/doNext";
+import useDoNext, { DoNext } from "./donext/useDoNext";
 import "@/Components/Redesign/redesign.css";
 import "@/Pages/Deals/Redesign/deal-redesign.css";
 import "@/Pages/Leads/Redesign/lead-redesign.css";
@@ -123,19 +138,76 @@ function ContactLead(props: LeadRedesignProps) {
     // A person with a deal is shown in the deal's state, so deals open there.
     const dealHref = useCallback((dealId: number) => route("agent.people.deal", { lead: lead.id, deal: dealId }), [lead.id]);
     const mission = useLeadMissionFlow({ qualification, deals, changeStatus, setQualificationOpen, dealHref });
+    // Booking pending (canvas L7-26): qualified, the consultation link went out
+    // at the wrap-up, and no deal yet. The booking's webhook creates the deal.
+    const booking = useMemo(
+        () =>
+            showQualification && lifecycle.bannerMode === "qualified" && deals.length === 0
+                ? bookingPendingOf(qualification.current)
+                : null,
+        [deals.length, lifecycle.bannerMode, qualification.current, showQualification],
+    );
     // "Continue qualification" on the call card, from any page, lands here and opens the running one.
+    // The page opens first; the qualification follows a frame later (canvas L8).
     const resumeRequest = useResumeQualificationRequest(lead.id);
+    const [resumePending, setResumePending] = useState(false);
     useEffect(() => {
         if (!resumeRequest.requested) return;
         resumeRequest.consume();
-        if (showQualification) mission.handleMissionAction("qualify_resume");
-    }, [mission, resumeRequest, showQualification]);
+        if (showQualification) setResumePending(true);
+    }, [resumeRequest, showQualification]);
+    useEffect(() => {
+        if (!resumePending) return undefined;
+        let second = 0;
+        const first = window.requestAnimationFrame(() => {
+            second = window.requestAnimationFrame(() => {
+                setResumePending(false);
+                mission.handleMissionAction("qualify_resume");
+            });
+        });
+        return () => {
+            window.cancelAnimationFrame(first);
+            window.cancelAnimationFrame(second);
+        };
+    }, [mission, resumePending]);
     const dealCreate = useLeadDealCreate(lead);
+    // "+ New deal" on a deal page lands here with ?new_deal=1 (the page
+    // otherwise redirects to the first deal): open the form straight away,
+    // and go back to that deal if the agent cancels.
+    const [newDealFromDeal, setNewDealFromDeal] = useState(
+        () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new_deal") === "1",
+    );
+    useEffect(() => {
+        if (!newDealFromDeal) return;
+        mission.openCreateDeal();
+        const url = new URL(window.location.href);
+        url.searchParams.delete("new_deal");
+        window.history.replaceState(window.history.state, "", url.toString());
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on arrival
+    }, []);
+    const canStartDeal = lifecycle.statusKey === "qualified" || newDealFromDeal;
     const deleteLead = useLeadDelete(lead);
     const duplicates = useLeadDuplicates(lead.id);
     const afterMerge = useAgentMerge(lead.id);
 
     const [createKind, setCreateKind] = useState<LeadCreateKind | null>(null);
+
+    // Add task (L7-33), linked to this person.
+    const { addTask, setTasks, addLeadFollowUp } = useLeadWorkspace();
+    const taskLinks = useMemo<TaskLinkRef[]>(() => [{ type: "lead", id: lead.id, name: lead.client_name ?? "" }], [lead.id, lead.client_name]);
+    const taskCreate = useAgentTaskCreate({
+        onCreated: (task) => {
+            if (task) addTask(task as unknown as Parameters<typeof addTask>[0]);
+            setCreateKind(null);
+        },
+        onExtras: (task, result) =>
+            setTasks((prev) => patchTaskListExtrasCounts(prev as unknown as WorkspaceTask[], task.id, result) as unknown as typeof prev),
+    });
+    const closeTask = () => {
+        if (taskCreate.saving) return;
+        taskCreate.clearErrors();
+        setCreateKind(null);
+    };
     const [editOpen, setEditOpen] = useState(false);
     const [confirmLost, setConfirmLost] = useState(false);
     const [openTaskId, setOpenTaskId] = useState<number | null>(null);
@@ -154,6 +226,22 @@ function ContactLead(props: LeadRedesignProps) {
             note: allowed(props.notePermissions, "add_lead_note"),
         },
     };
+
+    // Do next from an empty Coming up (L7-47): only while the lead keeps a
+    // next step, which ends once it is qualified (its deal takes over).
+    const doNext = useDoNext();
+    const doNextRecord = useMemo(
+        () => ({
+            type: "lead" as const,
+            id: lead.id,
+            name: lead.client_name ?? "",
+            person: lead.client_name ?? null,
+            status: lifecycle.statusLabel,
+            status_key: lifecycle.statusKey,
+        }),
+        [lead.id, lead.client_name, lifecycle.statusLabel, lifecycle.statusKey],
+    );
+    const canDoNext = activityPermissions.create.task && wantsNextStep(doNextRecord);
 
     const keyFactLabels = useKeyFactLabels();
     const keyFacts = useMemo(
@@ -193,6 +281,66 @@ function ContactLead(props: LeadRedesignProps) {
     const hasLost = statuses.some((status) => status.key === "lost");
     const canMarkLost = canEdit && hasLost && lifecycle.statusKey !== "lost";
 
+    // The status menu (canvas L8-02): the path, Qualified set only by the
+    // qualification outcome, the other statuses, then Mark as lost.
+    const path = useMemo(() => buildLeadPath(statuses, lifecycle.statusKey), [lifecycle.statusKey, statuses]);
+    const statusMenu: MenuProps["items"] = canEdit
+        ? [
+              {
+                  type: "group",
+                  key: "path",
+                  label: t("pages.agent_workspace.contact.status.on_path"),
+                  children: path.steps.map((step) => {
+                      const current = step.key === lifecycle.statusKey;
+                      const qualified = step.key === "qualified";
+                      return {
+                          key: step.key,
+                          disabled: current || qualified,
+                          label: (
+                              <StatusMenuLabel
+                                  name={td(step.label, { source: "en" })}
+                                  current={current}
+                                  sub={current ? t("pages.agent_workspace.contact.status.current") : qualified ? t("pages.agent_workspace.contact.status.qualified_by_outcome") : undefined}
+                              />
+                          ),
+                      };
+                  }),
+              },
+              ...(path.offPath.some((status) => status.key !== "lost")
+                  ? [
+                        { type: "divider" as const, key: "d1" },
+                        {
+                            type: "group" as const,
+                            key: "off",
+                            label: t("pages.agent_workspace.contact.status.off_path"),
+                            children: path.offPath
+                                .filter((status) => status.key !== "lost")
+                                .map((status) => ({
+                                    key: status.key,
+                                    disabled: status.current,
+                                    label: <StatusMenuLabel name={td(status.label, { source: "en" })} current={status.current} />,
+                                })),
+                        },
+                    ]
+                  : []),
+              ...(canMarkLost
+                  ? [
+                        { type: "divider" as const, key: "d2" },
+                        {
+                            key: "lost",
+                            danger: true,
+                            label: <StatusMenuLabel name={t("pages.agent_workspace.contact.status.mark_lost_menu")} sub={t("pages.agent_workspace.contact.status.mark_lost_sub")} />,
+                        },
+                    ]
+                  : []),
+          ]
+        : [];
+    const onStatusSelect = (key: string) => {
+        if (key === "lost") setConfirmLost(true);
+        else void changeStatus(key);
+    };
+    const timeline = useDealTimeline(lead.id, LEAD_TIMELINE_MODEL_TYPE);
+
     const onMoreAction = (id: MoreMenuActionId) => {
         if (id === "task" || id === "note") setCreateKind(id);
         else if (id === "deal") mission.openCreateDeal();
@@ -218,6 +366,13 @@ function ContactLead(props: LeadRedesignProps) {
                     onChange={() => {}}
                     ariaLabel={t("pages.agent_workspace.contact.views_aria")}
                     idPrefix="agent-contact"
+                    trailing={
+                        canStartDeal ? (
+                            <button type="button" className="agent-pills__pill agent-pills__pill--new" onClick={mission.openCreateDeal}>
+                                + {t("pages.agent_workspace.contact.new_deal")}
+                            </button>
+                        ) : undefined
+                    }
                 />
             </AgentSecondRow>
 
@@ -251,8 +406,19 @@ function ContactLead(props: LeadRedesignProps) {
                                     onMoreAction={onMoreAction}
                                 />
                             </div>
+                            {booking ? <BookingBanner pending={booking} name={firstNameOf(lead.client_name)} nowMs={nowMs} timeZone={timezone} /> : null}
+                            <StatusBar
+                                label={t("pages.agent_workspace.contact.status.title")}
+                                note={t("pages.agent_workspace.contact.status.note")}
+                                menuLabel={t("pages.agent_workspace.contact.status.menu")}
+                                menuItems={statusMenu}
+                                onMenuSelect={onStatusSelect}
+                                busy={statusSaving}
+                            >
+                                <LeadPathSteps statuses={statuses} currentKey={lifecycle.statusKey} />
+                            </StatusBar>
                             {showAiSummary ? (
-                                <AiBriefStrip
+                                <AiSummaryPanel
                                     entityType="lead"
                                     entityId={lead.id}
                                     initialSummary={props.leadAiSummary}
@@ -276,12 +442,6 @@ function ContactLead(props: LeadRedesignProps) {
                                     />
                                 </div>
                             ) : null}
-                            <LeadStatusPath
-                                statuses={statuses}
-                                currentKey={lifecycle.statusKey}
-                                onMarkLost={canMarkLost ? () => setConfirmLost(true) : undefined}
-                                saving={statusSaving}
-                            />
                             <KeyFacts groups={keyFacts} />
                         </section>
 
@@ -295,6 +455,8 @@ function ContactLead(props: LeadRedesignProps) {
                                 onOpenTask={setOpenTaskId}
                                 onOpenMeeting={setOpenMeetingId}
                                 onOpenNote={setOpenNoteId}
+                                comingUpPinned={booking ? <BookingPendingRow name={firstNameOf(lead.client_name)} /> : undefined}
+                                onDoNext={canDoNext ? (anchor) => doNext.offer({ record: doNextRecord, anchor }) : undefined}
                             />
                         </div>
                     </div>
@@ -307,19 +469,52 @@ function ContactLead(props: LeadRedesignProps) {
                                 qualification={qualification}
                                 busy={qualification.isStartingFlow || qualification.resumingId != null}
                                 onAction={mission.handleMissionAction}
+                                booking={booking}
+                                nowMs={nowMs}
+                                timeZone={timezone}
                             />
                         </aside>
                     ) : null}
                 </div>
+
+                <div className="agent-deal__sections agent-deal__sections--lead">
+                    {showQualification ? <QualificationSection leadId={lead.id} enabled /> : null}
+                    <LeadFilesSection canUpload={canEdit} />
+                    <MarketingSection marketing={lead.marketing} />
+                    <HistorySection recordId={lead.id} recordType="lead" timeline={timeline} emailEnabled={false} onOpenEmailMessage={() => undefined} />
+                </div>
             </div>
             )}
 
+            <AgentTaskModal
+                open={createKind === "task"}
+                onClose={closeTask}
+                onSubmit={taskCreate.submit}
+                saving={taskCreate.saving}
+                errors={taskCreate.errors}
+                columns={props.taskBoardColumns ?? []}
+                categories={props.taskCategories ?? []}
+                lockedLinks={taskLinks}
+                subtitle={t("pages.agent_workspace.task_form.subtitle_lead", { name: lead.client_name ?? "" })}
+            />
             <LeadCreateModals
-                open={createKind}
+                open={createKind === "task" ? null : createKind}
                 onClose={() => setCreateKind(null)}
                 meetingTypes={props.meetingTypes ?? []}
                 taskBoardColumns={props.taskBoardColumns ?? []}
                 taskCategories={props.taskCategories ?? []}
+                meetingAgent={{
+                    subtitle: lead.client_name ?? "",
+                    closeLabel: t("pages.agent_workspace.meeting_form.close"),
+                    relatedField: (
+                        <AgentRelatedRecord
+                            kind="lead"
+                            label={t("pages.agent_workspace.meeting_form.related")}
+                            name={lead.client_name ?? ""}
+                            hint={t("pages.agent_workspace.meeting_form.from_lead")}
+                        />
+                    ),
+                }}
             />
             <LeadMissionModals
                 flow={mission}
@@ -330,7 +525,27 @@ function ContactLead(props: LeadRedesignProps) {
                 onCloseQualification={() => setQualificationOpen(false)}
                 pageProps={props}
                 onDealCreated={(deal) => router.visit(dealHref(deal.id))}
+                createDealAgent={{
+                    subtitle: [lead.client_name, t("pages.agent_workspace.contact.lead_pill", { status: td(lifecycle.statusLabel, { source: "en" }) })]
+                        .filter(Boolean)
+                        .join(" · "),
+                }}
+                onCreateDealCancelled={() => {
+                    if (!newDealFromDeal) return;
+                    setNewDealFromDeal(false);
+                    window.history.back();
+                }}
                 qualificationPlacement="under-dock"
+            />
+            <DoNext
+                request={doNext.request}
+                onClose={doNext.close}
+                onSaved={(saved) => {
+                    doNext.close();
+                    if (saved.kind === "task" && saved.task) addTask(saved.task as unknown as Parameters<typeof addTask>[0]);
+                    if (saved.kind === "meeting" && saved.meeting) addLeadFollowUp(saved.meeting);
+                }}
+                onAllMeetingFields={() => setCreateKind("meeting")}
             />
             <LeadTaskDetailModal
                 task={tasks.find((task) => task.id === openTaskId) ?? null}

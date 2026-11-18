@@ -8,6 +8,7 @@ use App\Models\Lead;
 use App\Models\TaskboardColumn;
 use App\Models\TaskCategory;
 use App\Services\AgentWorkspace\CallerGlance;
+use App\Services\AgentWorkspace\DealAnalysisProgress;
 use App\Services\Dashboard\DashboardMetricsService;
 use App\Services\MeetingVisibilityService;
 use App\Services\PermissionService;
@@ -112,7 +113,7 @@ class AgentWorkspaceController extends AccountBaseController
      * next one ahead, so going forward or back is instant. Dates are days in
      * the viewer's own zone, like Today's schedule.
      */
-    public function agenda(Request $request, DashboardMetricsService $metrics): JsonResponse
+    public function agenda(Request $request, DashboardMetricsService $metrics, DealAnalysisProgress $analysis): JsonResponse
     {
         $validated = $request->validate([
             'from' => ['required', 'date_format:Y-m-d'],
@@ -131,9 +132,13 @@ class AgentWorkspaceController extends AccountBaseController
 
         $userId = (int) user()->id;
 
+        $meetings = $metrics->meetingsBetween($userId, $from, $to, self::AGENDA_ROWS);
+
         return response()->json([
-            'meetings' => $metrics->meetingsBetween($userId, $from, $to, self::AGENDA_ROWS),
+            'meetings' => $meetings,
             'tasks' => $metrics->personalTasksBetween($userId, $from, $to, self::AGENDA_ROWS),
+            // Each deal's analysis progress, for the meeting chips (canvas L7-02).
+            'analysis' => (object) $analysis->forDeals(array_column($meetings, 'deal_id')),
         ]);
     }
 

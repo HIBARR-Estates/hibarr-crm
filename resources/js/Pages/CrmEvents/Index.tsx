@@ -28,6 +28,7 @@ import {
     CloseCircleOutlined,
     ExclamationCircleOutlined,
     MinusCircleOutlined,
+    MessageOutlined,
     ArrowDownOutlined,
     ArrowUpOutlined,
 } from "@ant-design/icons";
@@ -97,29 +98,35 @@ const GENERATION_CONFIG: Record<
     external: { label: "External", icon: <ApiOutlined />, color: "orange" },
 };
 
+/** `labelKey` is resolved with t() where the column renders. */
 const STATUS_CONFIG: Record<
     CrmEventStatus,
-    { label: string; icon: React.ReactNode; color: string }
+    { labelKey: string; icon: React.ReactNode; color: string }
 > = {
     completed: {
-        label: "Completed",
+        labelKey: "pages.deals.timeline.status_completed",
         icon: <CheckCircleOutlined />,
         color: "success",
     },
     error_occurred: {
-        label: "Error",
+        labelKey: "pages.deals.timeline.status_error",
         icon: <CloseCircleOutlined />,
         color: "error",
     },
     missed: {
-        label: "Missed",
+        labelKey: "pages.deals.timeline.status_missed",
         icon: <ExclamationCircleOutlined />,
         color: "warning",
     },
     rejected: {
-        label: "Rejected",
+        labelKey: "pages.deals.timeline.status_rejected",
         icon: <MinusCircleOutlined />,
         color: "volcano",
+    },
+    voicemail: {
+        labelKey: "pages.call_summary.voicemail",
+        icon: <MessageOutlined />,
+        color: "blue",
     },
 };
 
@@ -230,7 +237,7 @@ function Index({
                 const cfg = STATUS_CONFIG[val];
                 return cfg ? (
                     <Tag icon={cfg.icon} color={cfg.color}>
-                        {cfg.label}
+                        {t(cfg.labelKey)}
                     </Tag>
                 ) : (
                     (val ?? "—")

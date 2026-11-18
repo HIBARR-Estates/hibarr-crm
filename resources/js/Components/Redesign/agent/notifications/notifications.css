@@ -158,6 +158,34 @@
     background: var(--dr-blue-light);
 }
 
+/* Unread and late or refused (an overdue task): red tint. */
+.agent-bell__row--alert,
+.agent-bell__row--alert:hover {
+    border-color: var(--dr-red-mid);
+    background: var(--dr-red-soft);
+}
+
+.agent-bell__row--alert .agent-bell__dot {
+    background: var(--dr-red);
+}
+
+/* Unread and failed or waiting on a hand (a meeting link that didn't generate): amber tint. */
+.agent-bell__row--warn,
+.agent-bell__row--warn:hover {
+    border-color: var(--dr-amber-mid);
+    background: var(--dr-amber-soft);
+}
+
+.agent-bell__row--warn .agent-bell__dot {
+    background: var(--dr-amber);
+}
+
+.agent-bell__action.dr-btn {
+    flex: none;
+    margin-right: 10px;
+    background: var(--dr-white);
+}
+
 .agent-bell__dot-slot,
 .agent-bell__dot-button {
     display: inline-flex;

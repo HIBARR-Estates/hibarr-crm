@@ -1,3 +1,4 @@
+import { Dropdown } from "antd";
 import type { ReactNode } from "react";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
@@ -30,6 +31,11 @@ interface ContactHeaderProps {
     allowedCreate: Partial<Record<LeadCreateKind, boolean>>;
     /** Edit details; left out when the viewer can't edit. */
     onEdit: () => void;
+    /**
+     * Turns Edit details into a menu (canvas L8-06): the deal state offers the
+     * contact's details and the deal's. Entries left out are not editable.
+     */
+    editMenu?: EditMenuEntry[];
     /** The lead's ⋯ menu. Left out in the deal state, whose menu sits on the deal. */
     onMoreAction?: (id: MoreMenuActionId) => void;
     /** Replaces the lead's ⋯ menu (the deal state's own). */
@@ -58,6 +64,7 @@ export default function ContactHeader({
     onCreate,
     allowedCreate,
     onEdit,
+    editMenu,
     onMoreAction,
     moreMenu,
     extraActivities,
@@ -131,7 +138,9 @@ export default function ContactHeader({
                     entity={callEntity ?? { type: "lead", id: lead.id }}
                 />
                 <NewActivityButton onCreate={onCreate} allowed={allowedCreate} extra={extraActivities} />
-                {canEdit ? (
+                {editMenu && editMenu.length > 0 ? (
+                    <EditDetailsButton entries={editMenu} />
+                ) : canEdit && !editMenu ? (
                     <Button variant="ghost" onClick={onEdit}>
                         <Icon name="edit" size={14} />
                         {t("pages.agent_workspace.contact.edit_details")}
@@ -150,4 +159,41 @@ export default function ContactHeader({
 export function leadPhone(lead: Lead): string {
     const raw = getDossierFieldValue(lead, "mobile");
     return raw && isMeaningfulDossierValue(raw) ? raw.trim() : "";
+}
+
+export type EditMenuEntry = { key: string; label: string; onSelect: () => void };
+
+/**
+ * "Edit details": one button when there is one thing to edit, a small menu
+ * when there are two (the person and the deal, canvas L8-06).
+ */
+export function EditDetailsButton({ entries, size }: { entries: EditMenuEntry[]; size?: "sm" }) {
+    const { t } = useTranslation();
+    if (entries.length === 0) return null;
+    if (entries.length === 1) {
+        return (
+            <Button size={size} variant="ghost" onClick={entries[0].onSelect}>
+                <Icon name="edit" size={size ? 13 : 14} />
+                {t("pages.agent_workspace.contact.edit_details")}
+            </Button>
+        );
+    }
+    return (
+        <Dropdown
+            menu={{
+                items: entries.map((entry) => ({ key: entry.key, label: entry.label })),
+                onClick: ({ key }) => entries.find((entry) => entry.key === key)?.onSelect(),
+            }}
+            trigger={["click"]}
+            placement="bottomRight"
+        >
+            <span className="agent-contact__menu-anchor">
+                <Button size={size} variant="ghost" aria-haspopup="menu">
+                    <Icon name="edit" size={size ? 13 : 14} />
+                    {t("pages.agent_workspace.contact.edit_details")}
+                    <Icon name="chevron-down" size={size ? 12 : 13} />
+                </Button>
+            </span>
+        </Dropdown>
+    );
 }

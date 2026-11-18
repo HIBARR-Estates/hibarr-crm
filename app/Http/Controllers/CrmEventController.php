@@ -41,7 +41,7 @@ class CrmEventController extends Controller
             'model_id' => 'nullable|integer',
             'user_id' => 'nullable|integer',
             'generation_type' => 'nullable|string|in:user_generated,system_generated,external',
-            'status' => 'nullable|string|in:completed,error_occurred,missed,rejected',
+            'status' => 'nullable|string|in:completed,error_occurred,missed,rejected,voicemail',
             'direction' => 'nullable|string|in:inbound,outbound',
             'correlation_id' => 'nullable|string|max:36',
             'causation_id' => 'nullable|integer',
@@ -126,7 +126,7 @@ class CrmEventController extends Controller
             'events.*.model_id' => 'nullable|integer',
             'events.*.user_id' => 'nullable|integer',
             'events.*.generation_type' => 'nullable|string|in:user_generated,system_generated,external',
-            'events.*.status' => 'nullable|string|in:completed,error_occurred,missed,rejected',
+            'events.*.status' => 'nullable|string|in:completed,error_occurred,missed,rejected,voicemail',
             'events.*.direction' => 'nullable|string|in:inbound,outbound',
             'events.*.correlation_id' => 'nullable|string|max:36',
             'events.*.causation_id' => 'nullable|integer',
@@ -294,7 +294,7 @@ class CrmEventController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'status' => 'nullable|string|in:completed,error_occurred,missed,rejected',
+            'status' => 'nullable|string|in:completed,error_occurred,missed,rejected,voicemail',
             'direction' => 'nullable|string|in:inbound,outbound',
             'comment' => 'nullable|string|max:2000',
             'occurred_at' => 'nullable|date',

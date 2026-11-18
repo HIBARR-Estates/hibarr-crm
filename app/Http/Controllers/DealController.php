@@ -9,6 +9,7 @@ use App\DataTables\LeadGDPRDataTable;
 use App\DataTables\ProposalDataTable;
 use App\Email\EmailFeature;
 use App\Email\FollowUps\AttachesSourceEmail;
+use App\Enums\AgeRange;
 use App\Enums\MlmCommissionStatus;
 use App\Enums\OutcomeStatus;
 use App\Enums\Salutation;
@@ -575,9 +576,30 @@ class DealController extends AccountBaseController
             $siblings = array_values(array_filter($siblings, fn (array $summary) => (int) $summary['id'] === (int) $deal));
         }
 
+        // The person's details stay editable once they have a deal (canvas
+        // L8-06): the same permission and options the lead page edits with,
+        // the options loaded after first paint.
+        $contactEdit = $restricted ? [] : [
+            'editLeadPermission' => user()->permission('edit_lead'),
+            'contactEditOptions' => Inertia::defer(fn () => [
+                'salutations' => collect(Salutation::cases())->map(fn (Salutation $salutation) => [
+                    'value' => $salutation->value,
+                    'label' => $salutation->label(),
+                ])->values(),
+                'ageRanges' => collect(AgeRange::cases())->map(fn (AgeRange $ageRange) => [
+                    'value' => $ageRange->value,
+                    'label' => $ageRange->label(),
+                ])->values(),
+                'countries' => countries(),
+                'sources' => LeadSource::all(),
+                'categories' => LeadCategory::all(),
+            ]),
+        ];
+
         return Inertia::render('AgentWorkspace/ContactDeal', array_merge(
             Arr::except($props, self::AGENT_CONTACT_UNUSED_PROPS),
             ['contactDeals' => $siblings],
+            $contactEdit,
         ));
     }
 
@@ -799,7 +821,8 @@ class DealController extends AccountBaseController
                     ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
                     ->with('employeeDetail.designation:id,name')
                     ->where('users.status', '!=', 'deactive')
-                    ->orderBy('users.name');
+                    ->orderBy('users.name')
+                    ->orderBy('users.id');
             },
             'dealParticipants' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
@@ -1306,6 +1329,7 @@ class DealController extends AccountBaseController
         $dealFollowUps = DealFollowUp::with([
             'addedBy:id,name,image',
             'host:id,name,image',
+            'outcomeLoggedBy:id,name,image',
             'meetingType',
             'meetingSummary',
             'lead:id,client_name,mobile,cell,office',
@@ -3502,6 +3526,7 @@ class DealController extends AccountBaseController
         $followUp = DealFollowUp::with([
             'addedBy:id,name,image',
             'host:id,name,image',
+            'outcomeLoggedBy:id,name,image',
             'meetingType',
             'meetingSummary',
             'lead:id,client_name,mobile,cell,office',
@@ -4280,7 +4305,11 @@ class DealController extends AccountBaseController
         }
 
         $this->editPermission = user()->permission('edit_lead_follow_up');
-        abort_403(! ($this->editPermission == 'all' || ($this->editPermission == 'added' && $followUp->added_by == user()->id)));
+        // The deal's own agent gets the "link failed" alert, so they may retry the link
+        // on any meeting of their deal, even one someone else booked.
+        abort_403(! ($this->editPermission == 'all'
+            || ($this->editPermission == 'added' && $followUp->added_by == user()->id)
+            || $this->isResponsibleAgentForFollowUp($followUp, (int) user()->id)));
 
         try {
             Log::info('Calling triggerFollowUpAutomation', [
@@ -4314,37 +4343,51 @@ class DealController extends AccountBaseController
     }
 
     /**
-     * Notify agent when meeting link generation fails
+     * Who is alerted when a meeting link fails: the deal's agent, else the lead's
+     * owner, else the deal watcher, else the follow-up's creator. That person may
+     * also ask for the link again, so the alert always has a way to be resolved.
+     */
+    private function meetingLinkAlertRecipientId(DealFollowUp $followUp): ?int
+    {
+        $deal = $followUp->deal;
+        $leadId = $followUp->lead_id ?: $deal?->lead_id;
+
+        $candidates = [
+            $deal?->agent_id ? \App\Models\LeadAgent::query()->whereKey($deal->agent_id)->value('user_id') : null,
+            $leadId ? Lead::query()->whereKey($leadId)->value('lead_owner') : null,
+            // Same first watcher the deal page shows (active, by name), so the
+            // alerted watcher is the one who sees Generate link.
+            $deal?->dealWatchers()
+                ->withoutGlobalScope(ActiveScope::class)
+                ->where('users.status', '!=', 'deactive')
+                ->orderBy('users.name')
+                ->orderBy('users.id')
+                ->value('users.id'),
+            $followUp->added_by,
+        ];
+
+        foreach ($candidates as $userId) {
+            if ($userId && \App\Models\User::query()->whereKey($userId)->exists()) {
+                return (int) $userId;
+            }
+        }
+
+        return null;
+    }
+
+    private function isResponsibleAgentForFollowUp(DealFollowUp $followUp, int $userId): bool
+    {
+        return $this->meetingLinkAlertRecipientId($followUp) === $userId;
+    }
+
+    /**
+     * Notify the alert recipient when meeting link generation fails
      */
     private function notifyAgentOfMeetingLinkFailure(DealFollowUp $followUp, string $errorMessage)
     {
         try {
-            // Get the responsible agent
-            $agent = null;
-
-            if ($followUp->deal && $followUp->deal->agent_id) {
-                $leadAgent = \App\Models\LeadAgent::find($followUp->deal->agent_id);
-                if ($leadAgent) {
-                    $agent = \App\Models\User::find($leadAgent->user_id);
-                }
-            }
-
-            if (! $agent && $followUp->lead_id) {
-                $lead = Lead::find($followUp->lead_id);
-                if ($lead?->lead_owner) {
-                    $agent = \App\Models\User::find($lead->lead_owner);
-                }
-            }
-
-            // If no agent found, try to get the deal watcher
-            if (! $agent && $followUp->deal && $followUp->deal->deal_watcher) {
-                $agent = \App\Models\User::find($followUp->deal->deal_watcher);
-            }
-
-            // If still no agent, get the user who created the follow-up
-            if (! $agent) {
-                $agent = \App\Models\User::find($followUp->added_by);
-            }
+            $recipientId = $this->meetingLinkAlertRecipientId($followUp);
+            $agent = $recipientId ? \App\Models\User::find($recipientId) : null;
 
             if ($agent) {
                 $agent->notify(new MeetingLinkGenerationFailed($followUp, $agent, $errorMessage));

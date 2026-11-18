@@ -13,6 +13,7 @@ import {
     CloseCircleOutlined,
     ExclamationCircleOutlined,
     MinusCircleOutlined,
+    MessageOutlined,
     DownOutlined,
     UpOutlined,
     ArrowDownOutlined,
@@ -130,6 +131,11 @@ const STATUS_CONFIG: Record<
         icon: <MinusCircleOutlined />,
         className: "text-gray-500 bg-gray-100",
     },
+    voicemail: {
+        label: "Connected · voicemail",
+        icon: <MessageOutlined />,
+        className: "text-blue-600 bg-blue-50",
+    },
 };
 
 const DIRECTION_CONFIG: Record<
@@ -207,6 +213,12 @@ export default function CrmEventItem({ event, compact = false }: Props) {
     const recordingDownloadUrl =
         recordingId !== null
             ? route("call-recordings.download", recordingId)
+            : null;
+    // The timeline does not know the file's format; a WebM recording fails
+    // in the player and is then offered here, in Bunny's own player.
+    const recordingOpenUrl =
+        recordingId !== null
+            ? route("call-recordings.open", recordingId)
             : null;
     const recordingDuration =
         typeof meta.duration === "number" ? meta.duration : null;
@@ -350,6 +362,7 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                     <RecordingPlayer
                         playUrl={recordingPlayUrl}
                         downloadUrl={recordingDownloadUrl}
+                        openUrl={recordingOpenUrl}
                         durationSeconds={recordingDuration}
                         filename={recordingFilename}
                     />

@@ -12,7 +12,8 @@ interface TaskActionsProps {
     /** Only Done (schedule rows); Reschedule stays in the task's own modal. */
     doneOnly?: boolean;
     size?: "sm" | "base";
-    onComplete: () => void;
+    /** Gets the Done button, so Do next can open under its row. */
+    onComplete: (button: HTMLElement) => void;
     onReschedule: () => void;
 }
 
@@ -47,7 +48,7 @@ export default function TaskActions({
                 size={size}
                 icon={<Icon name="check" size={14} />}
                 disabled={busy}
-                onClick={onComplete}
+                onClick={(event) => onComplete(event.currentTarget)}
                 aria-label={t("pages.agent_workspace.today.actions.done_aria", { name })}
             >
                 {t("pages.agent_workspace.today.actions.done")}

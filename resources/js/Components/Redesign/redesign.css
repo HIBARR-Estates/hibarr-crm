@@ -162,6 +162,132 @@
     line-height: 1.45;
 }
 
+/* Two-column layout (agent workspace, canvas L7-32): what and when on the
+   left, how on the right, one column on a phone. */
+.meeting-form-fields--columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.meeting-form-fields__col {
+    min-width: 0;
+    padding: 18px 20px 20px;
+}
+.meeting-form-fields__col + .meeting-form-fields__col {
+    border-left: 1px solid var(--dr-border);
+}
+.meeting-form-fields__pair,
+.meeting-form-fields__when {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 16px;
+    align-items: start;
+}
+.meeting-form-fields__pair > .modal-field,
+.meeting-form-fields__when > .modal-field {
+    min-width: 0;
+}
+.meeting-form-fields__when > .modal-field {
+    margin-bottom: 16px;
+}
+/* Field labels read as sentence case here; only the section labels
+   (Platform, Meeting provider, Reminders) keep the small caps. */
+.meeting-form-fields--columns .modal-field > label {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--dr-text);
+}
+.meeting-form-fields--columns .modal-field--section > label {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--dr-text-muted);
+}
+.meeting-form-fields--columns .meeting-form-providers {
+    display: flex;
+    flex-wrap: wrap;
+}
+.meeting-form-fields--columns .meeting-form-providers > *,
+.meeting-form-fields--columns .meeting-form-providers button {
+    width: auto;
+}
+.meeting-form-fields--columns .dr-pill .icon,
+.meeting-form-fields--columns .dr-pill svg {
+    margin-right: 4px;
+}
+.meeting-form-fields .meeting-form-fields__under {
+    display: block;
+    margin-top: 6px;
+    font-weight: 500;
+    color: var(--dr-text-muted);
+}
+.meeting-form-fields__tz {
+    min-height: 40px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--dr-border);
+    border-radius: 8px;
+    background: var(--dr-white);
+}
+.meeting-form-fields__tz > div {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.meeting-form-fields__durations {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: -4px 0 14px;
+}
+.meeting-form-fields__durations button {
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--dr-border);
+    background: var(--dr-white);
+    color: var(--dr-text-muted);
+    cursor: pointer;
+}
+.meeting-form-fields__durations button[aria-pressed="true"] {
+    border-color: var(--dr-navy);
+    background: var(--dr-navy);
+    color: var(--dr-white);
+}
+.meeting-form-fields .meeting-form-add-reminder {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 10px;
+    padding: 8px 12px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--dr-blue);
+    background: var(--dr-blue-light);
+    border: 1px solid var(--dr-blue-mid);
+    border-radius: 8px;
+    cursor: pointer;
+}
+@media (max-width: 760px) {
+    .meeting-form-fields--columns {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .meeting-form-fields__col + .meeting-form-fields__col {
+        border-left: 0;
+        border-top: 1px solid var(--dr-border);
+    }
+}
+@media (max-width: 420px) {
+    .meeting-form-fields__pair {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 /* ==================================================================== */
 /*  Shared redesign structural classes. Deliberately NOT scoped under   */
 /*  a page wrapper: several consumers render via createPortal onto      */

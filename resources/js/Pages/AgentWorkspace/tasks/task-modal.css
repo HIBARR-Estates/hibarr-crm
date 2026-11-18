@@ -1,0 +1,278 @@
+/* Add task (canvas L7-33). */
+.agent-task {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px 20px 20px;
+}
+
+.agent-task__errors {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid #f1c9c9;
+    border-radius: 10px;
+    background: #fbebeb;
+    color: #9f1d1d;
+    font-size: 13px;
+    list-style: none;
+}
+
+.agent-task__title {
+    width: 100%;
+    min-height: 46px;
+    padding: 9px 13px;
+    border: 1.5px solid var(--dr-border);
+    border-radius: 10px;
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 18px;
+    font-weight: 600;
+    outline: none;
+}
+
+.agent-task__title:focus,
+.agent-task__desc:focus,
+.agent-task__draft:focus {
+    border-color: var(--dr-blue);
+    box-shadow: none;
+}
+
+.agent-task__desc {
+    width: 100%;
+    min-height: 70px;
+    padding: 10px 12px;
+    border: 1px solid var(--dr-border);
+    border-radius: 10px;
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.45;
+    outline: none;
+    resize: vertical;
+}
+
+.agent-task__chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.agent-task__chip {
+    display: inline-flex;
+    min-height: 32px;
+    align-items: center;
+    gap: 6px;
+    padding: 0 11px;
+    border: 1px solid var(--dr-border);
+    border-radius: 999px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+    font: inherit;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.agent-task__chip:hover:not(.agent-task__chip--static) {
+    border-color: var(--dr-blue-mid);
+}
+
+.agent-task__chip:focus-visible {
+    outline: 2px solid var(--dr-blue);
+    outline-offset: 2px;
+}
+
+.agent-task__chip--set {
+    border-color: var(--dr-blue-mid);
+    background: var(--dr-blue-light);
+    color: var(--dr-blue-dark);
+}
+
+.agent-task__chip--static {
+    cursor: default;
+}
+
+.agent-task__chip-label {
+    color: var(--dr-text-muted);
+}
+
+.agent-task__chip-value {
+    font-weight: 600;
+}
+
+.agent-task__avatar {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    margin-left: -7px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--dr-blue);
+    color: var(--dr-white);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.agent-task__date {
+    position: relative;
+    display: inline-flex;
+}
+
+/* The native picker sits under the chip; the chip opens it. */
+.agent-task__date-input {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.agent-task__people {
+    width: 280px;
+    max-height: 380px;
+    overflow-y: auto;
+}
+
+.agent-task__section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.agent-task__cap {
+    margin: 0;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.agent-task__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.agent-task__link {
+    display: inline-flex;
+    min-height: 34px;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    border: 1px solid var(--dr-border);
+    border-radius: 8px;
+    color: var(--dr-text);
+    font-size: 13px;
+}
+
+.agent-task__link-mark {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 8px;
+    border-radius: 50%;
+    background: var(--dr-navy);
+}
+
+.agent-task__link-mark--deal {
+    border-radius: 1px;
+    transform: rotate(45deg);
+}
+
+.agent-task__checklist,
+.agent-task__files {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid #eef0f3;
+    list-style: none;
+}
+
+.agent-task__checklist li,
+.agent-task__files li {
+    display: flex;
+    min-height: 42px;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid #eef0f3;
+    font-size: 13px;
+}
+
+.agent-task__box {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    border: 1.5px solid #b8c2d0;
+    border-radius: 4px;
+}
+
+.agent-task__item {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow-wrap: anywhere;
+}
+
+.agent-task__remove {
+    display: inline-flex;
+    width: 26px;
+    height: 26px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--dr-text-muted);
+    cursor: pointer;
+}
+
+.agent-task__remove:hover {
+    background: #f2f4f7;
+    color: var(--dr-text);
+}
+
+.agent-task__draft {
+    width: 100%;
+    min-height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--dr-border);
+    border-radius: 8px;
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+}
+
+.agent-task__drop {
+    width: 100%;
+    min-height: 46px;
+    padding: 0 12px;
+    border: 1px dashed #c7d0de;
+    border-radius: 10px;
+    background: #fafbfc;
+    color: var(--dr-text-muted);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.agent-task__drop:hover:not(:disabled) {
+    border-color: var(--dr-blue-mid);
+    color: var(--dr-blue-dark);
+}
+
+@media (max-width: 767px) {
+    .agent-task {
+        padding: 14px 16px 18px;
+    }
+
+    .agent-task__chip {
+        min-height: 40px;
+    }
+}

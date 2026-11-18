@@ -41,7 +41,9 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
     const user = props.auth?.user as { name?: string; image_url?: string | null } | undefined;
     const appName = (props.appName as string | undefined) ?? "";
     const logo = (props.companyLogoOnDark as string | null | undefined) ?? null;
-    const active = activeDestinationKey(url);
+    // A deal whose lead belongs to another agent is reached as a deal, not a person
+    // of yours (canvas L7-30), so the dock lights up Deals there.
+    const active = props.leadRestricted ? "deals" : activeDestinationKey(url);
     const [slot, setSlot] = useState<HTMLElement | null>(null);
     const { t } = useTranslation();
     const [top, setTop] = useState<HTMLElement | null>(null);
@@ -49,6 +51,7 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
     const [sticky, setSticky] = useState(false);
     const pinned = useMemo(() => ({ slot: pin, setSticky }), [pin]);
     useChromeBottom(top, slot);
+    useAgentBodyClass();
 
     return (
         <SecondRowSlot.Provider value={slot}>
@@ -150,6 +153,18 @@ function useChromeBottom(top: HTMLElement | null, secondRow: HTMLElement | null)
             root.style.removeProperty("--agent-chrome-bottom");
         };
     }, [top, secondRow]);
+}
+
+/**
+ * Marks <body> while the agent workspace is mounted. Dialogs portal to body,
+ * outside .agent-ws, where the layout's `leading-none` would squash every
+ * wrapped line to line-height 1; agent-workspace.css resets them under it.
+ */
+function useAgentBodyClass(): void {
+    useLayoutEffect(() => {
+        document.body.classList.add("agent-ws-body");
+        return () => document.body.classList.remove("agent-ws-body");
+    }, []);
 }
 
 /** Renders a page's pills (or other second-row controls) under the dock. */

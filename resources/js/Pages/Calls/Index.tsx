@@ -119,15 +119,17 @@ export default function CallsIndex({ agents, summary }: CallsPageProps) {
                 }
             />
 
+            {/* Same centred 1536px column as the header and the other list pages. */}
+            <div style={{ background: T.BG, minHeight: "100%" }}>
             <div
+                className="mx-auto w-full max-w-screen-2xl px-3 sm:px-6"
                 style={{
-                    padding: "20px 28px 40px",
+                    paddingTop: 20,
+                    paddingBottom: 40,
                     display: "flex",
                     flexDirection: "column",
                     gap: 16,
                     fontFamily: REDESIGN_FONT_STACK,
-                    background: T.BG,
-                    minHeight: "100%",
                 }}
             >
                 {tiles.length > 0 && <CallSummaryTiles tiles={tiles} />}
@@ -265,6 +267,7 @@ export default function CallsIndex({ agents, summary }: CallsPageProps) {
                         </div>
                     )}
                 </section>
+            </div>
             </div>
         </PageLayout>
     );

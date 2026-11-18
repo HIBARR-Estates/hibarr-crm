@@ -3,6 +3,7 @@ import { App } from "antd";
 import {
     CaretRightFilled,
     DownloadOutlined,
+    ExportOutlined,
     LoadingOutlined,
     PauseOutlined,
 } from "@ant-design/icons";
@@ -21,6 +22,16 @@ interface RecordingPlayerProps {
     durationSeconds?: number | null;
     filename?: string;
     expired?: boolean;
+    /**
+     * App endpoint that opens the recording in its own tab. For a WebM
+     * recording it leads to Bunny's player, the only place those play.
+     */
+    openUrl?: string | null;
+    /**
+     * The recording cannot play in the page (WebM): show a link to `openUrl`
+     * instead of the player.
+     */
+    opensInNewTab?: boolean;
 }
 
 /**
@@ -41,6 +52,8 @@ export default function RecordingPlayer({
     durationSeconds,
     filename,
     expired = false,
+    openUrl = null,
+    opensInNewTab = false,
 }: RecordingPlayerProps) {
     const { message } = App.useApp();
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -130,6 +143,31 @@ export default function RecordingPlayer({
     if (expired) {
         return <span className="cb-time">Expired — no longer available</span>;
     }
+
+    if (opensInNewTab && openUrl) {
+        return (
+            <div className="cb-player-wrapper">
+                <div className="cb-player">
+                    <a
+                        href={openUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="cb-open"
+                        title="Plays in Bunny's player in a new tab"
+                        aria-label={`Open ${filename ?? "recording"} in a new tab`}
+                    >
+                        <ExportOutlined aria-hidden="true" />
+                        <span>Open recording</span>
+                    </a>
+                    {total ? <span className="cb-time cb-num cb-time--end">{formatTime(total)}</span> : null}
+                </div>
+            </div>
+        );
+    }
+
+    // Where a failed recording is offered: its own tab (Bunny's player for
+    // WebM), else the app download.
+    const fallbackUrl = openUrl ?? downloadUrl;
 
     const percent = total && total > 0 ? Math.min(100, (progress / total) * 100) : 0;
 
@@ -259,9 +297,9 @@ export default function RecordingPlayer({
             {failed && (
                 <div className="cb-fail" role="alert">
                     <span>Playback failed.</span>
-                    {downloadUrl && (
-                        <a href={downloadUrl} target="_blank" rel="noreferrer">
-                            Open the file
+                    {fallbackUrl && (
+                        <a href={fallbackUrl} target="_blank" rel="noopener noreferrer">
+                            Open in a new tab
                         </a>
                     )}
                 </div>
