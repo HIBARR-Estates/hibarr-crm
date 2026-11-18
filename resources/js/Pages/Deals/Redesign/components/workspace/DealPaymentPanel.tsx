@@ -90,16 +90,19 @@ export default function DealPaymentPanel({
         confirmTransfer,
         cancelRequest,
         retryRequest,
+        deleteRequest,
         refreshStatus,
         confirming,
         cancelling,
         retrying,
+        deleting,
         refreshing,
     } = useDealPayment(deal.id);
 
     const [createOpen, setCreateOpen] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [cancelOpen, setCancelOpen] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
     const [retryTarget, setRetryTarget] = useState<DealPaymentRequest | null>(null);
     const [selectedId, setSelectedId] = useState<number | null>(null);
 
@@ -338,7 +341,7 @@ export default function DealPaymentPanel({
                 request={selected ? detailFromDeal(selected, deal) : null}
                 sequence={selected ? sequence.get(selected.id) : null}
                 sequenceTotal={total}
-                open={selected != null}
+                open={selected != null && !deleteOpen}
                 onClose={() => setSelectedId(null)}
                 onCancel={
                     selected
@@ -354,6 +357,11 @@ export default function DealPaymentPanel({
                         : undefined
                 }
                 onRetry={selected && canRetry(selected) ? () => setRetryTarget(selected) : undefined}
+                onDelete={
+                    selected && selected.ui_state === "invalidated" && canConfirmPaymentTransfer
+                        ? () => setDeleteOpen(true)
+                        : undefined
+                }
             />
 
             <DealPaymentCreateModal
@@ -404,6 +412,27 @@ export default function DealPaymentPanel({
                     });
                 }}
                 onCancel={() => setRetryTarget(null)}
+            />
+
+            <ConfirmDialog
+                open={deleteOpen}
+                zIndex={1400}
+                danger
+                title={t("pages.deals.payment_request.delete_title")}
+                message={t("pages.deals.payment_request.delete_message")}
+                confirmLabel={t("pages.deals.payment_request.delete_confirm")}
+                cancelLabel={t("pages.deals.payment_request.cancel")}
+                confirmLoading={deleting}
+                onConfirm={() => {
+                    if (!selected) return;
+                    void deleteRequest(selected.id).then((result) => {
+                        if (result.ok) {
+                            setDeleteOpen(false);
+                            setSelectedId(null);
+                        }
+                    });
+                }}
+                onCancel={() => setDeleteOpen(false)}
             />
 
             <ConfirmDialog
