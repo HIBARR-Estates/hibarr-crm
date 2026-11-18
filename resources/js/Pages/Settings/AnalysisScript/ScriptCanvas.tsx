@@ -267,7 +267,7 @@ export default function ScriptCanvas({
                     )}
                     <button type="button" className="dr-btn dr-btn-ghost" onClick={onAddSection}>
                         <Icon name="plus" size={14} />
-                        Add section
+                        {td("Add section", { source: "en" })}
                     </button>
                 </div>
             </div>

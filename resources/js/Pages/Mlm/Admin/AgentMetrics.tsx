@@ -92,7 +92,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
 
     const columns = [
         {
-            title: "Agent",
+            title: td("Agent", { source: "en" }),
             key: "agent",
             render: (_: any, record: AgentMetricWithProgress) => (
                 <div className="flex items-center gap-2">
@@ -119,7 +119,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
             ),
         },
         {
-            title: "Current Level",
+            title: td("Current Level", { source: "en" }),
             key: "level",
             render: (_: any, record: AgentMetricWithProgress) =>
                 record.current_level ? (
@@ -129,35 +129,35 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                 ),
         },
         {
-            title: "Individual Sales",
+            title: td("Individual Sales", { source: "en" }),
             dataIndex: "nsa",
             key: "nsa",
             align: "right" as const,
             render: (val: number) => formatNumber(val ?? 0),
         },
         {
-            title: "Team Sales",
+            title: td("Team Sales", { source: "en" }),
             dataIndex: "nsd",
             key: "nsd",
             align: "right" as const,
             render: (val: number) => formatNumber(val ?? 0),
         },
         {
-            title: "Individual Revenue",
+            title: td("Individual Revenue", { source: "en" }),
             dataIndex: "vsa",
             key: "vsa",
             align: "right" as const,
             render: (val: number) => `${currencySymbol}${formatNumber(val ?? 0)}`,
         },
         {
-            title: "Team Revenue",
+            title: td("Team Revenue", { source: "en" }),
             dataIndex: "vsd",
             key: "vsd",
             align: "right" as const,
             render: (val: number) => `${currencySymbol}${formatNumber(val ?? 0)}`,
         },
         {
-            title: "Progress to Next",
+            title: td("Progress to Next", { source: "en" }),
             key: "progress",
             width: 200,
             render: (_: any, record: AgentMetricWithProgress) =>
@@ -165,7 +165,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                     <div>
                         <div className="flex items-center justify-between mb-1">
                             <span className="text-xs text-gray-500">
-                                → {record.next_level.name}
+                                → {td(record.next_level.name, { source: "en" })}
                             </span>
                             <span className="text-xs font-medium">
                                 {record.progress_percentage ?? 0}%
@@ -187,7 +187,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                 ),
         },
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             width: 140,
             render: (_: any, record: AgentMetricWithProgress) => (
@@ -309,16 +309,16 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                 >
                     <div className="space-y-3">
                         <div className="text-sm text-gray-600">
-                            Agent:{" "}
+                            {td("Agent:", { source: "en" })}{" "}
                             <strong>
                                 {selectedAgent?.agent?.user?.name ?? "Unknown"}
                             </strong>
                         </div>
                         <div className="text-sm text-gray-600">
-                            Current Level:{" "}
+                            {td("Current Level:", { source: "en" })}{" "}
                             <strong>
-                                {selectedAgent?.current_level?.name ??
-                                    "Unranked"}
+                                {td(selectedAgent?.current_level?.name ??
+                                    "Unranked", { source: "en" })}
                             </strong>
                         </div>
 

@@ -74,7 +74,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                     className="flex items-center gap-2"
                 >
                     <Eye size={13} />
-                    View
+                    {td("View", { source: "en" })}
                 </Link>
             ),
         },
@@ -88,7 +88,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                     className="flex items-center gap-2"
                 >
                     <ExternalLink size={13} />
-                    Open in new tab
+                    {td("Open in new tab", { source: "en" })}
                 </a>
             ),
         },
@@ -102,7 +102,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                               onClick={() => onEdit?.(project)}
                           >
                               <Pencil size={13} />
-                              Edit
+                              {td("Edit", { source: "en" })}
                           </span>
                       ),
                   },
@@ -124,7 +124,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                           >
                               <span className="flex items-center gap-2 text-red-500">
                                   <Trash2 size={13} />
-                                  Delete
+                                  {td("Delete", { source: "en" })}
                               </span>
                           </Popconfirm>
                       ),
@@ -150,7 +150,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                     />
                 ) : (
                     <span className="text-[11px] font-semibold text-gray-400 truncate px-2 capitalize">
-                        {project.developer?.name ?? ""}
+                        {td(project.developer?.name ?? "", { source: "en" })}
                     </span>
                 )}
             </div>

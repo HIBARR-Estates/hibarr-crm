@@ -141,7 +141,7 @@ export default function AssetsTab({
                         <Col span={24}>
                             <Title level={5}>
                                 <FileImageOutlined className="mr-2" />
-                                Recent Images
+                                {td("Recent Images", { source: "en" })}
                             </Title>
                             <Image.PreviewGroup>
                                 <div className="grid grid-cols-4 md:grid-cols-6 gap-2">

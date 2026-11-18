@@ -96,7 +96,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
 
     const topAgentColumns = [
         {
-            title: "Agent",
+            title: td("Agent", { source: "en" }),
             dataIndex: ["user", "name"],
             key: "name",
 
@@ -107,7 +107,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
             ),
         },
         {
-            title: "Level",
+            title: td("Level", { source: "en" }),
             key: "level",
             render: (_: any, record: any) =>
                 record?.agent?.current_level_history?.level ? (
@@ -119,14 +119,14 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                 ),
         },
         {
-            title: "Deals",
+            title: td("Deals", { source: "en" }),
             dataIndex: "deals_count",
             key: "deals_count",
             align: "right" as const,
             render: (val: number) => <span>{formatNumber(+val)}</span>,
         },
         {
-            title: "Total Earned",
+            title: td("Total Earned", { source: "en" }),
             dataIndex: "total_earned",
             key: "total_earned",
             align: "right" as const,
@@ -141,7 +141,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
 
     const promotionColumns = [
         {
-            title: "Agent",
+            title: td("Agent", { source: "en" }),
             key: "agent",
             render: (_: any, record: any) => (
                 <span className="font-medium">
@@ -150,19 +150,19 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
             ),
         },
         {
-            title: "New Level",
+            title: td("New Level", { source: "en" }),
             key: "level",
             render: (_: any, record: any) =>
                 record.level ? <LevelBadge level={record.level} /> : "—",
         },
         {
-            title: "Date",
+            title: td("Date", { source: "en" }),
             dataIndex: "assigned_at",
             key: "assigned_at",
             render: (d: string) => formatCompanyDate(d, "—"),
         },
         {
-            title: "Method",
+            title: td("Method", { source: "en" }),
             key: "method",
             render: (_: any, record: any) => (
                 <Tag color={record.system_assigned ? "blue" : "gold"}>
@@ -270,7 +270,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                                         cycleSummary.days_remaining
                                                     }
                                                 </strong>{" "}
-                                                days remaining
+                                                {td("days remaining", { source: "en" })}
                                             </span>
                                             <span>
                                                 <strong>
@@ -278,7 +278,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                                         cycleSummary.enrollment_count
                                                     }
                                                 </strong>{" "}
-                                                enrolled agents
+                                                {td("enrolled agents", { source: "en" })}
                                             </span>
                                             <a
                                                 href="/account/mlm/cycle-management"

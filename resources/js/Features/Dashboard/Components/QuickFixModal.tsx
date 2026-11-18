@@ -326,7 +326,7 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
                                                 key={country.id}
                                                 value={country.name}
                                             >
-                                                {country.name}
+                                                {td(country.name, { source: "en" })}
                                             </Select.Option>
                                         ))}
                                     </Select>

@@ -270,15 +270,15 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                                             options={[
                                                                 {
                                                                     value: "monthly",
-                                                                    label: "Monthly (~30 days)",
+                                                                    label: td("Monthly (~30 days)", { source: "en" }),
                                                                 },
                                                                 {
                                                                     value: "quarterly",
-                                                                    label: "Quarterly (~90 days)",
+                                                                    label: td("Quarterly (~90 days)", { source: "en" }),
                                                                 },
                                                                 {
                                                                     value: "custom",
-                                                                    label: "Custom Duration",
+                                                                    label: td("Custom Duration", { source: "en" }),
                                                                 },
                                                             ]}
                                                         />

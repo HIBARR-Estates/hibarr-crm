@@ -220,7 +220,7 @@ const useDashboardLayoutProps = () => {
                                           );
                                       }}
                                   >
-                                      {pipeline.name}
+                                      {td(pipeline.name, { source: "en" })}
                                   </Link>
                               ),
                           }))

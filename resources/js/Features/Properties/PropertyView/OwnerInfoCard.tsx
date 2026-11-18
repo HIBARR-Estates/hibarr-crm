@@ -44,7 +44,7 @@ export default function OwnerInfoCard({
             title={
                 <span>
                     <UserOutlined className="mr-2" />
-                    Owner Information
+                    {td("Owner Information", { source: "en" })}
                 </span>
             }
             variant="outlined"

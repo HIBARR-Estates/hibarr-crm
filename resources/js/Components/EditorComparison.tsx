@@ -70,10 +70,10 @@ console.log(code);
                             size="large"
                         >
                             <Radio.Button value="html">
-                                <FileTextOutlined /> HTML Editor
+                                <FileTextOutlined /> {td("HTML Editor", { source: "en" })}
                             </Radio.Button>
                             <Radio.Button value="markdown">
-                                <CodeOutlined /> Markdown Editor
+                                <CodeOutlined /> {td("Markdown Editor", { source: "en" })}
                             </Radio.Button>
                         </Radio.Group>
                     </Form.Item>

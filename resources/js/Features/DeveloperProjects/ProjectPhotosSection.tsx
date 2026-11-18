@@ -428,7 +428,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
             if (!canEdit) return;
 
             deleteModal.confirm({
-                title: "Delete Photo",
+                title: td("Delete Photo", { source: "en" }),
                 content: `Delete "${asset.name}"? This cannot be undone.`,
                 okText: "Delete",
                 okType: "danger",
@@ -890,12 +890,12 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                             {
                                 value: "all",
                                 icon: <AppstoreOutlined />,
-                                label: "All",
+                                label: td("All", { source: "en" }),
                             },
                             {
                                 value: "by-tag",
                                 icon: <TagsOutlined />,
-                                label: "By Tag",
+                                label: td("By Tag", { source: "en" }),
                             },
                         ]}
                         value={viewMode}
@@ -908,7 +908,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                             onChange={setFilterTag}
                             style={{ width: 160 }}
                             options={[
-                                { value: "all", label: "All Tags" },
+                                { value: "all", label: td("All Tags", { source: "en" }) },
                                 ...TAG_OPTIONS,
                             ]}
                         />

@@ -401,7 +401,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                 label: (
                                     <span>
                                         <SearchOutlined className="mr-1.5" />
-                                        Search Properties
+                                        {td("Search Properties", { source: "en" })}
                                     </span>
                                 ),
                                 children: (
@@ -459,7 +459,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                 label: (
                                     <span>
                                         <HomeOutlined className="mr-1.5" />
-                                        From Project
+                                        {td("From Project", { source: "en" })}
                                     </span>
                                 ),
                                 children: (
@@ -508,14 +508,14 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                                     className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-medium"
                                                 >
                                                     <ExportOutlined />
-                                                    Check Availability
+                                                    {td("Check Availability", { source: "en" })}
                                                 </a>
                                             )}
                                             {projectInfo &&
                                                 !projectInfo?.availability_link && (
                                                     <span className="inline-flex items-center gap-1.5 text-xs text-gray-400 font-medium">
                                                         <LinkOutlined />
-                                                        No availability info
+                                                        {td("No availability info", { source: "en" })}
                                                     </span>
                                                 )}
                                             {/* Google drive link */}
@@ -529,14 +529,14 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                                     className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-medium"
                                                 >
                                                     <ExportOutlined />
-                                                    Google Drive Info
+                                                    {td("Google Drive Info", { source: "en" })}
                                                 </a>
                                             )}
                                             {projectInfo &&
                                                 !projectInfo?.google_drive_link && (
                                                     <span className="inline-flex items-center gap-1.5 text-xs text-gray-400 font-medium">
                                                         <LinkOutlined />
-                                                        No google drive info
+                                                        {td("No google drive info", { source: "en" })}
                                                     </span>
                                                 )}
                                         </div>
@@ -1051,7 +1051,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                         unitType.active_offers.length > 0 && (
                             <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                                    Apply Offers{" "}
+                                    {td("Apply Offers", { source: "en" })}{" "}
                                     <span className="text-gray-400 font-normal">
                                         {td("(optional)", { source: "en" })}
                                     </span>

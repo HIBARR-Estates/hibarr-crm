@@ -475,7 +475,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                     onClick={handleViewAll}
                     className="flex items-center justify-center gap-1"
                 >
-                    View all notifications
+                    {td("View all notifications", { source: "en" })}
                     <RightOutlined className="text-xs" />
                 </Button>
             </div>

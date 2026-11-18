@@ -184,7 +184,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                     title={
                         <Space>
                             <FileTextOutlined />
-                            Task Details
+                            {td("Task Details", { source: "en" })}
                         </Space>
                     }
                     variant="outlined"
@@ -433,7 +433,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                                                         display: "inline-block",
                                                     }}
                                                 />
-                                                {column.column_name}
+                                                {td(column.column_name, { source: "en" })}
                                             </Space>
                                         </Option>
                                     ))}
@@ -451,7 +451,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                                             key={category.id}
                                             value={category.id}
                                         >
-                                            {category.category_name}
+                                            {td(category.category_name, { source: "en" })}
                                         </Option>
                                     ))}
                                 </Select>
@@ -480,7 +480,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                                                         display: "inline-block",
                                                     }}
                                                 />
-                                                {label.label_name}
+                                                {td(label.label_name, { source: "en" })}
                                             </Space>
                                         </Option>
                                     ))}

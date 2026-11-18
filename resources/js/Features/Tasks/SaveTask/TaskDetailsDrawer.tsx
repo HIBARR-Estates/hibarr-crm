@@ -362,12 +362,12 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                             )}
                             {Boolean(task?.is_private) && (
                                 <span className="text-[11px] font-medium rounded-full px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 inline-flex items-center gap-1">
-                                    <LockOutlined className="text-[10px]" /> Private
+                                    <LockOutlined className="text-[10px]" /> {td("Private", { source: "en" })}
                                 </span>
                             )}
                             {Boolean(task?.billable) && (
                                 <span className="text-[11px] font-medium rounded-full px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 inline-flex items-center gap-1">
-                                    <DollarOutlined className="text-[10px]" /> Billable
+                                    <DollarOutlined className="text-[10px]" /> {td("Billable", { source: "en" })}
                                 </span>
                             )}
                         </div>
@@ -378,7 +378,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                     <div className="shrink-0">
                         {isDone ? (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-[12px] font-bold rounded-lg border border-emerald-200 whitespace-nowrap">
-                                <CheckOutlined /> Completed
+                                <CheckOutlined /> {td("Completed", { source: "en" })}
                             </span>
                         ) : canChangeStatus ? (
                             <button

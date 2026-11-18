@@ -100,7 +100,7 @@ const DealCard: React.FC<DealCardProps> = ({
                   {
                       key: "edit",
                       icon: <EditOutlined />,
-                      label: "Edit Deal",
+                      label: td("Edit Deal", { source: "en" }),
                       onClick: (e: any) => {
                           e.domEvent.stopPropagation();
                           e.domEvent.preventDefault();
@@ -113,7 +113,7 @@ const DealCard: React.FC<DealCardProps> = ({
         {
             key: "schedule_meeting",
             icon: <CalendarOutlined />,
-            label: "Schedule Meeting",
+            label: td("Schedule Meeting", { source: "en" }),
             onClick: (e: any) => {
                 e.domEvent.stopPropagation();
                 e.domEvent.preventDefault();

@@ -41,7 +41,7 @@ export default function UnitSoldOutBadge({
         return (
             <div className="absolute inset-x-0 bottom-0 z-20 flex items-center justify-center gap-1.5 bg-red-600/95 px-3 py-2 text-xs font-bold tracking-wide text-white">
                 <StopOutlined />
-                SOLD OUT
+                {td("SOLD OUT", { source: "en" })}
             </div>
         );
     }
@@ -52,7 +52,7 @@ export default function UnitSoldOutBadge({
                 className={`flex items-center gap-2 rounded-r-md border-l-4 border-red-600 bg-red-50 px-3.5 py-2 text-[13px] font-bold text-red-800 ${className ?? ""}`}
             >
                 <StopOutlined className="shrink-0 text-[15px]" />
-                This unit is sold out
+                {td("This unit is sold out", { source: "en" })}
             </div>
         );
     }

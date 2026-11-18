@@ -195,19 +195,19 @@ function Index({
     // Table columns
     const columns: TableColumnsType<CrmEvent> = [
         {
-            title: "Event",
+            title: td("Event", { source: "en" }),
             dataIndex: ["event_type", "name"],
             key: "event",
             width: 220,
             render: (_: any, record: CrmEvent) => (
                 <div>
                     <Text strong className="text-[13px]">
-                        {record.event_type?.name ?? "Unknown"}
+                        {td(record.event_type?.name ?? "Unknown", { source: "en" })}
                     </Text>
                     {record.event_type?.category && (
                         <div>
                             <Tag className="text-[10px] mt-0.5" color="default">
-                                {record.event_type.category.name}
+                                {td(record.event_type.category.name, { source: "en" })}
                             </Tag>
                         </div>
                     )}
@@ -215,7 +215,7 @@ function Index({
             ),
         },
         {
-            title: "Origin",
+            title: td("Origin", { source: "en" }),
             dataIndex: "generation_type",
             key: "generation_type",
             width: 110,
@@ -231,7 +231,7 @@ function Index({
             },
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             width: 110,
@@ -247,7 +247,7 @@ function Index({
             },
         },
         {
-            title: "Direction",
+            title: td("Direction", { source: "en" }),
             dataIndex: "direction",
             key: "direction",
             width: 100,
@@ -264,7 +264,7 @@ function Index({
             },
         },
         {
-            title: "User",
+            title: td("User", { source: "en" }),
             dataIndex: "user",
             key: "user",
             width: 220,
@@ -287,7 +287,7 @@ function Index({
             },
         },
         {
-            title: "Model",
+            title: td("Model", { source: "en" }),
             key: "model",
             width: 130,
             render: (_: any, record: CrmEvent) =>
@@ -301,7 +301,7 @@ function Index({
                 ),
         },
         {
-            title: "Source",
+            title: td("Source", { source: "en" }),
             dataIndex: "source",
             key: "source",
             width: 90,
@@ -315,7 +315,7 @@ function Index({
                 ),
         },
         {
-            title: "Message",
+            title: td("Message", { source: "en" }),
             key: "message",
             width: 200,
             ellipsis: true,
@@ -331,7 +331,7 @@ function Index({
             },
         },
         {
-            title: "Occurred",
+            title: td("Occurred", { source: "en" }),
             dataIndex: "occurred_at",
             key: "occurred_at",
             width: 140,

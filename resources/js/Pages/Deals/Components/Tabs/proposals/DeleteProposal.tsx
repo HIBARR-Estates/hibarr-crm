@@ -34,7 +34,7 @@ export default function DeleteProposal({
 
     const handleDeleteConfirm = () => {
         Modal.confirm({
-            title: "Delete Proposal",
+            title: td("Delete Proposal", { source: "en" }),
             icon: <ExclamationCircleOutlined />,
             content: (
                 <div>
@@ -48,7 +48,7 @@ export default function DeleteProposal({
                         {proposal.total?.toLocaleString()}
                     </p>
                     <p className="text-red-500 mt-2">
-                        <strong>{td("Warning:", { source: "en" })}</strong> This action cannot be undone.
+                        <strong>{td("Warning:", { source: "en" })}</strong> {td("This action cannot be undone.", { source: "en" })}
                     </p>
                 </div>
             ),
@@ -90,7 +90,7 @@ export default function DeleteProposal({
                     className="text-red-600"
                 >
                     <DeleteOutlined className="mr-2" />
-                    Delete
+                    {td("Delete", { source: "en" })}
                 </span>
             );
             break;

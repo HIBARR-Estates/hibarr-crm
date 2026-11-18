@@ -27,6 +27,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import LeadFlightItineraryTab from "@/Components/LeadFlightItineraryTab";
 import useDealPermissions from "@/Hooks/useDealPermissions";
 import { replaceUrlKeepingHistoryState } from "@/lib/inertiaHistory";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     deal: Deal;
@@ -65,6 +66,7 @@ export default function DealTabs({
     employees = [],
     projects = [],
 }: Props) {
+    const { td } = useTd();
     const [activeTab, setActiveTabState] = useState(
         () => new URLSearchParams(window.location.search).get("tab") || "notes",
     );
@@ -111,7 +113,7 @@ export default function DealTabs({
         // Tasks Tab
         items.push({
             key: "tasks",
-            label: "Tasks",
+            label: td("Tasks", { source: "en" }),
             children: (
                 <TasksTab
                     tasks={tasks}

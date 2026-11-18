@@ -109,8 +109,8 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
                     context: f?.category_name ?? null,
                 };
             }
-            if (item.type === "question") return { label: "Question" };
-            if (item.type === "instruction") return { label: "Instruction" };
+            if (item.type === "question") return { label: td("Question", { source: "en" }) };
+            if (item.type === "instruction") return { label: td("Instruction", { source: "en" }) };
             return { label: ANALYSIS_FIELD_META[item.item_key]?.label ?? item.item_key };
         },
         [categories, dealCustomFields, leadCustomFields],

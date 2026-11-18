@@ -83,8 +83,8 @@ const AdvancedLeadFilterForm: React.FC<AdvancedLeadFilterFormProps> = ({
                             style={{ width: "100%" }}
                             allowClear
                             options={[
-                                { label: "Lead", value: "lead" },
-                                { label: "Client", value: "client" },
+                                { label: td("Lead", { source: "en" }), value: "lead" },
+                                { label: td("Client", { source: "en" }), value: "client" },
                             ]}
                         />
                     </Col>

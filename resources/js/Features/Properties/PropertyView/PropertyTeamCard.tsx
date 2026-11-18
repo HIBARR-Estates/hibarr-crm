@@ -234,7 +234,7 @@ export default function PropertyTeamCard({
                 {permissions.isCollaborator && (
                     <Text type="secondary" className="text-xs block">
                         <UserDeleteOutlined className="mr-1" />
-                        Collaborators can edit public listing fields only.
+                        {td("Collaborators can edit public listing fields only.", { source: "en" })}
                     </Text>
                 )}
             </div>

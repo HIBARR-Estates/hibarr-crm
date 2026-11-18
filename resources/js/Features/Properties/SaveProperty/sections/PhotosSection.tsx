@@ -332,7 +332,7 @@ const PhotosSection: React.FC<PhotosSectionProps> = ({
             if (!propertyId) return;
 
             deleteModal.confirm({
-                title: "Delete Photo",
+                title: td("Delete Photo", { source: "en" }),
                 content: `Delete "${asset.name}"? This cannot be undone.`,
                 okText: "Delete",
                 okType: "danger",

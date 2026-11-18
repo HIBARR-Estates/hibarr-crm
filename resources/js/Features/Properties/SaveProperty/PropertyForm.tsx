@@ -56,7 +56,7 @@ export default function PropertyForm({
     const tabItems: TabsProps["items"] = [
         {
             key: "basic",
-            label: "Basic Info",
+            label: td("Basic Info", { source: "en" }),
             children: (
                 <BasicInfoTab
                     onSubmit={onSubmit}
@@ -73,7 +73,7 @@ export default function PropertyForm({
         },
         {
             key: "location",
-            label: "Location",
+            label: td("Location", { source: "en" }),
             children: (
                 <LocationInfoTab
                     onCancel={onCancel}
@@ -90,7 +90,7 @@ export default function PropertyForm({
         },
         {
             key: "details",
-            label: "Details",
+            label: td("Details", { source: "en" }),
             children: (
                 <PropertyDetailsTab
                     onCancel={onCancel}
@@ -107,7 +107,7 @@ export default function PropertyForm({
         },
         {
             key: "legal",
-            label: "Legal & Finance",
+            label: td("Legal & Finance", { source: "en" }),
             children: (
                 <LegalFinancialTab
                     onCancel={onCancel}
@@ -124,7 +124,7 @@ export default function PropertyForm({
         },
         {
             key: "features",
-            label: "Features & Add-Ons",
+            label: td("Features & Add-Ons", { source: "en" }),
             children: (
                 <FeaturesAndAddOnsTab
                     onCancel={onCancel}
@@ -141,7 +141,7 @@ export default function PropertyForm({
         },
         {
             key: "assets",
-            label: "Assets",
+            label: td("Assets", { source: "en" }),
             children: data ? (
                 <AssetsTab property={data} canEdit={true} />
             ) : null,

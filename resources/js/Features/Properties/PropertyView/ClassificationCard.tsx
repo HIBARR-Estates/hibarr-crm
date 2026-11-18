@@ -31,7 +31,7 @@ export default function ClassificationCard({
             title={
                 <span>
                     <ToolOutlined className="mr-2" />
-                    Classification
+                    {td("Classification", { source: "en" })}
                 </span>
             }
             variant="outlined"

@@ -649,7 +649,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
 
         if (existingDescription?.trim()) {
             modal.confirm({
-                title: "Replace existing description?",
+                title: td("Replace existing description?", { source: "en" }),
                 content:
                     "This will replace the current location description with an AI-generated version.",
                 okText: "Replace",
@@ -1090,7 +1090,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                     <Divider orientation="left" plain>
                         <Text type="secondary">
                             <EnvironmentOutlined className="mr-2" />
-                            Address Details
+                            {td("Address Details", { source: "en" })}
                         </Text>
                     </Divider>
 
@@ -1118,7 +1118,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                     <Divider orientation="left" plain>
                         <Text type="secondary">
                             <PictureOutlined className="mr-2" />
-                            Location Image
+                            {td("Location Image", { source: "en" })}
                         </Text>
                     </Divider>
 
@@ -1148,7 +1148,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                 <Badge dot={tabErrors.has("attractions")} offset={[4, 2]}>
                     <span className="flex items-center gap-2">
                         <CameraOutlined />
-                        Attractions
+                        {td("Attractions", { source: "en" })}
                     </span>
                 </Badge>
             ),
@@ -1323,7 +1323,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                 <Badge dot={tabErrors.has("infrastructure")} offset={[4, 2]}>
                     <span className="flex items-center gap-2">
                         <CarOutlined />
-                        Infrastructure
+                        {td("Infrastructure", { source: "en" })}
                     </span>
                 </Badge>
             ),
@@ -1497,7 +1497,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                 <Badge dot={tabErrors.has("airports")} offset={[4, 2]}>
                     <span className="flex items-center gap-2">
                         <RocketOutlined />
-                        Airports
+                        {td("Airports", { source: "en" })}
                     </span>
                 </Badge>
             ),

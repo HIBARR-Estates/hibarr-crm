@@ -120,7 +120,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
 
     const statCards = [
         {
-            title: "Total Earnings",
+            title: td("Total Earnings", { source: "en" }),
             value: stats.total_earnings ?? 0,
             prefix: currencySymbol,
             precision: 2,
@@ -128,7 +128,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
             iconBg: "bg-green-100 text-green-600",
         },
         {
-            title: "Pending Earnings",
+            title: td("Pending Earnings", { source: "en" }),
             value: stats.pending_earnings ?? 0,
             prefix: currencySymbol,
             precision: 2,
@@ -136,13 +136,13 @@ const AdminAgentDashboard: React.FC<Props> = ({
             iconBg: "bg-orange-100 text-orange-600",
         },
         {
-            title: "Total Sales",
+            title: td("Total Sales", { source: "en" }),
             value: stats.total_sales ?? 0,
             icon: <TrendingUp size={20} />,
             iconBg: "bg-blue-100 text-blue-600",
         },
         {
-            title: "Downlines",
+            title: td("Downlines", { source: "en" }),
             value: stats.total_downlines ?? 0,
             icon: <Users size={20} />,
             iconBg: "bg-purple-100 text-purple-600",
@@ -151,7 +151,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
 
     const recentCommissionCols = [
         {
-            title: "Deal",
+            title: td("Deal", { source: "en" }),
             key: "deal",
             render: (_: any, r: MlmCommission) => (
                 <span className="font-medium text-sm">
@@ -160,7 +160,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
             ),
         },
         {
-            title: "Type",
+            title: td("Type", { source: "en" }),
             dataIndex: "type",
             key: "type",
             render: (t: string) => (
@@ -180,7 +180,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
             ),
         },
         {
-            title: "Amount",
+            title: td("Amount", { source: "en" }),
             dataIndex: "amount",
             key: "amount",
             align: "right" as const,
@@ -194,7 +194,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
             ),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             render: (s: any) => <CommissionStatusBadge status={s} />,
@@ -377,12 +377,12 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                             <div>
                                                 <div className="mb-4 flex items-center justify-between">
                                                     <span className="text-sm text-gray-500">
-                                                        Next:{" "}
+                                                        {td("Next:", { source: "en" })}{" "}
                                                         <strong>
                                                             {
-                                                                levelData
+                                                                td(levelData
                                                                     .next_level
-                                                                    .name
+                                                                    .name, { source: "en" })
                                                             }
                                                         </strong>
                                                     </span>
@@ -817,7 +817,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                 <DataTable
                                                                     columns={[
                                                                         {
-                                                                            title: "Changed At",
+                                                                            title: td("Changed At", { source: "en" }),
                                                                             dataIndex:
                                                                                 "changed_at",
                                                                             key: "changed_at",
@@ -829,7 +829,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                                 ),
                                                                         },
                                                                         {
-                                                                            title: "Rate",
+                                                                            title: td("Rate", { source: "en" }),
                                                                             key: "rate",
                                                                             render: (
                                                                                 _: unknown,
@@ -838,7 +838,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                                 `${row.previous_direct_rate ?? "—"} → ${row.new_direct_rate ?? "—"}`,
                                                                         },
                                                                         {
-                                                                            title: "By",
+                                                                            title: td("By", { source: "en" }),
                                                                             key: "by",
                                                                             render: (
                                                                                 _: unknown,
@@ -850,7 +850,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                                 "System",
                                                                         },
                                                                         {
-                                                                            title: "Reason",
+                                                                            title: td("Reason", { source: "en" }),
                                                                             dataIndex:
                                                                                 "reason",
                                                                             key: "reason",

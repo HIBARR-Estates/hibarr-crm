@@ -99,7 +99,7 @@ const CreateClient: React.FC<Props> = ({
     const tabItems = [
         {
             key: "account",
-            label: "Account Details",
+            label: td("Account Details", { source: "en" }),
             children: (
                 <AccountDetailsTab
                     form={form}
@@ -114,7 +114,7 @@ const CreateClient: React.FC<Props> = ({
         },
         {
             key: "company",
-            label: "Company Details",
+            label: td("Company Details", { source: "en" }),
             children: (
                 <CompanyDetailsTab
                     form={form}
@@ -128,7 +128,7 @@ const CreateClient: React.FC<Props> = ({
             ? [
                   {
                       key: "custom_fields",
-                      label: "Custom Fields",
+                      label: td("Custom Fields", { source: "en" }),
                       children: <CustomFieldTab form={form} fields={fields} />,
                   },
               ]

@@ -324,7 +324,7 @@ export default function BasicInfoStep({
                                     key={category.name}
                                     value={category.name}
                                 >
-                                    {category.label}
+                                    {td(category.label, { source: "en" })}
                                 </Option>
                             ))}
                         </Select>

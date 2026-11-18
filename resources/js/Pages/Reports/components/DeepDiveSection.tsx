@@ -236,6 +236,7 @@ const DeepDiveSection: React.FC<DeepDiveSectionProps> = ({
     activeTab,
     onTabChange,
 }) => {
+    const { td } = useTd();
     const currentTab = activeTab ?? "leads";
 
     return (
@@ -258,17 +259,17 @@ const DeepDiveSection: React.FC<DeepDiveSectionProps> = ({
                     })),
                     {
                         key: "meetings",
-                        label: "Meetings",
+                        label: td("Meetings", { source: "en" }),
                         children: <MeetingsTabContent filters={filters} />,
                     },
                     {
                         key: "deal-notes",
-                        label: "Deal Notes",
+                        label: td("Deal Notes", { source: "en" }),
                         children: <DealNotesTabContent filters={filters} />,
                     },
                     {
                         key: "lead-notes",
-                        label: "Lead Notes",
+                        label: td("Lead Notes", { source: "en" }),
                         children: <LeadNotesTabContent filters={filters} />,
                     },
                 ]}

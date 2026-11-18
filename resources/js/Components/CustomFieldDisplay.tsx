@@ -1224,7 +1224,7 @@ export default function CustomFieldDisplay({
                             if (parts.length === 0) return null;
                             return (
                                 <div key={index} className="text-sm">
-                                    {field.label} {index + 1}:{" "}
+                                    {td(field.label, { source: "en" })} {index + 1}:{" "}
                                     {parts.map(({ k, node }, i) => (
                                         <span key={k}>
                                             {i > 0 && ", "}

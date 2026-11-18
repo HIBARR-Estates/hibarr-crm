@@ -691,7 +691,7 @@ const Index = ({
                                         handlePropertiesPageSizeChange
                                     }
                                     emptyState={{
-                                        title: "No properties found",
+                                        title: td("No properties found", { source: "en" }),
                                         description:
                                             "Try adjusting your filters or add a new property.",
                                     }}

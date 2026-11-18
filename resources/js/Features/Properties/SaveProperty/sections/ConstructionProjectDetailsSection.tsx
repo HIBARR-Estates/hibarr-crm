@@ -189,8 +189,8 @@ const ConstructionProjectDetailsSection: React.FC<
                         placeholder={td("Select", { source: "en" })}
                         allowClear
                         options={[
-                            { value: true, label: "Yes" },
-                            { value: false, label: "No" },
+                            { value: true, label: td("Yes", { source: "en" }) },
+                            { value: false, label: td("No", { source: "en" }) },
                         ]}
                     />
                 </Form.Item>

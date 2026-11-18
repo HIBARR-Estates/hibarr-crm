@@ -125,7 +125,7 @@ const AdvancedDealFilterForm: React.FC<AdvancedDealFilterFormProps> = ({
                                     key={pipeline.id}
                                     value={pipeline.id}
                                 >
-                                    {pipeline.name}
+                                    {td(pipeline.name, { source: "en" })}
                                 </Select.Option>
                             ))}
                         </Select>
@@ -161,7 +161,7 @@ const AdvancedDealFilterForm: React.FC<AdvancedDealFilterFormProps> = ({
                                                     stage.label_color,
                                             }}
                                         ></span>
-                                        {stage.name}
+                                        {td(stage.name, { source: "en" })}
                                     </span>
                                 </Select.Option>
                             ))}
@@ -202,7 +202,7 @@ const AdvancedDealFilterForm: React.FC<AdvancedDealFilterFormProps> = ({
                                     key={category.id}
                                     value={category.id}
                                 >
-                                    {category.category_name}
+                                    {td(category.category_name, { source: "en" })}
                                 </Select.Option>
                             ))}
                         </Select>

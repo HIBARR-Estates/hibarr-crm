@@ -356,7 +356,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
             return;
         }
         modal.confirm({
-            title: "Save unit type to continue?",
+            title: td("Save unit type to continue?", { source: "en" }),
             content: "Your unit type will be saved so you can upload photos.",
             okText: "Save & Continue",
             cancelText: "Cancel",
@@ -845,7 +845,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
 
                                 if (existing?.trim()) {
                                     modal.confirm({
-                                        title: "Replace existing description?",
+                                        title: td("Replace existing description?", { source: "en" }),
                                         content:
                                             "This will replace your current description with an AI-generated one.",
                                         okText: "Replace",
@@ -899,7 +899,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                 <Divider orientation="left" orientationMargin={0}>
                     <Text strong>
                         <PictureOutlined className="mr-1" />
-                        Photos
+                        {td("Photos", { source: "en" })}
                     </Text>
                 </Divider>
 

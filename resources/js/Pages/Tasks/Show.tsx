@@ -234,7 +234,7 @@ const TaskShow = ({
         {
             key: "edit",
             icon: <EditOutlined />,
-            label: "Edit Task",
+            label: td("Edit Task", { source: "en" }),
             onClick: () => setEditModalOpen(true),
             disabled: !["all", "added", "owned", "both"].includes(
                 permissions.edit_tasks,
@@ -243,7 +243,7 @@ const TaskShow = ({
         {
             key: "duplicate",
             icon: <CopyOutlined />,
-            label: "Duplicate Task",
+            label: td("Duplicate Task", { source: "en" }),
             onClick: () => setDuplicateModalOpen(true),
             disabled: !["all", "added"].includes(permissions.add_tasks),
         },
@@ -251,7 +251,7 @@ const TaskShow = ({
         {
             key: "delete",
             icon: <DeleteOutlined />,
-            label: "Delete Task",
+            label: td("Delete Task", { source: "en" }),
             danger: true,
             onClick: () => setDeleteModalOpen(true),
             disabled: !["all", "added", "owned", "both"].includes(
@@ -393,9 +393,9 @@ const TaskShow = ({
                                                         task.status,
                                                     )}
                                                 >
-                                                    {task.board_column
+                                                    {td(task.board_column
                                                         ?.column_name ||
-                                                        task.status}
+                                                        task.status, { source: "en" })}
                                                 </Tag>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -411,9 +411,9 @@ const TaskShow = ({
                                                     icon={<FlagOutlined />}
                                                 >
                                                     {
-                                                        getPriorityConfig(
+                                                        td(getPriorityConfig(
                                                             task.priority,
-                                                        ).label
+                                                        ).label, { source: "en" })
                                                     }
                                                 </Tag>
                                             </div>
@@ -926,7 +926,7 @@ const TaskShow = ({
                                         size="small"
                                         variant="outlined"
                                     >
-                                        <Tag>{task.category.category_name}</Tag>
+                                        <Tag>{td(task.category.category_name, { source: "en" })}</Tag>
                                     </Card>
                                 )}
 
@@ -954,7 +954,7 @@ const TaskShow = ({
                                                         color: label.label_color,
                                                     }}
                                                 >
-                                                    {label.label_name}
+                                                    {td(label.label_name, { source: "en" })}
                                                 </Tag>
                                             ))}
                                         </Space>

@@ -100,19 +100,19 @@ const BulkChangeStatusProperties: React.FC<Props> = ({
                         // TODO: Refactor to get from backend as a single source of truth
                         options={[
                             {
-                                label: "Available",
+                                label: td("Available", { source: "en" }),
                                 value: "Available",
                             },
                             {
-                                label: "Under offer",
+                                label: td("Under offer", { source: "en" }),
                                 value: "Under offer",
                             },
                             {
-                                label: "Sold",
+                                label: td("Sold", { source: "en" }),
                                 value: "Sold",
                             },
                             {
-                                label: "Withdrawn",
+                                label: td("Withdrawn", { source: "en" }),
                                 value: "Withdrawn",
                             },
                         ]}

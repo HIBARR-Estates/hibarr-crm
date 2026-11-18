@@ -58,7 +58,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
 
     const columns: TableColumnsType<DealOfferApplication> = [
         {
-            title: "Offer",
+            title: td("Offer", { source: "en" }),
             key: "offer",
             render: (_, record) => (
                 <Space>
@@ -68,7 +68,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
             ),
         },
         {
-            title: "Property",
+            title: td("Property", { source: "en" }),
             key: "product",
             render: (_, record) =>
                 generatePropertySubtitle((record.product as any)?.property) ||
@@ -77,7 +77,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
         },
 
         {
-            title: "Type",
+            title: td("Type", { source: "en" }),
             key: "type",
             width: 100,
             render: (_, record) => (
@@ -100,7 +100,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
         //     render: (v: number) => formatMoney(v),
         // },
         {
-            title: "Discount",
+            title: td("Discount", { source: "en" }),
             dataIndex: "discount_amount",
             key: "discount_amount",
             width: 120,

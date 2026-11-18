@@ -134,7 +134,7 @@ const AdvancedTaskFilterForm: React.FC<AdvancedTaskFilterFormProps> = ({
                                                     display: "inline-block",
                                                 }}
                                             />
-                                            {column.column_name}
+                                            {td(column.column_name, { source: "en" })}
                                         </Space>
                                     </Option>
                                 ))}
@@ -235,7 +235,7 @@ const AdvancedTaskFilterForm: React.FC<AdvancedTaskFilterFormProps> = ({
                                         key={category.id}
                                         value={category.id}
                                     >
-                                        {category.category_name}
+                                        {td(category.category_name, { source: "en" })}
                                     </Option>
                                 ))}
                             </Select>
@@ -263,7 +263,7 @@ const AdvancedTaskFilterForm: React.FC<AdvancedTaskFilterFormProps> = ({
                                                     display: "inline-block",
                                                 }}
                                             />
-                                            {label.label_name}
+                                            {td(label.label_name, { source: "en" })}
                                         </Space>
                                     </Option>
                                 ))}

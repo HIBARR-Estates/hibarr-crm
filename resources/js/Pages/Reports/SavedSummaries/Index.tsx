@@ -80,7 +80,7 @@ const Index: React.FC = () => {
     const columns = useMemo(
         () => [
             {
-                title: "Title",
+                title: td("Title", { source: "en" }),
                 dataIndex: "title",
                 key: "title",
                 render: (_: unknown, row: AgentReportSummary) => (
@@ -97,20 +97,20 @@ const Index: React.FC = () => {
                 ),
             },
             {
-                title: "Created By",
+                title: td("Created By", { source: "en" }),
                 key: "created_by",
                 render: (_: unknown, row: AgentReportSummary) =>
                     row.added_by?.name || "Unknown",
             },
             {
-                title: "Created At",
+                title: td("Created At", { source: "en" }),
                 dataIndex: "created_at",
                 key: "created_at",
                 render: (value: string) =>
                     formatCompanyDateTime(value, { fallback: "-" }),
             },
             {
-                title: "Filters",
+                title: td("Filters", { source: "en" }),
                 key: "filters",
                 render: (_: unknown, row: AgentReportSummary) => (
                     <Space direction="vertical" size={2}>
@@ -130,7 +130,7 @@ const Index: React.FC = () => {
                 ),
             },
             {
-                title: "Actions",
+                title: td("Actions", { source: "en" }),
                 key: "actions",
                 width: 160,
                 render: (_: unknown, row: AgentReportSummary) => (

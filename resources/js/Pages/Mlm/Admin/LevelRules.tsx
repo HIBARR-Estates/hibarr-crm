@@ -194,7 +194,7 @@ const MlmLevelRules: React.FC<Props> = ({
 
     const columns = [
         {
-            title: "Metric",
+            title: td("Metric", { source: "en" }),
             dataIndex: "metric",
             key: "metric",
             render: (m: MlmMetric) => (
@@ -202,7 +202,7 @@ const MlmLevelRules: React.FC<Props> = ({
             ),
         },
         {
-            title: "Operator",
+            title: td("Operator", { source: "en" }),
             dataIndex: "operator",
             key: "operator",
             width: 100,
@@ -213,7 +213,7 @@ const MlmLevelRules: React.FC<Props> = ({
             ),
         },
         {
-            title: "Threshold",
+            title: td("Threshold", { source: "en" }),
             dataIndex: "threshold",
             key: "threshold",
             align: "right" as const,
@@ -222,7 +222,7 @@ const MlmLevelRules: React.FC<Props> = ({
             ),
         },
         {
-            title: "Description",
+            title: td("Description", { source: "en" }),
             dataIndex: "description",
             key: "description",
             render: (val: string | null) =>
@@ -233,7 +233,7 @@ const MlmLevelRules: React.FC<Props> = ({
                 ),
         },
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             width: 100,
             render: (_: any, record: MlmLevelCriterion) => (
@@ -417,7 +417,7 @@ const MlmLevelRules: React.FC<Props> = ({
                             {groupedEntries.length > 0 && (
                                 <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
                                     <strong>{td("Summary:", { source: "en" })}</strong> An agent qualifies
-                                    for <em>{level?.name}</em> if{" "}
+                                    for <em>{td(level?.name, { source: "en" })}</em> if{" "}
                                     {groupedEntries.map(
                                         ([groupNum, items], gIdx) => (
                                             <React.Fragment key={groupNum}>
@@ -566,7 +566,7 @@ const MlmLevelRules: React.FC<Props> = ({
                         title={
                             <div className="flex items-center gap-2 text-red-600">
                                 <AlertTriangle size={18} />
-                                Remove Criterion
+                                {td("Remove Criterion", { source: "en" })}
                             </div>
                         }
                         open={!!deletingCriterion}
@@ -588,8 +588,8 @@ const MlmLevelRules: React.FC<Props> = ({
                                     />
                                 </div>
                                 <p className="mt-2 text-sm text-gray-500">
-                                    This may affect how agents qualify for the{" "}
-                                    <strong>{level?.name}</strong> level.
+                                    {td("This may affect how agents qualify for the", { source: "en" })}{" "}
+                                    <strong>{td(level?.name, { source: "en" })}</strong> level.
                                 </p>
                             </div>
                         )}

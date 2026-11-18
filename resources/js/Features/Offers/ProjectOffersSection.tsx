@@ -32,14 +32,14 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
         DeveloperProjectUnitType & { offers?: OfferWithPivot[] }
     > = [
         {
-            title: "Unit Type",
+            title: td("Unit Type", { source: "en" }),
             key: "label",
             render: (_, record) =>
                 record.display_label ||
                 `${record.primary_category} - ${record.property_type || "N/A"}`,
         },
         {
-            title: "Beds",
+            title: td("Beds", { source: "en" }),
             dataIndex: "bedrooms",
             key: "bedrooms",
             width: 60,
@@ -47,7 +47,7 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
             render: (v: number | null) => v ?? "-",
         },
         {
-            title: "Price",
+            title: td("Price", { source: "en" }),
             key: "price",
             width: 120,
             align: "right",
@@ -57,7 +57,7 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
                     : "-",
         },
         {
-            title: "Offers",
+            title: td("Offers", { source: "en" }),
             key: "offers",
             width: 280,
             render: (_, record) => {

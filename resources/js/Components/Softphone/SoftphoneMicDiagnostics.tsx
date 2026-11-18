@@ -967,28 +967,28 @@ export default function SoftphoneMicDiagnostics({
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 8px", color: "#334155" }}>
                 <span>
-                    Speech RMS:{" "}
+                    {td("Speech RMS:", { source: "en" })}{" "}
                     <strong style={{ color: m.criteria.speechRmsOk ? "#16a34a" : "#dc2626" }}>
                         {m.speechRmsDbfs.toFixed(1)} dBFS
                     </strong>{" "}
                     <small>(-24..-16)</small>
                 </span>
                 <span>
-                    Peak:{" "}
+                    {td("Peak:", { source: "en" })}{" "}
                     <strong style={{ color: m.criteria.peakOk ? "#16a34a" : "#dc2626" }}>
                         {m.peakDbfs.toFixed(1)} dBFS
                     </strong>{" "}
                     <small>(&lt;-3)</small>
                 </span>
                 <span>
-                    Noise floor:{" "}
+                    {td("Noise floor:", { source: "en" })}{" "}
                     <strong style={{ color: m.criteria.noiseFloorOk ? "#16a34a" : "#d97706" }}>
                         {m.noiseFloorDbfs.toFixed(1)} dBFS
                     </strong>{" "}
                     <small>(&lt;-50)</small>
                 </span>
                 <span>
-                    Speech Zeros:{" "}
+                    {td("Speech Zeros:", { source: "en" })}{" "}
                     <strong style={{ color: m.criteria.noZeroGapsInSpeech ? "#16a34a" : "#dc2626" }}>
                         {(m.speechExactZeroFraction * 100).toFixed(3)}%
                     </strong>{" "}
@@ -1150,7 +1150,7 @@ export default function SoftphoneMicDiagnostics({
                                 </span>
                             </label>
                             <div style={{ fontSize: 10, color: "#475569", marginTop: 2, paddingLeft: 18 }}>
-                                LowPass: <strong>{activeLowPassHz}</strong> · HighShelf 5kHz: <strong>{profile === "raw" ? "0 dB" : "-4 dB"}</strong> · Soft Expander (2:1, 12dB): <strong>{MIC_PROFILES[profile].expander.enabled ? "ACTIVE" : "OFF"}</strong>
+                                {td("LowPass:", { source: "en" })} <strong>{activeLowPassHz}</strong> {td("· HighShelf 5kHz:", { source: "en" })} <strong>{profile === "raw" ? "0 dB" : "-4 dB"}</strong> {td("· Soft Expander (2:1, 12dB):", { source: "en" })} <strong>{MIC_PROFILES[profile].expander.enabled ? "ACTIVE" : "OFF"}</strong>
                             </div>
                         </div>
 

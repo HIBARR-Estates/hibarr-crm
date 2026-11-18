@@ -243,7 +243,7 @@ const RepeatableFieldRenderer: React.FC<RepeatableFieldRendererProps> = ({
 
     return (
         <div className="repeatable-field">
-            <div className="mb-2 font-medium">{field.label}</div>
+            <div className="mb-2 font-medium">{td(field.label, { source: "en" })}</div>
             {err && <div className="text-red-500 text-sm mb-2">{err}</div>}
             <Collapse
                 items={collapseItems}

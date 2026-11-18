@@ -257,7 +257,7 @@ export default function UnitTypePropertyView({
                             title={
                                 <span>
                                     <AppstoreOutlined className="mr-2" />
-                                    Core Details
+                                    {td("Core Details", { source: "en" })}
                                 </span>
                             }
                             variant="outlined"
@@ -366,7 +366,7 @@ export default function UnitTypePropertyView({
                             title={
                                 <span>
                                     <ColumnHeightOutlined className="mr-2" />
-                                    Specifications
+                                    {td("Specifications", { source: "en" })}
                                 </span>
                             }
                             variant="outlined"
@@ -463,7 +463,7 @@ export default function UnitTypePropertyView({
                                 title={
                                     <span>
                                         <ToolOutlined className="mr-2" />
-                                        Features
+                                        {td("Features", { source: "en" })}
                                     </span>
                                 }
                                 variant="outlined"
@@ -514,7 +514,7 @@ export default function UnitTypePropertyView({
                                 title={
                                     <span>
                                         <FileTextOutlined className="mr-2" />
-                                        Description
+                                        {td("Description", { source: "en" })}
                                     </span>
                                 }
                                 variant="outlined"
@@ -531,7 +531,7 @@ export default function UnitTypePropertyView({
                             title={
                                 <span>
                                     <BankOutlined className="mr-2" />
-                                    Developer Project
+                                    {td("Developer Project", { source: "en" })}
                                 </span>
                             }
                             variant="outlined"
@@ -635,7 +635,7 @@ export default function UnitTypePropertyView({
                                         className="text-xs text-gray-500 uppercase tracking-wide"
                                     >
                                         <DollarOutlined className="mr-1" />
-                                        Payment Plan
+                                        {td("Payment Plan", { source: "en" })}
                                     </Text>
                                     <Descriptions
                                         column={2}
@@ -783,7 +783,7 @@ export default function UnitTypePropertyView({
                             title={
                                 <span>
                                     <EnvironmentOutlined className="mr-2" />
-                                    Location
+                                    {td("Location", { source: "en" })}
                                 </span>
                             }
                             variant="outlined"
@@ -832,7 +832,7 @@ export default function UnitTypePropertyView({
                                 title={
                                     <span>
                                         <BankOutlined className="mr-2" />
-                                        Developer
+                                        {td("Developer", { source: "en" })}
                                     </span>
                                 }
                                 variant="outlined"
@@ -861,7 +861,7 @@ export default function UnitTypePropertyView({
                             title={
                                 <span>
                                     <InfoCircleOutlined className="mr-2" />
-                                    Quick Info
+                                    {td("Quick Info", { source: "en" })}
                                 </span>
                             }
                             variant="outlined"

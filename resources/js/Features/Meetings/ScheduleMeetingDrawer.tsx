@@ -427,7 +427,7 @@ export default function ScheduleMeetingDrawer({
                             onClick={handleBookAnother}
                             className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-bold rounded-xl transition-colors shadow-sm"
                         >
-                            <PlusOutlined /> Book another meeting
+                            <PlusOutlined /> {td("Book another meeting", { source: "en" })}
                         </button>
                         <button
                             onClick={handleDone}

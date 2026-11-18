@@ -74,7 +74,7 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({
         {
             key: "edit",
             icon: <Pencil size={13} />,
-            label: "Edit",
+            label: td("Edit", { source: "en" }),
             onClick: () => onEdit(developer),
         },
         {

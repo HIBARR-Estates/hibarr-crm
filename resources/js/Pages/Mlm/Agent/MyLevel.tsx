@@ -51,13 +51,13 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
 
     const historyColumns = [
         {
-            title: "Level",
+            title: td("Level", { source: "en" }),
             key: "level",
             render: (_: any, r: AgentLevelHistory) =>
                 r.level ? <LevelBadge level={r.level} /> : "—",
         },
         {
-            title: "Method",
+            title: td("Method", { source: "en" }),
             key: "method",
             render: (_: any, r: AgentLevelHistory) => (
                 <Tag color={r.system_assigned ? "blue" : "gold"}>
@@ -66,7 +66,7 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
             ),
         },
         {
-            title: "Trigger Deal",
+            title: td("Trigger Deal", { source: "en" }),
             key: "deal",
             render: (_: any, r: AgentLevelHistory) =>
                 r.trigger_deal ? (
@@ -79,7 +79,7 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
                 ),
         },
         {
-            title: "Date",
+            title: td("Date", { source: "en" }),
             dataIndex: "assigned_at",
             key: "assigned_at",
             render: (d: string) => formatCompanyDate(d, "—"),
@@ -199,12 +199,12 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
                                             <div>
                                                 <div className="mb-4 flex items-center justify-between">
                                                     <span className="text-sm text-gray-500">
-                                                        Next:{" "}
+                                                        {td("Next:", { source: "en" })}{" "}
                                                         <strong>
                                                             {
-                                                                levelData
+                                                                td(levelData
                                                                     .next_level
-                                                                    .name
+                                                                    .name, { source: "en" })
                                                             }
                                                         </strong>
                                                     </span>

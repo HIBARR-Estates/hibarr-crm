@@ -38,7 +38,7 @@ const DescriptionMediaSection: React.FC<DescriptionMediaSectionProps> = ({
         // If description already has content, confirm before replacing
         if (existingDescription?.trim()) {
             modal.confirm({
-                title: "Replace existing description?",
+                title: td("Replace existing description?", { source: "en" }),
                 content:
                     "This will replace your current description with an AI-generated one.",
                 okText: "Replace",

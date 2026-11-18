@@ -102,7 +102,7 @@ export default function LeadFollowUpTab({
 
     const columns: TableColumnsType<DealFollowup> = [
         {
-            title: "Meeting Date",
+            title: td("Meeting Date", { source: "en" }),
             dataIndex: "next_follow_up_date",
             key: "next_follow_up_date",
             width: 160,
@@ -138,26 +138,26 @@ export default function LeadFollowUpTab({
                 ),
         },
         {
-            title: "Meeting Type",
+            title: td("Meeting Type", { source: "en" }),
             dataIndex: "meeting_type",
             key: "meeting_type",
             width: 140,
             render: (_, record) =>
                 record.meeting_type?.name ? (
-                    <span>{record.meeting_type.name}</span>
+                    <span>{td(record.meeting_type.name, { source: "en" })}</span>
                 ) : (
                     <span className="text-gray-500">--</span>
                 ),
         },
         {
-            title: "Meeting Link",
+            title: td("Meeting Link", { source: "en" }),
             dataIndex: "meeting_link",
             key: "meeting_link",
             width: 150,
             render: (_, record) => renderMeetingLink(record),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             width: 120,
@@ -171,7 +171,7 @@ export default function LeadFollowUpTab({
             ),
         },
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             width: 80,
             fixed: "right" as const,
@@ -202,7 +202,7 @@ export default function LeadFollowUpTab({
                                   label: (
                                       <span>
                                           <EyeOutlined className="mr-2" />
-                                          View
+                                          {td("View", { source: "en" })}
                                       </span>
                                   ),
                                   onClick: () => handleAction("view", record),
@@ -216,7 +216,7 @@ export default function LeadFollowUpTab({
                                   label: (
                                       <span>
                                           <EditOutlined className="mr-2" />
-                                          Edit
+                                          {td("Edit", { source: "en" })}
                                       </span>
                                   ),
                                   onClick: () => handleAction("edit", record),
@@ -232,7 +232,7 @@ export default function LeadFollowUpTab({
                                   label: (
                                       <span>
                                           <DeleteOutlined className="mr-2" />
-                                          Delete
+                                          {td("Delete", { source: "en" })}
                                       </span>
                                   ),
                                   danger: true,

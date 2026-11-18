@@ -63,7 +63,7 @@ export default function LevelBadge({
                 className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: color }}
             />
-            {level.name}
+            {td(level.name, { source: "en" })}
             {showPercentage && (
                 <span className="text-gray-400 font-normal ml-1">
                     ({level.commission_percentage}%)

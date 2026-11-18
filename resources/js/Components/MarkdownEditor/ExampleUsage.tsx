@@ -41,7 +41,7 @@ const ExampleMarkdownForm = () => {
             layout="vertical"
             onFinish={handleSubmit}
             initialValues={{
-                title: "Sample Title",
+                title: td("Sample Title", { source: "en" }),
                 details: `# Sample Markdown Content
 
 This is a **bold** text and this is *italic*.

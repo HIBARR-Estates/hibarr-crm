@@ -143,14 +143,14 @@ export default function FieldPalette({
 
         out.push({
             id: "question",
-            label: "Question",
+            label: td("Question", { source: "en" }),
             context: null,
             group: "Prompts",
             make: () => row("question", `q_${Date.now()}`, "Question"),
         });
         out.push({
             id: "instruction",
-            label: "Instruction",
+            label: td("Instruction", { source: "en" }),
             context: null,
             group: "Prompts",
             make: () => row("instruction", `i_${Date.now()}`, "Instruction"),
@@ -264,7 +264,7 @@ export default function FieldPalette({
                             onClick={onAddSection}
                         >
                             <Icon name="plus" size={16} />
-                            New section
+                            {td("New section", { source: "en" })}
                         </button>
                     </>
                 )}

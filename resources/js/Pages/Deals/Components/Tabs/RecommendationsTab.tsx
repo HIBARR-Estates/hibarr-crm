@@ -303,7 +303,7 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
     // Table columns definition
     const tableColumns: TableColumnsType<PropertyRecommendation> = [
         {
-            title: "Rank",
+            title: td("Rank", { source: "en" }),
             dataIndex: "rank",
             key: "rank",
             width: 70,
@@ -312,7 +312,7 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
             ),
         },
         {
-            title: "Property",
+            title: td("Property", { source: "en" }),
             key: "property",
             width: 250,
             render: (_, record) => {
@@ -362,7 +362,7 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
             },
         },
         {
-            title: "Match",
+            title: td("Match", { source: "en" }),
             key: "match",
             width: 100,
             align: "center",
@@ -379,7 +379,7 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
             ),
         },
         {
-            title: "Location",
+            title: td("Location", { source: "en" }),
             key: "location",
             width: 150,
             render: (_, record) => (
@@ -395,7 +395,7 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
             ),
         },
         {
-            title: "Price",
+            title: td("Price", { source: "en" }),
             key: "price",
             width: 120,
             render: (_, record) => (
@@ -405,7 +405,7 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
             ),
         },
         {
-            title: "Specs",
+            title: td("Specs", { source: "en" }),
             key: "specs",
             width: 100,
             render: (_, record) => (
@@ -423,7 +423,7 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
             ),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             key: "status",
             width: 100,
             render: (_, record) =>
@@ -436,7 +436,7 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
                 ),
         },
         {
-            title: "Match Factors",
+            title: td("Match Factors", { source: "en" }),
             key: "factors",
             width: 200,
             render: (_, record) => (
@@ -473,7 +473,7 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
             ),
         },
         {
-            title: "Action",
+            title: td("Action", { source: "en" }),
             key: "action",
             width: 100,
             fixed: "right",

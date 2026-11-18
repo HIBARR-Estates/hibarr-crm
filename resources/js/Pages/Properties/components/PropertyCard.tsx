@@ -129,7 +129,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                     className="flex items-center gap-2"
                 >
                     <Eye size={13} />
-                    View
+                    {td("View", { source: "en" })}
                 </Link>
             ),
         },
@@ -141,7 +141,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                     onClick={() => onEdit?.(property)}
                 >
                     <Pencil size={13} />
-                    Edit
+                    {td("Edit", { source: "en" })}
                 </span>
             ),
         },
@@ -159,7 +159,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                 >
                     <span className="flex items-center gap-2 text-red-500">
                         <Trash2 size={13} />
-                        Delete
+                        {td("Delete", { source: "en" })}
                     </span>
                 </Popconfirm>
             ),

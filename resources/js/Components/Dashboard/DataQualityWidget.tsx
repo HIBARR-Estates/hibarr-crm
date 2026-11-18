@@ -67,7 +67,7 @@ export default function DataQualityWidget({ deals }: DataQualityWidgetProps) {
                                     size={18}
                                     className="text-orange-500"
                                 />
-                                Data Quality
+                                {td("Data Quality", { source: "en" })}
                             </h3>
                             <p className="text-sm text-gray-500">
                                 {td("Deals that need attention", { source: "en" })}
@@ -84,7 +84,7 @@ export default function DataQualityWidget({ deals }: DataQualityWidgetProps) {
                                 size="small"
                                 className="flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                             >
-                                View All
+                                {td("View All", { source: "en" })}
                                 <ArrowRight size={14} />
                             </Button>
                         </Link>

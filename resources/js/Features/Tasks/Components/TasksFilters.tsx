@@ -157,7 +157,7 @@ export const TasksFilters: React.FC<TasksFiltersProps> = ({
                                             display: "inline-block",
                                         }}
                                     />
-                                    {column.column_name}
+                                    {td(column.column_name, { source: "en" })}
                                 </Space>
                             </Option>
                         ))}
@@ -282,7 +282,7 @@ export const TasksFilters: React.FC<TasksFiltersProps> = ({
                     >
                         {categories.map((category) => (
                             <Option key={category.id} value={category.id}>
-                                {category.category_name}
+                                {td(category.category_name, { source: "en" })}
                             </Option>
                         ))}
                     </Select>

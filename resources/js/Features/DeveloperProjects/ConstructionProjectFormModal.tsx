@@ -404,7 +404,7 @@ const ConstructionProjectFormModal: React.FC<
             return;
         }
         modal.confirm({
-            title: "Save project to continue?",
+            title: td("Save project to continue?", { source: "en" }),
             content:
                 "Your project will be saved so you can upload photos and manage unit types.",
             okText: "Save & Continue",
@@ -576,7 +576,7 @@ const ConstructionProjectFormModal: React.FC<
 
                                             if (existing?.trim()) {
                                                 modal.confirm({
-                                                    title: "Replace existing description?",
+                                                    title: td("Replace existing description?", { source: "en" }),
                                                     content:
                                                         "This will replace your current description with an AI-generated one.",
                                                     okText: "Replace",

@@ -741,7 +741,7 @@ export default function EditableField({
                         rel="noopener noreferrer"
                     >
                         <FileOutlined className="mr-1" />
-                        View File
+                        {td("View File", { source: "en" })}
                     </a>
                     <Space size="small">
                         <a
@@ -987,8 +987,8 @@ export default function EditableField({
                             value={inputValue}
                             onChange={(val) => handleValueChange(val)}
                             options={[
-                                { label: "Yes", value: 1 },
-                                { label: "No", value: 0 },
+                                { label: td("Yes", { source: "en" }), value: 1 },
+                                { label: td("No", { source: "en" }), value: 0 },
                             ]}
                             className="flex-1 min-w-[80px]"
                             disabled={saving || loading}

@@ -114,7 +114,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                     title={
                         <Space>
                             <FileTextOutlined />
-                            Task Details
+                            {td("Task Details", { source: "en" })}
                         </Space>
                     }
                 >
@@ -343,7 +343,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                                                 key={category.id}
                                                 value={category.id}
                                             >
-                                                {category.category_name}
+                                                {td(category.category_name, { source: "en" })}
                                             </Option>
                                         ))}
                                     </Select>
@@ -376,7 +376,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                                                                 "inline-block",
                                                         }}
                                                     />
-                                                    {label.label_name}
+                                                    {td(label.label_name, { source: "en" })}
                                                 </Space>
                                             </Option>
                                         ))}
@@ -455,7 +455,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                                                                 "inline-block",
                                                         }}
                                                     />
-                                                    {column.column_name}
+                                                    {td(column.column_name, { source: "en" })}
                                                 </Space>
                                             </Option>
                                         ))}

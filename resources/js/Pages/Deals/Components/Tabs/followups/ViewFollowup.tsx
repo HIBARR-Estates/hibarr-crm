@@ -455,7 +455,7 @@ const ViewFollowup: React.FC<Props> = ({
                         {live && (
                             <span className="text-[11px] font-medium rounded-full px-2.5 py-1 bg-red-100 text-red-700 animate-pulse inline-flex items-center gap-0.5">
                                 <ThunderboltOutlined className="text-[10px]" />
-                                Live
+                                {td("Live", { source: "en" })}
                             </span>
                         )}
                         <span

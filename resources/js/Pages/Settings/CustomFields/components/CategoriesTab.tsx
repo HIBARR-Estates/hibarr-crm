@@ -119,7 +119,7 @@ export default function CategoriesTab({ categories, fields, onEdit, onDelete, on
                                         <Icon name="grip-vertical" size={16} />
                                     </span>
                                     <span style={{ display: "flex", alignItems: "center", fontSize: 14, fontWeight: 600, color: T.TEXT }}>
-                                        {category.name}
+                                        {td(category.name, { source: "en" })}
                                     </span>
                                     <span style={{ display: "flex", alignItems: "center" }}>
                                         <span className="dr-pill dr-pill-navy">{category.module}</span>

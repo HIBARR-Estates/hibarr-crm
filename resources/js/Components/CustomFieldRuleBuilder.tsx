@@ -367,8 +367,8 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                                     placeholder={td("Select operator", { source: "en" })}
                                     onChange={resetValue}
                                     options={[
-                                        { value: 'in', label: 'is one of' },
-                                        { value: 'not_in', label: 'is not one of' },
+                                        { value: 'in', label: td("is one of", { source: "en" }) },
+                                        { value: 'not_in', label: td("is not one of", { source: "en" }) },
                                     ]}
                                 />
                             </Form.Item>
@@ -412,17 +412,17 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                                         source === 'pipeline_stage'
                                             ? [
                                                   { value: 'equals', label: 'equals' },
-                                                  { value: 'in', label: 'is one of' },
-                                                  { value: 'not_in', label: 'is not one of' },
-                                                  { value: '>', label: 'is after (later than)' },
-                                                  { value: '<', label: 'is before (earlier than)' },
-                                                  { value: '>=', label: 'is at or after' },
-                                                  { value: '<=', label: 'is at or before' },
+                                                  { value: 'in', label: td("is one of", { source: "en" }) },
+                                                  { value: 'not_in', label: td("is not one of", { source: "en" }) },
+                                                  { value: '>', label: td("is after (later than)", { source: "en" }) },
+                                                  { value: '<', label: td("is before (earlier than)", { source: "en" }) },
+                                                  { value: '>=', label: td("is at or after", { source: "en" }) },
+                                                  { value: '<=', label: td("is at or before", { source: "en" }) },
                                               ]
                                             : [
                                                   { value: 'equals', label: 'equals' },
-                                                  { value: 'in', label: 'is one of' },
-                                                  { value: 'not_in', label: 'is not one of' },
+                                                  { value: 'in', label: td("is one of", { source: "en" }) },
+                                                  { value: 'not_in', label: td("is not one of", { source: "en" }) },
                                               ]
                                     }
                                 />

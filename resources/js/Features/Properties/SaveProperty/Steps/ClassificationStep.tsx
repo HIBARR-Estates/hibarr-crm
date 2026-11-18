@@ -49,7 +49,7 @@ export default function ClassificationStep({
                         >
                             {constructionStatuses.map((status) => (
                                 <Option key={status.name} value={status.name}>
-                                    {status.label}
+                                    {td(status.label, { source: "en" })}
                                 </Option>
                             ))}
                         </Select>
@@ -68,7 +68,7 @@ export default function ClassificationStep({
                         >
                             {occupancyTypes.map((type) => (
                                 <Option key={type.name} value={type.name}>
-                                    {type.label}
+                                    {td(type.label, { source: "en" })}
                                 </Option>
                             ))}
                         </Select>

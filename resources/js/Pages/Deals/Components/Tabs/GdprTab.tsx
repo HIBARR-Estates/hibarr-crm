@@ -14,7 +14,7 @@ export default function GdprTab({ deal, consents, gdprSetting }: Props) {
     const { td } = useTd();
     const columns = [
         {
-            title: "Purpose",
+            title: td("Purpose", { source: "en" }),
             dataIndex: "name",
             key: "name",
             width: "30%",
@@ -23,7 +23,7 @@ export default function GdprTab({ deal, consents, gdprSetting }: Props) {
             ),
         },
         {
-            title: "Description",
+            title: td("Description", { source: "en" }),
             dataIndex: "description",
             key: "description",
             width: "40%",
@@ -32,7 +32,7 @@ export default function GdprTab({ deal, consents, gdprSetting }: Props) {
             ),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             width: "15%",
@@ -46,7 +46,7 @@ export default function GdprTab({ deal, consents, gdprSetting }: Props) {
             },
         },
         {
-            title: "Date",
+            title: td("Date", { source: "en" }),
             dataIndex: "updated_at",
             key: "updated_at",
             width: "15%",

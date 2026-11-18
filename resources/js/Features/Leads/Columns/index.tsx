@@ -272,7 +272,7 @@ function LeadLifecycleStatusCell({ record }: { record: Lead }) {
                 value: status.id,
                 label: (
                     <Tag color={status.label_color} className="!mr-0">
-                        {status.label}
+                        {td(status.label, { source: "en" })}
                     </Tag>
                 ),
             }))}

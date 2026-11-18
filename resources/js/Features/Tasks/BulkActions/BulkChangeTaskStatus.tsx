@@ -109,7 +109,7 @@ const BulkChangeTaskStatus: React.FC<Props> = ({
                                             backgroundColor: column.label_color,
                                         }}
                                     />
-                                    <span>{column.column_name}</span>
+                                    <span>{td(column.column_name, { source: "en" })}</span>
                                 </div>
                             ),
                             value: column.id,
@@ -128,7 +128,7 @@ const BulkChangeTaskStatus: React.FC<Props> = ({
                                     backgroundColor: selectedColumn.label_color,
                                 }}
                             />
-                            <strong>{selectedColumn.column_name}</strong>
+                            <strong>{td(selectedColumn.column_name, { source: "en" })}</strong>
                         </div>
                     </div>
                 )}

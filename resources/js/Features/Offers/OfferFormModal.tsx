@@ -810,9 +810,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                             selectedUnitTypeIds.size === 0 && (
                                 <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
                                     <InfoCircleOutlined />
-                                    No unit types selected — the offer won't
-                                    apply to any properties until unit types are
-                                    attached.
+                                    {td("No unit types selected — the offer won't apply to any properties until unit types are attached.", { source: "en" })}
                                 </p>
                             )}
                     </div>
@@ -952,12 +950,12 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                         <Select
                             options={[
                                 {
-                                    label: "Percentage (%)",
+                                    label: td("Percentage (%)", { source: "en" }),
                                     value: "percentage",
                                 },
-                                { label: "Fixed Amount", value: "fixed" },
+                                { label: td("Fixed Amount", { source: "en" }), value: "fixed" },
                                 {
-                                    label: "Perks / Non-monetary",
+                                    label: td("Perks / Non-monetary", { source: "en" }),
                                     value: "perks",
                                 },
                             ]}

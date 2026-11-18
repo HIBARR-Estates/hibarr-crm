@@ -46,7 +46,7 @@ const Show = ({
     const tabItems = [
         {
             key: "profile",
-            label: "Profile",
+            label: td("Profile", { source: "en" }),
             children: (
                 <Card>
                     <div className="space-y-6">
@@ -102,7 +102,7 @@ const Show = ({
                                     <div className="flex flex-wrap gap-1">
                                         {agentCategories.map((cat) => (
                                             <Tag key={cat.id}>
-                                                {cat.category_name}
+                                                {td(cat.category_name, { source: "en" })}
                                             </Tag>
                                         ))}
                                     </div>
@@ -144,7 +144,7 @@ const Show = ({
                             scroll={{ x: "max-content" }}
                             columns={[
                                 {
-                                    title: "Deal Name",
+                                    title: td("Deal Name", { source: "en" }),
                                     dataIndex: "name",
                                     key: "name",
                                     render: (name: string, record: any) => (
@@ -160,19 +160,19 @@ const Show = ({
                                     ),
                                 },
                                 {
-                                    title: "Stage",
+                                    title: td("Stage", { source: "en" }),
                                     key: "stage",
                                     render: (_: any, record: any) =>
                                         record.lead_stage?.name ?? "--",
                                 },
                                 {
-                                    title: "Pipeline",
+                                    title: td("Pipeline", { source: "en" }),
                                     key: "pipeline",
                                     render: (_: any, record: any) =>
                                         record.pipeline?.name ?? "--",
                                 },
                                 {
-                                    title: "Value",
+                                    title: td("Value", { source: "en" }),
                                     dataIndex: "value",
                                     key: "value",
                                     render: (val: number) =>
@@ -181,7 +181,7 @@ const Show = ({
                                             : "--",
                                 },
                                 {
-                                    title: "Created",
+                                    title: td("Created", { source: "en" }),
                                     dataIndex: "created_at",
                                     key: "created_at",
                                     render: (date: string) =>

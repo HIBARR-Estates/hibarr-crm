@@ -273,7 +273,7 @@ const EnrollmentSubTable: React.FC<{ cycleId: number }> = ({ cycleId }) => {
 
     const columns = [
         {
-            title: "Agent",
+            title: td("Agent", { source: "en" }),
             key: "agent",
             render: (_: any, r: any) => (
                 <div>
@@ -283,51 +283,51 @@ const EnrollmentSubTable: React.FC<{ cycleId: number }> = ({ cycleId }) => {
             ),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             render: (v: string) => <EnrollmentStatusBadge status={v as any} />,
         },
         {
-            title: "Start",
+            title: td("Start", { source: "en" }),
             dataIndex: "effective_start_date",
             key: "start",
             render: (v: string) => formatCompanyDate(v, "-"),
         },
         {
-            title: "End",
+            title: td("End", { source: "en" }),
             dataIndex: "effective_end_date",
             key: "end",
             render: (v: string) => formatCompanyDate(v, "-"),
         },
         {
-            title: "Individual Sales",
+            title: td("Individual Sales", { source: "en" }),
             key: "nsa",
             align: "right" as const,
             render: (_: any, r: any) => r.metrics?.nsa ?? 0,
         },
         {
-            title: "Team Sales",
+            title: td("Team Sales", { source: "en" }),
             key: "nsd",
             align: "right" as const,
             render: (_: any, r: any) => r.metrics?.nsd ?? 0,
         },
         {
-            title: "Individual Revenue",
+            title: td("Individual Revenue", { source: "en" }),
             key: "vsa",
             align: "right" as const,
             render: (_: any, r: any) =>
                 `${currencySymbol}${(r.metrics?.vsa ?? 0).toLocaleString()}`,
         },
         {
-            title: "Team Revenue",
+            title: td("Team Revenue", { source: "en" }),
             key: "vsd",
             align: "right" as const,
             render: (_: any, r: any) =>
                 `${currencySymbol}${(r.metrics?.vsd ?? 0).toLocaleString()}`,
         },
         {
-            title: "Level",
+            title: td("Level", { source: "en" }),
             key: "level",
             render: (_: any, r: any) =>
                 r.level_achieved ? (
@@ -337,7 +337,7 @@ const EnrollmentSubTable: React.FC<{ cycleId: number }> = ({ cycleId }) => {
                 ),
         },
         {
-            title: "Overflow",
+            title: td("Overflow", { source: "en" }),
             key: "overflow",
             render: (_: any, r: any) =>
                 r.is_overflowing ? (
@@ -419,31 +419,31 @@ const CycleManagement: React.FC<Props> = () => {
             width: 60,
         },
         {
-            title: "Name",
+            title: td("Name", { source: "en" }),
             dataIndex: "name",
             key: "name",
             render: (v: string) => <span className="font-medium">{v}</span>,
         },
         {
-            title: "Start",
+            title: td("Start", { source: "en" }),
             dataIndex: "start_date",
             key: "start_date",
             render: (v: string) => formatCompanyDate(v, "-"),
         },
         {
-            title: "End",
+            title: td("End", { source: "en" }),
             dataIndex: "end_date",
             key: "end_date",
             render: (v: string) => formatCompanyDate(v, "-"),
         },
         {
-            title: "Duration",
+            title: td("Duration", { source: "en" }),
             dataIndex: "duration_days",
             key: "duration_days",
             render: (v: number) => `${v} days`,
         },
         {
-            title: "Days Left",
+            title: td("Days Left", { source: "en" }),
             dataIndex: "days_remaining",
             key: "days_remaining",
             render: (v: number, record: MlmCycle) =>
@@ -462,13 +462,13 @@ const CycleManagement: React.FC<Props> = () => {
         //     render: (v: number) => `${Number(v).toFixed(1)}×`,
         // },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             render: (v: string) => <CycleStatusBadge status={v as any} />,
         },
         {
-            title: "Enrollments",
+            title: td("Enrollments", { source: "en" }),
             dataIndex: "enrollments_count",
             key: "enrollments_count",
             align: "right" as const,

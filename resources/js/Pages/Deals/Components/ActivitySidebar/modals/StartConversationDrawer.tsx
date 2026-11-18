@@ -120,22 +120,22 @@ export default function StartConversationDrawer({
     const channelOptions = [
         {
             value: "email",
-            label: "Email",
+            label: td("Email", { source: "en" }),
             disabled: !deal.contact?.client_email,
         },
         {
             value: "whatsapp",
-            label: "WhatsApp",
+            label: td("WhatsApp", { source: "en" }),
             disabled: !deal.contact?.mobile,
         },
         {
             value: "instagram",
-            label: "Instagram",
+            label: td("Instagram", { source: "en" }),
             disabled: !deal.contact?.client_instagram,
         },
         {
             value: "telegram",
-            label: "Telegram",
+            label: td("Telegram", { source: "en" }),
             disabled: !deal.contact?.client_telegram,
         },
     ];
@@ -179,7 +179,7 @@ export default function StartConversationDrawer({
                                 value={option.value}
                                 disabled={option.disabled}
                             >
-                                {option.label}
+                                {td(option.label, { source: "en" })}
                                 {option.disabled && " (No contact info)"}
                             </Option>
                         ))}

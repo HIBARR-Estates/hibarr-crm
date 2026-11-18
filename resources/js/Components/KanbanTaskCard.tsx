@@ -226,7 +226,7 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
                     <span
                         className={`text-[12px] font-medium ${priorityInfo.textColor}`}
                     >
-                        {priorityInfo.label}
+                        {td(priorityInfo.label, { source: "en" })}
                     </span>
                 </div>
             </div>

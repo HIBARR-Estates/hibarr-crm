@@ -84,7 +84,7 @@ export default function MeetingTypeSelector({
                                     : "border-gray-300 text-gray-600 bg-white hover:border-blue-400 hover:text-blue-500"
                             }`}
                         >
-                            {type.name}
+                            {td(type.name, { source: "en" })}
                         </button>
                     );
                 })}

@@ -105,16 +105,16 @@ export default function PartnerView({
                             variant="team"
                             segments={[
                                 {
-                                    label: "Referred",
+                                    label: td("Referred", { source: "en" }),
                                     value: partnerStats.referredLeads,
                                 },
                                 {
-                                    label: "In progress",
+                                    label: td("In progress", { source: "en" }),
                                     value: partnerStats.inProgressLeads,
                                     tone: "blue",
                                 },
                                 {
-                                    label: "Completed",
+                                    label: td("Completed", { source: "en" }),
                                     value: partnerStats.convertedLeads,
                                     tone: "green",
                                 },

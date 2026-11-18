@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import type { FilterFieldConfig, FilterOption } from "@/contexts/FilterContext";
 import { fmt } from "./controls";
 import { useTranslation } from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface UtmSectionProps {
     fields: FilterFieldConfig[];
@@ -41,6 +42,7 @@ function UtmFieldCard({
     onChange: (next: any[]) => void;
     onRemove: () => void;
 }) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const [query, setQuery] = useState("");
     const options = optionsOf(field);
@@ -167,7 +169,7 @@ function UtmFieldCard({
                                     className={`lfm-pill${isOn ? " is-on" : ""}`}
                                     onClick={() => toggle(option.value)}
                                 >
-                                    {option.label}
+                                    {td(option.label, { source: "en" })}
                                     {(option as any).count != null && (
                                         <span className="lfm-pill__count">
                                             {fmt((option as any).count)}

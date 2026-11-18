@@ -2120,7 +2120,7 @@ export default function SoftphoneDock({
                                         <path d="M5.5 4h2.6a1.5 1.5 0 0 1 1.5.8l1 3a1.5 1.5 0 0 1-.4 1.6l-1.6 1.4a16 16 0 0 0 5.6 5.6l1.4-1.6a1.5 1.5 0 0 1 1.6-.4l3 1.1a1.5 1.5 0 0 1 .8 1.4v2.6A1.5 1.5 0 0 1 18.4 20 17 17 0 0 1 4 5.6 1.5 1.5 0 0 1 5.5 4z" />
                                     </svg>
                                 </span>
-                                Decline
+                                {td("Decline", { source: "en" })}
                             </button>
                             <button
                                 type="button"
@@ -2144,7 +2144,7 @@ export default function SoftphoneDock({
                                         <path d="M5.5 4h2.6a1.5 1.5 0 0 1 1.5.8l1 3a1.5 1.5 0 0 1-.4 1.6l-1.6 1.4a16 16 0 0 0 5.6 5.6l1.4-1.6a1.5 1.5 0 0 1 1.6-.4l3 1.1a1.5 1.5 0 0 1 .8 1.4v2.6A1.5 1.5 0 0 1 18.4 20 17 17 0 0 1 4 5.6 1.5 1.5 0 0 1 5.5 4z" />
                                     </svg>
                                 </span>
-                                Answer
+                                {td("Answer", { source: "en" })}
                             </button>
                         </div>
                     </div>
@@ -2257,7 +2257,7 @@ export default function SoftphoneDock({
                                         <path d="M5.5 4h2.6a1.5 1.5 0 0 1 1.5.8l1 3a1.5 1.5 0 0 1-.4 1.6l-1.6 1.4a16 16 0 0 0 5.6 5.6l1.4-1.6a1.5 1.5 0 0 1 1.6-.4l3 1.1a1.5 1.5 0 0 1 .8 1.4v2.6A1.5 1.5 0 0 1 18.4 20 17 17 0 0 1 4 5.6 1.5 1.5 0 0 1 5.5 4z" />
                                     </svg>
                                 </span>
-                                End
+                                {td("End", { source: "en" })}
                             </button>
                         </div>
 

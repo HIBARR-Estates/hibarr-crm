@@ -16,6 +16,7 @@ import { GENDER_OPTIONS } from "../../config/analysisFieldMeta";
 import ClickToCallButton from "@/Components/ClickToCallButton";
 import { leadCallPhones, type LeadCallPhone } from "@/lib/leadCallPhones";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -109,6 +110,7 @@ function ProfileCard({
     whatsapp: string;
     imageUrl?: string;
 }) {
+    const { td } = useTd();
     const dealCallEntity = { type: "deal" as const, id: dealId };
     const initials = initialsFromName(leadName);
     const [imgError, setImgError] = useState(false);
@@ -181,7 +183,7 @@ function ProfileCard({
                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
                         </svg>
-                        WhatsApp
+                        {td("WhatsApp", { source: "en" })}
                     </a>
                 )}
             </div>
@@ -215,6 +217,7 @@ export default function AnalysisLeadContextPanel({
     canEdit,
     showProfile = true,
 }: Props) {
+    const { td } = useTd();
     const { deal, notes, files, filesLoading } = useDealWorkspace();
     const contact = deal.contact as any;
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -251,13 +254,13 @@ export default function AnalysisLeadContextPanel({
 
     // Read-only relation rows — always-visible + conditional
     const alwaysReadOnlyRows: Array<{ label: string; value: string | null }> = [
-        { label: "Source", value: contact?.leadSource?.name ?? null },
-        { label: "Lead Owner", value: contact?.leadOwner?.name ?? null },
-        { label: "Status", value: contact?.lifecycleStatus?.name ?? null },
+        { label: td("Source", { source: "en" }), value: contact?.leadSource?.name ?? null },
+        { label: td("Lead Owner", { source: "en" }), value: contact?.leadOwner?.name ?? null },
+        { label: td("Status", { source: "en" }), value: contact?.lifecycleStatus?.name ?? null },
     ];
     const conditionalReadOnlyRows: Array<{ label: string; value: string | null }> = [
         {
-            label: "Category",
+            label: td("Category", { source: "en" }),
             value: (() => {
                 const multi = contact?.categories as
                     | Array<{ category_name?: string; name?: string }>
@@ -367,10 +370,10 @@ export default function AnalysisLeadContextPanel({
     // ── Tab bar ───────────────────────────────────────────────────────────
 
     const tabs: Array<{ id: Tab; label: string; count?: number }> = [
-        { id: "lead", label: "Lead Info" },
-        { id: "files", label: "Files", count: (files?.length ?? 0) + fileCustomFields.length },
-        { id: "notes", label: "Notes" },
-        ...(hasFlights ? [{ id: "flights" as Tab, label: "Flights" }] : []),
+        { id: "lead", label: td("Lead Info", { source: "en" }) },
+        { id: "files", label: td("Files", { source: "en" }), count: (files?.length ?? 0) + fileCustomFields.length },
+        { id: "notes", label: td("Notes", { source: "en" }) },
+        ...(hasFlights ? [{ id: "flights" as Tab, label: td("Flights", { source: "en" }) }] : []),
     ];
 
     // ── File upload ───────────────────────────────────────────────────────
@@ -457,19 +460,19 @@ export default function AnalysisLeadContextPanel({
                     <FieldGroup label={"Personal Info"}>
                         {/* Editable: gender, date_of_birth, age, nationality, occupation */}
                         <AnalysisCustomFieldRow
-                            field={{ id: 0, label: "Gender", type: "select", values: GENDER_OPTIONS }}
+                            field={{ id: 0, label: td("Gender", { source: "en" }), type: "select", values: GENDER_OPTIONS }}
                             value={contact?.gender?.value ?? contact?.gender ?? null}
                             canEdit={canEdit}
                             onSave={(v) => onContactFieldSave("gender", v)}
                         />
                         <AnalysisCustomFieldRow
-                            field={{ id: 1, label: "Date of Birth", type: "date", values: null }}
+                            field={{ id: 1, label: td("Date of Birth", { source: "en" }), type: "date", values: null }}
                             value={contact?.date_of_birth ?? null}
                             canEdit={canEdit}
                             onSave={(v) => onContactFieldSave("date_of_birth", v)}
                         />
                         <AnalysisCustomFieldRow
-                            field={{ id: 2, label: "Age", type: "number", values: null }}
+                            field={{ id: 2, label: td("Age", { source: "en" }), type: "number", values: null }}
                             value={contact?.age ?? null}
                             canEdit={canEdit}
                             onSave={(v) => onContactFieldSave("age", v)}
@@ -478,13 +481,13 @@ export default function AnalysisLeadContextPanel({
                             <CoreFieldRow label={"Age Range"} value={ageRange} />
                         )}
                         <AnalysisCustomFieldRow
-                            field={{ id: 3, label: "Nationality", type: "country", values: null }}
+                            field={{ id: 3, label: td("Nationality", { source: "en" }), type: "country", values: null }}
                             value={contact?.nationality ?? null}
                             canEdit={canEdit}
                             onSave={(v) => onContactFieldSave("nationality", v)}
                         />
                         <AnalysisCustomFieldRow
-                            field={{ id: 4, label: "Occupation", type: "text", values: null }}
+                            field={{ id: 4, label: td("Occupation", { source: "en" }), type: "text", values: null }}
                             value={contact?.occupation ?? null}
                             canEdit={canEdit}
                             onSave={(v) => onContactFieldSave("occupation", v)}
@@ -494,37 +497,37 @@ export default function AnalysisLeadContextPanel({
                         <CoreFieldRow label={"Languages"} value={languages.join(", ")} />
 
                         <AnalysisCustomFieldRow
-                            field={{ id: 6, label: "Company", type: "text", values: null }}
+                            field={{ id: 6, label: td("Company", { source: "en" }), type: "text", values: null }}
                             value={contact?.company_name ?? null}
                             canEdit={canEdit}
                             onSave={(v) => onContactFieldSave("company_name", v)}
                         />
                         <AnalysisCustomFieldRow
-                            field={{ id: 7, label: "Address", type: "text", values: null }}
+                            field={{ id: 7, label: td("Address", { source: "en" }), type: "text", values: null }}
                             value={contact?.address ?? null}
                             canEdit={canEdit}
                             onSave={(v) => onContactFieldSave("address", v)}
                         />
                         <AnalysisCustomFieldRow
-                            field={{ id: 8, label: "City", type: "text", values: null }}
+                            field={{ id: 8, label: td("City", { source: "en" }), type: "text", values: null }}
                             value={contact?.city ?? null}
                             canEdit={canEdit}
                             onSave={(v) => onContactFieldSave("city", v)}
                         />
                         <AnalysisCustomFieldRow
-                            field={{ id: 9, label: "State", type: "text", values: null }}
+                            field={{ id: 9, label: td("State", { source: "en" }), type: "text", values: null }}
                             value={contact?.state ?? null}
                             canEdit={canEdit}
                             onSave={(v) => onContactFieldSave("state", v)}
                         />
                         <AnalysisCustomFieldRow
-                            field={{ id: 10, label: "Country", type: "country", values: null }}
+                            field={{ id: 10, label: td("Country", { source: "en" }), type: "country", values: null }}
                             value={contact?.country ?? null}
                             canEdit={canEdit}
                             onSave={(v) => onContactFieldSave("country", v)}
                         />
                         <AnalysisCustomFieldRow
-                            field={{ id: 11, label: "Postal Code", type: "text", values: null }}
+                            field={{ id: 11, label: td("Postal Code", { source: "en" }), type: "text", values: null }}
                             value={contact?.postal_code ?? null}
                             canEdit={canEdit}
                             onSave={(v) => onContactFieldSave("postal_code", v)}
@@ -541,17 +544,17 @@ export default function AnalysisLeadContextPanel({
                         const boolField = (val: boolean | null | undefined) =>
                             val == null ? "" : val ? "Yes" : "No";
                         const rows = [
-                            { label: "UTM Source", value: m.utm_source ?? "" },
-                            { label: "UTM Medium", value: m.utm_medium ?? "" },
-                            { label: "UTM Campaign", value: m.utm_campaign ?? "" },
-                            { label: "UTM Content", value: m.utm_content ?? "" },
-                            { label: "UTM Term", value: m.utm_term ?? "" },
-                            { label: "UTM Audience", value: m.utm_audience ?? "" },
-                            { label: "Ebook", value: boolField(m.has_downloaded_the_ebook) },
-                            { label: "Facebook Group", value: boolField(m.has_joined_the_facebook_group) },
-                            { label: "WhatsApp Group", value: boolField(m.has_joined_the_whatsapp_group) },
-                            { label: "Webinar Registration", value: boolField(m.has_registered_for_the_webinar) },
-                            { label: "Webinar Attendance", value: boolField(m.has_attended_the_webinar) },
+                            { label: td("UTM Source", { source: "en" }), value: m.utm_source ?? "" },
+                            { label: td("UTM Medium", { source: "en" }), value: m.utm_medium ?? "" },
+                            { label: td("UTM Campaign", { source: "en" }), value: m.utm_campaign ?? "" },
+                            { label: td("UTM Content", { source: "en" }), value: m.utm_content ?? "" },
+                            { label: td("UTM Term", { source: "en" }), value: m.utm_term ?? "" },
+                            { label: td("UTM Audience", { source: "en" }), value: m.utm_audience ?? "" },
+                            { label: td("Ebook", { source: "en" }), value: boolField(m.has_downloaded_the_ebook) },
+                            { label: td("Facebook Group", { source: "en" }), value: boolField(m.has_joined_the_facebook_group) },
+                            { label: td("WhatsApp Group", { source: "en" }), value: boolField(m.has_joined_the_whatsapp_group) },
+                            { label: td("Webinar Registration", { source: "en" }), value: boolField(m.has_registered_for_the_webinar) },
+                            { label: td("Webinar Attendance", { source: "en" }), value: boolField(m.has_attended_the_webinar) },
                         ].filter((r) => r.value !== "");
                         if (!rows.length) return null;
                         return (
@@ -675,7 +678,7 @@ export default function AnalysisLeadContextPanel({
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="text-[10px] font-semibold uppercase tracking-widest text-dr-text-muted mb-0.5">
-                                                        {field.label}
+                                                        {td(field.label, { source: "en" })}
                                                     </div>
                                                     {val ? (
                                                         <a

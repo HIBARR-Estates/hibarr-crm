@@ -87,7 +87,7 @@ const MyCommissions: React.FC<Props> = ({
 
     const columns = [
         {
-            title: "Deal",
+            title: td("Deal", { source: "en" }),
             key: "deal",
             render: (_: any, r: MlmCommission) => (
                 <div>
@@ -104,7 +104,7 @@ const MyCommissions: React.FC<Props> = ({
             ),
         },
         {
-            title: "Source Agent",
+            title: td("Source Agent", { source: "en" }),
             key: "source",
             render: (_: any, r: MlmCommission) => (
                 <span className="text-sm">
@@ -113,7 +113,7 @@ const MyCommissions: React.FC<Props> = ({
             ),
         },
         {
-            title: "Type",
+            title: td("Type", { source: "en" }),
             dataIndex: "type",
             key: "type",
             render: (t: MlmCommissionType) => (
@@ -131,13 +131,13 @@ const MyCommissions: React.FC<Props> = ({
             ),
         },
         {
-            title: "Level",
+            title: td("Level", { source: "en" }),
             key: "level",
             render: (_: any, r: MlmCommission) =>
                 r.level ? <LevelBadge level={r.level} /> : "—",
         },
         {
-            title: "Amount",
+            title: td("Amount", { source: "en" }),
             key: "amount",
             align: "right" as const,
             render: (_: any, r: MlmCommission) => (
@@ -165,13 +165,13 @@ const MyCommissions: React.FC<Props> = ({
             ),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             render: (s: any) => <CommissionStatusBadge status={s} />,
         },
         {
-            title: "Date",
+            title: td("Date", { source: "en" }),
             dataIndex: "created_at",
             key: "created_at",
             render: (d: string) => formatCompanyDate(d, "—"),

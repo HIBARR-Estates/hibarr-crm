@@ -289,11 +289,11 @@ const StepOne: React.FC<StepOneProps> = ({
                 >
                     <Radio.Button value="client">
                         <UserOutlined className="mr-1.5" />
-                        Client
+                        {td("Client", { source: "en" })}
                     </Radio.Button>
                     <Radio.Button value="agent">
                         <ShopOutlined className="mr-1.5" />
-                        Agent
+                        {td("Agent", { source: "en" })}
                     </Radio.Button>
                 </Radio.Group>
             </div>

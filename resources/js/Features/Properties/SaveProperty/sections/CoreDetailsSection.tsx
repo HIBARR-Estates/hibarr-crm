@@ -654,7 +654,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
             >
                 {selectedDeveloperId && (
                     <p className="text-gray-500 text-sm mb-2">
-                        Under:{" "}
+                        {td("Under:", { source: "en" })}{" "}
                         <strong>
                             {
                                 developers.find(

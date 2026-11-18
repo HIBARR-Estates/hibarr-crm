@@ -78,7 +78,7 @@ const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
                                 scroll={{ x: "max-content" }}
                                 columns={[
                                     {
-                                        title: "Reference",
+                                        title: td("Reference", { source: "en" }),
                                         dataIndex: "reference_code",
                                         key: "reference_code",
                                         render: (code: string | null, record) => (
@@ -92,7 +92,7 @@ const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
                                         ),
                                     },
                                     {
-                                        title: "Beds",
+                                        title: td("Beds", { source: "en" }),
                                         dataIndex: "bedrooms",
                                         key: "bedrooms",
                                         align: "center",
@@ -100,21 +100,21 @@ const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
                                             v === 0 ? "Studio" : (v ?? "-"),
                                     },
                                     {
-                                        title: "Baths",
+                                        title: td("Baths", { source: "en" }),
                                         dataIndex: "bathrooms",
                                         key: "bathrooms",
                                         align: "center",
                                         render: (v: number | null) => v ?? "-",
                                     },
                                     {
-                                        title: "Floor",
+                                        title: td("Floor", { source: "en" }),
                                         dataIndex: "floor",
                                         key: "floor",
                                         align: "center",
                                         render: (v: string | null) => v ?? "-",
                                     },
                                     {
-                                        title: "Area (m²)",
+                                        title: td("Area (m²)", { source: "en" }),
                                         dataIndex: "total_area_sqm",
                                         key: "total_area_sqm",
                                         align: "right",
@@ -124,14 +124,14 @@ const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
                                                 : "-",
                                     },
                                     {
-                                        title: "Qty",
+                                        title: td("Qty", { source: "en" }),
                                         dataIndex: "quantity",
                                         key: "quantity",
                                         align: "center",
                                         render: (v: number | null) => v ?? "-",
                                     },
                                     {
-                                        title: "Price",
+                                        title: td("Price", { source: "en" }),
                                         dataIndex: "formatted_price",
                                         key: "formatted_price",
                                         align: "right",

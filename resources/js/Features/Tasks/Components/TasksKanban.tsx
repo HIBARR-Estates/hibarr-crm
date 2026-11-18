@@ -194,19 +194,19 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
             {
                 key: "view",
                 icon: <EyeOutlined />,
-                label: "View Details",
+                label: td("View Details", { source: "en" }),
                 onClick: () => onView(task),
             },
             canEdit && {
                 key: "edit",
                 icon: <EditOutlined />,
-                label: "Edit Task",
+                label: td("Edit Task", { source: "en" }),
                 onClick: () => onEdit(task),
             },
             {
                 key: "duplicate",
                 icon: <CopyOutlined />,
-                label: "Duplicate",
+                label: td("Duplicate", { source: "en" }),
                 onClick: () => onDuplicate(task),
             },
             ...(canDelete
@@ -217,7 +217,7 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
                       {
                           key: "delete",
                           icon: <DeleteOutlined />,
-                          label: "Delete",
+                          label: td("Delete", { source: "en" }),
                           danger: true,
                           onClick: () => onDelete(task),
                       },
@@ -290,7 +290,7 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
                         <div className="flex items-center justify-between mb-6 mt-3 px-2">
                             <div className="flex items-center gap-2.5">
                                 <h3 className="text-base font-semibold text-gray-800 m-0 tracking-tight">
-                                    {column.column_name}
+                                    {td(column.column_name, { source: "en" })}
                                 </h3>
                                 <div
                                     className="w-1.5 h-1.5 rounded-full"

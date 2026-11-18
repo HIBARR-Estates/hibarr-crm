@@ -68,7 +68,7 @@ const EditColumn: React.FC<Props> = ({ stage, onClose, open }) => {
             title={
                 <Space>
                     <EditOutlined className="text-blue-500" />
-                    Edit Stage
+                    {td("Edit Stage", { source: "en" })}
                 </Space>
             }
             open={open}
@@ -127,7 +127,7 @@ const EditColumn: React.FC<Props> = ({ stage, onClose, open }) => {
                         onChange={handleColorChange}
                         presets={[
                             {
-                                label: "Recommended",
+                                label: td("Recommended", { source: "en" }),
                                 colors: [
                                     "#1677ff", // Blue
                                     "#52c41a", // Green

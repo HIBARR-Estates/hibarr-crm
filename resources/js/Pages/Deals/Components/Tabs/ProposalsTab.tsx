@@ -139,7 +139,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
 
     const columns: TableColumnsType<Proposal> = [
         {
-            title: "Proposal Number",
+            title: td("Proposal Number", { source: "en" }),
             dataIndex: "proposal_number",
             key: "proposal_number",
             width: "20%",
@@ -163,7 +163,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
             ),
         },
         {
-            title: "Total",
+            title: td("Total", { source: "en" }),
             dataIndex: "total",
             key: "total",
             width: "15%",
@@ -175,7 +175,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
             ),
         },
         {
-            title: "Date",
+            title: td("Date", { source: "en" }),
             dataIndex: "created_at",
             key: "created_at",
             width: "12%",
@@ -186,7 +186,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
             ),
         },
         {
-            title: "Valid Till",
+            title: td("Valid Till", { source: "en" }),
             dataIndex: "valid_till",
             key: "valid_till",
             width: "12%",
@@ -197,7 +197,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
             ),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             width: "15%",
@@ -238,7 +238,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
             ),
         },
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             width: "26%",
             render: (_, record: Proposal) => {
@@ -255,7 +255,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                                 rel="noopener noreferrer"
                             >
                                 <EyeOutlined className="mr-2" />
-                                View
+                                {td("View", { source: "en" })}
                             </a>
                         ),
                     });
@@ -274,7 +274,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                                 rel="noopener noreferrer"
                             >
                                 <LinkOutlined className="mr-2" />
-                                Public Link
+                                {td("Public Link", { source: "en" })}
                             </a>
                         ),
                     });
@@ -286,7 +286,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                     label: (
                         <a href={route("proposals.download", record.id)}>
                             <DownloadOutlined className="mr-2" />
-                            Download
+                            {td("Download", { source: "en" })}
                         </a>
                     ),
                 });
@@ -315,7 +315,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                         label: (
                             <span onClick={() => handleSendProposal(record)}>
                                 <SendOutlined className="mr-2" />
-                                Send
+                                {td("Send", { source: "en" })}
                             </span>
                         ),
                     });
@@ -328,7 +328,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                         label: (
                             <span onClick={() => handleMarkSent(record)}>
                                 <CheckOutlined className="mr-2" />
-                                Mark Sent
+                                {td("Mark Sent", { source: "en" })}
                             </span>
                         ),
                     });
@@ -351,7 +351,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                                 rel="noopener noreferrer"
                             >
                                 <DollarOutlined className="mr-2" />
-                                Create Invoice
+                                {td("Create Invoice", { source: "en" })}
                             </a>
                         ),
                     });

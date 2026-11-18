@@ -105,8 +105,7 @@ export default function LocationStep({
         <Card size="small" className="border-0 shadow-none">
             <Text type="secondary" className="block mb-4">
                 <EnvironmentOutlined className="mr-2" />
-                Specify the property's location details including city, area,
-                and address.
+                {td("Specify the property's location details including city, area, and address.", { source: "en" })}
             </Text>
 
             <Row gutter={[16, 0]}>
@@ -221,7 +220,7 @@ export default function LocationStep({
                 <Col span={24}>
                     <Divider className="my-2">
                         <GlobalOutlined className="mr-2" />
-                        GPS Coordinates (Optional)
+                        {td("GPS Coordinates (Optional)", { source: "en" })}
                     </Divider>
                 </Col>
 

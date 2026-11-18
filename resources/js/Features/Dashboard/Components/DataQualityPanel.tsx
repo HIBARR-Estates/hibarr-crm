@@ -294,7 +294,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                                 <div>
                                     <div className="text-xs font-medium text-red-600 mb-2 flex items-center">
                                         <WarningOutlined className="mr-1" />
-                                        Missing Required Fields:
+                                        {td("Missing Required Fields:", { source: "en" })}
                                     </div>
                                     <div className="flex flex-wrap gap-1">
                                         {record.missing_fields.map(
@@ -415,7 +415,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                         <div className="flex items-center gap-x-4">
                             <div className="text-sm font-normal">
                                 <span className="text-gray-600">
-                                    Average Score:{" "}
+                                    {td("Average Score:", { source: "en" })}{" "}
                                 </span>
                                 <span
                                     className={`font-bold ${

@@ -131,7 +131,7 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
             title={
                 <span className="flex items-center gap-2">
                     <RobotOutlined className="text-purple-500" />
-                    AI Insight Engine
+                    {td("AI Insight Engine", { source: "en" })}
                 </span>
             }
             className="border border-gray-200"

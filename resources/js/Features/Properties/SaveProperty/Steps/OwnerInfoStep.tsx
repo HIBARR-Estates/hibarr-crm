@@ -39,8 +39,7 @@ export default function OwnerInfoStep({
 
             <Text type="secondary" className="block mb-4">
                 <UserOutlined className="mr-2" />
-                Enter the property owner's contact information for internal
-                reference.
+                {td("Enter the property owner's contact information for internal reference.", { source: "en" })}
             </Text>
 
             <Row gutter={[16, 0]}>
@@ -50,7 +49,7 @@ export default function OwnerInfoStep({
                         label={
                             <span>
                                 <UserOutlined className="mr-2" />
-                                Owner Name
+                                {td("Owner Name", { source: "en" })}
                             </span>
                         }
                     >
@@ -64,7 +63,7 @@ export default function OwnerInfoStep({
                         label={
                             <span>
                                 <PhoneOutlined className="mr-2" />
-                                Phone Number
+                                {td("Phone Number", { source: "en" })}
                             </span>
                         }
                     >
@@ -78,7 +77,7 @@ export default function OwnerInfoStep({
                         label={
                             <span>
                                 <MailOutlined className="mr-2" />
-                                Email Address
+                                {td("Email Address", { source: "en" })}
                             </span>
                         }
                         rules={[
@@ -123,7 +122,7 @@ export default function OwnerInfoStep({
                         label={
                             <span>
                                 <FileTextOutlined className="mr-2" />
-                                Internal Notes
+                                {td("Internal Notes", { source: "en" })}
                             </span>
                         }
                     >

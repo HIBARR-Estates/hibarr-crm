@@ -52,20 +52,20 @@ const CycleMetricsDisplay: React.FC<Props> = ({
 
     const items = [
         {
-            title: "Individual Sales",
+            title: td("Individual Sales", { source: "en" }),
             value: metrics?.nsa ?? 0,
         },
         {
-            title: "Team Sales",
+            title: td("Team Sales", { source: "en" }),
             value: metrics?.nsd ?? 0,
         },
         {
-            title: "Individual Revenue",
+            title: td("Individual Revenue", { source: "en" }),
             value: metrics?.vsa ?? 0,
             prefix: currencySymbol,
         },
         {
-            title: "Team Revenue",
+            title: td("Team Revenue", { source: "en" }),
             value: metrics?.vsd ?? 0,
             prefix: currencySymbol,
         },

@@ -90,7 +90,7 @@ And here's a [link](https://example.com) and more content to test truncation...`
                                             type="secondary"
                                             className="text-sm"
                                         >
-                                            Detected as:{" "}
+                                            {td("Detected as:", { source: "en" })}{" "}
                                             <strong>{detectedType}</strong>
                                         </Text>
                                     </Space>

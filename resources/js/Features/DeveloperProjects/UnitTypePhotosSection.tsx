@@ -386,7 +386,7 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
             if (!projectId || !unitTypeId) return;
 
             deleteModal.confirm({
-                title: "Delete Photo",
+                title: td("Delete Photo", { source: "en" }),
                 content: `Delete "${asset.name}"? This cannot be undone.`,
                 okText: "Delete",
                 okType: "danger",

@@ -92,7 +92,7 @@ export default function TaskLabelSelector({
                                     display: "inline-block",
                                 }}
                             />
-                            {label.label_name}
+                            {td(label.label_name, { source: "en" })}
                         </Space>
                     </Select.Option>
                 ))}

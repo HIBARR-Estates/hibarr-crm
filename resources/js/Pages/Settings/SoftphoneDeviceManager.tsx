@@ -637,7 +637,7 @@ export default function SoftphoneDeviceManager() {
                     </option>
                     {providerOptions.map((option) => (
                         <option key={option.value} value={option.value}>
-                            {option.label}
+                            {td(option.label, { source: "en" })}
                         </option>
                     ))}
                 </select>

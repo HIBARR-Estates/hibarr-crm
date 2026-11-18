@@ -60,7 +60,7 @@ export default function EditProposal({
             triggerElement = (
                 <span onClick={handleOpenModal} style={{ cursor: "pointer" }}>
                     <EditOutlined className="mr-2" />
-                    Edit
+                    {td("Edit", { source: "en" })}
                 </span>
             );
             break;

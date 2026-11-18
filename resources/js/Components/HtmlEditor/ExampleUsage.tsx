@@ -35,7 +35,7 @@ const ExampleForm = () => {
       layout="vertical"
       onFinish={handleSubmit}
       initialValues={{
-        title: 'Sample Title',
+        title: td("Sample Title", { source: "en" }),
         details: '<p>Sample HTML content</p>',
       }}
     >

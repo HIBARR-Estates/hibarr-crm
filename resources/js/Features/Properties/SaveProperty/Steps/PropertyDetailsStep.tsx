@@ -57,7 +57,7 @@ export default function PropertyDetailsStep({
             {/* Room Configuration */}
             <Text type="secondary" className="block mb-4">
                 <HomeOutlined className="mr-2" />
-                Specify the property's room configuration and physical details.
+                {td("Specify the property's room configuration and physical details.", { source: "en" })}
             </Text>
 
             <Row gutter={[16, 0]}>

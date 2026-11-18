@@ -153,7 +153,7 @@ const DealForm: React.FC<DealFormProps> = ({
     const tabItems: TabsProps["items"] = [
         {
             key: "deal",
-            label: "Deal Details",
+            label: td("Deal Details", { source: "en" }),
             children: (
                 <DealDetailsTab
                     disableFields={disableFields}

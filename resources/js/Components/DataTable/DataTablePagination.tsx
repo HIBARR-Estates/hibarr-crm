@@ -59,7 +59,7 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
             {/* Left — result range + optional rows-per-page selector */}
             <div className="flex items-center gap-3 text-sm" style={{ color: T.TEXT_MUTED }}>
                 <span aria-live="polite" aria-atomic="true">
-                    Showing{" "}
+                    {td("Showing", { source: "en" })}{" "}
                     <span className="font-semibold" style={{ color: T.TEXT }}>{displayFrom}</span>
                     {"–"}
                     <span className="font-semibold" style={{ color: T.TEXT }}>{displayTo}</span>
@@ -106,7 +106,7 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
                     aria-live="polite"
                     aria-atomic="true"
                 >
-                    Page{" "}
+                    {td("Page", { source: "en" })}{" "}
                     <span className="font-semibold" style={{ color: T.TEXT }}>{current_page}</span>
                     {" of "}
                     <span className="font-semibold" style={{ color: T.TEXT }}>{last_page}</span>

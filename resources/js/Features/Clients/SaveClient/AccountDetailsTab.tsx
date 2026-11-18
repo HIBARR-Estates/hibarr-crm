@@ -226,9 +226,9 @@ const AccountDetailsTab: React.FC<Props> = ({
                     <Form.Item name="gender" label={td("Gender", { source: "en" })}>
                         <Select
                             options={[
-                                { value: "male", label: "Male" },
-                                { value: "female", label: "Female" },
-                                { value: "others", label: "Others" },
+                                { value: "male", label: td("Male", { source: "en" }) },
+                                { value: "female", label: td("Female", { source: "en" }) },
+                                { value: "others", label: td("Others", { source: "en" }) },
                             ]}
                         />
                     </Form.Item>

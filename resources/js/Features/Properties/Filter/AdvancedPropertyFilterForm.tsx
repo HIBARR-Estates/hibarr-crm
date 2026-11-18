@@ -317,7 +317,7 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                                         key={status.name}
                                         value={status.name}
                                     >
-                                        {status.label}
+                                        {td(status.label, { source: "en" })}
                                     </Select.Option>
                                 ),
                             )}

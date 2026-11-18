@@ -132,7 +132,7 @@ const Show = ({
     // Table columns for projects
     const columns: TableColumnsType<DeveloperProject> = [
         {
-            title: "Project Name",
+            title: td("Project Name", { source: "en" }),
             dataIndex: "name",
             key: "name",
             render: (name: string, record) => (
@@ -153,7 +153,7 @@ const Show = ({
             ),
         },
         {
-            title: "Location",
+            title: td("Location", { source: "en" }),
             dataIndex: "location",
             key: "location",
             render: (location: ProjectLocation | undefined) =>
@@ -167,14 +167,14 @@ const Show = ({
                 ),
         },
         {
-            title: "Properties",
+            title: td("Properties", { source: "en" }),
             dataIndex: "properties_count",
             key: "properties_count",
             align: "center",
             render: (count: number) => <Tag color="blue">{count || 0}</Tag>,
         },
         {
-            title: "Links",
+            title: td("Links", { source: "en" }),
             key: "links",
             render: (_, record) => (
                 <Space size="small" wrap>
@@ -211,7 +211,7 @@ const Show = ({
             ),
         },
         {
-            title: "Expose",
+            title: td("Expose", { source: "en" }),
             dataIndex: "expose_config",
             key: "expose_config",
             align: "center",
@@ -236,7 +236,7 @@ const Show = ({
                 ),
         },
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             align: "center",
             width: 80,
@@ -245,7 +245,7 @@ const Show = ({
                     {
                         key: "edit",
                         icon: <EditOutlined />,
-                        label: "Edit Project",
+                        label: td("Edit Project", { source: "en" }),
                         onClick: () => setEditProject(record),
                     },
                     {
@@ -348,7 +348,7 @@ const Show = ({
                                             rel="noopener noreferrer"
                                             className="text-green-600 hover:text-green-800 flex items-center gap-1"
                                         >
-                                            <WhatsAppOutlined /> WhatsApp Group
+                                            <WhatsAppOutlined /> {td("WhatsApp Group", { source: "en" })}
                                         </a>
                                         <Button
                                             type="text"
@@ -373,7 +373,7 @@ const Show = ({
                                             rel="noopener noreferrer"
                                             className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
                                         >
-                                            <FolderOpenOutlined /> Google Drive
+                                            <FolderOpenOutlined /> {td("Google Drive", { source: "en" })}
                                         </a>
                                         <Button
                                             type="text"
@@ -487,7 +487,7 @@ const Show = ({
                             size="small"
                             columns={[
                                 {
-                                    title: "Name",
+                                    title: td("Name", { source: "en" }),
                                     dataIndex: "name",
                                     key: "name",
                                     render: (name: string, record: Offer) => (
@@ -501,7 +501,7 @@ const Show = ({
                                     ),
                                 },
                                 {
-                                    title: "Type",
+                                    title: td("Type", { source: "en" }),
                                     dataIndex: "type",
                                     key: "type",
                                     width: 100,
@@ -520,7 +520,7 @@ const Show = ({
                                     ),
                                 },
                                 {
-                                    title: "Value",
+                                    title: td("Value", { source: "en" }),
                                     key: "value",
                                     width: 100,
                                     render: (_: any, record: Offer) =>
@@ -531,7 +531,7 @@ const Show = ({
                                               ).toLocaleString("en-GB"),
                                 },
                                 {
-                                    title: "Status",
+                                    title: td("Status", { source: "en" }),
                                     dataIndex: "is_active",
                                     key: "status",
                                     width: 90,
@@ -544,7 +544,7 @@ const Show = ({
                                     ),
                                 },
                                 {
-                                    title: "Projects",
+                                    title: td("Projects", { source: "en" }),
                                     dataIndex: "developer_projects_count",
                                     key: "projects",
                                     width: 80,
@@ -552,7 +552,7 @@ const Show = ({
                                     render: (v: number) => v ?? 0,
                                 },
                                 {
-                                    title: "Actions",
+                                    title: td("Actions", { source: "en" }),
                                     key: "actions",
                                     width: 80,
                                     align: "center" as const,

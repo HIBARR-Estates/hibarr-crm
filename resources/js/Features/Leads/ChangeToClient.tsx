@@ -511,17 +511,17 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
     const tabItems = [
         {
             key: "account",
-            label: "Account Details",
+            label: td("Account Details", { source: "en" }),
             children: accountTab,
         },
         {
             key: "company",
-            label: "Company Details",
+            label: td("Company Details", { source: "en" }),
             children: companyTab,
         },
         {
             key: "notes",
-            label: "Notes",
+            label: td("Notes", { source: "en" }),
             children: noteTab,
         },
         // Add custom field category tabs

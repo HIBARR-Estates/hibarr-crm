@@ -3,6 +3,7 @@ import { Lead } from "@/Types/api/leads";
 import { Tag } from "antd";
 import { MailOutlined, PhoneOutlined, UserOutlined } from "@ant-design/icons";
 import { formatMobileForDisplay } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface LeadQualificationHeaderProps {
     lead: Lead;
@@ -11,6 +12,7 @@ interface LeadQualificationHeaderProps {
 const LeadQualificationHeader: React.FC<LeadQualificationHeaderProps> = ({
     lead,
 }) => {
+    const { td } = useTd();
     const mobile = formatMobileForDisplay(lead.mobile);
 
     return (
@@ -42,7 +44,7 @@ const LeadQualificationHeader: React.FC<LeadQualificationHeaderProps> = ({
                     )}
                     {lead.lead_lifecycle_status && (
                         <Tag color={lead.lead_lifecycle_status.label_color}>
-                            {lead.lead_lifecycle_status.label}
+                            {td(lead.lead_lifecycle_status.label, { source: "en" })}
                         </Tag>
                     )}
                     {(lead.lead_source?.type ?? lead.leadSource?.type) && (

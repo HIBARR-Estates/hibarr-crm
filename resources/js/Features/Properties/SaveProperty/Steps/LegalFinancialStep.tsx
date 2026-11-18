@@ -79,7 +79,7 @@ export default function LegalFinancialStep({
             {/* Legal Information */}
             <Text type="secondary" className="block mb-4">
                 <FileTextOutlined className="mr-2" />
-                Legal documentation and title deed information.
+                {td("Legal documentation and title deed information.", { source: "en" })}
             </Text>
 
             <Row gutter={[16, 0]}>
@@ -196,7 +196,7 @@ export default function LegalFinancialStep({
 
             <Divider className="my-4">
                 <DollarOutlined className="mr-2" />
-                Financial Information
+                {td("Financial Information", { source: "en" })}
             </Divider>
 
             <Row gutter={[16, 0]}>

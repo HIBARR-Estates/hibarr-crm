@@ -502,7 +502,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                         key={pipeline.id}
                                         value={pipeline.id}
                                     >
-                                        {pipeline.name}
+                                        {td(pipeline.name, { source: "en" })}
                                     </Select.Option>
                                 ))}
                             </Select>
@@ -553,7 +553,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                                         stage.label_color,
                                                 }}
                                             ></span>
-                                            {stage.name}
+                                            {td(stage.name, { source: "en" })}
                                         </Select.Option>
                                     ))}
                             </Select>
@@ -576,10 +576,10 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 placeholder={td("Select value source", { source: "en" })}
                                 disabled={disableFields.includes("deal_value")}
                                 options={[
-                                    { value: "manual", label: "Manual" },
+                                    { value: "manual", label: td("Manual", { source: "en" }) },
                                     {
                                         value: "calculated",
-                                        label: "Calculated",
+                                        label: td("Calculated", { source: "en" }),
                                     },
                                 ]}
                             />
@@ -671,7 +671,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                         key={category.id}
                                         value={category.id}
                                     >
-                                        {category.category_name}
+                                        {td(category.category_name, { source: "en" })}
                                     </Select.Option>
                                 ))}
                             </Select>
@@ -750,7 +750,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                         key={product.id}
                                         value={product.id}
                                     >
-                                        {product.name}
+                                        {td(product.name, { source: "en" })}
                                     </Select.Option>
                                 ))}
                             </Select>

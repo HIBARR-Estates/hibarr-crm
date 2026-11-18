@@ -104,9 +104,9 @@ const BulkApplyTagsToAssets: React.FC<Props> = ({
                     <Select
                         placeholder={td("Choose action", { source: "en" })}
                         options={[
-                            { value: "add", label: "Add Tags" },
-                            { value: "replace", label: "Replace Tags" },
-                            { value: "remove", label: "Remove Tags" },
+                            { value: "add", label: td("Add Tags", { source: "en" }) },
+                            { value: "replace", label: td("Replace Tags", { source: "en" }) },
+                            { value: "remove", label: td("Remove Tags", { source: "en" }) },
                         ]}
                     />
                 </Form.Item>

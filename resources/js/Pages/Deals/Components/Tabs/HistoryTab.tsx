@@ -36,7 +36,7 @@ export default function HistoryTab({ deal, histories }: Props) {
 
     const columns = [
         {
-            title: "Activity",
+            title: td("Activity", { source: "en" }),
             dataIndex: "event_type",
             key: "event_type",
             width: "50%",
@@ -47,7 +47,7 @@ export default function HistoryTab({ deal, histories }: Props) {
             ),
         },
         {
-            title: "User",
+            title: td("User", { source: "en" }),
             dataIndex: "added_by",
             key: "added_by",
             width: "25%",
@@ -62,7 +62,7 @@ export default function HistoryTab({ deal, histories }: Props) {
             ),
         },
         {
-            title: "Date & Time",
+            title: td("Date & Time", { source: "en" }),
             dataIndex: "created_at",
             key: "created_at",
             width: "25%",

@@ -20,12 +20,12 @@ const SupportWidget: React.FC<SupportWidgetProps> = ({ collapsed = false }) => {
                 split={false}
                 dataSource={[
                     {
-                        title: "Report Bugs",
+                        title: td("Report Bugs", { source: "en" }),
                         icon: <BugOutlined />,
                         url: "https://hibarr-dev.atlassian.net/jira/software/form/04cb685a-c280-4a27-a1d4-b708de106630?from=directory",
                     },
                     {
-                        title: "Request Features",
+                        title: td("Request Features", { source: "en" }),
                         icon: <BulbOutlined />,
                         url: "https://hibarr-dev.atlassian.net/jira/software/form/474174e9-559d-46bb-a504-d7df04eef2af?from=directory",
                     },

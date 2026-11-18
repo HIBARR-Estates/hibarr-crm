@@ -172,7 +172,7 @@ export default function PropertyCategoryForm({
             return;
         }
         modal.confirm({
-            title: "Save project to continue?",
+            title: td("Save project to continue?", { source: "en" }),
             content:
                 "Your project will be saved so you can upload photos and manage unit types.",
             okText: "Save & Continue",
@@ -360,10 +360,10 @@ export default function PropertyCategoryForm({
 
     // ─── Single currency picker state ───
     const CURRENCY_OPTIONS = [
-        { value: "GBP", label: "£ GBP" },
-        { value: "TRY", label: "₺ TRY" },
-        { value: "USD", label: "$ USD" },
-        { value: "EUR", label: "€ EUR" },
+        { value: "GBP", label: td("£ GBP", { source: "en" }) },
+        { value: "TRY", label: td("₺ TRY", { source: "en" }) },
+        { value: "USD", label: td("$ USD", { source: "en" }) },
+        { value: "EUR", label: td("€ EUR", { source: "en" }) },
     ];
     const [selectedCurrency, setSelectedCurrency] = useState<string>(
         (props as any).default_currency_code || "GBP",
@@ -418,7 +418,7 @@ export default function PropertyCategoryForm({
         }
 
         modal.confirm({
-            title: "Save property to upload photos?",
+            title: td("Save property to upload photos?", { source: "en" }),
             content:
                 "Your current form data will be saved as a draft so you can start uploading photos.",
             okText: "Save & Continue",
@@ -705,7 +705,7 @@ export default function PropertyCategoryForm({
 
                                                         if (existing?.trim()) {
                                                             modal.confirm({
-                                                                title: "Replace existing description?",
+                                                                title: td("Replace existing description?", { source: "en" }),
                                                                 content:
                                                                     "This will replace your current description with an AI-generated one.",
                                                                 okText: "Replace",

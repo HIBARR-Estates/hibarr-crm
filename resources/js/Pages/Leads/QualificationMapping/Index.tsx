@@ -725,7 +725,7 @@ function OptionMapModal({
                     }}
                 >
                     <span>{td("Script option", { source: "en" })}</span>
-                    <span>{field?.label ?? td("Lead field", { source: "en" })}</span>
+                    <span>{td(field?.label ?? td("Lead field", { source: "en" }), { source: "en" })}</span>
                 </div>
 
                 {(segment.options ?? []).map((option) => (

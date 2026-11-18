@@ -703,7 +703,7 @@ const Index = ({
                                 className="dr-btn dr-btn-ghost"
                             >
                                 <MapPin size={14} />
-                                Manage Locations
+                                {td("Manage Locations", { source: "en" })}
                             </Link>
 
                             <Link
@@ -711,7 +711,7 @@ const Index = ({
                                 className="dr-btn dr-btn-ghost"
                             >
                                 <Users size={14} />
-                                Developers
+                                {td("Developers", { source: "en" })}
                             </Link>
 
                             <Link
@@ -719,7 +719,7 @@ const Index = ({
                                 className="dr-btn dr-btn-ghost"
                             >
                                 <FileText size={14} />
-                                Expose Configuration
+                                {td("Expose Configuration", { source: "en" })}
                             </Link>
                         </>
                     }
@@ -867,7 +867,7 @@ const Index = ({
                                             className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors ml-1"
                                         >
                                             <X size={12} />
-                                            Clear filters
+                                            {td("Clear filters", { source: "en" })}
                                         </button>
                                     )}
                                 </>

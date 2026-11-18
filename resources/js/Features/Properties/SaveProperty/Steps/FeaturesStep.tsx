@@ -170,7 +170,7 @@ export default function FeaturesStep({
                                 label={
                                     <span>
                                         <HomeOutlined className="mr-2" />
-                                        Interior Features
+                                        {td("Interior Features", { source: "en" })}
                                     </span>
                                 }
                             >

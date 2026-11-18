@@ -1,6 +1,7 @@
 import DateBlock from "@/Components/Redesign/primitives/DateBlock";
 import { getMeetingStatusDisplay } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
 import type { LeadMeetingPreview } from "../../../adapters/meetingAdapter";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface MeetingCardProps {
     meeting: LeadMeetingPreview;
@@ -8,6 +9,7 @@ interface MeetingCardProps {
 }
 
 export default function MeetingCard({ meeting, onClick }: MeetingCardProps) {
+    const { td } = useTd();
     const status = getMeetingStatusDisplay({
         isPast: meeting.isPast,
         isLive: meeting.isLive,
@@ -33,7 +35,7 @@ export default function MeetingCard({ meeting, onClick }: MeetingCardProps) {
                     <span
                         className={`v2-pill ${status.tone.replace("dr-", "v2-")}`}
                     >
-                        {status.label}
+                        {td(status.label, { source: "en" })}
                     </span>
                 </div>
                 <div className="text-[11px] text-dr-text-hint">

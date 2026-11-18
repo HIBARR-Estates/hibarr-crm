@@ -424,11 +424,11 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                 >
                     <Radio.Button value="client">
                         <UserOutlined className="mr-1.5" />
-                        Client
+                        {td("Client", { source: "en" })}
                     </Radio.Button>
                     <Radio.Button value="agent">
                         <ShopOutlined className="mr-1.5" />
-                        Agent
+                        {td("Agent", { source: "en" })}
                     </Radio.Button>
                 </Radio.Group>
             </div>
@@ -506,7 +506,7 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
     const renderPropertySelectStep = () => {
         const columns: TableColumnsType<Property> = [
             {
-                title: "Property",
+                title: td("Property", { source: "en" }),
                 dataIndex: "title",
                 key: "title",
                 render: (title: string, record) =>
@@ -515,21 +515,21 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                     `Property #${record.id}`,
             },
             {
-                title: "Beds",
+                title: td("Beds", { source: "en" }),
                 dataIndex: "bedrooms",
                 key: "bedrooms",
                 align: "center",
                 width: 80,
             },
             {
-                title: "Baths",
+                title: td("Baths", { source: "en" }),
                 dataIndex: "bathrooms",
                 key: "bathrooms",
                 align: "center",
                 width: 80,
             },
             {
-                title: "Price",
+                title: td("Price", { source: "en" }),
                 dataIndex: "price",
                 key: "price",
                 render: (price: number | null, record) =>
@@ -537,7 +537,7 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                 width: 120,
             },
             {
-                title: "Status",
+                title: td("Status", { source: "en" }),
                 dataIndex: "status",
                 key: "status",
                 width: 100,
@@ -574,7 +574,7 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                     className="mb-4"
                     message={
                         <span>
-                            Generating expose for{" "}
+                            {td("Generating expose for", { source: "en" })}{" "}
                             <strong>{selectedLead?.client_name}</strong> with{" "}
                             <strong>{priceListItem.type}</strong> properties
                         </span>

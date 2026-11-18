@@ -72,7 +72,7 @@ export default function BulkActionConfirm({
             }
         >
             <p className="text-sm" style={{ color: T.TEXT }}>
-                This will change{" "}
+                {td("This will change", { source: "en" })}{" "}
                 <strong>
                     {fmt(count)} {entityLabel}
                 </strong>

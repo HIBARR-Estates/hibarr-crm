@@ -81,7 +81,7 @@ export default function TaskCategorySelector({
             >
                 {categories.map((category) => (
                     <Select.Option key={category.id} value={category.id}>
-                        {category.category_name}
+                        {td(category.category_name, { source: "en" })}
                     </Select.Option>
                 ))}
             </Select>

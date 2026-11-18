@@ -334,13 +334,13 @@ export default function LogActionModal({
                 >
                     <Select
                         options={[
-                            { label: "Completed", value: "completed" },
+                            { label: td("Completed", { source: "en" }), value: "completed" },
                             {
-                                label: "Error Occurred",
+                                label: td("Error Occurred", { source: "en" }),
                                 value: "error_occurred",
                             },
-                            { label: "Missed", value: "missed" },
-                            { label: "Rejected", value: "rejected" },
+                            { label: td("Missed", { source: "en" }), value: "missed" },
+                            { label: td("Rejected", { source: "en" }), value: "rejected" },
                         ]}
                     />
                 </Form.Item>
@@ -354,8 +354,8 @@ export default function LogActionModal({
                         placeholder={td("None", { source: "en" })}
                         allowClear
                         options={[
-                            { label: "Inbound", value: "inbound" },
-                            { label: "Outbound", value: "outbound" },
+                            { label: td("Inbound", { source: "en" }), value: "inbound" },
+                            { label: td("Outbound", { source: "en" }), value: "outbound" },
                         ]}
                     />
                 </Form.Item>

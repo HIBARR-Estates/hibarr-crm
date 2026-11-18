@@ -41,7 +41,7 @@ export default function CalendarSyncStatus({
         return (
             <span className="inline-flex items-center gap-2 text-[12px] font-medium rounded-full px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100">
                 <CheckCircleOutlined />
-                Synced
+                {td("Synced", { source: "en" })}
             </span>
         );
     }

@@ -85,12 +85,12 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
 
     const unitTypeColumns: TableColumnsType<UnitTypeWithPivot> = [
         {
-            title: "Unit Type",
+            title: td("Unit Type", { source: "en" }),
             key: "label",
             render: (_, record) => generatePropertySubtitle(record) || "N/A",
         },
         {
-            title: "Beds",
+            title: td("Beds", { source: "en" }),
             dataIndex: "bedrooms",
             key: "bedrooms",
             width: 60,
@@ -98,7 +98,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
             render: (v: number | null) => v ?? "—",
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             key: "status",
             width: 100,
             align: "center",
@@ -227,7 +227,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                         <div>
                             <Text strong className="block mb-2">
                                 <LinkOutlined className="mr-1" />
-                                Links
+                                {td("Links", { source: "en" })}
                             </Text>
                             <ul className="list-none p-0 m-0 space-y-1">
                                 {offer.links.map((link, i) => (

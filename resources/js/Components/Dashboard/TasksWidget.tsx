@@ -85,7 +85,7 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                                 size="small"
                                 className="flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                             >
-                                View All
+                                {td("View All", { source: "en" })}
                                 <ArrowRight size={14} />
                             </Button>
                         </Link>

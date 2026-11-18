@@ -122,6 +122,7 @@ export default function PageLayout({
     isRefreshing = false,
 }: PageLayoutProps) {
     // Generate breadcrumb items
+    const { td } = useTd();
     const breadcrumbItems = [
         {
             title: (
@@ -130,7 +131,7 @@ export default function PageLayout({
                     className="text-gray-500 hover:text-blue-600"
                 >
                     <HomeOutlined className="mr-1" />
-                    Home
+                    {td("Home", { source: "en" })}
                 </Link>
             ),
         },
@@ -150,7 +151,6 @@ export default function PageLayout({
 
     const { message } = App.useApp();
     const { t } = useTranslation();
-    const { td } = useTd();
     const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const { openMobileSidebar } = useMobileSidebar();
     const { props } = usePage<PageProps>();

@@ -304,7 +304,7 @@ export default function AnalysisCustomFieldRow({
                             : undefined
                     }
                 >
-                    <span className={LABEL_CLS}>{field.label}</span>
+                    <span className={LABEL_CLS}>{td(field.label, { source: "en" })}</span>
                     <span
                         className={`flex-1 text-sm min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${
                             isEmpty ? "text-dr-text-hint" : "text-dr-text font-medium"
@@ -358,7 +358,7 @@ export default function AnalysisCustomFieldRow({
                                 : LABEL_CLS + " pt-1.5"
                         }
                     >
-                        {field.label}
+                        {td(field.label, { source: "en" })}
                     </span>
                     <div className={isPhone ? "w-full min-w-0" : "flex-1 min-w-0"}>
 

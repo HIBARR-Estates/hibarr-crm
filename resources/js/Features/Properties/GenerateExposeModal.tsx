@@ -404,7 +404,7 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
                                                     </div>
                                                     <div>
                                                         <div className="font-semibold text-gray-900 mb-1">
-                                                            {option.title}
+                                                            {td(option.title, { source: "en" })}
                                                         </div>
                                                         <div className="text-xs text-gray-600 leading-relaxed">
                                                             {option.description}

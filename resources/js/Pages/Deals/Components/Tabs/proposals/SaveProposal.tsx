@@ -270,7 +270,7 @@ export default function SaveProposal({
 
     const itemColumns = [
         {
-            title: "Item & Description",
+            title: td("Item & Description", { source: "en" }),
             dataIndex: "item_name",
             key: "item_name",
             width: "30%",
@@ -300,7 +300,7 @@ export default function SaveProposal({
             ),
         },
         {
-            title: "Qty",
+            title: td("Qty", { source: "en" }),
             dataIndex: "quantity",
             key: "quantity",
             width: "10%",
@@ -316,7 +316,7 @@ export default function SaveProposal({
             ),
         },
         {
-            title: "Unit Price",
+            title: td("Unit Price", { source: "en" }),
             dataIndex: "cost_per_item",
             key: "cost_per_item",
             width: "15%",
@@ -341,7 +341,7 @@ export default function SaveProposal({
             ),
         },
         {
-            title: "Tax",
+            title: td("Tax", { source: "en" }),
             dataIndex: "tax",
             key: "tax",
             width: "15%",
@@ -362,7 +362,7 @@ export default function SaveProposal({
             ),
         },
         {
-            title: "Amount",
+            title: td("Amount", { source: "en" }),
             dataIndex: "amount",
             key: "amount",
             width: "15%",
@@ -373,7 +373,7 @@ export default function SaveProposal({
             ),
         },
         {
-            title: "Action",
+            title: td("Action", { source: "en" }),
             key: "action",
             width: "10%",
             render: (text: any, record: ProposalItem, index: number) => (
@@ -522,7 +522,7 @@ export default function SaveProposal({
                             >
                                 {products.map((product) => (
                                     <Option key={product.id} value={product.id}>
-                                        {product.name}
+                                        {td(product.name, { source: "en" })}
                                     </Option>
                                 ))}
                             </Select>
@@ -548,7 +548,7 @@ export default function SaveProposal({
                                         key={category.id}
                                         value={category.id}
                                     >
-                                        {category.category_name}
+                                        {td(category.category_name, { source: "en" })}
                                     </Option>
                                 ))}
                             </Select>

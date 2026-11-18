@@ -351,7 +351,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                     }}
                                 />
                                 <span className="font-medium">
-                                    {stage.name}
+                                    {td(stage.name, { source: "en" })}
                                 </span>
                             </div>
                             <div className="flex items-center space-x-2 text-sm font-normal">
@@ -443,7 +443,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                         <Space>
                             <div className="text-sm font-normal">
                                 <span className="text-gray-600">
-                                    Total Pipeline:{" "}
+                                    {td("Total Pipeline:", { source: "en" })}{" "}
                                 </span>
                                 <span className="font-bold text-green-600">
                                     ${totalDealsValue.toLocaleString()}
@@ -451,7 +451,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                             </div>
                             <div className="text-sm font-normal">
                                 <span className="text-gray-600">
-                                    Avg Deal:{" "}
+                                    {td("Avg Deal:", { source: "en" })}{" "}
                                 </span>
                                 <span className="font-medium">
                                     $

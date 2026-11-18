@@ -46,7 +46,7 @@ export default function ImportModal({
 
             if (!values.import_file || values.import_file.length === 0) {
                 Modal.error({
-                    title: "No File Selected",
+                    title: td("No File Selected", { source: "en" }),
                     content: "Please select a file to upload",
                 });
                 return;
@@ -164,7 +164,7 @@ export default function ImportModal({
 
                                 if (!isValidType) {
                                     Modal.error({
-                                        title: "Invalid File Type",
+                                        title: td("Invalid File Type", { source: "en" }),
                                         content: `Please upload a file with one of these extensions: ${acceptedFileTypes}`,
                                     });
                                     return Upload.LIST_IGNORE;
@@ -174,7 +174,7 @@ export default function ImportModal({
                                     file.size / 1024 / 1024 < maxFileSize;
                                 if (!isValidSize) {
                                     Modal.error({
-                                        title: "File Too Large",
+                                        title: td("File Too Large", { source: "en" }),
                                         content: `File size must be smaller than ${maxFileSize}MB`,
                                     });
                                     return Upload.LIST_IGNORE;

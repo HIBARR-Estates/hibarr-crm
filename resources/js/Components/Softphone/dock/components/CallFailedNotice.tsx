@@ -142,13 +142,13 @@ export default function CallFailedNotice({
                         <span className="act__btn">
                             <Phone size={24} strokeWidth={2} />
                         </span>
-                        Try again
+                        {td("Try again", { source: "en" })}
                     </button>
                     <button type="button" className="act" onClick={onClose}>
                         <span className="act__btn">
                             <X size={24} strokeWidth={2} />
                         </span>
-                        Close
+                        {td("Close", { source: "en" })}
                     </button>
                 </div>
             </div>

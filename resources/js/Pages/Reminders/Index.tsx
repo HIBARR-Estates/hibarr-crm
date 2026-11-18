@@ -138,6 +138,7 @@ function useIsMobile(breakpoint = 768): boolean {
 }
 
 function StatusPill({ row }: { row: ReminderRow }) {
+    const { td } = useTd();
     return (
         <span
             style={{
@@ -160,7 +161,7 @@ function StatusPill({ row }: { row: ReminderRow }) {
                     background: row.dotColor,
                 }}
             />
-            {row.statusLabel}
+            {td(row.statusLabel, { source: "en" })}
         </span>
     );
 }
@@ -924,10 +925,10 @@ export default function RemindersIndex() {
     }, [pagination]);
 
     const statCards = [
-        { label: "Sent", value: stats.sent, color: "#067647" },
-        { label: "Delayed", value: stats.delayed, color: "#b54708" },
-        { label: "Cancelled", value: stats.cancelled, color: "#475467" },
-        { label: "Failed", value: stats.failed, color: "#b42318" },
+        { label: td("Sent", { source: "en" }), value: stats.sent, color: "#067647" },
+        { label: td("Delayed", { source: "en" }), value: stats.delayed, color: "#b54708" },
+        { label: td("Cancelled", { source: "en" }), value: stats.cancelled, color: "#475467" },
+        { label: td("Failed", { source: "en" }), value: stats.failed, color: "#b42318" },
     ];
 
     const closeDrawer = () => {

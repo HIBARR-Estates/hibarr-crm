@@ -172,8 +172,8 @@ const DealInformationGatheringForm: React.FC<Props> = ({
     };
 
     const items = [
-        ...(needsPipelineStep ? [{ title: "Select Pipeline" }] : []),
-        ...(isPresetLead ? [] : [{ title: "Lead Information" }]),
+        ...(needsPipelineStep ? [{ title: td("Select Pipeline", { source: "en" }) }] : []),
+        ...(isPresetLead ? [] : [{ title: td("Lead Information", { source: "en" }) }]),
         ...dynamicSteps.map((step) => ({ title: step.title })),
     ];
 
@@ -229,7 +229,7 @@ const DealInformationGatheringForm: React.FC<Props> = ({
                             style={{ background: pipeline.label_color || "#6b7280" }}
                         />
                         <div className="font-semibold text-gray-800 text-sm leading-snug">
-                            {pipeline.name}
+                            {td(pipeline.name, { source: "en" })}
                         </div>
                         {pipeline.stages?.length > 0 && (
                             <div className="text-xs text-gray-400 mt-1">

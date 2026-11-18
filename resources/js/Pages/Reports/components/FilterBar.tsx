@@ -97,21 +97,21 @@ const FilterBar: React.FC<FilterBarProps> = ({
                         allowClear={false}
                         presets={[
                             {
-                                label: "This Week",
+                                label: td("This Week", { source: "en" }),
                                 value: [
                                     dayjs().startOf("week"),
                                     dayjs().endOf("week"),
                                 ],
                             },
                             {
-                                label: "This Month",
+                                label: td("This Month", { source: "en" }),
                                 value: [
                                     dayjs().startOf("month"),
                                     dayjs().endOf("month"),
                                 ],
                             },
                             {
-                                label: "Last Month",
+                                label: td("Last Month", { source: "en" }),
                                 value: [
                                     dayjs()
                                         .subtract(1, "month")
@@ -120,14 +120,14 @@ const FilterBar: React.FC<FilterBarProps> = ({
                                 ],
                             },
                             {
-                                label: "This Quarter",
+                                label: td("This Quarter", { source: "en" }),
                                 value: [
                                     dayjs().startOf("quarter"),
                                     dayjs().endOf("quarter"),
                                 ],
                             },
                             {
-                                label: "This Year",
+                                label: td("This Year", { source: "en" }),
                                 value: [
                                     dayjs().startOf("year"),
                                     dayjs().endOf("year"),
@@ -145,8 +145,8 @@ const FilterBar: React.FC<FilterBarProps> = ({
                         </label>
                         <Segmented
                             options={[
-                                { label: "Agent", value: "agent" },
-                                { label: "Department", value: "department" },
+                                { label: td("Agent", { source: "en" }), value: "agent" },
+                                { label: td("Department", { source: "en" }), value: "department" },
                             ]}
                             value={filters.view_type}
                             onChange={handleViewToggle}

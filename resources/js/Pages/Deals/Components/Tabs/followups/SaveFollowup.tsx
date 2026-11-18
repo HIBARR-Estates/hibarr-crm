@@ -278,9 +278,9 @@ export default function SaveFollowup({
     };
 
     const reminderTypes = [
-        { value: "minute", label: "Minutes" },
-        { value: "hour",   label: "Hours"   },
-        { value: "day",    label: "Days"    },
+        { value: "minute", label: td("Minutes", { source: "en" }) },
+        { value: "hour",   label: td("Hours", { source: "en" })   },
+        { value: "day",    label: td("Days", { source: "en" })    },
     ];
 
     const getDefaultParticipants = (): number[] => {
@@ -598,7 +598,7 @@ export default function SaveFollowup({
                             name="meeting_link"
                             label={
                                 <Space>
-                                    Meeting Link
+                                    {td("Meeting Link", { source: "en" })}
                                     <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                                         {td("(Auto-generated for video)", { source: "en" })}
                                     </Typography.Text>

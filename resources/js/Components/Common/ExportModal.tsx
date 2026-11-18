@@ -149,7 +149,7 @@ export default function ExportModal({
                 <Divider orientation="left">
                     <span className="flex items-center gap-1">
                         <FilterOutlined />
-                        Basic Filters
+                        {td("Basic Filters", { source: "en" })}
                     </span>
                 </Divider>
 

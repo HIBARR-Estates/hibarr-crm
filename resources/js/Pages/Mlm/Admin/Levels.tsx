@@ -131,21 +131,21 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
             ),
         },
         {
-            title: "Rank",
+            title: td("Rank", { source: "en" }),
             dataIndex: "rank",
             key: "rank",
             width: 80,
             render: (rank: number) => <Tag className="font-mono">#{rank}</Tag>,
         },
         {
-            title: "Level",
+            title: td("Level", { source: "en" }),
             key: "name",
             render: (_: any, record: MlmLevel) => (
                 <LevelBadge level={record} showPercentage />
             ),
         },
         {
-            title: "Commission %",
+            title: td("Commission %", { source: "en" }),
             dataIndex: "commission_percentage",
             key: "commission_percentage",
             align: "right" as const,
@@ -180,7 +180,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
         //       ]
         //     : []),
         {
-            title: "Hidden",
+            title: td("Hidden", { source: "en" }),
             dataIndex: "is_hidden",
             key: "is_hidden",
             width: 80,
@@ -192,7 +192,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                 ),
         },
         {
-            title: "Criteria",
+            title: td("Criteria", { source: "en" }),
             key: "criteria",
             render: (_: any, record: MlmLevel) => (
                 <Tag color="blue">
@@ -202,7 +202,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
             ),
         },
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             width: 160,
             render: (_: any, record: MlmLevel) => (

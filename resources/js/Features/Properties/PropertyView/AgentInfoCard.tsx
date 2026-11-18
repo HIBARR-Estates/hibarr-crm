@@ -22,7 +22,7 @@ export default function AgentInfoCard({ property }: AgentInfoCardProps) {
             title={
                 <span>
                     <TeamOutlined className="mr-2" />
-                    Agent Info
+                    {td("Agent Info", { source: "en" })}
                 </span>
             }
             variant="outlined"

@@ -166,7 +166,7 @@ const Index = () => {
 
     const columns: TableColumnsType<EditAccessRequest> = [
         {
-            title: "Property",
+            title: td("Property", { source: "en" }),
             key: "property",
             render: (_, record) => (
                 <div>
@@ -189,14 +189,14 @@ const Index = () => {
             ),
         },
         {
-            title: "Requesting Agent",
+            title: td("Requesting Agent", { source: "en" }),
             key: "requesting_agent",
             render: (_, record) => (
                 <span>{record.requesting_agent?.name || "Unknown"}</span>
             ),
         },
         {
-            title: "Responsible Agent",
+            title: td("Responsible Agent", { source: "en" }),
             key: "responsible_agent",
             render: (_, record) =>
                 record.responsible_agent?.name ? (
@@ -206,7 +206,7 @@ const Index = () => {
                 ),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             key: "status",
             width: 130,
             render: (_, record) => (
@@ -220,7 +220,7 @@ const Index = () => {
             ),
         },
         {
-            title: "Message",
+            title: td("Message", { source: "en" }),
             key: "message",
             ellipsis: true,
             render: (_, record) => (
@@ -232,13 +232,13 @@ const Index = () => {
             ),
         },
         {
-            title: "Requested",
+            title: td("Requested", { source: "en" }),
             key: "created_at",
             width: 160,
             render: (_, record) => formatCompanyDateTime(record.created_at),
         },
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             width: 200,
             render: (_, record) => (
@@ -291,9 +291,9 @@ const Index = () => {
                     <div className="mb-4 flex items-center justify-between gap-4 flex-wrap">
                         <Segmented
                             options={[
-                                { label: "All", value: "all" },
-                                { label: "Sent by me", value: "sent" },
-                                { label: "Received", value: "received" },
+                                { label: td("All", { source: "en" }), value: "all" },
+                                { label: td("Sent by me", { source: "en" }), value: "sent" },
+                                { label: td("Received", { source: "en" }), value: "received" },
                             ]}
                             value={direction}
                             onChange={(val) => {
@@ -303,10 +303,10 @@ const Index = () => {
                         />
                         <Segmented
                             options={[
-                                { label: "All Statuses", value: "" },
-                                { label: "Pending", value: "pending" },
-                                { label: "Approved", value: "approved" },
-                                { label: "Denied", value: "denied" },
+                                { label: td("All Statuses", { source: "en" }), value: "" },
+                                { label: td("Pending", { source: "en" }), value: "pending" },
+                                { label: td("Approved", { source: "en" }), value: "approved" },
+                                { label: td("Denied", { source: "en" }), value: "denied" },
                             ]}
                             value={statusFilter}
                             onChange={(val) => {

@@ -60,7 +60,7 @@ export default function DealsWidget({ deals }: DealsWidgetProps) {
                                 size="small"
                                 className="flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                             >
-                                View All
+                                {td("View All", { source: "en" })}
                                 <ArrowRight size={14} />
                             </Button>
                         </Link>
@@ -129,7 +129,7 @@ export default function DealsWidget({ deals }: DealsWidgetProps) {
                                                         }
                                                         className="text-xs"
                                                     >
-                                                        {deal.lead_stage.name}
+                                                        {td(deal.lead_stage.name, { source: "en" })}
                                                     </Tag>
                                                 )}
                                             </div>

@@ -311,7 +311,7 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
                                     key={product.id}
                                     value={product.id}
                                 >
-                                    {product.name}
+                                    {td(product.name, { source: "en" })}
                                 </Select.Option>
                             ))}
                         </Select>

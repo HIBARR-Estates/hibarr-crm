@@ -268,6 +268,7 @@ export function CheckList({
     onChange: (next: any[]) => void;
     searchPlaceholder?: string;
 }) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const [query, setQuery] = useState("");
     const selected = new Set((value ?? []).map(String));
@@ -328,7 +329,7 @@ export function CheckList({
                                     {initialsOf(String(option.label))}
                                 </span>
                                 <span className="lfm-checklist__name">
-                                    {option.label}
+                                    {td(option.label, { source: "en" })}
                                 </span>
                                 {count != null && (
                                     <span className="lfm-checklist__count">
@@ -344,7 +345,7 @@ export function CheckList({
                 <div className="lfm-selected-pills">
                     {selectedOptions.map((option) => (
                         <span key={String(option.value)} className="lfm-tray__chip">
-                            {option.label}
+                            {td(option.label, { source: "en" })}
                             <button
                                 type="button"
                                 className="lfm-tray__x"

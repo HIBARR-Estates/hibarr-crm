@@ -153,7 +153,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
 
     const columns: TableColumnsType<DealFollowup> = [
         {
-            title: "Meeting Date",
+            title: td("Meeting Date", { source: "en" }),
             dataIndex: "next_follow_up_date",
             key: "next_follow_up_date",
             width: 160,
@@ -175,7 +175,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             ),
         },
         {
-            title: "Meeting Type",
+            title: td("Meeting Type", { source: "en" }),
             dataIndex: "meeting_type",
             key: "meeting_type",
             width: 140,
@@ -187,14 +187,14 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                 ),
         },
         {
-            title: "Meeting Link",
+            title: td("Meeting Link", { source: "en" }),
             dataIndex: "meeting_link",
             key: "meeting_link",
             width: 150,
             render: (_, record) => record?.meeting_summary ? renderSummaryLink(record) : renderMeetingLink(record),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             width: 120,
@@ -207,14 +207,14 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             },
         },
         {
-            title: "Summary Status",
+            title: td("Summary Status", { source: "en" }),
             key: "summary_status",
             width: 140,
            render: (_, record) => renderSummaryLink(record),
         },
 
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             width: 80,
             fixed: "right" as const,
@@ -246,7 +246,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                                   label: (
                                       <span>
                                           <EyeOutlined className="mr-2" />
-                                          View
+                                          {td("View", { source: "en" })}
                                       </span>
                                   ),
                                   onClick: () => handleAction("view", record),
@@ -260,7 +260,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                                   label: (
                                       <span>
                                           <EditOutlined className="mr-2" />
-                                          Edit
+                                          {td("Edit", { source: "en" })}
                                       </span>
                                   ),
                                   onClick: () => handleAction("edit", record),
@@ -277,7 +277,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                                   label: (
                                       <span className="">
                                           <DeleteOutlined className="mr-2" />
-                                          Delete
+                                          {td("Delete", { source: "en" })}
                                       </span>
                                   ),
                                   danger: true,

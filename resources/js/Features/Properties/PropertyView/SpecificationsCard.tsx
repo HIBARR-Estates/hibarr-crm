@@ -11,6 +11,7 @@ import {
     SPECIFICATION_FIELDS,
     SpecificationFields,
 } from "@/Features/Properties/SaveProperty/fieldConfig";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -27,6 +28,7 @@ interface StatBlock {
 export default function SpecificationsCard({
     property,
 }: SpecificationsCardProps) {
+    const { td } = useTd();
     const category =
         (property.primary_category as PrimaryCategory) || "residential";
     const fields: SpecificationFields = SPECIFICATION_FIELDS[category];
@@ -39,7 +41,7 @@ export default function SpecificationsCard({
         property.bedrooms !== null
     ) {
         stats.push({
-            label: "Bedrooms",
+            label: td("Bedrooms", { source: "en" }),
             value: property.bedrooms === 0 ? "Studio" : property.bedrooms,
             icon: <HomeOutlined />,
         });
@@ -47,7 +49,7 @@ export default function SpecificationsCard({
 
     if (fields.bathrooms && property.bathrooms) {
         stats.push({
-            label: "Bathrooms",
+            label: td("Bathrooms", { source: "en" }),
             value: property.bathrooms,
             icon: <HomeOutlined />,
         });
@@ -55,7 +57,7 @@ export default function SpecificationsCard({
 
     if (fields.livingRoom && property.living_room) {
         stats.push({
-            label: "Living Rooms",
+            label: td("Living Rooms", { source: "en" }),
             value: property.living_room,
             icon: <HomeOutlined />,
         });
@@ -63,13 +65,13 @@ export default function SpecificationsCard({
 
     if (fields.plotSize && property.land_size) {
         stats.push({
-            label: "Plot Size",
+            label: td("Plot Size", { source: "en" }),
             value: `${property.land_size.toLocaleString()} m²`,
             icon: <ExpandOutlined />,
         });
         if (property.land_size_donum) {
             stats.push({
-                label: "Plot (Dönüm)",
+                label: td("Plot (Dönüm)", { source: "en" }),
                 value: `${property.land_size_donum} dönüm`,
                 icon: <ExpandOutlined />,
             });
@@ -78,7 +80,7 @@ export default function SpecificationsCard({
 
     if (fields.grossArea && property.living_area_sqm) {
         stats.push({
-            label: "Gross Area",
+            label: td("Gross Area", { source: "en" }),
             value: `${property.living_area_sqm} m²`,
             icon: <ExpandOutlined />,
         });
@@ -86,7 +88,7 @@ export default function SpecificationsCard({
 
     if (fields.balconyArea && property.terrace_area_sqm) {
         stats.push({
-            label: "Balcony / Terrace",
+            label: td("Balcony / Terrace", { source: "en" }),
             value: `${property.terrace_area_sqm} m²`,
             icon: <ExpandOutlined />,
         });
@@ -98,7 +100,7 @@ export default function SpecificationsCard({
         property.floor_number !== null
     ) {
         stats.push({
-            label: "Floor",
+            label: td("Floor", { source: "en" }),
             value:
                 property.floor_number === 0
                     ? "Ground"
@@ -111,7 +113,7 @@ export default function SpecificationsCard({
 
     if (fields.floorsInBuilding && property.floors_in_building) {
         stats.push({
-            label: "Floors in Building",
+            label: td("Floors in Building", { source: "en" }),
             value: property.floors_in_building,
             icon: <ColumnHeightOutlined />,
         });
@@ -123,7 +125,7 @@ export default function SpecificationsCard({
         property.building_age !== null
     ) {
         stats.push({
-            label: "Building Age",
+            label: td("Building Age", { source: "en" }),
             value: `${property.building_age} yrs`,
             icon: <CalendarOutlined />,
         });
@@ -131,7 +133,7 @@ export default function SpecificationsCard({
 
     if (fields.furnitureStatus && property.furniture_status) {
         stats.push({
-            label: "Furnishing",
+            label: td("Furnishing", { source: "en" }),
             value: property?.furniture_status?.split("_").join(" "),
             icon: <HomeOutlined />,
         });
@@ -139,7 +141,7 @@ export default function SpecificationsCard({
 
     if (property.within_site) {
         stats.push({
-            label: "Within Site",
+            label: td("Within Site", { source: "en" }),
             value: "Yes",
             icon: <HomeOutlined />,
         });

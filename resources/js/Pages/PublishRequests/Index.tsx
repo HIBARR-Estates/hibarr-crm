@@ -176,7 +176,7 @@ const Index = () => {
 
     const columns: TableColumnsType<PublishRequest> = [
         {
-            title: "Property",
+            title: td("Property", { source: "en" }),
             key: "property",
             render: (_, record) => {
                 const propertyTitle =
@@ -204,14 +204,14 @@ const Index = () => {
             },
         },
         {
-            title: "Requesting Agent",
+            title: td("Requesting Agent", { source: "en" }),
             key: "requesting_agent",
             render: (_, record) => (
                 <span>{record.requesting_agent?.name || "Unknown"}</span>
             ),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             key: "status",
             width: 130,
             render: (_, record) => (
@@ -225,7 +225,7 @@ const Index = () => {
             ),
         },
         {
-            title: "Message",
+            title: td("Message", { source: "en" }),
             key: "message",
             ellipsis: true,
             render: (_, record) => (
@@ -237,13 +237,13 @@ const Index = () => {
             ),
         },
         {
-            title: "Submitted",
+            title: td("Submitted", { source: "en" }),
             key: "created_at",
             width: 160,
             render: (_, record) => formatCompanyDateTime(record.created_at),
         },
         {
-            title: "Reviewer",
+            title: td("Reviewer", { source: "en" }),
             key: "reviewer",
             width: 150,
             render: (_, record) => (
@@ -255,7 +255,7 @@ const Index = () => {
             ),
         },
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             width: 200,
             render: (_, record) => (
@@ -308,12 +308,12 @@ const Index = () => {
                     <div className="mb-4 flex items-center justify-between gap-4 flex-wrap">
                         <Segmented
                             options={[
-                                { label: "All", value: "all" },
-                                { label: "My Requests", value: "mine" },
+                                { label: td("All", { source: "en" }), value: "all" },
+                                { label: td("My Requests", { source: "en" }), value: "mine" },
                                 ...(isSalesManager
                                     ? [
                                           {
-                                              label: "Pending Review",
+                                              label: td("Pending Review", { source: "en" }),
                                               value: "pending_review",
                                           },
                                       ]
@@ -328,10 +328,10 @@ const Index = () => {
                         <Space>
                             <Segmented
                                 options={[
-                                    { label: "All Statuses", value: "" },
-                                    { label: "Pending", value: "pending" },
-                                    { label: "Approved", value: "approved" },
-                                    { label: "Rejected", value: "rejected" },
+                                    { label: td("All Statuses", { source: "en" }), value: "" },
+                                    { label: td("Pending", { source: "en" }), value: "pending" },
+                                    { label: td("Approved", { source: "en" }), value: "approved" },
+                                    { label: td("Rejected", { source: "en" }), value: "rejected" },
                                 ]}
                                 value={statusFilter}
                                 onChange={(val) => {

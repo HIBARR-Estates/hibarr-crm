@@ -33,7 +33,7 @@ const CycleSelector: React.FC<Props> = ({
     if (loadingActive) {
         return (
             <div className="flex items-center gap-2 text-sm text-gray-500">
-                <Spin size="small" /> Loading cycle...
+                <Spin size="small" /> {td("Loading cycle...", { source: "en" })}
             </div>
         );
     }
@@ -66,7 +66,7 @@ const CycleSelector: React.FC<Props> = ({
     }
 
     const options = [
-        { value: 0, label: "All Time" },
+        { value: 0, label: td("All Time", { source: "en" }) },
         ...cycles.map((c: any) => ({
             value: c.id,
             label: `${c.name} (${formatCompanyDate(c.start_date)} – ${formatCompanyDate(c.end_date)})`,

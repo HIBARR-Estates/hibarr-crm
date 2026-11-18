@@ -8,6 +8,7 @@ import {
     CalendarOutlined,
     FileTextOutlined,
 } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface KpiSummary {
     leads_count: number;
@@ -65,6 +66,7 @@ const cards = [
 ];
 
 const KpiCards: React.FC<KpiCardsProps> = ({ summary, onCardClick }) => {
+    const { td } = useTd();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
     return (
@@ -87,7 +89,7 @@ const KpiCards: React.FC<KpiCardsProps> = ({ summary, onCardClick }) => {
                     />
                     {card.extra && (
                         <div className="mt-2 text-xs text-gray-500">
-                            Total Value:{" "}
+                            {td("Total Value:", { source: "en" })}{" "}
                             <span className="font-semibold text-green-600">
                                 {currencySymbol}
                                 {new Intl.NumberFormat("en-US", {

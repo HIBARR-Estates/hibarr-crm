@@ -115,7 +115,7 @@ const Index = ({
     const columns: TableColumnsType<Offer> = useMemo(
         () => [
             {
-                title: "Name",
+                title: td("Name", { source: "en" }),
                 dataIndex: "name",
                 key: "name",
                 width: 200,
@@ -124,7 +124,7 @@ const Index = ({
                 ),
             },
             {
-                title: "Developer",
+                title: td("Developer", { source: "en" }),
                 key: "developer",
                 width: 150,
                 render: (_, record) =>
@@ -133,7 +133,7 @@ const Index = ({
                     ),
             },
             {
-                title: "Type",
+                title: td("Type", { source: "en" }),
                 dataIndex: "type",
                 key: "type",
                 width: 120,
@@ -156,7 +156,7 @@ const Index = ({
                 ),
             },
             {
-                title: "Value",
+                title: td("Value", { source: "en" }),
                 key: "value",
                 width: 120,
                 align: "right",
@@ -168,7 +168,7 @@ const Index = ({
                           : `${Number(record.value).toLocaleString("en-GB")}`,
             },
             {
-                title: "Max Cap",
+                title: td("Max Cap", { source: "en" }),
                 dataIndex: "max_discount_amount",
                 key: "max_discount_amount",
                 width: 120,
@@ -177,7 +177,7 @@ const Index = ({
                     v !== null ? Number(v).toLocaleString("en-GB") : "-",
             },
             {
-                title: "Unit Types",
+                title: td("Unit Types", { source: "en" }),
                 dataIndex: "unit_types_count",
                 key: "unit_types_count",
                 width: 100,
@@ -195,7 +195,7 @@ const Index = ({
                 ),
             },
             {
-                title: "Applied",
+                title: td("Applied", { source: "en" }),
                 dataIndex: "deal_applications_count",
                 key: "deal_applications_count",
                 width: 80,
@@ -203,7 +203,7 @@ const Index = ({
                 render: (count: number) => count || 0,
             },
             {
-                title: "Date Range",
+                title: td("Date Range", { source: "en" }),
                 key: "date_range",
                 width: 200,
                 render: (_, record) => {
@@ -218,7 +218,7 @@ const Index = ({
                 },
             },
             {
-                title: "Active",
+                title: td("Active", { source: "en" }),
                 key: "is_active",
                 width: 80,
                 align: "center",
@@ -232,7 +232,7 @@ const Index = ({
                 ),
             },
             {
-                title: "Actions",
+                title: td("Actions", { source: "en" }),
                 key: "actions",
                 width: 100,
                 align: "center",
@@ -335,8 +335,8 @@ const Index = ({
                                 style={{ width: 130 }}
                                 size="small"
                                 options={[
-                                    { label: "Active", value: "1" },
-                                    { label: "All", value: "0" },
+                                    { label: td("Active", { source: "en" }), value: "1" },
+                                    { label: td("All", { source: "en" }), value: "0" },
                                 ]}
                             />
                         </div>

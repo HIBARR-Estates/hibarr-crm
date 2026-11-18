@@ -95,7 +95,7 @@ const AgentLevelHistorySection: React.FC<{ agentId: number }> = ({
                     <div>
                         <div className="flex items-center gap-2">
                             <Tag color="blue">
-                                {r.level?.name ?? "Unknown Level"}
+                                {td(r.level?.name ?? "Unknown Level", { source: "en" })}
                             </Tag>
                             {r.system_assigned && (
                                 <Tag color="default" className="text-xs">
@@ -157,7 +157,7 @@ const AgentDetailContent: React.FC<{
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
                 >
                     <ExternalLink size={14} />
-                    View Dashboard
+                    {td("View Dashboard", { source: "en" })}
                 </Link>
             </div>
 

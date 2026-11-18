@@ -188,7 +188,7 @@ export default function AddMeetingType({ open, onClose, onSuccess }: Props) {
                         format="hex"
                         presets={[
                             {
-                                label: "Recommended",
+                                label: td("Recommended", { source: "en" }),
                                 colors: [
                                     "#f50",
                                     "#2db7f5",

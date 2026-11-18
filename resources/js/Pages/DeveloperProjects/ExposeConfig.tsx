@@ -203,7 +203,7 @@ const ProjectOverviewSection: React.FC<ProjectOverviewSectionProps> = ({
                             onClick={() => add("")}
                             size="small"
                         >
-                            <PlusOutlined /> Add Type
+                            <PlusOutlined /> {td("Add Type", { source: "en" })}
                         </Button>
                     </>
                 )}
@@ -247,7 +247,7 @@ const ProjectOverviewSection: React.FC<ProjectOverviewSectionProps> = ({
                             onClick={() => add({ name: "", image: "" })}
                             block
                         >
-                            <PlusOutlined /> Add Facility
+                            <PlusOutlined /> {td("Add Facility", { source: "en" })}
                         </Button>
                     </>
                 )}
@@ -349,7 +349,7 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
                                     onClick={() => add("")}
                                     size="small"
                                 >
-                                    <PlusOutlined /> Add Image
+                                    <PlusOutlined /> {td("Add Image", { source: "en" })}
                                 </Button>
                             </>
                         )}
@@ -386,7 +386,7 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
                                 onClick={() => add("")}
                                 size="small"
                             >
-                                <PlusOutlined /> Add Image
+                                <PlusOutlined /> {td("Add Image", { source: "en" })}
                             </Button>
                         </>
                     )}
@@ -479,7 +479,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                             size="small"
                             block
                         >
-                            <PlusOutlined /> Add Phone
+                            <PlusOutlined /> {td("Add Phone", { source: "en" })}
                         </Button>
                     </div>
                 )}
@@ -510,7 +510,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                             size="small"
                             block
                         >
-                            <PlusOutlined /> Add Email
+                            <PlusOutlined /> {td("Add Email", { source: "en" })}
                         </Button>
                     </div>
                 )}
@@ -543,7 +543,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                             size="small"
                             block
                         >
-                            <PlusOutlined /> Add Website
+                            <PlusOutlined /> {td("Add Website", { source: "en" })}
                         </Button>
                     </div>
                 )}
@@ -677,7 +677,7 @@ const ExposeConfig = ({
     const tabItems: TabsProps["items"] = [
         {
             key: "logo",
-            label: "Logo",
+            label: td("Logo", { source: "en" }),
             children: (
                 <LogoSection
                     initialValues={config?.logo || undefined}
@@ -688,7 +688,7 @@ const ExposeConfig = ({
         },
         {
             key: "overview",
-            label: "Project Overview",
+            label: td("Project Overview", { source: "en" }),
             children: (
                 <ProjectOverviewSection
                     initialValues={config?.project_overview || undefined}
@@ -699,7 +699,7 @@ const ExposeConfig = ({
         },
         {
             key: "images",
-            label: "Images",
+            label: td("Images", { source: "en" }),
             children: (
                 <ImagesSection
                     groupedImageKeys={groupedImageKeys}
@@ -725,7 +725,7 @@ const ExposeConfig = ({
         },
         {
             key: "contact",
-            label: "Contact Details",
+            label: td("Contact Details", { source: "en" }),
             children: (
                 <ContactSection
                     initialValues={config?.contact_details || undefined}

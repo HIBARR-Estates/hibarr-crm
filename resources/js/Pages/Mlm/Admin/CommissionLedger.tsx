@@ -124,7 +124,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
 
     const columns = [
         {
-            title: "Deal",
+            title: td("Deal", { source: "en" }),
             key: "deal",
             render: (_: any, record: MlmCommission) => (
                 <div>
@@ -141,7 +141,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Recipient",
+            title: td("Recipient", { source: "en" }),
             key: "agent",
             render: (_: any, record: MlmCommission) => (
                 <span className="font-medium">
@@ -152,7 +152,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Source",
+            title: td("Source", { source: "en" }),
             key: "source",
             render: (_: any, record: MlmCommission) => (
                 <span className="text-sm text-gray-600">
@@ -161,7 +161,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Type",
+            title: td("Type", { source: "en" }),
             dataIndex: "type",
             key: "type",
             render: (t: MlmCommissionType) => (
@@ -179,13 +179,13 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Level",
+            title: td("Level", { source: "en" }),
             key: "level",
             render: (_: any, record: MlmCommission) =>
                 record.level ? <LevelBadge level={record.level} /> : "—",
         },
         {
-            title: "Amount",
+            title: td("Amount", { source: "en" }),
             key: "amount",
             align: "right" as const,
             sorter: true,
@@ -211,7 +211,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             render: (s: MlmCommissionStatus) => (
@@ -219,13 +219,13 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Paid At",
+            title: td("Paid At", { source: "en" }),
             dataIndex: "paid_at",
             key: "paid_at",
             render: (d: string) => formatCompanyDate(d, "—"),
         },
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             width: 120,
             render: (_: any, record: MlmCommission) => (

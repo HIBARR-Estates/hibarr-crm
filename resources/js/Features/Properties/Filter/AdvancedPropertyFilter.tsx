@@ -51,12 +51,12 @@ const AdvancedPropertyFilter: React.FC<Props> = ({
                         placeholder={td("Select property type", { source: "en" })}
                         allowClear
                         options={[
-                            { value: "Villa", label: "Villa" },
-                            { value: "Apartment", label: "Apartment" },
-                            { value: "House", label: "House" },
-                            { value: "Office", label: "Office" },
-                            { value: "Shop", label: "Shop" },
-                            { value: "Warehouse", label: "Warehouse" },
+                            { value: "Villa", label: td("Villa", { source: "en" }) },
+                            { value: "Apartment", label: td("Apartment", { source: "en" }) },
+                            { value: "House", label: td("House", { source: "en" }) },
+                            { value: "Office", label: td("Office", { source: "en" }) },
+                            { value: "Shop", label: td("Shop", { source: "en" }) },
+                            { value: "Warehouse", label: td("Warehouse", { source: "en" }) },
                         ]}
                     />
                 </Form.Item>
@@ -66,11 +66,11 @@ const AdvancedPropertyFilter: React.FC<Props> = ({
                         placeholder={td("Select sale type", { source: "en" })}
                         allowClear
                         options={[
-                            { value: "For Sale", label: "For Sale" },
-                            { value: "For Rent", label: "For Rent" },
+                            { value: "For Sale", label: td("For Sale", { source: "en" }) },
+                            { value: "For Rent", label: td("For Rent", { source: "en" }) },
                             {
                                 value: "For Daily Rental",
-                                label: "For Daily Rental",
+                                label: td("For Daily Rental", { source: "en" }),
                             },
                         ]}
                     />
@@ -81,11 +81,11 @@ const AdvancedPropertyFilter: React.FC<Props> = ({
                         placeholder={td("Select status", { source: "en" })}
                         allowClear
                         options={[
-                            { value: "Available", label: "Available" },
-                            { value: "Under offer", label: "Under Offer" },
-                            { value: "Sold", label: "Sold" },
-                            { value: "Rented", label: "Rented" },
-                            { value: "Withdrawn", label: "Withdrawn" },
+                            { value: "Available", label: td("Available", { source: "en" }) },
+                            { value: "Under offer", label: td("Under Offer", { source: "en" }) },
+                            { value: "Sold", label: td("Sold", { source: "en" }) },
+                            { value: "Rented", label: td("Rented", { source: "en" }) },
+                            { value: "Withdrawn", label: td("Withdrawn", { source: "en" }) },
                         ]}
                     />
                 </Form.Item>

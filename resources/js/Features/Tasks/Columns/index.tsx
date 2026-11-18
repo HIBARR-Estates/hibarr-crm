@@ -80,7 +80,7 @@ export const useTasksTableColumns = ({
         {
             title: (
                 <span className="flex items-center">
-                    Title
+                    {td("Title", { source: "en" })}
                     <PageDataSorter field="heading" routeName="tasks.index" />
                 </span>
             ),
@@ -112,7 +112,7 @@ export const useTasksTableColumns = ({
                                     <span className="text-gray-300">·</span>
                                     {record.labels.slice(0, 2).map((label) => (
                                         <Tag key={label.id} color={label.label_color} style={{ margin: 0 }}>
-                                            {label.label_name}
+                                            {td(label.label_name, { source: "en" })}
                                         </Tag>
                                     ))}
                                     {record.labels.length > 2 && (
@@ -151,7 +151,7 @@ export const useTasksTableColumns = ({
         {
             title: (
                 <span className="flex items-center">
-                    Status
+                    {td("Status", { source: "en" })}
                     <PageDataSorter
                         label={td("Status", { source: "en" })}
                         field="board_column_id"
@@ -166,7 +166,7 @@ export const useTasksTableColumns = ({
                 if (!onStatusChange) {
                     return (
                         <Tag color={getStatusColor(status)}>
-                            {boardColumn?.column_name || status}
+                            {td(boardColumn?.column_name || status, { source: "en" })}
                         </Tag>
                     );
                 }
@@ -182,7 +182,7 @@ export const useTasksTableColumns = ({
         {
             title: (
                 <span className="flex items-center">
-                    Due Date
+                    {td("Due Date", { source: "en" })}
                     <PageDataSorter
                         label={td("Due Date", { source: "en" })}
                         field="due_date"
@@ -256,7 +256,7 @@ export const useTasksTableColumns = ({
         {
             title: (
                 <span className="flex items-center">
-                    Created
+                    {td("Created", { source: "en" })}
                     <PageDataSorter
                         label={td("Created", { source: "en" })}
                         field="created_at"
@@ -305,20 +305,20 @@ export const useTasksTableColumns = ({
                     {
                         key: "view",
                         icon: <EyeOutlined />,
-                        label: "View Details",
+                        label: td("View Details", { source: "en" }),
                         onClick: () => onView(record),
                     },
                     {
                         key: "edit",
                         icon: <EditOutlined />,
-                        label: "Edit Task",
+                        label: td("Edit Task", { source: "en" }),
                         onClick: () => onEdit(record),
                         disabled: !canEdit,
                     },
                     {
                         key: "duplicate",
                         icon: <CheckSquareOutlined />,
-                        label: "Duplicate",
+                        label: td("Duplicate", { source: "en" }),
                         onClick: () => onDuplicate(record),
                     },
 
@@ -328,7 +328,7 @@ export const useTasksTableColumns = ({
                     {
                         key: "delete",
                         icon: <DeleteOutlined />,
-                        label: "Delete",
+                        label: td("Delete", { source: "en" }),
                         danger: true,
                         onClick: () => onDelete(record),
                         disabled: !canDelete,

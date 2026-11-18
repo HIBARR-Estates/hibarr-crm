@@ -71,7 +71,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
 
     const columns = [
         {
-            title: "Deal",
+            title: td("Deal", { source: "en" }),
             key: "deal",
             render: (_: any, r: DealContribution) => (
                 <div>
@@ -81,7 +81,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
             ),
         },
         {
-            title: "Closed By",
+            title: td("Closed By", { source: "en" }),
             key: "closed_by",
             render: (_: any, r: DealContribution) => (
                 <div className="flex items-center gap-2">
@@ -95,7 +95,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
             ),
         },
         {
-            title: "Deal Value",
+            title: td("Deal Value", { source: "en" }),
             dataIndex: "deal_value",
             key: "deal_value",
             align: "right" as const,
@@ -109,7 +109,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
             ),
         },
         {
-            title: "Your Commission",
+            title: td("Your Commission", { source: "en" }),
             dataIndex: "commission_amount",
             key: "commission_amount",
             align: "right" as const,
@@ -123,7 +123,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
             ),
         },
         {
-            title: "Type",
+            title: td("Type", { source: "en" }),
             dataIndex: "commission_type",
             key: "commission_type",
             render: (t: string) => (
@@ -141,7 +141,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
             ),
         },
         {
-            title: "Date",
+            title: td("Date", { source: "en" }),
             dataIndex: "date",
             key: "date",
             render: (d: string) => formatCompanyDate(d, "—"),

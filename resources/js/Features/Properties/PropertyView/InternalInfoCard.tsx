@@ -37,7 +37,7 @@ export default function InternalInfoCard({ property }: InternalInfoCardProps) {
             title={
                 <span>
                     <LockOutlined className="mr-2" />
-                    Internal Info
+                    {td("Internal Info", { source: "en" })}
                 </span>
             }
             variant="outlined"

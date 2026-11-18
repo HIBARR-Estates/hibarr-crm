@@ -130,7 +130,7 @@ const BasicTaskFilterBox: React.FC<BasicTaskFilterBoxProps> = ({
                                                     display: "inline-block",
                                                 }}
                                             />
-                                            {column.column_name}
+                                            {td(column.column_name, { source: "en" })}
                                         </Space>
                                     </Option>
                                 ))}

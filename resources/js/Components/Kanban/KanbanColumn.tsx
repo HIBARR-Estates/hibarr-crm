@@ -132,7 +132,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                       label: (
                           <span onClick={() => onCreateDeal(column.id)}>
                               <PlusOutlined className="mr-2" />
-                              Add Deal
+                              {td("Add Deal", { source: "en" })}
                           </span>
                       ),
                   },

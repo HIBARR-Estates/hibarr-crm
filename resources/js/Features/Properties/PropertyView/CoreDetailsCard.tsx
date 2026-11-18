@@ -15,7 +15,7 @@ export default function CoreDetailsCard({ property }: CoreDetailsCardProps) {
             title={
                 <span>
                     <AppstoreOutlined className="mr-2" />
-                    Core Details
+                    {td("Core Details", { source: "en" })}
                 </span>
             }
             variant="outlined"
