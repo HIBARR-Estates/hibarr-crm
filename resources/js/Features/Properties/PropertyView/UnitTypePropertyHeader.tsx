@@ -23,6 +23,7 @@ import usePropertyCompletenessFlag from "@/Hooks/usePropertyCompletenessFlag";
 import ProgressRing from "@/Components/Redesign/primitives/ProgressRing";
 import useTranslation from "@/Hooks/useTranslation";
 import type { PropertyCompleteness } from "@/lib/propertyCompletenessFlag";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title, Text } = Typography;
 
@@ -47,6 +48,7 @@ export default function UnitTypePropertyHeader({
     onGenerateExpose,
     completeness: completenessProp,
 }: UnitTypePropertyHeaderProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const shareLinksEnabled = useExposeShareLinksFlag();
     const showCompleteness = usePropertyCompletenessFlag();
@@ -62,7 +64,7 @@ export default function UnitTypePropertyHeader({
         if (unitType.reference_code) {
             navigator.clipboard.writeText(unitType.reference_code).then(() => {
                 setCopied(true);
-                message.success("Reference code copied!");
+                message.success(td("Reference code copied!", { source: "en" }));
                 setTimeout(() => setCopied(false), 2000);
             });
         }
@@ -103,7 +105,7 @@ export default function UnitTypePropertyHeader({
             {/* Source badge + Reference code */}
             <div className="flex items-center gap-3 mb-2">
                 <Tag color="purple" icon={<BlockOutlined />}>
-                    Unit Type
+                    {td("Unit Type", { source: "en" })}
                 </Tag>
 
                 {unitType.reference_code && (
@@ -130,7 +132,7 @@ export default function UnitTypePropertyHeader({
                 {soldCount > 0 ? (
                     <Tag color="blue">{soldCount} Sold</Tag>
                 ) : (
-                    <Tag color="green">Available</Tag>
+                    <Tag color="green">{td("Available", { source: "en" })}</Tag>
                 )}
             </div>
 
@@ -196,7 +198,7 @@ export default function UnitTypePropertyHeader({
                         icon={<LinkOutlined />}
                         onClick={onCheckAvailability}
                     >
-                        Check Availability
+                        {td("Check Availability", { source: "en" })}
                     </Button>
                 )}
 

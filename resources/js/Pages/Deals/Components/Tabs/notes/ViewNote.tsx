@@ -9,6 +9,7 @@ import {
 } from "@ant-design/icons";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import { ContentRenderer } from "@/Components/ContentRenderer";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title, Text } = Typography;
 
@@ -19,6 +20,7 @@ interface Props extends IModalProps {
 }
 
 const ViewNote: React.FC<Props> = ({ deal, note, onClose, open, onEdit }) => {
+    const { td } = useTd();
     const handleEdit = () => {
         onClose();
         if (onEdit) {
@@ -30,9 +32,9 @@ const ViewNote: React.FC<Props> = ({ deal, note, onClose, open, onEdit }) => {
         <Drawer
             title={
                 <div className="flex items-center justify-between">
-                    <span className="text-sm">View Note</span>
+                    <span className="text-sm">{td("View Note", { source: "en" })}</span>
                     {onEdit && (
-                        <Tooltip title="Edit Note">
+                        <Tooltip title={td("Edit Note", { source: "en" })}>
                             <EditOutlined
                                 className="cursor-pointer text-blue-600 hover:text-blue-800"
                                 onClick={handleEdit}
@@ -100,7 +102,7 @@ const ViewNote: React.FC<Props> = ({ deal, note, onClose, open, onEdit }) => {
                 {/* Note Content */}
                 <div>
                     <Title level={4} className="mb-3">
-                        Details
+                        {td("Details", { source: "en" })}
                     </Title>
                     <div className="bg-white border border-gray-200 rounded-lg p-4 min-h-[200px]">
                         {note.details ? (
@@ -111,7 +113,7 @@ const ViewNote: React.FC<Props> = ({ deal, note, onClose, open, onEdit }) => {
                             />
                         ) : (
                             <Text type="secondary" italic>
-                                No details provided
+                                {td("No details provided", { source: "en" })}
                             </Text>
                         )}
                     </div>
@@ -120,7 +122,7 @@ const ViewNote: React.FC<Props> = ({ deal, note, onClose, open, onEdit }) => {
                 {/* Deal Information */}
                 <div className="bg-blue-50 p-4 rounded-lg">
                     <Title level={5} className="mb-2 text-blue-800">
-                        Related Deal
+                        {td("Related Deal", { source: "en" })}
                     </Title>
                     <div className="space-y-1">
                         <Text strong>{deal.name}</Text>

@@ -10,6 +10,7 @@ import type {
 } from "@/Types/developerProject";
 import type { Offer, OfferablePivot } from "@/Types/api/offers";
 import OfferAttachSection from "./OfferAttachSection";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type OfferWithPivot = Offer & { pivot?: OfferablePivot };
 
@@ -22,6 +23,7 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
     project,
     unitTypes,
 }) => {
+    const { td } = useTd();
     const handleRefresh = () => {
         router.reload();
     };
@@ -30,14 +32,14 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
         DeveloperProjectUnitType & { offers?: OfferWithPivot[] }
     > = [
         {
-            title: "Unit Type",
+            title: td("Unit Type", { source: "en" }),
             key: "label",
             render: (_, record) =>
                 record.display_label ||
                 `${record.primary_category} - ${record.property_type || "N/A"}`,
         },
         {
-            title: "Beds",
+            title: td("Beds", { source: "en" }),
             dataIndex: "bedrooms",
             key: "bedrooms",
             width: 60,
@@ -45,7 +47,7 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
             render: (v: number | null) => v ?? "-",
         },
         {
-            title: "Price",
+            title: td("Price", { source: "en" }),
             key: "price",
             width: 120,
             align: "right",
@@ -55,7 +57,7 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
                     : "-",
         },
         {
-            title: "Offers",
+            title: td("Offers", { source: "en" }),
             key: "offers",
             width: 280,
             render: (_, record) => {
@@ -103,7 +105,7 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
     return (
         <div className="flex flex-col gap-y-6">
             {/* Project-Level Offers */}
-            <Card title="Project Offers" size="small">
+            <Card title={td("Project Offers", { source: "en" })} size="small">
                 <OfferAttachSection
                     offers={(project.offers ?? []) as OfferWithPivot[]}
                     offerableType="developer_project"
@@ -114,7 +116,7 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
 
             {/* Unit Type Offers Overview */}
             <Card
-                title="Unit Type Offers"
+                title={td("Unit Type Offers", { source: "en" })}
                 size="small"
                 extra={
                     <Button
@@ -123,7 +125,7 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
                         icon={<PlusOutlined />}
                         onClick={() => router.visit(route("offers.index"))}
                     >
-                        Manage Offers
+                        {td("Manage Offers", { source: "en" })}
                     </Button>
                 }
             >
@@ -150,7 +152,7 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
                     />
                 ) : (
                     <Empty
-                        description="No unit types defined"
+                        description={td("No unit types defined", { source: "en" })}
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
                     />
                 )}

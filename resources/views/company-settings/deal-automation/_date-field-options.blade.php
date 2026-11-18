@@ -12,7 +12,7 @@
 @foreach($dateFields['lead'] as $key => $label)
     <option value="{{ $key }}" data-subject="lead" {{ $selectedDateField == $key ? 'selected' : '' }}>{{ $label }}</option>
 @endforeach
-<optgroup label="Deal Custom Fields" class="subject-group-deal">
+<optgroup label="{{ td('Deal Custom Fields') }}" class="subject-group-deal">
     @foreach($customFields as $field)
         @if($field->type == 'date')
             <option value="custom_field_{{ $field->id }}" data-subject="deal" {{ $selectedDateField == 'custom_field_'.$field->id ? 'selected' : '' }}>{{ $field->label }}</option>

@@ -335,17 +335,17 @@ export default function EntityAiSummaryHeader({
                 )}
                 {isStale && (
                     <span className="entity-ai-summary-stale-pill">
-                        Out of date
+                        {td("Out of date", { source: "en" })}
                     </span>
                 )}
                 {isHeuristic && (
                     <span className="entity-ai-summary-heuristic-pill">
-                        Fallback
+                        {td("Fallback", { source: "en" })}
                     </span>
                 )}
                 {shownConfidence === "low" && (
                     <span className="entity-ai-summary-confidence">
-                        Low confidence
+                        {td("Low confidence", { source: "en" })}
                     </span>
                 )}
             </div>

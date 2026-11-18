@@ -17,6 +17,7 @@ import {
     CURRENCY_OPTIONS,
     getCurrencySymbol,
 } from "@/Features/DeveloperProjects/unitTypeConfig";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -33,6 +34,7 @@ interface ConstructionProjectPricingSectionProps {
 const ConstructionProjectPricingSection: React.FC<
     ConstructionProjectPricingSectionProps
 > = ({ form }) => {
+    const { td } = useTd();
     const paymentPlanEnabled = !!Form.useWatch(
         ["payment_plan", "enabled"],
         form,
@@ -50,7 +52,7 @@ const ConstructionProjectPricingSection: React.FC<
             <Col xs={24} md={8}>
                 <Form.Item
                     name="currency"
-                    label="Currency"
+                    label={td("Currency", { source: "en" })}
                     initialValue="GBP"
                 >
                     <Select
@@ -64,7 +66,7 @@ const ConstructionProjectPricingSection: React.FC<
 
             {/* Starting Price */}
             <Col xs={24} md={8}>
-                <Form.Item name="starting_price" label="Starting Price">
+                <Form.Item name="starting_price" label={td("Starting Price", { source: "en" })}>
                     <InputNumber<number>
                         min={0}
                         placeholder="e.g. 85000"
@@ -95,14 +97,14 @@ const ConstructionProjectPricingSection: React.FC<
             <Col xs={24} md={8}>
                 <Form.Item
                     name="commission_percentage"
-                    label="Commission Percentage"
-                    tooltip="Maximum total commission on deals for this project, shared across the agent, their uplines and the company. Leave empty to inherit the developer's rate."
+                    label={td("Commission Percentage", { source: "en" })}
+                    tooltip={td("Maximum total commission on deals for this project, shared across the agent, their uplines and the company. Leave empty to inherit the developer's rate.", { source: "en" })}
                 >
                     <InputNumber<number>
                         min={0}
                         max={100}
                         step={0.5}
-                        placeholder="Inherit from developer"
+                        placeholder={td("Inherit from developer", { source: "en" })}
                         style={{ width: "100%" }}
                         addonAfter="%"
                     />
@@ -113,7 +115,7 @@ const ConstructionProjectPricingSection: React.FC<
             <Col xs={24} md={8}>
                 <Form.Item
                     name="availability_link"
-                    label="Availability Sheet Link"
+                    label={td("Availability Sheet Link", { source: "en" })}
                 >
                     <Input
                         placeholder="https://docs.google.com/..."
@@ -134,11 +136,11 @@ const ConstructionProjectPricingSection: React.FC<
                             target="_blank"
                             block
                         >
-                            Check Availability
+                            {td("Check Availability", { source: "en" })}
                         </Button>
                     ) : (
                         <Text type="secondary" className="text-xs block pt-2">
-                            Enter an availability link to enable the button
+                            {td("Enter an availability link to enable the button", { source: "en" })}
                         </Text>
                     )}
                 </Form.Item>
@@ -148,7 +150,7 @@ const ConstructionProjectPricingSection: React.FC<
                 updates cannot wipe `enabled` by replacing payment_plan. */}
             <Col span={24}>
                 <div className="flex items-center gap-3 mb-4 mt-2">
-                    <Text strong>Payment Plan</Text>
+                    <Text strong>{td("Payment Plan", { source: "en" })}</Text>
                     <Form.Item
                         name={["payment_plan", "enabled"]}
                         valuePropName="checked"
@@ -171,11 +173,11 @@ const ConstructionProjectPricingSection: React.FC<
                     <Col xs={24} md={6}>
                         <Form.Item
                             name={["payment_plan", "downpayment_type"]}
-                            label="Downpayment Type"
+                            label={td("Downpayment Type", { source: "en" })}
                             preserve
                         >
                             <Select
-                                placeholder="Select type"
+                                placeholder={td("Select type", { source: "en" })}
                                 options={DOWNPAYMENT_TYPE_OPTIONS.map((o) => ({
                                     value: o.value,
                                     label: o.label,
@@ -219,7 +221,7 @@ const ConstructionProjectPricingSection: React.FC<
                     <Col xs={24} md={6}>
                         <Form.Item
                             name={["payment_plan", "period_months"]}
-                            label="Period (Months)"
+                            label={td("Period (Months)", { source: "en" })}
                             preserve
                         >
                             <InputNumber
@@ -235,7 +237,7 @@ const ConstructionProjectPricingSection: React.FC<
                     <Col xs={24} md={6}>
                         <Form.Item
                             name={["payment_plan", "interest_rate"]}
-                            label="Interest Rate"
+                            label={td("Interest Rate", { source: "en" })}
                             preserve
                         >
                             <InputNumber

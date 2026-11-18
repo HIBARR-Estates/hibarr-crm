@@ -3,6 +3,7 @@ import { Form, Checkbox, Row, Col, Typography, Divider } from "antd";
 import type { FormInstance } from "antd/lib/form";
 import type { PrimaryCategory, PropertyEnumValues } from "@/Types";
 import { useFormOptions } from "../useFormOptions";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -24,6 +25,7 @@ const FeaturesSection: React.FC<FeaturesSectionProps> = ({
     enumValues,
     lockedFields = new Set<string>(),
 }) => {
+    const { td } = useTd();
     const {
         interiorFeatureOptions,
         exteriorFeatureOptions,
@@ -36,7 +38,7 @@ const FeaturesSection: React.FC<FeaturesSectionProps> = ({
             {/* Interior Features */}
             <div>
                 <Text strong className="text-sm block mb-2">
-                    Interior Features
+                    {td("Interior Features", { source: "en" })}
                 </Text>
                 <Form.Item name="interior_features" noStyle>
                     <Checkbox.Group className="w-full" disabled={lockedFields.has('interior_features')}>
@@ -61,7 +63,7 @@ const FeaturesSection: React.FC<FeaturesSectionProps> = ({
             {/* Exterior Features */}
             <div>
                 <Text strong className="text-sm block mb-2">
-                    Exterior Features
+                    {td("Exterior Features", { source: "en" })}
                 </Text>
                 <Form.Item name="exterior_features" noStyle>
                     <Checkbox.Group className="w-full" disabled={lockedFields.has('exterior_features')}>
@@ -86,7 +88,7 @@ const FeaturesSection: React.FC<FeaturesSectionProps> = ({
             {/* Location Features */}
             <div>
                 <Text strong className="text-sm block mb-2">
-                    Location Features
+                    {td("Location Features", { source: "en" })}
                 </Text>
                 <Form.Item name="location_features" noStyle>
                     <Checkbox.Group className="w-full">

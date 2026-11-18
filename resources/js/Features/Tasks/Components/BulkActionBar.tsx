@@ -2,6 +2,7 @@ import React from "react";
 import { Button, Space, Tooltip } from "antd";
 import { DeleteOutlined, CheckSquareOutlined } from "@ant-design/icons";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface BulkActionBarProps {
     selectedIds: number[];
@@ -14,6 +15,7 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
     onAction,
     onClear,
 }) => {
+    const { td } = useTd();
     if (selectedIds.length === 0) return null;
 
     return (
@@ -28,29 +30,29 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
                     <span className="font-semibold text-white">
                         {selectedIds.length}
                     </span>
-                    <span className="text-gray-300">Selected</span>
+                    <span className="text-gray-300">{td("Selected", { source: "en" })}</span>
                 </div>
 
                 <Space>
-                    <Tooltip title="Change Status">
+                    <Tooltip title={td("Change Status", { source: "en" })}>
                         <Button
                             type="text"
                             className="text-white hover:text-blue-400 hover:bg-gray-700"
                             icon={<CheckSquareOutlined />}
                             onClick={() => onAction("status")}
                         >
-                            Change Status
+                            {td("Change Status", { source: "en" })}
                         </Button>
                     </Tooltip>
 
-                    <Tooltip title="Delete">
+                    <Tooltip title={td("Delete", { source: "en" })}>
                         <Button
                             type="text"
                             className="text-white hover:text-red-400 hover:bg-gray-700"
                             icon={<DeleteOutlined />}
                             onClick={() => onAction("delete")}
                         >
-                            Delete
+                            {td("Delete", { source: "en" })}
                         </Button>
                     </Tooltip>
                 </Space>
@@ -62,7 +64,7 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
                         className="text-gray-400 hover:text-white p-0"
                         onClick={onClear}
                     >
-                        Cancel
+                        {td("Cancel", { source: "en" })}
                     </Button>
                 </div>
             </motion.div>

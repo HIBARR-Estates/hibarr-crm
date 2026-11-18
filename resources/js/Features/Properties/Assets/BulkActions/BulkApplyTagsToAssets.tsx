@@ -5,6 +5,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { router } from "@inertiajs/react";
 import { Button, Form, Modal, Select } from "antd";
 import { TagsOutlined } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     ids: number[];
@@ -19,6 +20,7 @@ const BulkApplyTagsToAssets: React.FC<Props> = ({
     open,
     onClose,
 }) => {
+    const { td } = useTd();
     const [tagsForm] = Form.useForm();
 
     interface BulkTagsPayload {
@@ -58,7 +60,7 @@ const BulkApplyTagsToAssets: React.FC<Props> = ({
             title={
                 <div className="flex items-center gap-2">
                     <TagsOutlined className="text-blue-500" />
-                    <span>Apply Tags to Assets</span>
+                    <span>{td("Apply Tags to Assets", { source: "en" })}</span>
                 </div>
             }
             open={open}
@@ -69,7 +71,7 @@ const BulkApplyTagsToAssets: React.FC<Props> = ({
                     onClick={() => onClose()}
                     disabled={isUpdatingTags}
                 >
-                    Cancel
+                    {td("Cancel", { source: "en" })}
                 </Button>,
                 <Button
                     key="submit"
@@ -78,7 +80,7 @@ const BulkApplyTagsToAssets: React.FC<Props> = ({
                     onClick={handleApplyTags}
                     icon={<TagsOutlined />}
                 >
-                    Apply Tags
+                    {td("Apply Tags", { source: "en" })}
                 </Button>,
             ]}
         >
@@ -91,7 +93,7 @@ const BulkApplyTagsToAssets: React.FC<Props> = ({
             <Form form={tagsForm} layout="vertical" initialValues={{ action: "add" }}>
                 <Form.Item
                     name="action"
-                    label="Action"
+                    label={td("Action", { source: "en" })}
                     rules={[
                         {
                             required: true,
@@ -100,18 +102,18 @@ const BulkApplyTagsToAssets: React.FC<Props> = ({
                     ]}
                 >
                     <Select
-                        placeholder="Choose action"
+                        placeholder={td("Choose action", { source: "en" })}
                         options={[
-                            { value: "add", label: "Add Tags" },
-                            { value: "replace", label: "Replace Tags" },
-                            { value: "remove", label: "Remove Tags" },
+                            { value: "add", label: td("Add Tags", { source: "en" }) },
+                            { value: "replace", label: td("Replace Tags", { source: "en" }) },
+                            { value: "remove", label: td("Remove Tags", { source: "en" }) },
                         ]}
                     />
                 </Form.Item>
 
                 <Form.Item
                     name="tags"
-                    label="Tags"
+                    label={td("Tags", { source: "en" })}
                     rules={[
                         {
                             required: true,
@@ -121,7 +123,7 @@ const BulkApplyTagsToAssets: React.FC<Props> = ({
                 >
                     <Select
                         mode="multiple"
-                        placeholder="Select tags"
+                        placeholder={td("Select tags", { source: "en" })}
                         options={Object.entries(availableTags).map(
                             ([value, label]) => ({
                                 value,

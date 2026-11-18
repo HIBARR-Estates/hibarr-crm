@@ -48,15 +48,15 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
         externalUrl?: string;
         disabled?: boolean;
     }[] = [
-        { key: "overview", icon: <LayoutGrid size={16} />, label: "Overview" },
-        { key: "developers", icon: <Users size={16} />, label: "Developer" },
+        { key: "overview", icon: <LayoutGrid size={16} />, label: td("Overview", { source: "en" }) },
+        { key: "developers", icon: <Users size={16} />, label: td("Developer", { source: "en" }) },
         {
             key: "unit_types",
             icon: <Layers size={16} />,
             label: `Units (${unitTypesCount})`,
         },
-        { key: "photos", icon: <Image size={16} />, label: "Photos" },
-        { key: "facilities", icon: <Home size={16} />, label: "Facilities" },
+        { key: "photos", icon: <Image size={16} />, label: td("Photos", { source: "en" }) },
+        { key: "facilities", icon: <Home size={16} />, label: td("Facilities", { source: "en" }) },
         {
             key: "exterior",
             icon: <Image size={16} />,
@@ -75,11 +75,11 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
         {
             key: "pricelist",
             icon: <DollarSign size={16} />,
-            label: "Price List",
+            label: td("Price List", { source: "en" }),
             externalUrl: availabilityLink ?? undefined,
             disabled: !availabilityLink,
         },
-        { key: "pdf", icon: <FileText size={16} />, label: "PDF Files" },
+        { key: "pdf", icon: <FileText size={16} />, label: td("PDF Files", { source: "en" }) },
         // { key: "offers", icon: <Gift size={16} />, label: "Offers" },
     ];
 
@@ -105,7 +105,7 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
                             target="_blank"
                             rel="noopener noreferrer"
                             className={baseClasses}
-                            title="Open availability link"
+                            title={td("Open availability link", { source: "en" })}
                             onClick={() => onClose?.()}
                         >
                             <span className="flex-shrink-0">{item.icon}</span>

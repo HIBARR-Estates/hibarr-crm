@@ -31,6 +31,7 @@ import {
     COMMISSION_TYPE_LABELS,
 } from "@/Features/Mlm/types";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { RangePicker } = DatePicker;
 
@@ -48,6 +49,7 @@ interface Props extends PageProps {
 const MyCommissions: React.FC<Props> = ({
     summary,
 }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     // Commissions are denominated in the app's currency (deal, falling back to
     // company) — never a hardcoded symbol, never the package's price currency.
@@ -85,7 +87,7 @@ const MyCommissions: React.FC<Props> = ({
 
     const columns = [
         {
-            title: "Deal",
+            title: td("Deal", { source: "en" }),
             key: "deal",
             render: (_: any, r: MlmCommission) => (
                 <div>
@@ -102,7 +104,7 @@ const MyCommissions: React.FC<Props> = ({
             ),
         },
         {
-            title: "Source Agent",
+            title: td("Source Agent", { source: "en" }),
             key: "source",
             render: (_: any, r: MlmCommission) => (
                 <span className="text-sm">
@@ -111,7 +113,7 @@ const MyCommissions: React.FC<Props> = ({
             ),
         },
         {
-            title: "Type",
+            title: td("Type", { source: "en" }),
             dataIndex: "type",
             key: "type",
             render: (t: MlmCommissionType) => (
@@ -129,13 +131,13 @@ const MyCommissions: React.FC<Props> = ({
             ),
         },
         {
-            title: "Level",
+            title: td("Level", { source: "en" }),
             key: "level",
             render: (_: any, r: MlmCommission) =>
                 r.level ? <LevelBadge level={r.level} /> : "—",
         },
         {
-            title: "Amount",
+            title: td("Amount", { source: "en" }),
             key: "amount",
             align: "right" as const,
             render: (_: any, r: MlmCommission) => (
@@ -163,13 +165,13 @@ const MyCommissions: React.FC<Props> = ({
             ),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             render: (s: any) => <CommissionStatusBadge status={s} />,
         },
         {
-            title: "Date",
+            title: td("Date", { source: "en" }),
             dataIndex: "created_at",
             key: "created_at",
             render: (d: string) => formatCompanyDate(d, "—"),
@@ -196,7 +198,7 @@ const MyCommissions: React.FC<Props> = ({
                             >
                                 <Card size="small" className="shadow-sm">
                                     <Statistic
-                                        title="Total"
+                                        title={td("Total", { source: "en" })}
                                         value={summary.total}
                                         prefix={currencySymbol}
                                         precision={2}
@@ -213,7 +215,7 @@ const MyCommissions: React.FC<Props> = ({
                             >
                                 <Card size="small" className="shadow-sm">
                                     <Statistic
-                                        title="Pending"
+                                        title={td("Pending", { source: "en" })}
                                         value={summary.pending}
                                         prefix={currencySymbol}
                                         precision={2}
@@ -230,7 +232,7 @@ const MyCommissions: React.FC<Props> = ({
                             >
                                 <Card size="small" className="shadow-sm">
                                     <Statistic
-                                        title="Total Records"
+                                        title={td("Total Records", { source: "en" })}
                                         value={summary.total_records}
                                     />
                                 </Card>
@@ -249,7 +251,7 @@ const MyCommissions: React.FC<Props> = ({
                             <div className="flex flex-wrap gap-3 items-center">
                                 <Filter size={16} className="text-gray-400" />
                                 <Select
-                                    placeholder="Status"
+                                    placeholder={td("Status", { source: "en" })}
                                     allowClear
                                     className="w-36"
                                     value={filters.status}
@@ -264,7 +266,7 @@ const MyCommissions: React.FC<Props> = ({
                                     }
                                 />
                                 <Select
-                                    placeholder="Type"
+                                    placeholder={td("Type", { source: "en" })}
                                     allowClear
                                     className="w-36"
                                     value={filters.type}

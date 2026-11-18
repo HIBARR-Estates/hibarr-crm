@@ -12,7 +12,7 @@
 
                             <div class="col-lg-4 col-md-6">
                                 <div class="form-group my-3">
-                                    <label class="f-14 text-dark-grey mb-12 w-100" for="usr">Notify</label>
+                                    <label class="f-14 text-dark-grey mb-12 w-100" for="usr">{{ td('Notify') }}</label>
                                     <div class="d-flex">
                                         <x-forms.radio fieldId="toEmployee"
                                             :fieldLabel="__('modules.notices.toEmployee')" fieldName="to"

@@ -8,6 +8,7 @@ import type { UploadProps, UploadFile } from "antd";
 import { ApiResponse } from "@/lib/api/types";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import { IUploadResponseItem } from "@/Types/uploads";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Dragger } = Upload;
 
@@ -32,6 +33,7 @@ const FileUpload: React.FC<Props> = ({
     open,
     onFileUploaded,
 }) => {
+    const { td } = useTd();
     const [fileList, setFileList] = useState<UploadFile[]>([]);
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -90,7 +92,7 @@ const FileUpload: React.FC<Props> = ({
                 .filter((f): f is File => f instanceof File);
 
             if (rawFiles.length === 0) {
-                message.error("No valid files to upload");
+                message.error(td("No valid files to upload", { source: "en" }));
                 setUploading(false);
                 return;
             }
@@ -156,7 +158,7 @@ const FileUpload: React.FC<Props> = ({
 
     return (
         <Modal
-            title="Upload Files"
+            title={td("Upload Files", { source: "en" })}
             open={open}
             onCancel={handleCancel}
             footer={[
@@ -165,7 +167,7 @@ const FileUpload: React.FC<Props> = ({
                     onClick={handleCancel}
                     disabled={isLoading}
                 >
-                    Cancel
+                    {td("Cancel", { source: "en" })}
                 </Button>,
                 <Button
                     key="upload"
@@ -189,11 +191,10 @@ const FileUpload: React.FC<Props> = ({
                         />
                     </p>
                     <p className="ant-upload-text text-lg font-medium">
-                        Click or drag files to this area to upload
+                        {td("Click or drag files to this area to upload", { source: "en" })}
                     </p>
                     <p className="ant-upload-hint text-gray-500">
-                        Support for multiple files. You can select multiple
-                        files at once.
+                        {td("Support for multiple files. You can select multiple files at once.", { source: "en" })}
                     </p>
                 </Dragger>
             </div>

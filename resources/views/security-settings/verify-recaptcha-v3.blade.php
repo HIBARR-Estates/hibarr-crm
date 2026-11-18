@@ -1,12 +1,12 @@
 <div class="modal-header">
-    <h5 class="modal-title">Verify google recaptcha V3</h5>
+    <h5 class="modal-title">{{ td('Verify google recaptcha V3') }}</h5>
     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
 </div>
 
 <div class="modal-body">
     <div class="portlet-body" id="portlet-body" data-error="false">
         <x-alert type="info" icon="info-circle">
-            Please wait...! Key has been verifying.
+            {{ td('Please wait...! Key has been verifying.') }}
         </x-alert>
     </div>
 </div>

@@ -2,6 +2,7 @@ import { Button, Select } from "antd";
 import React from "react";
 import BulkDeleteFollowups from "./BulkDeleteFollowups";
 import BulkChangeStatusFollowups from "./BulkChangeStatusFollowups";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type TFollowupBulkAction = "delete" | "mark_completed" | "mark_cancelled";
 
@@ -25,6 +26,7 @@ const BulkFollowupActionSelector: React.FC<Props> = ({
     actions = DEFAULT_BULK_ACTIONS,
     clearSelected,
 }) => {
+    const { td } = useTd();
     const [action, setAction] = React.useState<TFollowupBulkAction>();
     const [open, setOpen] = React.useState(false);
     const onApply = () => {
@@ -41,14 +43,14 @@ const BulkFollowupActionSelector: React.FC<Props> = ({
                 ids={selectedEntityIds}
                 onClose={onClose}
                 open={open && action === "mark_cancelled"}
-                title="Change Status to Cancelled"
+                title={td("Change Status to Cancelled", { source: "en" })}
                 status="cancelled"
             />
             <BulkChangeStatusFollowups
                 ids={selectedEntityIds}
                 onClose={onClose}
                 open={open && action === "mark_completed"}
-                title="Change Status to Completed"
+                title={td("Change Status to Completed", { source: "en" })}
                 status="completed"
             />
 
@@ -63,7 +65,7 @@ const BulkFollowupActionSelector: React.FC<Props> = ({
                     {selectedEntityIds.length} selected
                 </span>
                 <Select
-                    placeholder="Choose action"
+                    placeholder={td("Choose action", { source: "en" })}
                     value={action}
                     onChange={setAction}
                     style={{ width: 180 }}
@@ -76,7 +78,7 @@ const BulkFollowupActionSelector: React.FC<Props> = ({
                     disabled={!action}
                     onClick={onApply}
                 >
-                    Apply
+                    {td("Apply", { source: "en" })}
                 </Button>
             </div>
         </>

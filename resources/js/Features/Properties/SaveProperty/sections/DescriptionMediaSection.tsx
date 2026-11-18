@@ -4,6 +4,7 @@ import { ThunderboltOutlined } from "@ant-design/icons";
 import type { FormInstance } from "antd/lib/form";
 import type { PrimaryCategory } from "@/Types";
 import { useGenerateDescription } from "@/lib/ai";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { TextArea } = Input;
 
@@ -18,6 +19,7 @@ const DescriptionMediaSection: React.FC<DescriptionMediaSectionProps> = ({
     primaryCategory,
     lockedFields = new Set<string>(),
 }) => {
+    const { td } = useTd();
     const { modal } = App.useApp();
     const { isEnabled, isGenerating, error, insufficientMessage, generate } =
         useGenerateDescription();
@@ -36,7 +38,7 @@ const DescriptionMediaSection: React.FC<DescriptionMediaSectionProps> = ({
         // If description already has content, confirm before replacing
         if (existingDescription?.trim()) {
             modal.confirm({
-                title: "Replace existing description?",
+                title: td("Replace existing description?", { source: "en" }),
                 content:
                     "This will replace your current description with an AI-generated one.",
                 okText: "Replace",
@@ -54,7 +56,7 @@ const DescriptionMediaSection: React.FC<DescriptionMediaSectionProps> = ({
             <Col span={24}>
                 <div className="flex items-center justify-between mb-1">
                     <label className="ant-form-item-label">
-                        <span>Description</span>
+                        <span>{td("Description", { source: "en" })}</span>
                     </label>
                     {isEnabled && (
                         <Button
@@ -71,7 +73,7 @@ const DescriptionMediaSection: React.FC<DescriptionMediaSectionProps> = ({
                 <Form.Item name="description" noStyle>
                     <TextArea
                         rows={4}
-                        placeholder="Enter a detailed property description..."
+                        placeholder={td("Enter a detailed property description...", { source: "en" })}
                         showCount
                         maxLength={5000}
                         disabled={isGenerating || lockedFields.has('description')}
@@ -104,7 +106,7 @@ const DescriptionMediaSection: React.FC<DescriptionMediaSectionProps> = ({
             <Col xs={24} md={12}>
                 <Form.Item
                     name="video_url"
-                    label="Video URL"
+                    label={td("Video URL", { source: "en" })}
                     rules={[
                         { type: "url", message: "Please enter a valid URL" },
                     ]}
@@ -117,7 +119,7 @@ const DescriptionMediaSection: React.FC<DescriptionMediaSectionProps> = ({
             <Col xs={24} md={12}>
                 <Form.Item
                     name="tour_360_url"
-                    label="360° Tour URL"
+                    label={td("360° Tour URL", { source: "en" })}
                     rules={[
                         { type: "url", message: "Please enter a valid URL" },
                     ]}

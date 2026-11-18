@@ -25,7 +25,7 @@
                 @endif
 
                 <div class="alert alert-info mb-4">
-                    <h5 class="alert-heading f-14 font-weight-bold"><i class="fa fa-info-circle"></i> Business Rules</h5>
+                    <h5 class="alert-heading f-14 font-weight-bold"><i class="fa fa-info-circle"></i> {{ td('Business Rules') }}</h5>
                     <p class="mb-0 f-13">
                         Business rules define the configuration for how certain event types are processed.
                         The rule config is a JSON object that the CRM Event Engine uses to apply special handling,
@@ -37,21 +37,21 @@
                     <div class="col-md-6">
                         <x-forms.text fieldId="name" :fieldLabel="__('app.name')" fieldName="name"
                                       fieldRequired="true" :fieldValue="$businessRule->name ?? ''"
-                                      fieldPlaceholder="e.g. Site Visitor Property View" />
+                                      :fieldPlaceholder="td('e.g. Site Visitor Property View')" />
                     </div>
                     <div class="col-md-6">
-                        <x-forms.text fieldId="slug" fieldLabel="Slug" fieldName="slug"
+                        <x-forms.text fieldId="slug" :fieldLabel="td('Slug')" fieldName="slug"
                                       fieldRequired="true" :fieldValue="$businessRule->slug ?? ''"
-                                      fieldPlaceholder="e.g. site_visitor_property_view" />
-                        <small class="text-muted f-11">Auto-generated from name. Use lowercase letters, numbers, and underscores.</small>
+                                      :fieldPlaceholder="td('e.g. site_visitor_property_view')" />
+                        <small class="text-muted f-11">{{ td('Auto-generated from name. Use lowercase letters, numbers, and underscores.') }}</small>
                     </div>
                 </div>
 
                 <div class="row">
                     <div class="col-md-12">
-                        <x-forms.textarea fieldId="description" fieldLabel="Description" fieldName="description"
+                        <x-forms.textarea fieldId="description" :fieldLabel="td('Description')" fieldName="description"
                                           :fieldValue="$businessRule->description ?? ''"
-                                          fieldPlaceholder="Describe what this business rule does" />
+                                          :fieldPlaceholder="td('Describe what this business rule does')" />
                     </div>
                 </div>
 
@@ -71,10 +71,10 @@
     "assign_to": "property_agent"
 }'>{{ isset($businessRule->id) && $businessRule->rule_config ? json_encode($businessRule->rule_config, JSON_PRETTY_PRINT) : '' }}</textarea>
                             <small class="text-muted f-11">
-                                Define the rule behavior as a JSON object. Common keys:
-                                <code>auto_create_lead</code>, <code>link_to_property</code>,
-                                <code>notify_agent</code>, <code>assign_to</code>,
-                                <code>track_duration</code>, <code>create_contact</code>.
+                                {{ td('Define the rule behavior as a JSON object. Common keys:') }}
+                                <code>{{ td('auto_create_lead') }}</code>, <code>{{ td('link_to_property') }}</code>,
+                                <code>{{ td('notify_agent') }}</code>, <code>{{ td('assign_to') }}</code>,
+                                <code>{{ td('track_duration') }}</code>, <code>{{ td('create_contact') }}</code>.
                             </small>
                         </div>
                     </div>

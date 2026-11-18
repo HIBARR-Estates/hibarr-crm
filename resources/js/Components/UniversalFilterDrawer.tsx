@@ -3,6 +3,8 @@ import { Button, Space, Modal } from "antd";
 import { FilterOutlined } from "@ant-design/icons";
 import { useFilter, FilterConfig } from "@/contexts/FilterContext";
 import UniversalFilterForm from "@/Components/UniversalFilterForm";
+import { useTranslation } from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface UniversalFilterDrawerProps {
     config: FilterConfig;
@@ -16,6 +18,8 @@ const UniversalFilterDrawer: React.FC<UniversalFilterDrawerProps> = ({
     width = 480,
     loading = false,
 }) => {
+    const { t } = useTranslation();
+    const { td } = useTd();
     const {
         isDrawerOpen,
         closeDrawer,
@@ -32,11 +36,11 @@ const UniversalFilterDrawer: React.FC<UniversalFilterDrawerProps> = ({
                 <div className="flex items-center justify-between">
                     <span className="flex items-center gap-2">
                         <FilterOutlined />
-                        {config.title}
+                        {td(config.title, { source: "en" })}
                     </span>
                     {activeFilterCount > 0 && (
                         <span className="text-sm text-gray-500">
-                            ({activeFilterCount} active)
+                            {t("pages.filters.active_n", { n: activeFilterCount })}
                         </span>
                     )}
                 </div>
@@ -47,11 +51,11 @@ const UniversalFilterDrawer: React.FC<UniversalFilterDrawerProps> = ({
             // placement="right"
             footer={
                 <div className="flex justify-between">
-                    <Button onClick={resetFilters}>Reset All</Button>
+                    <Button onClick={resetFilters}>{t("pages.filters.reset_all")}</Button>
                     <Space>
-                        <Button onClick={closeDrawer}>Cancel</Button>
+                        <Button onClick={closeDrawer}>{t("pages.filters.cancel")}</Button>
                         <Button type="primary" onClick={applyFilters}>
-                            Apply Filters
+                            {t("pages.filters.apply_filters_btn")}
                         </Button>
                     </Space>
                 </div>

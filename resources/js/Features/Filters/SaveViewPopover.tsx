@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import type { FilterSummaryPart } from "./filterSummary";
 import type { LeadSavedView, SaveViewPayload } from "./useLeadSavedViews";
+import { useTranslation } from "@/Hooks/useTranslation";
 
 interface SaveViewPopoverProps {
     open: boolean;
@@ -23,6 +24,7 @@ export default function SaveViewPopover({
     onCancel,
     onSave,
 }: SaveViewPopoverProps) {
+    const { t } = useTranslation();
     const [name, setName] = useState(suggestedName);
     const [visibility, setVisibility] = useState<"private" | "team">("team");
     const [pinned, setPinned] = useState(true);
@@ -42,30 +44,30 @@ export default function SaveViewPopover({
             <div
                 className="lfm-savepop"
                 role="dialog"
-                aria-label="Save filters as a view"
+                aria-label={t("pages.filters.save_filters_aria")}
             >
                 <div className="lfm-savepop__title">
-                    {existing ? "Update view" : "Save as view"}
+                    {existing ? t("pages.filters.update_view") : t("pages.filters.save_as_view")}
                 </div>
 
                 <label className="lfm-savepop__group">
-                    <span className="lfm-savepop__label">Name</span>
+                    <span className="lfm-savepop__label">{t("pages.filters.name")}</span>
                     <input
                         className="lfm-savepop__input"
                         value={name}
                         autoFocus
                         onChange={(event) => setName(event.target.value)}
-                        placeholder="Name this view"
+                        placeholder={t("pages.filters.name_placeholder")}
                     />
                     {!existing && (
                         <span className="lfm-savepop__hint">
-                            Suggested from your filters
+                            {t("pages.filters.suggested")}
                         </span>
                     )}
                 </label>
 
                 <div className="lfm-savepop__group">
-                    <span className="lfm-savepop__label">Who can see it</span>
+                    <span className="lfm-savepop__label">{t("pages.filters.who_can_see")}</span>
                     <button
                         type="button"
                         className={`lfm-radio${visibility === "private" ? " is-on" : ""}`}
@@ -73,9 +75,9 @@ export default function SaveViewPopover({
                     >
                         <span className="lfm-radio__dot" />
                         <span>
-                            <span className="lfm-radio__name">Only me</span>
+                            <span className="lfm-radio__name">{t("pages.filters.only_me")}</span>
                             <span className="lfm-radio__sub">
-                                Private to your account
+                                {t("pages.filters.private_sub")}
                             </span>
                         </span>
                     </button>
@@ -87,10 +89,10 @@ export default function SaveViewPopover({
                         <span className="lfm-radio__dot" />
                         <span>
                             <span className="lfm-radio__name">
-                                Share with team
+                                {t("pages.filters.share_team")}
                             </span>
                             <span className="lfm-radio__sub">
-                                Everyone in your company can open it
+                                {t("pages.filters.share_team_sub")}
                             </span>
                         </span>
                     </button>
@@ -98,8 +100,7 @@ export default function SaveViewPopover({
 
                 <div className="lfm-savepop__summary">
                     <div className="lfm-savepop__summaryhead">
-                        Saving {parts.length}{" "}
-                        {parts.length === 1 ? "filter" : "filters"}
+                        {t("pages.filters.saving_filters", { count: parts.length })}
                     </div>
                     <div className="lfm-savepop__chips">
                         {parts.map((part) => (
@@ -112,7 +113,7 @@ export default function SaveViewPopover({
                         ))}
                         {parts.length === 0 && (
                             <span className="lfm-empty">
-                                No filters selected yet
+                                {t("pages.filters.no_filters_selected")}
                             </span>
                         )}
                     </div>
@@ -126,7 +127,7 @@ export default function SaveViewPopover({
                         >
                             <span className="lfm-toggle__knob" />
                         </span>
-                        Pin to my Views bar
+                        {t("pages.filters.pin_view")}
                     </button>
                 </div>
 
@@ -137,7 +138,7 @@ export default function SaveViewPopover({
                         onClick={onCancel}
                         disabled={saving}
                     >
-                        Cancel
+                        {t("pages.filters.cancel")}
                     </button>
                     <button
                         type="button"
@@ -152,10 +153,10 @@ export default function SaveViewPopover({
                         }
                     >
                         {saving
-                            ? "Saving…"
+                            ? t("pages.filters.saving")
                             : existing
-                              ? "Update view"
-                              : "Save view"}
+                              ? t("pages.filters.update_view")
+                              : t("pages.filters.save_view")}
                     </button>
                 </div>
             </div>

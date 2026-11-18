@@ -98,7 +98,7 @@
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <h4 class="mb-2 f-18 font-weight-medium">@lang('modules.gdpr.enableGdpr')</h4>
-                        <p class="text-muted mb-0 f-14">Enable or disable GDPR compliance features for your application</p>
+                        <p class="text-muted mb-0 f-14">{{ td('Enable or disable GDPR compliance features for your application') }}</p>
                     </div>
                     <div class="d-flex align-items-center">
                         <label class="gdpr-toggle-switch mr-3">

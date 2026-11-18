@@ -19,6 +19,7 @@ import {
     PAYMENT_INTERVAL_OPTIONS,
 } from "../fieldConfig";
 import { useFormOptions } from "../useFormOptions";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -47,6 +48,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
     lockedFields = new Set<string>(),
     selectedCurrency = "GBP",
 }) => {
+    const { td } = useTd();
     const { deedTypeOptions, deedStatusOptions } = useFormOptions(
         enumValues,
         primaryCategory,
@@ -75,12 +77,12 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
             {/* Title Deed — all categories */}
             {/* ============================== */}
             <Text strong className="text-sm block mb-3">
-                Title Deed Information
+                {td("Title Deed Information", { source: "en" })}
             </Text>
             <Row gutter={[16, 0]}>
                 <Col xs={24} md={8}>
-                    <Form.Item name="title_deed_type" label="Deed Type">
-                        <Select placeholder="Select deed type" allowClear>
+                    <Form.Item name="title_deed_type" label={td("Deed Type", { source: "en" })}>
+                        <Select placeholder={td("Select deed type", { source: "en" })} allowClear>
                             {deedTypeOptions.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
@@ -90,8 +92,8 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                     </Form.Item>
                 </Col>
                 <Col xs={24} md={8}>
-                    <Form.Item name="title_deed_stage" label="Deed Status">
-                        <Select placeholder="Select status" allowClear>
+                    <Form.Item name="title_deed_stage" label={td("Deed Status", { source: "en" })}>
+                        <Select placeholder={td("Select status", { source: "en" })} allowClear>
                             {deedStatusOptions.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
@@ -113,11 +115,11 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name={["legal_info", "vat_paid"]}
-                        label="VAT Status"
+                        label={td("VAT Status", { source: "en" })}
                     >
                         <Radio.Group>
-                            <Radio value={true}>VAT Paid (5%)</Radio>
-                            <Radio value={false}>VAT Not Paid</Radio>
+                            <Radio value={true}>{td("VAT Paid (5%)", { source: "en" })}</Radio>
+                            <Radio value={false}>{td("VAT Not Paid", { source: "en" })}</Radio>
                         </Radio.Group>
                     </Form.Item>
                 </Col>
@@ -127,7 +129,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                         valuePropName="checked"
                         label=" "
                     >
-                        <Checkbox>Trafo Fee Paid</Checkbox>
+                        <Checkbox>{td("Trafo Fee Paid", { source: "en" })}</Checkbox>
                     </Form.Item>
                 </Col>
                 <Col xs={24} md={6}>
@@ -136,7 +138,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                         valuePropName="checked"
                         label=" "
                     >
-                        <Checkbox>Stopaj (Withholding Tax) Paid</Checkbox>
+                        <Checkbox>{td("Stopaj (Withholding Tax) Paid", { source: "en" })}</Checkbox>
                     </Form.Item>
                 </Col>
             </Row>
@@ -151,16 +153,16 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                         <>
                             <Divider className="!my-3" />
                             <Text strong className="text-sm block mb-3">
-                                Rental Terms
+                                {td("Rental Terms", { source: "en" })}
                             </Text>
                             <Row gutter={[16, 0]}>
                                 <Col xs={24} md={8}>
                                     <Form.Item
                                         name="minimal_rental_period"
-                                        label="Minimum Rental Period"
+                                        label={td("Minimum Rental Period", { source: "en" })}
                                     >
                                         <Select
-                                            placeholder="Select period"
+                                            placeholder={td("Select period", { source: "en" })}
                                             allowClear
                                         >
                                             {RENTAL_PERIOD_OPTIONS.map((o) => (
@@ -177,10 +179,10 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                                 <Col xs={24} md={8}>
                                     <Form.Item
                                         name="rent_payment_interval"
-                                        label="Payment Interval"
+                                        label={td("Payment Interval", { source: "en" })}
                                     >
                                         <Select
-                                            placeholder="Select interval"
+                                            placeholder={td("Select interval", { source: "en" })}
                                             allowClear
                                         >
                                             {PAYMENT_INTERVAL_OPTIONS.map(
@@ -203,7 +205,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                     {/* ---------- Financial Details ---------- */}
                     <Divider className="!my-3" />
                     <Text strong className="text-sm block mb-3">
-                        Financial Details
+                        {td("Financial Details", { source: "en" })}
                     </Text>
                     <Row gutter={[16, 0]}>
                         {/* Deposit — only for rentals, not for sale */}
@@ -211,7 +213,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                             <Col xs={24} md={8}>
                                 <Form.Item
                                     name={["legal_info", "deposit_amount"]}
-                                    label="Deposit Amount"
+                                    label={td("Deposit Amount", { source: "en" })}
                                 >
                                     <InputNumber
                                         min={0}
@@ -237,7 +239,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                         <Col xs={24} md={8}>
                             <Form.Item
                                 name={["legal_info", "mortgage_eligible"]}
-                                label="Mortgage Eligible"
+                                label={td("Mortgage Eligible", { source: "en" })}
                                 valuePropName="checked"
                             >
                                 <Switch
@@ -251,7 +253,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                     {/* ---------- Legal Details ---------- */}
                     <Divider className="!my-3" />
                     <Text strong className="text-sm block mb-3">
-                        Legal Details
+                        {td("Legal Details", { source: "en" })}
                     </Text>
 
                     {/* Payment Plan */}
@@ -259,7 +261,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                         <Col xs={24} md={8}>
                             <Form.Item
                                 name={["legal_info", "has_payment_plan"]}
-                                label="Payment Plan"
+                                label={td("Payment Plan", { source: "en" })}
                                 valuePropName="checked"
                             >
                                 <Switch
@@ -273,7 +275,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                     {hasPaymentPlan && (
                         <Row gutter={[16, 0]}>
                             <Col xs={24} md={8}>
-                                <Form.Item label="Downpayment">
+                                <Form.Item label={td("Downpayment", { source: "en" })}>
                                     <Input.Group compact>
                                         <Form.Item
                                             name={[
@@ -346,7 +348,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                                         "legal_info",
                                         "payment_period_months",
                                     ]}
-                                    label="Period"
+                                    label={td("Period", { source: "en" })}
                                 >
                                     <InputNumber
                                         min={1}
@@ -359,7 +361,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                             <Col xs={24} md={8}>
                                 <Form.Item
                                     name={["legal_info", "interest_rate"]}
-                                    label="Interest"
+                                    label={td("Interest", { source: "en" })}
                                 >
                                     <InputNumber
                                         min={0}
@@ -378,9 +380,9 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name={["legal_info", "military_distance"]}
-                                label="Distance to Military Base"
+                                label={td("Distance to Military Base", { source: "en" })}
                             >
-                                <Input placeholder="e.g. 2 km" />
+                                <Input placeholder={td("e.g. 2 km", { source: "en" })} />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -390,15 +392,15 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                         <Col xs={24} md={8}>
                             <Form.Item
                                 name={["legal_info", "has_restrictions"]}
-                                label="Any Restrictions"
+                                label={td("Any Restrictions", { source: "en" })}
                             >
                                 <Radio.Group
                                     disabled={lockedFields.has(
                                         "legal_info.has_restrictions",
                                     )}
                                 >
-                                    <Radio value={true}>Yes</Radio>
-                                    <Radio value={false}>No</Radio>
+                                    <Radio value={true}>{td("Yes", { source: "en" })}</Radio>
+                                    <Radio value={false}>{td("No", { source: "en" })}</Radio>
                                 </Radio.Group>
                             </Form.Item>
                         </Col>
@@ -406,11 +408,11 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                             <Col xs={24} md={16}>
                                 <Form.Item
                                     name={["legal_info", "restriction_notes"]}
-                                    label="Restriction Details"
+                                    label={td("Restriction Details", { source: "en" })}
                                 >
                                     <TextArea
                                         rows={2}
-                                        placeholder="Describe restrictions..."
+                                        placeholder={td("Describe restrictions...", { source: "en" })}
                                         disabled={lockedFields.has(
                                             "legal_info.restriction_notes",
                                         )}
@@ -425,11 +427,11 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                         <Col span={24}>
                             <Form.Item
                                 name={["legal_info", "payment_plan_notes"]}
-                                label="Payment Plan Additional Notes"
+                                label={td("Payment Plan Additional Notes", { source: "en" })}
                             >
                                 <TextArea
                                     rows={2}
-                                    placeholder="Additional notes about payment plan..."
+                                    placeholder={td("Additional notes about payment plan...", { source: "en" })}
                                 />
                             </Form.Item>
                         </Col>
@@ -445,13 +447,13 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                     {/* ---------- Finance ---------- */}
                     <Divider className="!my-3" />
                     <Text strong className="text-sm block mb-3">
-                        Finance
+                        {td("Finance", { source: "en" })}
                     </Text>
                     <Row gutter={[16, 0]}>
                         <Col xs={24} md={8}>
                             <Form.Item
                                 name={["legal_info", "development_rate"]}
-                                label="Development Rate"
+                                label={td("Development Rate", { source: "en" })}
                             >
                                 <InputNumber
                                     min={0}
@@ -465,7 +467,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                         <Col xs={24} md={8}>
                             <Form.Item
                                 name={["legal_info", "max_floor_permission"]}
-                                label="Max Floor Permission"
+                                label={td("Max Floor Permission", { source: "en" })}
                             >
                                 <InputNumber
                                     min={0}
@@ -479,7 +481,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                     {/* ---------- Legal Details ---------- */}
                     <Divider className="!my-3" />
                     <Text strong className="text-sm block mb-3">
-                        Legal Details
+                        {td("Legal Details", { source: "en" })}
                     </Text>
 
                     {/* Payment Plan */}
@@ -487,7 +489,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                         <Col xs={24} md={8}>
                             <Form.Item
                                 name={["legal_info", "has_payment_plan"]}
-                                label="Payment Plan"
+                                label={td("Payment Plan", { source: "en" })}
                                 valuePropName="checked"
                             >
                                 <Switch
@@ -501,7 +503,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                     {hasPaymentPlan && (
                         <Row gutter={[16, 0]}>
                             <Col xs={24} md={8}>
-                                <Form.Item label="Downpayment">
+                                <Form.Item label={td("Downpayment", { source: "en" })}>
                                     <Input.Group compact>
                                         <Form.Item
                                             name={[
@@ -574,7 +576,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                                         "legal_info",
                                         "payment_period_months",
                                     ]}
-                                    label="Period"
+                                    label={td("Period", { source: "en" })}
                                 >
                                     <InputNumber
                                         min={1}
@@ -587,7 +589,7 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                             <Col xs={24} md={8}>
                                 <Form.Item
                                     name={["legal_info", "interest_rate"]}
-                                    label="Interest"
+                                    label={td("Interest", { source: "en" })}
                                 >
                                     <InputNumber
                                         min={0}
@@ -606,9 +608,9 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name={["legal_info", "military_distance"]}
-                                label="Distance to Military Base"
+                                label={td("Distance to Military Base", { source: "en" })}
                             >
-                                <Input placeholder="e.g. 2 km" />
+                                <Input placeholder={td("e.g. 2 km", { source: "en" })} />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -618,15 +620,15 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                         <Col xs={24} md={8}>
                             <Form.Item
                                 name={["legal_info", "has_restrictions"]}
-                                label="Any Restrictions"
+                                label={td("Any Restrictions", { source: "en" })}
                             >
                                 <Radio.Group
                                     disabled={lockedFields.has(
                                         "legal_info.has_restrictions",
                                     )}
                                 >
-                                    <Radio value={true}>Yes</Radio>
-                                    <Radio value={false}>No</Radio>
+                                    <Radio value={true}>{td("Yes", { source: "en" })}</Radio>
+                                    <Radio value={false}>{td("No", { source: "en" })}</Radio>
                                 </Radio.Group>
                             </Form.Item>
                         </Col>
@@ -634,11 +636,11 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                             <Col xs={24} md={16}>
                                 <Form.Item
                                     name={["legal_info", "restriction_notes"]}
-                                    label="Restriction Details"
+                                    label={td("Restriction Details", { source: "en" })}
                                 >
                                     <TextArea
                                         rows={2}
-                                        placeholder="Describe restrictions..."
+                                        placeholder={td("Describe restrictions...", { source: "en" })}
                                         disabled={lockedFields.has(
                                             "legal_info.restriction_notes",
                                         )}
@@ -653,11 +655,11 @@ const LegalFinancialSection: React.FC<LegalFinancialSectionProps> = ({
                         <Col span={24}>
                             <Form.Item
                                 name={["legal_info", "payment_plan_notes"]}
-                                label="Payment Plan Additional Notes"
+                                label={td("Payment Plan Additional Notes", { source: "en" })}
                             >
                                 <TextArea
                                     rows={2}
-                                    placeholder="Additional notes about payment plan..."
+                                    placeholder={td("Additional notes about payment plan...", { source: "en" })}
                                 />
                             </Form.Item>
                         </Col>

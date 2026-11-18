@@ -130,7 +130,7 @@ export default function FieldsTab({ fields, moduleGroups, onEdit, onDelete, onRe
                                     <span style={{ display: "inline-flex", transition: "transform 0.16s ease", transform: `rotate(${open ? 90 : 0}deg)` }}>
                                         <Icon name="chevron-right" size={18} color={T.TEXT_MUTED} />
                                     </span>
-                                    <span style={{ fontSize: 15, fontWeight: 600, color: T.NAVY }}>{group.name}</span>
+                                    <span style={{ fontSize: 15, fontWeight: 600, color: T.NAVY }}>{td(group.name, { source: "en" })}</span>
                                     <span className="dr-pill dr-pill-gray">
                                         {filtered.length} {filtered.length === 1 ? td("field", { source: "en" }) : td("fields", { source: "en" })}
                                     </span>
@@ -195,7 +195,7 @@ export default function FieldsTab({ fields, moduleGroups, onEdit, onDelete, onRe
                                                 </span>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                                                     <span style={{ fontSize: 14, fontWeight: 600, color: T.TEXT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                                        {field.label}
+                                                        {td(field.label, { source: "en" })}
                                                     </span>
                                                     {fieldHasRule(field) && (
                                                         <span
@@ -227,7 +227,7 @@ export default function FieldsTab({ fields, moduleGroups, onEdit, onDelete, onRe
                                                     </span>
                                                 </span>
                                                 <span style={{ display: "flex", alignItems: "center", fontSize: 13, color: T.TEXT_MUTED, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                                    {field.category_name ?? "—"}
+                                                    {td(field.category_name ?? "—", { source: "en" })}
                                                 </span>
                                                 <span style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
                                                     <button

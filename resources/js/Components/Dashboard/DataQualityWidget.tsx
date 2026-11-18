@@ -4,6 +4,7 @@ import { Card, List, Button, Empty, Progress, Tag } from "antd";
 import { Link } from "@inertiajs/react";
 import { AlertTriangle, ArrowRight, TrendingUp } from "lucide-react";
 import { Typography } from "antd";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -34,6 +35,7 @@ interface DataQualityWidgetProps {
 }
 
 export default function DataQualityWidget({ deals }: DataQualityWidgetProps) {
+    const { td } = useTd();
     const getDataQualityColor = (score: number) => {
         if (score >= 80) return "#52c41a";
         if (score >= 50) return "#faad14";
@@ -65,10 +67,10 @@ export default function DataQualityWidget({ deals }: DataQualityWidgetProps) {
                                     size={18}
                                     className="text-orange-500"
                                 />
-                                Data Quality
+                                {td("Data Quality", { source: "en" })}
                             </h3>
                             <p className="text-sm text-gray-500">
-                                Deals that need attention
+                                {td("Deals that need attention", { source: "en" })}
                             </p>
                         </div>
                         <Link
@@ -82,7 +84,7 @@ export default function DataQualityWidget({ deals }: DataQualityWidgetProps) {
                                 size="small"
                                 className="flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                             >
-                                View All
+                                {td("View All", { source: "en" })}
                                 <ArrowRight size={14} />
                             </Button>
                         </Link>
@@ -95,7 +97,7 @@ export default function DataQualityWidget({ deals }: DataQualityWidgetProps) {
                         locale={{
                             emptyText: (
                                 <Empty
-                                    description="All deals have good data quality!"
+                                    description={td("All deals have good data quality!", { source: "en" })}
                                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                                     className="py-8"
                                 />
@@ -123,7 +125,7 @@ export default function DataQualityWidget({ deals }: DataQualityWidgetProps) {
                                                 size="small"
                                                 className="bg-gradient-to-r from-blue-500 to-purple-600 border-0 shadow-md hover:shadow-lg"
                                             >
-                                                Complete
+                                                {td("Complete", { source: "en" })}
                                             </Button>
                                         </Link>,
                                     ]}
@@ -176,7 +178,7 @@ export default function DataQualityWidget({ deals }: DataQualityWidgetProps) {
                                                                 type="secondary"
                                                                 className="text-xs"
                                                             >
-                                                                Missing fields:
+                                                                {td("Missing fields:", { source: "en" })}
                                                             </Text>
                                                             <div className="flex flex-wrap gap-1">
                                                                 {deal.missing_fields

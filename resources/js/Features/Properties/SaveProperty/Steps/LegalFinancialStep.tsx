@@ -18,6 +18,7 @@ import {
     DollarOutlined,
     SafetyOutlined,
 } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -69,6 +70,7 @@ export default function LegalFinancialStep({
     enumValues,
     data,
 }: LegalFinancialStepProps) {
+    const { td } = useTd();
     const saleType = Form.useWatch("sale_type", form);
     const isRental = saleType?.includes("Rent");
 
@@ -77,13 +79,13 @@ export default function LegalFinancialStep({
             {/* Legal Information */}
             <Text type="secondary" className="block mb-4">
                 <FileTextOutlined className="mr-2" />
-                Legal documentation and title deed information.
+                {td("Legal documentation and title deed information.", { source: "en" })}
             </Text>
 
             <Row gutter={[16, 0]}>
                 <Col xs={24} md={12}>
-                    <Form.Item name="title_deed_type" label="Title Deed Type">
-                        <Select placeholder="Select deed type" allowClear>
+                    <Form.Item name="title_deed_type" label={td("Title Deed Type", { source: "en" })}>
+                        <Select placeholder={td("Select deed type", { source: "en" })} allowClear>
                             {DEED_TYPES.map((type) => (
                                 <Option key={type} value={type}>
                                     {type}
@@ -94,8 +96,8 @@ export default function LegalFinancialStep({
                 </Col>
 
                 <Col xs={24} md={12}>
-                    <Form.Item name="title_deed_stage" label="Title Deed Stage">
-                        <Select placeholder="Select deed stage" allowClear>
+                    <Form.Item name="title_deed_stage" label={td("Title Deed Stage", { source: "en" })}>
+                        <Select placeholder={td("Select deed stage", { source: "en" })} allowClear>
                             {DEED_STATUSES.map((status) => (
                                 <Option key={status} value={status}>
                                     {status}
@@ -109,21 +111,21 @@ export default function LegalFinancialStep({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name={["legal_info", "deed_type"]}
-                        label="Deed Type (Detailed)"
+                        label={td("Deed Type (Detailed)", { source: "en" })}
                     >
-                        <Input placeholder="e.g., Kat Mülkiyeti" />
+                        <Input placeholder={td("e.g., Kat Mülkiyeti", { source: "en" })} />
                     </Form.Item>
                 </Col>
 
                 <Col xs={24} md={12}>
                     <Form.Item
                         name={["legal_info", "deed_status"]}
-                        label="Deed Status"
+                        label={td("Deed Status", { source: "en" })}
                     >
-                        <Select placeholder="Select status" allowClear>
-                            <Option value="ready">Ready</Option>
-                            <Option value="in_progress">In Progress</Option>
-                            <Option value="pending">Pending</Option>
+                        <Select placeholder={td("Select status", { source: "en" })} allowClear>
+                            <Option value="ready">{td("Ready", { source: "en" })}</Option>
+                            <Option value="in_progress">{td("In Progress", { source: "en" })}</Option>
+                            <Option value="pending">{td("Pending", { source: "en" })}</Option>
                         </Select>
                     </Form.Item>
                 </Col>
@@ -131,19 +133,19 @@ export default function LegalFinancialStep({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name={["legal_info", "iskan_status"]}
-                        label="Iskan Status"
-                        tooltip="Habitation permit status"
+                        label={td("Iskan Status", { source: "en" })}
+                        tooltip={td("Habitation permit status", { source: "en" })}
                     >
-                        <Input placeholder="e.g., Received, Pending" />
+                        <Input placeholder={td("e.g., Received, Pending", { source: "en" })} />
                     </Form.Item>
                 </Col>
 
                 <Col xs={24} md={12}>
                     <Form.Item
                         name={["legal_info", "building_permit"]}
-                        label="Building Permit"
+                        label={td("Building Permit", { source: "en" })}
                     >
-                        <Input placeholder="Permit number or status" />
+                        <Input placeholder={td("Permit number or status", { source: "en" })} />
                     </Form.Item>
                 </Col>
             </Row>
@@ -151,15 +153,15 @@ export default function LegalFinancialStep({
             {/* Rental-specific fields */}
             {isRental && (
                 <>
-                    <Divider className="my-4">Rental Terms</Divider>
+                    <Divider className="my-4">{td("Rental Terms", { source: "en" })}</Divider>
                     <Row gutter={[16, 0]}>
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="minimal_rental_period"
-                                label="Minimum Rental Period"
+                                label={td("Minimum Rental Period", { source: "en" })}
                             >
                                 <Select
-                                    placeholder="Select minimum period"
+                                    placeholder={td("Select minimum period", { source: "en" })}
                                     allowClear
                                 >
                                     {RENTAL_PERIODS.map((period) => (
@@ -174,10 +176,10 @@ export default function LegalFinancialStep({
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="rent_payment_interval"
-                                label="Payment Interval"
+                                label={td("Payment Interval", { source: "en" })}
                             >
                                 <Select
-                                    placeholder="Select payment interval"
+                                    placeholder={td("Select payment interval", { source: "en" })}
                                     allowClear
                                 >
                                     {PAYMENT_INTERVALS.map((interval) => (
@@ -194,14 +196,14 @@ export default function LegalFinancialStep({
 
             <Divider className="my-4">
                 <DollarOutlined className="mr-2" />
-                Financial Information
+                {td("Financial Information", { source: "en" })}
             </Divider>
 
             <Row gutter={[16, 0]}>
                 <Col xs={24} md={8}>
                     <Form.Item
                         name={["financial_info", "commission_rate"]}
-                        label="Commission Rate (%)"
+                        label={td("Commission Rate (%)", { source: "en" })}
                     >
                         <InputNumber
                             placeholder="e.g., 3"
@@ -216,10 +218,10 @@ export default function LegalFinancialStep({
                 <Col xs={24} md={8}>
                     <Form.Item
                         name={["financial_info", "deposit_amount"]}
-                        label="Deposit Amount"
+                        label={td("Deposit Amount", { source: "en" })}
                     >
                         <InputNumber
-                            placeholder="Deposit"
+                            placeholder={td("Deposit", { source: "en" })}
                             min={0}
                             style={{ width: "100%" }}
                             formatter={(value) =>
@@ -235,7 +237,7 @@ export default function LegalFinancialStep({
                 <Col xs={24} md={8}>
                     <Form.Item
                         name={["financial_info", "mortgage_eligible"]}
-                        label="Mortgage Eligible"
+                        label={td("Mortgage Eligible", { source: "en" })}
                         valuePropName="checked"
                     >
                         <Switch checkedChildren="Yes" unCheckedChildren="No" />
@@ -245,11 +247,11 @@ export default function LegalFinancialStep({
                 <Col span={24}>
                     <Form.Item
                         name={["financial_info", "payment_terms"]}
-                        label="Payment Terms"
+                        label={td("Payment Terms", { source: "en" })}
                     >
                         <TextArea
                             rows={2}
-                            placeholder="Describe payment terms, installment options, etc."
+                            placeholder={td("Describe payment terms, installment options, etc.", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>
@@ -257,11 +259,11 @@ export default function LegalFinancialStep({
                 <Col span={24}>
                     <Form.Item
                         name={["financial_info", "notes"]}
-                        label="Financial Notes"
+                        label={td("Financial Notes", { source: "en" })}
                     >
                         <TextArea
                             rows={2}
-                            placeholder="Any additional financial notes or conditions..."
+                            placeholder={td("Any additional financial notes or conditions...", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>

@@ -55,6 +55,7 @@ import {
 import UnitTypePhotosSection from "@/Features/DeveloperProjects/UnitTypePhotosSection";
 import { useGenerateDescription } from "@/lib/ai";
 import HtmlEditor from "@/Components/HtmlEditor/HtmlEditor";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title, Text } = Typography;
 
@@ -117,6 +118,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
     insideFeatureOptions = [...INSIDE_FEATURE_OPTIONS],
     outsideFeatureOptions = [...OUTSIDE_FEATURE_OPTIONS],
 }) => {
+    const { td } = useTd();
     const { default_currency_code: defaultCurrencyCode = "GBP" } = usePage()
         .props as any;
     const [form] = Form.useForm<UnitTypeFormValues>();
@@ -179,7 +181,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                 if (created?.id) {
                     setLocalUnitType(created as DeveloperProjectUnitType);
                 }
-                message.success("Unit type saved! You can now upload photos.");
+                message.success(td("Unit type saved! You can now upload photos.", { source: "en" }));
                 return;
             }
 
@@ -349,12 +351,12 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
         const values = form.getFieldsValue(true);
         if (!values.primary_category || !values.property_type) {
             message.error(
-                "Please fill in at least Category and Property Type before saving.",
+                td("Please fill in at least Category and Property Type before saving.", { source: "en" }),
             );
             return;
         }
         modal.confirm({
-            title: "Save unit type to continue?",
+            title: td("Save unit type to continue?", { source: "en" }),
             content: "Your unit type will be saved so you can upload photos.",
             okText: "Save & Continue",
             cancelText: "Cancel",
@@ -427,14 +429,14 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     SECTION 1 — Basic Info
                    ================================================ */}
                 <Divider orientation="left" orientationMargin={0}>
-                    <Text strong>Basic Information</Text>
+                    <Text strong>{td("Basic Information", { source: "en" })}</Text>
                 </Divider>
 
                 <Row gutter={16}>
                     <Col span={12}>
                         <Form.Item
                             name="primary_category"
-                            label="Category"
+                            label={td("Category", { source: "en" })}
                             rules={[{ required: true, message: "Required" }]}
                         >
                             <Radio.Group>
@@ -449,11 +451,11 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     <Col span={12}>
                         <Form.Item
                             name="property_type"
-                            label="Property Type"
+                            label={td("Property Type", { source: "en" })}
                             rules={[{ required: true, message: "Required" }]}
                         >
                             <Select
-                                placeholder="Select type"
+                                placeholder={td("Select type", { source: "en" })}
                                 allowClear
                                 options={propertyTypeOptions.map((o) => ({
                                     value: o.value,
@@ -468,8 +470,8 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     <Col span={12}>
                         <Form.Item
                             name="quantity"
-                            label="Quantity (Internal Use Only)"
-                            tooltip="Number of units of this type (Internal Use Only)"
+                            label={td("Quantity (Internal Use Only)", { source: "en" })}
+                            tooltip={td("Number of units of this type (Internal Use Only)", { source: "en" })}
                         >
                             <InputNumber
                                 min={1}
@@ -481,8 +483,8 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     <Col span={12}>
                         <Form.Item
                             name="total_sold"
-                            label="Total Sold (Internal Use Only)"
-                            tooltip="Number of units sold so far (Internal Use Only)"
+                            label={td("Total Sold (Internal Use Only)", { source: "en" })}
+                            tooltip={td("Number of units sold so far (Internal Use Only)", { source: "en" })}
                         >
                             <InputNumber
                                 min={0}
@@ -494,10 +496,10 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                 </Row>
 
                 {primaryCategory === "residential" && (
-                    <Form.Item name="unit_style" label="Unit Style(s)">
+                    <Form.Item name="unit_style" label={td("Unit Style(s)", { source: "en" })}>
                         <Select
                             mode="multiple"
-                            placeholder="Select styles (optional)"
+                            placeholder={td("Select styles (optional)", { source: "en" })}
                             allowClear
                             options={UNIT_STYLE_OPTIONS.map((o) => ({
                                 value: o.value,
@@ -523,15 +525,15 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     SECTION 2 — Specifications
                    ================================================ */}
                 <Divider orientation="left" orientationMargin={0}>
-                    <Text strong>Specifications</Text>
+                    <Text strong>{td("Specifications", { source: "en" })}</Text>
                 </Divider>
 
                 <Row gutter={16}>
                     <Col span={12}>
-                        <Form.Item name="view_types" label="View Types">
+                        <Form.Item name="view_types" label={td("View Types", { source: "en" })}>
                             <Select
                                 mode="multiple"
-                                placeholder="Select views"
+                                placeholder={td("Select views", { source: "en" })}
                                 allowClear
                                 options={VIEW_TYPE_OPTIONS.map((o) => ({
                                     value: o.value,
@@ -543,10 +545,10 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     <Col span={12}>
                         <Form.Item
                             name="furniture_status"
-                            label="Furniture Status"
+                            label={td("Furniture Status", { source: "en" })}
                         >
                             <Select
-                                placeholder="Select status"
+                                placeholder={td("Select status", { source: "en" })}
                                 allowClear
                                 options={FURNITURE_STATUS_OPTIONS.map((o) => ({
                                     value: o.value,
@@ -559,7 +561,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
 
                 <Row gutter={16}>
                     <Col span={8}>
-                        <Form.Item name="starting_price" label="Starting Price">
+                        <Form.Item name="starting_price" label={td("Starting Price", { source: "en" })}>
                             <InputNumber<number>
                                 style={{ width: "100%" }}
                                 min={0}
@@ -578,7 +580,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                         </Form.Item>
                     </Col>
                     <Col span={4}>
-                        <Form.Item name="currency" label="Currency">
+                        <Form.Item name="currency" label={td("Currency", { source: "en" })}>
                             <Select
                                 options={CURRENCY_OPTIONS.map((o) => ({
                                     value: o.value,
@@ -588,9 +590,9 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                         </Form.Item>
                     </Col>
                     <Col span={6}>
-                        <Form.Item name="bedrooms" label="Bedrooms">
+                        <Form.Item name="bedrooms" label={td("Bedrooms", { source: "en" })}>
                             <Select
-                                placeholder="Select"
+                                placeholder={td("Select", { source: "en" })}
                                 allowClear
                                 options={BEDROOM_OPTIONS.map((o) => ({
                                     value: o.value,
@@ -600,9 +602,9 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                         </Form.Item>
                     </Col>
                     <Col span={6}>
-                        <Form.Item name="bathrooms" label="Bathrooms">
+                        <Form.Item name="bathrooms" label={td("Bathrooms", { source: "en" })}>
                             <Select
-                                placeholder="Select"
+                                placeholder={td("Select", { source: "en" })}
                                 allowClear
                                 options={BATHROOM_OPTIONS.map((o) => ({
                                     value: o.value,
@@ -615,9 +617,9 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
 
                 <Row gutter={16}>
                     <Col span={12}>
-                        <Form.Item name="floor" label="Floor">
+                        <Form.Item name="floor" label={td("Floor", { source: "en" })}>
                             <Select
-                                placeholder="Select floor"
+                                placeholder={td("Select floor", { source: "en" })}
                                 allowClear
                                 options={FLOOR_OPTIONS.map((o) => ({
                                     value: o.value,
@@ -629,10 +631,10 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     <Col span={12}>
                         <Form.Item
                             name="floors_in_building"
-                            label="Floors in Building"
+                            label={td("Floors in Building", { source: "en" })}
                         >
                             <Select
-                                placeholder="Select"
+                                placeholder={td("Select", { source: "en" })}
                                 allowClear
                                 options={FLOORS_IN_BUILDING_OPTIONS.map(
                                     (o) => ({
@@ -649,7 +651,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     <Col span={6}>
                         <Form.Item
                             name="total_area_sqm"
-                            label="Total Area (m²)"
+                            label={td("Total Area (m²)", { source: "en" })}
                         >
                             <InputNumber
                                 style={{ width: "100%" }}
@@ -662,7 +664,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     <Col span={6}>
                         <Form.Item
                             name="living_area_sqm"
-                            label="Living Area (m²)"
+                            label={td("Living Area (m²)", { source: "en" })}
                         >
                             <InputNumber
                                 style={{ width: "100%" }}
@@ -675,7 +677,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     <Col span={6}>
                         <Form.Item
                             name="terrace_balcony_sqm"
-                            label="Terrace/Balcony (m²)"
+                            label={td("Terrace/Balcony (m²)", { source: "en" })}
                         >
                             <InputNumber
                                 style={{ width: "100%" }}
@@ -686,7 +688,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                         </Form.Item>
                     </Col>
                     <Col span={6}>
-                        <Form.Item name="plot_size_sqm" label="Plot Size (m²)">
+                        <Form.Item name="plot_size_sqm" label={td("Plot Size (m²)", { source: "en" })}>
                             <InputNumber
                                 style={{ width: "100%" }}
                                 min={0}
@@ -701,12 +703,12 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     <Col span={12}>
                         <Form.Item
                             name="completion_date"
-                            label="Expected Completion"
+                            label={td("Expected Completion", { source: "en" })}
                         >
                             <DatePicker
                                 style={{ width: "100%" }}
                                 format="YYYY-MM-DD"
-                                placeholder="Select date"
+                                placeholder={td("Select date", { source: "en" })}
                             />
                         </Form.Item>
                     </Col>
@@ -716,7 +718,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     SECTION 3 — Features
                    ================================================ */}
                 <Divider orientation="left" orientationMargin={0}>
-                    <Text strong>Outside Features</Text>
+                    <Text strong>{td("Outside Features", { source: "en" })}</Text>
                 </Divider>
 
                 <Form.Item name="outside_features" noStyle>
@@ -734,7 +736,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                 </Form.Item>
 
                 <Divider orientation="left" orientationMargin={0}>
-                    <Text strong>Inside Features</Text>
+                    <Text strong>{td("Inside Features", { source: "en" })}</Text>
                 </Divider>
 
                 <Form.Item name="inside_features" noStyle>
@@ -755,14 +757,14 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     SECTION 4 — Legal Info
                    ================================================ */}
                 <Divider orientation="left" orientationMargin={0}>
-                    <Text strong>Legal Information</Text>
+                    <Text strong>{td("Legal Information", { source: "en" })}</Text>
                 </Divider>
 
                 <Row gutter={16}>
                     <Col span={12}>
                         <Form.Item
                             name="military_base_distance_km"
-                            label="Distance to Military Base (km)"
+                            label={td("Distance to Military Base (km)", { source: "en" })}
                         >
                             <InputNumber
                                 style={{ width: "100%" }}
@@ -775,7 +777,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     <Col span={12}>
                         <Form.Item
                             name="has_restrictions"
-                            label="Has Restrictions?"
+                            label={td("Has Restrictions?", { source: "en" })}
                             valuePropName="checked"
                         >
                             <Switch
@@ -789,20 +791,20 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                 {hasRestrictions && (
                     <Form.Item
                         name="restriction_notes"
-                        label="Restriction Notes"
+                        label={td("Restriction Notes", { source: "en" })}
                     >
                         <Input.TextArea
                             rows={2}
-                            placeholder="Describe the restrictions..."
+                            placeholder={td("Describe the restrictions...", { source: "en" })}
                         />
                     </Form.Item>
                 )}
 
                 <Form.Item
                     name="is_sold_out"
-                    label="Sold Out"
+                    label={td("Sold Out", { source: "en" })}
                     valuePropName="checked"
-                    tooltip="Marks this unit as unavailable. Visible to all users."
+                    tooltip={td("Marks this unit as unavailable. Visible to all users.", { source: "en" })}
                 >
                     <Switch checkedChildren="Yes" unCheckedChildren="No" />
                 </Form.Item>
@@ -811,12 +813,12 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     SECTION 5 — Description
                    ================================================ */}
                 <Divider orientation="left" orientationMargin={0}>
-                    <Text strong>Description</Text>
+                    <Text strong>{td("Description", { source: "en" })}</Text>
                 </Divider>
 
                 <div className="flex items-center justify-between mb-1">
                     <label className="ant-form-item-label">
-                        <span>Unit Type Description</span>
+                        <span>{td("Unit Type Description", { source: "en" })}</span>
                     </label>
                     {aiEnabled && (
                         <Button
@@ -843,7 +845,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
 
                                 if (existing?.trim()) {
                                     modal.confirm({
-                                        title: "Replace existing description?",
+                                        title: td("Replace existing description?", { source: "en" }),
                                         content:
                                             "This will replace your current description with an AI-generated one.",
                                         okText: "Replace",
@@ -865,7 +867,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                 </div>
                 <Form.Item name="description" noStyle>
                     <HtmlEditor
-                        placeholder="Detailed description of this unit type..."
+                        placeholder={td("Detailed description of this unit type...", { source: "en" })}
                         disabled={isGenerating}
                         height={220}
                     />
@@ -897,7 +899,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                 <Divider orientation="left" orientationMargin={0}>
                     <Text strong>
                         <PictureOutlined className="mr-1" />
-                        Photos
+                        {td("Photos", { source: "en" })}
                     </Text>
                 </Divider>
 

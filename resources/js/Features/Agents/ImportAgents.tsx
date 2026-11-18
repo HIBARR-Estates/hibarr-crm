@@ -3,10 +3,12 @@ import { IModalProps } from "@/Types/common";
 import { router } from "@inertiajs/react";
 import { message } from "antd";
 import React, { useState } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type Props = IModalProps;
 
 const ImportAgents: React.FC<Props> = ({ open, onClose }) => {
+    const { td } = useTd();
     const [importLoading, setImportLoading] = useState(false);
 
     const handleImport = (formData: FormData) => {
@@ -21,7 +23,7 @@ const ImportAgents: React.FC<Props> = ({ open, onClose }) => {
             forceFormData: true,
             onSuccess: () => {
                 message.success(
-                    "Import file uploaded successfully. Processing will begin shortly.",
+                    td("Import file uploaded successfully. Processing will begin shortly.", { source: "en" }),
                 );
                 onClose();
                 router.reload();
@@ -42,9 +44,9 @@ const ImportAgents: React.FC<Props> = ({ open, onClose }) => {
             onClose={() => onClose()}
             onSubmit={handleImport}
             loading={importLoading}
-            title="Import Agents"
+            title={td("Import Agents", { source: "en" })}
             sampleDownloadUrl={route("agents.sample_import")}
-            description="Import multiple agents at once using an Excel file. Make sure to follow the template format for successful import."
+            description={td("Import multiple agents at once using an Excel file. Make sure to follow the template format for successful import.", { source: "en" })}
             acceptedFileTypes=".xlsx,.xls"
             maxFileSize={10}
         />

@@ -63,7 +63,7 @@ const OutcomeSegment: React.FC<OutcomeSegmentProps> = ({
                 icon={<FlagOutlined />}
                 className="text-xs uppercase tracking-wide"
             >
-                Close
+                {td("Close", { source: "en" })}
             </Tag>
             <QualificationScriptHtml
                 html={translated}

@@ -3,6 +3,7 @@ import RedesignButton from "@/Components/Redesign/primitives/Button";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { fmt } from "@/Features/Filters/controls";
 import { ChangeChips } from "./BulkActionSummary";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     open: boolean;
@@ -39,11 +40,12 @@ export default function BulkActionConfirm({
     onConfirm,
     onCancel,
 }: Props) {
+    const { td } = useTd();
     return (
         <Modal
             open={open}
             onClose={onCancel}
-            title="Confirm bulk action"
+            title={td("Confirm bulk action", { source: "en" })}
             maxWidth={520}
             // Opened from inside the antd bulk-update modal. That modal sits at
             // 1400: the app raises antd's zIndexPopupBase to 1300 (see
@@ -57,7 +59,7 @@ export default function BulkActionConfirm({
                         onClick={onCancel}
                         disabled={loading}
                     >
-                        Cancel
+                        {td("Cancel", { source: "en" })}
                     </RedesignButton>
                     <RedesignButton
                         variant="primary"
@@ -70,7 +72,7 @@ export default function BulkActionConfirm({
             }
         >
             <p className="text-sm" style={{ color: T.TEXT }}>
-                This will change{" "}
+                {td("This will change", { source: "en" })}{" "}
                 <strong>
                     {fmt(count)} {entityLabel}
                 </strong>

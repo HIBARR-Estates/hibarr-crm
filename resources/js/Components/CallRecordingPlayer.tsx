@@ -8,6 +8,7 @@ import {
     PauseOutlined,
 } from "@ant-design/icons";
 import "./CallRecordingPlayer.css";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface RecordingPlayerProps {
     /** API endpoint that streams the recording inline with the right MIME type. */
@@ -55,6 +56,7 @@ export default function RecordingPlayer({
     openUrl = null,
     opensInNewTab = false,
 }: RecordingPlayerProps) {
+    const { td } = useTd();
     const { message } = App.useApp();
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const seekRef = useRef<HTMLDivElement | null>(null);
@@ -85,7 +87,7 @@ export default function RecordingPlayer({
                     return;
                 }
                 setFailed(true);
-                void message.error("The recording could not be played.");
+                void message.error(td("The recording could not be played.", { source: "en" }));
             });
         } else {
             audio.pause();
@@ -141,7 +143,7 @@ export default function RecordingPlayer({
     };
 
     if (expired) {
-        return <span className="cb-time">Expired — no longer available</span>;
+        return <span className="cb-time">{td("Expired — no longer available", { source: "en" })}</span>;
     }
 
     if (opensInNewTab && openUrl) {
@@ -153,11 +155,11 @@ export default function RecordingPlayer({
                         target="_blank"
                         rel="noopener noreferrer"
                         className="cb-open"
-                        title="Plays in Bunny's player in a new tab"
+                        title={td("Plays in Bunny's player in a new tab", { source: "en" })}
                         aria-label={`Open ${filename ?? "recording"} in a new tab`}
                     >
                         <ExportOutlined aria-hidden="true" />
-                        <span>Open recording</span>
+                        <span>{td("Open recording", { source: "en" })}</span>
                     </a>
                     {total ? <span className="cb-time cb-num cb-time--end">{formatTime(total)}</span> : null}
                 </div>
@@ -285,7 +287,7 @@ export default function RecordingPlayer({
                     href={downloadUrl}
                     download={filename}
                     aria-label={`Download ${filename ?? "recording"}`}
-                    title="Download"
+                    title={td("Download", { source: "en" })}
                     className="cb-icon-btn cb-icon-btn--plain"
                 >
                     <DownloadOutlined aria-hidden="true" />
@@ -296,10 +298,10 @@ export default function RecordingPlayer({
 
             {failed && (
                 <div className="cb-fail" role="alert">
-                    <span>Playback failed.</span>
+                    <span>{td("Playback failed.", { source: "en" })}</span>
                     {fallbackUrl && (
                         <a href={fallbackUrl} target="_blank" rel="noopener noreferrer">
-                            Open in a new tab
+                            {td("Open in a new tab", { source: "en" })}
                         </a>
                     )}
                 </div>

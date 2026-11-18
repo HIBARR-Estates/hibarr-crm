@@ -38,7 +38,7 @@
                 <div class="col-lg-6">
                     <x-forms.text :fieldLabel="__('app.socialAuthSettings.keycloakBaseUrl')"
                         fieldName="keycloak_base_url" fieldRequired="true" fieldId="keycloak_base_url"
-                        fieldPlaceholder="https://keycloak.example.com"
+                        :fieldPlaceholder="td('https://keycloak.example.com')"
                         :fieldValue="$credentials->keycloak_base_url"></x-forms.text>
                 </div>
                 <div class="col-lg-6">

@@ -35,12 +35,14 @@ import {
 } from "@/Features/Mlm/api";
 import { LevelBadge, DeleteLevel } from "@/Features/Mlm/Components";
 import type { MlmLevel, MlmLevelFormData } from "@/Features/Mlm/types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends PageProps {
     levels: MlmLevel[];
 }
 
 const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { props } = usePage<PageProps>();
     const commissionOverrideEnabled =
@@ -58,19 +60,19 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
 
     // Dynamic mutation hooks
     const createLevel = useCreateMlmLevel(() => {
-        message.success("Level created");
+        message.success(td("Level created", { source: "en" }));
         refetch();
         closeModal();
     });
 
     const updateLevel = useUpdateMlmLevel(editing?.id ?? 0, () => {
-        message.success("Level updated");
+        message.success(td("Level updated", { source: "en" }));
         refetch();
         closeModal();
     });
 
     const reorderLevels = useReorderMlmLevels(() => {
-        message.success("Levels reordered");
+        message.success(td("Levels reordered", { source: "en" }));
         refetch();
     });
 
@@ -129,21 +131,21 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
             ),
         },
         {
-            title: "Rank",
+            title: td("Rank", { source: "en" }),
             dataIndex: "rank",
             key: "rank",
             width: 80,
             render: (rank: number) => <Tag className="font-mono">#{rank}</Tag>,
         },
         {
-            title: "Level",
+            title: td("Level", { source: "en" }),
             key: "name",
             render: (_: any, record: MlmLevel) => (
                 <LevelBadge level={record} showPercentage />
             ),
         },
         {
-            title: "Commission %",
+            title: td("Commission %", { source: "en" }),
             dataIndex: "commission_percentage",
             key: "commission_percentage",
             align: "right" as const,
@@ -178,19 +180,19 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
         //       ]
         //     : []),
         {
-            title: "Hidden",
+            title: td("Hidden", { source: "en" }),
             dataIndex: "is_hidden",
             key: "is_hidden",
             width: 80,
             render: (val: boolean) =>
                 val ? (
-                    <Tag color="default">Hidden</Tag>
+                    <Tag color="default">{td("Hidden", { source: "en" })}</Tag>
                 ) : (
-                    <Tag color="green">Visible</Tag>
+                    <Tag color="green">{td("Visible", { source: "en" })}</Tag>
                 ),
         },
         {
-            title: "Criteria",
+            title: td("Criteria", { source: "en" }),
             key: "criteria",
             render: (_: any, record: MlmLevel) => (
                 <Tag color="blue">
@@ -200,7 +202,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
             ),
         },
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             width: 160,
             render: (_: any, record: MlmLevel) => (
@@ -215,7 +217,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                             )
                         }
                     >
-                        Rules
+                        {td("Rules", { source: "en" })}
                     </Button>
                     <Button
                         type="text"
@@ -249,8 +251,8 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                         <Alert
                             type="info"
                             showIcon
-                            message="Active cycle in progress"
-                            description="Changes to levels and criteria will take effect in the next cycle. The current active cycle uses a snapshot of the rules as they were when it started. An admin can re-snapshot from the Cycle Management page if needed."
+                            message={td("Active cycle in progress", { source: "en" })}
+                            description={td("Changes to levels and criteria will take effect in the next cycle. The current active cycle uses a snapshot of the rules as they were when it started. An admin can re-snapshot from the Cycle Management page if needed.", { source: "en" })}
                             className="mb-0"
                         />
                     )}
@@ -262,7 +264,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                         <Card
                             title={
                                 <span className="font-semibold">
-                                    Commission Levels
+                                    {td("Commission Levels", { source: "en" })}
                                 </span>
                             }
                             extra={
@@ -271,7 +273,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                                     icon={<Plus size={14} />}
                                     onClick={openCreate}
                                 >
-                                    Add Level
+                                    {td("Add Level", { source: "en" })}
                                 </Button>
                             }
                             className="shadow-sm"
@@ -296,7 +298,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                         open={!!deleting}
                         onClose={() => setDeleting(null)}
                         handleSuccessCallback={() => {
-                            message.success("Level deleted");
+                            message.success(td("Level deleted", { source: "en" }));
                             refetch();
                         }}
                     />
@@ -315,7 +317,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                     >
                         <Form form={form} layout="vertical" className="mt-4">
                             <Form.Item
-                                label="Level Name"
+                                label={td("Level Name", { source: "en" })}
                                 name="name"
                                 rules={[
                                     {
@@ -324,12 +326,12 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                                     },
                                 ]}
                             >
-                                <Input placeholder="e.g. Bronze, Silver, Gold" />
+                                <Input placeholder={td("e.g. Bronze, Silver, Gold", { source: "en" })} />
                             </Form.Item>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <Form.Item
-                                    label="Rank"
+                                    label={td("Rank", { source: "en" })}
                                     name="rank"
                                     rules={[
                                         {
@@ -337,7 +339,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                                             message: "Enter rank",
                                         },
                                     ]}
-                                    tooltip="Lower rank = lower tier. Agents progress upward."
+                                    tooltip={td("Lower rank = lower tier. Agents progress upward.", { source: "en" })}
                                 >
                                     <InputNumber
                                         min={1}
@@ -347,7 +349,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                                 </Form.Item>
 
                                 <Form.Item
-                                    label="Commission %"
+                                    label={td("Commission %", { source: "en" })}
                                     name="commission_percentage"
                                     rules={[
                                         {
@@ -396,10 +398,10 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                             )} */}
 
                             <Form.Item
-                                label="Hidden Level"
+                                label={td("Hidden Level", { source: "en" })}
                                 name="is_hidden"
                                 valuePropName="checked"
-                                tooltip="Hidden levels are excluded from visible level progression"
+                                tooltip={td("Hidden levels are excluded from visible level progression", { source: "en" })}
                             >
                                 <Switch />
                             </Form.Item>

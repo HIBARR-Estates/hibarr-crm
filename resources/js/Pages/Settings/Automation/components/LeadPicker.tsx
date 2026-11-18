@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFormData } from "@/Hooks/useFormData";
 import { useDebounce } from "@/Hooks/useDebounce";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface LeadOption {
     id: number;
@@ -34,6 +35,7 @@ export default function LeadPicker({
     searchingLabel = "Searching…",
     emptyLabel = "No leads match",
 }: LeadPickerProps) {
+    const { td } = useTd();
     const [query, setQuery] = useState("");
     const [open, setOpen] = useState(false);
     const debouncedQuery = useDebounce(query, 300);
@@ -78,7 +80,7 @@ export default function LeadPicker({
                         onChange(null);
                         setQuery("");
                     }}
-                    aria-label="Clear selected lead"
+                    aria-label={td("Clear selected lead", { source: "en" })}
                     style={{ color: T.TEXT_MUTED, flexShrink: 0, fontSize: 16, lineHeight: 1 }}
                 >
                     ×

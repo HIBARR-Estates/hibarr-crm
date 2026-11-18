@@ -87,7 +87,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                     return (
                         <img
                             src="https://img.icons8.com/color/20/000000/zoom.png"
-                            alt="Zoom"
+                            alt={td("Zoom", { source: "en" })}
                             className="w-5 h-5"
                         />
                     );
@@ -95,7 +95,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                     return (
                         <img
                             src="https://img.icons8.com/color/20/000000/google-meet.png"
-                            alt="Google Meet"
+                            alt={td("Google Meet", { source: "en" })}
                             className="w-5 h-5"
                         />
                     );
@@ -103,7 +103,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                     return (
                         <img
                             src="https://img.icons8.com/color/20/000000/microsoft-teams.png"
-                            alt="Microsoft Teams"
+                            alt={td("Microsoft Teams", { source: "en" })}
                             className="w-5 h-5"
                         />
                     );
@@ -120,7 +120,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                 className="flex items-center space-x-2 text-blue-600 hover:text-blue-800"
             >
                 {getMeetingIcon(record.location)}
-                <span className="underline">Join Meeting</span>
+                <span className="underline">{td("Join Meeting", { source: "en" })}</span>
             </a>
         );
     };
@@ -139,13 +139,13 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                             className="text-green-600 hover:text-green-800 p-0 h-auto whitespace-nowrap"
                             onClick={() => handleAction("view", record)}
                         >
-                            View Summary
+                            {td("View Summary", { source: "en" })}
                         </Button>
                     );
                 }
                 return (
                     <Tag color="orange" className="text-xs whitespace-nowrap">
-                        Pending
+                        {td("Pending", { source: "en" })}
                     </Tag>
                 );
             }
@@ -153,7 +153,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
 
     const columns: TableColumnsType<DealFollowup> = [
         {
-            title: "Meeting Date",
+            title: td("Meeting Date", { source: "en" }),
             dataIndex: "next_follow_up_date",
             key: "next_follow_up_date",
             width: 160,
@@ -175,7 +175,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             ),
         },
         {
-            title: "Meeting Type",
+            title: td("Meeting Type", { source: "en" }),
             dataIndex: "meeting_type",
             key: "meeting_type",
             width: 140,
@@ -187,14 +187,14 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                 ),
         },
         {
-            title: "Meeting Link",
+            title: td("Meeting Link", { source: "en" }),
             dataIndex: "meeting_link",
             key: "meeting_link",
             width: 150,
             render: (_, record) => record?.meeting_summary ? renderSummaryLink(record) : renderMeetingLink(record),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             width: 120,
@@ -207,14 +207,14 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             },
         },
         {
-            title: "Summary Status",
+            title: td("Summary Status", { source: "en" }),
             key: "summary_status",
             width: 140,
            render: (_, record) => renderSummaryLink(record),
         },
 
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             width: 80,
             fixed: "right" as const,
@@ -246,7 +246,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                                   label: (
                                       <span>
                                           <EyeOutlined className="mr-2" />
-                                          View
+                                          {td("View", { source: "en" })}
                                       </span>
                                   ),
                                   onClick: () => handleAction("view", record),
@@ -260,7 +260,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                                   label: (
                                       <span>
                                           <EditOutlined className="mr-2" />
-                                          Edit
+                                          {td("Edit", { source: "en" })}
                                       </span>
                                   ),
                                   onClick: () => handleAction("edit", record),
@@ -277,7 +277,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                                   label: (
                                       <span className="">
                                           <DeleteOutlined className="mr-2" />
-                                          Delete
+                                          {td("Delete", { source: "en" })}
                                       </span>
                                   ),
                                   danger: true,
@@ -311,7 +311,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                         description={
                             <div className="text-center">
                                 <p className="text-gray-500 mb-2">
-                                    No follow-ups found
+                                    {td("No follow-ups found", { source: "en" })}
                                 </p>
                                 {!isWatcherOnly &&
                                     (permissions.add_lead_follow_up === "all" ||
@@ -324,7 +324,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                                             icon={<PlusOutlined />}
                                             onClick={() => handleAction("add")}
                                         >
-                                            Schedule Meeting
+                                            {td("Schedule Meeting", { source: "en" })}
                                         </Button>
                                     )}
                             </div>

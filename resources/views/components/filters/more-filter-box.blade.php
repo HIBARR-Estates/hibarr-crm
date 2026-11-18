@@ -16,7 +16,7 @@
                 <div class="sticky-top bg-white">
                     <h3 class="pb-3 mb-2 f-18 f-w-500  text-dark">@lang('app.filters')</h3>
                     <!-- <i onclick="closeMoreFilter()" class="close-more-filter fa fa-times f-16 cursor-pointer text-lightest"></i> -->
-                    <button type="button" class="close " onclick="closeMoreFilter()" aria-label="Close">
+                    <button type="button" class="close " onclick="closeMoreFilter()" aria-label="{{ td('Close') }}">
                         <span aria-hidden="true" class="f-22 close-more-filter">&times;</span>
                     </button>
                 </div>

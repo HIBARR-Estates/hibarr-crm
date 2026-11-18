@@ -9,6 +9,7 @@ import {
     CheckCircleFilled,
 } from "@ant-design/icons";
 import type { PrimaryCategory } from "@/Types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -76,6 +77,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({
     onChange,
     disabled = false,
 }) => {
+    const { td } = useTd();
     const handleSelect = (category: PrimaryCategory) => {
         if (disabled) {
             return;
@@ -144,10 +146,10 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({
         <div>
             <div className="mb-3">
                 <Text strong className="text-base">
-                    What type of property is this?
+                    {td("What type of property is this?", { source: "en" })}
                 </Text>
                 <Text type="secondary" className="block text-xs mt-0.5">
-                    Select the category to see relevant fields
+                    {td("Select the category to see relevant fields", { source: "en" })}
                 </Text>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

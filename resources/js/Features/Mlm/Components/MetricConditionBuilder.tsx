@@ -7,6 +7,7 @@ import type {
     CriteriaOperator,
 } from "../types";
 import { MLM_METRIC_LABELS } from "../types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const METRIC_OPTIONS: Array<{ value: MlmMetric; label: string }> = [
     { value: "nsa", label: MLM_METRIC_LABELS.nsa },
@@ -36,6 +37,7 @@ export default function MetricConditionBuilder({
     onChange,
     logicGroup = 1,
 }: MetricConditionBuilderProps) {
+    const { td } = useTd();
     const addCondition = () => {
         onChange([
             ...conditions,
@@ -83,7 +85,7 @@ export default function MetricConditionBuilder({
                         }
                         options={METRIC_OPTIONS}
                         style={{ width: 260 }}
-                        placeholder="Select metric"
+                        placeholder={td("Select metric", { source: "en" })}
                     />
 
                     {/* Operator */}
@@ -94,7 +96,7 @@ export default function MetricConditionBuilder({
                         }
                         options={OPERATOR_OPTIONS}
                         style={{ width: 180 }}
-                        placeholder="Operator"
+                        placeholder={td("Operator", { source: "en" })}
                     />
 
                     {/* Threshold */}
@@ -105,7 +107,7 @@ export default function MetricConditionBuilder({
                         }
                         min={0}
                         style={{ width: 150 }}
-                        placeholder="Value"
+                        placeholder={td("Value", { source: "en" })}
                         formatter={(value) =>
                             `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                         }
@@ -126,7 +128,7 @@ export default function MetricConditionBuilder({
                     {/* AND indicator between conditions (not on last) */}
                     {index < conditions.length - 1 && (
                         <span className="text-xs text-blue-500 font-semibold uppercase">
-                            AND
+                            {td("AND", { source: "en" })}
                         </span>
                     )}
                 </div>
@@ -138,7 +140,7 @@ export default function MetricConditionBuilder({
                 icon={<PlusOutlined />}
                 className="w-full"
             >
-                Add Condition
+                {td("Add Condition", { source: "en" })}
             </Button>
         </div>
     );

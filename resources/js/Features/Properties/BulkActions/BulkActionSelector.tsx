@@ -3,6 +3,7 @@ import React from "react";
 import BulkDeleteProperties from "./BulkDeleteProperties";
 import BulkAssignPropertiesToProject from "./BulkAssignPropertiesToProject";
 import BulkChangeStatusProperties from "./BulkChangeStatusProperties";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type TPropertyBulkAction = "change-status" | "delete" | "assign-to-project";
 interface Props {
@@ -25,6 +26,7 @@ const BulkActionSelector: React.FC<Props> = ({
     actions = DEFAULT_PROPERTY_BULK_ACTIONS,
     clearSelected,
 }) => {
+    const { td } = useTd();
     const [action, setAction] = React.useState<TPropertyBulkAction>();
     const [open, setOpen] = React.useState(false);
     const onApply = () => {
@@ -58,7 +60,7 @@ const BulkActionSelector: React.FC<Props> = ({
                     {selectedEntityIds.length} selected
                 </span>
                 <Select
-                    placeholder="Choose action"
+                    placeholder={td("Choose action", { source: "en" })}
                     value={action}
                     onChange={setAction}
                     style={{ width: 180 }}
@@ -71,7 +73,7 @@ const BulkActionSelector: React.FC<Props> = ({
                     disabled={!action}
                     onClick={onApply}
                 >
-                    Apply
+                    {td("Apply", { source: "en" })}
                 </Button>
             </div>
         </>

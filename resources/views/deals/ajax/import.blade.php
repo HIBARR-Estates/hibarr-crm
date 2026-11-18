@@ -19,7 +19,7 @@
                     <div class="col-md-12">
                         <x-forms.select fieldId="pipeline_id" :fieldLabel="__('Select Pipeline')"
                                         fieldName="pipeline_id" search="true">
-                            <option value="">Select pipeline for all deals in this import</option>
+                            <option value="">{{ td('Select pipeline for all deals in this import') }}</option>
                             @foreach($pipelines as $pipeline)
                                 <option value="{{ $pipeline->id }}">{{ $pipeline->name }}</option>
                             @endforeach

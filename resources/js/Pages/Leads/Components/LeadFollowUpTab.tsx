@@ -27,6 +27,7 @@ import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import { getStatusColor } from "@/lib/utils";
 import useTranslation from "@/Hooks/useTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     lead: Lead;
@@ -43,6 +44,7 @@ export default function LeadFollowUpTab({
     deals = [],
     onScheduleMeeting,
 }: Props) {
+    const { td } = useTd();
     const { props } = usePage();
     const { t } = useTranslation();
     const { formatDate, formatTime } = useUserDateTime();
@@ -93,14 +95,14 @@ export default function LeadFollowUpTab({
                 className="flex items-center space-x-2 text-blue-600 hover:text-blue-800"
             >
                 <VideoCallOutlined className="text-blue-500" />
-                <span className="underline">Join Meeting</span>
+                <span className="underline">{td("Join Meeting", { source: "en" })}</span>
             </a>
         );
     };
 
     const columns: TableColumnsType<DealFollowup> = [
         {
-            title: "Meeting Date",
+            title: td("Meeting Date", { source: "en" }),
             dataIndex: "next_follow_up_date",
             key: "next_follow_up_date",
             width: 160,
@@ -136,26 +138,26 @@ export default function LeadFollowUpTab({
                 ),
         },
         {
-            title: "Meeting Type",
+            title: td("Meeting Type", { source: "en" }),
             dataIndex: "meeting_type",
             key: "meeting_type",
             width: 140,
             render: (_, record) =>
                 record.meeting_type?.name ? (
-                    <span>{record.meeting_type.name}</span>
+                    <span>{td(record.meeting_type.name, { source: "en" })}</span>
                 ) : (
                     <span className="text-gray-500">--</span>
                 ),
         },
         {
-            title: "Meeting Link",
+            title: td("Meeting Link", { source: "en" }),
             dataIndex: "meeting_link",
             key: "meeting_link",
             width: 150,
             render: (_, record) => renderMeetingLink(record),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             width: 120,
@@ -169,7 +171,7 @@ export default function LeadFollowUpTab({
             ),
         },
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             width: 80,
             fixed: "right" as const,
@@ -200,7 +202,7 @@ export default function LeadFollowUpTab({
                                   label: (
                                       <span>
                                           <EyeOutlined className="mr-2" />
-                                          View
+                                          {td("View", { source: "en" })}
                                       </span>
                                   ),
                                   onClick: () => handleAction("view", record),
@@ -214,7 +216,7 @@ export default function LeadFollowUpTab({
                                   label: (
                                       <span>
                                           <EditOutlined className="mr-2" />
-                                          Edit
+                                          {td("Edit", { source: "en" })}
                                       </span>
                                   ),
                                   onClick: () => handleAction("edit", record),
@@ -230,7 +232,7 @@ export default function LeadFollowUpTab({
                                   label: (
                                       <span>
                                           <DeleteOutlined className="mr-2" />
-                                          Delete
+                                          {td("Delete", { source: "en" })}
                                       </span>
                                   ),
                                   danger: true,
@@ -264,7 +266,7 @@ export default function LeadFollowUpTab({
                         description={
                             <div className="text-center">
                                 <p className="text-gray-500 mb-2">
-                                    No follow-ups found
+                                    {td("No follow-ups found", { source: "en" })}
                                 </p>
                                 {canAdd && onScheduleMeeting && (
                                     <Button

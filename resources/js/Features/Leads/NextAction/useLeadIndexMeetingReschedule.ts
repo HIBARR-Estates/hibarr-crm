@@ -8,6 +8,7 @@ import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface LeadIndexMeetingRescheduleInput {
     date: string;
@@ -36,6 +37,7 @@ interface RescheduleResponse {
 export default function useLeadIndexMeetingReschedule(
     followupId: number | null,
 ) {
+    const { td } = useTd();
     const [errors, setErrors] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { props } = usePage();
@@ -90,7 +92,7 @@ export default function useLeadIndexMeetingReschedule(
                 const json = (await response.json()) as RescheduleResponse;
 
                 if (json.success) {
-                    message.success("Meeting rescheduled");
+                    message.success(td("Meeting rescheduled", { source: "en" }));
                     router.get(
                         route("lead-contact.index"),
                         mergeQueryParams({}),

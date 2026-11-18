@@ -12,44 +12,44 @@
                     <i class="fas fa-shield-alt text-warning f-24"></i>
                 </div>
                 <div class="flex-grow-1">
-                    <h4 class="text-warning font-weight-bold mb-3">Security Configuration Required</h4>
+                    <h4 class="text-warning font-weight-bold mb-3">{{ td('Security Configuration Required') }}</h4>
 
                     <div class="bg-white rounded p-3 mb-3">
-                        <h6 class="font-weight-bold mb-2">Required Actions:</h6>
+                        <h6 class="font-weight-bold mb-2">{{ td('Required Actions:') }}</h6>
                         <ul class="list-unstyled mb-0">
                             <li class="d-flex align-items-start mb-2">
                                 <i class="fas fa-check-circle text-success mr-2 mt-1"></i>
                                 <div class="d-flex align-items-center flex-wrap">
-                                    <span class="mr-2">Configure wildcard subdomains on your server</span>
+                                    <span class="mr-2">{{ td('Configure wildcard subdomains on your server') }}</span>
                                     <a href="https://www.youtube.com/watch?v=0KOHj4a2Sek" class="btn btn-sm btn-warning" target="_blank">
-                                        <i class="fab fa-youtube mr-1"></i> Watch Guide
+                                        <i class="fab fa-youtube mr-1"></i> {{ td('Watch Guide') }}
                                     </a>
                                 </div>
                             </li>
                             <li class="d-flex align-items-center">
                                 <i class="fas fa-check-circle text-success mr-2"></i>
-                                <span>Update DNS settings appropriately</span>
+                                <span>{{ td('Update DNS settings appropriately') }}</span>
                             </li>
                         </ul>
                     </div>
 
                     <div class="bg-white rounded p-3">
-                        <h6 class="font-weight-bold mb-2">Important Changes:</h6>
+                        <h6 class="font-weight-bold mb-2">{{ td('Important Changes:') }}</h6>
                         <ul class="list-unstyled mb-0">
                             <li class="d-flex align-items-center mb-2">
                                 <i class="fas fa-link text-primary mr-2"></i>
                                 <div>
-                                    <span class="mr-2">New Superadmin Login:</span>
+                                    <span class="mr-2">{{ td('New Superadmin Login:') }}</span>
                                     <code class="bg-light-primary px-2 py-1 rounded">{{ url('/') }}/super-admin-login</code>
                                 </div>
                             </li>
                             <li class="d-flex align-items-center mb-2">
                                 <i class="fas fa-lock text-danger mr-2"></i>
-                                <span>Public login page is now disabled</span>
+                                <span>{{ td('Public login page is now disabled') }}</span>
                             </li>
                             <li class="d-flex align-items-center">
                                 <i class="fas fa-building text-success mr-2"></i>
-                                <span>Companies now have dedicated subdomain login pages</span>
+                                <span>{{ td('Companies now have dedicated subdomain login pages') }}</span>
                             </li>
                         </ul>
                     </div>

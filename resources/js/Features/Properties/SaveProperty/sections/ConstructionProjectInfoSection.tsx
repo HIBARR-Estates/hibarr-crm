@@ -14,6 +14,7 @@ import {
 import type { FormInstance } from "antd/lib/form";
 import { WhatsAppOutlined, LinkOutlined } from "@ant-design/icons";
 import { usePage } from "@inertiajs/react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -42,6 +43,7 @@ interface ConstructionProjectInfoSectionProps {
 const ConstructionProjectInfoSection: React.FC<
     ConstructionProjectInfoSectionProps
 > = ({ form, developers: developersProp }) => {
+    const { td } = useTd();
     const { props } = usePage<any>();
     const developers =
         developersProp ?? ((props?.developers || []) as Developer[]);
@@ -76,7 +78,7 @@ const ConstructionProjectInfoSection: React.FC<
             <Col xs={24} md={12}>
                 <Form.Item
                     name="developer_id"
-                    label="Construction Company"
+                    label={td("Construction Company", { source: "en" })}
                     rules={[
                         {
                             required: true,
@@ -85,7 +87,7 @@ const ConstructionProjectInfoSection: React.FC<
                     ]}
                 >
                     <Select
-                        placeholder="Select construction company"
+                        placeholder={td("Select construction company", { source: "en" })}
                         allowClear
                         showSearch
                         optionFilterProp="label"
@@ -102,7 +104,7 @@ const ConstructionProjectInfoSection: React.FC<
             <Col xs={24} md={12}>
                 <Form.Item
                     name="name"
-                    label="Project Name"
+                    label={td("Project Name", { source: "en" })}
                     rules={[
                         {
                             required: true,
@@ -130,7 +132,7 @@ const ConstructionProjectInfoSection: React.FC<
 
             {/* Google Drive Link */}
             <Col xs={24} md={12}>
-                <Form.Item name="google_drive_link" label="Google Drive Link">
+                <Form.Item name="google_drive_link" label={td("Google Drive Link", { source: "en" })}>
                     <Input
                         placeholder="https://drive.google.com/..."
                         prefix={<LinkOutlined />}
@@ -145,14 +147,14 @@ const ConstructionProjectInfoSection: React.FC<
                         className="mt-[-8px] mb-2"
                         size="small"
                     >
-                        Open Google Drive
+                        {td("Open Google Drive", { source: "en" })}
                     </Button>
                 )}
             </Col>
 
             {/* Total Units */}
             <Col xs={24} md={6}>
-                <Form.Item name="total_units" label="Total Units">
+                <Form.Item name="total_units" label={td("Total Units", { source: "en" })}>
                     <InputNumber
                         min={0}
                         placeholder="0"
@@ -166,7 +168,7 @@ const ConstructionProjectInfoSection: React.FC<
 
             {/* Total Units Sold */}
             <Col xs={24} md={6}>
-                <Form.Item name="total_units_sold" label="Total Units Sold">
+                <Form.Item name="total_units_sold" label={td("Total Units Sold", { source: "en" })}>
                     <InputNumber
                         min={0}
                         placeholder="0"
@@ -178,7 +180,7 @@ const ConstructionProjectInfoSection: React.FC<
 
             {/* WhatsApp Group Link — inherited from developer */}
             <Col xs={24} md={12}>
-                <Form.Item label="WhatsApp Group">
+                <Form.Item label={td("WhatsApp Group", { source: "en" })}>
                     {whatsappLink ? (
                         <Button
                             type="primary"
@@ -188,7 +190,7 @@ const ConstructionProjectInfoSection: React.FC<
                             target="_blank"
                             block
                         >
-                            Join this project WhatsApp group
+                            {td("Join this project WhatsApp group", { source: "en" })}
                         </Button>
                     ) : (
                         <Text type="secondary" className="text-xs">

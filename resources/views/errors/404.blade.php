@@ -24,7 +24,7 @@
                     </div>
                 </div>
                 <div class="mt-4 text-sm text-center text-gray-500 uppercase">
-                    <a href="{{ url('/') }}">Back To Home</a>
+                    <a href="{{ url('/') }}">{{ td('Back To Home') }}</a>
                 </div>
         </div>
         </div>

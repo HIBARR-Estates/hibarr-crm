@@ -32,6 +32,7 @@ import {
 import TaskRedesignFormModal from "@/Pages/Tasks/Redesign/components/embed/TaskRedesignFormModal";
 import TaskRedesignDetailModal from "@/Pages/Tasks/Redesign/components/embed/TaskRedesignDetailModal";
 import type { TaskPermissionSet } from "@/Pages/Tasks/Redesign/adapters/taskPermissions";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 dayjs.extend(relativeTime);
 
@@ -155,6 +156,7 @@ interface TasksActivitiesPanelProps {
 const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
     tasks = [],
 }) => {
+    const { td } = useTd();
     const [processingTasks, setProcessingTasks] = useState<Set<number>>(
         new Set(),
     );
@@ -332,7 +334,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                         }
                         return next;
                     });
-                    message.error("Failed to update task status");
+                    message.error(td("Failed to update task status", { source: "en" }));
                 },
                 onSettled: () => {
                     setProcessingTasks((prev) => {
@@ -435,7 +437,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
             <Card
                 title={
                     <div className="flex items-center justify-between gap-4">
-                        <span>Tasks</span>
+                        <span>{td("Tasks", { source: "en" })}</span>
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-2">
                                 <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100">
@@ -457,7 +459,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                 icon={<PlusOutlined />}
                                 onClick={() => handleAction("add")}
                             >
-                                Add Task
+                                {td("Add Task", { source: "en" })}
                             </Button>
                         </div>
                     </div>
@@ -471,8 +473,8 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                     <div className="flex flex-col items-center justify-center flex-1 overflow-hidden">
                         <div className="text-center py-8 text-gray-500">
                             <CheckOutlined className="text-4xl text-gray-300 mb-2" />
-                            <div>No pending tasks</div>
-                            <div className="text-sm">You're all caught up!</div>
+                            <div>{td("No pending tasks", { source: "en" })}</div>
+                            <div className="text-sm">{td("You're all caught up!", { source: "en" })}</div>
                         </div>
                     </div>
                 ) : (
@@ -480,10 +482,10 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                         {/* Column header — matches TaskRowList layout */}
                         <div className="flex items-center border-b border-slate-100 bg-slate-50 px-2 py-1.5">
                             <div className="w-[3px] shrink-0" />
-                            <div className="flex-1 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Task</div>
-                            <div className="w-[110px] shrink-0 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">Due</div>
-                            <div className="w-[80px] shrink-0 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">Assignees</div>
-                            <div className="w-[140px] shrink-0 text-right pr-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</div>
+                            <div className="flex-1 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">{td("Task", { source: "en" })}</div>
+                            <div className="w-[110px] shrink-0 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">{td("Due", { source: "en" })}</div>
+                            <div className="w-[80px] shrink-0 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">{td("Assignees", { source: "en" })}</div>
+                            <div className="w-[140px] shrink-0 text-right pr-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">{td("Status", { source: "en" })}</div>
                             <div className="w-8 shrink-0" />
                         </div>
 
@@ -491,7 +493,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                             {overdueTasks.length > 0 && (
                                 <div>
                                     <GroupHeader
-                                        label="Overdue"
+                                        label={td("Overdue", { source: "en" })}
                                         count={overdueTasks.length}
                                         open={overdueOpen}
                                         onToggle={() =>
@@ -509,7 +511,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                 upcomingTasks.length > 0) && (
                                 <div>
                                     <GroupHeader
-                                        label="Upcoming"
+                                        label={td("Upcoming", { source: "en" })}
                                         count={
                                             todayTasks.length +
                                             upcomingTasks.length

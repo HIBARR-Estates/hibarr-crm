@@ -3,6 +3,7 @@ import { Form, Input, Select, Card, Row, Col, Button } from "antd";
 import { PropertyFormProps } from "./PropertyForm";
 import { Property } from "@/Types";
 import { useEffect } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 
@@ -45,6 +46,7 @@ export default function LegalFinancialTab({
     onErrorsClear,
     setErrors,
 }: Props) {
+    const { td } = useTd();
     const [form] = Form.useForm<Omit<Property, "id">>();
 
     // Populate form when data changes
@@ -96,14 +98,14 @@ export default function LegalFinancialTab({
             }}
             size="middle"
         >
-            <Card title="Legal & Financial Information" size="small">
+            <Card title={td("Legal & Financial Information", { source: "en" })} size="small">
                 <Row gutter={[16, 16]}>
                     <Col span={12}>
                         <Form.Item
                             name="title_deed_type"
-                            label="Title Deed Type"
+                            label={td("Title Deed Type", { source: "en" })}
                         >
-                            <Select placeholder="Select title deed type">
+                            <Select placeholder={td("Select title deed type", { source: "en" })}>
                                 {TITLE_DEED_TYPES.map((type) => (
                                     <Option key={type} value={type}>
                                         {type}
@@ -116,9 +118,9 @@ export default function LegalFinancialTab({
                     <Col span={12}>
                         <Form.Item
                             name="title_deed_stage"
-                            label="Title Deed Stage"
+                            label={td("Title Deed Stage", { source: "en" })}
                         >
-                            <Select placeholder="Select title deed stage">
+                            <Select placeholder={td("Select title deed stage", { source: "en" })}>
                                 {TITLE_DEED_STAGES.map((stage) => (
                                     <Option key={stage} value={stage}>
                                         {stage}
@@ -134,18 +136,18 @@ export default function LegalFinancialTab({
                             <Col span={12}>
                                 <Form.Item
                                     name="minimal_rental_period"
-                                    label="Minimum Rental Period"
+                                    label={td("Minimum Rental Period", { source: "en" })}
                                 >
-                                    <Input placeholder="e.g., 6 months, 1 year" />
+                                    <Input placeholder={td("e.g., 6 months, 1 year", { source: "en" })} />
                                 </Form.Item>
                             </Col>
 
                             <Col span={12}>
                                 <Form.Item
                                     name="rent_payment_interval"
-                                    label="Payment Interval"
+                                    label={td("Payment Interval", { source: "en" })}
                                 >
-                                    <Select placeholder="Select payment interval">
+                                    <Select placeholder={td("Select payment interval", { source: "en" })}>
                                         {RENT_PAYMENT_INTERVALS.map(
                                             (interval) => (
                                                 <Option

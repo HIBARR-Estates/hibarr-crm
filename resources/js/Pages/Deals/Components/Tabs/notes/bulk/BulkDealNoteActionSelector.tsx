@@ -1,6 +1,7 @@
 import { Button, Select } from "antd";
 import React from "react";
 import BulkDeleteDealNotes from "./BulkDeleteDealNotes";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type TLeadBulkAction = "delete";
 interface Props {
@@ -21,6 +22,7 @@ const BulkDealNoteActionSelector: React.FC<Props> = ({
     actions = DEFAULT_BULK_ACTIONS,
     clearSelected,
 }) => {
+    const { td } = useTd();
     const [action, setAction] = React.useState<TLeadBulkAction>();
     const [open, setOpen] = React.useState(false);
     const onApply = () => {
@@ -44,7 +46,7 @@ const BulkDealNoteActionSelector: React.FC<Props> = ({
                     {selectedEntityIds.length} selected
                 </span>
                 <Select
-                    placeholder="Choose action"
+                    placeholder={td("Choose action", { source: "en" })}
                     value={action}
                     onChange={setAction}
                     style={{ width: 180 }}
@@ -57,7 +59,7 @@ const BulkDealNoteActionSelector: React.FC<Props> = ({
                     disabled={!action}
                     onClick={onApply}
                 >
-                    Apply
+                    {td("Apply", { source: "en" })}
                 </Button>
             </div>
         </>

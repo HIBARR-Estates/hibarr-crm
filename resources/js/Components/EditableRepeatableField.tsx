@@ -3,6 +3,7 @@ import { Modal, Form, Button, Spin } from "antd";
 import { EditOutlined } from "@ant-design/icons";
 import RepeatableFieldRenderer from "@/Components/RepeatableFieldRenderer";
 import type { RepeatableItemSchema } from "@/Types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface RepeatableFieldDef {
     id: number;
@@ -47,6 +48,7 @@ export default function EditableRepeatableField({
     editable = true,
     displayValue,
 }: EditableRepeatableFieldProps) {
+    const { td } = useTd();
     const [modalOpen, setModalOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [form] = Form.useForm();
@@ -118,7 +120,7 @@ export default function EditableRepeatableField({
                         onClick={handleOpenModal}
                         className="flex-shrink-0"
                     >
-                        Edit
+                        {td("Edit", { source: "en" })}
                     </Button>
                 )}
                 {loading && <Spin size="small" className="flex-shrink-0" />}
@@ -132,10 +134,10 @@ export default function EditableRepeatableField({
                 width={640}
                 footer={[
                     <Button key="cancel" onClick={handleModalCancel}>
-                        Cancel
+                        {td("Cancel", { source: "en" })}
                     </Button>,
                     <Button key="submit" type="primary" onClick={handleModalOk} loading={saving}>
-                        Save
+                        {td("Save", { source: "en" })}
                     </Button>,
                 ]}
             >

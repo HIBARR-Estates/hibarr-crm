@@ -1,5 +1,6 @@
 import React, { ReactNode } from "react";
 import { Head } from "@inertiajs/react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface AppLayoutProps {
     title: string;
@@ -7,6 +8,7 @@ interface AppLayoutProps {
 }
 
 export default function AppLayout({ title, children }: AppLayoutProps) {
+    const { td } = useTd();
     return (
         <>
             <Head title={title} />
@@ -17,12 +19,12 @@ export default function AppLayout({ title, children }: AppLayoutProps) {
                         <div className="flex justify-between h-16">
                             <div className="flex items-center">
                                 <h1 className="text-xl font-semibold text-gray-900">
-                                    HIBARR CRM
+                                    {td("HIBARR CRM", { source: "en" })}
                                 </h1>
                             </div>
                             <div className="flex items-center space-x-4">
                                 <span className="text-sm text-gray-600">
-                                    Welcome back!
+                                    {td("Welcome back!", { source: "en" })}
                                 </span>
                             </div>
                         </div>

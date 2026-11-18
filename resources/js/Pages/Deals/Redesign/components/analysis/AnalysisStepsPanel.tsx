@@ -1,5 +1,6 @@
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { RailSectionGroup, RailStep } from "./analysisRailItems";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     groups: RailSectionGroup[];
@@ -11,12 +12,13 @@ interface Props {
 
 /** Navy "Script steps" tab — every step, grouped under its section. */
 export default function AnalysisStepsPanel({ groups, activeSection, activeStepKey, onJump }: Props) {
+    const { td } = useTd();
     return (
         <div className="flex flex-col h-full min-h-0" style={{ background: T.NAVY }}>
             <div className="flex-1 overflow-y-auto min-h-0">
                 {groups.length === 0 ? (
                     <p className="px-4 py-3 text-sm italic" style={{ color: "rgba(255,255,255,0.7)" }}>
-                        No steps configured.
+                        {td("No steps configured.", { source: "en" })}
                     </p>
                 ) : (
                     groups.map((group) => (
@@ -51,7 +53,7 @@ export default function AnalysisStepsPanel({ groups, activeSection, activeStepKe
                                     className="px-4 pb-3 text-[13px] italic"
                                     style={{ color: "rgba(255,255,255,0.5)" }}
                                 >
-                                    No steps in this section.
+                                    {td("No steps in this section.", { source: "en" })}
                                 </p>
                             ) : (
                                 group.steps.map((step) => (

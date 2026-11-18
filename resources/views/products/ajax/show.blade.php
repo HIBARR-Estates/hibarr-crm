@@ -65,7 +65,7 @@ $deletePermission = user()->permission('delete_product');
                                     __('app.no').' </span>'" />
                             @if ($product->downloadable && !in_array('client', user_roles()))
                                 <x-cards.data-row :label="__('app.downloadableFile')"
-                                    :value="'<a href='.$product->download_file_url.' download>'.$product->download_file_url.'</a>'" />
+                                    :value="'<a href='.$product->download_file_url.' download>'.$product->{{ td('download_file_url.\'') }}</a>'" />
 
                             @endif
                             <x-cards.data-row :label="__('app.description')" :value="!empty($product->description) ? $product->description : '--'"

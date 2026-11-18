@@ -2,6 +2,7 @@ import { Button, Select } from "antd";
 import React from "react";
 import BulkDeleteAssets from "./BulkDeleteAssets";
 import BulkApplyTagsToAssets from "./BulkApplyTagsToAssets";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type TAssetBulkAction = "apply-tags" | "delete";
 
@@ -28,6 +29,7 @@ const BulkAssetActionSelector: React.FC<Props> = ({
     actions = DEFAULT_ASSET_BULK_ACTIONS,
     clearSelected,
 }) => {
+    const { td } = useTd();
     const [action, setAction] = React.useState<TAssetBulkAction>();
     const [open, setOpen] = React.useState(false);
 
@@ -62,7 +64,7 @@ const BulkAssetActionSelector: React.FC<Props> = ({
                     {selectedEntityIds.length} selected
                 </span>
                 <Select
-                    placeholder="Choose action"
+                    placeholder={td("Choose action", { source: "en" })}
                     value={action}
                     onChange={setAction}
                     style={{ width: 180 }}
@@ -75,7 +77,7 @@ const BulkAssetActionSelector: React.FC<Props> = ({
                     disabled={!action}
                     onClick={onApply}
                 >
-                    Apply
+                    {td("Apply", { source: "en" })}
                 </Button>
             </div>
         </>

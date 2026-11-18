@@ -8,6 +8,7 @@ import type {
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import { formatLocationNameForDisplay } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface ProjectFormModalProps {
     open: boolean;
@@ -28,6 +29,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
     onSuccess,
     canToggleHidden = false,
 }) => {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const isEditing = !!project;
 
@@ -97,7 +99,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
             onCancel={() => !isLoading && onClose()}
             footer={[
                 <Button key="cancel" onClick={onClose} disabled={isLoading}>
-                    Cancel
+                    {td("Cancel", { source: "en" })}
                 </Button>,
                 <Button
                     key="submit"
@@ -113,7 +115,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
             <Form form={form} layout="vertical" className="mt-4">
                 <Form.Item
                     name="name"
-                    label="Project Name"
+                    label={td("Project Name", { source: "en" })}
                     rules={[
                         {
                             required: true,
@@ -125,19 +127,19 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
                         },
                     ]}
                 >
-                    <Input placeholder="Enter project name" />
+                    <Input placeholder={td("Enter project name", { source: "en" })} />
                 </Form.Item>
 
-                <Form.Item name="description" label="Description">
+                <Form.Item name="description" label={td("Description", { source: "en" })}>
                     <Input.TextArea
-                        placeholder="Enter project description (optional)"
+                        placeholder={td("Enter project description (optional)", { source: "en" })}
                         rows={3}
                     />
                 </Form.Item>
 
-                <Form.Item name="project_location_id" label="Location">
+                <Form.Item name="project_location_id" label={td("Location", { source: "en" })}>
                     <Select
-                        placeholder="Select a location"
+                        placeholder={td("Select a location", { source: "en" })}
                         allowClear
                         showSearch
                         optionFilterProp="children"
@@ -152,7 +154,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
                 {canToggleHidden && (
                     <Form.Item
                         name="is_hidden"
-                        label="Hide from view-only users"
+                        label={td("Hide from view-only users", { source: "en" })}
                         valuePropName="checked"
                         extra="When enabled, users without edit access will not see this project."
                     >

@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from "react";
 import type { FilterFieldConfig, FilterOption } from "@/contexts/FilterContext";
 import { fmt } from "./controls";
+import { useTranslation } from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface UtmSectionProps {
     fields: FilterFieldConfig[];
@@ -40,6 +42,8 @@ function UtmFieldCard({
     onChange: (next: any[]) => void;
     onRemove: () => void;
 }) {
+    const { td } = useTd();
+    const { t } = useTranslation();
     const [query, setQuery] = useState("");
     const options = optionsOf(field);
     const selected = new Set((value ?? []).map(String));
@@ -69,15 +73,18 @@ function UtmFieldCard({
                 <span className="lfm-utm__name">{field.key}</span>
                 <span className="lfm-utm__meta">
                     {searching
-                        ? `${matches.length} matches`
-                        : `${selected.size} of ${options.length} selected`}
+                        ? t("pages.filters.utm_matches", { n: matches.length })
+                        : t("pages.filters.utm_selected_of", {
+                              selected: selected.size,
+                              total: options.length,
+                          })}
                 </span>
                 <button
                     type="button"
                     className="lfm-utm__remove"
                     onClick={onRemove}
                 >
-                    Remove
+                    {t("pages.filters.remove")}
                 </button>
             </div>
 
@@ -85,13 +92,13 @@ function UtmFieldCard({
                 <input
                     className="lfm-utm__search"
                     value={query}
-                    placeholder="Search values…"
+                    placeholder={t("pages.filters.search_values")}
                     onChange={(event) => setQuery(event.target.value)}
                 />
 
                 {options.length === 0 ? (
                     <div className="lfm-empty">
-                        No {field.key} values recorded yet
+                        {t("pages.filters.utm_none_recorded", { field: field.key })}
                     </div>
                 ) : searching ? (
                     <>
@@ -118,8 +125,9 @@ function UtmFieldCard({
                                         </span>
                                         {(option as any).count != null && (
                                             <span className="lfm-utm__rowcount">
-                                                {fmt((option as any).count)}{" "}
-                                                leads
+                                                {t("pages.filters.count_leads", {
+                                                    n: fmt((option as any).count),
+                                                })}
                                             </span>
                                         )}
                                     </button>
@@ -127,7 +135,7 @@ function UtmFieldCard({
                             })}
                             {matches.length === 0 && (
                                 <div className="lfm-empty lfm-empty--pad">
-                                    No values match “{query}”
+                                    {t("pages.filters.utm_no_match", { query })}
                                 </div>
                             )}
                         </div>
@@ -146,7 +154,7 @@ function UtmFieldCard({
                                     )
                                 }
                             >
-                                Select all {matches.length} matches
+                                {t("pages.filters.utm_select_all", { n: matches.length })}
                             </button>
                         )}
                     </>
@@ -161,7 +169,7 @@ function UtmFieldCard({
                                     className={`lfm-pill${isOn ? " is-on" : ""}`}
                                     onClick={() => toggle(option.value)}
                                 >
-                                    {option.label}
+                                    {td(option.label, { source: "en" })}
                                     {(option as any).count != null && (
                                         <span className="lfm-pill__count">
                                             {fmt((option as any).count)}
@@ -186,6 +194,7 @@ export default function UtmSection({
     filters,
     onChange,
 }: UtmSectionProps) {
+    const { t } = useTranslation();
     // A field is "added" once it has a value, or once explicitly opened.
     const [opened, setOpened] = useState<string[]>([]);
 
@@ -211,7 +220,7 @@ export default function UtmSection({
     return (
         <div className="lfm-utm">
             <p className="lfm-section__blurb">
-                Trace leads back to the ad, post or email that produced them.
+                {t("pages.filters.utm_blurb")}
             </p>
 
             {activeFields.length > 0 && (
@@ -238,8 +247,8 @@ export default function UtmSection({
                     <div className="lfm-field__head">
                         <span className="lfm-field__label">
                             {activeFields.length > 0
-                                ? "Add another UTM field"
-                                : "Add a UTM field"}
+                                ? t("pages.filters.utm_add_another")
+                                : t("pages.filters.utm_add")}
                         </span>
                     </div>
                     <div className="lfm-pills">
@@ -261,9 +270,9 @@ export default function UtmSection({
 
             {reading.length > 0 && (
                 <div className="lfm-reading">
-                    <div className="lfm-reading__label">Reading as</div>
+                    <div className="lfm-reading__label">{t("pages.filters.utm_reading_as")}</div>
                     <div className="lfm-reading__text">
-                        Leads tagged{" "}
+                        {t("pages.filters.utm_leads_tagged")}{" "}
                         {reading.map((entry, index) => (
                             <React.Fragment key={entry.key}>
                                 {index > 0 && ", "}
@@ -273,8 +282,8 @@ export default function UtmSection({
                                 ={" "}
                                 <b>
                                     {entry.values.length > 3
-                                        ? `${entry.values.length} values`
-                                        : entry.values.join(" or ")}
+                                        ? t("pages.filters.utm_values_n", { n: entry.values.length })
+                                        : entry.values.join(` ${t("pages.filters.or_word")} `)}
                                 </b>
                             </React.Fragment>
                         ))}

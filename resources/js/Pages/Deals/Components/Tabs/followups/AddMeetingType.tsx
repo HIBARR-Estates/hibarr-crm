@@ -5,6 +5,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { TextArea } = Input;
 
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export default function AddMeetingType({ open, onClose, onSuccess }: Props) {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const [formData, setFormData] = useState<MeetingTypeFormData>({
         name: "",
@@ -94,7 +96,7 @@ export default function AddMeetingType({ open, onClose, onSuccess }: Props) {
 
     return (
         <Modal
-            title="Add New Meeting Type"
+            title={td("Add New Meeting Type", { source: "en" })}
             open={open}
             onCancel={handleCancel}
             footer={null}
@@ -125,7 +127,7 @@ export default function AddMeetingType({ open, onClose, onSuccess }: Props) {
                 )}
 
                 <Form.Item
-                    label="Meeting Type Name"
+                    label={td("Meeting Type Name", { source: "en" })}
                     name="name"
                     rules={[
                         {
@@ -145,14 +147,14 @@ export default function AddMeetingType({ open, onClose, onSuccess }: Props) {
                     ]}
                 >
                     <Input
-                        placeholder="e.g., Client Meeting, Follow-up Call, Demo"
+                        placeholder={td("e.g., Client Meeting, Follow-up Call, Demo", { source: "en" })}
                         disabled={loading}
                         autoFocus
                     />
                 </Form.Item>
 
                 <Form.Item
-                    label="Description (Optional)"
+                    label={td("Description (Optional)", { source: "en" })}
                     name="description"
                     rules={[
                         {
@@ -162,7 +164,7 @@ export default function AddMeetingType({ open, onClose, onSuccess }: Props) {
                     ]}
                 >
                     <TextArea
-                        placeholder="Brief description of this meeting type..."
+                        placeholder={td("Brief description of this meeting type...", { source: "en" })}
                         disabled={loading}
                         rows={3}
                         maxLength={255}
@@ -171,7 +173,7 @@ export default function AddMeetingType({ open, onClose, onSuccess }: Props) {
                 </Form.Item>
 
                 <Form.Item
-                    label="Color"
+                    label={td("Color", { source: "en" })}
                     name="color"
                     rules={[
                         {
@@ -186,7 +188,7 @@ export default function AddMeetingType({ open, onClose, onSuccess }: Props) {
                         format="hex"
                         presets={[
                             {
-                                label: "Recommended",
+                                label: td("Recommended", { source: "en" }),
                                 colors: [
                                     "#f50",
                                     "#2db7f5",
@@ -206,7 +208,7 @@ export default function AddMeetingType({ open, onClose, onSuccess }: Props) {
 
                 <div className="flex items-center justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
                     <Button onClick={handleCancel} disabled={loading}>
-                        Cancel
+                        {td("Cancel", { source: "en" })}
                     </Button>
                     <Button
                         type="primary"
@@ -214,7 +216,7 @@ export default function AddMeetingType({ open, onClose, onSuccess }: Props) {
                         loading={loading}
                         icon={<SaveOutlined />}
                     >
-                        Add Meeting Type
+                        {td("Add Meeting Type", { source: "en" })}
                     </Button>
                 </div>
             </Form>

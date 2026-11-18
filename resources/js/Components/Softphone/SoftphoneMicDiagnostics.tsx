@@ -48,6 +48,7 @@ import {
     getSupportedMimeType,
     toStandardAudioBlobWithMetrics,
 } from "./micDiagnosticsUtils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface SoftphoneMicDiagnosticsProps {
     inCall: boolean;
@@ -79,6 +80,7 @@ export default function SoftphoneMicDiagnostics({
     activeCallId,
     isCallConnected = false,
 }: SoftphoneMicDiagnosticsProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
 
     const [isExpanded, setIsExpanded] = useState<boolean>(() => {
@@ -965,28 +967,28 @@ export default function SoftphoneMicDiagnostics({
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 8px", color: "#334155" }}>
                 <span>
-                    Speech RMS:{" "}
+                    {td("Speech RMS:", { source: "en" })}{" "}
                     <strong style={{ color: m.criteria.speechRmsOk ? "#16a34a" : "#dc2626" }}>
                         {m.speechRmsDbfs.toFixed(1)} dBFS
                     </strong>{" "}
                     <small>(-24..-16)</small>
                 </span>
                 <span>
-                    Peak:{" "}
+                    {td("Peak:", { source: "en" })}{" "}
                     <strong style={{ color: m.criteria.peakOk ? "#16a34a" : "#dc2626" }}>
                         {m.peakDbfs.toFixed(1)} dBFS
                     </strong>{" "}
                     <small>(&lt;-3)</small>
                 </span>
                 <span>
-                    Noise floor:{" "}
+                    {td("Noise floor:", { source: "en" })}{" "}
                     <strong style={{ color: m.criteria.noiseFloorOk ? "#16a34a" : "#d97706" }}>
                         {m.noiseFloorDbfs.toFixed(1)} dBFS
                     </strong>{" "}
                     <small>(&lt;-50)</small>
                 </span>
                 <span>
-                    Speech Zeros:{" "}
+                    {td("Speech Zeros:", { source: "en" })}{" "}
                     <strong style={{ color: m.criteria.noZeroGapsInSpeech ? "#16a34a" : "#dc2626" }}>
                         {(m.speechExactZeroFraction * 100).toFixed(3)}%
                     </strong>{" "}
@@ -1058,7 +1060,7 @@ export default function SoftphoneMicDiagnostics({
                         >
                             <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1, color: "#d97706" }} />
                             <div>
-                                <strong>Bluetooth / Hands-Free Mic Detected:</strong>{" "}
+                                <strong>{td("Bluetooth / Hands-Free Mic Detected:", { source: "en" })}</strong>{" "}
                                 <span>
                                     "{selectedDeviceLabel}" uses narrowband Bluetooth HFP (8–16 kHz) with hardware gating. Switch to a wired/USB or built-in mic for full wideband clarity.
                                 </span>
@@ -1116,7 +1118,7 @@ export default function SoftphoneMicDiagnostics({
                     <div className="sp__mic-gain-box">
                         <div style={{ marginBottom: 8 }}>
                             <label className="sp__mic-field-label" style={{ display: "block", marginBottom: 3 }}>
-                                Processing Profile (HPF → RNNoise → Expander → Low-Mid → Gain → Comp 0dB → HS -4dB → LP → -3dB Limiter)
+                                {td("Processing Profile (HPF → RNNoise → Expander → Low-Mid → Gain → Comp 0dB → HS -4dB → LP → -3dB Limiter)", { source: "en" })}
                             </label>
                             <select
                                 value={profile}
@@ -1148,7 +1150,7 @@ export default function SoftphoneMicDiagnostics({
                                 </span>
                             </label>
                             <div style={{ fontSize: 10, color: "#475569", marginTop: 2, paddingLeft: 18 }}>
-                                LowPass: <strong>{activeLowPassHz}</strong> · HighShelf 5kHz: <strong>{profile === "raw" ? "0 dB" : "-4 dB"}</strong> · Soft Expander (2:1, 12dB): <strong>{MIC_PROFILES[profile].expander.enabled ? "ACTIVE" : "OFF"}</strong>
+                                {td("LowPass:", { source: "en" })} <strong>{activeLowPassHz}</strong> {td("· HighShelf 5kHz:", { source: "en" })} <strong>{profile === "raw" ? "0 dB" : "-4 dB"}</strong> {td("· Soft Expander (2:1, 12dB):", { source: "en" })} <strong>{MIC_PROFILES[profile].expander.enabled ? "ACTIVE" : "OFF"}</strong>
                             </div>
                         </div>
 
@@ -1183,9 +1185,9 @@ export default function SoftphoneMicDiagnostics({
                             aria-label={t("pages.softphone.mic_gain_boost")}
                         />
                         <div className="sp__mic-gain-bounds">
-                            <span>0.5x (-6 dB)</span>
-                            <span>4.0x (+12 dB)</span>
-                            <span>20.0x (+26 dB)</span>
+                            <span>{td("0.5x (-6 dB)", { source: "en" })}</span>
+                            <span>{td("4.0x (+12 dB)", { source: "en" })}</span>
+                            <span>{td("20.0x (+26 dB)", { source: "en" })}</span>
                         </div>
                     </div>
 
@@ -1199,7 +1201,7 @@ export default function SoftphoneMicDiagnostics({
                                 </span>
                             </div>
                             <div className="sp__diag-item">
-                                <span className="sp__diag-key">AudioContext</span>
+                                <span className="sp__diag-key">{td("AudioContext", { source: "en" })}</span>
                                 <span
                                     className={`sp__diag-val ${
                                         (liveSnapshot?.audioContextState ?? "running") === "running"
@@ -1218,7 +1220,7 @@ export default function SoftphoneMicDiagnostics({
                                 </span>
                             </div>
                             <div className="sp__diag-item">
-                                <span className="sp__diag-key">AEC / NS / AGC</span>
+                                <span className="sp__diag-key">{td("AEC / NS / AGC", { source: "en" })}</span>
                                 <span className="sp__diag-val">
                                     {String(rawTrackReport?.echoCancellation ?? diagnostics?.trackSettings?.echoCancellation ?? echoCancellation)} /{" "}
                                     {String(rawTrackReport?.noiseSuppression ?? diagnostics?.trackSettings?.noiseSuppression ?? noiseSuppression)} /{" "}
@@ -1233,7 +1235,7 @@ export default function SoftphoneMicDiagnostics({
                             )}
                             {diagnostics && diagnostics.packetsSent > 0 && (
                                 <div className="sp__diag-item">
-                                    <span className="sp__diag-key">RTP Sent</span>
+                                    <span className="sp__diag-key">{td("RTP Sent", { source: "en" })}</span>
                                     <span className="sp__diag-val">
                                         {diagnostics.packetsSent.toLocaleString()} pkts ({formatBytes(diagnostics.bytesSent)})
                                     </span>
@@ -1312,7 +1314,7 @@ export default function SoftphoneMicDiagnostics({
                                             type="button"
                                             className="sp__mic-refresh-btn"
                                             onClick={() => void refreshAudioDevices()}
-                                            title="Refresh device list"
+                                            title={td("Refresh device list", { source: "en" })}
                                         >
                                             <RefreshCw size={11} />
                                         </button>
@@ -1408,7 +1410,7 @@ export default function SoftphoneMicDiagnostics({
                                             onClick={() => void runDiagnosticTap10s()}
                                         >
                                             <Radio size={13} />
-                                            <span>Step 1: Record 10s Dual Tap (Raw vs Processed)</span>
+                                            <span>{td("Step 1: Record 10s Dual Tap (Raw vs Processed)", { source: "en" })}</span>
                                         </button>
                                     </>
                                 )}
@@ -1421,7 +1423,7 @@ export default function SoftphoneMicDiagnostics({
                         <div className="sp__mic-playback-card" style={{ marginTop: 10, borderColor: "#6366f1" }}>
                             <div className="sp__mic-playback-header">
                                 <span className="sp__mic-playback-title">
-                                    Step 1: 10s Diagnostic Tap (Raw vs Processed)
+                                    {td("Step 1: 10s Diagnostic Tap (Raw vs Processed)", { source: "en" })}
                                 </span>
                                 <span className="sp__mic-playback-meta">
                                     Profile: {MIC_PROFILES[dualTapResult.profile].label}
@@ -1431,7 +1433,7 @@ export default function SoftphoneMicDiagnostics({
                             {/* 1. Raw Track */}
                             <div style={{ marginTop: 6, padding: 6, borderRadius: 6, background: "#fff", border: "1px solid #e2e8f0" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 600 }}>
-                                    <span>1. Raw getUserMedia Track</span>
+                                    <span>{td("1. Raw getUserMedia Track", { source: "en" })}</span>
                                     <span>{formatBytes(dualTapResult.raw.size)}</span>
                                 </div>
                                 {dualTapResult.raw.metrics && renderMetricsBadge(dualTapResult.raw.metrics)}
@@ -1456,7 +1458,7 @@ export default function SoftphoneMicDiagnostics({
                             {/* 2. Processed Track */}
                             <div style={{ marginTop: 8, padding: 6, borderRadius: 6, background: "#fff", border: "1px solid #e2e8f0" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 600 }}>
-                                    <span>2. Processed Track (createBoostedMicStream)</span>
+                                    <span>{td("2. Processed Track (createBoostedMicStream)", { source: "en" })}</span>
                                     <span>{formatBytes(dualTapResult.processed.size)}</span>
                                 </div>
                                 {dualTapResult.processed.metrics && renderMetricsBadge(dualTapResult.processed.metrics)}
@@ -1534,16 +1536,16 @@ export default function SoftphoneMicDiagnostics({
                         <div style={{ marginTop: 10, padding: 8, borderRadius: 6, background: "#f8fafc", border: "1px solid #cbd5e1", fontSize: 10.5 }}>
                             <div style={{ fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
                                 <CheckCircle2 size={12} color="#16a34a" />
-                                <span>Step 7: Profile Verification Summary</span>
+                                <span>{td("Step 7: Profile Verification Summary", { source: "en" })}</span>
                             </div>
                             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
                                 <thead>
                                     <tr style={{ borderBottom: "1px solid #cbd5e1", color: "#475569" }}>
-                                        <th style={{ padding: "2px 3px" }}>Profile</th>
-                                        <th style={{ padding: "2px 3px" }}>RMS</th>
-                                        <th style={{ padding: "2px 3px" }}>Peak</th>
-                                        <th style={{ padding: "2px 3px" }}>Floor</th>
-                                        <th style={{ padding: "2px 3px" }}>Zeros</th>
+                                        <th style={{ padding: "2px 3px" }}>{td("Profile", { source: "en" })}</th>
+                                        <th style={{ padding: "2px 3px" }}>{td("RMS", { source: "en" })}</th>
+                                        <th style={{ padding: "2px 3px" }}>{td("Peak", { source: "en" })}</th>
+                                        <th style={{ padding: "2px 3px" }}>{td("Floor", { source: "en" })}</th>
+                                        <th style={{ padding: "2px 3px" }}>{td("Zeros", { source: "en" })}</th>
                                         <th style={{ padding: "2px 3px" }}>&gt;6kHz</th>
                                     </tr>
                                 </thead>

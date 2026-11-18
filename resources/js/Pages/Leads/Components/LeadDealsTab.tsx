@@ -28,6 +28,7 @@ import DealInformationGatheringForm from "@/Features/Deals/DealInformationGather
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import dayjs from "dayjs";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     lead: Lead;
@@ -42,6 +43,7 @@ export default function LeadDealsTab({
     deals = [],
     permissions = {},
 }: Props) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { props } = usePage();
     const user = props.auth.user;
@@ -86,7 +88,7 @@ export default function LeadDealsTab({
                     </Tooltip>
                     {record.category?.category_name && (
                         <Tag color="blue" className="text-xs">
-                            {record.category.category_name}
+                            {td(record.category.category_name, { source: "en" })}
                         </Tag>
                     )}
                 </div>
@@ -132,7 +134,7 @@ export default function LeadDealsTab({
                         ></div>
                         <Tooltip title={record.lead_stage.name}>
                             <span className="text-sm text-gray-900 truncate">
-                                {record.lead_stage.name}
+                                {td(record.lead_stage.name, { source: "en" })}
                             </span>
                         </Tooltip>
                     </div>

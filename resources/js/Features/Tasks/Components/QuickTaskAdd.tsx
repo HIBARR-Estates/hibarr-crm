@@ -3,6 +3,7 @@ import { Input, Button, message } from "antd";
 import { PlusOutlined, LoadingOutlined } from "@ant-design/icons";
 import { taskApi } from "@/lib/api/tasks";
 import { isLoading as loading } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface QuickTaskAddProps {
     boardColumnId?: number;
@@ -17,6 +18,7 @@ const QuickTaskAdd: React.FC<QuickTaskAddProps> = ({
     onSuccess,
     placeholder = "Create new task...",
 }) => {
+    const { td } = useTd();
     const [isActive, setIsActive] = useState(false);
     const [heading, setHeading] = useState("");
 
@@ -39,7 +41,7 @@ const QuickTaskAdd: React.FC<QuickTaskAddProps> = ({
             },
             {
                 onSuccess: () => {
-                    message.success("Task created");
+                    message.success(td("Task created", { source: "en" }));
                     setHeading("");
                     if (onSuccess) onSuccess();
                     // Keep active for rapid entry? Or close?
@@ -68,7 +70,7 @@ const QuickTaskAdd: React.FC<QuickTaskAddProps> = ({
                 onClick={() => setIsActive(true)}
             >
                 <PlusOutlined />
-                <span>Create Task</span>
+                <span>{td("Create Task", { source: "en" })}</span>
             </div>
         );
     }
@@ -88,7 +90,7 @@ const QuickTaskAdd: React.FC<QuickTaskAddProps> = ({
                 }}
             />
             <div className="text-xs text-gray-400 mt-1 flex justify-between">
-                <span>Press Enter to save, Esc to cancel</span>
+                <span>{td("Press Enter to save, Esc to cancel", { source: "en" })}</span>
             </div>
         </div>
     );

@@ -516,7 +516,7 @@
             <br>
             <span>
                 @if (!is_null($proposal->signature->signature))
-                    <img src="{{ $proposal->signature->signature }}" style="width: 200px;" alt="Signature">
+                    <img src="{{ $proposal->signature->signature }}" style="width: 200px;" alt="{{ td('Signature') }}">
                     <h6 class="description">@lang('modules.estimates.signature')</h6>
                 @else
                     <h6>@lang('modules.estimates.signedBy')</h6>

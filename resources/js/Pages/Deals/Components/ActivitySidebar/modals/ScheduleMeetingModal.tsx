@@ -21,6 +21,7 @@ import {
     formatCompanyTime,
     companyTimeDayjsFormat,
 } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { TextArea } = Input;
 
@@ -37,6 +38,7 @@ interface ScheduleMeetingData {
 }
 
 export default function ScheduleMeetingModal({ open, onClose, deal }: Props) {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
 
@@ -44,7 +46,7 @@ export default function ScheduleMeetingModal({ open, onClose, deal }: Props) {
         const contact = deal.contact;
 
         if (!contact?.client_email) {
-            message.error("Contact has no email address");
+            message.error(td("Contact has no email address", { source: "en" }));
             return;
         }
 
@@ -83,12 +85,12 @@ export default function ScheduleMeetingModal({ open, onClose, deal }: Props) {
                 "_blank"
             );
 
-            message.success("Email client opened with meeting details");
+            message.success(td("Email client opened with meeting details", { source: "en" }));
             form.resetFields();
             onClose();
         } catch (error) {
             console.error("Error scheduling meeting:", error);
-            message.error("Failed to open email client");
+            message.error(td("Failed to open email client", { source: "en" }));
         } finally {
             setLoading(false);
         }
@@ -98,7 +100,7 @@ export default function ScheduleMeetingModal({ open, onClose, deal }: Props) {
         const contact = deal.contact;
 
         if (!contact?.client_email) {
-            message.error("Contact has no email address");
+            message.error(td("Contact has no email address", { source: "en" }));
             return;
         }
 
@@ -116,31 +118,30 @@ export default function ScheduleMeetingModal({ open, onClose, deal }: Props) {
             "_blank"
         );
 
-        message.success("Email client opened");
+        message.success(td("Email client opened", { source: "en" }));
         onClose();
     };
 
     if (!deal.contact?.client_email) {
         return (
             <Modal
-                title="Schedule Meeting"
+                title={td("Schedule Meeting", { source: "en" })}
                 open={open}
                 onCancel={onClose}
                 width={500}
                 footer={[
                     <Button key="close" onClick={onClose}>
-                        Close
+                        {td("Close", { source: "en" })}
                     </Button>,
                 ]}
             >
                 <div className="text-center py-8">
                     <MailOutlined className="text-4xl text-gray-400 mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        No Email Address
+                        {td("No Email Address", { source: "en" })}
                     </h3>
                     <p className="text-gray-500">
-                        This contact doesn't have an email address. Please add
-                        one to schedule a meeting.
+                        {td("This contact doesn't have an email address. Please add one to schedule a meeting.", { source: "en" })}
                     </p>
                 </div>
             </Modal>
@@ -149,7 +150,7 @@ export default function ScheduleMeetingModal({ open, onClose, deal }: Props) {
 
     return (
         <Modal
-            title="Schedule Meeting"
+            title={td("Schedule Meeting", { source: "en" })}
             open={open}
             onCancel={onClose}
             width={600}
@@ -175,7 +176,7 @@ export default function ScheduleMeetingModal({ open, onClose, deal }: Props) {
                     onClick={handleQuickSchedule}
                     className="flex-1"
                 >
-                    Quick Schedule (Basic Email)
+                    {td("Quick Schedule (Basic Email)", { source: "en" })}
                 </Button>
                 <Button
                     type="default"
@@ -183,7 +184,7 @@ export default function ScheduleMeetingModal({ open, onClose, deal }: Props) {
                     loading={loading}
                     className="flex-1"
                 >
-                    Custom Schedule
+                    {td("Custom Schedule", { source: "en" })}
                 </Button>
             </div>
 
@@ -198,7 +199,7 @@ export default function ScheduleMeetingModal({ open, onClose, deal }: Props) {
             >
                 <Form.Item
                     name="subject"
-                    label="Meeting Subject"
+                    label={td("Meeting Subject", { source: "en" })}
                     rules={[
                         {
                             required: true,
@@ -206,14 +207,14 @@ export default function ScheduleMeetingModal({ open, onClose, deal }: Props) {
                         },
                     ]}
                 >
-                    <Input placeholder="Enter meeting subject" />
+                    <Input placeholder={td("Enter meeting subject", { source: "en" })} />
                 </Form.Item>
 
                 <div className="grid grid-cols-2 gap-4">
-                    <Form.Item name="date" label="Preferred Date">
+                    <Form.Item name="date" label={td("Preferred Date", { source: "en" })}>
                         <DatePicker
                             className="w-full"
-                            placeholder="Select date"
+                            placeholder={td("Select date", { source: "en" })}
                             format={companyDateDayjsFormat()}
                             disabledDate={(current) =>
                                 current && current < dayjs().startOf("day")
@@ -221,23 +222,23 @@ export default function ScheduleMeetingModal({ open, onClose, deal }: Props) {
                         />
                     </Form.Item>
 
-                    <Form.Item name="time" label="Preferred Time">
+                    <Form.Item name="time" label={td("Preferred Time", { source: "en" })}>
                         <TimePicker
                             className="w-full"
-                            placeholder="Select time"
+                            placeholder={td("Select time", { source: "en" })}
                             format={companyTimeDayjsFormat()}
                         />
                     </Form.Item>
                 </div>
 
-                <Form.Item name="senderName" label="Your Name">
-                    <Input placeholder="Enter your name" />
+                <Form.Item name="senderName" label={td("Your Name", { source: "en" })}>
+                    <Input placeholder={td("Enter your name", { source: "en" })} />
                 </Form.Item>
 
-                <Form.Item name="notes" label="Additional Notes">
+                <Form.Item name="notes" label={td("Additional Notes", { source: "en" })}>
                     <TextArea
                         rows={4}
-                        placeholder="Add any additional details about the meeting..."
+                        placeholder={td("Add any additional details about the meeting...", { source: "en" })}
                         showCount
                         maxLength={500}
                     />
@@ -249,7 +250,7 @@ export default function ScheduleMeetingModal({ open, onClose, deal }: Props) {
                         icon={<CloseOutlined />}
                         disabled={loading}
                     >
-                        Cancel
+                        {td("Cancel", { source: "en" })}
                     </Button>
                     <Button
                         type="primary"
@@ -257,7 +258,7 @@ export default function ScheduleMeetingModal({ open, onClose, deal }: Props) {
                         icon={<CalendarOutlined />}
                         loading={loading}
                     >
-                        Open Email Client
+                        {td("Open Email Client", { source: "en" })}
                     </Button>
                 </div>
             </Form>

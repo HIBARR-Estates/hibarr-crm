@@ -35,6 +35,7 @@ import type {
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { currencySymbolForCode, formatLocationNameForDisplay } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -98,6 +99,7 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
     onAdd,
     loading = false,
 }) => {
+    const { td } = useTd();
     const [searchValue, setSearchValue] = useState("");
 
     const handleSearch = useCallback((value: string) => {
@@ -137,7 +139,7 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
     const columns: TableColumnsType<DeveloperProject> = useMemo(
         () => [
             {
-                title: "Name",
+                title: td("Name", { source: "en" }),
                 dataIndex: "name",
                 key: "name",
                 width: 220,
@@ -146,7 +148,7 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                 ),
             },
             {
-                title: "Ref",
+                title: td("Ref", { source: "en" }),
                 dataIndex: "reference_code",
                 key: "reference_code",
                 width: 100,
@@ -160,7 +162,7 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                     ),
             },
             {
-                title: "Developer",
+                title: td("Developer", { source: "en" }),
                 key: "developer",
                 width: 160,
                 render: (_: unknown, record: DeveloperProject) =>
@@ -171,7 +173,7 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                     ),
             },
             {
-                title: "Location",
+                title: td("Location", { source: "en" }),
                 dataIndex: "location",
                 key: "location",
                 width: 150,
@@ -181,11 +183,11 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                             {formatLocationNameForDisplay(location.name)}
                         </Tag>
                     ) : (
-                        <span className="text-gray-400">Not assigned</span>
+                        <span className="text-gray-400">{td("Not assigned", { source: "en" })}</span>
                     ),
             },
             {
-                title: "Status",
+                title: td("Status", { source: "en" }),
                 dataIndex: "construction_status",
                 key: "construction_status",
                 width: 140,
@@ -197,7 +199,7 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                 ),
             },
             {
-                title: "Starting Price",
+                title: td("Starting Price", { source: "en" }),
                 dataIndex: "starting_price",
                 key: "starting_price",
                 width: 130,
@@ -206,7 +208,7 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                     formatPrice(price, record.currency),
             },
             {
-                title: "Properties",
+                title: td("Properties", { source: "en" }),
                 dataIndex: "properties_count",
                 key: "properties_count",
                 align: "center",
@@ -219,7 +221,7 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                 ),
             },
             {
-                title: "Unit Types",
+                title: td("Unit Types", { source: "en" }),
                 dataIndex: "unit_types_count",
                 key: "unit_types_count",
                 align: "center",
@@ -232,7 +234,7 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                 ),
             },
             {
-                title: "Actions",
+                title: td("Actions", { source: "en" }),
                 key: "actions",
                 align: "center",
                 width: 80,
@@ -248,7 +250,7 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                                     )}
                                 >
                                     <EyeOutlined className="mr-2" />
-                                    View
+                                    {td("View", { source: "en" })}
                                 </Link>
                             ),
                         },
@@ -257,7 +259,7 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                             label: (
                                 <span onClick={() => onEdit(record)}>
                                     <EditOutlined className="mr-2" />
-                                    Edit
+                                    {td("Edit", { source: "en" })}
                                 </span>
                             ),
                         },
@@ -271,7 +273,7 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                                     )}
                                 >
                                     <SettingOutlined className="mr-2" />
-                                    Expose Config
+                                    {td("Expose Config", { source: "en" })}
                                 </Link>
                             ),
                         },
@@ -280,16 +282,16 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                             key: "delete",
                             label: (
                                 <Popconfirm
-                                    title="Delete Project"
-                                    description="Are you sure? Properties will be unassigned."
+                                    title={td("Delete Project", { source: "en" })}
+                                    description={td("Are you sure? Properties will be unassigned.", { source: "en" })}
                                     onConfirm={() => handleDelete(record)}
-                                    okText="Delete"
-                                    cancelText="Cancel"
+                                    okText={td("Delete", { source: "en" })}
+                                    cancelText={td("Cancel", { source: "en" })}
                                     okButtonProps={{ danger: true }}
                                 >
                                     <span className="text-red-600">
                                         <DeleteOutlined className="mr-2" />
-                                        Delete
+                                        {td("Delete", { source: "en" })}
                                     </span>
                                 </Popconfirm>
                             ),
@@ -325,11 +327,11 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
             {/* Toolbar */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <Button type="primary" icon={<PlusOutlined />} onClick={onAdd}>
-                    Add Project
+                    {td("Add Project", { source: "en" })}
                 </Button>
 
                 <Input.Search
-                    placeholder="Search projects..."
+                    placeholder={td("Search projects...", { source: "en" })}
                     allowClear
                     value={searchValue}
                     onChange={(e) => setSearchValue(e.target.value)}
@@ -355,7 +357,7 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                     className: "cursor-pointer",
                 })}
                 emptyState={{
-                    title: "No projects found",
+                    title: td("No projects found", { source: "en" }),
                     description:
                         "Try adjusting your search or add a new project.",
                 }}

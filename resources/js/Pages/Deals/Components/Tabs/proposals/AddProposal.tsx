@@ -3,6 +3,7 @@ import { Button } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import SaveProposal from "./SaveProposal";
 import { Deal } from "@/Types/api/deals";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface AddProposalProps {
     deal: Deal;
@@ -19,6 +20,7 @@ export default function AddProposal({
     trigger = "button",
     children,
 }: AddProposalProps) {
+    const { td } = useTd();
     const [visible, setVisible] = useState(false);
 
     const canAddProposal =
@@ -55,7 +57,7 @@ export default function AddProposal({
                 icon={<PlusOutlined />}
                 onClick={handleOpenModal}
             >
-                Add Proposal
+                {td("Add Proposal", { source: "en" })}
             </Button>
         );
 

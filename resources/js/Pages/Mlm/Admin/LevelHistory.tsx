@@ -15,6 +15,7 @@ import type {
     PaginatedResponse,
 } from "@/Features/Mlm/types";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { RangePicker } = DatePicker;
 
@@ -23,6 +24,7 @@ interface Props extends PageProps {
 }
 
 const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
@@ -40,7 +42,7 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
 
     const columns = [
         {
-            title: "Agent",
+            title: td("Agent", { source: "en" }),
             key: "agent",
             render: (_: any, record: AgentLevelHistory) => (
                 <div className="flex items-center gap-2">
@@ -59,7 +61,7 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
             ),
         },
         {
-            title: "Promoted To",
+            title: td("Promoted To", { source: "en" }),
             key: "level",
             render: (_: any, record: AgentLevelHistory) =>
                 record.level ? (
@@ -72,7 +74,7 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
                 ),
         },
         {
-            title: "Method",
+            title: td("Method", { source: "en" }),
             key: "method",
             render: (_: any, record: AgentLevelHistory) => (
                 <Tag
@@ -90,7 +92,7 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
             ),
         },
         {
-            title: "Assigned By",
+            title: td("Assigned By", { source: "en" }),
             key: "assigned_by",
             render: (_: any, record: AgentLevelHistory) =>
                 record.system_assigned
@@ -98,7 +100,7 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
                     : (record.assigned_by_user?.name ?? "—"),
         },
         {
-            title: "Trigger Deal",
+            title: td("Trigger Deal", { source: "en" }),
             key: "trigger_deal",
             render: (_: any, record: AgentLevelHistory) =>
                 record.trigger_deal ? (
@@ -116,7 +118,7 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
                 ),
         },
         {
-            title: "Date",
+            title: td("Date", { source: "en" }),
             dataIndex: "assigned_at",
             key: "assigned_at",
             render: (d: string) => formatCompanyDateTime(d, { fallback: "—" }),
@@ -146,7 +148,7 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
                                         className="text-indigo-500"
                                     />
                                     <span className="font-semibold">
-                                        Level Assignment History
+                                        {td("Level Assignment History", { source: "en" })}
                                     </span>
                                 </div>
                             }
@@ -155,12 +157,12 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
                             {/* Filters */}
                             <div className="flex flex-wrap gap-3 mb-4">
                                 <Select
-                                    placeholder="Method"
+                                    placeholder={td("Method", { source: "en" })}
                                     allowClear
                                     className="w-36"
                                     options={[
-                                        { value: "system", label: "Automatic" },
-                                        { value: "manual", label: "Manual" },
+                                        { value: "system", label: td("Automatic", { source: "en" }) },
+                                        { value: "manual", label: td("Manual", { source: "en" }) },
                                     ]}
                                     onChange={(v) =>
                                         setFilters((f) => ({

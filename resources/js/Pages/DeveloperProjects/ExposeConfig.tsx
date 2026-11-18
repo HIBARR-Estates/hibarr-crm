@@ -44,6 +44,7 @@ import {
     mockUploadFile,
     type PlaceholderCategory,
 } from "../../Services/MockFileService";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 // ============================================
 // Types
@@ -72,12 +73,13 @@ const LogoSection: React.FC<LogoSectionProps> = ({
     onSave,
     saving,
 }) => {
+    const { td } = useTd();
     const [form] = Form.useForm();
 
     const handleMockUpload = async (file: File, field: "dark" | "light") => {
         const url = await mockUploadFile(file, "logo");
         form.setFieldValue(field, url);
-        message.info("Mock upload complete - placeholder URL generated");
+        message.info(td("Mock upload complete - placeholder URL generated", { source: "en" }));
     };
 
     return (
@@ -88,17 +90,17 @@ const LogoSection: React.FC<LogoSectionProps> = ({
             onFinish={onSave}
         >
             <div className="grid grid-cols-2 gap-6">
-                <Form.Item name="dark" label="Dark Logo URL">
-                    <Input placeholder="URL to dark version of logo" />
+                <Form.Item name="dark" label={td("Dark Logo URL", { source: "en" })}>
+                    <Input placeholder={td("URL to dark version of logo", { source: "en" })} />
                 </Form.Item>
-                <Form.Item name="light" label="Light Logo URL">
-                    <Input placeholder="URL to light version of logo" />
+                <Form.Item name="light" label={td("Light Logo URL", { source: "en" })}>
+                    <Input placeholder={td("URL to light version of logo", { source: "en" })} />
                 </Form.Item>
             </div>
             <div className="mb-4">
                 <Alert
-                    message="File Upload Note"
-                    description="File storage is not yet implemented. Enter URLs directly or use mock upload for testing."
+                    message={td("File Upload Note", { source: "en" })}
+                    description={td("File storage is not yet implemented. Enter URLs directly or use mock upload for testing.", { source: "en" })}
                     type="info"
                     showIcon
                 />
@@ -109,7 +111,7 @@ const LogoSection: React.FC<LogoSectionProps> = ({
                 loading={saving}
                 icon={<SaveOutlined />}
             >
-                Save Logo Settings
+                {td("Save Logo Settings", { source: "en" })}
             </Button>
         </Form>
     );
@@ -126,6 +128,7 @@ const ProjectOverviewSection: React.FC<ProjectOverviewSectionProps> = ({
     onSave,
     saving,
 }) => {
+    const { td } = useTd();
     const [form] = Form.useForm();
 
     // Transform initial values to convert date string to dayjs object
@@ -158,23 +161,23 @@ const ProjectOverviewSection: React.FC<ProjectOverviewSectionProps> = ({
             onFinish={handleFinish}
         >
             <div className="grid grid-cols-2 gap-6">
-                <Form.Item name="city" label="City">
-                    <Input placeholder="Project city" />
+                <Form.Item name="city" label={td("City", { source: "en" })}>
+                    <Input placeholder={td("Project city", { source: "en" })} />
                 </Form.Item>
-                <Form.Item name="completionDate" label="Completion Date">
+                <Form.Item name="completionDate" label={td("Completion Date", { source: "en" })}>
                     <DatePicker
-                        placeholder="Select completion date"
+                        placeholder={td("Select completion date", { source: "en" })}
                         style={{ width: "100%" }}
                         format="YYYY-MM-DD"
                     />
                 </Form.Item>
             </div>
 
-            <Form.Item name="propertyOverviewImage" label="Overview Image URL">
-                <Input placeholder="URL to main overview image" />
+            <Form.Item name="propertyOverviewImage" label={td("Overview Image URL", { source: "en" })}>
+                <Input placeholder={td("URL to main overview image", { source: "en" })} />
             </Form.Item>
 
-            <Divider>Property Types</Divider>
+            <Divider>{td("Property Types", { source: "en" })}</Divider>
             <Form.List name="propertyTypes">
                 {(fields, { add, remove }) => (
                     <>
@@ -188,7 +191,7 @@ const ProjectOverviewSection: React.FC<ProjectOverviewSectionProps> = ({
                                     <Form.Item name={name} noStyle>
                                         <Input
                                             variant="borderless"
-                                            placeholder="Type"
+                                            placeholder={td("Type", { source: "en" })}
                                             style={{ width: 80 }}
                                         />
                                     </Form.Item>
@@ -200,13 +203,13 @@ const ProjectOverviewSection: React.FC<ProjectOverviewSectionProps> = ({
                             onClick={() => add("")}
                             size="small"
                         >
-                            <PlusOutlined /> Add Type
+                            <PlusOutlined /> {td("Add Type", { source: "en" })}
                         </Button>
                     </>
                 )}
             </Form.List>
 
-            <Divider>Facilities</Divider>
+            <Divider>{td("Facilities", { source: "en" })}</Divider>
             <Form.List name="facilities">
                 {(fields, { add, remove }) => (
                     <>
@@ -218,7 +221,7 @@ const ProjectOverviewSection: React.FC<ProjectOverviewSectionProps> = ({
                                         name={[name, "name"]}
                                         noStyle
                                     >
-                                        <Input placeholder="Facility name" />
+                                        <Input placeholder={td("Facility name", { source: "en" })} />
                                     </Form.Item>
                                     <Form.Item
                                         {...restField}
@@ -226,7 +229,7 @@ const ProjectOverviewSection: React.FC<ProjectOverviewSectionProps> = ({
                                         noStyle
                                     >
                                         <Input
-                                            placeholder="Image URL"
+                                            placeholder={td("Image URL", { source: "en" })}
                                             style={{ width: 200 }}
                                         />
                                     </Form.Item>
@@ -244,7 +247,7 @@ const ProjectOverviewSection: React.FC<ProjectOverviewSectionProps> = ({
                             onClick={() => add({ name: "", image: "" })}
                             block
                         >
-                            <PlusOutlined /> Add Facility
+                            <PlusOutlined /> {td("Add Facility", { source: "en" })}
                         </Button>
                     </>
                 )}
@@ -257,7 +260,7 @@ const ProjectOverviewSection: React.FC<ProjectOverviewSectionProps> = ({
                     loading={saving}
                     icon={<SaveOutlined />}
                 >
-                    Save Overview
+                    {td("Save Overview", { source: "en" })}
                 </Button>
             </div>
         </Form>
@@ -279,6 +282,7 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
     onSave,
     saving,
 }) => {
+    const { td } = useTd();
     const [form] = Form.useForm();
 
     // Initialize form with proper structure
@@ -302,8 +306,8 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
         >
             <div className="mb-4">
                 <Alert
-                    message="Image URLs"
-                    description="Enter image URLs directly. File upload functionality will be added later."
+                    message={td("Image URLs", { source: "en" })}
+                    description={td("Enter image URLs directly. File upload functionality will be added later.", { source: "en" })}
                     type="info"
                     showIcon
                     className="mb-4"
@@ -328,7 +332,7 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
                                     >
                                         <Form.Item name={name} noStyle>
                                             <Input
-                                                placeholder="Image URL"
+                                                placeholder={td("Image URL", { source: "en" })}
                                                 style={{ width: 400 }}
                                             />
                                         </Form.Item>
@@ -345,7 +349,7 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
                                     onClick={() => add("")}
                                     size="small"
                                 >
-                                    <PlusOutlined /> Add Image
+                                    <PlusOutlined /> {td("Add Image", { source: "en" })}
                                 </Button>
                             </>
                         )}
@@ -353,7 +357,7 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
                 </Card>
             ))}
 
-            <Card title="Generic Images" size="small" className="mb-4">
+            <Card title={td("Generic Images", { source: "en" })} size="small" className="mb-4">
                 <Form.List name="generic_images">
                     {(fields, { add, remove }) => (
                         <>
@@ -365,7 +369,7 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
                                 >
                                     <Form.Item name={name} noStyle>
                                         <Input
-                                            placeholder="Image URL"
+                                            placeholder={td("Image URL", { source: "en" })}
                                             style={{ width: 400 }}
                                         />
                                     </Form.Item>
@@ -382,7 +386,7 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
                                 onClick={() => add("")}
                                 size="small"
                             >
-                                <PlusOutlined /> Add Image
+                                <PlusOutlined /> {td("Add Image", { source: "en" })}
                             </Button>
                         </>
                     )}
@@ -395,7 +399,7 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
                 loading={saving}
                 icon={<SaveOutlined />}
             >
-                Save Images
+                {td("Save Images", { source: "en" })}
             </Button>
         </Form>
     );
@@ -412,6 +416,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
     onSave,
     saving,
 }) => {
+    const { td } = useTd();
     const [form] = Form.useForm();
 
     return (
@@ -427,32 +432,32 @@ const ContactSection: React.FC<ContactSectionProps> = ({
             }}
             onFinish={onSave}
         >
-            <Divider>Default Agent</Divider>
+            <Divider>{td("Default Agent", { source: "en" })}</Divider>
             <div className="mb-4">
                 <Alert
-                    message="Fallback Agent Details"
-                    description="These details will only be used when no agent is assigned to a deal. If an agent is assigned, their information will be displayed instead."
+                    message={td("Fallback Agent Details", { source: "en" })}
+                    description={td("These details will only be used when no agent is assigned to a deal. If an agent is assigned, their information will be displayed instead.", { source: "en" })}
                     type="info"
                     showIcon
                 />
             </div>
             <div className="grid grid-cols-2 gap-6">
-                <Form.Item name={["agent", "name"]} label="Agent Name">
-                    <Input placeholder="Agent name" />
+                <Form.Item name={["agent", "name"]} label={td("Agent Name", { source: "en" })}>
+                    <Input placeholder={td("Agent name", { source: "en" })} />
                 </Form.Item>
-                <Form.Item name={["agent", "position"]} label="Position">
-                    <Input placeholder="Position/Title" />
+                <Form.Item name={["agent", "position"]} label={td("Position", { source: "en" })}>
+                    <Input placeholder={td("Position/Title", { source: "en" })} />
                 </Form.Item>
             </div>
 
-            <Divider>Contact Information</Divider>
+            <Divider>{td("Contact Information", { source: "en" })}</Divider>
 
             {/* Phones */}
             <Form.List name="phones">
                 {(fields, { add, remove }) => (
                     <div className="mb-4">
                         <label className="block mb-2 font-medium">
-                            Phone Numbers
+                            {td("Phone Numbers", { source: "en" })}
                         </label>
                         {fields.map(({ key, name }) => (
                             <Space key={key} className="mb-2">
@@ -474,7 +479,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                             size="small"
                             block
                         >
-                            <PlusOutlined /> Add Phone
+                            <PlusOutlined /> {td("Add Phone", { source: "en" })}
                         </Button>
                     </div>
                 )}
@@ -484,11 +489,11 @@ const ContactSection: React.FC<ContactSectionProps> = ({
             <Form.List name="emails">
                 {(fields, { add, remove }) => (
                     <div className="mb-4">
-                        <label className="block mb-2 font-medium">Emails</label>
+                        <label className="block mb-2 font-medium">{td("Emails", { source: "en" })}</label>
                         {fields.map(({ key, name }) => (
                             <Space key={key} className="mb-2">
                                 <Form.Item name={name} noStyle>
-                                    <Input placeholder="email@example.com" />
+                                    <Input placeholder={td("email@example.com", { source: "en" })} />
                                 </Form.Item>
                                 <Button
                                     type="text"
@@ -505,7 +510,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                             size="small"
                             block
                         >
-                            <PlusOutlined /> Add Email
+                            <PlusOutlined /> {td("Add Email", { source: "en" })}
                         </Button>
                     </div>
                 )}
@@ -516,7 +521,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                 {(fields, { add, remove }) => (
                     <div className="mb-4">
                         <label className="block mb-2 font-medium">
-                            Websites
+                            {td("Websites", { source: "en" })}
                         </label>
                         {fields.map(({ key, name }) => (
                             <Space key={key} className="mb-2">
@@ -538,7 +543,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                             size="small"
                             block
                         >
-                            <PlusOutlined /> Add Website
+                            <PlusOutlined /> {td("Add Website", { source: "en" })}
                         </Button>
                     </div>
                 )}
@@ -551,7 +556,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                     loading={saving}
                     icon={<SaveOutlined />}
                 >
-                    Save Contact Details
+                    {td("Save Contact Details", { source: "en" })}
                 </Button>
             </div>
         </Form>
@@ -569,6 +574,7 @@ const ExposeConfig = ({
     groupedImageKeys,
     infoBlockKeys,
 }: ExposeConfigProps) => {
+    const { td } = useTd();
     // Create mutations for each section
     const logoMutation = useApiMutate<
         { data: any },
@@ -671,7 +677,7 @@ const ExposeConfig = ({
     const tabItems: TabsProps["items"] = [
         {
             key: "logo",
-            label: "Logo",
+            label: td("Logo", { source: "en" }),
             children: (
                 <LogoSection
                     initialValues={config?.logo || undefined}
@@ -682,7 +688,7 @@ const ExposeConfig = ({
         },
         {
             key: "overview",
-            label: "Project Overview",
+            label: td("Project Overview", { source: "en" }),
             children: (
                 <ProjectOverviewSection
                     initialValues={config?.project_overview || undefined}
@@ -693,7 +699,7 @@ const ExposeConfig = ({
         },
         {
             key: "images",
-            label: "Images",
+            label: td("Images", { source: "en" }),
             children: (
                 <ImagesSection
                     groupedImageKeys={groupedImageKeys}
@@ -719,7 +725,7 @@ const ExposeConfig = ({
         },
         {
             key: "contact",
-            label: "Contact Details",
+            label: td("Contact Details", { source: "en" }),
             children: (
                 <ContactSection
                     initialValues={config?.contact_details || undefined}
@@ -750,7 +756,7 @@ const ExposeConfig = ({
                 <div className="flex items-center justify-between">
                     <Link href={route("developer-projects.show", project.id)}>
                         <Button icon={<ArrowLeftOutlined />}>
-                            Back to Project
+                            {td("Back to Project", { source: "en" })}
                         </Button>
                     </Link>
                     {/* <Space>
@@ -763,8 +769,8 @@ const ExposeConfig = ({
                 {/* Location Warning */}
                 {!project.location && (
                     <Alert
-                        message="No Location Assigned"
-                        description="This project has no location assigned. Location details will be empty in the expose. Please assign a location to the project."
+                        message={td("No Location Assigned", { source: "en" })}
+                        description={td("This project has no location assigned. Location details will be empty in the expose. Please assign a location to the project.", { source: "en" })}
                         type="warning"
                         showIcon
                     />
@@ -777,7 +783,7 @@ const ExposeConfig = ({
 
                 {/* Preview Modal */}
                 <Modal
-                    title="Expose Preview Data"
+                    title={td("Expose Preview Data", { source: "en" })}
                     open={previewModalOpen}
                     onCancel={() => setPreviewModalOpen(false)}
                     width={800}
@@ -786,7 +792,7 @@ const ExposeConfig = ({
                             key="close"
                             onClick={() => setPreviewModalOpen(false)}
                         >
-                            Close
+                            {td("Close", { source: "en" })}
                         </Button>,
                         <Button
                             key="refresh"
@@ -794,7 +800,7 @@ const ExposeConfig = ({
                             onClick={() => refetchPreview()}
                             loading={previewLoading}
                         >
-                            Refresh
+                            {td("Refresh", { source: "en" })}
                         </Button>,
                     ]}
                 >
@@ -805,7 +811,7 @@ const ExposeConfig = ({
                     ) : previewError ? (
                         <Alert
                             type="error"
-                            message="Failed to load preview"
+                            message={td("Failed to load preview", { source: "en" })}
                             description={
                                 (previewError as any)?.message ||
                                 "An error occurred while loading the preview data."
@@ -815,22 +821,22 @@ const ExposeConfig = ({
                     ) : previewData ? (
                         <div className="space-y-6">
                             <Descriptions
-                                title="Project Info"
+                                title={td("Project Info", { source: "en" })}
                                 bordered
                                 column={2}
                                 size="small"
                             >
-                                <Descriptions.Item label="Name">
+                                <Descriptions.Item label={td("Name", { source: "en" })}>
                                     {previewData.project?.name}
                                 </Descriptions.Item>
-                                <Descriptions.Item label="Property Count">
+                                <Descriptions.Item label={td("Property Count", { source: "en" })}>
                                     {previewData.project?.property_count}
                                 </Descriptions.Item>
                             </Descriptions>
 
                             <div>
                                 <Typography.Title level={5}>
-                                    Expose Data (JSON)
+                                    {td("Expose Data (JSON)", { source: "en" })}
                                 </Typography.Title>
                                 <pre className="bg-gray-100 p-4 rounded-lg overflow-auto max-h-96 text-xs">
                                     {JSON.stringify(
@@ -844,8 +850,8 @@ const ExposeConfig = ({
                     ) : (
                         <Alert
                             type="info"
-                            message="No preview data available"
-                            description="Configure the expose settings and try again."
+                            message={td("No preview data available", { source: "en" })}
+                            description={td("Configure the expose settings and try again.", { source: "en" })}
                             showIcon
                         />
                     )}

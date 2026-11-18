@@ -5,7 +5,7 @@
      Expects $selectedField (string, may be ''), plus $leadFields, $leadMarketingFields,
      $leadCustomFields. --}}
 @php $selectedField = $selectedField ?? ''; @endphp
-<optgroup label="Lead Fields">
+<optgroup label="{{ td('Lead Fields') }}">
     @foreach($leadFields as $key => $label)
         @php
             $type = 'string';
@@ -15,7 +15,7 @@
         <option value="lead_field_{{ $key }}" data-type="{{ $type }}" {{ $selectedField == 'lead_field_'.$key ? 'selected' : '' }}>{{ $label }}</option>
     @endforeach
 </optgroup>
-<optgroup label="Lead Marketing">
+<optgroup label="{{ td('Lead Marketing') }}">
     @php
         $marketingOptions = ($outbound ?? false)
             ? \App\Services\AutomationFieldCatalog::outboundLeadMarketingFields()
@@ -31,7 +31,7 @@
         <option value="lead_marketing_{{ $key }}" data-type="{{ $type }}" {{ $selectedField == 'lead_marketing_'.$key ? 'selected' : '' }}>{{ $label }}</option>
     @endforeach
 </optgroup>
-<optgroup label="Lead Custom Fields">
+<optgroup label="{{ td('Lead Custom Fields') }}">
     @foreach($leadCustomFields as $field)
         @php
             $type = 'string';

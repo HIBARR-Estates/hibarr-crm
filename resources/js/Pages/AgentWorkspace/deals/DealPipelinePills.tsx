@@ -1,6 +1,7 @@
 import { Dropdown, type MenuProps } from "antd";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface DealPipelinePillsProps {
     /** `visible` is the pipeline's nav-visibility setting; absent means shown. */
@@ -19,6 +20,7 @@ interface DealPipelinePillsProps {
  * leaves the page.
  */
 export default function DealPipelinePills({ pipelines, pipelineId, onPipeline, filterCount, onFilters }: DealPipelinePillsProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const shown = pipelines.filter((pipeline) => pipeline.visible !== false);
     const more = pipelines.filter((pipeline) => pipeline.visible === false);
@@ -35,7 +37,7 @@ export default function DealPipelinePills({ pipelines, pipelineId, onPipeline, f
         <nav className="agent-pills" aria-label={t("pages.agent_workspace.deals.pipelines")}>
             {shown.map((pipeline) => (
                 <button key={pipeline.id} type="button" className="agent-pills__pill" aria-pressed={pipeline.id === pipelineId} onClick={() => onPipeline(pipeline.id)}>
-                    {pipeline.name}
+                    {td(pipeline.name, { source: "en" })}
                 </button>
             ))}
             {more.length > 0 ? (
