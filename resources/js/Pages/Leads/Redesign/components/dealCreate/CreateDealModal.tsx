@@ -17,6 +17,7 @@ import {
     type MenuOption,
 } from "@/Components/Redesign";
 import MeetingFormFields from "@/Components/Redesign/meeting/MeetingFormFields";
+import AgentDialog from "@/Components/Redesign/agent/AgentDialog";
 import {
     addMinutesToTime,
     buildEmptyMeetingForm,
@@ -93,6 +94,13 @@ interface CreateDealModalProps {
     defaultAgentId?: number | null;
     meetingTypes?: Array<{ id: number; name: string; color?: string }>;
     onSubmit: (input: LeadDealCreateInput) => void;
+    /**
+     * "agent" is the agent workspace's dialog (canvas L7-34): numbered steps,
+     * the fields two to a row, and the step count in the footer.
+     */
+    variant?: "default" | "agent";
+    /** Agent variant: the line under the title ("Jana Hoffmann · Lead · Qualified"). */
+    subtitle?: string;
 }
 
 type StepId = 1 | 2;
@@ -136,6 +144,8 @@ export default function CreateDealModal({
     defaultAgentId,
     meetingTypes = [],
     onSubmit,
+    variant = "default",
+    subtitle,
 }: CreateDealModalProps) {
     const { td } = useTd();
     const { props } = usePage();
@@ -483,98 +493,65 @@ export default function CreateDealModal({
         pipelineId != null ||
         Boolean(meetingForm.date);
 
-    return (
-        <Modal
-            open={open}
-            title={td("Create deal", { source: "en" })}
-            onClose={() => {
-                if (!saving) onClose();
-            }}
-            dirty={dirty}
-            footer={
-                <>
-                    {step === 2 ? (
-                        <Button
-                            variant="ghost"
-                            onClick={() => setStep(1)}
-                            disabled={saving}
-                        >
-                            {td("Back", { source: "en" })}
-                        </Button>
-                    ) : (
-                        <Button
-                            variant="ghost"
-                            onClick={onClose}
-                            disabled={saving}
-                        >
-                            {td("Cancel", { source: "en" })}
-                        </Button>
-                    )}
-
-                    {step === 1 ? (
-                        <Button
-                            variant="primary"
-                            onClick={() => setStep(2)}
-                            disabled={saving || metaMissing || !step1Valid}
-                        >
-                            {td("Next", { source: "en" })}
-                        </Button>
-                    ) : (
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Button
-                                variant="ghost"
-                                onClick={() => handleCreate(false)}
-                                disabled={saving || metaMissing || !step1Valid}
-                            >
-                                {td("Skip meeting", { source: "en" })}
-                            </Button>
-                            <Button
-                                variant="primary"
-                                onClick={() => handleCreate(true)}
-                                loading={saving}
-                                disabled={
-                                    saving ||
-                                    metaMissing ||
-                                    !step1Valid ||
-                                    (addKickoffMeeting && !kickoffValid)
-                                }
-                            >
-                                {addKickoffMeeting
-                                    ? td("Create deal + meeting", { source: "en" })
-                                    : td("Create deal", { source: "en" })}
-                            </Button>
-                        </div>
-                    )}
-                </>
-            }
-        >
-            <div className="mb-4">
-                <div
-                    className="flex gap-1.5"
-                    aria-hidden
+    const footer = (
+        <>
+            {step === 2 ? (
+                <Button
+                    variant="ghost"
+                    onClick={() => setStep(1)}
+                    disabled={saving}
                 >
-                    {[1, 2].map((seg) => (
-                        <div
-                            key={seg}
-                            style={{
-                                flex: 1,
-                                height: 4,
-                                borderRadius: 999,
-                                background:
-                                    step >= seg ? T.BLUE : T.BORDER,
-                            }}
-                        />
-                    ))}
-                </div>
-                <div className="mt-2 text-[12px] text-dr-text-muted">
-                    {td("Step", { source: "en" })} {step} {td("of", { source: "en" })} 2
-                    {" · "}
-                    {step === 1
-                        ? td("Deal details", { source: "en" })
-                        : td("Kickoff meeting (optional)", { source: "en" })}
-                </div>
-            </div>
+                    {td("Back", { source: "en" })}
+                </Button>
+            ) : (
+                <Button
+                    variant="ghost"
+                    onClick={onClose}
+                    disabled={saving}
+                >
+                    {td("Cancel", { source: "en" })}
+                </Button>
+            )}
 
+            {step === 1 ? (
+                <Button
+                    variant="primary"
+                    onClick={() => setStep(2)}
+                    disabled={saving || metaMissing || !step1Valid}
+                >
+                    {td("Next", { source: "en" })}
+                </Button>
+            ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                        variant="ghost"
+                        onClick={() => handleCreate(false)}
+                        disabled={saving || metaMissing || !step1Valid}
+                    >
+                        {td("Skip meeting", { source: "en" })}
+                    </Button>
+                    <Button
+                        variant="primary"
+                        onClick={() => handleCreate(true)}
+                        loading={saving}
+                        disabled={
+                            saving ||
+                            metaMissing ||
+                            !step1Valid ||
+                            (addKickoffMeeting && !kickoffValid)
+                        }
+                    >
+                        {addKickoffMeeting
+                            ? td("Create deal + meeting", { source: "en" })
+                            : td("Create deal", { source: "en" })}
+                    </Button>
+                </div>
+            )}
+        </>
+    );
+
+    const body = (
+        <>
             {metaMissing && (
                 <p className="mb-3 text-xs text-dr-amber-text">
                     {td("Deal options are still loading — try again in a moment.", { source: "en" })}
@@ -592,8 +569,8 @@ export default function CreateDealModal({
             )}
 
             {step === 1 && (
-                <>
-                    <ModalField label={td("Pipeline", { source: "en" })}>
+                <div className={variant === "agent" ? "agent-cdm__grid" : undefined}>
+                    <ModalField className="agent-cdm__f agent-cdm__f--pipeline" label={td("Pipeline", { source: "en" })}>
                         <MenuSelect
                             fullWidth
                             value={pipelineId ?? ""}
@@ -612,7 +589,7 @@ export default function CreateDealModal({
                         />
                     </ModalField>
 
-                    <ModalField label={td("Stage", { source: "en" })}>
+                    <ModalField className="agent-cdm__f agent-cdm__f--stage" label={td("Stage", { source: "en" })}>
                         <MenuSelect
                             fullWidth
                             value={stageId ?? ""}
@@ -636,7 +613,7 @@ export default function CreateDealModal({
                     </ModalField>
 
                     {pipelineHasLinkedPackages && !solePackage && (
-                        <ModalField label={td("Package", { source: "en" })}>
+                        <ModalField className="agent-cdm__f agent-cdm__f--package" label={td("Package", { source: "en" })}>
                             <MenuSelect
                                 fullWidth
                                 value={packageId ?? ""}
@@ -658,7 +635,7 @@ export default function CreateDealModal({
 
                     {solePackage && (
                         <div
-                            className="mb-4 rounded-lg px-3 py-2.5"
+                            className="agent-cdm__f agent-cdm__f--package mb-4 rounded-lg px-3 py-2.5"
                             style={{
                                 border: `1px solid ${T.BORDER}`,
                                 background: T.SURFACE_2,
@@ -681,7 +658,7 @@ export default function CreateDealModal({
 
                     {!pipelineHasLinkedPackages && (
                         <>
-                            <ModalField label={td("Package", { source: "en" })}>
+                            <ModalField className="agent-cdm__f agent-cdm__f--package" label={td("Package", { source: "en" })}>
                                 <MenuSelect
                                     fullWidth
                                     value={packageId ?? ""}
@@ -706,7 +683,7 @@ export default function CreateDealModal({
                                 />
                             </ModalField>
 
-                            <ModalField label={td("Property / product", { source: "en" })}>
+                            <ModalField className="agent-cdm__f agent-cdm__f--product" label={td("Property / product", { source: "en" })}>
                                 <MenuSelect
                                     fullWidth
                                     value={productId ?? ""}
@@ -727,7 +704,7 @@ export default function CreateDealModal({
                         </>
                     )}
 
-                    <ModalField label={td("Value", { source: "en" })}>
+                    <ModalField className="agent-cdm__f agent-cdm__f--value" label={td("Value", { source: "en" })}>
                         {valueLocked ? (
                             <div
                                 className="rounded-lg px-3 py-2.5"
@@ -773,7 +750,7 @@ export default function CreateDealModal({
                         )}
                     </ModalField>
 
-                    <ModalField label={td("Agent", { source: "en" })}>
+                    <ModalField className="agent-cdm__f agent-cdm__f--agent" label={td("Agent", { source: "en" })}>
                         <button
                             ref={agentBtnRef}
                             type="button"
@@ -886,7 +863,7 @@ export default function CreateDealModal({
                             )}
                     </ModalField>
 
-                    <ModalField label={td("Category", { source: "en" })}>
+                    <ModalField className="agent-cdm__f agent-cdm__f--category" label={td("Category", { source: "en" })}>
                         <MenuSelect
                             fullWidth
                             value={categoryId ?? ""}
@@ -905,18 +882,33 @@ export default function CreateDealModal({
                         />
                     </ModalField>
 
-                    <ModalField label={td("Deal name", { source: "en" })}>
+                    <ModalField className="agent-cdm__f agent-cdm__f--name" label={td("Deal name", { source: "en" })}>
                         <input
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder={td("Optional — defaults from property/package", { source: "en" })}
                         />
                     </ModalField>
-                </>
+                </div>
             )}
 
             {step === 2 && (
                 <>
+                    {variant === "agent" ? (
+                        <label className="agent-cdm__kickoff">
+                            <input
+                                type="checkbox"
+                                checked={addKickoffMeeting}
+                                onChange={() =>
+                                    setAddKickoffMeeting((current) => !current)
+                                }
+                                disabled={saving}
+                            />
+                            <span>
+                                {td("Schedule a kickoff / consultation meeting", { source: "en" })}
+                            </span>
+                        </label>
+                    ) : (
                     <div className="mb-4">
                         <Switch
                             checked={addKickoffMeeting}
@@ -927,6 +919,7 @@ export default function CreateDealModal({
                             label={td("Schedule a kickoff / consultation meeting", { source: "en" })}
                         />
                     </div>
+                    )}
 
                     {addKickoffMeeting ? (
                         <MeetingFormFields
@@ -950,6 +943,135 @@ export default function CreateDealModal({
                     )}
                 </>
             )}
+        </>
+    );
+
+    if (variant === "agent") {
+        const stepLabels = [
+            td("Deal details", { source: "en" }),
+            td("Kickoff meeting (optional)", { source: "en" }),
+        ];
+        return (
+            <AgentDialog
+                open={open}
+                onClose={() => {
+                    if (!saving) onClose();
+                }}
+                title={td("Create deal", { source: "en" })}
+                subtitle={subtitle}
+                icon={<span className="agent-cdm__diamond" aria-hidden="true" />}
+                closeLabel={td("Close", { source: "en" })}
+                width={640}
+                form
+                footer={
+                    <>
+                        <span className="agent-cdm__step">
+                            {td("Step", { source: "en" })} {step} {td("of", { source: "en" })} 2
+                        </span>
+                        <span className="agent-dlg__spacer" />
+                        {step === 2 ? (
+                            <Button variant="ghost" onClick={() => setStep(1)} disabled={saving}>
+                                {td("Back", { source: "en" })}
+                            </Button>
+                        ) : (
+                            <Button variant="ghost" onClick={onClose} disabled={saving}>
+                                {td("Cancel", { source: "en" })}
+                            </Button>
+                        )}
+                        {step === 1 ? (
+                            <Button
+                                variant="navy"
+                                onClick={() => setStep(2)}
+                                disabled={saving || metaMissing || !step1Valid}
+                            >
+                                {td("Next", { source: "en" })} →
+                            </Button>
+                        ) : (
+                            <>
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => handleCreate(false)}
+                                    disabled={saving || metaMissing || !step1Valid}
+                                >
+                                    {td("Skip meeting", { source: "en" })}
+                                </Button>
+                                <Button
+                                    variant={addKickoffMeeting ? "call" : "primary"}
+                                    onClick={() => handleCreate(true)}
+                                    loading={saving}
+                                    disabled={
+                                        saving ||
+                                        metaMissing ||
+                                        !step1Valid ||
+                                        (addKickoffMeeting && !kickoffValid)
+                                    }
+                                >
+                                    {addKickoffMeeting
+                                        ? td("Create deal + meeting", { source: "en" })
+                                        : td("Create deal", { source: "en" })}
+                                </Button>
+                            </>
+                        )}
+                    </>
+                }
+            >
+                <div className="agent-cdm">
+                    <ol className="agent-cdm__steps">
+                        {stepLabels.map((label, index) => {
+                            const n = index + 1;
+                            const state = step > n ? "done" : step === n ? "current" : "next";
+                            return (
+                                <li key={n} className={`agent-cdm__stepper agent-cdm__stepper--${state}`} aria-current={step === n ? "step" : undefined}>
+                                    <span className="agent-cdm__num">{state === "done" ? "✓" : n}</span>
+                                    {label}
+                                </li>
+                            );
+                        })}
+                    </ol>
+                    {body}
+                </div>
+            </AgentDialog>
+        );
+    }
+
+    return (
+        <Modal
+            open={open}
+            title={td("Create deal", { source: "en" })}
+            onClose={() => {
+                if (!saving) onClose();
+            }}
+            dirty={dirty}
+            footer={footer}
+        >
+            <div className="mb-4">
+                <div
+                    className="flex gap-1.5"
+                    aria-hidden
+                >
+                    {[1, 2].map((seg) => (
+                        <div
+                            key={seg}
+                            style={{
+                                flex: 1,
+                                height: 4,
+                                borderRadius: 999,
+                                background:
+                                    step >= seg ? T.BLUE : T.BORDER,
+                            }}
+                        />
+                    ))}
+                </div>
+                <div className="mt-2 text-[12px] text-dr-text-muted">
+                    {td("Step", { source: "en" })} {step} {td("of", { source: "en" })} 2
+                    {" · "}
+                    {step === 1
+                        ? td("Deal details", { source: "en" })
+                        : td("Kickoff meeting (optional)", { source: "en" })}
+                </div>
+            </div>
+
+            {body}
         </Modal>
     );
 }

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Deferred, usePage } from "@inertiajs/react";
 import { AddNoteModal, AddTaskModal, ScheduleMeetingModal } from "@/Components/Redesign";
 import type { AddNoteFormState } from "@/Components/Redesign/modals/AddNoteModal";
@@ -32,6 +33,8 @@ interface LeadCreateModalsProps {
     meetingTypes: Array<{ id: number; name: string; color?: string }>;
     taskBoardColumns: any[];
     taskCategories: any[];
+    /** The agent workspace's wide two-column meeting dialog, with its subtitle and record field. */
+    meetingAgent?: { subtitle?: string; relatedField?: ReactNode; closeLabel?: string };
 }
 
 /**
@@ -52,6 +55,7 @@ export default function LeadCreateModals({
     meetingTypes,
     taskBoardColumns,
     taskCategories,
+    meetingAgent,
 }: LeadCreateModalsProps) {
     const { td } = useTd();
     const page = usePage<PageProps>();
@@ -247,8 +251,12 @@ export default function LeadCreateModals({
                     )
                 }
                 mustIncludeOwner={getMeetingOwner(lead)}
+                variant={meetingAgent ? "agent" : "default"}
+                relatedField={meetingAgent?.relatedField}
+                closeLabel={meetingAgent?.closeLabel}
                 labels={{
                     title: td("Schedule meeting", { source: "en" }),
+                    subtitle: meetingAgent?.subtitle,
                     cancel: td("Cancel", { source: "en" }),
                     submit: td("Schedule", { source: "en" }),
                 }}

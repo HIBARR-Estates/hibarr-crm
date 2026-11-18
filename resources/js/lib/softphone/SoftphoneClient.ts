@@ -15,6 +15,7 @@ import type {
     SoftphoneConfig,
     SoftphoneRegistrationState,
     SoftphoneState,
+    SoftphoneWaitingCall,
 } from "@/Types/api/softphone";
 import {
     buildExplicitMicConstraints,
@@ -41,6 +42,7 @@ export type {
     SoftphoneConfig,
     SoftphoneRegistrationState,
     SoftphoneState,
+    SoftphoneWaitingCall,
 };
 
 /**
@@ -98,6 +100,7 @@ const EMPTY_STATE: SoftphoneState = {
     registration: "idle",
     registrationError: null,
     call: null,
+    waitingCall: null,
     callFailure: null,
     lastCallError: null,
     quality: "unknown",
@@ -182,6 +185,8 @@ class SoftphoneClient {
     private registerer: Registerer | null = null;
     private startCancels: Set<() => void> = new Set();
     private session: ManagedSession | null = null;
+    /** A second inbound call held while `session` is live (call waiting). */
+    private waiting: Invitation | null = null;
     private answering = false;
     /** The agent pressed decline/hang up — not a failed call, so no notice. */
     private endedByUser = false;
@@ -642,7 +647,33 @@ class SoftphoneClient {
         } catch {
             // ignore — session will terminate regardless
         }
-        this.endCall();
+        this.endCallIfCurrent(session);
+    }
+
+    /**
+     * Take the waiting call: end the current one, then answer the waiting
+     * call as a normal inbound call.
+     */
+    async answerWaiting(): Promise<void> {
+        const invitation = this.waiting;
+        if (!invitation || invitation.state === SessionState.Terminated) {
+            return;
+        }
+        // Cleared first so ending the current call does not promote it to a
+        // ringing call on its own (see endCall).
+        this.dropWaiting();
+        await this.hangup();
+        this.onIncoming(invitation);
+        await this.answer();
+    }
+
+    /**
+     * Stop offering the waiting call here. Nothing is sent to the network: a
+     * rejection on this leg could end the call on every other agent's device
+     * too. The leg closes when the call is answered elsewhere or abandoned.
+     */
+    dismissWaiting(): void {
+        this.dropWaiting();
     }
 
     async hangup(): Promise<void> {
@@ -668,7 +699,19 @@ class SoftphoneClient {
         } catch {
             // ignore
         }
-        this.endCall();
+        this.endCallIfCurrent(session);
+    }
+
+    /**
+     * End the call only if `session` is still the live one. While a hang-up
+     * was awaiting the network, the session's own "terminated" handler may
+     * already have ended it and promoted a waiting call; that call must not
+     * be torn down by the late cleanup of the old one.
+     */
+    private endCallIfCurrent(session: ManagedSession): void {
+        if (this.session === session) {
+            this.endCall();
+        }
     }
 
     /**
@@ -1021,6 +1064,7 @@ class SoftphoneClient {
             peer: call.peer,
             direction: call.direction,
             context: call.context,
+            callId: call.id,
         };
         this.setState({
             callFailure: failure,
@@ -1031,10 +1075,10 @@ class SoftphoneClient {
     }
 
     private onIncoming(invitation: Invitation): void {
-        // One call at a time — busy out any second simultaneous inbound.
+        // On a call already: hold it as a waiting call for the agent to take
+        // or decline, instead of turning it away.
         if (this.session) {
-            trace("softphone onIncoming: busy - rejecting second invitation");
-            void invitation.reject();
+            this.holdAsWaiting(invitation);
             return;
         }
 
@@ -1063,6 +1107,40 @@ class SoftphoneClient {
         this.beginCall(managed, "inbound", peer);
     }
 
+    /** Keep a second inbound call aside while the current one is live. */
+    private holdAsWaiting(invitation: Invitation): void {
+        // Only one call can wait; a third is turned away as busy (a 4xx, so
+        // other agents' legs of that call keep ringing).
+        if (this.waiting) {
+            trace("softphone onIncoming: busy - a call is already waiting");
+            void invitation.reject({ statusCode: 486 });
+            return;
+        }
+
+        this.waiting = invitation;
+        const waitingCall: SoftphoneWaitingCall = {
+            id: sipCallIdOf(invitation as unknown as ManagedSession) ?? `call-waiting-${++this.callSeq}`,
+            peer: invitation.remoteIdentity?.uri?.user ?? "Unknown caller",
+            receivedAt: Date.now(),
+        };
+        trace("softphone call waiting", waitingCall.id);
+        this.setState({ waitingCall });
+
+        invitation.stateChange.addListener((state) => {
+            // Caller hung up, or another agent answered.
+            if (state === SessionState.Terminated && this.waiting === invitation) {
+                this.dropWaiting();
+            }
+        });
+    }
+
+    private dropWaiting(): void {
+        this.waiting = null;
+        if (this.state.waitingCall) {
+            this.setState({ waitingCall: null });
+        }
+    }
+
     private beginCall(
         session: ManagedSession,
         direction: "outbound" | "inbound",
@@ -1071,11 +1149,7 @@ class SoftphoneClient {
     ): void {
         this.session = session;
         this.callSeq += 1;
-        const sipCallId =
-            (session as unknown as { incomingInviteRequest?: { message?: { callId?: string } } })?.incomingInviteRequest?.message?.callId ??
-            (session as unknown as { outgoingRequestMessage?: { callId?: string } })?.outgoingRequestMessage?.callId ??
-            (session as unknown as { id?: string })?.id;
-        const id = sipCallId && sipCallId.trim() !== "" ? sipCallId.trim() : `call-${this.callSeq}`;
+        const id = sipCallIdOf(session) ?? `call-${this.callSeq}`;
         // A fresh attempt starts from a clean slate: no stale failure notice,
         // and nothing here counts as "the agent hung up".
         this.endedByUser = false;
@@ -1269,6 +1343,15 @@ class SoftphoneClient {
         if (this.state.call) {
             this.setState({ call: null });
         }
+
+        // The call that was waiting now rings like any other inbound call.
+        const waiting = this.waiting;
+        if (waiting) {
+            this.dropWaiting();
+            if (waiting.state !== SessionState.Terminated) {
+                this.onIncoming(waiting);
+            }
+        }
     }
 
     private attachRemoteFromSession(session: ManagedSession): void {
@@ -1403,6 +1486,7 @@ class SoftphoneClient {
     }
 
     private async teardown(): Promise<void> {
+        this.dropWaiting();
         if (this.outboundMicProcessor) {
             this.outboundMicProcessor.dispose();
             this.outboundMicProcessor = null;
@@ -1431,6 +1515,19 @@ class SoftphoneClient {
 function domainOf(uri: string): string {
     const at = uri.indexOf("@");
     return at >= 0 ? uri.slice(at + 1).trim() : "";
+}
+
+/**
+ * The SIP Call-ID of a session: the same on every agent's leg of one call,
+ * which is what lets the server keep one rotation for it.
+ */
+function sipCallIdOf(session: ManagedSession): string | null {
+    const raw =
+        (session as unknown as { incomingInviteRequest?: { message?: { callId?: string } } })?.incomingInviteRequest?.message?.callId ??
+        (session as unknown as { outgoingRequestMessage?: { callId?: string } })?.outgoingRequestMessage?.callId ??
+        (session as unknown as { id?: string })?.id;
+
+    return raw && raw.trim() !== "" ? raw.trim() : null;
 }
 
 export function uriUserOf(uri: string): string {

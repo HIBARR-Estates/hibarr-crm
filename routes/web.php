@@ -556,6 +556,9 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     // The bytes are streamed through the app instead of handing out the raw
     // object-storage link, which is a durable bearer credential.
     Route::get('call-recordings/{callRecording}/download', [\App\Http\Controllers\CallRecordingController::class, 'download'])->name('call-recordings.download');
+    // WebM recordings play in Bunny's own player, so this one redirects there
+    // (after the same checks); anything else is streamed like download.
+    Route::get('call-recordings/{callRecording}/open', [\App\Http\Controllers\CallRecordingController::class, 'open'])->name('call-recordings.open');
 
     // Follow up
     Route::get('deals/follow-up/{leadID}', [DealController::class, 'followUpCreate'])->name('deals.follow_up');
@@ -760,6 +763,11 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('deals/{deal}/refresh', [DealController::class, 'refresh'])->name('deals.refresh');
     Route::get('deals/{deal}/ai-summary', [\App\Http\Controllers\DealSummaryController::class, 'show'])->name('deals.ai-summary');
     Route::post('deals/{deal}/ai-summary/regenerate', [\App\Http\Controllers\DealSummaryController::class, 'regenerate'])->name('deals.ai-summary.regenerate');
+    // The agent workspace meeting brief's AI talking points, per meeting on the deal.
+    Route::get('deals/{deal}/meetings/{meeting}/talking-points', [\App\Http\Controllers\DealMeetingTalkingPointsController::class, 'show'])
+        ->whereNumber('meeting')->name('deals.meeting-talking-points');
+    Route::post('deals/{deal}/meetings/{meeting}/talking-points', [\App\Http\Controllers\DealMeetingTalkingPointsController::class, 'generate'])
+        ->whereNumber('meeting')->name('deals.meeting-talking-points.generate');
     Route::get('deals/{deal}/edit', [DealController::class, 'edit'])->name('deals.edit');
     Route::put('deals/{deal}', [DealController::class, 'update'])->name('deals.update');
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');

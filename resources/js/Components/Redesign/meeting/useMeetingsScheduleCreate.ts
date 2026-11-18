@@ -63,7 +63,8 @@ export default function useMeetingsScheduleCreate() {
         (
             form: MeetingFormState,
             target: ScheduleTarget | null,
-            onSuccess?: () => void,
+            /** Gets the saved meeting, for callers that patch their own list. */
+            onSuccess?: (meeting: DealFollowup | undefined) => void,
         ) => {
             if (!target) {
                 setErrors(["Please select the deal or lead to book against."]);
@@ -124,7 +125,7 @@ export default function useMeetingsScheduleCreate() {
                     }
                     setErrors([]);
                     watchCalendarSync(response.data);
-                    onSuccess?.();
+                    onSuccess?.(response.data);
                 },
                 onError: (errorResponse) => {
                     const formatted = errorFormatter(errorResponse);

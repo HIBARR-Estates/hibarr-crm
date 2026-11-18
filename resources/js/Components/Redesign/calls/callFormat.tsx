@@ -88,28 +88,26 @@ function formatSeconds(secs: number): string {
     return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-/** Icon tile colours: connected green, unanswered red, refused amber. */
-export function outcomeTone(outcome: string): { bg: string; fg: string } {
-    if (outcome === "ended" || outcome === "started") {
-        return { bg: T.GREEN_LIGHT, fg: T.GREEN };
-    }
-    if (outcome === "missed" || outcome === "failed") {
+/** Icon tile colours by direction: inbound red, outbound green, unknown grey. The outcome is spelled out next to it. */
+export function directionTone(direction: "inbound" | "outbound" | null): { bg: string; fg: string } {
+    if (direction === "inbound") {
         return { bg: T.RED_SOFT, fg: T.RED };
     }
-    return { bg: T.AMBER_SOFT, fg: T.AMBER };
+    if (direction === "outbound") {
+        return { bg: T.GREEN_LIGHT, fg: T.GREEN };
+    }
+    return { bg: T.SURFACE_2, fg: T.TEXT_MUTED };
 }
 
-/** Inbound/outbound arrow in a tinted square, coloured by outcome. */
+/** Inbound/outbound arrow in a tinted square, coloured by direction. */
 export function CallDirectionIcon({
     direction,
-    outcome,
     size = 34,
 }: {
     direction: "inbound" | "outbound" | null;
-    outcome: string;
     size?: number;
 }) {
-    const tone = outcomeTone(outcome);
+    const tone = directionTone(direction);
     return (
         <span
             aria-hidden="true"

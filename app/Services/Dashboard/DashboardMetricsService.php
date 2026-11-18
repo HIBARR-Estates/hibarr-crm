@@ -226,7 +226,7 @@ class DashboardMetricsService
         $deals = Deal::query()
             ->with(['leadStage:id,name,label_color', 'contact:id,client_name,mobile'])
             ->whereIn('id', $links->where('taskable_type', Deal::class)->pluck('taskable_id'))
-            ->get(['id', 'name', 'lead_id', 'pipeline_stage_id'])
+            ->get(['id', 'name', 'lead_id', 'pipeline_stage_id', 'outcome_status'])
             ->keyBy('id');
 
         $phone = static function (?Lead $lead): ?string {
@@ -273,6 +273,9 @@ class DashboardMetricsService
                 'status_color' => $deal->leadStage?->label_color,
                 'person' => $deal->contact?->client_name,
                 'phone' => $phone($deal->contact),
+                // Won or lost: Do next stops asking for a next step on it.
+                'outcome' => $deal->outcome_status?->value,
+                'lead_id' => $deal->lead_id !== null ? (int) $deal->lead_id : null,
             ];
         }
 
@@ -292,6 +295,45 @@ class DashboardMetricsService
         return $this->presentQueueTasks($tasks, true);
     }
 
+    /**
+     * The deal or lead a meeting is on, in relatedRecords()' shape, so Do next
+     * can tell whether it still wants a next step (an open deal, a lead not
+     * yet qualified) and link the new one to the same record.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function meetingRecord(DealFollowUp $followUp): ?array
+    {
+        $deal = $followUp->deal;
+        if ($deal !== null) {
+            return [
+                'type' => 'deal',
+                'id' => (int) $deal->id,
+                'name' => $deal->name,
+                'status' => $deal->leadStage?->name,
+                'status_color' => $deal->leadStage?->label_color,
+                'person' => $deal->contact?->client_name,
+                'outcome' => $deal->outcome_status?->value,
+                'lead_id' => $deal->lead_id !== null ? (int) $deal->lead_id : null,
+            ];
+        }
+
+        $lead = $followUp->lead;
+        if ($lead === null) {
+            return null;
+        }
+
+        return [
+            'type' => 'lead',
+            'id' => (int) $lead->id,
+            'name' => $lead->client_name,
+            'status' => $lead->lifecycleStatus?->label,
+            'status_key' => $lead->lifecycleStatus?->key,
+            'status_color' => $lead->lifecycleStatus?->label_color,
+            'person' => $lead->client_name,
+        ];
+    }
+
     /** Base query shared by the agenda panels — only the date window differs. */
     private function followUpQuery(int $userId)
     {
@@ -301,13 +343,17 @@ class DashboardMetricsService
             ->with([
                 // lead_id is the FK for deal.contact (Lead) — phone fields feed
                 // the meeting modal's Call / Copy CTAs for phone meetings.
-                'deal:id,name,lead_id,pipeline_stage_id',
-                'deal.leadStage:id,name',
+                'deal:id,name,lead_id,pipeline_stage_id,outcome_status',
+                'deal.leadStage:id,name,label_color',
                 'deal.contact:id,client_name,mobile,cell,office',
-                'lead:id,client_name,mobile,cell,office',
+                'lead:id,client_name,mobile,cell,office,lead_lifecycle_status_id',
+                // Where the person stands, for Do next after the meeting is held.
+                'lead.lifecycleStatus:id,key,label,label_color',
                 'meetingType',
                 'meetingSummary',
                 'addedBy:id,name,image',
+                // The agenda's next meeting names its host under "Who joins".
+                'host:id,name',
             ]);
     }
 
@@ -327,6 +373,8 @@ class DashboardMetricsService
                 // the agent workspace's "Type · Person" and "Deal · stage" lines.
                 'person' => $followUp->lead?->client_name ?? $followUp->deal?->contact?->client_name,
                 'deal_stage' => $followUp->deal?->leadStage?->name,
+                // The deal or lead it is on, in the task rows' shape (Do next).
+                'related' => $this->meetingRecord($followUp),
                 // Named _label, not `location`: the model's own `location` is the
                 // raw platform slug (office / zoom / free text) that
                 // meetingListAdapter.getPlatformMeta() switches on. Overwriting

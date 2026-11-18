@@ -1,10 +1,8 @@
 import { AgentPinned } from "@/Components/Redesign/agent";
 import AgentCallButton from "@/Components/Redesign/agent/AgentCallButton";
-import Button from "@/Components/Redesign/primitives/Button";
-import Icon from "@/Components/Redesign/primitives/Icon";
 import useTranslation from "@/Hooks/useTranslation";
 import type { LeadCreateKind } from "@/Pages/Leads/Redesign/components/workspace/LeadCreateModals";
-import { NewActivityButton } from "../contact/ContactHeader";
+import { EditDetailsButton, NewActivityButton, type EditMenuEntry } from "../contact/ContactHeader";
 
 export interface SectionPill {
     id: string;
@@ -22,7 +20,7 @@ interface DealPinnedBarProps {
     callEntityId: number;
     allowedCreate: Partial<Record<LeadCreateKind, boolean>>;
     onCreate: (kind: LeadCreateKind) => void;
-    onEdit?: () => void;
+    editMenu: EditMenuEntry[];
     pills: SectionPill[];
     active: string | null;
     onJump: (id: string) => void;
@@ -43,7 +41,7 @@ export default function DealPinnedBar({
     callEntityId,
     allowedCreate,
     onCreate,
-    onEdit,
+    editMenu,
     pills,
     active,
     onJump,
@@ -71,12 +69,7 @@ export default function DealPinnedBar({
                         <span className="agent-deal__bar-actions">
                             <AgentCallButton phone={phone} entity={{ type: "deal", id: callEntityId }} />
                             <NewActivityButton onCreate={onCreate} allowed={allowedCreate} size="sm" />
-                            {onEdit ? (
-                                <Button size="sm" variant="ghost" onClick={onEdit}>
-                                    <Icon name="edit" size={13} />
-                                    {t("pages.agent_workspace.contact.edit_details")}
-                                </Button>
-                            ) : null}
+                            <EditDetailsButton entries={editMenu} size="sm" />
                         </span>
                     </div>
                     <nav className="agent-deal__pills" aria-label={t("pages.agent_workspace.deal.pills.aria")}>

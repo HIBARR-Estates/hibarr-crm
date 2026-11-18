@@ -36,6 +36,17 @@ class MockAiSummaryService implements AiSummaryInterface, EntitySummaryAgentInte
     ): array {
         $now = Carbon::now()->toIso8601String();
 
+        if ($featureContext === 'meeting_talking_points') {
+            $type = $inputPayload['meeting']['type'] ?? 'meeting';
+
+            return [
+                'points' => [
+                    "Mock talking point for this {$type} — connect an AI provider for real ones",
+                    'Open with what changed since you last spoke',
+                ],
+            ];
+        }
+
         if ($featureContext === 'deal_summary') {
             $deal = $inputPayload['deal'] ?? [];
 

@@ -20,6 +20,8 @@ interface RecordingRow {
      * raw object-storage link, which is a durable bearer credential.
      */
     download_url: string | null;
+    /** Set for WebM recordings, which open in Bunny's player in a new tab. */
+    open_url?: string | null;
     user_id: number;
     user_name: string | null;
     device_id: number | null;
@@ -245,6 +247,8 @@ export default function SoftphoneRecordingsPanel({ devices }: Props) {
                                     <RecordingPlayer
                                         playUrl={rec.play_url}
                                         downloadUrl={rec.download_url}
+                                        openUrl={rec.open_url}
+                                        opensInNewTab={Boolean(rec.open_url)}
                                         durationSeconds={rec.duration_seconds}
                                         filename={rec.filename}
                                         expired={rec.is_expired}

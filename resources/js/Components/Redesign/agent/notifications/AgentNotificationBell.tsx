@@ -20,7 +20,7 @@ import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
 import { isPermissionAll, usePermission } from "@/lib/permissionUtils";
 import type { Notification, NotificationFilterStatus } from "@/Types/api/notification";
 import { groupByDay, notificationTime } from "./groupByDay";
-import { notificationKind } from "./notificationKinds";
+import { notificationKind, notificationTone } from "./notificationKinds";
 import "./notifications.css";
 
 const POLL_MS = 30_000;
@@ -213,10 +213,20 @@ function BellRow({
 }) {
     const { t } = useTranslation();
     const kind = notificationKind(notification.icon);
+    const tone = notificationTone(notification.type_slug);
     const body = notification.text && notification.text !== notification.title ? notification.text : "";
+    // An unread alert or warning carries its one action as a button, so the fix
+    // is a click away (canvas L7-36): a failed meeting link asks for the link.
+    const action =
+        !notification.is_read && tone !== "info" && notification.link
+            ? /meeting_link/.test(notification.type_slug ?? "")
+                ? t("pages.agent_workspace.bell.add_link")
+                : t("pages.agent_workspace.bell.open")
+            : null;
+    const toneClass = !notification.is_read && tone !== "info" ? ` agent-bell__row--${tone}` : "";
 
     return (
-        <div className={`agent-bell__row${notification.is_read ? "" : " agent-bell__row--unread"}`}>
+        <div className={`agent-bell__row${notification.is_read ? "" : " agent-bell__row--unread"}${toneClass}`}>
             {notification.is_read ? (
                 <span className="agent-bell__dot-slot" aria-hidden="true" />
             ) : (
@@ -240,6 +250,11 @@ function BellRow({
                 </span>
                 <span className="agent-bell__when">{when}</span>
             </button>
+            {action ? (
+                <Button size="sm" variant="ghost" className="agent-bell__action" onClick={() => onOpen(notification)}>
+                    {action}
+                </Button>
+            ) : null}
         </div>
     );
 }

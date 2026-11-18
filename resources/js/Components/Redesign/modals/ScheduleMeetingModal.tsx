@@ -4,6 +4,8 @@ import Button from "@/Components/Redesign/primitives/Button";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import MeetingFormFields from "@/Components/Redesign/meeting/MeetingFormFields";
+import AgentDialog from "@/Components/Redesign/agent/AgentDialog";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import {
     defaultMeetingStart,
     type MeetingFormState,
@@ -66,6 +68,15 @@ interface ScheduleMeetingModalProps {
      * as before.
      */
     readyToSeed?: boolean;
+    /**
+     * "agent" is the agent workspace's wide two-column dialog (canvas L7-32):
+     * what and when on the left, how on the right. `stepped` doesn't apply.
+     */
+    variant?: "default" | "agent";
+    /** Agent variant: the read-only record field beside the meeting type. */
+    relatedField?: ReactNode;
+    /** Agent variant: label for the close button. */
+    closeLabel?: string;
 }
 
 export default function ScheduleMeetingModal({
@@ -83,6 +94,9 @@ export default function ScheduleMeetingModal({
     stepped = false,
     stepLabels,
     readyToSeed = true,
+    variant = "default",
+    relatedField,
+    closeLabel,
 }: ScheduleMeetingModalProps) {
     const { td } = useTd();
     const [form, setForm] = useState<MeetingFormState>(initialForm);
@@ -119,6 +133,56 @@ export default function ScheduleMeetingModal({
     const essentialsComplete = Boolean(form.meetingTypeId);
     // Step two is where date/time now live, and the create call needs both.
     const detailsComplete = Boolean(form.date && form.startTime);
+
+    if (variant === "agent") {
+        return (
+            <AgentDialog
+                open={open}
+                onClose={handleClose}
+                title={labels.title}
+                subtitle={labels.subtitle}
+                icon={<Icon name="calendar" size={16} />}
+                closeLabel={closeLabel ?? labels.cancel}
+                width={1120}
+                form
+                footer={
+                    <>
+                        <span className="agent-dlg__spacer" />
+                        <Button variant="ghost" onClick={handleClose} disabled={saving}>
+                            {labels.cancel}
+                        </Button>
+                        <Button
+                            variant="primary"
+                            onClick={() => onSubmit(form)}
+                            loading={saving}
+                            disabled={saving || !form.date || !form.startTime}
+                        >
+                            {labels.submit}
+                        </Button>
+                    </>
+                }
+            >
+                {errors.length > 0 && (
+                    <ul className="agent-meeting__errors" role="alert">
+                        {errors.map((error, index) => (
+                            <li key={index}>{td(error)}</li>
+                        ))}
+                    </ul>
+                )}
+                <MeetingFormFields
+                    form={form}
+                    onChange={(patch) =>
+                        setForm((current) => ({ ...current, ...patch }))
+                    }
+                    meetingTypes={meetingTypes}
+                    disabled={saving}
+                    mustIncludeOwner={mustIncludeOwner}
+                    layout="columns"
+                    relatedField={relatedField}
+                />
+            </AgentDialog>
+        );
+    }
 
     return (
         <Modal

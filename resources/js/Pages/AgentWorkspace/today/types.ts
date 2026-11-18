@@ -12,6 +12,15 @@ export interface PersonalQueue {
 export interface TodaySchedule {
     meetings: ScheduleEntry[];
     tasks: QueueTask[];
+    /** Each deal's analysis progress by deal id, for the agenda's meeting chips. */
+    analysis?: Record<string, DealAnalysisProgress>;
+}
+
+/** DealAnalysisProgress (server): done, or how many script fields hold a value. */
+export interface DealAnalysisProgress {
+    ready: boolean;
+    filled: number;
+    total: number;
 }
 
 export interface PersonalStats {

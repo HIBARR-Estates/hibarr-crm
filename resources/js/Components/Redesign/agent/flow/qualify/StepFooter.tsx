@@ -20,6 +20,9 @@ interface StepFooterProps {
     /** On the last step "Next" opens the outcome. */
     isLast: boolean;
     onNext: (options?: { skipValidation?: boolean }) => void | Promise<void>;
+    /** The steps either side when the list is not every segment (questions only). */
+    previous?: Segment | null;
+    next?: Segment | null;
 }
 
 /**
@@ -27,13 +30,14 @@ interface StepFooterProps {
  * last saved, and on to the next step by name. A required question that is still
  * empty blocks Next; Skip steps past it anyway, as the classic footer allows.
  */
-export default function StepFooter({ flow, isLast, onNext }: StepFooterProps) {
+export default function StepFooter({ flow, isLast, onNext, previous: previousStep, next: nextStep }: StepFooterProps) {
     const { t } = useTranslation();
     const saved = useSavedAgo(flow.subscribeSaving);
     if (!flow.currentSegment) return null;
 
-    const previous = flow.walkIndex > 0 ? flow.walkSegments[flow.walkIndex - 1] : null;
-    const next = !isLast ? flow.walkSegments[flow.walkIndex + 1] : null;
+    const previous =
+        previousStep !== undefined ? previousStep : flow.walkIndex > 0 ? flow.walkSegments[flow.walkIndex - 1] : null;
+    const next = isLast ? null : nextStep !== undefined ? nextStep : flow.walkSegments[flow.walkIndex + 1];
     const blocked = Boolean(flow.validationError);
 
     let nextLabel: ReactNode = t("pages.agent_workspace.flow.choose_outcome");

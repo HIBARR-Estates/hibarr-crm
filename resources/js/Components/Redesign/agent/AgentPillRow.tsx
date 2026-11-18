@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent } from "react";
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 
 export interface AgentPill<K extends string> {
     key: K;
@@ -17,6 +17,8 @@ interface AgentPillRowProps<K extends string> {
      * with `agentPillPanelProps(idPrefix, active)`.
      */
     idPrefix: string;
+    /** An action after the pills ("+ New deal"); it sits outside the tab list. */
+    trailing?: ReactNode;
 }
 
 const tabId = (idPrefix: string, key: string) => `${idPrefix}-tab-${key}`;
@@ -33,7 +35,7 @@ export function agentPillPanelProps(idPrefix: string, key: string) {
  * scrolls sideways and keeps the active pill in view. Arrow keys, Home and
  * End move between pills, as in any tab list.
  */
-export default function AgentPillRow<K extends string>({ pills, active, onChange, ariaLabel, idPrefix }: AgentPillRowProps<K>) {
+export default function AgentPillRow<K extends string>({ pills, active, onChange, ariaLabel, idPrefix, trailing }: AgentPillRowProps<K>) {
     const refs = useRef(new Map<K, HTMLButtonElement>());
 
     useEffect(() => {
@@ -54,8 +56,8 @@ export default function AgentPillRow<K extends string>({ pills, active, onChange
         refs.current.get(key)?.focus();
     };
 
-    return (
-        <div role="tablist" aria-label={ariaLabel} className="agent-pills" onKeyDown={onKeyDown}>
+    const tabs = (
+        <div role="tablist" aria-label={ariaLabel} className={trailing ? "agent-pills__tabs" : "agent-pills"} onKeyDown={onKeyDown}>
             {pills.map((pill) => {
                 const isActive = pill.key === active;
                 return (
@@ -79,6 +81,14 @@ export default function AgentPillRow<K extends string>({ pills, active, onChange
                     </button>
                 );
             })}
+        </div>
+    );
+
+    if (!trailing) return tabs;
+    return (
+        <div className="agent-pills">
+            {tabs}
+            {trailing}
         </div>
     );
 }

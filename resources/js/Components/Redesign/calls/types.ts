@@ -13,6 +13,8 @@ export interface CallLogRecording {
     filename: string | null;
     play_url: string | null;
     download_url: string | null;
+    /** Set for WebM recordings, which open in Bunny's player in a new tab. */
+    open_url?: string | null;
 }
 
 export type CallOutcome =
@@ -45,6 +47,27 @@ export interface CallLogRow {
     forwarded_from_user_name: string | null;
     has_recording: boolean;
     recording: CallLogRecording | null;
+    /** When the call first reached the CRM (same as occurred_at). */
+    started_at?: string | null;
+    ended_at?: string | null;
+    /** Someone took the call (it connected or is live). */
+    answered?: boolean;
+    answered_by_user_id?: number | null;
+    answered_by_user_name?: string | null;
+    /** Every agent the call rang, in the order it reached them. */
+    legs?: CallLeg[];
+    rang_count?: number;
+    /** The timeline events folded into this row. */
+    event_ids?: number[];
+}
+
+/** One agent's leg of a call (a ring group rings several agents at once). */
+export interface CallLeg {
+    user_id: number;
+    user_name: string | null;
+    /** How this agent's leg ended: ended/started = answered, declined = passed. */
+    outcome: CallOutcome | string;
+    at: string | null;
 }
 
 export interface CallLogSummary {
