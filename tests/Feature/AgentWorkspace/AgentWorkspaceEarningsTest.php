@@ -181,6 +181,29 @@ class AgentWorkspaceEarningsTest extends TestCase
         $this->assertContains('network', $page['deferredProps']['network'] ?? []);
     }
 
+    public function test_a_network_row_names_the_agent_it_hangs_under_except_for_the_upline(): void
+    {
+        $controller = new class extends EarningsController
+        {
+            public function __construct() {}
+        };
+        $row = new \ReflectionMethod($controller, 'networkRow');
+        $agent = function (int $id, ?int $parent): LeadAgent {
+            $model = new LeadAgent;
+            $model->id = $id;
+            $model->parent_agent_id = $parent;
+            $model->setRelation('user', null)->setRelation('metrics', null)->setRelation('currentLevelHistory', null);
+
+            return $model;
+        };
+
+        $downline = $row->invoke($controller, $agent(7, 3), 'downline', 2, collect(), 1);
+        $upline = $row->invoke($controller, $agent(1, 9), 'upline', 0, collect());
+
+        $this->assertSame(3, $downline['parent_id']);
+        $this->assertNull($upline['parent_id']);
+    }
+
     public function test_someone_without_an_agent_profile_is_told_so_and_nothing_is_loaded(): void
     {
         $page = $this->visit('overview', agent: false);
