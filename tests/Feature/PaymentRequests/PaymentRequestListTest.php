@@ -50,6 +50,7 @@ class PaymentRequestListTest extends TestCase
     {
         $this->assertTrue(Route::has('payment-requests.index'));
         $this->assertTrue(Route::has('deals.payment-request.cancel'));
+        $this->assertTrue(Route::has('deals.payment-requests.destroy'));
         $this->assertTrue(Route::has('deals.payment-requests.document'));
     }
 
@@ -446,6 +447,67 @@ class PaymentRequestListTest extends TestCase
      * DealPaymentPermissionTest, these assert the exact two conditions the
      * controller's constructor gate is built from.
      */
+    public function test_a_cancelled_request_can_be_deleted_and_leaves_every_total(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $keep = $this->insertPayment(['external_reference' => '801', 'ol_status' => 'pending', 'ol_payment_type' => 'manual', 'base_amount' => 100]);
+        $cancelled = $this->insertPayment(['external_reference' => '802', 'ol_status' => 'cancelled', 'base_amount' => 40]);
+
+        $this->deleteJson(route('deals.payment-requests.destroy', ['deal' => 10, 'payment' => $cancelled]))
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $this->assertDatabaseMissing('payments', ['id' => $cancelled]);
+        $this->assertDatabaseHas('payments', ['id' => $keep]);
+
+        $stats = $this->withHeaders([
+            'X-Inertia' => 'true',
+            'X-Inertia-Partial-Component' => 'PaymentRequests/Index',
+            'X-Inertia-Partial-Data' => 'stats',
+        ])->get('/account/payment-requests');
+
+        $this->assertSame(1, $stats->json('props.stats.count'));
+        $this->assertEquals(100, $stats->json('props.stats.requested'));
+        $this->assertEquals(0, $stats->json('props.stats.cancelled'));
+    }
+
+    public function test_only_cancelled_requests_can_be_deleted(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        foreach ([
+            ['pending', 'manual'],
+            ['confirming', 'manual'],
+            ['completed', 'manual'],
+            ['failed', null],
+            ['expired', null],
+        ] as $i => [$olStatus, $type]) {
+            $id = $this->insertPayment(['external_reference' => '90'.$i, 'ol_status' => $olStatus, 'ol_payment_type' => $type]);
+
+            $this->deleteJson(route('deals.payment-requests.destroy', ['deal' => 10, 'payment' => $id]))
+                ->assertStatus(409)
+                ->assertJsonPath('status', 'fail');
+
+            $this->assertDatabaseHas('payments', ['id' => $id]);
+        }
+    }
+
+    public function test_a_request_cannot_be_deleted_through_another_deal(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsEditor();
+
+        $id = $this->insertPayment(['external_reference' => '950', 'ol_status' => 'cancelled']);
+
+        $this->deleteJson(route('deals.payment-requests.destroy', ['deal' => 11, 'payment' => $id]))
+            ->assertStatus(404);
+
+        $this->assertDatabaseHas('payments', ['id' => $id]);
+    }
+
     public function test_gate_denies_when_feature_flag_disabled(): void
     {
         $this->setFeatureFlag('packages.online-payment', false);
@@ -512,6 +574,7 @@ class PaymentRequestListTest extends TestCase
 
     private function resetSchema(): void
     {
+        Schema::dropIfExists('notifications');
         Schema::dropIfExists('payments');
         Schema::dropIfExists('leads');
         Schema::dropIfExists('lead_agents');
@@ -523,6 +586,14 @@ class PaymentRequestListTest extends TestCase
 
     private function createMinimalSchema(): void
     {
+        Schema::create('notifications', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('type')->nullable();
+            $table->text('data')->nullable();
+            $table->timestamp('read_at')->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('companies', function (Blueprint $table) {
             $table->increments('id');
             $table->string('company_name')->nullable();

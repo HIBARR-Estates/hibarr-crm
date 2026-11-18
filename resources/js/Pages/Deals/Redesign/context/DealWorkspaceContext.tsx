@@ -59,6 +59,8 @@ interface DealWorkspaceValue {
     paymentRequests: DealPaymentRequest[];
     /** Patch one request into local state from a mutation response. */
     upsertPaymentRequest: (request: DealPaymentRequest) => void;
+    /** Drop a deleted request from local state. */
+    removePaymentRequest: (requestId: number) => void;
     paymentRequestLoading: boolean;
     refreshPaymentRequest: () => Promise<void>;
     /**
@@ -319,6 +321,13 @@ export function DealWorkspaceProvider({
         });
     }, []);
 
+    const removePaymentRequest = useCallback((requestId: number) => {
+        setPaymentState((prev) => ({
+            active: prev.active?.id === requestId ? null : prev.active,
+            requests: prev.requests.filter((r) => r.id !== requestId),
+        }));
+    }, []);
+
     const confirmPaymentInvalidation = useCallback(
         () =>
             new Promise<boolean>((resolve) => {
@@ -398,6 +407,7 @@ export function DealWorkspaceProvider({
             paymentRequest: paymentState.active,
             paymentRequests: paymentState.requests,
             upsertPaymentRequest,
+            removePaymentRequest,
             paymentRequestLoading: paymentEnabled && paymentRequestQuery.isLoading,
             refreshPaymentRequest,
             withPaymentInvalidation,
@@ -422,6 +432,7 @@ export function DealWorkspaceProvider({
             paymentRequestQuery.isLoading,
             refreshPaymentRequest,
             upsertPaymentRequest,
+            removePaymentRequest,
             withPaymentInvalidation,
         ],
     );

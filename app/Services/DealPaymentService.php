@@ -317,6 +317,27 @@ class DealPaymentService
     }
 
     /**
+     * Permanently removes a cancelled request. Payments are hard-deleted, so
+     * the row drops out of the list, the status counts, and every total on the
+     * payment-requests page, and out of the deal's request history.
+     *
+     * Only a request the CRM cancelled (ol_status "cancelled") qualifies. Anything
+     * else is, or may become, a record of money, and stays.
+     */
+    public function deleteCancelled(Deal $deal, Payment $payment): void
+    {
+        if ((int) $payment->deal_id !== (int) $deal->id) {
+            throw new HttpException(404, 'Payment request not found.');
+        }
+
+        if (self::uiStateOf($payment) !== 'invalidated') {
+            throw new HttpException(409, __('messages.paymentRequestDeleteOnlyCancelled'));
+        }
+
+        $payment->delete();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function markInvalidated(Payment $payment, ?User $user, string $reason): array
