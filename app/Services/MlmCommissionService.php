@@ -728,7 +728,7 @@ class MlmCommissionService
 
     protected function isReferralCommissionEnabled(): bool
     {
-        return FeatureFlags::enabled('sales.partner-referral-commission');
+        return FeatureFlags::enabled('crm.partner-referral-commission');
     }
 
     protected function isPerAgentOverrideEnabled(): bool

@@ -1,9 +1,9 @@
 import { usePage } from "@inertiajs/react";
 
-export const PARTNER_REFERRAL_COMMISSION_FLAG = "sales.partner-referral-commission";
+export const PARTNER_REFERRAL_COMMISSION_FLAG = "crm.partner-referral-commission";
 
 /**
- * sales.partner-referral-commission — gates a partner's referral share of the
+ * crm.partner-referral-commission — gates a partner's referral share of the
  * commission pool on the pages that show or edit it. Globally shared via
  * Inertia's featureFlags prop (see HandleInertiaRequests). Mirrors
  * useDealValueCommissionFlag. The deal panel and the partner profile are

@@ -51,7 +51,7 @@ class AgentCommissionProfileInternalController extends Controller
             ],
         ]);
 
-        if (! FeatureFlags::enabled('sales.partner-referral-commission')) {
+        if (! FeatureFlags::enabled('crm.partner-referral-commission')) {
             unset($validated['referral_pool_rate']);
         }
 

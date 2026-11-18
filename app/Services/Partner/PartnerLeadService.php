@@ -252,7 +252,7 @@ class PartnerLeadService
      */
     private function referralPays(Deal $deal, LeadAgent $agent): bool
     {
-        if (! FeatureFlags::enabled('sales.partner-referral-commission')) {
+        if (! FeatureFlags::enabled('crm.partner-referral-commission')) {
             return false;
         }
 

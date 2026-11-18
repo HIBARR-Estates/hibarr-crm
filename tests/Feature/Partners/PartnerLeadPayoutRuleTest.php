@@ -107,7 +107,7 @@ class PartnerLeadPayoutRuleTest extends TestCase
 
     public function test_a_referral_leg_keeps_a_deal_the_package_would_not_pay(): void
     {
-        $this->setFeatureFlag('sales.partner-referral-commission', true);
+        $this->setFeatureFlag('crm.partner-referral-commission', true);
 
         $this->assertFalse($this->paysNothing(
             [$this->package(1, 'none')],
@@ -119,7 +119,7 @@ class PartnerLeadPayoutRuleTest extends TestCase
 
     public function test_a_referral_leg_is_ignored_while_the_feature_flag_is_off(): void
     {
-        $this->setFeatureFlag('sales.partner-referral-commission', false);
+        $this->setFeatureFlag('crm.partner-referral-commission', false);
 
         $this->assertTrue($this->paysNothing(
             [$this->package(1, 'none')],

@@ -630,7 +630,7 @@ class MlmAdminApiController extends AccountBaseController
     {
         $agent = \App\Models\LeadAgent::where('company_id', company()->id)->findOrFail($agentId);
         $overrideEnabled = FeatureFlags::enabled('sales.per-agent-commission-override');
-        $referralEnabled = FeatureFlags::enabled('sales.partner-referral-commission') && $agent->is_partner;
+        $referralEnabled = FeatureFlags::enabled('crm.partner-referral-commission') && $agent->is_partner;
 
         if (! $overrideEnabled && ! $referralEnabled) {
             abort(404);
@@ -648,7 +648,7 @@ class MlmAdminApiController extends AccountBaseController
     {
         $agent = \App\Models\LeadAgent::where('company_id', company()->id)->findOrFail($agentId);
         $overrideEnabled = FeatureFlags::enabled('sales.per-agent-commission-override');
-        $referralEnabled = FeatureFlags::enabled('sales.partner-referral-commission') && $agent->is_partner;
+        $referralEnabled = FeatureFlags::enabled('crm.partner-referral-commission') && $agent->is_partner;
 
         if (! $overrideEnabled && ! $referralEnabled) {
             abort(404);

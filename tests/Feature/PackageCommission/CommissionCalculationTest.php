@@ -404,7 +404,7 @@ class CommissionCalculationTest extends PackageCommissionTestCase
         $ctx = $this->seedDealWithUpline(1000);
         $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
         $this->refer($ctx, $referrerId, 25, null, 50);
-        $this->setFeatureFlag('sales.partner-referral-commission', false);
+        $this->setFeatureFlag('crm.partner-referral-commission', false);
 
         $this->distribute($ctx['deal']);
 
@@ -491,7 +491,7 @@ class CommissionCalculationTest extends PackageCommissionTestCase
      */
     private function refer(array $ctx, int $referrerId, ?float $partnerRate, ?float $dealRate = null, ?float $fixed = null): void
     {
-        $this->setFeatureFlag('sales.partner-referral-commission', true);
+        $this->setFeatureFlag('crm.partner-referral-commission', true);
 
         DB::table('lead_agents')->where('id', $referrerId)->update([
             'referral_pool_rate' => $partnerRate,

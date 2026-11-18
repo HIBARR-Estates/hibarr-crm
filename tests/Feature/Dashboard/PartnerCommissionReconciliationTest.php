@@ -111,7 +111,7 @@ class PartnerCommissionReconciliationTest extends TestCase
 
     public function test_forecast_does_not_let_zero_referrals_expose_one_deal(): void
     {
-        $this->setFeatureFlag('sales.partner-referral-commission', true);
+        $this->setFeatureFlag('crm.partner-referral-commission', true);
 
         $partner = $this->makeAgent(userId: 40);
 
