@@ -397,8 +397,9 @@ class AgentController extends AccountBaseController
                     ))
                     ->each->delete();
 
-                // A category added to a partner is still that partner.
-                $template = $existing->first();
+                // A category added to a partner is still that partner: follow the
+                // user's partner row if they have one, not whichever row sorts first.
+                $template = $existing->firstWhere('is_partner', true) ?? $existing->first();
 
                 foreach ($wanted as $categoryId) {
                     LeadAgent::firstOrCreate(

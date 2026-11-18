@@ -23,6 +23,7 @@ return [
         'referral_share_none' => 'No referral share',
         'referral_share_tooltip' => 'Percent of the commission pool for deals this partner referred. Leave empty for no referral share.',
         'referral_share_invalid' => 'Referral share must be between 0 and 100%.',
+        'referral_share_audit' => 'Referral {{from}} → {{to}}',
     ],
 
     'telephony' => [

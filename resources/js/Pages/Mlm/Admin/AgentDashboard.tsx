@@ -909,7 +909,10 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                                         null
                                                                                 ) {
                                                                                     parts.push(
-                                                                                        `Referral ${row.previous_referral_pool_rate ?? "—"} → ${row.new_referral_pool_rate ?? "—"}`,
+                                                                                        t("pages.agents.referral_share_audit", {
+                                                                                            from: String(row.previous_referral_pool_rate ?? "—"),
+                                                                                            to: String(row.new_referral_pool_rate ?? "—"),
+                                                                                        }),
                                                                                     );
                                                                                 }
                                                                                 return (

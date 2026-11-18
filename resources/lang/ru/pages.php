@@ -15,6 +15,7 @@ return [
         'referral_share_none' => 'Доля реферала не задана',
         'referral_share_tooltip' => 'Процент от пула комиссии по сделкам, которые привёл этот партнёр. Оставьте пустым, если доли реферала нет.',
         'referral_share_invalid' => 'Доля реферала должна быть от 0 до 100 %.',
+        'referral_share_audit' => 'Реферал {{from}} → {{to}}',
     ],
 
     'telephony' => [

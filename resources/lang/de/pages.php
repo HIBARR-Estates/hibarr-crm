@@ -15,6 +15,7 @@ return [
         'referral_share_none' => 'Kein Empfehlungsanteil',
         'referral_share_tooltip' => 'Prozentsatz des Provisionspools für Angebote, die dieser Partner vermittelt hat. Leer lassen für keinen Empfehlungsanteil.',
         'referral_share_invalid' => 'Der Empfehlungsanteil muss zwischen 0 und 100 % liegen.',
+        'referral_share_audit' => 'Empfehlung {{from}} → {{to}}',
     ],
 
     'telephony' => [

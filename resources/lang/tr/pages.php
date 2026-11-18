@@ -15,6 +15,7 @@ return [
         'referral_share_none' => 'Yönlendirme payı yok',
         'referral_share_tooltip' => 'Bu iş ortağının yönlendirdiği anlaşmalardaki komisyon havuzunun yüzdesi. Yönlendirme payı yoksa boş bırakın.',
         'referral_share_invalid' => 'Yönlendirme payı 0 ile 100 arasında olmalıdır.',
+        'referral_share_audit' => 'Yönlendirme {{from}} → {{to}}',
     ],
 
     'telephony' => [
