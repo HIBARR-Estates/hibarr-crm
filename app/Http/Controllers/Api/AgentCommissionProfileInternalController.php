@@ -51,6 +51,10 @@ class AgentCommissionProfileInternalController extends Controller
             ],
         ]);
 
+        if (! FeatureFlags::enabled('sales.partner-referral-commission')) {
+            unset($validated['referral_pool_rate']);
+        }
+
         $result = $this->profileService->updateProfile(
             $agentId,
             $companyId,

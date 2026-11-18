@@ -199,7 +199,8 @@ class MlmAdminController extends AccountBaseController
                 'name' => $agent->user?->name ?? 'Unknown',
                 'email' => $agent->user?->email,
                 'image' => $agent->user?->image,
-                'is_partner' => (bool) $agent->is_partner,
+                'is_partner' => (bool) $agent->is_partner
+                    && \App\Support\FeatureFlags::enabled('sales.partner-referral-commission'),
             ],
             'stats' => $this->buildAgentDashboardStats($agent),
         ]);

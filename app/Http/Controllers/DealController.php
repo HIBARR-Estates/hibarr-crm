@@ -2447,6 +2447,8 @@ class DealController extends AccountBaseController
      */
     public function updateReferralCommission(Request $request, $id)
     {
+        abort_if(! FeatureFlags::enabled('sales.partner-referral-commission'), 404);
+
         $deal = Deal::findOrFail($id);
 
         if ($deal->isLocked()) {

@@ -726,6 +726,11 @@ class MlmCommissionService
         return round($dealValue * ($percentage / 100), 2);
     }
 
+    protected function isReferralCommissionEnabled(): bool
+    {
+        return FeatureFlags::enabled('sales.partner-referral-commission');
+    }
+
     protected function isPerAgentOverrideEnabled(): bool
     {
         return FeatureFlags::enabled('sales.per-agent-commission-override');
@@ -811,7 +816,7 @@ class MlmCommissionService
      */
     protected function referralSettings(Deal $deal): ?array
     {
-        if (! $deal->lead_id) {
+        if (! $this->isReferralCommissionEnabled() || ! $deal->lead_id) {
             return null;
         }
 

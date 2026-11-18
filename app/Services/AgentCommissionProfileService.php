@@ -30,10 +30,10 @@ class AgentCommissionProfileService
                 'default_commission_rate' => (float) $level->commission_percentage,
             ] : null,
             'custom_commission_rate' => $this->resolveUnifiedCustomRate($agent),
-            'referral_pool_rate' => $agent->referral_pool_rate !== null
+            'referral_pool_rate' => FeatureFlags::enabled('sales.partner-referral-commission') && $agent->referral_pool_rate !== null
                 ? (float) $agent->referral_pool_rate
                 : null,
-            'is_partner' => (bool) $agent->is_partner,
+            'is_partner' => (bool) $agent->is_partner && FeatureFlags::enabled('sales.partner-referral-commission'),
             'bounds' => [
                 'max_ceiling' => $this->boundService->getEffectiveCeiling($agent),
                 'is_highest_visible_level' => $bounds['isHighestVisibleLevel'],
@@ -51,7 +51,8 @@ class AgentCommissionProfileService
         $agent = LeadAgent::where('company_id', $companyId)->findOrFail($agentId);
 
         $hasCustom = array_key_exists('custom_commission_rate', $payload);
-        $hasReferral = array_key_exists('referral_pool_rate', $payload);
+        $hasReferral = array_key_exists('referral_pool_rate', $payload)
+            && FeatureFlags::enabled('sales.partner-referral-commission');
 
         if (! $hasCustom && ! $hasReferral) {
             return [

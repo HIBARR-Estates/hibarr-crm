@@ -12,6 +12,7 @@ use App\Models\LeadAgent;
 use App\Services\MlmCommissionService;
 use App\Support\PartnerRole;
 use Illuminate\Pagination\LengthAwarePaginator;
+use App\Support\FeatureFlags;
 use Illuminate\Support\Collection;
 
 /**
@@ -251,6 +252,10 @@ class PartnerLeadService
      */
     private function referralPays(Deal $deal, LeadAgent $agent): bool
     {
+        if (! FeatureFlags::enabled('sales.partner-referral-commission')) {
+            return false;
+        }
+
         return collect($this->commissions->preview($deal))
             ->contains(fn (array $leg) => ($leg['type'] ?? null) === MlmCommissionType::Referral->value
                 && (int) ($leg['agent_id'] ?? 0) === (int) $agent->id

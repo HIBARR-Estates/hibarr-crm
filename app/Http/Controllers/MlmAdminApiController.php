@@ -630,8 +630,9 @@ class MlmAdminApiController extends AccountBaseController
     {
         $agent = \App\Models\LeadAgent::where('company_id', company()->id)->findOrFail($agentId);
         $overrideEnabled = FeatureFlags::enabled('sales.per-agent-commission-override');
+        $referralEnabled = FeatureFlags::enabled('sales.partner-referral-commission') && $agent->is_partner;
 
-        if (! $overrideEnabled && ! $agent->is_partner) {
+        if (! $overrideEnabled && ! $referralEnabled) {
             abort(404);
         }
 
@@ -647,8 +648,9 @@ class MlmAdminApiController extends AccountBaseController
     {
         $agent = \App\Models\LeadAgent::where('company_id', company()->id)->findOrFail($agentId);
         $overrideEnabled = FeatureFlags::enabled('sales.per-agent-commission-override');
+        $referralEnabled = FeatureFlags::enabled('sales.partner-referral-commission') && $agent->is_partner;
 
-        if (! $overrideEnabled && ! $agent->is_partner) {
+        if (! $overrideEnabled && ! $referralEnabled) {
             abort(404);
         }
 
@@ -660,7 +662,7 @@ class MlmAdminApiController extends AccountBaseController
             $rules['custom_commission_rate'] = 'nullable|numeric|min:0|max:100';
         }
 
-        if ($agent->is_partner) {
+        if ($referralEnabled) {
             $rules['referral_pool_rate'] = 'nullable|numeric|min:0|max:100';
         }
 
@@ -670,7 +672,7 @@ class MlmAdminApiController extends AccountBaseController
             unset($validated['custom_commission_rate']);
         }
 
-        if (! $agent->is_partner) {
+        if (! $referralEnabled) {
             unset($validated['referral_pool_rate']);
         }
 

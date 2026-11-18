@@ -2044,7 +2044,10 @@ class DashboardMetricsService
 
         // A deal that pays nothing must not pad the count. Two agreed-zero
         // referrals plus one paying deal would otherwise publish that one amount.
-        $suppressed = $contributing > 0 && $contributing < self::FORECAST_MIN_DEALS;
+        // With the referral feature off, the cohort size alone decides, as before it.
+        $suppressed = FeatureFlags::enabled('sales.partner-referral-commission')
+            ? $contributing > 0 && $contributing < self::FORECAST_MIN_DEALS
+            : $deals->count() > 0 && $deals->count() < self::FORECAST_MIN_DEALS;
 
         return [
             'deal_count' => $deals->count(),

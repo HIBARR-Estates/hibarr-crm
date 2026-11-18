@@ -10,6 +10,7 @@ use App\Models\Package;
 use App\Services\MlmCommissionService;
 use App\Services\Partner\PartnerLeadService;
 use ReflectionMethod;
+use Tests\Concerns\SetsFeatureFlags;
 use Tests\TestCase;
 
 /**
@@ -20,6 +21,8 @@ use Tests\TestCase;
  */
 class PartnerLeadPayoutRuleTest extends TestCase
 {
+    use SetsFeatureFlags;
+
     private function package(int $id, ?string $type, float $value = 0): Package
     {
         $package = new Package(['commission_type' => $type, 'commission_value' => $value, 'value' => 1000]);
@@ -104,7 +107,21 @@ class PartnerLeadPayoutRuleTest extends TestCase
 
     public function test_a_referral_leg_keeps_a_deal_the_package_would_not_pay(): void
     {
+        $this->setFeatureFlag('sales.partner-referral-commission', true);
+
         $this->assertFalse($this->paysNothing(
+            [$this->package(1, 'none')],
+            [],
+            [],
+            [['type' => MlmCommissionType::Referral->value, 'agent_id' => 7, 'amount' => 80]],
+        ));
+    }
+
+    public function test_a_referral_leg_is_ignored_while_the_feature_flag_is_off(): void
+    {
+        $this->setFeatureFlag('sales.partner-referral-commission', false);
+
+        $this->assertTrue($this->paysNothing(
             [$this->package(1, 'none')],
             [],
             [],

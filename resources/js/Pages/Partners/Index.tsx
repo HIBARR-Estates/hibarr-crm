@@ -3,6 +3,7 @@ import { Link, router } from "@inertiajs/react";
 import { message } from "antd";
 import axios from "axios";
 import DashboardLayout from "@/Components/DashboardLayout";
+import usePartnerReferralCommissionFlag from "@/Hooks/usePartnerReferralCommissionFlag";
 import PageLayout from "@/Components/PageLayout";
 import {
     Button,
@@ -83,6 +84,7 @@ const StatTile = ({ label, value }: { label: string; value: number }) => (
 
 const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canManageCommissionProfile = false }: Props) => {
     const { td } = useTd();
+    const referralCommissionEnabled = usePartnerReferralCommissionFlag();
 
     const [rows, setRows] = useState<PartnerAgent[]>(agents.data);
     const [stats, setStats] = useState<Stats>(initialStats);
@@ -281,7 +283,7 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                                         ? td("Enabled", { source: "en" })
                                         : td("Disabled", { source: "en" })}
                                 </Badge>
-                                {canManageCommissionProfile ? (
+                                {referralCommissionEnabled && (canManageCommissionProfile ? (
                                 <Link
                                     href={route("mlm.agent_dashboard", agent.id)}
                                     style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}
@@ -302,7 +304,7 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                                           )
                                         : td("No referral share", { source: "en" })}
                                 </span>
-                                )}
+                                ))}
                                 <Badge variant="blue">
                                     {td(":count leads referred", { source: "en" }).replace(
                                         ":count",

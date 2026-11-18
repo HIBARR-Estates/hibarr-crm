@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
+use Tests\Concerns\SetsFeatureFlags;
 use Tests\TestCase;
 
 /**
@@ -27,6 +28,8 @@ use Tests\TestCase;
  */
 class PartnerCommissionReconciliationTest extends TestCase
 {
+    use SetsFeatureFlags;
+
     private int $companyId = 1;
 
     protected function setUp(): void
@@ -108,6 +111,8 @@ class PartnerCommissionReconciliationTest extends TestCase
 
     public function test_forecast_does_not_let_zero_referrals_expose_one_deal(): void
     {
+        $this->setFeatureFlag('sales.partner-referral-commission', true);
+
         $partner = $this->makeAgent(userId: 40);
 
         foreach (range(1, 3) as $_) {

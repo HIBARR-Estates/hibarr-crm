@@ -20,6 +20,7 @@ import {
 } from "@ant-design/icons";
 import { Link, router } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
+import usePartnerReferralCommissionFlag from "@/Hooks/usePartnerReferralCommissionFlag";
 import dayjs from "dayjs";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
@@ -35,6 +36,7 @@ const Show = ({
     permissions,
 }: AgentShowProps) => {
     const { t } = useTranslation();
+    const referralCommissionEnabled = usePartnerReferralCommissionFlag();
     const { handleAction, handleClose, action, selected } =
         useGenericEntityAction<Agent>();
 
@@ -113,7 +115,7 @@ const Show = ({
                             <Descriptions.Item label="Agent ID">
                                 {agent.id}
                             </Descriptions.Item>
-                            {agent.is_partner && (
+                            {referralCommissionEnabled && agent.is_partner && (
                                 <Descriptions.Item label={t("pages.agents.referral_share")}>
                                     {permissions.manage_partner_network ? (
                                         <Link

@@ -8,10 +8,13 @@ use App\Models\MlmCommission;
 use App\Services\MlmCommissionService;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Tests\Concerns\SetsFeatureFlags;
 use Tests\PackageCommissionTestCase;
 
 class CommissionCalculationTest extends PackageCommissionTestCase
 {
+    use SetsFeatureFlags;
+
     /**
      * A deal with a level-eligible agent AND an upline, so that any accidental
      * fall-through to the level distribution shows up as extra legs.
@@ -396,6 +399,24 @@ class CommissionCalculationTest extends PackageCommissionTestCase
         $this->assertNull($referral['percentage']);
     }
 
+    public function test_referral_leg_is_not_written_while_the_feature_flag_is_off(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->refer($ctx, $referrerId, 25, null, 50);
+        $this->setFeatureFlag('sales.partner-referral-commission', false);
+
+        $this->distribute($ctx['deal']);
+
+        $legs = MlmCommission::where('deal_id', $ctx['deal'])->get();
+
+        $this->assertNull($legs->firstWhere('type', MlmCommissionType::Referral), 'No referral leg with the flag off.');
+        $this->assertSame(40.0, (float) $legs->firstWhere('type', MlmCommissionType::System)->amount, 'The company keeps the whole remainder, as before the feature.');
+        $this->assertNull(
+            app(MlmCommissionService::class)->getCommissionSummary(Deal::withoutGlobalScopes()->findOrFail($ctx['deal']))['referral']
+        );
+    }
+
     public function test_package_referral_amount_never_exceeds_the_commission_the_deal_can_carry(): void
     {
         $ctx = $this->seedDealWithUpline(1000);
@@ -470,6 +491,8 @@ class CommissionCalculationTest extends PackageCommissionTestCase
      */
     private function refer(array $ctx, int $referrerId, ?float $partnerRate, ?float $dealRate = null, ?float $fixed = null): void
     {
+        $this->setFeatureFlag('sales.partner-referral-commission', true);
+
         DB::table('lead_agents')->where('id', $referrerId)->update([
             'referral_pool_rate' => $partnerRate,
             'is_partner' => true,
