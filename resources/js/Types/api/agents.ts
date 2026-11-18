@@ -9,7 +9,8 @@ export interface Agent {
     parent_agent_id: number | null;
     status: "enabled" | "disabled";
     is_partner?: boolean;
-    referral_pool_rate?: number | null;
+    /** Decimal string from the `decimal:2` cast, e.g. "12.50". */
+    referral_pool_rate?: string | null;
     added_by: number | null;
     last_updated_by: number | null;
     created_at: string;

@@ -2478,7 +2478,16 @@ class DealController extends AccountBaseController
         $blocked = DB::transaction(function () use ($request, $deal, $validated, &$maxAmount) {
             $locked = Deal::query()->whereKey($deal->id)->lockForUpdate()->first();
 
-            if (! $locked || $locked->isCommissionLocked()) {
+            if (! $locked) {
+                return 'locked';
+            }
+
+            // The deal may have been locked since the check above.
+            if ($locked->isLocked()) {
+                return 'deal_locked';
+            }
+
+            if ($locked->isCommissionLocked()) {
                 return 'locked';
             }
 
@@ -2512,6 +2521,13 @@ class DealController extends AccountBaseController
                     'max' => number_format((float) $maxAmount, 2),
                 ]),
             ], 422);
+        }
+
+        if ($blocked === 'deal_locked') {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealLocked'),
+            ], 403);
         }
 
         if ($blocked === 'locked') {

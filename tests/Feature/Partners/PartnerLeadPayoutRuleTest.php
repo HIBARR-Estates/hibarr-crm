@@ -129,6 +129,31 @@ class PartnerLeadPayoutRuleTest extends TestCase
         ));
     }
 
+    public function test_a_settled_deal_is_judged_by_its_recorded_referral_leg_not_a_fresh_preview(): void
+    {
+        $this->setFeatureFlag('crm.partner-referral-commission', true);
+
+        $engine = $this->createMock(MlmCommissionService::class);
+        // Today's settings would pay a referral, but the ledger recorded none.
+        $engine->method('preview')->willReturn([
+            ['type' => MlmCommissionType::Referral->value, 'agent_id' => 7, 'amount' => 80],
+        ]);
+
+        $settled = new Deal;
+        $settled->id = 5;
+        $settled->commission_locked = true;
+
+        $agent = new LeadAgent;
+        $agent->id = 7;
+
+        $method = new ReflectionMethod(PartnerLeadService::class, 'referralPays');
+        $method->setAccessible(true);
+        $service = new PartnerLeadService($engine);
+
+        $this->assertFalse($method->invoke($service, $settled, $agent, collect()));
+        $this->assertTrue($method->invoke($service, $settled, $agent, collect([5])));
+    }
+
     public function test_a_per_agent_override_can_make_a_none_package_pay(): void
     {
         $this->assertFalse($this->paysNothing(

@@ -145,7 +145,11 @@ class Deal extends BaseModel
         'name',
     ];
 
-    protected $hidden = ['pivot'];
+    // The agreed referral terms are commercial detail the commission summary only
+    // shows to viewers cleared for it (see attachCommissionSummary), so they never
+    // leave through plain serialization. The deal panel reads them from
+    // value_breakdown.commission.referral.
+    protected $hidden = ['pivot', 'referral_pool_rate', 'referral_fixed_amount'];
 
     // total_discount is an aggregate — appending it globally cost one extra query
     // per deal on every list that gets serialized. Only the deal show page reads

@@ -104,7 +104,11 @@ class AgentCommissionProfileService
             }
         }
 
-        DB::transaction(function () use ($agent, $userId, $payload, $hasCustom, $hasReferral, $directRate, $overrideRate, $referralRate) {
+        DB::transaction(function () use ($agentId, $companyId, $userId, $payload, $hasCustom, $hasReferral, $directRate, $overrideRate, $referralRate) {
+            // Read the previous rates under a row lock so two concurrent saves
+            // cannot both audit the same "previous" value.
+            $agent = LeadAgent::where('company_id', $companyId)->lockForUpdate()->findOrFail($agentId);
+
             $previousDirect = $agent->custom_direct_rate !== null
                 ? (float) $agent->custom_direct_rate
                 : null;

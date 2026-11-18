@@ -379,34 +379,42 @@ class AgentController extends AccountBaseController
                 $categoryIds = $this->normalizeCategoryIds($request->input('category_id', []));
                 $addedBy = $agent->added_by ?? user()->id;
 
-                LeadAgent::where('user_id', $agent->user_id)
+                // Reconcile instead of delete-and-recreate: a row that stays
+                // selected keeps its identity and its partner settings
+                // (is_partner, referral_pool_rate, custom rates).
+                $existing = LeadAgent::where('user_id', $agent->user_id)
                     ->where('company_id', company()->id)
-                    ->delete();
+                    ->get();
+                $wanted = empty($categoryIds)
+                    ? [null]
+                    : array_map(fn ($id) => (int) $id, $categoryIds);
 
-                if (empty($categoryIds)) {
-                    LeadAgent::create([
-                        'user_id' => $agent->user_id,
-                        'lead_category_id' => null,
-                        'company_id' => company()->id,
-                        'added_by' => $addedBy,
-                        'last_updated_by' => user()->id,
-                        'status' => $request->input('status', 'enabled'),
-                    ]);
-                } else {
-                    foreach ($categoryIds as $categoryId) {
-                        LeadAgent::firstOrCreate(
-                            [
-                                'user_id' => $agent->user_id,
-                                'lead_category_id' => $categoryId,
-                                'company_id' => company()->id,
-                            ],
-                            [
-                                'added_by' => $addedBy,
-                                'last_updated_by' => user()->id,
-                                'status' => $request->input('status', 'enabled'),
-                            ]
-                        );
-                    }
+                $existing
+                    ->reject(fn (LeadAgent $row) => in_array(
+                        $row->lead_category_id === null ? null : (int) $row->lead_category_id,
+                        $wanted,
+                        true
+                    ))
+                    ->each->delete();
+
+                // A category added to a partner is still that partner.
+                $template = $existing->first();
+
+                foreach ($wanted as $categoryId) {
+                    LeadAgent::firstOrCreate(
+                        [
+                            'user_id' => $agent->user_id,
+                            'lead_category_id' => $categoryId,
+                            'company_id' => company()->id,
+                        ],
+                        [
+                            'added_by' => $addedBy,
+                            'last_updated_by' => user()->id,
+                            'status' => $request->input('status', 'enabled'),
+                            'is_partner' => (bool) $template?->is_partner,
+                            'referral_pool_rate' => $template?->referral_pool_rate,
+                        ]
+                    );
                 }
             }
 

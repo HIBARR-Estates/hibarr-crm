@@ -219,12 +219,17 @@ class MlmCommissionService
 
         // Referral share of the pool, taken from what the company would keep.
         // The closer and upline amounts above are left as they are.
+        //
+        // Room is measured in the already-rounded amounts: each leg rounds on its
+        // own, so subtracting percentages could let the legs sum a cent over the
+        // ceiling. The closer's and uplines' amounts are never reduced.
+        $ceilingAmount = round($this->calculateAmount($dealValue, $maxCommission), 2);
         $referralLeg = $this->buildReferralLeg(
             $deal,
             $agent,
             $dealValue,
-            $this->calculateAmount($dealValue, $maxCommission),
-            $this->calculateAmount($dealValue, max(0, $maxCommission - $cumulativePct)),
+            $ceilingAmount,
+            max(0.0, round($ceilingAmount - (float) collect($records)->sum('amount'), 2)),
         );
 
         if ($referralLeg !== null) {
@@ -232,7 +237,6 @@ class MlmCommissionService
 
             // A fixed referral does not land on a clean percentage, so the
             // remainder is whatever currency is still under the ceiling.
-            $ceilingAmount = round($this->calculateAmount($dealValue, $maxCommission), 2);
             $remainingAmount = round($ceilingAmount - (float) collect($records)->sum('amount'), 2);
 
             if ($remainingAmount > 0) {
@@ -840,7 +844,10 @@ class MlmCommissionService
             ->with('user:id,name')
             ->find($referrerId);
 
-        if (! $referrer) {
+        // The referrer must belong to the lead's own company: the lead was
+        // matched to the deal's company above, but the agent id it carries is
+        // not scoped by anything.
+        if (! $referrer || (int) $referrer->company_id !== (int) $lead->company_id) {
             return null;
         }
 
@@ -911,6 +918,7 @@ class MlmCommissionService
             'applied' => $fixed !== null ? 'fixed' : 'percentage',
             'percentage_amount' => $percentageAmount,
             'capped' => $capped,
+            'settled' => $settled,
             'max_amount' => $isPackageDeal
                 ? $this->maxReferralAmount($deal, $closer, $dealValue)
                 : $pool,

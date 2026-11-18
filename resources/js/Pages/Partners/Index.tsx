@@ -4,6 +4,7 @@ import { message } from "antd";
 import axios from "axios";
 import DashboardLayout from "@/Components/DashboardLayout";
 import usePartnerReferralCommissionFlag from "@/Hooks/usePartnerReferralCommissionFlag";
+import useTranslation from "@/Hooks/useTranslation";
 import PageLayout from "@/Components/PageLayout";
 import {
     Button,
@@ -25,7 +26,8 @@ interface PartnerAgent {
     id: number;
     status: "enabled" | "disabled";
     is_partner: boolean;
-    referral_pool_rate?: number | null;
+    /** Decimal string from the `decimal:2` cast, e.g. "12.50". */
+    referral_pool_rate?: string | null;
     referred_leads_count: number;
     /** True for an account made through Invite Partner, which can be re-invited. */
     can_resend?: boolean;
@@ -84,6 +86,7 @@ const StatTile = ({ label, value }: { label: string; value: number }) => (
 
 const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canManageCommissionProfile = false }: Props) => {
     const { td } = useTd();
+    const { t } = useTranslation();
     const referralCommissionEnabled = usePartnerReferralCommissionFlag();
 
     const [rows, setRows] = useState<PartnerAgent[]>(agents.data);
@@ -289,20 +292,18 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                                     style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}
                                 >
                                     {agent.referral_pool_rate != null
-                                        ? td(":rate% referral share", { source: "en" }).replace(
-                                              ":rate",
-                                              String(agent.referral_pool_rate),
-                                          )
-                                        : td("No referral share", { source: "en" })}
+                                        ? t("pages.agents.referral_share_of_pool", {
+                                              rate: agent.referral_pool_rate,
+                                          })
+                                        : t("pages.agents.referral_share_none")}
                                 </Link>
                                 ) : (
                                 <span style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}>
                                     {agent.referral_pool_rate != null
-                                        ? td(":rate% referral share", { source: "en" }).replace(
-                                              ":rate",
-                                              String(agent.referral_pool_rate),
-                                          )
-                                        : td("No referral share", { source: "en" })}
+                                        ? t("pages.agents.referral_share_of_pool", {
+                                              rate: agent.referral_pool_rate,
+                                          })
+                                        : t("pages.agents.referral_share_none")}
                                 </span>
                                 ))}
                                 <Badge variant="blue">

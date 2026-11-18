@@ -537,10 +537,11 @@ function ReferralShareFields({
         : share.applied === "fixed"
           ? "amount"
           : "percentage";
+    // Only the deal's own rate is a saved value. An empty field means "use the
+    // partner's default", so a rate typed equal to today's default stays explicit
+    // and does not follow the default if it changes later.
     const savedPercent =
-        share.deal_percentage != null && share.deal_percentage > 0
-            ? share.deal_percentage
-            : share.partner_percentage;
+        share.deal_percentage != null && share.deal_percentage > 0 ? share.deal_percentage : null;
     const savedAmount = share.fixed_amount != null && share.fixed_amount > 0 ? share.fixed_amount : null;
     const toText = (value: number | null) => (value == null ? "" : String(value));
 
@@ -579,8 +580,7 @@ function ReferralShareFields({
                 !amountTooHigh &&
                 (savedMode !== "amount" || amountValue !== savedAmount);
 
-    const usingPartnerDefault =
-        share.partner_percentage != null && percentValue === share.partner_percentage;
+    const usingPartnerDefault = share.partner_percentage != null && percentValue === null;
 
     const hint = (text: string, color: string = T.TEXT_HINT) => (
         <div style={{ fontSize: 12, color, marginTop: 4 }}>{text}</div>
@@ -645,6 +645,7 @@ function ReferralShareFields({
                             )}
                             <DealMoneyInput
                                 prefix="%"
+                                placeholder={toText(share.partner_percentage) || "0"}
                                 value={percent}
                                 disabled={saving}
                                 ariaLabel={t("pages.deals.info.value_insight.referral_percent")}
@@ -682,7 +683,9 @@ function ReferralShareFields({
                 <div style={{ fontSize: 12, color: T.TEXT_MUTED }}>
                     {excluded
                         ? t("pages.deals.info.value_insight.referral_excluded", { name })
-                        : share.applied === "fixed" && share.fixed_amount != null
+                        : share.settled && share.deal_percentage == null && share.applied === "percentage"
+                          ? null
+                          : share.applied === "fixed" && share.fixed_amount != null
                           ? `${t("pages.deals.info.value_insight.referral_agreed")}: ${formatMoney(share.fixed_amount)}`
                           : share.deal_percentage != null
                             ? `${share.deal_percentage}%`
@@ -727,8 +730,7 @@ function ReferralShareFields({
                                 ? { referral_pool_rate: 0, referral_fixed_amount: null }
                                 : mode === "percentage"
                                   ? {
-                                        referral_pool_rate:
-                                            percentValue === share.partner_percentage ? null : percentValue,
+                                        referral_pool_rate: percentValue,
                                         referral_fixed_amount: null,
                                     }
                                   : {

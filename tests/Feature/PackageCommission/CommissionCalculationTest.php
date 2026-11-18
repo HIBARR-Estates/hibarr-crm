@@ -417,6 +417,36 @@ class CommissionCalculationTest extends PackageCommissionTestCase
         );
     }
 
+    public function test_referral_room_uses_the_rounded_closer_and_upline_amounts(): void
+    {
+        // 10% of 100.12 rounds to 10.01; the closer and upline legs round to 3.00 each.
+        $ctx = $this->seedDealWithUpline(100.12);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->refer($ctx, $referrerId, 25, null, 5);
+
+        $legs = collect(app(MlmCommissionService::class)->preview(
+            Deal::withoutGlobalScopes()->findOrFail($ctx['deal'])
+        ));
+
+        $this->assertSame(4.01, (float) $legs->firstWhere('type', MlmCommissionType::Referral->value)['amount']);
+        $this->assertSame(10.01, round((float) $legs->sum('amount'), 2), 'The legs never add up to more than the ceiling.');
+    }
+
+    public function test_a_referrer_from_another_company_is_ignored(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $otherCompany = $this->seedCompany();
+        $foreignReferrer = $this->seedAgent($otherCompany, $this->seedUser($otherCompany, 'Foreign partner'));
+        $this->refer($ctx, $foreignReferrer, 25);
+
+        $legs = collect(app(MlmCommissionService::class)->preview(
+            Deal::withoutGlobalScopes()->findOrFail($ctx['deal'])
+        ));
+
+        $this->assertNull($legs->firstWhere('type', MlmCommissionType::Referral->value));
+        $this->assertSame(40.0, (float) $legs->firstWhere('type', MlmCommissionType::System->value)['amount']);
+    }
+
     public function test_package_referral_amount_never_exceeds_the_commission_the_deal_can_carry(): void
     {
         $ctx = $this->seedDealWithUpline(1000);

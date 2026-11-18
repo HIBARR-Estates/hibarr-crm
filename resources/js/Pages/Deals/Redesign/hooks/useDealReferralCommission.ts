@@ -11,7 +11,9 @@ export interface ReferralCommissionInput {
 
 /**
  * Saves the deal's referral percentage and agreed amount, then patches the
- * workspace deal from the response so the commission split updates in place.
+ * workspace deal's commission summary from the response so the split updates in
+ * place. Only value_breakdown is taken from the response: replacing the whole
+ * deal would let a slow referral save overwrite a newer edit to the deal's value.
  */
 export default function useDealReferralCommission(dealId: number) {
     const { setDeal } = useDealWorkspace();
@@ -28,8 +30,9 @@ export default function useDealReferralCommission(dealId: number) {
                     route("deals.referral_commission.update", dealId),
                     input,
                 );
-                if (response.data?.status === "success" && response.data?.data) {
-                    setDeal(response.data.data);
+                const breakdown = response.data?.data?.value_breakdown;
+                if (response.data?.status === "success" && breakdown) {
+                    setDeal((prev) => ({ ...prev, value_breakdown: breakdown }));
                 }
             } catch (error) {
                 const serverMessage = axios.isAxiosError(error)

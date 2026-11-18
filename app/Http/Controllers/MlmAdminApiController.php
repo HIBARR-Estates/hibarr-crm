@@ -663,7 +663,9 @@ class MlmAdminApiController extends AccountBaseController
         }
 
         if ($referralEnabled) {
-            $rules['referral_pool_rate'] = 'nullable|numeric|min:0|max:100';
+            // With overrides off this is the only editable field, so the key
+            // must be present; an explicit null still clears the saved rate.
+            $rules['referral_pool_rate'] = ($overrideEnabled ? '' : 'present|').'nullable|numeric|min:0|max:100';
         }
 
         $validated = $request->validate($rules);
