@@ -88,6 +88,12 @@ class Reply
         $trans = trans($message);
 
         if ($trans == $message) {
+            // Not a lang key: plain English sentence written inline. Fall back
+            // to dynamic translation so non-English users don't see English.
+            if (is_string($message) && preg_match('/\s/', $message) && ! preg_match('/\d/', $message) && ! preg_match('/^[a-z][\w-]*(\.[\w-]+)+$/i', $message)) {
+                return td($message);
+            }
+
             return $message;
         }
 
