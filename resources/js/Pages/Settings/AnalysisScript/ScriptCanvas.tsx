@@ -8,6 +8,7 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import DragHandle from "./DragHandle";
 import ScriptItemRow from "./ScriptItemRow";
 import type { BuilderRow, BuilderSection } from "./types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     sections: BuilderSection[];
@@ -42,6 +43,7 @@ function SectionCard({
     onChangeRow: (rowKey: string, patch: Partial<BuilderRow>) => void;
     onRemoveRow: (rowKey: string) => void;
 }) {
+    const { td } = useTd();
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: `sec:${section.key}`,
         data: { kind: "section", sectionKey: section.key },
@@ -83,7 +85,7 @@ function SectionCard({
                     background: isCategory ? T.SURFACE_2 : T.WHITE,
                 }}
             >
-                <DragHandle attributes={attributes} listeners={listeners} label="Drag to reorder section" />
+                <DragHandle attributes={attributes} listeners={listeners} label={td("Drag to reorder section", { source: "en" })} />
 
                 <button
                     type="button"
@@ -98,7 +100,7 @@ function SectionCard({
                 <div style={{ flex: 1, minWidth: 0 }}>
                     {collapsed ? (
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            {isCategory && <Badge variant="gray">Field group</Badge>}
+                            {isCategory && <Badge variant="gray">{td("Field group", { source: "en" })}</Badge>}
                             <span style={{ fontSize: 15, fontWeight: 600, color: T.TEXT }}>
                                 {section.title || "Untitled section"}
                             </span>
@@ -111,27 +113,27 @@ function SectionCard({
                     ) : isCategory ? (
                         <>
                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <Badge variant="gray">Field group</Badge>
+                                <Badge variant="gray">{td("Field group", { source: "en" })}</Badge>
                                 <span style={{ fontSize: 15, fontWeight: 600, color: T.TEXT }}>
                                     {section.title}
                                 </span>
                             </div>
                             <p style={{ fontSize: 13, color: T.TEXT_MUTED, margin: "6px 0 0" }}>
-                                Shows every field in this category, in category order.
+                                {td("Shows every field in this category, in category order.", { source: "en" })}
                             </p>
                         </>
                     ) : (
                         <>
                             <input
                                 className="dr-input"
-                                placeholder="Section title"
+                                placeholder={td("Section title", { source: "en" })}
                                 value={section.title}
                                 onChange={(e) => onChange({ title: e.target.value })}
                                 style={{ fontSize: 15, fontWeight: 600 }}
                             />
                             <input
                                 className="dr-input"
-                                placeholder="Short description (optional)"
+                                placeholder={td("Short description (optional)", { source: "en" })}
                                 value={section.description ?? ""}
                                 onChange={(e) => onChange({ description: e.target.value || null })}
                                 style={{ fontSize: 14, marginTop: 6 }}
@@ -195,7 +197,7 @@ function SectionCard({
                                 padding: "12px 0",
                             }}
                         >
-                            Drag fields here, or click them in the palette.
+                            {td("Drag fields here, or click them in the palette.", { source: "en" })}
                         </p>
                     )}
                 </div>
@@ -214,6 +216,7 @@ export default function ScriptCanvas({
     onChangeRow,
     onRemoveRow,
 }: Props) {
+    const { td } = useTd();
     const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
 
     const toggleCollapsed = (key: string) =>
@@ -237,7 +240,7 @@ export default function ScriptCanvas({
                 }}
             >
                 <h2 style={{ fontSize: 15, fontWeight: 600, color: T.TEXT, margin: 0 }}>
-                    Sections
+                    {td("Sections", { source: "en" })}
                 </h2>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     {sections.length > 0 && (

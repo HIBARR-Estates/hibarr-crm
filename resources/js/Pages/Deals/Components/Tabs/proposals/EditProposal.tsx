@@ -4,6 +4,7 @@ import { EditOutlined } from "@ant-design/icons";
 import SaveProposal from "./SaveProposal";
 import { Deal } from "@/Types/api/deals";
 import { Proposal } from "@/Types/api/proposal";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface EditProposalProps {
     deal: Deal;
@@ -24,6 +25,7 @@ export default function EditProposal({
     trigger = "button",
     children,
 }: EditProposalProps) {
+    const { td } = useTd();
     const [visible, setVisible] = useState(false);
 
     const canEditProposal =
@@ -71,7 +73,7 @@ export default function EditProposal({
             break;
         default:
             triggerElement = (
-                <Tooltip title="Edit Proposal">
+                <Tooltip title={td("Edit Proposal", { source: "en" })}>
                     <Button
                         type="text"
                         icon={<EditOutlined />}

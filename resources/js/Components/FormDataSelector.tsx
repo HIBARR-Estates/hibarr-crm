@@ -191,6 +191,7 @@ export const useLeadFormData = () => {
  * Example usage component showing how to replace heavy prop-based data with API fetching
  */
 export const LeadFormExample = () => {
+    const { td } = useTd();
     const [formData, setFormData] = useState({
         salutation: null,
         leadOwner: null,
@@ -213,7 +214,7 @@ export const LeadFormExample = () => {
             }}
         >
             <div>
-                <label>Salutation:</label>
+                <label>{td("Salutation:", { source: "en" })}</label>
                 <FormDataSelector
                     type="salutations"
                     value={formData.salutation}
@@ -222,7 +223,7 @@ export const LeadFormExample = () => {
             </div>
 
             <div>
-                <label>Lead Owner:</label>
+                <label>{td("Lead Owner:", { source: "en" })}</label>
                 <FormDataSelector
                     type="employees"
                     value={formData.leadOwner}
@@ -231,7 +232,7 @@ export const LeadFormExample = () => {
             </div>
 
             <div>
-                <label>Category:</label>
+                <label>{td("Category:", { source: "en" })}</label>
                 <FormDataSelector
                     type="categories"
                     value={formData.category}
@@ -240,7 +241,7 @@ export const LeadFormExample = () => {
             </div>
 
             <div>
-                <label>Source:</label>
+                <label>{td("Source:", { source: "en" })}</label>
                 <FormDataSelector
                     type="sources"
                     value={formData.source}
@@ -249,7 +250,7 @@ export const LeadFormExample = () => {
             </div>
 
             <div>
-                <label>Pipeline:</label>
+                <label>{td("Pipeline:", { source: "en" })}</label>
                 <FormDataSelector
                     type="lead-pipelines"
                     value={formData.pipeline}

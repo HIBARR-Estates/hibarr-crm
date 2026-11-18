@@ -5,12 +5,14 @@ import {
     BugOutlined,
     BulbOutlined,
 } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface SupportWidgetProps {
     collapsed?: boolean;
 }
 
 const SupportWidget: React.FC<SupportWidgetProps> = ({ collapsed = false }) => {
+    const { td } = useTd();
     const content = (
         <div className="w-64">
             <List
@@ -54,7 +56,7 @@ const SupportWidget: React.FC<SupportWidgetProps> = ({ collapsed = false }) => {
         >
             <Popover
                 content={content}
-                title="Support & Feedback"
+                title={td("Support & Feedback", { source: "en" })}
                 trigger="click"
                 placement="topRight"
             >
@@ -72,7 +74,7 @@ const SupportWidget: React.FC<SupportWidgetProps> = ({ collapsed = false }) => {
                     }}
                 >
                     {!collapsed && (
-                        <span style={{ marginLeft: 8 }}>Support</span>
+                        <span style={{ marginLeft: 8 }}>{td("Support", { source: "en" })}</span>
                     )}
                 </Button>
             </Popover>

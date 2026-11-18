@@ -30,6 +30,7 @@ import MeetingViewModal from "@/Components/Redesign/modals/MeetingViewModal";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import ViewNote from "@/Pages/Deals/Components/Tabs/notes/ViewNote";
 import { ContentRenderer } from "@/Components/ContentRenderer";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Filters {
     start_date: string;
@@ -433,6 +434,7 @@ function useNotesFetch(endpoint: string, filters: Filters) {
 // ── Deal Notes Tab (card-based, view-only) ──────────────────────
 
 const DealNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
+    const { td } = useTd();
     const [selected, setSelected] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const { data, loading, pagination, fetchData } = useNotesFetch(
@@ -455,7 +457,7 @@ const DealNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
             <div className="flex justify-end">
                 <div className="w-72">
                     <Input.Search
-                        placeholder="Search notes..."
+                        placeholder={td("Search notes...", { source: "en" })}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         allowClear
@@ -484,7 +486,7 @@ const DealNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
                                     <div className="flex flex-col gap-y-1">
                                         <div>
                                             <span className="mr-1 text-gray-400">
-                                                Deal:
+                                                {td("Deal:", { source: "en" })}
                                             </span>
                                             <Link
                                                 href={`/account/deals/${note.deal.id}`}
@@ -496,7 +498,7 @@ const DealNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
                                         {note.deal.contact && (
                                             <div>
                                                 <span className="mr-1 text-gray-400">
-                                                    Contact:
+                                                    {td("Contact:", { source: "en" })}
                                                 </span>
                                                 <Link
                                                     href={`/account/lead-contact/${note.deal.contact.id}`}
@@ -544,6 +546,7 @@ const DealNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
 // ── Lead Notes Tab (card-based, view-only) ──────────────────────
 
 const LeadNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
+    const { td } = useTd();
     const [selected, setSelected] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const { data, loading, pagination, fetchData } = useNotesFetch(
@@ -566,7 +569,7 @@ const LeadNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
             <div className="flex justify-end">
                 <div className="w-72">
                     <Input.Search
-                        placeholder="Search notes..."
+                        placeholder={td("Search notes...", { source: "en" })}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         allowClear
@@ -594,7 +597,7 @@ const LeadNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
                                 note.lead ? (
                                     <div>
                                         <span className="mr-1 text-gray-400">
-                                            Lead:
+                                            {td("Lead:", { source: "en" })}
                                         </span>
                                         <Link
                                             href={`/account/lead-contact/${note.lead.id}`}
@@ -623,7 +626,7 @@ const LeadNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
             )}
 
             <Drawer
-                title={<span className="text-sm">View Note</span>}
+                title={<span className="text-sm">{td("View Note", { source: "en" })}</span>}
                 placement="right"
                 size="large"
                 open={!!selected}
@@ -670,7 +673,7 @@ const LeadNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
 
                         <div>
                             <Title level={4} className="mb-3">
-                                Details
+                                {td("Details", { source: "en" })}
                             </Title>
                             <div className="bg-white border border-gray-200 rounded-lg p-4 min-h-[200px]">
                                 {selected.details ? (
@@ -681,7 +684,7 @@ const LeadNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
                                     />
                                 ) : (
                                     <Text type="secondary" italic>
-                                        No details provided
+                                        {td("No details provided", { source: "en" })}
                                     </Text>
                                 )}
                             </div>
@@ -690,7 +693,7 @@ const LeadNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
                         {selected.lead && (
                             <div className="bg-blue-50 p-4 rounded-lg">
                                 <Title level={5} className="mb-2 text-blue-800">
-                                    Related Lead
+                                    {td("Related Lead", { source: "en" })}
                                 </Title>
                                 <div>
                                     <Link

@@ -18,6 +18,7 @@ import type {
 import { usePage } from "@inertiajs/react";
 import { DISTANCE_FIELDS } from "../constructionProjectConfig";
 import { formatLocationNameForDisplay } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { TextArea } = Input;
 
@@ -44,6 +45,7 @@ const LocationSection: React.FC<LocationSectionProps> = ({
     primaryCategory,
     enumValues,
 }) => {
+    const { td } = useTd();
     const { props } = usePage<any>();
     const developerProjects = (props?.developerProjects ||
         []) as DeveloperProject[];
@@ -144,10 +146,10 @@ const LocationSection: React.FC<LocationSectionProps> = ({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="project_location_id"
-                        label="Project Location"
+                        label={td("Project Location", { source: "en" })}
                     >
                         <Select
-                            placeholder="Select location"
+                            placeholder={td("Select location", { source: "en" })}
                             allowClear
                             showSearch
                             optionFilterProp="children"
@@ -164,10 +166,10 @@ const LocationSection: React.FC<LocationSectionProps> = ({
 
             {/* City */}
             <Col xs={24} md={12}>
-                <Form.Item name="city" label="City">
+                <Form.Item name="city" label={td("City", { source: "en" })}>
                     <Select
                         options={cityOptions}
-                        placeholder="Select city"
+                        placeholder={td("Select city", { source: "en" })}
                         allowClear
                         showSearch
                         optionFilterProp="label"
@@ -178,7 +180,7 @@ const LocationSection: React.FC<LocationSectionProps> = ({
 
             {/* Area / District */}
             <Col xs={24} md={12}>
-                <Form.Item name="area" label="Area / District">
+                <Form.Item name="area" label={td("Area / District", { source: "en" })}>
                     <Select
                         options={areaOptions}
                         placeholder={
@@ -194,10 +196,10 @@ const LocationSection: React.FC<LocationSectionProps> = ({
 
             {/* Address */}
             <Col span={24}>
-                <Form.Item name="address" label="Full Address">
+                <Form.Item name="address" label={td("Full Address", { source: "en" })}>
                     <TextArea
                         rows={2}
-                        placeholder="Street address or description"
+                        placeholder={td("Street address or description", { source: "en" })}
                     />
                 </Form.Item>
             </Col>
@@ -205,8 +207,8 @@ const LocationSection: React.FC<LocationSectionProps> = ({
             {/* Block Name — not applicable for land */}
             {primaryCategory !== "land" && (
                 <Col xs={12} md={6}>
-                    <Form.Item name="block_name" label="Block Name">
-                        <Input placeholder="e.g. Block A" />
+                    <Form.Item name="block_name" label={td("Block Name", { source: "en" })}>
+                        <Input placeholder={td("e.g. Block A", { source: "en" })} />
                     </Form.Item>
                 </Col>
             )}
@@ -214,7 +216,7 @@ const LocationSection: React.FC<LocationSectionProps> = ({
             {/* Unit Number — not applicable for land */}
             {primaryCategory !== "land" && (
                 <Col xs={12} md={6}>
-                    <Form.Item name="unit_number" label="Unit Number">
+                    <Form.Item name="unit_number" label={td("Unit Number", { source: "en" })}>
                         <Input placeholder="e.g. 301" />
                     </Form.Item>
                 </Col>
@@ -224,7 +226,7 @@ const LocationSection: React.FC<LocationSectionProps> = ({
             <Col xs={12} md={6}>
                 <Form.Item
                     name="latitude"
-                    label="Latitude"
+                    label={td("Latitude", { source: "en" })}
                     rules={[
                         {
                             type: "number",
@@ -248,7 +250,7 @@ const LocationSection: React.FC<LocationSectionProps> = ({
             <Col xs={12} md={6}>
                 <Form.Item
                     name="longitude"
-                    label="Longitude"
+                    label={td("Longitude", { source: "en" })}
                     rules={[
                         {
                             type: "number",
@@ -270,15 +272,15 @@ const LocationSection: React.FC<LocationSectionProps> = ({
 
             {/* Map URL */}
             <Col span={24}>
-                <Form.Item name="map" label="Map URL / Embed Link">
-                    <Input placeholder="Google Maps link or embed URL" />
+                <Form.Item name="map" label={td("Map URL / Embed Link", { source: "en" })}>
+                    <Input placeholder={td("Google Maps link or embed URL", { source: "en" })} />
                 </Form.Item>
             </Col>
 
             {/* Distances to Amenities */}
             <Col span={24}>
                 <Divider orientation="left" plain>
-                    Distances to Amenities (km)
+                    {td("Distances to Amenities (km)", { source: "en" })}
                 </Divider>
             </Col>
             {DISTANCE_FIELDS.map((field) => (

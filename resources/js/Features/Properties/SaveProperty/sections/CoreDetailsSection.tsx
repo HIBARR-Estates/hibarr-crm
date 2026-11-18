@@ -20,6 +20,7 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { SPECIFICATION_FIELDS } from "../fieldConfig";
 import { useFormOptions } from "../useFormOptions";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 
@@ -54,6 +55,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
     onUnitTypeSelect,
     lockedFields = new Set<string>(),
 }) => {
+    const { td } = useTd();
     const { props } = usePage<any>();
     const [developerProjects, setDeveloperProjects] = useState<
         DeveloperProject[]
@@ -239,7 +241,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
     // Inline add: create a new developer (construction company)
     const handleAddDeveloper = () => {
         if (!newDeveloperName.trim()) {
-            message.warning("Please enter a company name");
+            message.warning(td("Please enter a company name", { source: "en" }));
             return;
         }
         developerMutation.mutate({ name: newDeveloperName.trim() });
@@ -248,7 +250,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
     // Inline add: create a new project under the selected developer
     const handleAddProject = () => {
         if (!newProjectName.trim()) {
-            message.warning("Please enter a project name");
+            message.warning(td("Please enter a project name", { source: "en" }));
             return;
         }
         projectMutation.mutate({
@@ -266,7 +268,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="property_type"
-                        label="Property Type"
+                        label={td("Property Type", { source: "en" })}
                         rules={[
                             {
                                 required: true,
@@ -275,7 +277,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                         ]}
                     >
                         <Select
-                            placeholder="Select property type"
+                            placeholder={td("Select property type", { source: "en" })}
                             showSearch
                             optionFilterProp="children"
                             disabled={lockedFields.has("property_type")}
@@ -293,12 +295,12 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="status"
-                        label="Property Status"
+                        label={td("Property Status", { source: "en" })}
                         rules={[
                             { required: true, message: "Please select status" },
                         ]}
                     >
-                        <Select placeholder="Select status">
+                        <Select placeholder={td("Select status", { source: "en" })}>
                             {statusOptions.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
@@ -312,7 +314,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="sale_type"
-                        label="Sale Type"
+                        label={td("Sale Type", { source: "en" })}
                         rules={[
                             {
                                 required: true,
@@ -320,7 +322,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                             },
                         ]}
                     >
-                        <Select placeholder="Select sale type">
+                        <Select placeholder={td("Select sale type", { source: "en" })}>
                             {saleTypeOptions.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
@@ -333,10 +335,10 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                 {/* Unit Style — residential only, multi-select */}
                 {specFields.unitStyle && (
                     <Col xs={24} md={12}>
-                        <Form.Item name="unit_style" label="Unit Style">
+                        <Form.Item name="unit_style" label={td("Unit Style", { source: "en" })}>
                             <Select
                                 mode="multiple"
-                                placeholder="Select unit style(s)"
+                                placeholder={td("Select unit style(s)", { source: "en" })}
                                 allowClear
                                 onChange={handleUnitStyleChange}
                                 disabled={lockedFields.has("unit_style")}
@@ -359,7 +361,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                                 plain
                                 className="!my-2 !text-xs !text-gray-400"
                             >
-                                Residence / Project
+                                {td("Residence / Project", { source: "en" })}
                             </Divider>
                         </Col>
 
@@ -367,15 +369,15 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="within_site"
-                                label="Is this property in a residence or project?"
+                                label={td("Is this property in a residence or project?", { source: "en" })}
                             >
                                 <Select
-                                    placeholder="Select"
+                                    placeholder={td("Select", { source: "en" })}
                                     allowClear
                                     onChange={handleWithinSiteChange}
                                 >
-                                    <Option value={true}>Yes</Option>
-                                    <Option value={false}>No</Option>
+                                    <Option value={true}>{td("Yes", { source: "en" })}</Option>
+                                    <Option value={false}>{td("No", { source: "en" })}</Option>
                                 </Select>
                             </Form.Item>
                         </Col>
@@ -501,11 +503,11 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                                 <Col xs={24} md={12}>
                                     <Form.Item
                                         name="associated_construction_company"
-                                        label="Associated Construction Company"
-                                        tooltip="Select the construction company associated with this property"
+                                        label={td("Associated Construction Company", { source: "en" })}
+                                        tooltip={td("Select the construction company associated with this property", { source: "en" })}
                                     >
                                         <Select
-                                            placeholder="Select construction company"
+                                            placeholder={td("Select construction company", { source: "en" })}
                                             allowClear
                                             showSearch
                                             optionFilterProp="children"
@@ -531,11 +533,11 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                                         <Col xs={24} md={12}>
                                             <Form.Item
                                                 name="associated_construction_company_project"
-                                                label="Associated Company Project"
-                                                tooltip="Select the specific project from the construction company's project list"
+                                                label={td("Associated Company Project", { source: "en" })}
+                                                tooltip={td("Select the specific project from the construction company's project list", { source: "en" })}
                                             >
                                                 <Select
-                                                    placeholder="Select project"
+                                                    placeholder={td("Select project", { source: "en" })}
                                                     allowClear
                                                     showSearch
                                                     optionFilterProp="children"
@@ -564,8 +566,8 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                                     <Col xs={24} md={12}>
                                         <Form.Item
                                             name="developer_project_unit_type_id"
-                                            label="Unit Type"
-                                            tooltip="Select the unit type to auto-fill specifications. Matching fields will be locked."
+                                            label={td("Unit Type", { source: "en" })}
+                                            tooltip={td("Select the unit type to auto-fill specifications. Matching fields will be locked.", { source: "en" })}
                                         >
                                             <Select
                                                 placeholder={
@@ -603,7 +605,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                                                 type="info"
                                                 showIcon
                                                 icon={<InfoCircleOutlined />}
-                                                message="Fields matching this unit type have been auto-filled and locked."
+                                                message={td("Fields matching this unit type have been auto-filled and locked.", { source: "en" })}
                                                 className="!mb-4 !-mt-2"
                                             />
                                         )}
@@ -617,7 +619,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
 
             {/* Add Developer Modal */}
             <Modal
-                title="Add Construction Company"
+                title={td("Add Construction Company", { source: "en" })}
                 open={addDeveloperOpen}
                 onOk={handleAddDeveloper}
                 onCancel={() => {
@@ -625,11 +627,11 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                     setNewDeveloperName("");
                 }}
                 confirmLoading={developerMutation.isPending}
-                okText="Create"
+                okText={td("Create", { source: "en" })}
                 destroyOnClose
             >
                 <Input
-                    placeholder="Company name"
+                    placeholder={td("Company name", { source: "en" })}
                     value={newDeveloperName}
                     onChange={(e) => setNewDeveloperName(e.target.value)}
                     onPressEnter={handleAddDeveloper}
@@ -639,7 +641,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
 
             {/* Add Project Modal */}
             <Modal
-                title="Add Project"
+                title={td("Add Project", { source: "en" })}
                 open={addProjectOpen}
                 onOk={handleAddProject}
                 onCancel={() => {
@@ -647,7 +649,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                     setNewProjectName("");
                 }}
                 confirmLoading={projectMutation.isPending}
-                okText="Create"
+                okText={td("Create", { source: "en" })}
                 destroyOnClose
             >
                 {selectedDeveloperId && (
@@ -663,7 +665,7 @@ const CoreDetailsSection: React.FC<CoreDetailsSectionProps> = ({
                     </p>
                 )}
                 <Input
-                    placeholder="Project name"
+                    placeholder={td("Project name", { source: "en" })}
                     value={newProjectName}
                     onChange={(e) => setNewProjectName(e.target.value)}
                     onPressEnter={handleAddProject}

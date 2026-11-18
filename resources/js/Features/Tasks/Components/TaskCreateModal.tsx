@@ -31,6 +31,7 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { companyDateDayjsFormat } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -93,9 +94,10 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
     onCancel,
     onSubmit,
 }) => {
+    const { td } = useTd();
     return (
         <Drawer
-            title={<Space>Create New Task</Space>}
+            title={<Space>{td("Create New Task", { source: "en" })}</Space>}
             size="large"
             open={visible}
             onClose={onCancel}
@@ -120,7 +122,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                         <Col span={24}>
                             <Form.Item
                                 name="heading"
-                                label="Task Title"
+                                label={td("Task Title", { source: "en" })}
                                 rules={[
                                     {
                                         required: true,
@@ -134,7 +136,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                                 ]}
                             >
                                 <Input
-                                    placeholder="Enter task title..."
+                                    placeholder={td("Enter task title...", { source: "en" })}
                                     size="large"
                                 />
                             </Form.Item>
@@ -142,12 +144,12 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                         <Col span={24}>
                             <Form.Item
                                 name="description"
-                                label="Description"
+                                label={td("Description", { source: "en" })}
                                 extra="Provide a detailed description of the task"
                             >
                                 <TextArea
                                     rows={4}
-                                    placeholder="Enter task description..."
+                                    placeholder={td("Enter task description...", { source: "en" })}
                                     showCount
                                     maxLength={1000}
                                 />
@@ -158,7 +160,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                         <Col xs={24} sm={8}>
                             <Form.Item
                                 name="start_date"
-                                label="Start Date"
+                                label={td("Start Date", { source: "en" })}
                                 rules={[
                                     {
                                         required: true,
@@ -170,27 +172,27 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                                 <DatePicker
                                     style={{ width: "100%" }}
                                     format={companyDateDayjsFormat()}
-                                    placeholder="Select start date"
+                                    placeholder={td("Select start date", { source: "en" })}
                                 />
                             </Form.Item>
                         </Col>
                         <Col xs={24} sm={8}>
                             <Form.Item
                                 name="due_date"
-                                label="Due Date"
+                                label={td("Due Date", { source: "en" })}
                                 extra="Leave empty if no due date"
                             >
                                 <DatePicker
                                     style={{ width: "100%" }}
                                     format={companyDateDayjsFormat()}
-                                    placeholder="Select due date"
+                                    placeholder={td("Select due date", { source: "en" })}
                                 />
                             </Form.Item>
                         </Col>
                         <Col xs={24} sm={8}>
                             <Form.Item
                                 name="priority"
-                                label="Priority"
+                                label={td("Priority", { source: "en" })}
                                 rules={[
                                     {
                                         required: true,
@@ -199,21 +201,21 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                                 ]}
                                 initialValue="medium"
                             >
-                                <Select placeholder="Select priority">
+                                <Select placeholder={td("Select priority", { source: "en" })}>
                                     <Option value="low">
-                                        <Space>🟢 Low Priority</Space>
+                                        <Space>{td("🟢 Low Priority", { source: "en" })}</Space>
                                     </Option>
                                     <Option value="medium">
-                                        <Space>🟡 Medium Priority</Space>
+                                        <Space>{td("🟡 Medium Priority", { source: "en" })}</Space>
                                     </Option>
                                     <Option value="high">
-                                        <Space>🔴 High Priority</Space>
+                                        <Space>{td("🔴 High Priority", { source: "en" })}</Space>
                                     </Option>
                                     <Option value="highest">
-                                        <Space>🔴 Highest Priority</Space>
+                                        <Space>{td("🔴 Highest Priority", { source: "en" })}</Space>
                                     </Option>
                                     <Option value="urgent">
-                                        <Space>🔴 Urgent Priority</Space>
+                                        <Space>{td("🔴 Urgent Priority", { source: "en" })}</Space>
                                     </Option>
                                 </Select>
                             </Form.Item>
@@ -233,9 +235,9 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                     >
                         <Row gutter={16}>
                             <Col xs={24} sm={12}>
-                                <Form.Item name="project_id" label="Project">
+                                <Form.Item name="project_id" label={td("Project", { source: "en" })}>
                                     <Select
-                                        placeholder="Select project (optional)"
+                                        placeholder={td("Select project (optional)", { source: "en" })}
                                         allowClear
                                         showSearch
                                         filterOption={(input, option) =>
@@ -271,12 +273,12 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                             <Col xs={24} sm={12}>
                                 <Form.Item
                                     name="user_ids"
-                                    label="Assignees"
+                                    label={td("Assignees", { source: "en" })}
                                     extra="Select team members to assign this task"
                                 >
                                     <Select
                                         mode="multiple"
-                                        placeholder="Select assignees"
+                                        placeholder={td("Select assignees", { source: "en" })}
                                         showSearch
                                         filterOption={(input, option) =>
                                             option?.children
@@ -331,9 +333,9 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                     >
                         <Row gutter={16}>
                             <Col xs={24} sm={12}>
-                                <Form.Item name="category_id" label="Category">
+                                <Form.Item name="category_id" label={td("Category", { source: "en" })}>
                                     <Select
-                                        placeholder="Select category (optional)"
+                                        placeholder={td("Select category (optional)", { source: "en" })}
                                         allowClear
                                     >
                                         {categories.map((category) => (
@@ -350,12 +352,12 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                             <Col xs={24} sm={12}>
                                 <Form.Item
                                     name="task_labels"
-                                    label="Labels"
+                                    label={td("Labels", { source: "en" })}
                                     extra="Add labels to categorize this task"
                                 >
                                     <Select
                                         mode="multiple"
-                                        placeholder="Select labels"
+                                        placeholder={td("Select labels", { source: "en" })}
                                     >
                                         {labels.map((label) => (
                                             <Option
@@ -399,7 +401,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                             <Col xs={24} sm={8}>
                                 <Form.Item
                                     name="estimate_hours"
-                                    label="Estimated Hours"
+                                    label={td("Estimated Hours", { source: "en" })}
                                     extra="How many hours will this take?"
                                 >
                                     <InputNumber
@@ -413,7 +415,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                             <Col xs={24} sm={8}>
                                 <Form.Item
                                     name="estimate_minutes"
-                                    label="Estimated Minutes"
+                                    label={td("Estimated Minutes", { source: "en" })}
                                     extra="Additional minutes (0-59)"
                                 >
                                     <InputNumber
@@ -427,7 +429,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                             <Col xs={24} sm={8}>
                                 <Form.Item
                                     name="board_column_id"
-                                    label="Initial Status"
+                                    label={td("Initial Status", { source: "en" })}
                                     extra="Starting status for this task"
                                     initialValue={
                                         columns.find(
@@ -468,7 +470,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                             <Col xs={24} sm={8}>
                                 <Form.Item
                                     name="is_private"
-                                    label="Private Task"
+                                    label={td("Private Task", { source: "en" })}
                                     extra="Only assignees can view this task"
                                     valuePropName="checked"
                                 >
@@ -478,7 +480,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                             <Col xs={24} sm={8}>
                                 <Form.Item
                                     name="billable"
-                                    label="Billable"
+                                    label={td("Billable", { source: "en" })}
                                     extra="Track time for billing"
                                     valuePropName="checked"
                                 >
@@ -488,7 +490,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                             <Col xs={24} sm={8}>
                                 <Form.Item
                                     name="without_duedate"
-                                    label="No Due Date"
+                                    label={td("No Due Date", { source: "en" })}
                                     extra="Task has no specific deadline"
                                     valuePropName="checked"
                                 >
@@ -501,7 +503,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
 
                 <div className="flex items-center justify-end space-x-3 mt-12 mb-4 pt-4 border-t border-gray-200">
                     <Button onClick={onCancel} disabled={loading}>
-                        Cancel
+                        {td("Cancel", { source: "en" })}
                     </Button>
                     <Button
                         type="primary"

@@ -43,6 +43,7 @@ import {
     getDefaultMeetingHost,
     isMeetingStartInFuture,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface SaveFollowupFormData {
     lead_id?: number;
@@ -207,6 +208,7 @@ export default function SaveFollowup({
     hideFooter = false,
     onMeetingTypeNameChange,
 }: Props) {
+    const { td } = useTd();
     const { message } = App.useApp();
     const { t } = useTranslation();
     const { props } = usePage<any>();
@@ -344,7 +346,7 @@ export default function SaveFollowup({
                 (deal.lead_agent != null && deal.lead_agent?.id != null);
             if (!hasAgent) {
                 message.warning(
-                    "This deal has no agent assigned. Please assign an agent to the deal before booking a meeting.",
+                    td("This deal has no agent assigned. Please assign an agent to the deal before booking a meeting.", { source: "en" }),
                 );
                 return;
             }
@@ -462,12 +464,12 @@ export default function SaveFollowup({
             )}
 
             {/* ── Date & Time ── */}
-            <SectionDivider label="Date & Time" />
+            <SectionDivider label={td("Date & Time", { source: "en" })} />
 
             <div className="grid grid-cols-2 gap-4">
                 <Form.Item
                     name="next_follow_up_date"
-                    label="Meeting Date"
+                    label={td("Meeting Date", { source: "en" })}
                     rules={[{ required: true, message: "Please select a meeting date" }]}
                     className="mb-0"
                 >
@@ -477,13 +479,13 @@ export default function SaveFollowup({
                         disabled={loading || isScheduled}
                         disabledDate={(current) => current && current < dayjs().startOf("day")}
                         prefix={<CalendarOutlined />}
-                        placeholder="Select date"
+                        placeholder={td("Select date", { source: "en" })}
                     />
                 </Form.Item>
 
                 <Form.Item
                     name="start_time"
-                    label="Start Time"
+                    label={td("Start Time", { source: "en" })}
                     // Re-run the validator when the zone changes (picker or
                     // host-time switch both write `timezone`), so a stale
                     // "must be in the future" message clears.
@@ -516,7 +518,7 @@ export default function SaveFollowup({
                         format={companyTimeDayjsFormat()}
                         disabled={loading || isScheduled}
                         prefix={<ClockCircleOutlined />}
-                        placeholder="Select time"
+                        placeholder={td("Select time", { source: "en" })}
                     />
                 </Form.Item>
             </div>
@@ -525,8 +527,8 @@ export default function SaveFollowup({
             {!isEditing && (
                 <Form.Item
                     name="timezone"
-                    label="Timezone"
-                    tooltip="The meeting date and start time are in this timezone"
+                    label={td("Timezone", { source: "en" })}
+                    tooltip={td("The meeting date and start time are in this timezone", { source: "en" })}
                     className="mb-0"
                 >
                     <MeetingTimezoneField
@@ -537,13 +539,13 @@ export default function SaveFollowup({
             )}
 
             {/* ── Meeting Details ── */}
-            <SectionDivider label="Meeting Details" />
+            <SectionDivider label={td("Meeting Details", { source: "en" })} />
 
             {/* Duration */}
             <Form.Item
                 name="duration"
-                label="Duration"
-                tooltip="Meeting duration in minutes"
+                label={td("Duration", { source: "en" })}
+                tooltip={td("Meeting duration in minutes", { source: "en" })}
                 className="mb-0"
             >
                 <DurationChips disabled={loading || isScheduled} />
@@ -552,14 +554,14 @@ export default function SaveFollowup({
             {/* Meeting Type */}
             <Form.Item
                 name="meeting_type_id"
-                label="Meeting Type"
+                label={td("Meeting Type", { source: "en" })}
                 rules={[{ required: true, message: "Please select a meeting type" }]}
                 className="mb-0"
             >
                 <MeetingTypeSelector
                     renderAsChips={true}
                     disabled={loading || isScheduled}
-                    placeholder="Select meeting type"
+                    placeholder={td("Select meeting type", { source: "en" })}
                     showPlatform={false}
                     onNameChange={onMeetingTypeNameChange}
                 />
@@ -568,7 +570,7 @@ export default function SaveFollowup({
             {/* Platform */}
             <Form.Item
                 name="location"
-                label="Platform"
+                label={td("Platform", { source: "en" })}
                 rules={[{ required: true, message: "Please select a platform" }]}
                 className="mb-0"
             >
@@ -598,7 +600,7 @@ export default function SaveFollowup({
                                 <Space>
                                     Meeting Link
                                     <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                                        (Auto-generated for video)
+                                        {td("(Auto-generated for video)", { source: "en" })}
                                     </Typography.Text>
                                 </Space>
                             }
@@ -616,7 +618,7 @@ export default function SaveFollowup({
                         >
                             <Space.Compact style={{ display: "flex" }}>
                                 <Input
-                                    placeholder="Meeting link will be auto-generated"
+                                    placeholder={td("Meeting link will be auto-generated", { source: "en" })}
                                     disabled={loading || (loc === "zoho" && !isEditing) || isScheduled}
                                     readOnly={loc === "zoho" || isScheduled}
                                     style={{ flex: 1 }}
@@ -629,7 +631,7 @@ export default function SaveFollowup({
                                         onClick={handleGenerateMeetingLink}
                                         disabled={loading || isScheduled}
                                     >
-                                        Generate
+                                        {td("Generate", { source: "en" })}
                                     </Button>
                                 )}
                             </Space.Compact>
@@ -647,10 +649,10 @@ export default function SaveFollowup({
                     if (getFieldValue("location") !== "zoho") return null;
                     return (
                         <>
-                            <SectionDivider label="People" />
+                            <SectionDivider label={td("People", { source: "en" })} />
                             <Form.Item
                                 name="participants"
-                                label="Meeting Participants"
+                                label={td("Meeting Participants", { source: "en" })}
                                 rules={[
                                     {
                                         validator: (_, value) => {
@@ -663,13 +665,13 @@ export default function SaveFollowup({
                                         },
                                     },
                                 ]}
-                                tooltip="Pre-filled with deal agent, participants, and watchers."
+                                tooltip={td("Pre-filled with deal agent, participants, and watchers.", { source: "en" })}
                                 className="mb-0"
                             >
                                 <FormDataSelector
                                     type="employees"
                                     mode="multiple"
-                                    placeholder="Select meeting participants"
+                                    placeholder={td("Select meeting participants", { source: "en" })}
                                     disabled={loading || isScheduled}
                                 />
                             </Form.Item>
@@ -679,12 +681,12 @@ export default function SaveFollowup({
             </Form.Item>
 
             {/* ── Optional ── */}
-            <SectionDivider label="Optional" />
+            <SectionDivider label={td("Optional", { source: "en" })} />
 
             {/* Agenda */}
-            <Form.Item label="Meeting Agenda" name="remark" className="mb-0">
+            <Form.Item label={td("Meeting Agenda", { source: "en" })} name="remark" className="mb-0">
                 <HtmlEditor
-                    placeholder="Enter meeting agenda, details, or remarks..."
+                    placeholder={td("Enter meeting agenda, details, or remarks...", { source: "en" })}
                     disabled={loading || isScheduled}
                     height={200}
                 />
@@ -696,7 +698,7 @@ export default function SaveFollowup({
                     <ClockCircleOutlined className="text-blue-500 mt-0.5 shrink-0" />
                     <div>
                         <p className="text-sm font-semibold text-blue-800 mb-0">
-                            Automatic reminders included
+                            {td("Automatic reminders included", { source: "en" })}
                         </p>
                         <p className="text-[13px] text-blue-600 mt-0.5 mb-0">
                             Participants will be notified {formatDefaultReminders()} before the meeting.
@@ -706,7 +708,7 @@ export default function SaveFollowup({
 
                 <div>
                     <Typography.Text strong className="text-sm block mb-2">
-                        Additional Custom Reminders (Optional):
+                        {td("Additional Custom Reminders (Optional):", { source: "en" })}
                     </Typography.Text>
 
                     <Form.List name="reminders">
@@ -745,7 +747,7 @@ export default function SaveFollowup({
                                                         rules={[{ required: true, message: "Select unit" }]}
                                                     >
                                                         <Select
-                                                            placeholder="Unit"
+                                                            placeholder={td("Unit", { source: "en" })}
                                                             disabled={loading || isScheduled}
                                                             style={{ width: 100 }}
                                                             options={reminderTypes}
@@ -754,7 +756,7 @@ export default function SaveFollowup({
 
                                                     <Form.Item label={null}>
                                                         <Typography.Text type="secondary">
-                                                            before meeting
+                                                            {td("before meeting", { source: "en" })}
                                                         </Typography.Text>
                                                     </Form.Item>
 
@@ -782,7 +784,7 @@ export default function SaveFollowup({
                                     disabled={loading || isScheduled}
                                     size="small"
                                 >
-                                    Add Custom Reminder
+                                    {td("Add Custom Reminder", { source: "en" })}
                                 </Button>
                             </>
                         )}
@@ -794,7 +796,7 @@ export default function SaveFollowup({
             {!hideFooter && (
                 <div className="flex items-center justify-end gap-x-3 mt-8 mb-4 pt-4 border-t border-gray-200">
                     <Button onClick={handleCancel} disabled={loading || isScheduled}>
-                        Cancel
+                        {td("Cancel", { source: "en" })}
                     </Button>
                     <Button
                         type="primary"

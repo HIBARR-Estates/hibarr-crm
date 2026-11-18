@@ -7,12 +7,14 @@ import PageLayout from "@/Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import { useMyUplines } from "@/Features/Mlm/api";
 import type { AgentHierarchyNode } from "@/Features/Mlm/types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends PageProps {
     uplines: AgentHierarchyNode[];
 }
 
 const MyUplines: React.FC<Props> = ({ uplines: initialUplines }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { data, isLoading } = useMyUplines();
     const uplines: AgentHierarchyNode[] =
@@ -41,7 +43,7 @@ const MyUplines: React.FC<Props> = ({ uplines: initialUplines }) => {
                                         className="text-indigo-500"
                                     />
                                     <span className="font-semibold">
-                                        Upline Chain
+                                        {td("Upline Chain", { source: "en" })}
                                     </span>
                                 </div>
                             }
@@ -99,7 +101,7 @@ const MyUplines: React.FC<Props> = ({ uplines: initialUplines }) => {
                                                                 }
                                                             </Tag>
                                                         ) : (
-                                                            <Tag>Unranked</Tag>
+                                                            <Tag>{td("Unranked", { source: "en" })}</Tag>
                                                         )}
                                                     </div>
                                                 </div>
@@ -107,7 +109,7 @@ const MyUplines: React.FC<Props> = ({ uplines: initialUplines }) => {
                                         }))}
                                     />
                                 ) : (
-                                    <Empty description="You are a root agent — no uplines above you." />
+                                    <Empty description={td("You are a root agent — no uplines above you.", { source: "en" })} />
                                 )}
                             </Spin>
                         </Card>

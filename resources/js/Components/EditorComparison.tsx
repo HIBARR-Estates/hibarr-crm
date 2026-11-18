@@ -3,10 +3,12 @@ import { Form, Button, Input, Radio, Card, Space } from "antd";
 import { FileTextOutlined, CodeOutlined } from "@ant-design/icons";
 import HtmlEditor from "@/Components/HtmlEditor";
 import MarkdownEditor from "@/Components/MarkdownEditor";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type EditorType = "html" | "markdown";
 
 const EditorComparison = () => {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const [editorType, setEditorType] = useState<EditorType>("html");
 
@@ -51,7 +53,7 @@ console.log(code);
 
     return (
         <div className="max-w-4xl mx-auto p-6">
-            <Card title="HTML vs Markdown Editor Comparison">
+            <Card title={td("HTML vs Markdown Editor Comparison", { source: "en" })}>
                 <Form
                     form={form}
                     layout="vertical"
@@ -59,7 +61,7 @@ console.log(code);
                     className="space-y-4"
                 >
                     {/* Editor Type Selection */}
-                    <Form.Item label="Choose Editor Type">
+                    <Form.Item label={td("Choose Editor Type", { source: "en" })}>
                         <Radio.Group
                             value={editorType}
                             onChange={(e) =>
@@ -78,13 +80,13 @@ console.log(code);
 
                     {/* Title Field */}
                     <Form.Item
-                        label="Title"
+                        label={td("Title", { source: "en" })}
                         name="title"
                         rules={[
                             { required: true, message: "Please enter a title" },
                         ]}
                     >
-                        <Input placeholder="Enter title" />
+                        <Input placeholder={td("Enter title", { source: "en" })} />
                     </Form.Item>
 
                     {/* Dynamic Editor */}
@@ -120,12 +122,12 @@ console.log(code);
                     >
                         {editorType === "html" ? (
                             <HtmlEditor
-                                placeholder="Enter HTML content..."
+                                placeholder={td("Enter HTML content...", { source: "en" })}
                                 height={400}
                             />
                         ) : (
                             <MarkdownEditor
-                                placeholder="Enter markdown content..."
+                                placeholder={td("Enter markdown content...", { source: "en" })}
                                 height={400}
                                 preview="live"
                             />
@@ -147,39 +149,39 @@ console.log(code);
                                     console.log("Current values:", values);
                                 }}
                             >
-                                Get Current Values
+                                {td("Get Current Values", { source: "en" })}
                             </Button>
                         </Space>
                     </Form.Item>
                 </Form>
 
                 {/* Comparison Info */}
-                <Card title="Editor Comparison" className="mt-6" size="small">
+                <Card title={td("Editor Comparison", { source: "en" })} className="mt-6" size="small">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <h4 className="font-semibold text-blue-600">
-                                HTML Editor
+                                {td("HTML Editor", { source: "en" })}
                             </h4>
                             <ul className="text-sm space-y-1">
-                                <li>✅ WYSIWYG editing</li>
-                                <li>✅ Rich formatting options</li>
-                                <li>✅ Direct HTML output</li>
-                                <li>✅ Color picker</li>
-                                <li>✅ Image insertion</li>
-                                <li>❌ Learning curve for HTML</li>
+                                <li>{td("✅ WYSIWYG editing", { source: "en" })}</li>
+                                <li>{td("✅ Rich formatting options", { source: "en" })}</li>
+                                <li>{td("✅ Direct HTML output", { source: "en" })}</li>
+                                <li>{td("✅ Color picker", { source: "en" })}</li>
+                                <li>{td("✅ Image insertion", { source: "en" })}</li>
+                                <li>{td("❌ Learning curve for HTML", { source: "en" })}</li>
                             </ul>
                         </div>
                         <div>
                             <h4 className="font-semibold text-green-600">
-                                Markdown Editor
+                                {td("Markdown Editor", { source: "en" })}
                             </h4>
                             <ul className="text-sm space-y-1">
-                                <li>✅ Simple syntax</li>
-                                <li>✅ Live preview</li>
-                                <li>✅ Faster typing</li>
-                                <li>✅ Version control friendly</li>
-                                <li>✅ Code syntax highlighting</li>
-                                <li>❌ Limited formatting options</li>
+                                <li>{td("✅ Simple syntax", { source: "en" })}</li>
+                                <li>{td("✅ Live preview", { source: "en" })}</li>
+                                <li>{td("✅ Faster typing", { source: "en" })}</li>
+                                <li>{td("✅ Version control friendly", { source: "en" })}</li>
+                                <li>{td("✅ Code syntax highlighting", { source: "en" })}</li>
+                                <li>{td("❌ Limited formatting options", { source: "en" })}</li>
                             </ul>
                         </div>
                     </div>

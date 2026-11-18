@@ -5,6 +5,7 @@ import type { FormInstance } from "antd/lib/form";
 import type { PrimaryCategory } from "@/Types";
 import FileUploader from "@/Components/FileUploader/FileUploader";
 import type { IUploadResponseItem } from "@/Types/uploads";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -44,6 +45,7 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
     form,
     primaryCategory,
 }) => {
+    const { td } = useTd();
     const handleUploadSuccess = (
         key: string,
         response: IUploadResponseItem | IUploadResponseItem[],
@@ -70,8 +72,7 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
     return (
         <div>
             <Text type="secondary" className="text-sm block mb-4">
-                Upload required documents for this land listing. Check each item
-                and attach the corresponding file(s).
+                {td("Upload required documents for this land listing. Check each item and attach the corresponding file(s).", { source: "en" })}
             </Text>
 
             {DOCUMENT_TYPES.map(({ key, label }) => (
@@ -108,6 +109,7 @@ const DocumentRow: React.FC<{
         response: IUploadResponseItem | IUploadResponseItem[],
     ) => void;
 }> = ({ docKey, label, form, onUploadSuccess }) => {
+    const { td } = useTd();
     // Watch the stored URLs (may be string or string[])
     const rawValue = Form.useWatch(["documents_checklist", docKey], form);
     const urls: string[] = Array.isArray(rawValue)
@@ -178,7 +180,7 @@ const DocumentRow: React.FC<{
                                             >
                                                 {getFileName(url)}
                                             </a>
-                                            <Tooltip title="Remove file">
+                                            <Tooltip title={td("Remove file", { source: "en" })}>
                                                 <Button
                                                     type="text"
                                                     size="small"

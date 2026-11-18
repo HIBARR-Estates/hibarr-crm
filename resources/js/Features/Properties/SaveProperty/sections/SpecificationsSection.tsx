@@ -11,6 +11,7 @@ import {
     BUILDING_AGE_OPTIONS,
 } from "../fieldConfig";
 import { useFormOptions } from "../useFormOptions";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -31,6 +32,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
     enumValues,
     lockedFields = new Set<string>(),
 }) => {
+    const { td } = useTd();
     const fields = SPECIFICATION_FIELDS[primaryCategory];
     const { furnitureStatusOptions, heatingTypeOptions } = useFormOptions(
         enumValues,
@@ -86,7 +88,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
             {/* Gross land/building area */}
             {fields.grossArea && (
                 <Col xs={12} md={8}>
-                    <Form.Item name="gross_sqm" label="Gross Area (m²)">
+                    <Form.Item name="gross_sqm" label={td("Gross Area (m²)", { source: "en" })}>
                         <InputNumber
                             placeholder="0"
                             min={0}
@@ -103,7 +105,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
                 <Col xs={12} md={8}>
                     <Form.Item
                         name="living_area_sqm"
-                        label="Usable Internal Area (m²)"
+                        label={td("Usable Internal Area (m²)", { source: "en" })}
                     >
                         <InputNumber
                             placeholder="0"
@@ -120,7 +122,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
             {fields.plotSize && (
                 <>
                     <Col xs={12} md={8}>
-                        <Form.Item name="land_size" label="Plot Size (m²)">
+                        <Form.Item name="land_size" label={td("Plot Size (m²)", { source: "en" })}>
                             <InputNumber
                                 placeholder="0"
                                 min={0}
@@ -134,7 +136,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
                     <Col xs={12} md={8}>
                         <Form.Item
                             name="land_size_donum"
-                            label="Plot Size (Dönüm)"
+                            label={td("Plot Size (Dönüm)", { source: "en" })}
                         >
                             <InputNumber
                                 placeholder="0"
@@ -157,8 +159,8 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
             {/* Bedrooms */}
             {fields.bedrooms && !isStudio && (
                 <Col xs={12} md={6}>
-                    <Form.Item name="bedrooms" label="Bedrooms">
-                        <Select placeholder="Select" disabled={lockedFields.has('bedrooms')}>
+                    <Form.Item name="bedrooms" label={td("Bedrooms", { source: "en" })}>
+                        <Select placeholder={td("Select", { source: "en" })} disabled={lockedFields.has('bedrooms')}>
                             {BEDROOM_OPTIONS.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
@@ -172,8 +174,8 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
             {/* Bathrooms */}
             {fields.bathrooms && (
                 <Col xs={12} md={6}>
-                    <Form.Item name="bathrooms" label="Bathrooms">
-                        <Select placeholder="Select" disabled={lockedFields.has('bathrooms')}>
+                    <Form.Item name="bathrooms" label={td("Bathrooms", { source: "en" })}>
+                        <Select placeholder={td("Select", { source: "en" })} disabled={lockedFields.has('bathrooms')}>
                             {BATHROOM_OPTIONS.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
@@ -187,7 +189,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
             {/* Living rooms */}
             {fields.livingRoom && !isStudio && (
                 <Col xs={12} md={6}>
-                    <Form.Item name="living_room" label="Living Rooms">
+                    <Form.Item name="living_room" label={td("Living Rooms", { source: "en" })}>
                         <InputNumber
                             placeholder="0"
                             min={0}
@@ -201,7 +203,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
             {/* Rooms */}
             {fields.rooms && (
                 <Col xs={12} md={6}>
-                    <Form.Item name="rooms" label="Total Rooms">
+                    <Form.Item name="rooms" label={td("Total Rooms", { source: "en" })}>
                         <InputNumber
                             placeholder="0"
                             min={0}
@@ -214,8 +216,8 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
             {/* Floor */}
             {fields.floorNumber && (
                 <Col xs={12} md={6}>
-                    <Form.Item name="floor_number" label="Floor">
-                        <Select placeholder="Select" allowClear disabled={lockedFields.has('floor_number')}>
+                    <Form.Item name="floor_number" label={td("Floor", { source: "en" })}>
+                        <Select placeholder={td("Select", { source: "en" })} allowClear disabled={lockedFields.has('floor_number')}>
                             {FLOOR_OPTIONS.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
@@ -231,9 +233,9 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
                 <Col xs={12} md={6}>
                     <Form.Item
                         name="floors_in_building"
-                        label="Floors in Building"
+                        label={td("Floors in Building", { source: "en" })}
                     >
-                        <Select placeholder="Select" allowClear disabled={lockedFields.has('floors_in_building')}>
+                        <Select placeholder={td("Select", { source: "en" })} allowClear disabled={lockedFields.has('floors_in_building')}>
                             {FLOORS_IN_BUILDING_OPTIONS.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
@@ -247,8 +249,8 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
             {/* Building age */}
             {fields.buildingAge && (
                 <Col xs={12} md={6}>
-                    <Form.Item name="building_age" label="Building Age">
-                        <Select placeholder="Select" allowClear>
+                    <Form.Item name="building_age" label={td("Building Age", { source: "en" })}>
+                        <Select placeholder={td("Select", { source: "en" })} allowClear>
                             {BUILDING_AGE_OPTIONS.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
@@ -264,7 +266,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
                 <Col xs={12} md={6}>
                     <Form.Item
                         name="balcony_net_sqm"
-                        label="Terrace/Balcony (m²)"
+                        label={td("Terrace/Balcony (m²)", { source: "en" })}
                     >
                         <InputNumber
                             placeholder="0"
@@ -282,7 +284,7 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
                 <Col xs={12} md={6}>
                     <Form.Item
                         name="_has_elevator"
-                        label="Elevator"
+                        label={td("Elevator", { source: "en" })}
                         valuePropName="checked"
                     >
                         <Switch checkedChildren="Yes" unCheckedChildren="No" />
@@ -293,8 +295,8 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
             {/* Furniture status */}
             {fields.furnitureStatus && (
                 <Col xs={12} md={8}>
-                    <Form.Item name="furniture_status" label="Furniture Status">
-                        <Select placeholder="Select" allowClear disabled={lockedFields.has('furniture_status')}>
+                    <Form.Item name="furniture_status" label={td("Furniture Status", { source: "en" })}>
+                        <Select placeholder={td("Select", { source: "en" })} allowClear disabled={lockedFields.has('furniture_status')}>
                             {furnitureStatusOptions.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}
@@ -308,8 +310,8 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
             {/* Heating type */}
             {fields.heatingType && (
                 <Col xs={12} md={8}>
-                    <Form.Item name="heating_type" label="Heating Type">
-                        <Select placeholder="Select" allowClear>
+                    <Form.Item name="heating_type" label={td("Heating Type", { source: "en" })}>
+                        <Select placeholder={td("Select", { source: "en" })} allowClear>
                             {heatingTypeOptions.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}

@@ -38,6 +38,7 @@ import {
     generatePropertySubtitle,
     storedPriceCurrency,
 } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Paragraph } = Typography;
 
@@ -105,6 +106,7 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
     projectName,
     priceListItem,
 }) => {
+    const { td } = useTd();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
     const [form] = Form.useForm();
@@ -227,7 +229,7 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
 
     const handleGenerateExpose = async () => {
         if (selectedPropertyIds.length === 0) {
-            message.warning("Please select at least one property");
+            message.warning(td("Please select at least one property", { source: "en" }));
             return;
         }
 
@@ -271,11 +273,11 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
             document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
 
-            message.success("Expose generated successfully!");
+            message.success(td("Expose generated successfully!", { source: "en" }));
             onClose();
         } catch (error: any) {
             console.error("Failed to generate expose:", error);
-            message.error("Failed to generate expose. Please try again.");
+            message.error(td("Failed to generate expose. Please try again.", { source: "en" }));
             setFlowStep("property-select");
         } finally {
             setLoading(false);
@@ -293,18 +295,17 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                     <SearchOutlined className="text-2xl text-blue-500" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                    Find a Lead / Client
+                    {td("Find a Lead / Client", { source: "en" })}
                 </h3>
                 <p className="text-gray-500 max-w-md mx-auto">
-                    Search for an existing lead by name, email, or company. The
-                    expose will be personalized for this client.
+                    {td("Search for an existing lead by name, email, or company. The expose will be personalized for this client.", { source: "en" })}
                 </p>
             </div>
 
             <div className="max-w-md mx-auto mb-8">
                 <FormDataSelector
                     type="leads"
-                    placeholder="Search by name, email, or company..."
+                    placeholder={td("Search by name, email, or company...", { source: "en" })}
                     className="w-full"
                     onSelect={(_, entity) => handleSelectLead(entity)}
                 />
@@ -321,7 +322,7 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                     onClick={handleCreateNewLead}
                     className="px-8"
                 >
-                    Create New Lead
+                    {td("Create New Lead", { source: "en" })}
                 </Button>
             </div>
         </div>
@@ -376,7 +377,7 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                         onClick={handleChangeLead}
                         className="text-blue-600 hover:text-blue-800"
                     >
-                        Change Lead
+                        {td("Change Lead", { source: "en" })}
                     </Button>
                 </div>
             </div>
@@ -384,7 +385,7 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
             {/* Continue Button */}
             <div className="flex justify-end">
                 <Button type="primary" onClick={handleContinueToProperties}>
-                    Continue to Select Properties
+                    {td("Continue to Select Properties", { source: "en" })}
                 </Button>
             </div>
         </div>
@@ -405,14 +406,14 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                     onClick={handleBackToSearch}
                     className="text-gray-500 hover:text-gray-700 -ml-2"
                 >
-                    Back to Search
+                    {td("Back to Search", { source: "en" })}
                 </Button>
             </div>
 
             {/* Lead Type Selection */}
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
                 <div className="text-sm font-medium text-gray-700 mb-3">
-                    What type of lead is this?
+                    {td("What type of lead is this?", { source: "en" })}
                 </div>
                 <Radio.Group
                     value={leadType}
@@ -438,18 +439,18 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                     <Col span={12}>
                         <Form.Item
                             name="name"
-                            label="Name"
+                            label={td("Name", { source: "en" })}
                             rules={[
                                 { required: true, message: "Name is required" },
                             ]}
                         >
-                            <Input placeholder="Enter full name" />
+                            <Input placeholder={td("Enter full name", { source: "en" })} />
                         </Form.Item>
                     </Col>
                     <Col span={12}>
                         <Form.Item
                             name="email"
-                            label="Email"
+                            label={td("Email", { source: "en" })}
                             rules={[
                                 {
                                     type: "email",
@@ -457,17 +458,17 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                                 },
                             ]}
                         >
-                            <Input placeholder="email@example.com" />
+                            <Input placeholder={td("email@example.com", { source: "en" })} />
                         </Form.Item>
                     </Col>
                 </Row>
 
                 <Row gutter={16}>
                     <Col span={12}>
-                        <Form.Item name="phone" label="Phone">
+                        <Form.Item name="phone" label={td("Phone", { source: "en" })}>
                             <PhoneInput
                                 enableSearch
-                                placeholder="Phone number"
+                                placeholder={td("Phone number", { source: "en" })}
                             />
                         </Form.Item>
                     </Col>
@@ -475,7 +476,7 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                         <Col span={12}>
                             <Form.Item
                                 name="company_name"
-                                label="Company / Agency Name"
+                                label={td("Company / Agency Name", { source: "en" })}
                                 rules={[
                                     {
                                         required: true,
@@ -484,7 +485,7 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                                     },
                                 ]}
                             >
-                                <Input placeholder="Company or agency name" />
+                                <Input placeholder={td("Company or agency name", { source: "en" })} />
                             </Form.Item>
                         </Col>
                     )}
@@ -496,7 +497,7 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
             {/* Submit */}
             <div className="flex justify-end">
                 <Button type="primary" htmlType="submit">
-                    Continue to Select Properties
+                    {td("Continue to Select Properties", { source: "en" })}
                 </Button>
             </div>
         </Form>
@@ -562,7 +563,7 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                         onClick={handleBackToLead}
                         className="text-gray-500 hover:text-gray-700 -ml-2"
                     >
-                        Back to Lead Selection
+                        {td("Back to Lead Selection", { source: "en" })}
                     </Button>
                 </div>
 
@@ -605,7 +606,7 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
 
                 {/* Generate Button */}
                 <div className="flex justify-end gap-3">
-                    <Button onClick={onClose}>Cancel</Button>
+                    <Button onClick={onClose}>{td("Cancel", { source: "en" })}</Button>
                     <Button
                         type="primary"
                         icon={<FilePdfOutlined />}
@@ -624,12 +625,11 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
         <div className="py-12 text-center">
             <Spin size="large" />
             <div className="mt-4">
-                <Text>Generating your expose PDF...</Text>
+                <Text>{td("Generating your expose PDF...", { source: "en" })}</Text>
             </div>
             <div className="mt-2">
                 <Text type="secondary">
-                    This may take a moment depending on the number of
-                    properties.
+                    {td("This may take a moment depending on the number of properties.", { source: "en" })}
                 </Text>
             </div>
         </div>

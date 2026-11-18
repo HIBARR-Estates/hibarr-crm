@@ -6,6 +6,7 @@ import dayjs from "dayjs";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 import EditableField from "@/Components/EditableField";
 import { DetailSection, DetailField } from "@/Components/DetailSection";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     deal: Deal;
@@ -34,6 +35,7 @@ const DealDetailsTab: React.FC<Props> = ({
     onToggleSection,
     isFieldVisible,
 }) => {
+    const { td } = useTd();
     const fields: Partial<HibarrDealFields> = deal.hibarr_fields || {};
 
     const show = (fieldKey: string) => isFieldVisible?.(fieldKey) ?? true;
@@ -52,11 +54,11 @@ const DealDetailsTab: React.FC<Props> = ({
     const renderBoolean = (value: boolean | undefined) => {
         return value ? (
             <Tag color="success" icon={<CheckCircleOutlined />}>
-                Yes
+                {td("Yes", { source: "en" })}
             </Tag>
         ) : (
             <Tag color="default" icon={<CloseCircleOutlined />}>
-                No
+                {td("No", { source: "en" })}
             </Tag>
         );
     };
@@ -86,14 +88,14 @@ const DealDetailsTab: React.FC<Props> = ({
         <div className="p-4 space-y-4">
             {interestBudgetFields && (
                 <DetailSection
-                    title="Interest & Budget"
+                    title={td("Interest & Budget", { source: "en" })}
                     accordion
                     sectionId="deal-interest-budget"
                     isOpen={openSections["deal-interest-budget"] ?? false}
                     onToggle={() => onToggleSection?.("deal-interest-budget")}
                 >
                     {show("interested_in") && (
-                        <DetailField label="Interested In">
+                        <DetailField label={td("Interested In", { source: "en" })}>
                             <EditableField
                                 value={fields.interested_in}
                                 fieldName="interested_in"
@@ -110,7 +112,7 @@ const DealDetailsTab: React.FC<Props> = ({
                     )}
 
                     {show("budget_range") && (
-                        <DetailField label="Budget Range">
+                        <DetailField label={td("Budget Range", { source: "en" })}>
                             <EditableField
                                 value={fields.budget_range}
                                 fieldName="budget_range"
@@ -127,7 +129,7 @@ const DealDetailsTab: React.FC<Props> = ({
                     )}
 
                     {show("purchase_timeline") && (
-                        <DetailField label="Purchase Timeline">
+                        <DetailField label={td("Purchase Timeline", { source: "en" })}>
                             <EditableField
                                 value={fields.purchase_timeline}
                                 fieldName="purchase_timeline"
@@ -144,7 +146,7 @@ const DealDetailsTab: React.FC<Props> = ({
                     )}
 
                     {show("motivation") && (
-                        <DetailField label="Motivation" span={2}>
+                        <DetailField label={td("Motivation", { source: "en" })} span={2}>
                             <EditableField
                                 value={fields.motivation}
                                 fieldName="motivation"
@@ -164,14 +166,14 @@ const DealDetailsTab: React.FC<Props> = ({
 
             {progressFields && (
                 <DetailSection
-                    title="Progress"
+                    title={td("Progress", { source: "en" })}
                     accordion
                     sectionId="deal-progress"
                     isOpen={openSections["deal-progress"] ?? false}
                     onToggle={() => onToggleSection?.("deal-progress")}
                 >
                     {show("strategy_meeting_booked") && (
-                        <DetailField label="Strategy Meeting Booked">
+                        <DetailField label={td("Strategy Meeting Booked", { source: "en" })}>
                             <EditableField
                                 value={
                                     fields.strategy_meeting_booked ? 1 : 0
@@ -198,7 +200,7 @@ const DealDetailsTab: React.FC<Props> = ({
                     )}
 
                     {show("downpayment_paid") && (
-                        <DetailField label="Downpayment Paid">
+                        <DetailField label={td("Downpayment Paid", { source: "en" })}>
                             <EditableField
                                 value={fields.downpayment_paid ? 1 : 0}
                                 fieldName="downpayment_paid"
@@ -218,7 +220,7 @@ const DealDetailsTab: React.FC<Props> = ({
                     )}
 
                     {show("inspection_trip_date") && (
-                        <DetailField label="Inspection Trip Date">
+                        <DetailField label={td("Inspection Trip Date", { source: "en" })}>
                             <EditableField
                                 value={fields.inspection_trip_date}
                                 fieldName="inspection_trip_date"
@@ -244,14 +246,14 @@ const DealDetailsTab: React.FC<Props> = ({
 
             {documentationFields && (
                 <DetailSection
-                    title="Documentation"
+                    title={td("Documentation", { source: "en" })}
                     accordion
                     sectionId="deal-documentation"
                     isOpen={openSections["deal-documentation"] ?? false}
                     onToggle={() => onToggleSection?.("deal-documentation")}
                 >
                     {show("deposit_confirmation") && (
-                        <DetailField label="Deposit Confirmation">
+                        <DetailField label={td("Deposit Confirmation", { source: "en" })}>
                             <EditableField
                                 value={fields.deposit_confirmation}
                                 fieldName="deposit_confirmation"
@@ -268,7 +270,7 @@ const DealDetailsTab: React.FC<Props> = ({
                     )}
 
                     {show("reservation_agreement") && (
-                        <DetailField label="Reservation Agreement">
+                        <DetailField label={td("Reservation Agreement", { source: "en" })}>
                             <EditableField
                                 value={fields.reservation_agreement}
                                 fieldName="reservation_agreement"
@@ -285,7 +287,7 @@ const DealDetailsTab: React.FC<Props> = ({
                     )}
 
                     {show("sales_contract") && (
-                        <DetailField label="Sales Contract">
+                        <DetailField label={td("Sales Contract", { source: "en" })}>
                             <EditableField
                                 value={fields.sales_contract}
                                 fieldName="sales_contract"
@@ -305,7 +307,7 @@ const DealDetailsTab: React.FC<Props> = ({
 
             {notesFields && (
                 <DetailSection
-                    title="Notes"
+                    title={td("Notes", { source: "en" })}
                     gridClassName="grid grid-cols-1"
                     accordion
                     sectionId="deal-notes"
@@ -313,7 +315,7 @@ const DealDetailsTab: React.FC<Props> = ({
                     onToggle={() => onToggleSection?.("deal-notes")}
                 >
                     {show("message") && (
-                        <DetailField label="Message" span={2}>
+                        <DetailField label={td("Message", { source: "en" })} span={2}>
                             <EditableField
                                 value={fields.message}
                                 fieldName="message"

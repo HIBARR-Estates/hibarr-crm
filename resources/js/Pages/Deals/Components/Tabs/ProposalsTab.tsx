@@ -34,6 +34,7 @@ import { usePage } from "@inertiajs/react";
 import AddProposal from "./proposals/AddProposal";
 import EditProposal from "./proposals/EditProposal";
 import DeleteProposal from "./proposals/DeleteProposal";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     deal: Deal;
@@ -42,6 +43,7 @@ interface Props {
 }
 
 export default function ProposalsTab({ deal, proposals, permissions }: Props) {
+    const { td } = useTd();
     const { props } = usePage();
     const user = props.auth.user;
 
@@ -75,7 +77,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
             })
             .catch((error) => {
                 console.error("Error sending proposal:", error);
-                message.error("Failed to send proposal");
+                message.error(td("Failed to send proposal", { source: "en" }));
             });
     };
 
@@ -95,15 +97,15 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
             .then((response) => response.json())
             .then((data) => {
                 if (data.status === "success") {
-                    message.success("Proposal marked as sent");
+                    message.success(td("Proposal marked as sent", { source: "en" }));
                     window.location.reload();
                 } else {
-                    message.error("Failed to mark proposal as sent");
+                    message.error(td("Failed to mark proposal as sent", { source: "en" }));
                 }
             })
             .catch((error) => {
                 console.error("Error marking proposal as sent:", error);
-                message.error("Failed to mark proposal as sent");
+                message.error(td("Failed to mark proposal as sent", { source: "en" }));
             });
     };
 
@@ -230,7 +232,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                             : status}
                     </Tag>
                     {!record.send_status && (
-                        <Badge status="default" text="Not Sent" />
+                        <Badge status="default" text={td("Not Sent", { source: "en" })} />
                     )}
                 </Space>
             ),
@@ -401,7 +403,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                         description={
                             <div className="text-center">
                                 <p className="text-gray-500 mb-2">
-                                    No proposals found
+                                    {td("No proposals found", { source: "en" })}
                                 </p>
 
                                 {(permissions.add_lead_proposals === "all" ||
@@ -414,7 +416,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                                         trigger="custom"
                                     >
                                         <Button type="primary">
-                                            Create Proposal
+                                            {td("Create Proposal", { source: "en" })}
                                         </Button>
                                     </AddProposal>
                                 )}
@@ -431,7 +433,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                                 Proposals ({proposals.length})
                             </h3>
                             <p className="text-sm text-gray-500">
-                                Manage and track deal proposals
+                                {td("Manage and track deal proposals", { source: "en" })}
                             </p>
                         </div>
                         {(permissions.add_lead_proposals === "all" ||
@@ -446,7 +448,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                                     type="primary"
                                     icon={<FileTextOutlined />}
                                 >
-                                    Add Proposal
+                                    {td("Add Proposal", { source: "en" })}
                                 </Button>
                             </AddProposal>
                         )}

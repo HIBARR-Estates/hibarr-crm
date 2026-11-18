@@ -3,6 +3,7 @@ import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { LaravelPaginationMeta } from "./types";
 import { buildPageRange } from "./utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 /** Includes 15 to match Laravel's common paginate() default. */
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 15, 25, 50, 100] as const;
@@ -26,6 +27,7 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
     pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS as unknown as number[],
     className = "",
 }) => {
+    const { td } = useTd();
     const { current_page, last_page, per_page, total, from, to } = meta;
     const selectId = useId();
 
@@ -71,7 +73,7 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
                             htmlFor={selectId}
                             className="whitespace-nowrap select-none"
                         >
-                            Rows per page
+                            {td("Rows per page", { source: "en" })}
                         </label>
                         <select
                             id={selectId}
@@ -95,7 +97,7 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
             {/* Right — page navigation controls */}
             <nav
                 role="navigation"
-                aria-label="Pagination"
+                aria-label={td("Pagination", { source: "en" })}
                 className="flex items-center gap-1"
             >
                 <span
@@ -115,7 +117,7 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
                     type="button"
                     onClick={() => hasPrev && onPageChange(current_page - 1)}
                     disabled={!hasPrev}
-                    aria-label="Previous page"
+                    aria-label={td("Previous page", { source: "en" })}
                     className={`${NAV_BTN_BASE} bg-white hover:bg-[#f5f6f8] hover:border-[#c7d0de] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white`}
                     style={{ color: T.TEXT_MUTED, borderColor: T.BORDER }}
                 >
@@ -165,7 +167,7 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
                     type="button"
                     onClick={() => hasNext && onPageChange(current_page + 1)}
                     disabled={!hasNext}
-                    aria-label="Next page"
+                    aria-label={td("Next page", { source: "en" })}
                     className={`${NAV_BTN_BASE} bg-white hover:bg-[#f5f6f8] hover:border-[#c7d0de] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white`}
                     style={{ color: T.TEXT_MUTED, borderColor: T.BORDER }}
                 >

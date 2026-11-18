@@ -4,10 +4,12 @@ import { IModalProps } from "@/Types/common";
 import { router } from "@inertiajs/react";
 import { message } from "antd";
 import React, { useState } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type Props = IModalProps;
 
 const ExportProperties: React.FC<Props> = ({ open, onClose }) => {
+    const { td } = useTd();
     const [exportLoading, setExportLoading] = useState(false);
     // Import handler
     // Export handler
@@ -55,7 +57,7 @@ const ExportProperties: React.FC<Props> = ({ open, onClose }) => {
         setTimeout(() => {
             setExportLoading(false);
             onClose();
-            message.success("Export started successfully");
+            message.success(td("Export started successfully", { source: "en" }));
         }, 1000);
     };
     return (
@@ -64,8 +66,8 @@ const ExportProperties: React.FC<Props> = ({ open, onClose }) => {
             onClose={onClose}
             onExport={handleExport}
             loading={exportLoading}
-            title="Export Properties"
-            description="Configure filters and export property data to Excel format."
+            title={td("Export Properties", { source: "en" })}
+            description={td("Configure filters and export property data to Excel format.", { source: "en" })}
         />
     );
 };

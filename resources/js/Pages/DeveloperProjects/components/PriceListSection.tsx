@@ -4,6 +4,7 @@ import { DataTable } from "@/Components/DataTable";
 import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
 import type { UnitTypePriceListItem } from "../Show";
 import { snakeToReadable } from "../../../lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -17,6 +18,7 @@ const CURRENCY_LOCALE: Record<string, string> = {
 const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
     priceList,
 }) => {
+    const { td } = useTd();
     const formatPrice = (price: number | null, currency = "GBP") => {
         if (!price) return "-";
         return new Intl.NumberFormat(CURRENCY_LOCALE[currency] ?? "en-GB", {
@@ -28,14 +30,14 @@ const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
 
     if (priceList.length === 0) {
         return (
-            <Card title="Price List">
-                <Empty description="No unit types with pricing found" />
+            <Card title={td("Price List", { source: "en" })}>
+                <Empty description={td("No unit types with pricing found", { source: "en" })} />
             </Card>
         );
     }
 
     return (
-        <Card title="Price List by Property Type">
+        <Card title={td("Price List by Property Type", { source: "en" })}>
             <Tabs
                 items={priceList.map((item) => ({
                     key: item.type,
@@ -48,7 +50,7 @@ const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
                         <div>
                             <div className="mb-4 p-4 bg-gray-50 rounded-lg flex items-center gap-4">
                                 <div>
-                                    <Text strong>Price Range: </Text>
+                                    <Text strong>{td("Price Range:", { source: "en" })} </Text>
                                     {item.min_price === item.max_price ? (
                                         formatPrice(
                                             item.min_price,

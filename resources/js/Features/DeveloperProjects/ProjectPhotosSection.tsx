@@ -38,6 +38,7 @@ import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import { usePermission } from "@/lib/permissionUtils";
 import { compressImagesForUpload } from "@/lib/compressImageForUpload";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Title } = Typography;
 
@@ -144,6 +145,7 @@ interface ProjectPhotosSectionProps {
 const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
     projectId,
 }) => {
+    const { td } = useTd();
     const { message: messageApi } = App.useApp();
     const { hasPermission } = usePermission();
     const canEdit = hasPermission("edit_developer_projects");
@@ -657,7 +659,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
     if (imageAssets.length === 0) {
         return (
             <Card
-                title="Project Photos"
+                title={td("Project Photos", { source: "en" })}
                 extra={
                     canEdit ? (
                         <Button
@@ -665,7 +667,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                             icon={<UploadOutlined />}
                             onClick={() => setIsUploadModalOpen(true)}
                         >
-                            Upload Photos
+                            {td("Upload Photos", { source: "en" })}
                         </Button>
                     ) : null
                 }
@@ -673,7 +675,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                 {deleteContextHolder}
                 <Empty
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description="No photos uploaded yet"
+                    description={td("No photos uploaded yet", { source: "en" })}
                     className="my-8"
                 >
                     {canEdit && (
@@ -682,7 +684,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                             icon={<UploadOutlined />}
                             onClick={() => setIsUploadModalOpen(true)}
                         >
-                            Upload Your First Photo
+                            {td("Upload Your First Photo", { source: "en" })}
                         </Button>
                     )}
                 </Empty>
@@ -695,7 +697,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
     function renderUploadModal() {
         return (
             <Modal
-                title="Upload Photos"
+                title={td("Upload Photos", { source: "en" })}
                 open={isUploadModalOpen}
                 onCancel={() => {
                     if (!isUploading) {
@@ -712,7 +714,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                         onClick={() => setIsUploadModalOpen(false)}
                         disabled={isUploading || isSavingToBackend}
                     >
-                        Cancel
+                        {td("Cancel", { source: "en" })}
                     </Button>,
                     <Button
                         key="upload"
@@ -733,10 +735,10 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
             >
                 {/* Tag selector */}
                 <div className="mb-4">
-                    <Text className="text-sm block mb-1">Tags (optional)</Text>
+                    <Text className="text-sm block mb-1">{td("Tags (optional)", { source: "en" })}</Text>
                     <Select
                         mode="multiple"
-                        placeholder="Select tags to apply to all photos"
+                        placeholder={td("Select tags to apply to all photos", { source: "en" })}
                         options={TAG_OPTIONS}
                         value={selectedTags}
                         onChange={setSelectedTags}
@@ -759,11 +761,10 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                             <CameraOutlined style={{ fontSize: 36 }} />
                         </p>
                         <p className="ant-upload-text">
-                            Click or drag photos here
+                            {td("Click or drag photos here", { source: "en" })}
                         </p>
                         <p className="ant-upload-hint text-xs">
-                            JPG, PNG, GIF, WebP — up to 50 MB each. Large images
-                            are auto-resized for the web.
+                            {td("JPG, PNG, GIF, WebP — up to 50 MB each. Large images are auto-resized for the web.", { source: "en" })}
                         </p>
                     </Upload.Dragger>
                 ) : (
@@ -823,7 +824,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                         onClick={() => setIsTagModalOpen(false)}
                         disabled={isBulkUpdating}
                     >
-                        Cancel
+                        {td("Cancel", { source: "en" })}
                     </Button>,
                     <Button
                         key="apply"
@@ -832,22 +833,22 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                         loading={isBulkUpdating}
                         disabled={bulkTags.length === 0}
                     >
-                        Apply Tags
+                        {td("Apply Tags", { source: "en" })}
                     </Button>,
                 ]}
                 maskClosable={!isBulkUpdating}
             >
                 <div className="mb-4">
                     <Text className="text-sm block mb-1 font-medium">
-                        Action
+                        {td("Action", { source: "en" })}
                     </Text>
                     <Radio.Group
                         value={bulkTagAction}
                         onChange={(e) => setBulkTagAction(e.target.value)}
                     >
-                        <Radio value="add">Add tags</Radio>
-                        <Radio value="remove">Remove tags</Radio>
-                        <Radio value="replace">Replace all tags</Radio>
+                        <Radio value="add">{td("Add tags", { source: "en" })}</Radio>
+                        <Radio value="remove">{td("Remove tags", { source: "en" })}</Radio>
+                        <Radio value="replace">{td("Replace all tags", { source: "en" })}</Radio>
                     </Radio.Group>
                     <div className="mt-1">
                         <Text type="secondary" className="text-xs">
@@ -862,10 +863,10 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                 </div>
 
                 <div>
-                    <Text className="text-sm block mb-1 font-medium">Tags</Text>
+                    <Text className="text-sm block mb-1 font-medium">{td("Tags", { source: "en" })}</Text>
                     <Select
                         mode="multiple"
-                        placeholder="Select tags"
+                        placeholder={td("Select tags", { source: "en" })}
                         options={TAG_OPTIONS}
                         value={bulkTags}
                         onChange={setBulkTags}
@@ -919,15 +920,15 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                                 icon={<EditOutlined />}
                                 onClick={() => setIsSelecting(true)}
                             >
-                                Select
+                                {td("Select", { source: "en" })}
                             </Button>
                         ) : (
                             <>
                                 <Button size="small" onClick={selectAllVisible}>
-                                    Select All
+                                    {td("Select All", { source: "en" })}
                                 </Button>
                                 <Button size="small" onClick={deselectAll}>
-                                    Deselect
+                                    {td("Deselect", { source: "en" })}
                                 </Button>
                                 <Button
                                     size="small"
@@ -951,7 +952,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                                     size="small"
                                     onClick={exitSelectionMode}
                                 >
-                                    Cancel
+                                    {td("Cancel", { source: "en" })}
                                 </Button>
                             </>
                         ))}
@@ -961,7 +962,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                             icon={<UploadOutlined />}
                             onClick={() => setIsUploadModalOpen(true)}
                         >
-                            Upload Photos
+                            {td("Upload Photos", { source: "en" })}
                         </Button>
                     )}
                 </Space>
@@ -1017,7 +1018,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                     {Object.keys(assetsByTag).length === 0 && (
                         <Empty
                             image={Empty.PRESENTED_IMAGE_SIMPLE}
-                            description="No photos uploaded yet"
+                            description={td("No photos uploaded yet", { source: "en" })}
                         />
                     )}
                 </div>

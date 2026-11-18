@@ -14,6 +14,7 @@ import {
     Drawer,
 } from "antd";
 import { DownloadOutlined, FilterOutlined } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
@@ -74,6 +75,7 @@ export default function ExportModal({
     title = "Export Properties",
     description = "Configure export filters and download property data",
 }: ExportModalProps) {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const [filters, setFilters] = useState<ExportFilters>({});
 
@@ -101,7 +103,7 @@ export default function ExportModal({
 
             onExport(exportFilters);
         } catch (error) {
-            message.error("Please check your input and try again");
+            message.error(td("Please check your input and try again", { source: "en" }));
         }
     };
 
@@ -123,16 +125,16 @@ export default function ExportModal({
             width={600}
             footer={
                 <div className="flex justify-between">
-                    <Button onClick={handleReset}>Reset Filters</Button>
+                    <Button onClick={handleReset}>{td("Reset Filters", { source: "en" })}</Button>
                     <Space>
-                        <Button onClick={onClose}>Cancel</Button>
+                        <Button onClick={onClose}>{td("Cancel", { source: "en" })}</Button>
                         <Button
                             type="primary"
                             icon={<DownloadOutlined />}
                             onClick={handleExport}
                             loading={loading}
                         >
-                            Export Data
+                            {td("Export Data", { source: "en" })}
                         </Button>
                     </Space>
                 </div>
@@ -153,9 +155,9 @@ export default function ExportModal({
 
                 <Row gutter={16}>
                     <Col span={12}>
-                        <Form.Item label="Property Type" name="property_type">
+                        <Form.Item label={td("Property Type", { source: "en" })} name="property_type">
                             <Select
-                                placeholder="Select property type"
+                                placeholder={td("Select property type", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
@@ -169,8 +171,8 @@ export default function ExportModal({
                         </Form.Item>
                     </Col>
                     <Col span={12}>
-                        <Form.Item label="Sale Type" name="sale_type">
-                            <Select placeholder="Select sale type" allowClear>
+                        <Form.Item label={td("Sale Type", { source: "en" })} name="sale_type">
+                            <Select placeholder={td("Select sale type", { source: "en" })} allowClear>
                                 {saleTypes.map((type) => (
                                     <Option key={type} value={type}>
                                         {type}
@@ -183,8 +185,8 @@ export default function ExportModal({
 
                 <Row gutter={16}>
                     <Col span={12}>
-                        <Form.Item label="Status" name="status">
-                            <Select placeholder="Select status" allowClear>
+                        <Form.Item label={td("Status", { source: "en" })} name="status">
+                            <Select placeholder={td("Select status", { source: "en" })} allowClear>
                                 {statusOptions.map((status) => (
                                     <Option key={status} value={status}>
                                         {status}
@@ -194,18 +196,18 @@ export default function ExportModal({
                         </Form.Item>
                     </Col>
                     <Col span={12}>
-                        <Form.Item label="City" name="city">
-                            <Input placeholder="Enter city name" allowClear />
+                        <Form.Item label={td("City", { source: "en" })} name="city">
+                            <Input placeholder={td("Enter city name", { source: "en" })} allowClear />
                         </Form.Item>
                     </Col>
                 </Row>
 
                 {/* Price Range */}
-                <Divider orientation="left">Price Range</Divider>
+                <Divider orientation="left">{td("Price Range", { source: "en" })}</Divider>
 
                 <Row gutter={16}>
                     <Col span={12}>
-                        <Form.Item label="Minimum Price" name="min_price">
+                        <Form.Item label={td("Minimum Price", { source: "en" })} name="min_price">
                             <InputNumber
                                 placeholder="0"
                                 min={0}
@@ -223,9 +225,9 @@ export default function ExportModal({
                         </Form.Item>
                     </Col>
                     <Col span={12}>
-                        <Form.Item label="Maximum Price" name="max_price">
+                        <Form.Item label={td("Maximum Price", { source: "en" })} name="max_price">
                             <InputNumber
-                                placeholder="No limit"
+                                placeholder={td("No limit", { source: "en" })}
                                 min={0}
                                 style={{ width: "100%" }}
                                 formatter={(value) =>
@@ -243,12 +245,12 @@ export default function ExportModal({
                 </Row>
 
                 {/* Date Range */}
-                <Divider orientation="left">Date Range</Divider>
+                <Divider orientation="left">{td("Date Range", { source: "en" })}</Divider>
 
                 <Form.Item
-                    label="Creation Date Range"
+                    label={td("Creation Date Range", { source: "en" })}
                     name="dateRange"
-                    tooltip="Filter properties by their creation date"
+                    tooltip={td("Filter properties by their creation date", { source: "en" })}
                 >
                     <RangePicker
                         style={{ width: "100%" }}
@@ -258,30 +260,30 @@ export default function ExportModal({
                 </Form.Item>
 
                 {/* Search */}
-                <Divider orientation="left">Search</Divider>
+                <Divider orientation="left">{td("Search", { source: "en" })}</Divider>
 
                 <Form.Item
-                    label="Search Text"
+                    label={td("Search Text", { source: "en" })}
                     name="search"
-                    tooltip="Search in title, description, area, and city fields"
+                    tooltip={td("Search in title, description, area, and city fields", { source: "en" })}
                 >
-                    <Input placeholder="Search properties..." allowClear />
+                    <Input placeholder={td("Search properties...", { source: "en" })} allowClear />
                 </Form.Item>
             </Form>
 
             <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                 <p className="text-sm text-blue-700 mb-2">
-                    <strong>Export Information:</strong>
+                    <strong>{td("Export Information:", { source: "en" })}</strong>
                 </p>
                 <ul className="text-xs text-blue-600 space-y-1">
-                    <li>• Exported file will be in Excel (.xlsx) format</li>
+                    <li>{td("• Exported file will be in Excel (.xlsx) format", { source: "en" })}</li>
                     <li>
-                        • All visible columns will be included in the export
+                        {td("• All visible columns will be included in the export", { source: "en" })}
                     </li>
                     <li>
-                        • Filters applied here will affect the exported data
+                        {td("• Filters applied here will affect the exported data", { source: "en" })}
                     </li>
-                    <li>• Large exports may take a few moments to process</li>
+                    <li>{td("• Large exports may take a few moments to process", { source: "en" })}</li>
                 </ul>
             </div>
         </Drawer>

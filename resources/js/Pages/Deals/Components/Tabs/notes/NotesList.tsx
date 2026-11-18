@@ -112,7 +112,7 @@ export const NotesList: React.FC<NotesListProps> = ({
                 />
                 <div className="w-10/12 md:w-1/3 lg:w-4/12">
                     <Search
-                        placeholder="Search notes by title or content..."
+                        placeholder={td("Search notes by title or content...", { source: "en" })}
                         value={searchTerm}
                         onChange={(e) => onSearchChange(e.target.value)}
                         allowClear

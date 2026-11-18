@@ -10,6 +10,7 @@ import { isLoading as getLoadingStatus } from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
 import DealForm from "./DealForm";
 import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 /**
  * M4/S3: edit-from-Index loads custom field *values* on open. Index rows no
@@ -53,6 +54,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
     disableFields = [],
     reloadKeys,
 }) => {
+    const { td } = useTd();
     const [errors, setErrors] = useState<string[]>([]);
     const [formData, setFormData] = useState<CreateDealFormData | null>(null);
     const { props } = usePage<any>();
@@ -261,8 +263,8 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
         >
             {isLocked ? (
                 <Alert
-                    message="Deal Locked"
-                    description="This deal is locked and cannot be modified."
+                    message={td("Deal Locked", { source: "en" })}
+                    description={td("This deal is locked and cannot be modified.", { source: "en" })}
                     type="warning"
                     showIcon
                     icon={<LockOutlined />}

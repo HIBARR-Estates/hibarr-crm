@@ -6,6 +6,7 @@ import {
 } from "@/Types/qualification";
 import { formatAnswerDisplay, stripHtmlTags } from "./qualificationUtils";
 import { useTranslatedScriptLabel } from "./useTranslatedScriptLabel";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface CaptureSummaryRailProps {
     visibleSegments: Segment[];
@@ -18,6 +19,7 @@ const CaptureSummaryRail: React.FC<CaptureSummaryRailProps> = ({
     answers,
     currentSegmentKey,
 }) => {
+    const { td } = useTd();
     const questionSegments = visibleSegments.filter(
         (s) => s.type === "question",
     );
@@ -29,7 +31,7 @@ const CaptureSummaryRail: React.FC<CaptureSummaryRailProps> = ({
     return (
         <aside className="w-72 shrink-0 border-l border-gray-200 bg-gray-50 p-4 overflow-y-auto max-h-[calc(100vh-280px)]">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
-                Captured answers
+                {td("Captured answers", { source: "en" })}
             </h3>
             <div className="space-y-3">
                 {questionSegments.map((segment) => (
@@ -50,6 +52,7 @@ const AnswerChip: React.FC<{
     answer?: SegmentAnswerState;
     isActive: boolean;
 }> = ({ segment, answer, isActive }) => {
+    const { td } = useTd();
     const labelTranslated = useTranslatedScriptLabel(segment.label);
     const label = stripHtmlTags(labelTranslated) || labelTranslated;
     const display = formatAnswerDisplay(segment, answer) || null;
@@ -70,7 +73,7 @@ const AnswerChip: React.FC<{
                     {display}
                 </Tag>
             ) : (
-                <span className="text-gray-400 italic text-xs">Pending</span>
+                <span className="text-gray-400 italic text-xs">{td("Pending", { source: "en" })}</span>
             )}
         </div>
     );

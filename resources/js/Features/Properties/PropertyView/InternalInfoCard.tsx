@@ -2,6 +2,7 @@ import React from "react";
 import { Card, Descriptions, Tag, Typography } from "antd";
 import { LockOutlined } from "@ant-design/icons";
 import { Property } from "@/Types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Paragraph } = Typography;
 
@@ -10,6 +11,7 @@ interface InternalInfoCardProps {
 }
 
 export default function InternalInfoCard({ property }: InternalInfoCardProps) {
+    const { td } = useTd();
     const fi = property.financial_info;
 
     // Internal info is stored across financial_info and top-level fields
@@ -43,24 +45,24 @@ export default function InternalInfoCard({ property }: InternalInfoCardProps) {
         >
             <Descriptions column={{ xs: 1, sm: 2 }} size="small">
                 {hasPriceToOwner && (
-                    <Descriptions.Item label="Price to Owner">
+                    <Descriptions.Item label={td("Price to Owner", { source: "en" })}>
                         {fi!.owner_price_currency || ""}{" "}
                         {fi!.owner_price?.toLocaleString()}
                     </Descriptions.Item>
                 )}
                 {hasHibarrPrice && (
-                    <Descriptions.Item label="HIBARR Price">
+                    <Descriptions.Item label={td("HIBARR Price", { source: "en" })}>
                         {fi!.hibarr_price_currency || ""}{" "}
                         {fi!.hibarr_price?.toLocaleString()}
                     </Descriptions.Item>
                 )}
                 {hasDues && (
-                    <Descriptions.Item label="Monthly Dues">
+                    <Descriptions.Item label={td("Monthly Dues", { source: "en" })}>
                         {(property as any).dues}
                     </Descriptions.Item>
                 )}
                 {hasCommission && (
-                    <Descriptions.Item label="Commission Signed">
+                    <Descriptions.Item label={td("Commission Signed", { source: "en" })}>
                         <Tag color={fi!.commission_signed ? "green" : "orange"}>
                             {fi!.commission_signed ? "Yes" : "No"}
                         </Tag>
@@ -71,7 +73,7 @@ export default function InternalInfoCard({ property }: InternalInfoCardProps) {
             {hasNotes && (
                 <div className="mt-3 pt-3 border-t border-gray-100">
                     <Text type="secondary" className="text-xs block mb-1">
-                        General Notes
+                        {td("General Notes", { source: "en" })}
                     </Text>
                     <Paragraph className="text-sm text-gray-700 mb-0">
                         {(property as any).general_notes}

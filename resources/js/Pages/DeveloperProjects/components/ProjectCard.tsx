@@ -15,6 +15,7 @@ import { usePermission } from "@/lib/permissionUtils";
 import { formatLocationNameForDisplay, currencySymbolForCode } from "@/lib/utils";
 import HiddenBadge from "./HiddenBadge";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 function formatCompletionDate(
     dateStr: string | null | undefined,
@@ -42,6 +43,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
     onDelete,
     showHiddenBadge = false,
 }) => {
+    const { td } = useTd();
     const currencySymbol = currencySymbolForCode(project.currency || "GBP");
     const { hasPermission } = usePermission();
     const canEdit = hasPermission("edit_developer_projects");
@@ -113,11 +115,11 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                       key: "delete",
                       label: (
                           <Popconfirm
-                              title="Delete Project"
-                              description="Are you sure? Properties will be unassigned."
+                              title={td("Delete Project", { source: "en" })}
+                              description={td("Are you sure? Properties will be unassigned.", { source: "en" })}
                               onConfirm={() => onDelete?.(project)}
-                              okText="Delete"
-                              cancelText="Cancel"
+                              okText={td("Delete", { source: "en" })}
+                              cancelText={td("Cancel", { source: "en" })}
                               okButtonProps={{ danger: true }}
                           >
                               <span className="flex items-center gap-2 text-red-500">
@@ -199,7 +201,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                         {soldPct}%
                     </span>
                     <span className="text-[9px] font-bold text-white/90 tracking-widest uppercase leading-none mt-0.5">
-                        SOLD
+                        {td("SOLD", { source: "en" })}
                     </span>
                 </div>
 
@@ -228,7 +230,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                         {formatLocationNameForDisplay(project.location.name)}
                     </p>
                 ) : (
-                    <p className="text-xs text-gray-400 mb-3">No location</p>
+                    <p className="text-xs text-gray-400 mb-3">{td("No location", { source: "en" })}</p>
                 )}
 
                 <div className="grid grid-cols-2 divide-x divide-gray-100 border-t border-gray-100 pt-2.5 gap-0">
@@ -237,7 +239,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                         {project.starting_price ? (
                             <>
                                 <p className="text-[10px] text-gray-400 mb-0.5">
-                                    Price From
+                                    {td("Price From", { source: "en" })}
                                 </p>
                                 <p className="font-bold text-sm text-slate-900">
                                     {currencySymbol}
@@ -249,7 +251,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                         ) : (
                             <>
                                 <p className="text-[10px] text-gray-400 mb-0.5">
-                                    Properties
+                                    {td("Properties", { source: "en" })}
                                 </p>
                                 <p
                                     className={`text-sm font-semibold ${hasProperties ? "text-green-600" : "text-gray-400"}`}
@@ -269,7 +271,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                         {project.completion_date && (
                             <div>
                                 <p className="text-[10px] text-gray-400 mb-0.5">
-                                    Completion
+                                    {td("Completion", { source: "en" })}
                                 </p>
                                 <p className="text-[11px] font-semibold text-gray-600">
                                     {formatCompletionDate(

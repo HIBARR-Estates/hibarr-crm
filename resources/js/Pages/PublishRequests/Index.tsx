@@ -27,6 +27,7 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import { generatePropertySubtitle } from "@/lib/utils";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface PublishRequest {
     id: number;
@@ -80,6 +81,7 @@ const statusIcons: Record<string, React.ReactNode> = {
 };
 
 const Index = () => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { props } = usePage<any>();
     const isSalesManager =
@@ -229,7 +231,7 @@ const Index = () => {
             render: (_, record) => (
                 <span className="text-gray-600">
                     {record.message || (
-                        <span className="italic text-gray-400">No message</span>
+                        <span className="italic text-gray-400">{td("No message", { source: "en" })}</span>
                     )}
                 </span>
             ),
@@ -258,7 +260,7 @@ const Index = () => {
             width: 200,
             render: (_, record) => (
                 <Space>
-                    <Tooltip title="View details">
+                    <Tooltip title={td("View details", { source: "en" })}>
                         <Button
                             size="small"
                             icon={<EyeOutlined />}
@@ -274,14 +276,14 @@ const Index = () => {
                                 type="primary"
                                 onClick={() => handleRespond(record, "approve")}
                             >
-                                Approve
+                                {td("Approve", { source: "en" })}
                             </Button>
                             <Button
                                 size="small"
                                 danger
                                 onClick={() => handleRespond(record, "reject")}
                             >
-                                Reject
+                                {td("Reject", { source: "en" })}
                             </Button>
                         </>
                     )}
@@ -393,16 +395,16 @@ const Index = () => {
                     {respondModal.request && (
                         <div className="py-2">
                             <p className="mb-2">
-                                <strong>Property:</strong>{" "}
+                                <strong>{td("Property:", { source: "en" })}</strong>{" "}
                                 {respondModal.request.property?.display_title ||
                                     respondModal.request.property?.title}
                             </p>
                             <p className="mb-2 text-gray-500 text-sm">
-                                <strong>Ref:</strong>{" "}
+                                <strong>{td("Ref:", { source: "en" })}</strong>{" "}
                                 {respondModal.request.property?.reference_code}
                             </p>
                             <p className="mb-2">
-                                <strong>Requesting Agent:</strong>{" "}
+                                <strong>{td("Requesting Agent:", { source: "en" })}</strong>{" "}
                                 {respondModal.request.requesting_agent?.name}
                             </p>
                             {respondModal.request.message && (
@@ -431,7 +433,7 @@ const Index = () => {
 
                 {/* Detail Modal */}
                 <Modal
-                    title="Publish Request Details"
+                    title={td("Publish Request Details", { source: "en" })}
                     open={detailModal.open}
                     onCancel={() =>
                         setDetailModal({ open: false, request: null })
@@ -443,7 +445,7 @@ const Index = () => {
                         <div className="py-2 space-y-3">
                             <div>
                                 <span className="text-gray-500 text-sm">
-                                    Property
+                                    {td("Property", { source: "en" })}
                                 </span>
                                 <div className="font-medium">
                                     {detailModal.request.property
@@ -459,7 +461,7 @@ const Index = () => {
                             </div>
                             <div>
                                 <span className="text-gray-500 text-sm">
-                                    Requesting Agent
+                                    {td("Requesting Agent", { source: "en" })}
                                 </span>
                                 <div>
                                     {detailModal.request.requesting_agent?.name}
@@ -473,7 +475,7 @@ const Index = () => {
                             </div>
                             <div>
                                 <span className="text-gray-500 text-sm">
-                                    Status
+                                    {td("Status", { source: "en" })}
                                 </span>
                                 <div>
                                     <Tag
@@ -516,7 +518,7 @@ const Index = () => {
                             {detailModal.request.reviewer && (
                                 <div>
                                     <span className="text-gray-500 text-sm">
-                                        Reviewed By
+                                        {td("Reviewed By", { source: "en" })}
                                     </span>
                                     <div>
                                         {detailModal.request.reviewer.name}
@@ -525,7 +527,7 @@ const Index = () => {
                             )}
                             <div>
                                 <span className="text-gray-500 text-sm">
-                                    Submitted At
+                                    {td("Submitted At", { source: "en" })}
                                 </span>
                                 <div>
                                     {formatCompanyDateTime(
@@ -536,7 +538,7 @@ const Index = () => {
                             {detailModal.request.reviewed_at && (
                                 <div>
                                     <span className="text-gray-500 text-sm">
-                                        Reviewed At
+                                        {td("Reviewed At", { source: "en" })}
                                     </span>
                                     <div>
                                         {formatCompanyDateTime(

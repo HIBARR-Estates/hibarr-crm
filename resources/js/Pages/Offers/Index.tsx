@@ -24,6 +24,7 @@ import usePageRefresh from "@/Hooks/usePageRefresh";
 import dayjs from "dayjs";
 import { formatCompanyDate, formatCompanyDateTime } from "@/lib/companyDateTime";
 import OfferDetailDrawer from "@/Features/Offers/OfferDetailDrawer";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface OffersIndexProps {
     pageTitle: string;
@@ -50,6 +51,7 @@ const Index = ({
     developers,
     filters,
 }: OffersIndexProps) => {
+    const { td } = useTd();
     const {
         handleAction,
         handleClose,
@@ -89,7 +91,7 @@ const Index = ({
                 message.error(result.message || "Failed to toggle offer");
             }
         } catch {
-            message.error("Failed to toggle offer");
+            message.error(td("Failed to toggle offer", { source: "en" }));
         } finally {
             setTogglingId(null);
         }
@@ -240,14 +242,14 @@ const Index = ({
                             type="text"
                             size="small"
                             icon={<EyeOutlined />}
-                            title="View"
+                            title={td("View", { source: "en" })}
                             onClick={() => handleAction("view", record)}
                         />
                         <Button
                             type="text"
                             size="small"
                             icon={<EditOutlined />}
-                            title="Edit"
+                            title={td("Edit", { source: "en" })}
                             onClick={() => handleAction("edit", record)}
                         />
                         {!record.is_active && (
@@ -256,7 +258,7 @@ const Index = ({
                                 size="small"
                                 danger
                                 icon={<DeleteOutlined />}
-                                title="Delete"
+                                title={td("Delete", { source: "en" })}
                                 onClick={() => handleAction("delete", record)}
                             />
                         )}
@@ -274,7 +276,7 @@ const Index = ({
                 breadcrumbs={[{ name: t("app.offers.title") }]}
                 searchComp={
                     <UniversalSearchBox
-                        placeholder="Search offers by name..."
+                        placeholder={td("Search offers by name...", { source: "en" })}
                         className="w-full"
                     />
                 }
@@ -287,7 +289,7 @@ const Index = ({
                                 icon={<PlusOutlined />}
                                 onClick={() => handleAction("add")}
                             >
-                                Create Offer
+                                {td("Create Offer", { source: "en" })}
                             </Button>
                             <Button
                                 icon={<ReloadOutlined spin={isRefreshing} />}
@@ -295,13 +297,13 @@ const Index = ({
                                 disabled={isRefreshing}
                                 type="text"
                             >
-                                Refresh
+                                {td("Refresh", { source: "en" })}
                             </Button>
                         </div>
 
                         <div className="flex items-center gap-3">
                             <Select
-                                placeholder="Developer"
+                                placeholder={td("Developer", { source: "en" })}
                                 value={developerFilter}
                                 onChange={(v) => {
                                     setDeveloperFilter(v);
@@ -323,7 +325,7 @@ const Index = ({
                                 }))}
                             />
                             <Select
-                                placeholder="Status"
+                                placeholder={td("Status", { source: "en" })}
                                 value={activeFilter}
                                 onChange={(v) => {
                                     setActiveFilter(v);

@@ -5,6 +5,7 @@ import { useActiveCycle, useMlmCycles } from "../api";
 import type { ActiveCycleSummary } from "../types";
 import CycleStatusBadge from "./CycleStatusBadge";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     /** Called when user picks a different cycle (or "all-time") */
@@ -20,6 +21,7 @@ const CycleSelector: React.FC<Props> = ({
     selectedCycleId,
     infoOnly = false,
 }) => {
+    const { td } = useTd();
     const { data: activeCycleData, isLoading: loadingActive } =
         useActiveCycle();
     const { data: cyclesData } = useMlmCycles({ per_page: 50 });
@@ -40,7 +42,7 @@ const CycleSelector: React.FC<Props> = ({
         return (
             <div className="flex items-center gap-2 text-sm text-gray-400">
                 <CalendarDays size={14} />
-                <span>No active cycle configured</span>
+                <span>{td("No active cycle configured", { source: "en" })}</span>
             </div>
         );
     }

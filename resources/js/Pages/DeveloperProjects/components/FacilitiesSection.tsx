@@ -22,6 +22,7 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import { usePermission } from "@/lib/permissionUtils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -59,6 +60,7 @@ const FacilitiesSection: React.FC<FacilitiesSectionProps> = ({
     facilities,
     facilityImagesBySlug,
 }) => {
+    const { td } = useTd();
     const { message: messageApi } = App.useApp();
     const { hasPermission } = usePermission();
     const canEdit = hasPermission("edit_developer_projects");
@@ -318,7 +320,7 @@ const FacilitiesSection: React.FC<FacilitiesSectionProps> = ({
     if (facilities.length === 0) {
         return (
             <div className="bg-white border border-gray-200 rounded-lg flex items-center justify-center p-8">
-                <Empty description="No facilities found" />
+                <Empty description={td("No facilities found", { source: "en" })} />
             </div>
         );
     }
@@ -375,14 +377,14 @@ const FacilitiesSection: React.FC<FacilitiesSectionProps> = ({
                                         icon={<PaperClipOutlined />}
                                         onClick={() => openUploadModal(facility)}
                                     >
-                                        Attach image(s)
+                                        {td("Attach image(s)", { source: "en" })}
                                     </Button>
                                 )}
                             </div>
 
                             {images.length === 0 ? (
                                 <div className="mt-3 text-xs text-gray-500 border border-dashed border-gray-300 rounded-md p-3 text-center">
-                                    No images attached yet
+                                    {td("No images attached yet", { source: "en" })}
                                 </div>
                             ) : (
                                 <Image.PreviewGroup>
@@ -413,7 +415,7 @@ const FacilitiesSection: React.FC<FacilitiesSectionProps> = ({
                                                         }}
                                                         disabled={isBulkUpdating}
                                                     >
-                                                        Detach
+                                                        {td("Detach", { source: "en" })}
                                                     </button>
                                                 )}
                                             </div>
@@ -457,7 +459,7 @@ const FacilitiesSection: React.FC<FacilitiesSectionProps> = ({
                             }}
                             disabled={isUploading || isSavingToBackend}
                         >
-                            Cancel
+                            {td("Cancel", { source: "en" })}
                         </Button>,
                         <Button
                             key="upload"
@@ -466,7 +468,7 @@ const FacilitiesSection: React.FC<FacilitiesSectionProps> = ({
                             onClick={handleUpload}
                             loading={isUploading || isSavingToBackend}
                         >
-                            Upload
+                            {td("Upload", { source: "en" })}
                         </Button>,
                     ]}
                     maskClosable={!(isUploading || isSavingToBackend)}
@@ -480,7 +482,7 @@ const FacilitiesSection: React.FC<FacilitiesSectionProps> = ({
                     >
                         <div>
                             <UploadOutlined />
-                            <div style={{ marginTop: 8 }}>Select Files</div>
+                            <div style={{ marginTop: 8 }}>{td("Select Files", { source: "en" })}</div>
                         </div>
                     </Upload>
 

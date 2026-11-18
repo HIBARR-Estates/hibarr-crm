@@ -30,6 +30,7 @@ import type {
 } from "@/Types/api/softphone";
 
 import "@/Components/Redesign/redesign.css";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const NESTED_MODAL_Z_INDEX = 1400;
 
@@ -95,6 +96,7 @@ const fieldLabel: React.CSSProperties = {
  * Writes are admin-only (enforced server-side).
  */
 export default function SoftphoneDeviceManager() {
+    const { td } = useTd();
     const { message } = App.useApp();
     const { t } = useTranslation();
     const [modalOpen, setModalOpen] = useState(false);
@@ -267,7 +269,7 @@ export default function SoftphoneDeviceManager() {
             if (newId) {
                 void lineTest.testSaved(newId).then((result) => {
                     if (result.ok) {
-                        message.success("Line connected — it registered successfully.");
+                        message.success(td("Line connected — it registered successfully.", { source: "en" }));
                     } else {
                         message.warning(`Line saved, but the connection test failed: ${result.message}`);
                     }
@@ -324,7 +326,7 @@ export default function SoftphoneDeviceManager() {
             void refreshSoftphoneDevices();
             setDeleteTarget(null);
         } catch {
-            message.error("Could not remove the device.");
+            message.error(td("Could not remove the device.", { source: "en" }));
         } finally {
             setDeletingId(null);
         }
@@ -394,7 +396,7 @@ export default function SoftphoneDeviceManager() {
             })
             .catch(() => {
                 if (detailsRequest.current !== requestId) return;
-                message.error("Could not load this phone line.");
+                message.error(td("Could not load this phone line.", { source: "en" }));
                 closeModal();
             });
     };
@@ -456,7 +458,7 @@ export default function SoftphoneDeviceManager() {
                     icon={<PlusOutlined />}
                     onClick={openCreate}
                 >
-                    Add phone line
+                    {td("Add phone line", { source: "en" })}
                 </Button>
             </div>
 
@@ -475,22 +477,22 @@ export default function SoftphoneDeviceManager() {
                         color: T.TEXT_MUTED,
                     }}
                 >
-                    <span>Label</span>
-                    <span>Default</span>
+                    <span>{td("Label", { source: "en" })}</span>
+                    <span>{td("Default", { source: "en" })}</span>
                     <span>{t("pages.calls.line_active")}</span>
-                    <span>Connection</span>
+                    <span>{td("Connection", { source: "en" })}</span>
                     <span className="text-right" aria-hidden="true" />
                 </div>
 
                 {isLoading ? (
                     <div className="px-3.5 py-6 text-center text-sm" style={{ color: T.TEXT_MUTED }}>
-                        Loading…
+                        {td("Loading…", { source: "en" })}
                     </div>
                 ) : devices.length === 0 ? (
                     <div className="p-4">
                         <EmptyState
-                            title="No phone lines yet"
-                            description="Add a phone line to use as an outbound caller ID."
+                            title={td("No phone lines yet", { source: "en" })}
+                            description={td("Add a phone line to use as an outbound caller ID.", { source: "en" })}
                         />
                     </div>
                 ) : (
@@ -542,8 +544,8 @@ export default function SoftphoneDeviceManager() {
                                         variant="ghost"
                                         size="sm"
                                         icon={<ThunderboltOutlined />}
-                                        aria-label="Test connection"
-                                        title="Test connection"
+                                        aria-label={td("Test connection", { source: "en" })}
+                                        title={td("Test connection", { source: "en" })}
                                         loading={lineTest.states[String(device.id)]?.status === "testing"}
                                         // A disabled line hands out no credentials, so there is nothing to test.
                                         disabled={device.is_active === false}
@@ -553,14 +555,14 @@ export default function SoftphoneDeviceManager() {
                                         variant="ghost"
                                         size="sm"
                                         icon={<EditOutlined />}
-                                        aria-label="Edit"
+                                        aria-label={td("Edit", { source: "en" })}
                                         onClick={() => openEdit(device)}
                                     />
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         icon={<DeleteOutlined />}
-                                        aria-label="Delete"
+                                        aria-label={td("Delete", { source: "en" })}
                                         loading={deletingId === device.id}
                                         onClick={() => setDeleteTarget(device)}
                                         style={{ color: T.RED }}
@@ -592,7 +594,7 @@ export default function SoftphoneDeviceManager() {
                             }}
                             style={{ marginRight: "auto" }}
                         >
-                            Test connection
+                            {td("Test connection", { source: "en" })}
                         </Button>
                         <Button
                             variant="ghost"
@@ -600,7 +602,7 @@ export default function SoftphoneDeviceManager() {
                             onClick={closeModal}
                             disabled={saving}
                         >
-                            Cancel
+                            {td("Cancel", { source: "en" })}
                         </Button>
                         <Button
                             variant="primary"
@@ -609,7 +611,7 @@ export default function SoftphoneDeviceManager() {
                             loading={saving}
                             disabled={!canSubmit || platformLoading}
                         >
-                            Save
+                            {td("Save", { source: "en" })}
                         </Button>
                     </>
                 }
@@ -772,10 +774,10 @@ export default function SoftphoneDeviceManager() {
             <ConfirmDialog
                 open={deleteTarget !== null}
                 zIndex={NESTED_MODAL_Z_INDEX}
-                title="Remove phone line"
+                title={td("Remove phone line", { source: "en" })}
                 message={`Remove "${deleteTarget?.label ?? ""}"? Calls will no longer use this line.`}
-                confirmLabel="Remove"
-                cancelLabel="Cancel"
+                confirmLabel={td("Remove", { source: "en" })}
+                cancelLabel={td("Cancel", { source: "en" })}
                 danger
                 confirmLoading={deletingId !== null}
                 onConfirm={() => void handleDelete()}
@@ -825,17 +827,18 @@ function FieldLabel({
 
 /** Last health-check outcome for a line, or "Not tested" before the first run. */
 function ConnectionBadge({ state }: { state?: LineTestState }) {
+    const { td } = useTd();
     if (!state) {
         return (
             <span className="text-xs" style={{ color: T.TEXT_HINT }}>
-                Not tested
+                {td("Not tested", { source: "en" })}
             </span>
         );
     }
     if (state.status === "testing") {
         return (
             <span className="text-xs" style={{ color: T.TEXT_MUTED }}>
-                Testing…
+                {td("Testing…", { source: "en" })}
             </span>
         );
     }

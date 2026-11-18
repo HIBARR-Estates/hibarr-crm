@@ -11,6 +11,7 @@ import { useLeadWorkspace } from "../context/LeadWorkspaceContext";
 import useLeadMeetingCreate, {
     type LeadMeetingCreateInput,
 } from "./useLeadMeetingCreate";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface LeadDealCreateInput {
     name: string;
@@ -62,6 +63,7 @@ function extractCreatedDeal(response: unknown): Deal | null {
 }
 
 export default function useLeadDealCreate(lead: Lead) {
+    const { td } = useTd();
     const { message } = App.useApp();
     const { setDeals, addLeadFollowUp } = useLeadWorkspace();
     const [errors, setErrors] = useState<string[]>([]);
@@ -164,7 +166,7 @@ export default function useLeadDealCreate(lead: Lead) {
                                 onSuccess: () => {
                                     setChainInFlight(false);
                                     message.success(
-                                        "Deal and meeting created successfully",
+                                        td("Deal and meeting created successfully", { source: "en" }),
                                     );
                                     onSuccess?.(deal);
                                 },

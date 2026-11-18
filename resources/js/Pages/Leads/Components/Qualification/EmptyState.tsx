@@ -5,6 +5,7 @@ import { PublishedTemplate } from "@/Types/qualification";
 import { QualificationTemplateService } from "@/Services/QualificationTemplateService";
 import { LeadQualificationService } from "@/Services/LeadQualificationService";
 import { LeadQualification } from "@/Types/qualification";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface EmptyStateProps {
     leadId: number;
@@ -26,6 +27,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
     qualificationService,
     onStarted,
 }) => {
+    const { td } = useTd();
     const [templates, setTemplates] = useState<PublishedTemplate[]>([]);
     const [loading, setLoading] = useState(true);
     const [starting, setStarting] = useState(false);
@@ -83,7 +85,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
         return (
             <Empty
                 className="py-16"
-                description="No published qualification templates available"
+                description={td("No published qualification templates available", { source: "en" })}
             />
         );
     }
@@ -93,19 +95,19 @@ const EmptyState: React.FC<EmptyStateProps> = ({
             <Card variant="outlined" className="text-center">
                 <PlayCircleOutlined className="text-5xl text-blue-500 mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    Start qualification
+                    {td("Start qualification", { source: "en" })}
                 </h3>
                 <p className="text-gray-500 mb-6">
-                    Select a script template and your call language to begin.
+                    {td("Select a script template and your call language to begin.", { source: "en" })}
                 </p>
                 <div className="space-y-4 text-left">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Template
+                            {td("Template", { source: "en" })}
                         </label>
                         <Select
                             className="w-full"
-                            placeholder="Select template"
+                            placeholder={td("Select template", { source: "en" })}
                             value={selectedTemplateId}
                             onChange={setSelectedTemplateId}
                             options={templates.map((t) => ({
@@ -116,7 +118,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Script language
+                            {td("Script language", { source: "en" })}
                         </label>
                         <Select
                             className="w-full"
@@ -134,7 +136,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
                         disabled={!selectedTemplateId}
                         onClick={handleStart}
                     >
-                        Start qualification
+                        {td("Start qualification", { source: "en" })}
                     </Button>
                 </div>
             </Card>

@@ -5,6 +5,7 @@ import type { MenuProps } from "antd";
 import { formatTaskDateWithCompanyTime } from "@/lib/taskDateTime";
 import MultiUserIndicator from "./MultiUserIndicator";
 import { getPriorityConfig } from "@/lib/priority";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Paragraph } = Typography;
 
@@ -45,6 +46,7 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
     onClick,
     className = "",
 }) => {
+    const { td } = useTd();
     const priorityInfo = getPriorityConfig(priority);
 
     // A wall-clock string is formatted from its stored digits, so a due time
@@ -144,7 +146,7 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
                                 </span>
                             </div>
                             <Text className="text-[13px] text-gray-400 italic">
-                                Unassigned
+                                {td("Unassigned", { source: "en" })}
                             </Text>
                         </div>
                     )}
@@ -210,7 +212,7 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
                         </Tooltip>
                     ) : (
                         <span className="text-[12px] text-gray-300">
-                            No due date
+                            {td("No due date", { source: "en" })}
                         </span>
                     )}
                 </div>

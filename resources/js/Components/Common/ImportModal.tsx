@@ -9,6 +9,7 @@ import {
     Alert,
 } from "antd";
 import { UploadOutlined, DownloadOutlined } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title, Text } = Typography;
 
@@ -35,6 +36,7 @@ export default function ImportModal({
     maxFileSize = 10,
     description,
 }: ImportModalProps) {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const [hasHeading, setHasHeading] = useState(true);
 
@@ -91,7 +93,7 @@ export default function ImportModal({
             onCancel={handleCancel}
             footer={[
                 <Button key="cancel" onClick={handleCancel} disabled={loading}>
-                    Cancel
+                    {td("Cancel", { source: "en" })}
                 </Button>,
                 <Button
                     key="submit"
@@ -122,11 +124,10 @@ export default function ImportModal({
                         <div className="flex items-center justify-between">
                             <div>
                                 <Title level={5} className="mb-1">
-                                    Download Sample Template
+                                    {td("Download Sample Template", { source: "en" })}
                                 </Title>
                                 <Text type="secondary">
-                                    Download the sample file to see the expected
-                                    format
+                                    {td("Download the sample file to see the expected format", { source: "en" })}
                                 </Text>
                             </div>
                             <Button
@@ -135,7 +136,7 @@ export default function ImportModal({
                                 href={sampleDownloadUrl}
                                 target="_blank"
                             >
-                                Download Sample
+                                {td("Download Sample", { source: "en" })}
                             </Button>
                         </div>
                     </div>
@@ -143,7 +144,7 @@ export default function ImportModal({
 
                 <Form form={form} layout="vertical">
                     <Form.Item
-                        label="Import File"
+                        label={td("Import File", { source: "en" })}
                         name="import_file"
                         valuePropName="fileList"
                         getValueFromEvent={normFile}
@@ -187,7 +188,7 @@ export default function ImportModal({
                                 <UploadOutlined />
                             </p>
                             <p className="ant-upload-text">
-                                Click or drag file to this area to upload
+                                {td("Click or drag file to this area to upload", { source: "en" })}
                             </p>
                             <p className="ant-upload-hint">
                                 Supported formats: {acceptedFileTypes}. Maximum
@@ -203,28 +204,26 @@ export default function ImportModal({
                                 onChange={setHasHeading}
                                 size="small"
                             />
-                            <Text>File contains column headings</Text>
+                            <Text>{td("File contains column headings", { source: "en" })}</Text>
                         </div>
                         <Text type="secondary" className="text-xs">
-                            Check this if your first row contains column names
+                            {td("Check this if your first row contains column names", { source: "en" })}
                         </Text>
                     </Form.Item>
                 </Form>
 
                 <Alert
-                    message="Import Guidelines"
+                    message={td("Import Guidelines", { source: "en" })}
                     description={
                         <ul className="list-disc list-inside space-y-1 text-sm">
                             <li>
-                                Ensure all required fields are included in your
-                                file
+                                {td("Ensure all required fields are included in your file", { source: "en" })}
                             </li>
                             <li>
-                                Use the exact column names as shown in the
-                                sample template
+                                {td("Use the exact column names as shown in the sample template", { source: "en" })}
                             </li>
-                            <li>Remove any empty rows before importing</li>
-                            <li>Large files may take some time to process</li>
+                            <li>{td("Remove any empty rows before importing", { source: "en" })}</li>
+                            <li>{td("Large files may take some time to process", { source: "en" })}</li>
                         </ul>
                     }
                     type="warning"

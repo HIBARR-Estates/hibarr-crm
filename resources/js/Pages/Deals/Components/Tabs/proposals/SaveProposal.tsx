@@ -26,6 +26,7 @@ import { router } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { Deal } from "@/Types/api/deals";
 import { Proposal } from "@/Types/api/proposal";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -75,6 +76,7 @@ export default function SaveProposal({
     mode,
     onSuccess,
 }: SaveProposalProps) {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
     const [items, setItems] = useState<ProposalItem[]>([]);
@@ -255,13 +257,13 @@ export default function SaveProposal({
                 },
                 onError: (errors) => {
                     console.error("Proposal save error:", errors);
-                    message.error("Failed to save proposal");
+                    message.error(td("Failed to save proposal", { source: "en" }));
                 },
                 onFinish: () => setLoading(false),
             });
         } catch (error) {
             console.error("Error saving proposal:", error);
-            message.error("Failed to save proposal");
+            message.error(td("Failed to save proposal", { source: "en" }));
             setLoading(false);
         }
     };
@@ -275,7 +277,7 @@ export default function SaveProposal({
             render: (text: string, record: ProposalItem, index: number) => (
                 <div className="flex flex-col gap-y-2">
                     <Input
-                        placeholder="Item name"
+                        placeholder={td("Item name", { source: "en" })}
                         value={record.item_name}
                         onChange={(e) =>
                             handleItemChange(index, "item_name", e.target.value)
@@ -283,7 +285,7 @@ export default function SaveProposal({
                         className="mb-2"
                     />
                     <TextArea
-                        placeholder="Item description"
+                        placeholder={td("Item description", { source: "en" })}
                         value={record.item_summary}
                         onChange={(e) =>
                             handleItemChange(
@@ -346,7 +348,7 @@ export default function SaveProposal({
             render: (text: string[], record: ProposalItem, index: number) => (
                 <Select
                     mode="multiple"
-                    placeholder="Select tax"
+                    placeholder={td("Select tax", { source: "en" })}
                     value={record.tax}
                     onChange={(value) => handleItemChange(index, "tax", value)}
                     style={{ width: "100%" }}
@@ -403,7 +405,7 @@ export default function SaveProposal({
                         <Col xs={24} sm={12} md={8}>
                             <Form.Item
                                 name="deal_id"
-                                label="Deal"
+                                label={td("Deal", { source: "en" })}
                                 rules={[
                                     {
                                         required: true,
@@ -411,9 +413,9 @@ export default function SaveProposal({
                                     },
                                 ]}
                             >
-                                <Select placeholder="Select deal" showSearch>
+                                <Select placeholder={td("Select deal", { source: "en" })} showSearch>
                                     {/* Deal options would be loaded from props */}
-                                    <Option value={1}>Sample Deal</Option>
+                                    <Option value={1}>{td("Sample Deal", { source: "en" })}</Option>
                                 </Select>
                             </Form.Item>
                         </Col>
@@ -422,7 +424,7 @@ export default function SaveProposal({
                     <Col xs={24} sm={12} md={8}>
                         <Form.Item
                             name="valid_till"
-                            label="Valid Till"
+                            label={td("Valid Till", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
@@ -437,7 +439,7 @@ export default function SaveProposal({
                     <Col xs={24} sm={12} md={8}>
                         <Form.Item
                             name="currency_id"
-                            label="Currency"
+                            label={td("Currency", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
@@ -445,7 +447,7 @@ export default function SaveProposal({
                                 },
                             ]}
                         >
-                            <Select placeholder="Select currency">
+                            <Select placeholder={td("Select currency", { source: "en" })}>
                                 {currencies.map((currency) => (
                                     <Option
                                         key={currency.id}
@@ -460,13 +462,13 @@ export default function SaveProposal({
                     </Col>
 
                     <Col xs={24} sm={12} md={8}>
-                        <Form.Item name="calculate_tax" label="Calculate Tax">
+                        <Form.Item name="calculate_tax" label={td("Calculate Tax", { source: "en" })}>
                             <Select defaultValue="after_discount">
                                 <Option value="after_discount">
-                                    After Discount
+                                    {td("After Discount", { source: "en" })}
                                 </Option>
                                 <Option value="before_discount">
-                                    Before Discount
+                                    {td("Before Discount", { source: "en" })}
                                 </Option>
                             </Select>
                         </Form.Item>
@@ -475,10 +477,10 @@ export default function SaveProposal({
 
                 <Row>
                     <Col span={24}>
-                        <Form.Item name="description" label="Description">
+                        <Form.Item name="description" label={td("Description", { source: "en" })}>
                             <TextArea
                                 rows={4}
-                                placeholder="Proposal description"
+                                placeholder={td("Proposal description", { source: "en" })}
                             />
                         </Form.Item>
                     </Col>
@@ -490,7 +492,7 @@ export default function SaveProposal({
                             name="require_signature"
                             valuePropName="checked"
                         >
-                            <Checkbox>Require Signature</Checkbox>
+                            <Checkbox>{td("Require Signature", { source: "en" })}</Checkbox>
                         </Form.Item>
                     </Col>
                 </Row>
@@ -500,7 +502,7 @@ export default function SaveProposal({
                 {/* Products Section */}
                 <div className="mb-4">
                     <div className="flex justify-between items-center mb-4">
-                        <h4>Items</h4>
+                        <h4>{td("Items", { source: "en" })}</h4>
                         <Space>
                             <Button
                                 icon={<FilterOutlined />}
@@ -508,10 +510,10 @@ export default function SaveProposal({
                                     setShowProductCategory(!showProductCategory)
                                 }
                             >
-                                Filter by Category
+                                {td("Filter by Category", { source: "en" })}
                             </Button>
                             <Select
-                                placeholder="Add Product"
+                                placeholder={td("Add Product", { source: "en" })}
                                 style={{ width: 200 }}
                                 onSelect={(value) =>
                                     handleAddProduct(Number(value))
@@ -529,7 +531,7 @@ export default function SaveProposal({
                                 icon={<PlusOutlined />}
                                 onClick={handleAddItem}
                             >
-                                Add Item
+                                {td("Add Item", { source: "en" })}
                             </Button>
                         </Space>
                     </div>
@@ -537,7 +539,7 @@ export default function SaveProposal({
                     {showProductCategory && (
                         <div className="mb-4">
                             <Select
-                                placeholder="Filter by category"
+                                placeholder={td("Filter by category", { source: "en" })}
                                 style={{ width: 200 }}
                                 allowClear
                             >
@@ -573,14 +575,14 @@ export default function SaveProposal({
                         <Col xs={24} sm={12}>
                             <div className="flex flex-col gap-y-2">
                                 <div className="flex justify-between">
-                                    <span>Subtotal:</span>
+                                    <span>{td("Subtotal:", { source: "en" })}</span>
                                     <span className="font-semibold">
                                         ${subTotal.toFixed(2)}
                                     </span>
                                 </div>
 
                                 <div className="flex items-center gap-x-2">
-                                    <span>Discount:</span>
+                                    <span>{td("Discount:", { source: "en" })}</span>
                                     <Select
                                         value={discountType}
                                         onChange={setDiscountType}
@@ -602,16 +604,16 @@ export default function SaveProposal({
                                 </div>
 
                                 <div className="flex justify-between text-lg font-bold">
-                                    <span>Total:</span>
+                                    <span>{td("Total:", { source: "en" })}</span>
                                     <span>${total.toFixed(2)}</span>
                                 </div>
                             </div>
                         </Col>
                         <Col xs={24} sm={12}>
-                            <Form.Item name="note" label="Note">
+                            <Form.Item name="note" label={td("Note", { source: "en" })}>
                                 <TextArea
                                     rows={4}
-                                    placeholder="Additional notes"
+                                    placeholder={td("Additional notes", { source: "en" })}
                                 />
                             </Form.Item>
                         </Col>
@@ -621,7 +623,7 @@ export default function SaveProposal({
 
                 {/* Form Actions */}
                 <div className="flex justify-end space-x-2">
-                    <Button onClick={onClose}>Cancel</Button>
+                    <Button onClick={onClose}>{td("Cancel", { source: "en" })}</Button>
                     <Button type="primary" htmlType="submit" loading={loading}>
                         {mode === "create"
                             ? "Create Proposal"

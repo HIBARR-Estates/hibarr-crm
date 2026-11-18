@@ -8,6 +8,7 @@ import {
     META_TABS,
     RECORD_TABS,
 } from "../../config/workspaceTabs";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const META_TAB_ICONS: Partial<Record<WorkspaceTabId, string>> = {
     leadinfo: "info",
@@ -41,6 +42,7 @@ export default function WorkspaceTabBar({
     showSally = false,
     showCalls = false,
 }: WorkspaceTabBarProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const scroll = useHScroll();
     const hasOverflow = scroll.overflow.left || scroll.overflow.right;
@@ -120,7 +122,7 @@ export default function WorkspaceTabBar({
                     dir="left"
                     enabled={scroll.overflow.left}
                     onClick={() => scroll.nudge(-1)}
-                    label="Scroll left"
+                    label={td("Scroll left", { source: "en" })}
                 />
             )}
             <div
@@ -128,7 +130,7 @@ export default function WorkspaceTabBar({
                 onScroll={scroll.update}
                 onKeyDown={handleKeyDown}
                 role="tablist"
-                aria-label="Lead record tabs"
+                aria-label={td("Lead record tabs", { source: "en" })}
                 className="dr-tabs-scroll"
             >
                 {recordTabs.map((tab) =>
@@ -148,14 +150,14 @@ export default function WorkspaceTabBar({
                     dir="right"
                     enabled={scroll.overflow.right}
                     onClick={() => scroll.nudge(1)}
-                    label="Scroll right"
+                    label={td("Scroll right", { source: "en" })}
                 />
             )}
             <span className="dr-tabs-divider" aria-hidden="true" />
             <div
                 className="dr-tabs-meta"
                 role="tablist"
-                aria-label="Lead meta tabs"
+                aria-label={td("Lead meta tabs", { source: "en" })}
                 onKeyDown={handleKeyDown}
             >
                 {META_TABS.map((tab) => renderTab(tab.id, tab.label))}

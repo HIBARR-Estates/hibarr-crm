@@ -41,6 +41,7 @@ import type {
 } from "@/Features/Mlm/types";
 import { formatNumber } from "@/lib/utils";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends PageProps {
     stats: MlmAdminDashboardStats;
@@ -80,6 +81,7 @@ const statCards = (stats: MlmAdminDashboardStats, currencySymbol: string) => [
 ];
 
 const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
@@ -113,7 +115,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                         level={record.agent.current_level_history.level}
                     />
                 ) : (
-                    <Tag>Unranked</Tag>
+                    <Tag>{td("Unranked", { source: "en" })}</Tag>
                 ),
         },
         {
@@ -282,7 +284,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                                 href="/account/mlm/cycle-management"
                                                 className="text-indigo-600 hover:underline text-xs"
                                             >
-                                                Manage →
+                                                {td("Manage →", { source: "en" })}
                                             </a>
                                         </div>
                                     </div>
@@ -300,7 +302,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                             <Card
                                 title={
                                     <span className="font-semibold">
-                                        Monthly Commission Trend
+                                        {td("Monthly Commission Trend", { source: "en" })}
                                     </span>
                                 }
                                 className="shadow-sm"
@@ -358,7 +360,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <Empty description="No commission data yet" />
+                                    <Empty description={td("No commission data yet", { source: "en" })} />
                                 )}
                             </Card>
                         </motion.div>
@@ -379,7 +381,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                                     className="text-yellow-500"
                                                 />
                                                 <span className="font-semibold">
-                                                    Top Agents
+                                                    {td("Top Agents", { source: "en" })}
                                                 </span>
                                             </div>
                                         }
@@ -411,7 +413,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                                     className="text-green-500"
                                                 />
                                                 <span className="font-semibold">
-                                                    Recent Promotions
+                                                    {td("Recent Promotions", { source: "en" })}
                                                 </span>
                                             </div>
                                         }

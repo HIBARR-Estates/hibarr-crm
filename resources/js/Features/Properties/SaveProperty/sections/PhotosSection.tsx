@@ -33,6 +33,7 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { ApiSuccessResponse } from "@/lib/api/types";
 import { router } from "@inertiajs/react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Title } = Typography;
 
@@ -112,6 +113,7 @@ const PhotosSection: React.FC<PhotosSectionProps> = ({
     existingAssets = [],
     onSaveForUpload,
 }) => {
+    const { td } = useTd();
     const { message: messageApi } = App.useApp();
 
     // ─── Fetch existing assets via API (independent of parent props) ───
@@ -383,11 +385,10 @@ const PhotosSection: React.FC<PhotosSectionProps> = ({
                     className="mb-4"
                 />
                 <Title level={5} type="secondary">
-                    Save the property to upload photos
+                    {td("Save the property to upload photos", { source: "en" })}
                 </Title>
                 <Text type="secondary" className="block mb-4">
-                    Your current form data will be saved as a draft so you can
-                    start uploading photos.
+                    {td("Your current form data will be saved as a draft so you can start uploading photos.", { source: "en" })}
                 </Text>
                 {onSaveForUpload && (
                     <Button
@@ -420,9 +421,9 @@ const PhotosSection: React.FC<PhotosSectionProps> = ({
                         icon={<UploadOutlined />}
                         onClick={() => setIsUploadModalOpen(true)}
                     >
-                        Upload Photos
+                        {td("Upload Photos", { source: "en" })}
                     </Button>
-                    <Tooltip title="Open full asset manager">
+                    <Tooltip title={td("Open full asset manager", { source: "en" })}>
                         <Button
                             icon={<ExportOutlined />}
                             onClick={() =>
@@ -434,7 +435,7 @@ const PhotosSection: React.FC<PhotosSectionProps> = ({
                                 )
                             }
                         >
-                            Manage All Assets
+                            {td("Manage All Assets", { source: "en" })}
                         </Button>
                     </Tooltip>
                 </Space>
@@ -498,7 +499,7 @@ const PhotosSection: React.FC<PhotosSectionProps> = ({
             ) : (
                 <Empty
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description="No photos uploaded yet"
+                    description={td("No photos uploaded yet", { source: "en" })}
                     className="my-4"
                 >
                     <Button
@@ -506,14 +507,14 @@ const PhotosSection: React.FC<PhotosSectionProps> = ({
                         icon={<UploadOutlined />}
                         onClick={() => setIsUploadModalOpen(true)}
                     >
-                        Upload Your First Photo
+                        {td("Upload Your First Photo", { source: "en" })}
                     </Button>
                 </Empty>
             )}
 
             {/* Upload Modal */}
             <Modal
-                title="Upload Photos"
+                title={td("Upload Photos", { source: "en" })}
                 open={isUploadModalOpen}
                 onCancel={() => {
                     if (!isUploading) {
@@ -530,7 +531,7 @@ const PhotosSection: React.FC<PhotosSectionProps> = ({
                         onClick={() => setIsUploadModalOpen(false)}
                         disabled={isUploading || isSavingToBackend}
                     >
-                        Cancel
+                        {td("Cancel", { source: "en" })}
                     </Button>,
                     <Button
                         key="upload"
@@ -551,10 +552,10 @@ const PhotosSection: React.FC<PhotosSectionProps> = ({
             >
                 {/* Tag selector */}
                 <div className="mb-4">
-                    <Text className="text-sm block mb-1">Tags (optional)</Text>
+                    <Text className="text-sm block mb-1">{td("Tags (optional)", { source: "en" })}</Text>
                     <Select
                         mode="multiple"
-                        placeholder="Select tags to apply to all photos"
+                        placeholder={td("Select tags to apply to all photos", { source: "en" })}
                         options={TAG_OPTIONS}
                         value={selectedTags}
                         onChange={setSelectedTags}
@@ -577,10 +578,10 @@ const PhotosSection: React.FC<PhotosSectionProps> = ({
                             <CameraOutlined style={{ fontSize: 36 }} />
                         </p>
                         <p className="ant-upload-text">
-                            Click or drag photos here
+                            {td("Click or drag photos here", { source: "en" })}
                         </p>
                         <p className="ant-upload-hint text-xs">
-                            JPG, PNG, GIF, WebP — up to 50 MB each
+                            {td("JPG, PNG, GIF, WebP — up to 50 MB each", { source: "en" })}
                         </p>
                     </Upload.Dragger>
                 ) : (

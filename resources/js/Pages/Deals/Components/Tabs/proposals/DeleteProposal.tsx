@@ -4,6 +4,7 @@ import { DeleteOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
 import { Deal } from "@/Types/api/deals";
 import { Proposal } from "@/Types/api/proposal";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface DeleteProposalProps {
     deal: Deal;
@@ -24,6 +25,7 @@ export default function DeleteProposal({
     trigger = "button",
     children,
 }: DeleteProposalProps) {
+    const { td } = useTd();
     const canDeleteProposal =
         !proposal.signature &&
         (permissions.delete_lead_proposals === "all" ||
@@ -36,17 +38,17 @@ export default function DeleteProposal({
             icon: <ExclamationCircleOutlined />,
             content: (
                 <div>
-                    <p>Are you sure you want to delete this proposal?</p>
+                    <p>{td("Are you sure you want to delete this proposal?", { source: "en" })}</p>
                     <p>
-                        <strong>Proposal:</strong> {proposal.proposal_number}
+                        <strong>{td("Proposal:", { source: "en" })}</strong> {proposal.proposal_number}
                     </p>
                     <p>
-                        <strong>Total:</strong>{" "}
+                        <strong>{td("Total:", { source: "en" })}</strong>{" "}
                         {proposal.currency?.currency_symbol}
                         {proposal.total?.toLocaleString()}
                     </p>
                     <p className="text-red-500 mt-2">
-                        <strong>Warning:</strong> This action cannot be undone.
+                        <strong>{td("Warning:", { source: "en" })}</strong> This action cannot be undone.
                     </p>
                 </div>
             ),
@@ -58,13 +60,13 @@ export default function DeleteProposal({
                 return new Promise((resolve, reject) => {
                     router.delete(route("proposals.destroy", proposal.id), {
                         onSuccess: () => {
-                            message.success("Proposal deleted successfully");
+                            message.success(td("Proposal deleted successfully", { source: "en" }));
                             onSuccess?.();
                             resolve(true);
                         },
                         onError: (errors) => {
                             console.error("Delete proposal error:", errors);
-                            message.error("Failed to delete proposal");
+                            message.error(td("Failed to delete proposal", { source: "en" }));
                             reject(false);
                         },
                     });
@@ -104,7 +106,7 @@ export default function DeleteProposal({
             break;
         default:
             triggerElement = (
-                <Tooltip title="Delete Proposal">
+                <Tooltip title={td("Delete Proposal", { source: "en" })}>
                     <Button
                         type="text"
                         danger

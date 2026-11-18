@@ -260,6 +260,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     placeholder = "Upload Image",
     maxCount = 1,
 }) => {
+    const { td } = useTd();
     const handleChange: UploadProps["onChange"] = ({ fileList }) => {
         onChange?.(fileList);
     };
@@ -277,7 +278,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
             <div className="relative group">
                 <Image
                     src={existingUrl}
-                    alt="Current image"
+                    alt={td("Current image", { source: "en" })}
                     className="rounded-lg object-cover"
                     width={120}
                     height={80}
@@ -1008,7 +1009,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                         >
                             <Select
                                 options={cityOptions}
-                                placeholder="Select city"
+                                placeholder={td("Select city", { source: "en" })}
                                 showSearch
                                 optionFilterProp="label"
                             />
@@ -1064,7 +1065,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                     </div>
                     <Form.Item name="description" noStyle>
                         <HtmlEditor
-                            placeholder="Describe this location and its key features..."
+                            placeholder={td("Describe this location and its key features...", { source: "en" })}
                             disabled={isGeneratingDescription}
                             height={220}
                         />
@@ -1102,15 +1103,15 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                             <Input placeholder="123 Main Street" />
                         </Form.Item> */}
 
-                        <Form.Item name="address_country" label="Country">
-                            <Input placeholder="Country" />
+                        <Form.Item name="address_country" label={td("Country", { source: "en" })}>
+                            <Input placeholder={td("Country", { source: "en" })} />
                         </Form.Item>
 
                         <Form.Item
                             name="address_postalCode"
-                            label="Postal Code"
+                            label={td("Postal Code", { source: "en" })}
                         >
-                            <Input placeholder="Postal Code" />
+                            <Input placeholder={td("Postal Code", { source: "en" })} />
                         </Form.Item>
                     </div>
 
@@ -1154,8 +1155,8 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
             children: (
                 <div>
                     <Alert
-                        message="Nearby Attractions"
-                        description="Add points of interest near this location. Include images and descriptions for the expose PDF."
+                        message={td("Nearby Attractions", { source: "en" })}
+                        description={td("Add points of interest near this location. Include images and descriptions for the expose PDF.", { source: "en" })}
                         type="info"
                         showIcon
                         className="mb-4"
@@ -1167,7 +1168,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                 {fields.length === 0 ? (
                                     <Empty
                                         image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                        description="No attractions added yet"
+                                        description={td("No attractions added yet", { source: "en" })}
                                     >
                                         <Button
                                             type="primary"
@@ -1179,7 +1180,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                 })
                                             }
                                         >
-                                            Add First Attraction
+                                            {td("Add First Attraction", { source: "en" })}
                                         </Button>
                                     </Empty>
                                 ) : (
@@ -1212,7 +1213,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                     <Form.Item
                                                         {...restField}
                                                         name={[name, "name"]}
-                                                        label="Attraction Name"
+                                                        label={td("Attraction Name", { source: "en" })}
                                                         rules={[
                                                             {
                                                                 required: true,
@@ -1221,18 +1222,18 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                             },
                                                         ]}
                                                     >
-                                                        <Input placeholder="e.g., Historic Castle" />
+                                                        <Input placeholder={td("e.g., Historic Castle", { source: "en" })} />
                                                     </Form.Item>
 
                                                     <Form.Item
                                                         {...restField}
                                                         name={[name, "content"]}
-                                                        label="Description"
+                                                        label={td("Description", { source: "en" })}
                                                         extra="Rich text shown on the expose PDF attraction page"
                                                     >
                                                         <HtmlEditor
                                                             key={key}
-                                                            placeholder="Describe the attraction..."
+                                                            placeholder={td("Describe the attraction...", { source: "en" })}
                                                             height={180}
                                                         />
                                                     </Form.Item>
@@ -1244,7 +1245,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                                 name,
                                                                 "primary_image",
                                                             ]}
-                                                            label="Primary Image"
+                                                            label={td("Primary Image", { source: "en" })}
                                                             valuePropName="value"
                                                             getValueFromEvent={(
                                                                 e,
@@ -1262,7 +1263,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                                     ]?.images
                                                                         ?.primary
                                                                 }
-                                                                placeholder="Primary"
+                                                                placeholder={td("Primary", { source: "en" })}
                                                             />
                                                         </Form.Item>
 
@@ -1272,7 +1273,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                                 name,
                                                                 "secondary_image",
                                                             ]}
-                                                            label="Secondary Image"
+                                                            label={td("Secondary Image", { source: "en" })}
                                                             valuePropName="value"
                                                             getValueFromEvent={(
                                                                 e,
@@ -1290,7 +1291,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                                     ]?.images
                                                                         ?.secondary
                                                                 }
-                                                                placeholder="Secondary"
+                                                                placeholder={td("Secondary", { source: "en" })}
                                                             />
                                                         </Form.Item>
                                                     </div>
@@ -1306,7 +1307,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                             block
                                             icon={<PlusOutlined />}
                                         >
-                                            Add Another Attraction
+                                            {td("Add Another Attraction", { source: "en" })}
                                         </Button>
                                     </>
                                 )}
@@ -1330,8 +1331,8 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                 <div>
                     <div className="mb-4">
                         <Alert
-                            message="Nearby Infrastructure"
-                            description="Add hospitals, shopping centers, schools, and other key infrastructure with travel times."
+                            message={td("Nearby Infrastructure", { source: "en" })}
+                            description={td("Add hospitals, shopping centers, schools, and other key infrastructure with travel times.", { source: "en" })}
                             type="info"
                             showIcon
                         />
@@ -1343,7 +1344,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                 {fields.length === 0 ? (
                                     <Empty
                                         image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                        description="No infrastructure added yet"
+                                        description={td("No infrastructure added yet", { source: "en" })}
                                     >
                                         <Button
                                             type="primary"
@@ -1356,7 +1357,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                 })
                                             }
                                         >
-                                            Add First Item
+                                            {td("Add First Item", { source: "en" })}
                                         </Button>
                                     </Empty>
                                 ) : (
@@ -1393,7 +1394,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                                 name,
                                                                 "infrastructure_id",
                                                             ]}
-                                                            label="Name"
+                                                            label={td("Name", { source: "en" })}
                                                             rules={[
                                                                 {
                                                                     required: true,
@@ -1407,7 +1408,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                                 options={
                                                                     infrastructureOptions
                                                                 }
-                                                                placeholder="Select infrastructure"
+                                                                placeholder={td("Select infrastructure", { source: "en" })}
                                                                 showSearch
                                                                 optionFilterProp="label"
                                                             />
@@ -1419,7 +1420,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                                 name,
                                                                 "travelTimeInMin",
                                                             ]}
-                                                            label="Travel Time"
+                                                            label={td("Travel Time", { source: "en" })}
                                                         >
                                                             <InputNumber
                                                                 min={0}
@@ -1434,7 +1435,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                     <Form.Item
                                                         {...restField}
                                                         name={[name, "image"]}
-                                                        label="Image"
+                                                        label={td("Image", { source: "en" })}
                                                         valuePropName="value"
                                                         getValueFromEvent={(
                                                             e,
@@ -1461,7 +1462,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                                 ]?.image_url ||
                                                                 undefined
                                                             }
-                                                            placeholder="Upload Image"
+                                                            placeholder={td("Upload Image", { source: "en" })}
                                                         />
                                                     </Form.Item>
                                                 </Card>
@@ -1480,7 +1481,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                             block
                                             icon={<PlusOutlined />}
                                         >
-                                            Add Another Item
+                                            {td("Add Another Item", { source: "en" })}
                                         </Button>
                                     </>
                                 )}
@@ -1503,8 +1504,8 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
             children: (
                 <div>
                     <Alert
-                        message="Nearby Airports"
-                        description="Travel times and images for the airports configured for your company. Leave travel time blank to skip an airport for this location."
+                        message={td("Nearby Airports", { source: "en" })}
+                        description={td("Travel times and images for the airports configured for your company. Leave travel time blank to skip an airport for this location.", { source: "en" })}
                         type="info"
                         showIcon
                         className="mb-4"
@@ -1513,7 +1514,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                     {configuredAirports.length === 0 ? (
                         <Empty
                             image={Empty.PRESENTED_IMAGE_SIMPLE}
-                            description="No airports configured yet. Add them in property configuration."
+                            description={td("No airports configured yet. Add them in property configuration.", { source: "en" })}
                         />
                     ) : (
                         <div className="flex flex-col gap-y-4">
@@ -1554,13 +1555,13 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                 index,
                                                 "travelTimeInMin",
                                             ]}
-                                            label="Travel Time"
+                                            label={td("Travel Time", { source: "en" })}
                                         >
                                             <InputNumber
                                                 min={0}
                                                 max={999}
                                                 addonAfter="min"
-                                                placeholder="Minutes"
+                                                placeholder={td("Minutes", { source: "en" })}
                                                 className="w-full"
                                             />
                                         </Form.Item>
@@ -1571,7 +1572,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                 index,
                                                 "image",
                                             ]}
-                                            label="Image"
+                                            label={td("Image", { source: "en" })}
                                             valuePropName="value"
                                             getValueFromEvent={(e) =>
                                                 Array.isArray(e)
@@ -1585,7 +1586,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                     airport.image_url ||
                                                     undefined
                                                 }
-                                                placeholder="Upload Image"
+                                                placeholder={td("Upload Image", { source: "en" })}
                                             />
                                         </Form.Item>
                                     </Card>
@@ -1636,7 +1637,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                     )}
                     <Space className={isUploading ? "" : "ml-auto"}>
                         <Button onClick={onClose} disabled={isLoading}>
-                            Cancel
+                            {td("Cancel", { source: "en" })}
                         </Button>
                         <Button
                             type="primary"
@@ -2008,7 +2009,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                                         icon={<PlusOutlined />}
                                         onClick={handleAdd}
                                     >
-                                        Create Your First Location
+                                        {td("Create Your First Location", { source: "en" })}
                                     </Button>
                                 )}
                             </Empty>

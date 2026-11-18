@@ -5,6 +5,7 @@ import {
 } from "@ant-design/icons";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import useCalendarSync, { canManageCalendarSync } from "@/Hooks/useCalendarSync";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type Props = {
     followup: DealFollowup;
@@ -21,6 +22,7 @@ export default function CalendarSyncStatus({
     isCreator,
     currentUserId,
 }: Props) {
+    const { td } = useTd();
     const show =
         featureEnabled &&
         (isCreator || canManageCalendarSync(followup, currentUserId)) &&
@@ -60,7 +62,7 @@ export default function CalendarSyncStatus({
                     loading={retrying}
                     disabled={retrying}
                 >
-                    Retry sync
+                    {td("Retry sync", { source: "en" })}
                 </Button>
             </span>
         );
@@ -77,7 +79,7 @@ export default function CalendarSyncStatus({
                     className="!px-0"
                     onClick={() => refresh()}
                 >
-                    Refresh
+                    {td("Refresh", { source: "en" })}
                 </Button>
             )}
         </span>

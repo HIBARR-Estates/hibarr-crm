@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button, Input, Modal, Select } from "antd";
 import { PROJECT_CONSTRUCTION_STATUSES } from "@/Features/Properties/SaveProperty/constructionProjectConfig";
 import { formatLocationNameForDisplay, snakeToReadable } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface ProjectsFilterDraft {
     developer_id: string;
@@ -62,6 +63,7 @@ const ProjectsFiltersModal = ({
     locations,
     primaryCategories,
 }: ProjectsFiltersModalProps) => {
+    const { td } = useTd();
     const [draft, setDraft] = useState<ProjectsFilterDraft>(initialValues);
 
     useEffect(() => {
@@ -124,7 +126,7 @@ const ProjectsFiltersModal = ({
 
     return (
         <Modal
-            title="Filters"
+            title={td("Filters", { source: "en" })}
             open={open}
             onCancel={onClose}
             width={440}
@@ -137,12 +139,12 @@ const ProjectsFiltersModal = ({
                             onReset();
                         }}
                     >
-                        Reset
+                        {td("Reset", { source: "en" })}
                     </Button>
                     <div className="flex gap-2">
-                        <Button onClick={onClose}>Cancel</Button>
+                        <Button onClick={onClose}>{td("Cancel", { source: "en" })}</Button>
                         <Button type="primary" onClick={() => onApply(draft)}>
-                            Apply
+                            {td("Apply", { source: "en" })}
                         </Button>
                     </div>
                 </div>
@@ -151,12 +153,12 @@ const ProjectsFiltersModal = ({
             <div className="flex flex-col gap-4 py-1">
                 <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                        Developer
+                        {td("Developer", { source: "en" })}
                     </label>
                     <Select
                         value={draft.developer_id || undefined}
                         onChange={(v) => update("developer_id", v ?? "")}
-                        placeholder="All developers"
+                        placeholder={td("All developers", { source: "en" })}
                         allowClear
                         className="w-full"
                         options={developers.map((d) => ({
@@ -168,12 +170,12 @@ const ProjectsFiltersModal = ({
 
                 <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                        City
+                        {td("City", { source: "en" })}
                     </label>
                     <Select
                         value={draft.city || undefined}
                         onChange={(v) => update("city", v ?? "")}
-                        placeholder="All cities"
+                        placeholder={td("All cities", { source: "en" })}
                         allowClear
                         className="w-full"
                         options={cityOptions}
@@ -184,7 +186,7 @@ const ProjectsFiltersModal = ({
 
                 <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                        Area
+                        {td("Area", { source: "en" })}
                     </label>
                     <Select
                         value={draft.area || undefined}
@@ -205,14 +207,14 @@ const ProjectsFiltersModal = ({
 
                 <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                        Status
+                        {td("Status", { source: "en" })}
                     </label>
                     <Select
                         value={draft.construction_status || undefined}
                         onChange={(v) =>
                             update("construction_status", v ?? "")
                         }
-                        placeholder="Any status"
+                        placeholder={td("Any status", { source: "en" })}
                         allowClear
                         className="w-full"
                         options={PROJECT_CONSTRUCTION_STATUSES.map((s) => ({
@@ -224,12 +226,12 @@ const ProjectsFiltersModal = ({
 
                 <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                        Category
+                        {td("Category", { source: "en" })}
                     </label>
                     <Select
                         value={draft.primary_category || undefined}
                         onChange={(v) => update("primary_category", v ?? "")}
-                        placeholder="Any category"
+                        placeholder={td("Any category", { source: "en" })}
                         allowClear
                         className="w-full"
                         options={primaryCategories.map((c) => ({
@@ -241,7 +243,7 @@ const ProjectsFiltersModal = ({
 
                 <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                        Plan months
+                        {td("Plan months", { source: "en" })}
                     </label>
                     <Input
                         value={draft.payment_plan_duration}
@@ -259,7 +261,7 @@ const ProjectsFiltersModal = ({
 
                 <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                        Price range
+                        {td("Price range", { source: "en" })}
                     </label>
                     <div className="flex items-center gap-2">
                         <Input
@@ -267,7 +269,7 @@ const ProjectsFiltersModal = ({
                             onChange={(e) =>
                                 update("price_min", e.target.value)
                             }
-                            placeholder="Min"
+                            placeholder={td("Min", { source: "en" })}
                             type="number"
                             min={0}
                         />
@@ -277,7 +279,7 @@ const ProjectsFiltersModal = ({
                             onChange={(e) =>
                                 update("price_max", e.target.value)
                             }
-                            placeholder="Max"
+                            placeholder={td("Max", { source: "en" })}
                             type="number"
                             min={0}
                         />

@@ -13,6 +13,7 @@ import {
 } from "../types";
 import { App } from "antd";
 import { invalidateOnSuccess } from "../utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type AllowedHttpMethod = "PATCH" | "DELETE" | "PUT" | "POST";
 
@@ -72,6 +73,7 @@ export const useFormDataMutate = <
     method: AllowedHttpMethod,
     callbackFn?: (res?: MutationResponse) => void
 ) => {
+    const { td } = useTd();
     const { props } = usePage();
     const { auth } = props;
 
@@ -112,8 +114,8 @@ export const useFormDataMutate = <
             } else if (isFormErrorResponse(response)) {
                 // Handle form validation errors
                 notification.error({
-                    message: "Validation Error",
-                    description: "Please check the form for errors",
+                    message: td("Validation Error", { source: "en" }),
+                    description: td("Please check the form for errors", { source: "en" }),
                     duration: 5,
                 });
 
@@ -137,8 +139,8 @@ export const useFormDataMutate = <
 
             if (isFormErrorResponse(apiError)) {
                 notification.error({
-                    message: "Validation Error",
-                    description: "Please check the form for errors",
+                    message: td("Validation Error", { source: "en" }),
+                    description: td("Please check the form for errors", { source: "en" }),
                     duration: 5,
                 });
             } else if (isErrorResponse(apiError)) {
@@ -150,9 +152,9 @@ export const useFormDataMutate = <
             } else {
                 // Fallback for unknown errors
                 notification.error({
-                    message: "Error",
+                    message: td("Error", { source: "en" }),
                     description:
-                        "An unexpected error occurred. Please try again.",
+                        td("An unexpected error occurred. Please try again.", { source: "en" }),
                     duration: 5,
                 });
             }

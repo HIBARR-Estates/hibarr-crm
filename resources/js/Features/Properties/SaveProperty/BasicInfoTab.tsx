@@ -19,6 +19,7 @@ import { usePage } from "@inertiajs/react";
 import { PageProps } from "@/Components/DashboardLayout";
 import CurrencyInput from "@/Components/CurrencyInput";
 import { parsePropertyPrice, formatLocationNameForDisplay } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -95,6 +96,7 @@ export default function BasicInfoTab({
     onErrorsClear,
     setErrors,
 }: BasicInfoTabProps) {
+    const { td } = useTd();
     const [form] = Form.useForm<
         Omit<Property, "id"> & {
             developer_project_id?: number;
@@ -263,12 +265,12 @@ export default function BasicInfoTab({
             }}
             size="middle"
         >
-            <Card title="Basic Property Information" size="small">
+            <Card title={td("Basic Property Information", { source: "en" })} size="small">
                 <Row gutter={[16, 16]}>
                     <Col span={24}>
                         <Form.Item
                             name="title"
-                            label="Property Title"
+                            label={td("Property Title", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
@@ -276,14 +278,14 @@ export default function BasicInfoTab({
                                 },
                             ]}
                         >
-                            <Input placeholder="Enter property title" />
+                            <Input placeholder={td("Enter property title", { source: "en" })} />
                         </Form.Item>
                     </Col>
 
                     <Col span={12}>
                         <Form.Item
                             name="sale_type"
-                            label="Sale Type"
+                            label={td("Sale Type", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
@@ -291,7 +293,7 @@ export default function BasicInfoTab({
                                 },
                             ]}
                         >
-                            <Select placeholder="Select sale type">
+                            <Select placeholder={td("Select sale type", { source: "en" })}>
                                 {SALE_TYPES.map((type) => (
                                     <Option key={type} value={type}>
                                         {type}
@@ -304,7 +306,7 @@ export default function BasicInfoTab({
                     <Col span={12}>
                         <Form.Item
                             name="property_type"
-                            label="Property Type"
+                            label={td("Property Type", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
@@ -313,7 +315,7 @@ export default function BasicInfoTab({
                             ]}
                         >
                             <Select
-                                placeholder="Select property type"
+                                placeholder={td("Select property type", { source: "en" })}
                                 showSearch
                                 optionFilterProp="children"
                             >
@@ -338,7 +340,7 @@ export default function BasicInfoTab({
                     <Col span={24}>
                         <Form.Item
                             name="description"
-                            label="Description"
+                            label={td("Description", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
@@ -349,7 +351,7 @@ export default function BasicInfoTab({
                         >
                             <TextArea
                                 rows={4}
-                                placeholder="Describe the property..."
+                                placeholder={td("Describe the property...", { source: "en" })}
                             />
                         </Form.Item>
                     </Col>
@@ -357,7 +359,7 @@ export default function BasicInfoTab({
                     <Col span={12}>
                         <Form.Item
                             name="price"
-                            label="Price"
+                            label={td("Price", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
@@ -366,7 +368,7 @@ export default function BasicInfoTab({
                             ]}
                         >
                             <CurrencyInput
-                                placeholder="Enter price"
+                                placeholder={td("Enter price", { source: "en" })}
                                 showLabel={false}
                                 // min={0}
                                 // TODO: Use property product currency if available, and fallback to default company currency, when not sent from ui
@@ -385,10 +387,10 @@ export default function BasicInfoTab({
                     <Col span={12}>
                         <Form.Item
                             name="status"
-                            label="Status"
+                            label={td("Status", { source: "en" })}
                             initialValue="Available"
                         >
-                            <Select placeholder="Select status">
+                            <Select placeholder={td("Select status", { source: "en" })}>
                                 {STATUS_OPTIONS.map((status) => (
                                     <Option key={status} value={status}>
                                         {status}
@@ -404,22 +406,22 @@ export default function BasicInfoTab({
                             plain
                             className="!my-2 !text-xs !text-gray-400"
                         >
-                            Residence / Project
+                            {td("Residence / Project", { source: "en" })}
                         </Divider>
                     </Col>
 
                     <Col xs={24} md={12}>
                         <Form.Item
                             name="within_site"
-                            label="Is this property in a residence or project?"
+                            label={td("Is this property in a residence or project?", { source: "en" })}
                         >
                             <Select
-                                placeholder="Select"
+                                placeholder={td("Select", { source: "en" })}
                                 allowClear
                                 onChange={handleWithinSiteChange}
                             >
-                                <Option value={true}>Yes</Option>
-                                <Option value={false}>No</Option>
+                                <Option value={true}>{td("Yes", { source: "en" })}</Option>
+                                <Option value={false}>{td("No", { source: "en" })}</Option>
                             </Select>
                         </Form.Item>
                     </Col>
@@ -429,11 +431,11 @@ export default function BasicInfoTab({
                             <Col xs={24} md={12}>
                                 <Form.Item
                                     name="_selected_developer_id"
-                                    label="Construction Company"
-                                    tooltip="Select the construction company / developer"
+                                    label={td("Construction Company", { source: "en" })}
+                                    tooltip={td("Select the construction company / developer", { source: "en" })}
                                 >
                                     <Select
-                                        placeholder="Select construction company"
+                                        placeholder={td("Select construction company", { source: "en" })}
                                         allowClear
                                         showSearch
                                         optionFilterProp="children"
@@ -451,8 +453,8 @@ export default function BasicInfoTab({
                             <Col xs={24} md={12}>
                                 <Form.Item
                                     name="developer_project_id"
-                                    label="Project Name"
-                                    tooltip="Selecting a project will derive location from the project's location settings"
+                                    label={td("Project Name", { source: "en" })}
+                                    tooltip={td("Selecting a project will derive location from the project's location settings", { source: "en" })}
                                 >
                                     <Select
                                         placeholder={
@@ -492,8 +494,8 @@ export default function BasicInfoTab({
                     {selectedProjectId && !projectHasLocation && (
                         <Col span={24}>
                             <Alert
-                                message="Project has no location configured"
-                                description="The selected project does not have a location set. Please enter the city and area manually, or configure the project's location in the Developer Projects section."
+                                message={td("Project has no location configured", { source: "en" })}
+                                description={td("The selected project does not have a location set. Please enter the city and area manually, or configure the project's location in the Developer Projects section.", { source: "en" })}
                                 type="warning"
                                 showIcon
                                 icon={<WarningOutlined />}
@@ -505,7 +507,7 @@ export default function BasicInfoTab({
                     <Col span={12}>
                         <Form.Item
                             name="city"
-                            label="City"
+                            label={td("City", { source: "en" })}
                             tooltip={
                                 projectHasLocation
                                     ? "Derived from project location"
@@ -535,7 +537,7 @@ export default function BasicInfoTab({
                     <Col span={12}>
                         <Form.Item
                             name="area"
-                            label="Area/Country"
+                            label={td("Area/Country", { source: "en" })}
                             tooltip={
                                 projectHasLocation
                                     ? "Derived from project location"
@@ -566,20 +568,20 @@ export default function BasicInfoTab({
                     <Col span={12}>
                         <Form.Item
                             name="block_name"
-                            label="Block / Building"
-                            tooltip="Block, building, or tower name/number (e.g., Block B, Tower 1, Phase 2)"
+                            label={td("Block / Building", { source: "en" })}
+                            tooltip={td("Block, building, or tower name/number (e.g., Block B, Tower 1, Phase 2)", { source: "en" })}
                         >
-                            <Input placeholder="e.g., Block B, Tower 1" />
+                            <Input placeholder={td("e.g., Block B, Tower 1", { source: "en" })} />
                         </Form.Item>
                     </Col>
 
                     <Col span={12}>
                         <Form.Item
                             name="unit_number"
-                            label="Unit / Apartment Number"
-                            tooltip="Unit, apartment, or house number within the block"
+                            label={td("Unit / Apartment Number", { source: "en" })}
+                            tooltip={td("Unit, apartment, or house number within the block", { source: "en" })}
                         >
-                            <Input placeholder="e.g., 101, A-5, Unit 12" />
+                            <Input placeholder={td("e.g., 101, A-5, Unit 12", { source: "en" })} />
                         </Form.Item>
                     </Col>
                 </Row>

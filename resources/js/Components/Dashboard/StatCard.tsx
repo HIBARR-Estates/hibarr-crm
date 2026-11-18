@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { LucideIcon } from "lucide-react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface StatCardProps {
     title: string;
@@ -24,6 +25,7 @@ export default function StatCard({
     delay = 0,
     onClick,
 }: StatCardProps) {
+    const { td } = useTd();
     return (
         <motion.div
             onClick={onClick}
@@ -67,7 +69,7 @@ export default function StatCard({
                                     {Math.abs(change.value)}%
                                 </span>
                                 <span className="text-xs text-gray-500">
-                                    vs last month
+                                    {td("vs last month", { source: "en" })}
                                 </span>
                             </div>
                         )}

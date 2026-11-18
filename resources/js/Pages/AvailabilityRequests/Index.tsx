@@ -26,6 +26,7 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import { generatePropertySubtitle } from "@/lib/utils";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface AvailabilityRequest {
     id: number;
@@ -88,6 +89,7 @@ const statusIcons: Record<string, React.ReactNode> = {
 };
 
 const Index = () => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const [direction, setDirection] = useState<string>("all");
     const [statusFilter, setStatusFilter] = useState<string>("");
@@ -212,7 +214,7 @@ const Index = () => {
                 record.responsible_agent?.name ? (
                     <span>{record.responsible_agent.name}</span>
                 ) : (
-                    <span className="text-gray-400 italic">Hidden</span>
+                    <span className="text-gray-400 italic">{td("Hidden", { source: "en" })}</span>
                 ),
         },
         {
@@ -236,7 +238,7 @@ const Index = () => {
             render: (_, record) => (
                 <span className="text-gray-600">
                     {record.message || (
-                        <span className="italic text-gray-400">No message</span>
+                        <span className="italic text-gray-400">{td("No message", { source: "en" })}</span>
                     )}
                 </span>
             ),
@@ -253,7 +255,7 @@ const Index = () => {
             width: 200,
             render: (_, record) => (
                 <Space>
-                    <Tooltip title="View details">
+                    <Tooltip title={td("View details", { source: "en" })}>
                         <Button
                             size="small"
                             icon={<EyeOutlined />}
@@ -270,14 +272,14 @@ const Index = () => {
                                 type="primary"
                                 onClick={() => handleRespond(record, "approve")}
                             >
-                                Approve
+                                {td("Approve", { source: "en" })}
                             </Button>
                             <Button
                                 size="small"
                                 danger
                                 onClick={() => handleRespond(record, "deny")}
                             >
-                                Deny
+                                {td("Deny", { source: "en" })}
                             </Button>
                         </>
                     )}
@@ -379,15 +381,15 @@ const Index = () => {
                     {respondModal.request && (
                         <div className="py-2">
                             <p className="mb-2">
-                                <strong>Property:</strong>{" "}
+                                <strong>{td("Property:", { source: "en" })}</strong>{" "}
                                 {respondModal.request.property?.title}
                             </p>
                             <p className="mb-2 text-gray-500 text-sm">
-                                <strong>Ref:</strong>{" "}
+                                <strong>{td("Ref:", { source: "en" })}</strong>{" "}
                                 {respondModal.request.property?.reference_code}
                             </p>
                             <p className="mb-2">
-                                <strong>Requesting Agent:</strong>{" "}
+                                <strong>{td("Requesting Agent:", { source: "en" })}</strong>{" "}
                                 {respondModal.request.requesting_agent?.name}
                             </p>
                             {respondModal.request.message && (
@@ -416,7 +418,7 @@ const Index = () => {
 
                 {/* Detail Modal */}
                 <Modal
-                    title="Request Details"
+                    title={td("Request Details", { source: "en" })}
                     open={detailModal.open}
                     onCancel={() =>
                         setDetailModal({ open: false, request: null })
@@ -428,7 +430,7 @@ const Index = () => {
                         <div className="py-2 space-y-3">
                             <div>
                                 <span className="text-gray-500 text-sm">
-                                    Property
+                                    {td("Property", { source: "en" })}
                                 </span>
                                 <div className="font-medium">
                                     {detailModal.request.property?.title}
@@ -444,7 +446,7 @@ const Index = () => {
                             </div>
                             <div>
                                 <span className="text-gray-500 text-sm">
-                                    Requesting Agent
+                                    {td("Requesting Agent", { source: "en" })}
                                 </span>
                                 <div>
                                     {detailModal.request.requesting_agent?.name}
@@ -459,7 +461,7 @@ const Index = () => {
                             {detailModal.request.responsible_agent && (
                                 <div>
                                     <span className="text-gray-500 text-sm">
-                                        Responsible Agent
+                                        {td("Responsible Agent", { source: "en" })}
                                     </span>
                                     <div>
                                         {
@@ -471,7 +473,7 @@ const Index = () => {
                             )}
                             <div>
                                 <span className="text-gray-500 text-sm">
-                                    Status
+                                    {td("Status", { source: "en" })}
                                 </span>
                                 <div>
                                     <Tag
@@ -496,7 +498,7 @@ const Index = () => {
                             {detailModal.request.message && (
                                 <div>
                                     <span className="text-gray-500 text-sm">
-                                        Message
+                                        {td("Message", { source: "en" })}
                                     </span>
                                     <div>{detailModal.request.message}</div>
                                 </div>
@@ -504,7 +506,7 @@ const Index = () => {
                             {detailModal.request.response_message && (
                                 <div>
                                     <span className="text-gray-500 text-sm">
-                                        Response
+                                        {td("Response", { source: "en" })}
                                     </span>
                                     <div>
                                         {detailModal.request.response_message}
@@ -513,7 +515,7 @@ const Index = () => {
                             )}
                             <div>
                                 <span className="text-gray-500 text-sm">
-                                    Requested At
+                                    {td("Requested At", { source: "en" })}
                                 </span>
                                 <div>
                                     {formatCompanyDateTime(
@@ -524,7 +526,7 @@ const Index = () => {
                             {detailModal.request.responded_at && (
                                 <div>
                                     <span className="text-gray-500 text-sm">
-                                        Responded At
+                                        {td("Responded At", { source: "en" })}
                                     </span>
                                     <div>
                                         {formatCompanyDateTime(
@@ -536,7 +538,7 @@ const Index = () => {
                             {detailModal.request.escalated_at && (
                                 <div>
                                     <span className="text-gray-500 text-sm">
-                                        Escalated At
+                                        {td("Escalated At", { source: "en" })}
                                     </span>
                                     <div>
                                         {formatCompanyDateTime(
@@ -548,7 +550,7 @@ const Index = () => {
                             {detailModal.request.expires_at && (
                                 <div>
                                     <span className="text-gray-500 text-sm">
-                                        Expires At
+                                        {td("Expires At", { source: "en" })}
                                     </span>
                                     <div>
                                         {formatCompanyDateTime(

@@ -5,6 +5,7 @@ import { SaveFilled } from "@ant-design/icons";
 import { isLoading, pluralOrSingular } from "@/lib/utils";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     ids: number[];
@@ -19,6 +20,7 @@ const BulkChangeStatusFollowups: React.FC<Props> = ({
     title,
     status: proposedStatus,
 }) => {
+    const { td } = useTd();
     const handleCancel = () => {
         onClose();
     };
@@ -64,8 +66,8 @@ const BulkChangeStatusFollowups: React.FC<Props> = ({
                 "follow-ups"
             )} to ${proposedStatus} ?`}
             icon={null}
-            confirmText="Yes"
-            cancelText="Cancel"
+            confirmText={td("Yes", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
             confirmType="primary"
             confirmDanger={false}
         />

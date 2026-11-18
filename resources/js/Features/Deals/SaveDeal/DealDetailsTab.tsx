@@ -20,6 +20,7 @@ import { DealFormProps } from "./DealForm";
 import { formatCurrency } from "@/lib/utils";
 import CurrencyInput from "@/Components/CurrencyInput";
 import { useCurrencies } from "@/Hooks/useFormData";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface DealDetailsTabProps extends Pick<
     DealFormProps,
@@ -54,6 +55,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     onStageChange,
     formReferenceData = {},
 }) => {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const selectedValueSource = Form.useWatch("value_source", form) || "manual";
     const { props } = usePage<any>();
@@ -427,12 +429,12 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
             }}
             size="middle"
         >
-            <Card title="Deal Information" size="small" variant="outlined">
+            <Card title={td("Deal Information", { source: "en" })} size="small" variant="outlined">
                 <Row gutter={[16, 16]}>
                     <Col span={8}>
                         <Form.Item
                             name="lead_contact"
-                            label="Lead Contact"
+                            label={td("Lead Contact", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
@@ -445,7 +447,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 disabled={disableFields.includes(
                                     "lead_contact",
                                 )}
-                                placeholder="Select Lead Contact"
+                                placeholder={td("Select Lead Contact", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
@@ -465,7 +467,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     <Col span={8}>
                         <Form.Item
                             name="name"
-                            label="Deal Name"
+                            label={td("Deal Name", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
@@ -473,14 +475,14 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 },
                             ]}
                         >
-                            <Input placeholder="Enter deal name" />
+                            <Input placeholder={td("Enter deal name", { source: "en" })} />
                         </Form.Item>
                     </Col>
 
                     <Col span={8}>
                         <Form.Item
                             name="pipeline"
-                            label="Pipeline"
+                            label={td("Pipeline", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
@@ -489,7 +491,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                             ]}
                         >
                             <Select
-                                placeholder="Select Pipeline"
+                                placeholder={td("Select Pipeline", { source: "en" })}
                                 onChange={handlePipelineChange}
                                 allowClear
                                 showSearch
@@ -510,7 +512,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     <Col span={8}>
                         <Form.Item
                             name="stage_id"
-                            label="Stage"
+                            label={td("Stage", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
@@ -519,7 +521,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                             ]}
                         >
                             <Select
-                                placeholder="Select Stage"
+                                placeholder={td("Select Stage", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
@@ -561,7 +563,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     <Col span={8}>
                         <Form.Item
                             name="value_source"
-                            label="Value Source"
+                            label={td("Value Source", { source: "en" })}
                             initialValue="manual"
                             rules={[
                                 {
@@ -571,7 +573,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                             ]}
                         >
                             <Select
-                                placeholder="Select value source"
+                                placeholder={td("Select value source", { source: "en" })}
                                 disabled={disableFields.includes("deal_value")}
                                 options={[
                                     { value: "manual", label: "Manual" },
@@ -587,7 +589,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     <Col span={8}>
                         <Form.Item
                             name="manual_value"
-                            label="Manual Value"
+                            label={td("Manual Value", { source: "en" })}
                             rules={[
                                 () => ({
                                     validator(_, value) {
@@ -640,7 +642,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     <Col span={8}>
                         <Form.Item
                             name="close_date"
-                            label="Close Date"
+                            label={td("Close Date", { source: "en" })}
                             rules={[
                                 {
                                     required: false,
@@ -649,7 +651,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                             ]}
                         >
                             <DatePicker
-                                placeholder="Select close date"
+                                placeholder={td("Select close date", { source: "en" })}
                                 className="w-full"
                                 format="YYYY-MM-DD"
                                 allowClear
@@ -658,9 +660,9 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     </Col>
 
                     <Col span={8}>
-                        <Form.Item name="category_id" label="Deal Category">
+                        <Form.Item name="category_id" label={td("Deal Category", { source: "en" })}>
                             <Select
-                                placeholder="Select Category"
+                                placeholder={td("Select Category", { source: "en" })}
                                 onChange={handleCategoryChange}
                                 allowClear
                             >
@@ -677,9 +679,9 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     </Col>
 
                     <Col span={8}>
-                        <Form.Item name="agent_id" label="Deal Agent">
+                        <Form.Item name="agent_id" label={td("Deal Agent", { source: "en" })}>
                             <Select
-                                placeholder="Select Agent"
+                                placeholder={td("Select Agent", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
@@ -700,14 +702,14 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     </Col>
 
                     <Col span={24}>
-                        <Form.Item name="package_id" label="Packages">
+                        <Form.Item name="package_id" label={td("Packages", { source: "en" })}>
                             <Select
                                 mode={
                                     dealPackageMode === "single"
                                         ? undefined
                                         : "multiple"
                                 }
-                                placeholder="Select Packages"
+                                placeholder={td("Select Packages", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
@@ -735,10 +737,10 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                         </Form.Item>
                     </Col>
                     <Col span={24}>
-                        <Form.Item name="product_id" label="Properties">
+                        <Form.Item name="product_id" label={td("Properties", { source: "en" })}>
                             <Select
                                 mode="multiple"
-                                placeholder="Select Properties"
+                                placeholder={td("Select Properties", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
@@ -756,10 +758,10 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     </Col>
 
                     <Col span={24}>
-                        <Form.Item name="deal_watcher" label="Deal Watchers">
+                        <Form.Item name="deal_watcher" label={td("Deal Watchers", { source: "en" })}>
                             <Select
                                 mode="multiple"
-                                placeholder="Select Watchers"
+                                placeholder={td("Select Watchers", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
@@ -779,11 +781,11 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     <Col span={24}>
                         <Form.Item
                             name="deal_participant"
-                            label="Deal Participants"
+                            label={td("Deal Participants", { source: "en" })}
                         >
                             <Select
                                 mode="multiple"
-                                placeholder="Select Participants"
+                                placeholder={td("Select Participants", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
@@ -805,7 +807,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                             <Col span={8}>
                                 <Form.Item
                                     name="strategy_accepted"
-                                    label="Strategy Accepted"
+                                    label={td("Strategy Accepted", { source: "en" })}
                                     valuePropName="checked"
                                 >
                                     <Switch />
@@ -814,7 +816,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                             <Col span={8}>
                                 <Form.Item
                                     name="downpayment_confirmed"
-                                    label="Downpayment Confirmed"
+                                    label={td("Downpayment Confirmed", { source: "en" })}
                                     valuePropName="checked"
                                 >
                                     <Switch />

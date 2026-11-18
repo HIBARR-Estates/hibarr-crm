@@ -5,6 +5,7 @@ import {
     ClearOutlined,
     FilterOutlined,
 } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 const { Search } = Input;
@@ -58,6 +59,7 @@ const BasicTaskFilterBox: React.FC<BasicTaskFilterBoxProps> = ({
     users = [],
     projects = [],
 }) => {
+    const { td } = useTd();
     const [form] = Form.useForm();
 
     const handleSearchChange = (value: string) => {
@@ -84,11 +86,11 @@ const BasicTaskFilterBox: React.FC<BasicTaskFilterBoxProps> = ({
                     <Col xs={24} sm={8} lg={6}>
                         <Form.Item
                             name="search"
-                            label="Search Tasks"
+                            label={td("Search Tasks", { source: "en" })}
                             className="mb-0"
                         >
                             <Search
-                                placeholder="Search by title or description..."
+                                placeholder={td("Search by title or description...", { source: "en" })}
                                 allowClear
                                 onSearch={handleSearchChange}
                                 onChange={(e) =>
@@ -102,11 +104,11 @@ const BasicTaskFilterBox: React.FC<BasicTaskFilterBoxProps> = ({
                     <Col xs={24} sm={6} lg={4}>
                         <Form.Item
                             name="status"
-                            label="Status"
+                            label={td("Status", { source: "en" })}
                             className="mb-0"
                         >
                             <Select
-                                placeholder="All Status"
+                                placeholder={td("All Status", { source: "en" })}
                                 allowClear
                                 onChange={(value) =>
                                     handleFilterChange("status", value)
@@ -139,30 +141,30 @@ const BasicTaskFilterBox: React.FC<BasicTaskFilterBoxProps> = ({
                     <Col xs={24} sm={6} lg={4}>
                         <Form.Item
                             name="priority"
-                            label="Priority"
+                            label={td("Priority", { source: "en" })}
                             className="mb-0"
                         >
                             <Select
-                                placeholder="All Priorities"
+                                placeholder={td("All Priorities", { source: "en" })}
                                 allowClear
                                 onChange={(value) =>
                                     handleFilterChange("priority", value)
                                 }
                             >
                                 <Option value="urgent">
-                                    <Space>🔴 Urgent</Space>
+                                    <Space>{td("🔴 Urgent", { source: "en" })}</Space>
                                 </Option>
                                 <Option value="highest">
-                                    <Space>🔴 Highest</Space>
+                                    <Space>{td("🔴 Highest", { source: "en" })}</Space>
                                 </Option>
                                 <Option value="high">
-                                    <Space>🔴 High</Space>
+                                    <Space>{td("🔴 High", { source: "en" })}</Space>
                                 </Option>
                                 <Option value="medium">
-                                    <Space>🔵 Medium</Space>
+                                    <Space>{td("🔵 Medium", { source: "en" })}</Space>
                                 </Option>
                                 <Option value="low">
-                                    <Space>🟢 Low</Space>
+                                    <Space>{td("🟢 Low", { source: "en" })}</Space>
                                 </Option>
                             </Select>
                         </Form.Item>
@@ -171,11 +173,11 @@ const BasicTaskFilterBox: React.FC<BasicTaskFilterBoxProps> = ({
                     <Col xs={24} sm={6} lg={4}>
                         <Form.Item
                             name="assigned_to"
-                            label="Assignee"
+                            label={td("Assignee", { source: "en" })}
                             className="mb-0"
                         >
                             <Select
-                                placeholder="All Assignees"
+                                placeholder={td("All Assignees", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
@@ -201,11 +203,11 @@ const BasicTaskFilterBox: React.FC<BasicTaskFilterBoxProps> = ({
                     <Col xs={24} sm={6} lg={4}>
                         <Form.Item
                             name="project_id"
-                            label="Project"
+                            label={td("Project", { source: "en" })}
                             className="mb-0"
                         >
                             <Select
-                                placeholder="All Projects"
+                                placeholder={td("All Projects", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
@@ -234,9 +236,9 @@ const BasicTaskFilterBox: React.FC<BasicTaskFilterBoxProps> = ({
                                 <Button
                                     icon={<ClearOutlined />}
                                     onClick={handleReset}
-                                    title="Clear Filters"
+                                    title={td("Clear Filters", { source: "en" })}
                                 >
-                                    Clear
+                                    {td("Clear", { source: "en" })}
                                 </Button>
                             </Space>
                         </Form.Item>

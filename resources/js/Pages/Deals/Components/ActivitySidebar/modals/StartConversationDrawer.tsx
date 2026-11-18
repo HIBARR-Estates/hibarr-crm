@@ -6,6 +6,7 @@ import { ApiResponse } from "@/lib/api/types";
 import HtmlEditor from "@/Components/HtmlEditor";
 import { router, usePage } from "@inertiajs/react";
 import { isLoading as _isLoading } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 
@@ -37,6 +38,7 @@ export default function StartConversationDrawer({
     activityIdBeingRepliedTo,
     title = "Start New Conversation",
 }: Props) {
+    const { td } = useTd();
     const { message: messageApi } = App.useApp();
     const {
         props: { auth },
@@ -165,12 +167,12 @@ export default function StartConversationDrawer({
             >
                 <Form.Item
                     name="channel_type"
-                    label="Select Channel"
+                    label={td("Select Channel", { source: "en" })}
                     rules={[
                         { required: true, message: "Please select a channel" },
                     ]}
                 >
-                    <Select placeholder="Choose communication channel">
+                    <Select placeholder={td("Choose communication channel", { source: "en" })}>
                         {channelOptions.map((option) => (
                             <Option
                                 key={option.value}
@@ -186,21 +188,21 @@ export default function StartConversationDrawer({
                 {/* subject just for email */}
                 <Form.Item
                     name="subject"
-                    label="Subject"
+                    label={td("Subject", { source: "en" })}
                     rules={[
                         { required: true, message: "Please enter a subject" },
                     ]}
                     hidden={channelType !== "email"}
                 >
                     <Input
-                        placeholder="Enter subject"
+                        placeholder={td("Enter subject", { source: "en" })}
                         disabled={isLoading || channelType !== "email"}
                     />
                 </Form.Item>
 
                 <Form.Item
                     name="message_content"
-                    label="Message"
+                    label={td("Message", { source: "en" })}
                     rules={[
                         {
                             required: true,
@@ -211,13 +213,13 @@ export default function StartConversationDrawer({
                     {/* HTML Editor just for email, use TextArea for all others */}
                     {channelType === "email" ? (
                         <HtmlEditor
-                            placeholder="Type your message here..."
+                            placeholder={td("Type your message here...", { source: "en" })}
                             disabled={isLoading}
                             height={300}
                         />
                     ) : (
                         <Input.TextArea
-                            placeholder="Type your message here..."
+                            placeholder={td("Type your message here...", { source: "en" })}
                             disabled={isLoading}
                             rows={10}
                         />
@@ -227,7 +229,7 @@ export default function StartConversationDrawer({
                 <Divider />
                 <div className="flex justify-end gap-x-2">
                     <Button onClick={onClose} disabled={isLoading}>
-                        Cancel
+                        {td("Cancel", { source: "en" })}
                     </Button>
                     <Button
                         type="primary"
@@ -235,7 +237,7 @@ export default function StartConversationDrawer({
                         loading={isLoading}
                         onClick={() => form.submit()}
                     >
-                        Send Message
+                        {td("Send Message", { source: "en" })}
                     </Button>
                 </div>
             </Form>

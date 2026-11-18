@@ -16,6 +16,7 @@ import {
     type ExposeValidationWarning,
 } from "@/lib/expose/formatExposeValidationLabel";
 import ExposeValidationWarnings from "@/Features/Expose/ExposeValidationWarnings";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface GenerateProjectExposeModalProps {
     open: boolean;
@@ -45,6 +46,7 @@ const GenerateProjectExposeModal: React.FC<GenerateProjectExposeModalProps> = ({
     projectId,
     projectName,
 }) => {
+    const { td } = useTd();
     const [warnings, setWarnings] = useState<ExposeValidationWarning[]>([]);
     const [clientName, setClientName] = useState<string>("");
     const [clientEmail, setClientEmail] = useState<string>("");
@@ -141,7 +143,7 @@ const GenerateProjectExposeModal: React.FC<GenerateProjectExposeModalProps> = ({
         phase === "form" || phase === "failed"
             ? [
                   <Button key="cancel" onClick={handleClose}>
-                      Cancel
+                      {td("Cancel", { source: "en" })}
                   </Button>,
                   <Button
                       key="generate"
@@ -173,8 +175,7 @@ const GenerateProjectExposeModal: React.FC<GenerateProjectExposeModalProps> = ({
                 <div className="py-10 text-center flex flex-col items-center gap-4">
                     <Spin size="large" />
                     <p className="text-gray-600">
-                        Your brochure PDF is being generated. You can close this
-                        window — a notification will appear when it's ready.
+                        {td("Your brochure PDF is being generated. You can close this window — a notification will appear when it's ready.", { source: "en" })}
                     </p>
                 </div>
             )}
@@ -182,8 +183,7 @@ const GenerateProjectExposeModal: React.FC<GenerateProjectExposeModalProps> = ({
                 <div className="py-8 text-center flex flex-col items-center gap-3">
                     <CheckCircleOutlined className="text-4xl text-green-500" />
                     <p className="text-gray-700 font-medium">
-                        Your PDF is ready! The download should start
-                        automatically.
+                        {td("Your PDF is ready! The download should start automatically.", { source: "en" })}
                     </p>
                 </div>
             )}
@@ -192,7 +192,7 @@ const GenerateProjectExposeModal: React.FC<GenerateProjectExposeModalProps> = ({
                     type="error"
                     showIcon
                     icon={<CloseCircleOutlined />}
-                    message="Generation Failed"
+                    message={td("Generation Failed", { source: "en" })}
                     description={errorMessage}
                     className="mb-4"
                 />
@@ -233,21 +233,20 @@ const GenerateProjectExposeModal: React.FC<GenerateProjectExposeModalProps> = ({
                                     key: "personalization",
                                     label: (
                                         <span className="text-sm font-semibold text-gray-800">
-                                            Personalization (Optional)
+                                            {td("Personalization (Optional)", { source: "en" })}
                                         </span>
                                     ),
                                     children: (
                                         <div className="flex flex-col gap-4">
                                             <p className="text-sm text-gray-500">
-                                                Add client details to
-                                                personalize the PDF.
+                                                {td("Add client details to personalize the PDF.", { source: "en" })}
                                             </p>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Client Name
+                                                    {td("Client Name", { source: "en" })}
                                                 </label>
                                                 <Input
-                                                    placeholder="Enter client name"
+                                                    placeholder={td("Enter client name", { source: "en" })}
                                                     prefix={
                                                         <UserOutlined className="text-gray-400" />
                                                     }
@@ -262,10 +261,10 @@ const GenerateProjectExposeModal: React.FC<GenerateProjectExposeModalProps> = ({
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Client Email
+                                                    {td("Client Email", { source: "en" })}
                                                 </label>
                                                 <Input
-                                                    placeholder="Enter client email"
+                                                    placeholder={td("Enter client email", { source: "en" })}
                                                     prefix={
                                                         <MailOutlined className="text-gray-400" />
                                                     }

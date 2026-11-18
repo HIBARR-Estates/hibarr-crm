@@ -29,12 +29,14 @@ import type {
 import { usePage } from "@inertiajs/react";
 import { formatNumber } from "@/lib/utils";
 import { DataTable } from "@/Components/DataTable";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends PageProps {
     metrics: PaginatedResponse<AgentMetricWithProgress>;
 }
 
 const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
@@ -81,7 +83,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
 
     const handleAssignLevel = () => {
         if (!selectedAgent || !selectedLevelId) {
-            message.warning("Please select a level first.");
+            message.warning(td("Please select a level first.", { source: "en" }));
             return;
         }
 
@@ -123,7 +125,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                 record.current_level ? (
                     <LevelBadge level={record.current_level} />
                 ) : (
-                    <Tag>Unranked</Tag>
+                    <Tag>{td("Unranked", { source: "en" })}</Tag>
                 ),
         },
         {
@@ -181,7 +183,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                         />
                     </div>
                 ) : (
-                    <Tag color="gold">Max Level</Tag>
+                    <Tag color="gold">{td("Max Level", { source: "en" })}</Tag>
                 ),
         },
         {
@@ -195,7 +197,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                     icon={<ShieldCheck size={14} />}
                     onClick={() => openAssignModal(record)}
                 >
-                    Assign Level
+                    {td("Assign Level", { source: "en" })}
                 </Button>
             ),
         },
@@ -214,7 +216,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
             </div>
         ) : (
             <div className="px-4 py-2 text-sm text-gray-500">
-                No criteria progress data
+                {td("No criteria progress data", { source: "en" })}
             </div>
         );
 
@@ -241,7 +243,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                                         className="text-indigo-500"
                                     />
                                     <span className="font-semibold">
-                                        Agent Performance Metrics
+                                        {td("Agent Performance Metrics", { source: "en" })}
                                     </span>
                                 </div>
                             }
@@ -251,7 +253,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                             <div className="flex flex-wrap gap-3 mb-4">
                                 <Input
                                     prefix={<Search size={14} />}
-                                    placeholder="Search agent..."
+                                    placeholder={td("Search agent...", { source: "en" })}
                                     className="w-64"
                                     allowClear
                                     value={search}
@@ -290,7 +292,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                 </div>
 
                 <Modal
-                    title="Manual Agent Level Assignment"
+                    title={td("Manual Agent Level Assignment", { source: "en" })}
                     open={assignModalOpen}
                     onCancel={() => {
                         setAssignModalOpen(false);
@@ -298,7 +300,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                         setSelectedLevelId(undefined);
                     }}
                     onOk={handleAssignLevel}
-                    okText="Assign"
+                    okText={td("Assign", { source: "en" })}
                     okButtonProps={{
                         loading: assignLevel.isPending,
                         disabled: !selectedLevelId,
@@ -322,7 +324,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
 
                         <Select
                             className="w-full"
-                            placeholder="Select a level"
+                            placeholder={td("Select a level", { source: "en" })}
                             value={selectedLevelId}
                             onChange={(val) => setSelectedLevelId(val)}
                             options={levels.map((level) => ({
@@ -332,9 +334,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                         />
 
                         <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-                            This creates a manual level history entry
-                            immediately and will affect future commission
-                            distribution.
+                            {td("This creates a manual level history entry immediately and will affect future commission distribution.", { source: "en" })}
                         </div>
                     </div>
                 </Modal>

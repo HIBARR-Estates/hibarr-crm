@@ -8,6 +8,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const Edit = ({
     pageTitle,
@@ -15,6 +16,7 @@ const Edit = ({
     categories,
     currentCategoryIds,
 }: AgentEditProps) => {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const [errors, setErrors] = useState<string[]>([]);
 
@@ -63,7 +65,7 @@ const Edit = ({
                         <Alert
                             type="error"
                             className="mb-4"
-                            message="Validation Errors"
+                            message={td("Validation Errors", { source: "en" })}
                             description={
                                 <ul className="list-disc list-inside">
                                     {errors.map((e, i) => (
@@ -89,7 +91,7 @@ const Edit = ({
                     >
                         <Form.Item
                             name="name"
-                            label="Full Name"
+                            label={td("Full Name", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
@@ -100,25 +102,25 @@ const Edit = ({
                             <Input />
                         </Form.Item>
 
-                        <Form.Item name="email" label="Email">
+                        <Form.Item name="email" label={td("Email", { source: "en" })}>
                             <Input type="email" />
                         </Form.Item>
 
-                        <Form.Item name="mobile" label="Phone">
+                        <Form.Item name="mobile" label={td("Phone", { source: "en" })}>
                             <Input />
                         </Form.Item>
 
-                        <Form.Item name="status" label="Status">
+                        <Form.Item name="status" label={td("Status", { source: "en" })}>
                             <Radio.Group>
-                                <Radio value="enabled">Active</Radio>
-                                <Radio value="disabled">Disabled</Radio>
+                                <Radio value="enabled">{td("Active", { source: "en" })}</Radio>
+                                <Radio value="disabled">{td("Disabled", { source: "en" })}</Radio>
                             </Radio.Group>
                         </Form.Item>
 
-                        <Form.Item name="category_id" label="Categories">
+                        <Form.Item name="category_id" label={td("Categories", { source: "en" })}>
                             <Select
                                 mode="multiple"
-                                placeholder="Select categories (optional)"
+                                placeholder={td("Select categories (optional)", { source: "en" })}
                                 showSearch
                                 filterOption={(input, option) =>
                                     (option?.label ?? "")
@@ -138,14 +140,14 @@ const Edit = ({
                                     router.visit(route("agents.show", agent.id))
                                 }
                             >
-                                Cancel
+                                {td("Cancel", { source: "en" })}
                             </Button>
                             <Button
                                 type="primary"
                                 onClick={handleSubmit}
                                 loading={loading}
                             >
-                                Update Agent
+                                {td("Update Agent", { source: "en" })}
                             </Button>
                         </div>
                     </Form>

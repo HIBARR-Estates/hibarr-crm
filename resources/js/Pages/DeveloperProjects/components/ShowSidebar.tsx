@@ -105,7 +105,7 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
                             target="_blank"
                             rel="noopener noreferrer"
                             className={baseClasses}
-                            title="Open availability link"
+                            title={td("Open availability link", { source: "en" })}
                             onClick={() => onClose?.()}
                         >
                             <span className="flex-shrink-0">{item.icon}</span>

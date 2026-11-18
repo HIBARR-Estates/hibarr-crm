@@ -59,6 +59,7 @@ import {
     mergeFeatureOptions,
     type FeatureOption,
 } from "@/Features/DeveloperProjects/unitTypeConfig";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -122,6 +123,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
     deal,
     onRefresh,
 }) => {
+    const { td } = useTd();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
     // Properties feed the deal value directly, so attach/detach stays
@@ -377,7 +379,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
         <Modal
             open={open}
             onCancel={onClose}
-            title="Manage Deal Properties"
+            title={td("Manage Deal Properties", { source: "en" })}
             width={900}
             footer={null}
             destroyOnClose
@@ -386,8 +388,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
             <div className="flex flex-col gap-y-6">
                 {valueLocked && (
                     <Text type="warning" className="text-xs">
-                        Commission has already been calculated for this deal,
-                        so its properties can no longer be changed.
+                        {td("Commission has already been calculated for this deal, so its properties can no longer be changed.", { source: "en" })}
                     </Text>
                 )}
                 {/* ── Add Property Section ───────────────── */}
@@ -410,7 +411,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                                 className="flex-1"
                                                 showSearch
                                                 disabled={valueLocked}
-                                                placeholder="Search approved properties by name, city, area..."
+                                                placeholder={td("Search approved properties by name, city, area...", { source: "en" })}
                                                 optionLabelProp="displayLabel"
                                                 filterOption={false}
                                                 onFocus={() =>
@@ -430,7 +431,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                                             type="secondary"
                                                             className="text-xs"
                                                         >
-                                                            No properties found
+                                                            {td("No properties found", { source: "en" })}
                                                         </Text>
                                                     )
                                                 }
@@ -447,7 +448,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                                     valueLocked
                                                 }
                                             >
-                                                Add
+                                                {td("Add", { source: "en" })}
                                             </Button>
                                         </div>
                                     </div>
@@ -468,7 +469,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                             <Select
                                                 className="w-full"
                                                 showSearch
-                                                placeholder="Select a project..."
+                                                placeholder={td("Select a project...", { source: "en" })}
                                                 filterOption={(input, option) =>
                                                     (option?.label ?? "")
                                                         .toString()
@@ -549,7 +550,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                                     </div>
                                                 ) : unitTypes.length === 0 ? (
                                                     <Empty
-                                                        description="No unit types for this project"
+                                                        description={td("No unit types for this project", { source: "en" })}
                                                         image={
                                                             Empty.PRESENTED_IMAGE_SIMPLE
                                                         }
@@ -625,7 +626,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                 <div>
                     <div className="mb-3">
                         <Text strong className="text-sm">
-                            Attached Properties
+                            {td("Attached Properties", { source: "en" })}
                         </Text>
                         <Text type="secondary" className="ml-2 text-xs">
                             ({attachedProperties.length})
@@ -638,7 +639,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                         </div>
                     ) : attachedProperties.length === 0 ? (
                         <Empty
-                            description="No properties attached to this deal"
+                            description={td("No properties attached to this deal", { source: "en" })}
                             image={Empty.PRESENTED_IMAGE_SIMPLE}
                             className="my-6"
                         />
@@ -661,14 +662,14 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                         actions={[
                                             <Popconfirm
                                                 key="remove"
-                                                title="Remove this property from the deal?"
+                                                title={td("Remove this property from the deal?", { source: "en" })}
                                                 onConfirm={() =>
                                                     handleDetach(
                                                         item.product_id,
                                                     )
                                                 }
-                                                okText="Remove"
-                                                cancelText="Cancel"
+                                                okText={td("Remove", { source: "en" })}
+                                                cancelText={td("Cancel", { source: "en" })}
                                                 okButtonProps={{
                                                     danger: true,
                                                 }}
@@ -873,6 +874,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
     insideFeatureOptions,
     outsideFeatureOptions,
 }) => {
+    const { td } = useTd();
     const priceValue = overrides.price ?? unitType.starting_price;
     const floorValue = overrides.floor_number ?? unitType.floor;
     const viewTypesValue = overrides.view_types ?? unitType.view_types ?? [];
@@ -949,7 +951,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                         {/* Price */}
                         <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
-                                Price
+                                {td("Price", { source: "en" })}
                             </label>
                             <InputNumber
                                 className="w-full"
@@ -974,7 +976,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                         {/* Floor */}
                         <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
-                                Floor
+                                {td("Floor", { source: "en" })}
                             </label>
                             <Select
                                 className="w-full"
@@ -985,7 +987,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                 }
                                 options={FLOOR_OPTIONS}
                                 allowClear
-                                placeholder="Select floor"
+                                placeholder={td("Select floor", { source: "en" })}
                             />
                         </div>
                     </div>
@@ -993,7 +995,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                     {/* View Types */}
                     <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
-                            View Types
+                            {td("View Types", { source: "en" })}
                         </label>
                         <Select
                             className="w-full"
@@ -1004,14 +1006,14 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                 onOverrideChange("view_types", val)
                             }
                             options={VIEW_TYPE_OPTIONS}
-                            placeholder="Select view types"
+                            placeholder={td("Select view types", { source: "en" })}
                         />
                     </div>
 
                     {/* Outside Features */}
                     <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Outside Features
+                            {td("Outside Features", { source: "en" })}
                         </label>
                         <Select
                             className="w-full"
@@ -1022,14 +1024,14 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                 onOverrideChange("outside_features", val)
                             }
                             options={outsideFeatureOptions}
-                            placeholder="Select outside features"
+                            placeholder={td("Select outside features", { source: "en" })}
                         />
                     </div>
 
                     {/* Inside Features */}
                     <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Inside Features
+                            {td("Inside Features", { source: "en" })}
                         </label>
                         <Select
                             className="w-full"
@@ -1040,7 +1042,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                 onOverrideChange("inside_features", val)
                             }
                             options={insideFeatureOptions}
-                            placeholder="Select inside features"
+                            placeholder={td("Select inside features", { source: "en" })}
                         />
                     </div>
 
@@ -1051,7 +1053,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                 <label className="block text-xs font-medium text-gray-600 mb-1.5">
                                     Apply Offers{" "}
                                     <span className="text-gray-400 font-normal">
-                                        (optional)
+                                        {td("(optional)", { source: "en" })}
                                     </span>
                                 </label>
                                 <div className="flex flex-col gap-y-2 p-2.5 bg-white rounded border border-gray-100">
@@ -1126,7 +1128,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                             loading={adding}
                             disabled={disabled}
                         >
-                            Add to Deal
+                            {td("Add to Deal", { source: "en" })}
                         </Button>
                     </div>
                 </div>

@@ -41,6 +41,7 @@ import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import axios from "axios";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, router, usePage } from "@inertiajs/react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Title } = Typography;
 
@@ -115,6 +116,7 @@ export default function RecommendationsTab(props: Props) {
  * Displays AI-powered property recommendations based on customer preferences
  */
 function RecommendationsTabContent({ deal, permissions }: Props) {
+    const { td } = useTd();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
     const queryClient = useQueryClient();
@@ -483,7 +485,7 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
 
                 return isInDeal ? (
                     <Tag color="green" icon={<CheckCircleOutlined />}>
-                        Added
+                        {td("Added", { source: "en" })}
                     </Tag>
                 ) : (
                     <Button
@@ -497,7 +499,7 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
                         loading={isAdding}
                         disabled={!propertyId || isAdding}
                     >
-                        Add
+                        {td("Add", { source: "en" })}
                     </Button>
                 );
             },
@@ -548,13 +550,13 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
         return (
             <div className="p-6">
                 <Alert
-                    message="Please complete the deal information to generate property recommendations."
+                    message={td("Please complete the deal information to generate property recommendations.", { source: "en" })}
                     description={apiError}
                     type="warning"
                     showIcon
                     action={
                         <Button size="small" onClick={() => refetch()}>
-                            Try Again
+                            {td("Try Again", { source: "en" })}
                         </Button>
                     }
                 />
@@ -571,11 +573,10 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
                     description={
                         <div className="text-center">
                             <p className="text-gray-500 mb-2">
-                                No property recommendations available
+                                {td("No property recommendations available", { source: "en" })}
                             </p>
                             <Text type="secondary">
-                                Recommendations are generated based on customer
-                                preferences and property matching algorithms.
+                                {td("Recommendations are generated based on customer preferences and property matching algorithms.", { source: "en" })}
                             </Text>
                         </div>
                     }
@@ -586,7 +587,7 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
                         onClick={handleRefresh}
                         loading={loading}
                     >
-                        Generate Recommendations
+                        {td("Generate Recommendations", { source: "en" })}
                     </Button>
                 </Empty>
             </div>
@@ -599,17 +600,17 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
             <div className="flex items-center justify-between mb-4">
                 <div>
                     <Title level={5} style={{ margin: 0 }}>
-                        Property Recommendations
+                        {td("Property Recommendations", { source: "en" })}
                     </Title>
                     <Text type="secondary">
-                        Based on customer preferences and AI matching
+                        {td("Based on customer preferences and AI matching", { source: "en" })}
                     </Text>
                 </div>
                 <Space>
                     {cached && (
-                        <Tooltip title="Results are cached for performance">
+                        <Tooltip title={td("Results are cached for performance", { source: "en" })}>
                             <Tag icon={<InfoCircleOutlined />} color="blue">
-                                Cached
+                                {td("Cached", { source: "en" })}
                             </Tag>
                         </Tooltip>
                     )}
@@ -632,7 +633,7 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
                         onClick={handleRefresh}
                         loading={loading}
                     >
-                        Refresh
+                        {td("Refresh", { source: "en" })}
                     </Button>
                 </Space>
             </div>
@@ -666,7 +667,7 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
                         }
                         loading={addingPropertyIds.size > 0}
                     >
-                        Add Selected to Deal
+                        {td("Add Selected to Deal", { source: "en" })}
                     </Button>
                 </div>
             )}
@@ -745,6 +746,7 @@ function RecommendationCard({
     onAddToDeal,
     isAdding,
 }: RecommendationCardProps) {
+    const { td } = useTd();
     const { property, match_percentage, rank, factors } = recommendation;
     const [imageError, setImageError] = useState(false);
 
@@ -890,7 +892,7 @@ function RecommendationCard({
                         {factors && factors.length > 0 && (
                             <div className="mt-2 pt-2 border-t border-gray-100">
                                 <Text type="secondary" style={{ fontSize: 11 }}>
-                                    Match factors:
+                                    {td("Match factors:", { source: "en" })}
                                 </Text>
                                 <div className="flex flex-col gap-1 mt-1">
                                     {factors.map((factor, idx) => (
@@ -937,7 +939,7 @@ function RecommendationCard({
                                     className="w-full text-center"
                                     style={{ padding: "4px 8px" }}
                                 >
-                                    Added to Deal
+                                    {td("Added to Deal", { source: "en" })}
                                 </Tag>
                             ) : (
                                 <Button
@@ -952,7 +954,7 @@ function RecommendationCard({
                                     loading={isAdding}
                                     disabled={!property?.id || isAdding}
                                 >
-                                    Add to Deal
+                                    {td("Add to Deal", { source: "en" })}
                                 </Button>
                             )}
                         </div>

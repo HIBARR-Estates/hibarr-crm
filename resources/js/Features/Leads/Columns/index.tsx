@@ -17,6 +17,7 @@ import { formatMobileForDisplay } from "@/lib/utils";
 import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 /** Soft-fill triplets — same recipe as the Next Action urgency pills. */
 const LEAD_TEMPERATURE_STYLE: Record<string, { bg: string; fg: string; bd: string }> = {
@@ -222,6 +223,7 @@ interface LeadLifecycleStatusOption {
 
 /** Inline-editable lifecycle status cell for the Leads table. */
 function LeadLifecycleStatusCell({ record }: { record: Lead }) {
+    const { td } = useTd();
     const { props } = usePage();
     const statuses =
         (
@@ -249,7 +251,7 @@ function LeadLifecycleStatusCell({ record }: { record: Lead }) {
             router.reload({ only: ["leads"] });
         } catch {
             setValue(previous);
-            message.error("Failed to update lifecycle status");
+            message.error(td("Failed to update lifecycle status", { source: "en" }));
         } finally {
             setSaving(false);
         }

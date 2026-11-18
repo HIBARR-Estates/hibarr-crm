@@ -17,6 +17,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface SaveAgentModalProps extends Omit<IModalProps, "onClose"> {
     agent?: Agent;
@@ -28,6 +29,7 @@ const SaveAgentModal: React.FC<SaveAgentModalProps> = ({
     onClose,
     open,
 }) => {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const [agentType, setAgentType] = useState<"existing" | "new">("existing");
     const [errors, setErrors] = useState<string[]>([]);
@@ -125,7 +127,7 @@ const SaveAgentModal: React.FC<SaveAgentModalProps> = ({
             destroyOnHidden
             footer={
                 <div className="flex justify-end gap-3">
-                    <Button onClick={handleCancel}>Cancel</Button>
+                    <Button onClick={handleCancel}>{td("Cancel", { source: "en" })}</Button>
                     <Button
                         type="primary"
                         onClick={handleSubmit}
@@ -140,7 +142,7 @@ const SaveAgentModal: React.FC<SaveAgentModalProps> = ({
                 <Alert
                     type="error"
                     className="mb-4"
-                    message="Validation Errors"
+                    message={td("Validation Errors", { source: "en" })}
                     description={
                         <ul className="list-disc list-inside">
                             {errors.map((e, i) => (
@@ -155,13 +157,13 @@ const SaveAgentModal: React.FC<SaveAgentModalProps> = ({
 
             <Form form={form} layout="vertical">
                 {!isEditing && (
-                    <Form.Item label="Agent Type">
+                    <Form.Item label={td("Agent Type", { source: "en" })}>
                         <Radio.Group
                             value={agentType}
                             onChange={(e) => setAgentType(e.target.value)}
                         >
-                            <Radio value="existing">Existing Employee</Radio>
-                            <Radio value="new">New External Agent</Radio>
+                            <Radio value="existing">{td("Existing Employee", { source: "en" })}</Radio>
+                            <Radio value="new">{td("New External Agent", { source: "en" })}</Radio>
                         </Radio.Group>
                     </Form.Item>
                 )}
@@ -169,7 +171,7 @@ const SaveAgentModal: React.FC<SaveAgentModalProps> = ({
                 {!isEditing && agentType === "existing" ? (
                     <Form.Item
                         name="user_id"
-                        label="Select Employee"
+                        label={td("Select Employee", { source: "en" })}
                         rules={[
                             {
                                 required: true,
@@ -178,7 +180,7 @@ const SaveAgentModal: React.FC<SaveAgentModalProps> = ({
                         ]}
                     >
                         <Select
-                            placeholder="Search and select an employee..."
+                            placeholder={td("Search and select an employee...", { source: "en" })}
                             showSearch
                             loading={formDataLoading}
                             filterOption={(input, option) =>
@@ -196,7 +198,7 @@ const SaveAgentModal: React.FC<SaveAgentModalProps> = ({
                     <>
                         <Form.Item
                             name="name"
-                            label="Full Name"
+                            label={td("Full Name", { source: "en" })}
                             rules={[
                                 {
                                     required: !isEditing,
@@ -204,35 +206,35 @@ const SaveAgentModal: React.FC<SaveAgentModalProps> = ({
                                 },
                             ]}
                         >
-                            <Input placeholder="Agent full name" />
+                            <Input placeholder={td("Agent full name", { source: "en" })} />
                         </Form.Item>
 
-                        <Form.Item name="email" label="Email">
+                        <Form.Item name="email" label={td("Email", { source: "en" })}>
                             <Input
                                 type="email"
-                                placeholder="agent@example.com"
+                                placeholder={td("agent@example.com", { source: "en" })}
                             />
                         </Form.Item>
 
-                        <Form.Item name="mobile" label="Phone">
-                            <Input placeholder="Phone number" />
+                        <Form.Item name="mobile" label={td("Phone", { source: "en" })}>
+                            <Input placeholder={td("Phone number", { source: "en" })} />
                         </Form.Item>
                     </>
                 )}
 
                 {isEditing && (
-                    <Form.Item name="status" label="Status">
+                    <Form.Item name="status" label={td("Status", { source: "en" })}>
                         <Radio.Group>
-                            <Radio value="enabled">Active</Radio>
-                            <Radio value="disabled">Disabled</Radio>
+                            <Radio value="enabled">{td("Active", { source: "en" })}</Radio>
+                            <Radio value="disabled">{td("Disabled", { source: "en" })}</Radio>
                         </Radio.Group>
                     </Form.Item>
                 )}
 
-                <Form.Item name="category_id" label="Categories">
+                <Form.Item name="category_id" label={td("Categories", { source: "en" })}>
                     <Select
                         mode="multiple"
-                        placeholder="Select categories (optional)"
+                        placeholder={td("Select categories (optional)", { source: "en" })}
                         showSearch
                         loading={formDataLoading}
                         filterOption={(input, option) =>

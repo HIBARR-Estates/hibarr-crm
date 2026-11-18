@@ -33,6 +33,7 @@ import {
     type ExposeValidationWarning,
 } from "@/lib/expose/formatExposeValidationLabel";
 import ExposeValidationWarnings from "@/Features/Expose/ExposeValidationWarnings";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface GenerateExposeModalProps {
     open: boolean;
@@ -100,6 +101,7 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
     projectName,
     unitName,
 }) => {
+    const { td } = useTd();
     const [warnings, setWarnings] = useState<ExposeValidationWarning[]>([]);
     const [layout, setLayout] = useState<string>("expose-template");
     const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
@@ -277,7 +279,7 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
         phase === "form" || phase === "failed"
             ? [
                   <Button key="cancel" onClick={handleClose}>
-                      Cancel
+                      {td("Cancel", { source: "en" })}
                   </Button>,
                   <Button
                       key="generate"
@@ -298,7 +300,7 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
 
     return (
         <Modal
-            title="Generate Expose PDF"
+            title={td("Generate Expose PDF", { source: "en" })}
             open={open}
             onCancel={handleClose}
             footer={footer}
@@ -318,9 +320,7 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
                         Elapsed: {formatExposeElapsed(elapsedSeconds)}
                     </p>
                     <p className="text-gray-600 text-sm max-w-sm">
-                        Large exposes with many photos can take a few minutes.
-                        You can keep this window open or close it — we will
-                        notify you when the PDF is ready.
+                        {td("Large exposes with many photos can take a few minutes. You can keep this window open or close it — we will notify you when the PDF is ready.", { source: "en" })}
                     </p>
                 </div>
             )}
@@ -328,8 +328,7 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
                 <div className="py-8 text-center flex flex-col items-center gap-3">
                     <CheckCircleOutlined className="text-4xl text-green-500" />
                     <p className="text-gray-700 font-medium">
-                        Your PDF is ready! The download should start
-                        automatically.
+                        {td("Your PDF is ready! The download should start automatically.", { source: "en" })}
                     </p>
                 </div>
             )}
@@ -338,7 +337,7 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
                     type="error"
                     showIcon
                     icon={<CloseCircleOutlined />}
-                    message="Generation Failed"
+                    message={td("Generation Failed", { source: "en" })}
                     description={errorMessage}
                     className="mb-4"
                 />
@@ -348,7 +347,7 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
                     <div className="flex flex-col gap-y-6">
                         {warnings.length > 0 && (
                             <Alert
-                                message="Missing Information"
+                                message={td("Missing Information", { source: "en" })}
                                 description={
                                     <ExposeValidationWarnings
                                         warnings={warnings}
@@ -364,7 +363,7 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
 
                         <div className="mb-6">
                             <h3 className="text-base font-semibold mb-4 text-gray-800">
-                                Choose Layout
+                                {td("Choose Layout", { source: "en" })}
                             </h3>
                             <Radio.Group
                                 value={layout}
@@ -426,24 +425,22 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
                                     key: "personalization",
                                     label: (
                                         <span className="text-base font-semibold text-gray-800">
-                                            Personalization (Optional)
+                                            {td("Personalization (Optional)", { source: "en" })}
                                         </span>
                                     ),
                                     children: (
                                         <div className="flex flex-col gap-4">
                                             <p className="text-sm text-gray-600 mb-2">
-                                                Select a lead to personalize the
-                                                expose. If not found, enter a
-                                                custom client name.
+                                                {td("Select a lead to personalize the expose. If not found, enter a custom client name.", { source: "en" })}
                                             </p>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Lead
+                                                    {td("Lead", { source: "en" })}
                                                 </label>
                                                 <Select
                                                     showSearch
                                                     allowClear
-                                                    placeholder="Search and select a lead"
+                                                    placeholder={td("Search and select a lead", { source: "en" })}
                                                     options={leadOptions}
                                                     loading={isLoadingLeads}
                                                     value={
@@ -489,10 +486,10 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Client Name (Optional)
+                                                    {td("Client Name (Optional)", { source: "en" })}
                                                 </label>
                                                 <Input
-                                                    placeholder="Enter client name if not found"
+                                                    placeholder={td("Enter client name if not found", { source: "en" })}
                                                     prefix={
                                                         <UserOutlined className="text-gray-400" />
                                                     }

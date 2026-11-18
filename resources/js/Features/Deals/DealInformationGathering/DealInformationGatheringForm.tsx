@@ -11,6 +11,7 @@ import { Deal } from "@/Types/api/deals";
 import { Lead } from "@/Types/api/leads";
 import { ApiResponse } from "@/lib/api/types";
 import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     open: boolean;
@@ -27,6 +28,7 @@ const DealInformationGatheringForm: React.FC<Props> = ({
     pipelineId: propsPipelineId,
     lead: presetLead,
 }) => {
+    const { td } = useTd();
     const [current, setCurrent] = useState(0);
     const [deal, setDeal] = useState<any>(null);
     const [lead, setLead] = useState<any>(null);
@@ -129,7 +131,7 @@ const DealInformationGatheringForm: React.FC<Props> = ({
                 },
                 onError: () => {
                     setAutoInitializing(false);
-                    message.error("Failed to initialize deal. Please try again.");
+                    message.error(td("Failed to initialize deal. Please try again.", { source: "en" }));
                 },
             });
         }
@@ -157,7 +159,7 @@ const DealInformationGatheringForm: React.FC<Props> = ({
         const nextStep = current + 1;
         const totalSteps = dynamicSteps.length + stepOffset;
         if (nextStep >= totalSteps) {
-            message.success("Deal information gathered successfully!");
+            message.success(td("Deal information gathered successfully!", { source: "en" }));
             onClose();
             router.reload();
         } else {
@@ -207,9 +209,9 @@ const DealInformationGatheringForm: React.FC<Props> = ({
                         <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
                     </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Select a Pipeline</h3>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">{td("Select a Pipeline", { source: "en" })}</h3>
                 <p className="text-gray-500 max-w-md mx-auto text-sm">
-                    Choose which pipeline this deal belongs to before continuing.
+                    {td("Choose which pipeline this deal belongs to before continuing.", { source: "en" })}
                 </p>
             </div>
 
@@ -249,8 +251,8 @@ const DealInformationGatheringForm: React.FC<Props> = ({
             return (
                 <div className="min-h-[300px] py-12 px-4">
                     <Alert
-                        message="Deal Locked"
-                        description="This deal is locked and cannot be modified."
+                        message={td("Deal Locked", { source: "en" })}
+                        description={td("This deal is locked and cannot be modified.", { source: "en" })}
                         type="warning"
                         showIcon
                         icon={<LockOutlined />}
@@ -300,10 +302,10 @@ const DealInformationGatheringForm: React.FC<Props> = ({
                     <div className="text-center p-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                         <div className="text-5xl mb-4">🎉</div>
                         <h3 className="text-xl font-bold text-gray-800 mb-2">
-                            Deal Created Successfully
+                            {td("Deal Created Successfully", { source: "en" })}
                         </h3>
                         <p className="text-gray-500 mb-6">
-                            All information has been gathered.
+                            {td("All information has been gathered.", { source: "en" })}
                         </p>
                         <Button
                             type="primary"
@@ -365,7 +367,7 @@ const DealInformationGatheringForm: React.FC<Props> = ({
                                     onClick={() => setPropertyModalOpen(true)}
                                     size="small"
                                 >
-                                    Attach Properties
+                                    {td("Attach Properties", { source: "en" })}
                                 </Button>
                             </div>
                             <ManageDealPropertiesModal

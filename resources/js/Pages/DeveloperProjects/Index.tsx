@@ -50,6 +50,7 @@ import { describeFilters } from "@/Features/Filters/filterSummary";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import createProjectFilterConfig from "@/configs/projectFilterConfig";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 // ============================================
 // Types
@@ -132,6 +133,7 @@ const VISIT_OPTIONS: {
 // ============================================
 
 function EmptyState({ onAdd }: { onAdd?: () => void }) {
+    const { td } = useTd();
     return (
         <div className="flex flex-col items-center justify-center py-20 text-center">
             <Building2
@@ -140,10 +142,10 @@ function EmptyState({ onAdd }: { onAdd?: () => void }) {
                 strokeWidth={1.5}
             />
             <p className="text-base font-semibold text-gray-500 mb-1">
-                No projects found
+                {td("No projects found", { source: "en" })}
             </p>
             <p className="text-sm text-gray-400 mb-5">
-                Create your first construction project to get started.
+                {td("Create your first construction project to get started.", { source: "en" })}
             </p>
             {onAdd && (
                 <Button
@@ -151,7 +153,7 @@ function EmptyState({ onAdd }: { onAdd?: () => void }) {
                     icon={<Plus size={14} />}
                     onClick={onAdd}
                 >
-                    New Project
+                    {td("New Project", { source: "en" })}
                 </Button>
             )}
         </div>
@@ -175,6 +177,7 @@ const Index = ({
     projectFacilities,
     visibility,
 }: IndexProps) => {
+    const { td } = useTd();
     const safeFilters =
         rawFilters && !Array.isArray(rawFilters) ? rawFilters : {};
     const projects: PaginationData = rawProjects ?? {
@@ -662,12 +665,12 @@ const Index = ({
                                 }
                             }, 0);
                         }}
-                        placeholder="Search projects by name, description…"
+                        placeholder={td("Search projects by name, description…", { source: "en" })}
                         prefix={
                             <Search size={14} className="text-gray-400" />
                         }
                         suffix={
-                            <Tooltip title="Press Enter to search">
+                            <Tooltip title={td("Press Enter to search", { source: "en" })}>
                                 <CornerDownLeft
                                     size={13}
                                     className="text-gray-400"
@@ -691,7 +694,7 @@ const Index = ({
                                     icon={<Plus size={14} />}
                                     onClick={handleAdd}
                                 >
-                                    New Project
+                                    {td("New Project", { source: "en" })}
                                 </RedesignButton>
                             )}
 
@@ -732,7 +735,7 @@ const Index = ({
                             {!filtersModalEnabled && (
                                 <>
                                     <span className="text-xs text-gray-400 font-medium whitespace-nowrap">
-                                        Filter:
+                                        {td("Filter:", { source: "en" })}
                                     </span>
                                     <Select
                                         value={locationId || undefined}
@@ -742,7 +745,7 @@ const Index = ({
                                                 v ?? "",
                                             )
                                         }
-                                        placeholder="All Locations"
+                                        placeholder={td("All Locations", { source: "en" })}
                                         allowClear
                                         options={filterLocations
                                             .filter((l) =>
@@ -765,7 +768,7 @@ const Index = ({
                                                 v ?? "",
                                             )
                                         }
-                                        placeholder="All Developers"
+                                        placeholder={td("All Developers", { source: "en" })}
                                         allowClear
                                         options={developers.map((d) => ({
                                             value: String(d.id),
@@ -784,7 +787,7 @@ const Index = ({
                                                 v ?? "",
                                             )
                                         }
-                                        placeholder="Any Status"
+                                        placeholder={td("Any Status", { source: "en" })}
                                         allowClear
                                         options={PROJECT_CONSTRUCTION_STATUSES.map(
                                             (s) => ({
@@ -803,7 +806,7 @@ const Index = ({
                                                 v ?? "",
                                             )
                                         }
-                                        placeholder="Any Category"
+                                        placeholder={td("Any Category", { source: "en" })}
                                         allowClear
                                         options={primaryCategories.map(
                                             (c) => ({
@@ -821,7 +824,7 @@ const Index = ({
                                                 e.target.value,
                                             )
                                         }
-                                        placeholder="Plan months"
+                                        placeholder={td("Plan months", { source: "en" })}
                                         size="small"
                                         style={{ width: 140 }}
                                         type="number"
@@ -835,7 +838,7 @@ const Index = ({
                                                 e.target.value,
                                             )
                                         }
-                                        placeholder="Min price"
+                                        placeholder={td("Min price", { source: "en" })}
                                         size="small"
                                         style={{ width: 110 }}
                                         type="number"
@@ -852,7 +855,7 @@ const Index = ({
                                                 e.target.value,
                                             )
                                         }
-                                        placeholder="Max price"
+                                        placeholder={td("Max price", { source: "en" })}
                                         size="small"
                                         style={{ width: 110 }}
                                         type="number"

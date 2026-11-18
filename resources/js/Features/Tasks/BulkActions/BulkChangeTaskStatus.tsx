@@ -5,6 +5,7 @@ import { SwapOutlined } from "@ant-design/icons";
 import { pluralOrSingular } from "@/lib/utils";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface TaskboardColumn {
     id: number;
@@ -25,6 +26,7 @@ const BulkChangeTaskStatus: React.FC<Props> = ({
     ids,
     columns,
 }) => {
+    const { td } = useTd();
     const [selectedColumnId, setSelectedColumnId] = useState<number>();
 
     const statusChangeMutation = useApiMutate<
@@ -64,14 +66,14 @@ const BulkChangeTaskStatus: React.FC<Props> = ({
             title={
                 <div className="flex items-center space-x-2">
                     <SwapOutlined className="text-blue-500" />
-                    <span>Change Status for Selected Tasks</span>
+                    <span>{td("Change Status for Selected Tasks", { source: "en" })}</span>
                 </div>
             }
             open={open}
             onCancel={handleClose}
             footer={[
                 <Button key="cancel" onClick={handleClose}>
-                    Cancel
+                    {td("Cancel", { source: "en" })}
                 </Button>,
                 <Button
                     key="submit"
@@ -80,7 +82,7 @@ const BulkChangeTaskStatus: React.FC<Props> = ({
                     disabled={!selectedColumnId}
                     onClick={handleBulkChangeStatus}
                 >
-                    Update Status
+                    {td("Update Status", { source: "en" })}
                 </Button>,
             ]}
         >
@@ -91,10 +93,10 @@ const BulkChangeTaskStatus: React.FC<Props> = ({
                 </p>
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        New Status
+                        {td("New Status", { source: "en" })}
                     </label>
                     <Select
-                        placeholder="Select a status"
+                        placeholder={td("Select a status", { source: "en" })}
                         value={selectedColumnId}
                         onChange={setSelectedColumnId}
                         className="w-full"
@@ -118,7 +120,7 @@ const BulkChangeTaskStatus: React.FC<Props> = ({
                     <div className="p-3 bg-gray-50 rounded">
                         <div className="flex items-center space-x-2">
                             <span className="text-sm text-gray-600">
-                                Moving to:
+                                {td("Moving to:", { source: "en" })}
                             </span>
                             <div
                                 className="w-3 h-3 rounded-full"

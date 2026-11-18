@@ -20,6 +20,7 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiSuccessResponse } from "@/lib/api/types";
 import DeveloperFormModal from "@/Features/Developers/DeveloperFormModal";
 import HiddenBadge from "../DeveloperProjects/components/HiddenBadge";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 // ============================================
 // Types
@@ -68,6 +69,7 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({
     onDelete,
     showHiddenBadge = false,
 }) => {
+    const { td } = useTd();
     const menuItems: MenuProps["items"] = [
         {
             key: "edit",
@@ -80,14 +82,14 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({
             icon: <Trash2 size={13} />,
             label: (
                 <Popconfirm
-                    title="Delete Developer"
-                    description="Are you sure you want to delete this developer? Projects will be unassigned."
+                    title={td("Delete Developer", { source: "en" })}
+                    description={td("Are you sure you want to delete this developer? Projects will be unassigned.", { source: "en" })}
                     onConfirm={() => onDelete(developer)}
-                    okText="Delete"
+                    okText={td("Delete", { source: "en" })}
                     okButtonProps={{ danger: true }}
-                    cancelText="Cancel"
+                    cancelText={td("Cancel", { source: "en" })}
                 >
-                    <span className="text-red-500">Delete</span>
+                    <span className="text-red-500">{td("Delete", { source: "en" })}</span>
                 </Popconfirm>
             ),
             danger: true,
@@ -144,6 +146,7 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({
 // ============================================
 
 const Index = ({ pageTitle, developers, filters, visibility }: IndexProps) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedDeveloper, setSelectedDeveloper] =
@@ -212,7 +215,7 @@ const Index = ({ pageTitle, developers, filters, visibility }: IndexProps) => {
                 {/* Search + Add */}
                 <div className="mb-6 flex items-center justify-between gap-4">
                     <Input.Search
-                        placeholder="Search developers..."
+                        placeholder={td("Search developers...", { source: "en" })}
                         allowClear
                         value={searchValue}
                         onChange={(e) => setSearchValue(e.target.value)}
@@ -224,7 +227,7 @@ const Index = ({ pageTitle, developers, filters, visibility }: IndexProps) => {
                         icon={<Plus size={14} />}
                         onClick={handleAdd}
                     >
-                        Add Developer
+                        {td("Add Developer", { source: "en" })}
                     </Button>
                 </div>
 
@@ -232,10 +235,10 @@ const Index = ({ pageTitle, developers, filters, visibility }: IndexProps) => {
                 {developers.data.length === 0 ? (
                     <Empty
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        description="No developers found"
+                        description={td("No developers found", { source: "en" })}
                     >
                         <Button type="primary" onClick={handleAdd}>
-                            Create Developer
+                            {td("Create Developer", { source: "en" })}
                         </Button>
                     </Empty>
                 ) : (

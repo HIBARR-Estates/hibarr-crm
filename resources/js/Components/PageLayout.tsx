@@ -290,7 +290,7 @@ export default function PageLayout({
                     }}
                     className="w-full text-left cursor-pointer"
                 >
-                    Logout
+                    {td("Logout", { source: "en" })}
                 </span>
             ),
         },
@@ -406,7 +406,7 @@ export default function PageLayout({
                                         padding: "0 8px",
                                         cursor: "pointer",
                                     }}
-                                    aria-label="User account menu"
+                                    aria-label={td("User account menu", { source: "en" })}
                                 >
                                     <UserHeaderAvatar user={user} />
                                     <div className="hidden sm:flex flex-col min-w-0">

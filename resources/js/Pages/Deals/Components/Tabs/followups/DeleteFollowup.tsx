@@ -9,6 +9,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { isLoading } from "@/lib/utils";
 import dayjs from "dayjs";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     followup?: DealFollowup;
@@ -24,6 +25,7 @@ const DeleteFollowup: React.FC<Props> = ({
     onDeleted,
     skipReload,
 }) => {
+    const { td } = useTd();
     const handleCancel = () => {
         onClose();
     };
@@ -63,7 +65,7 @@ const DeleteFollowup: React.FC<Props> = ({
                 fn: onSubmit,
                 loading: isLoading({ status }),
             }}
-            title="Delete Follow-up"
+            title={td("Delete Follow-up", { source: "en" })}
             description={
                 followup
                     ? `Are you sure you want to delete ${formatFollowupTitle(
@@ -72,8 +74,8 @@ const DeleteFollowup: React.FC<Props> = ({
                     : "Are you sure you want to delete this follow-up? This action cannot be undone."
             }
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
-            confirmText="Yes, Delete"
-            cancelText="Cancel"
+            confirmText={td("Yes, Delete", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
             confirmType="primary"
             confirmDanger={true}
         />

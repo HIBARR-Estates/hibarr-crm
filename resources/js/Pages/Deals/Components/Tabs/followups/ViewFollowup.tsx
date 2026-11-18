@@ -116,6 +116,7 @@ const RescheduleModal: React.FC<RescheduleModalProps> = ({
     onClose,
     followup,
 }) => {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -172,13 +173,13 @@ const RescheduleModal: React.FC<RescheduleModalProps> = ({
 
     return (
         <Modal
-            title="Reschedule Meeting"
+            title={td("Reschedule Meeting", { source: "en" })}
             open={open}
             onCancel={onClose}
             destroyOnClose
             footer={[
                 <Button key="cancel" onClick={onClose} disabled={loading}>
-                    Cancel
+                    {td("Cancel", { source: "en" })}
                 </Button>,
                 <Button
                     key="submit"
@@ -187,7 +188,7 @@ const RescheduleModal: React.FC<RescheduleModalProps> = ({
                     onClick={handleSubmit}
                     className="bg-blue-600 hover:bg-blue-700"
                 >
-                    Reschedule
+                    {td("Reschedule", { source: "en" })}
                 </Button>,
             ]}
         >
@@ -210,7 +211,7 @@ const RescheduleModal: React.FC<RescheduleModalProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                     <Form.Item
                         name="next_follow_up_date"
-                        label="New Date"
+                        label={td("New Date", { source: "en" })}
                         rules={[
                             {
                                 required: true,
@@ -229,7 +230,7 @@ const RescheduleModal: React.FC<RescheduleModalProps> = ({
 
                     <Form.Item
                         name="start_time"
-                        label="New Time"
+                        label={td("New Time", { source: "en" })}
                         rules={[
                             {
                                 required: true,
@@ -243,8 +244,8 @@ const RescheduleModal: React.FC<RescheduleModalProps> = ({
 
                 <Form.Item
                     name="duration"
-                    label="Duration (minutes)"
-                    tooltip="How long the meeting is expected to last."
+                    label={td("Duration (minutes)", { source: "en" })}
+                    tooltip={td("How long the meeting is expected to last.", { source: "en" })}
                 >
                     <InputNumber
                         min={5}
@@ -370,7 +371,7 @@ const ViewFollowup: React.FC<Props> = ({
             try {
                 json = await res.json();
             } catch {
-                message.error("Could not read attendance response.");
+                message.error(td("Could not read attendance response.", { source: "en" }));
                 return;
             }
 
@@ -382,7 +383,7 @@ const ViewFollowup: React.FC<Props> = ({
             setAttendance(json.client_attended);
         } catch {
             if (attendanceFollowupIdRef.current === requestFollowupId) {
-                message.error("Could not update attendance.");
+                message.error(td("Could not update attendance.", { source: "en" }));
             }
         } finally {
             if (attendanceFollowupIdRef.current === requestFollowupId) {
@@ -477,7 +478,7 @@ const ViewFollowup: React.FC<Props> = ({
                             </h2>
                         </Tooltip>
                         {onEdit && (
-                            <Tooltip title="Edit meeting">
+                            <Tooltip title={td("Edit meeting", { source: "en" })}>
                                 <button
                                     onClick={handleEdit}
                                     className="shrink-0 text-gray-400 hover:text-gray-700 transition-colors p-1"
@@ -495,17 +496,17 @@ const ViewFollowup: React.FC<Props> = ({
                     {/* Hero date / time / duration */}
                     <div className="flex items-stretch gap-3">
                         <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-2xl border border-slate-100 py-4 px-3 text-center">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Date</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{td("Date", { source: "en" })}</p>
                             <p className="text-[20px] font-black text-slate-900 leading-none">{formatDate(meetingInstant)}</p>
                         </div>
                         <div className="flex-1 flex flex-col items-center justify-center bg-blue-600 rounded-2xl py-4 px-3 text-center">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-blue-200 mb-1">Time</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-blue-200 mb-1">{td("Time", { source: "en" })}</p>
                             <p className="text-[26px] font-black text-white leading-none tabular-nums">
                                 {formatTime(meetingInstant)}
                             </p>
                         </div>
                         <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-2xl border border-slate-100 py-4 px-3 text-center">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Duration</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{td("Duration", { source: "en" })}</p>
                             <p className="text-[20px] font-black text-slate-900 leading-none">{effectiveDuration}</p>
                             <p className="text-[12px] text-slate-500 mt-0.5">
                                 min{live && elapsedMinutes !== null && (
@@ -519,7 +520,7 @@ const ViewFollowup: React.FC<Props> = ({
                     <div className="rounded-xl border border-slate-100 overflow-hidden divide-y divide-slate-100">
                         {/* Platform */}
                         <div className="flex items-center gap-3 px-4 py-3">
-                            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide w-24 shrink-0">Platform</span>
+                            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide w-24 shrink-0">{td("Platform", { source: "en" })}</span>
                             <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-slate-800">
                                 {getMeetingIcon(followup?.location || "")}
                                 {getLocationLabel(followup?.location || "office")}
@@ -531,7 +532,7 @@ const ViewFollowup: React.FC<Props> = ({
                                     rel="noopener noreferrer"
                                     className="ml-auto text-[12px] font-semibold text-blue-600 hover:underline shrink-0"
                                 >
-                                    Join →
+                                    {td("Join →", { source: "en" })}
                                 </a>
                             )}
                         </div>
@@ -540,7 +541,7 @@ const ViewFollowup: React.FC<Props> = ({
                         {shouldShowCalendarSync && (
                             <div className="flex items-center gap-3 px-4 py-3">
                                 <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide w-24 shrink-0">
-                                    Calendar Sync
+                                    {td("Calendar Sync", { source: "en" })}
                                 </span>
                                 <CalendarSyncStatus
                                     followup={followup}
@@ -553,7 +554,7 @@ const ViewFollowup: React.FC<Props> = ({
 
                         {/* Scheduled by */}
                         <div className="flex items-center gap-3 px-4 py-3">
-                            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide w-24 shrink-0">Scheduled by</span>
+                            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide w-24 shrink-0">{td("Scheduled by", { source: "en" })}</span>
                             {followup?.added_by ? (
                                 <span className="inline-flex items-center gap-2 text-[13px] font-medium text-slate-800">
                                     <Avatar
@@ -572,14 +573,14 @@ const ViewFollowup: React.FC<Props> = ({
                         {/* Lead (when no deal) */}
                         {!deal && lead && (
                             <div className="flex items-start gap-3 px-4 py-3">
-                                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide w-24 shrink-0 mt-0.5">Lead</span>
+                                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide w-24 shrink-0 mt-0.5">{td("Lead", { source: "en" })}</span>
                                 <div className="grid grid-cols-2 flex-1 gap-x-4 gap-y-1">
                                     <div>
-                                        <p className="text-[10px] text-slate-400 mb-0.5">Name</p>
+                                        <p className="text-[10px] text-slate-400 mb-0.5">{td("Name", { source: "en" })}</p>
                                         <p className="text-[13px] font-medium text-slate-800 mb-0">{lead.client_name_salutation || lead.client_name || "--"}</p>
                                     </div>
                                     <div>
-                                        <p className="text-[10px] text-slate-400 mb-0.5">Email</p>
+                                        <p className="text-[10px] text-slate-400 mb-0.5">{td("Email", { source: "en" })}</p>
                                         <p className="text-[13px] text-slate-600 mb-0">{lead.client_email || <span className="text-slate-400">--</span>}</p>
                                     </div>
                                 </div>
@@ -589,10 +590,10 @@ const ViewFollowup: React.FC<Props> = ({
                         {/* Deal */}
                         {deal && (
                             <div className="flex items-start gap-3 px-4 py-3">
-                                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide w-24 shrink-0 mt-0.5">Deal</span>
+                                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide w-24 shrink-0 mt-0.5">{td("Deal", { source: "en" })}</span>
                                 <div className="grid grid-cols-2 flex-1 gap-x-4 gap-y-1">
                                     <div>
-                                        <p className="text-[10px] text-slate-400 mb-0.5">Name</p>
+                                        <p className="text-[10px] text-slate-400 mb-0.5">{td("Name", { source: "en" })}</p>
                                         {deal?.name ? (
                                             <a
                                                 href={`/account/deals/${deal.id}`}
@@ -606,7 +607,7 @@ const ViewFollowup: React.FC<Props> = ({
                                         )}
                                     </div>
                                     <div>
-                                        <p className="text-[10px] text-slate-400 mb-0.5">Stage</p>
+                                        <p className="text-[10px] text-slate-400 mb-0.5">{td("Stage", { source: "en" })}</p>
                                         {deal?.lead_stage ? (
                                             <span className="inline-flex items-center gap-1.5 text-[13px]">
                                                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: deal.lead_stage.label_color || "#3b82f6" }} />
@@ -649,7 +650,7 @@ const ViewFollowup: React.FC<Props> = ({
 
                     {/* Client Attendance — manually recorded/confirmed, never inferred */}
                     <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2.5">Client Attendance</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2.5">{td("Client Attendance", { source: "en" })}</p>
                         {canEditAttendance && meetingHasStarted ? (
                         <div className="flex items-center gap-2">
                             <Button
@@ -658,7 +659,7 @@ const ViewFollowup: React.FC<Props> = ({
                                 onClick={() => handleSetAttendance(true)}
                                 className={`rounded-lg text-[13px] shadow-none ${attendance === true ? "bg-emerald-50 text-emerald-700 border-emerald-200" : ""}`}
                             >
-                                ✓ Attended
+                                {td("✓ Attended", { source: "en" })}
                             </Button>
                             <Button
                                 size="small"
@@ -666,10 +667,10 @@ const ViewFollowup: React.FC<Props> = ({
                                 onClick={() => handleSetAttendance(false)}
                                 className={`rounded-lg text-[13px] shadow-none ${attendance === false ? "bg-red-50 text-red-700 border-red-200" : ""}`}
                             >
-                                ✗ No-show
+                                {td("✗ No-show", { source: "en" })}
                             </Button>
                             {attendance === null || attendance === undefined ? (
-                                <span className="text-[12px] text-slate-400">Not yet confirmed</span>
+                                <span className="text-[12px] text-slate-400">{td("Not yet confirmed", { source: "en" })}</span>
                             ) : null}
                         </div>
                         ) : (
@@ -690,7 +691,7 @@ const ViewFollowup: React.FC<Props> = ({
                     {/* Meeting Summary */}
                     {followup?.meeting_summary && Object.keys(followup.meeting_summary.summary_object).length > 0 && (
                         <div>
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2.5">Meeting Summary</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2.5">{td("Meeting Summary", { source: "en" })}</p>
                             <div className="rounded-xl border border-slate-100 px-4 py-3 space-y-3">
                                 {Object.entries(followup.meeting_summary.summary_object).map(([key, value]) => (
                                     <div key={key}>
@@ -732,7 +733,7 @@ const ViewFollowup: React.FC<Props> = ({
                                 disabled={live}
                                 className="rounded-lg text-[13px] shadow-none"
                             >
-                                Reschedule
+                                {td("Reschedule", { source: "en" })}
                             </Button>
                         )}
                     </div>
@@ -741,7 +742,7 @@ const ViewFollowup: React.FC<Props> = ({
                         onClick={() => onClose()}
                         className="rounded-lg shadow-none bg-blue-600 border-blue-600 hover:bg-blue-700"
                     >
-                        Done
+                        {td("Done", { source: "en" })}
                     </Button>
                 </div>
             </Modal>

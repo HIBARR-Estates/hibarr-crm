@@ -18,6 +18,7 @@ import { taskDateTimeToDayjs } from "@/lib/taskDateTime";
 import { motion } from "framer-motion";
 import { Task } from "@/Types/Task";
 import KanbanTaskCard from "@/Components/KanbanTaskCard";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 // import QuickTaskAdd from "./QuickTaskAdd";
 
 // Types based on Laravel Task model (Deprecated)
@@ -74,6 +75,7 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
     onStatusChange,
     onAddTask,
 }) => {
+    const { td } = useTd();
     const [processingTasks, setProcessingTasks] = useState<Set<number>>(
         new Set(),
     );
@@ -127,7 +129,7 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
                         task.users?.some((u) => u.id === userId)));
 
             if (!canChangeStatus) {
-                message.error("You don't have permission to move this task.");
+                message.error(td("You don't have permission to move this task.", { source: "en" }));
                 return;
             }
 

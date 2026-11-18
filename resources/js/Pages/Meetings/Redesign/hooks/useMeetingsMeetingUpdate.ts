@@ -17,6 +17,7 @@ import {
     type MeetingFormState,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import type { DealFollowup } from "@/Types/api/deal-followup";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface FollowUpUpdatePayload {
     id: number;
@@ -44,6 +45,7 @@ interface FollowUpUpdatePayload {
  * meeting back to the caller and lets the list re-read itself.
  */
 export default function useMeetingsMeetingUpdate() {
+    const { td } = useTd();
     const [errors, setErrors] = useState<string[]>([]);
     const { props } = usePage();
 
@@ -105,7 +107,7 @@ export default function useMeetingsMeetingUpdate() {
             mutate(payload, {
                 onSuccess: (response) => {
                     setErrors([]);
-                    message.success("Meeting updated");
+                    message.success(td("Meeting updated", { source: "en" }));
                     onSuccess?.(response.data as DealFollowup);
                 },
                 onError: (error) => {

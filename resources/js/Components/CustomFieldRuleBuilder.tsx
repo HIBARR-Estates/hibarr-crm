@@ -17,6 +17,7 @@ import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { CustomField, ShowRuleSet } from '@/Types';
 import usePipelineOptions, { PipelineOption } from '@/lib/usePipelineOptions';
 import RecordSelect from './RecordSelect';
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -146,6 +147,7 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
     pipelines,
     fieldId,
 }) => {
+    const { td } = useTd();
     const source: ReferenceSource =
         Form.useWatch(['criteria', name, 'reference_source'], form) ?? 'custom_field';
     const operator = Form.useWatch(['criteria', name, 'operator'], form);
@@ -181,7 +183,7 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                     icon={<DeleteOutlined />}
                     onClick={() => remove(name)}
                 >
-                    Remove
+                    {td("Remove", { source: "en" })}
                 </Button>
             }
         >
@@ -189,9 +191,9 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                 <Form.Item
                     {...restField}
                     name={[name, 'reference_source']}
-                    label="Source"
+                    label={td("Source", { source: "en" })}
                     initialValue="custom_field"
-                    tooltip="What this criterion reads — another field's value, the deal's pipeline/stage, or specific record(s)"
+                    tooltip={td("What this criterion reads — another field's value, the deal's pipeline/stage, or specific record(s)", { source: "en" })}
                 >
                     <Select
                         options={SOURCE_OPTIONS}
@@ -212,12 +214,12 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                             <Form.Item
                                 {...restField}
                                 name={[name, 'reference_field_id']}
-                                label="Reference Field"
+                                label={td("Reference Field", { source: "en" })}
                                 rules={[{ required: true, message: 'Please select a field' }]}
-                                tooltip="The field whose value will be evaluated"
+                                tooltip={td("The field whose value will be evaluated", { source: "en" })}
                             >
                                 <Select
-                                    placeholder="Select a field"
+                                    placeholder={td("Select a field", { source: "en" })}
                                     showSearch
                                     filterOption={(input, option) =>
                                         String(option?.label ?? '')
@@ -259,10 +261,10 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                             <Form.Item
                                 {...restField}
                                 name={[name, 'operator']}
-                                label="Operator"
+                                label={td("Operator", { source: "en" })}
                                 rules={[{ required: true, message: 'Please select an operator' }]}
                             >
-                                <Select placeholder="Select operator" onChange={resetValue}>
+                                <Select placeholder={td("Select operator", { source: "en" })} onChange={resetValue}>
                                     {operatorSelectOptions.map((op) => (
                                         <Select.Option key={op.value} value={op.value}>
                                             {op.label}
@@ -276,11 +278,11 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                                 <Form.Item
                                     {...restField}
                                     name={[name, 'reference_value']}
-                                    label="Value"
+                                    label={td("Value", { source: "en" })}
                                     rules={[{ required: true, message: 'Please select a value' }]}
                                 >
                                     <Select
-                                        placeholder="Select a value"
+                                        placeholder={td("Select a value", { source: "en" })}
                                         showSearch
                                         options={valueSelectOptions}
                                     />
@@ -290,7 +292,7 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                                 <Form.Item
                                     {...restField}
                                     name={[name, 'reference_value']}
-                                    label="Values"
+                                    label={td("Values", { source: "en" })}
                                     rules={[
                                         { required: true, message: 'Please select at least one value' },
                                         {
@@ -307,7 +309,7 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                                 >
                                     <Select
                                         mode="multiple"
-                                        placeholder="Select values"
+                                        placeholder={td("Select values", { source: "en" })}
                                         options={valueSelectOptions}
                                     />
                                 </Form.Item>
@@ -315,7 +317,7 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                                 <Form.Item
                                     {...restField}
                                     name={[name, 'reference_value']}
-                                    label="Value (JSON Array)"
+                                    label={td("Value (JSON Array)", { source: "en" })}
                                     rules={[
                                         { required: true, message: 'Please enter values' },
                                         {
@@ -337,18 +339,18 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                                             },
                                         },
                                     ]}
-                                    tooltip='Enter values as JSON array, e.g., ["Yes", "No", "Maybe"]'
+                                    tooltip={td("Enter values as JSON array, e.g., [\"Yes\", \"No\", \"Maybe\"]", { source: "en" })}
                                 >
-                                    <Input.TextArea placeholder='["Yes", "No"]' rows={3} />
+                                    <Input.TextArea placeholder={td("[\"Yes\", \"No\"]", { source: "en" })} rows={3} />
                                 </Form.Item>
                             ) : operator ? (
                                 <Form.Item
                                     {...restField}
                                     name={[name, 'reference_value']}
-                                    label="Value"
+                                    label={td("Value", { source: "en" })}
                                     rules={[{ required: true, message: 'Please enter a value' }]}
                                 >
-                                    <Input placeholder="Enter value to compare" />
+                                    <Input placeholder={td("Enter value to compare", { source: "en" })} />
                                 </Form.Item>
                             ) : null}
                         </>
@@ -357,12 +359,12 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                             <Form.Item
                                 {...restField}
                                 name={[name, 'operator']}
-                                label="Operator"
+                                label={td("Operator", { source: "en" })}
                                 initialValue="in"
                                 rules={[{ required: true, message: 'Please select an operator' }]}
                             >
                                 <Select
-                                    placeholder="Select operator"
+                                    placeholder={td("Select operator", { source: "en" })}
                                     onChange={resetValue}
                                     options={[
                                         { value: 'in', label: 'is one of' },
@@ -374,8 +376,8 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                             <Form.Item
                                 {...restField}
                                 name={[name, 'reference_value']}
-                                label="Record(s)"
-                                tooltip="This field only shows for the record(s) picked here — one record, or a chosen list."
+                                label={td("Record(s)", { source: "en" })}
+                                tooltip={td("This field only shows for the record(s) picked here — one record, or a chosen list.", { source: "en" })}
                                 rules={[
                                     { required: true, message: 'Please select at least one record' },
                                     {
@@ -392,7 +394,7 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                                     value: parseIdList(value).map(String),
                                 })}
                             >
-                                <RecordSelect fieldId={fieldId} placeholder="Search records…" />
+                                <RecordSelect fieldId={fieldId} placeholder={td("Search records…", { source: "en" })} />
                             </Form.Item>
                         </>
                     ) : (
@@ -400,11 +402,11 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                             <Form.Item
                                 {...restField}
                                 name={[name, 'operator']}
-                                label="Operator"
+                                label={td("Operator", { source: "en" })}
                                 rules={[{ required: true, message: 'Please select an operator' }]}
                             >
                                 <Select
-                                    placeholder="Select operator"
+                                    placeholder={td("Select operator", { source: "en" })}
                                     onChange={resetValue}
                                     options={
                                         source === 'pipeline_stage'
@@ -430,7 +432,7 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                                 <Form.Item
                                     {...restField}
                                     name={[name, 'reference_value']}
-                                    label="Values"
+                                    label={td("Values", { source: "en" })}
                                     rules={[
                                         { required: true, message: 'Please select at least one value' },
                                         {
@@ -465,7 +467,7 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                                 <Form.Item
                                     {...restField}
                                     name={[name, 'reference_value']}
-                                    label="Value"
+                                    label={td("Value", { source: "en" })}
                                     rules={[
                                         { required: true, message: 'Please select a value' },
                                         {
@@ -515,7 +517,7 @@ const CriterionRow: React.FC<CriterionRowProps> = ({
                     valuePropName="checked"
                     initialValue={false}
                 >
-                    <Checkbox>Negate (NOT) - Reverse the condition</Checkbox>
+                    <Checkbox>{td("Negate (NOT) - Reverse the condition", { source: "en" })}</Checkbox>
                 </Form.Item>
             </Space>
         </Card>
@@ -539,6 +541,7 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
     onCancel,
     loading = false,
 }) => {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const [enabled, setEnabled] = useState(ruleSet?.enabled ?? false);
     const [saving, setSaving] = useState(false);
@@ -592,7 +595,7 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
             };
 
             await onSave(ruleSetData);
-            message.success('Visibility rules saved successfully');
+            message.success(td("Visibility rules saved successfully", { source: "en" }));
         } catch (error: any) {
             if (error.errorFields) {
                 // Validation errors
@@ -617,7 +620,7 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                     child, since it isn't part of the control. */}
                 <Form.Item
                     name="enabled"
-                    label="Enable visibility rules"
+                    label={td("Enable visibility rules", { source: "en" })}
                     valuePropName="checked"
                     initialValue={enabled}
                     style={{ marginBottom: 4 }}
@@ -631,35 +634,35 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                     />
                 </Form.Item>
                 <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
-                    When enabled, this field will only be visible when the conditions below are met.
+                    {td("When enabled, this field will only be visible when the conditions below are met.", { source: "en" })}
                 </Text>
 
                 <Form.Item
                     name="default_visibility"
-                    label="Default Visibility"
+                    label={td("Default Visibility", { source: "en" })}
                     initialValue={true}
-                    tooltip="What should happen when rules are disabled or no rules match?"
+                    tooltip={td("What should happen when rules are disabled or no rules match?", { source: "en" })}
                 >
                     <Radio.Group>
-                        <Radio value={true}>Show (default)</Radio>
-                        <Radio value={false}>Hide (default)</Radio>
+                        <Radio value={true}>{td("Show (default)", { source: "en" })}</Radio>
+                        <Radio value={false}>{td("Hide (default)", { source: "en" })}</Radio>
                     </Radio.Group>
                 </Form.Item>
 
                 {enabled && (
-                    <Card title="Rule Group" style={{ marginTop: 16 }}>
+                    <Card title={td("Rule Group", { source: "en" })} style={{ marginTop: 16 }}>
                         <Form.Item
                             name="group_operator"
-                            label="Group Operator"
+                            label={td("Group Operator", { source: "en" })}
                             initialValue="AND"
-                            tooltip="AND: All criteria must match. OR: At least one criterion must match."
+                            tooltip={td("AND: All criteria must match. OR: At least one criterion must match.", { source: "en" })}
                         >
                             <Select>
                                 <Select.Option value="AND">
-                                    AND (all criteria must match)
+                                    {td("AND (all criteria must match)", { source: "en" })}
                                 </Select.Option>
                                 <Select.Option value="OR">
-                                    OR (any criterion must match)
+                                    {td("OR (any criterion must match)", { source: "en" })}
                                 </Select.Option>
                             </Select>
                         </Form.Item>
@@ -690,7 +693,7 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                                         icon={<PlusOutlined />}
                                         style={{ marginTop: 16 }}
                                     >
-                                        Add Criterion
+                                        {td("Add Criterion", { source: "en" })}
                                     </Button>
                                     </>
                                 );
@@ -702,14 +705,14 @@ const CustomFieldRuleBuilder: React.FC<Props> = ({
                 <Form.Item style={{ marginTop: 24 }}>
                     <Space>
                         <Button onClick={onCancel} disabled={saving || loading}>
-                            Cancel
+                            {td("Cancel", { source: "en" })}
                         </Button>
                         <Button
                             type="primary"
                             onClick={handleSave}
                             loading={saving || loading}
                         >
-                            Save Rules
+                            {td("Save Rules", { source: "en" })}
                         </Button>
                     </Space>
                 </Form.Item>

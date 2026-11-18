@@ -7,12 +7,14 @@ import { DeleteOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     agent?: Agent;
 }
 
 const DeleteAgent: React.FC<Props> = ({ open, onClose, agent }) => {
+    const { td } = useTd();
     const { mutate: deleteAgent, status } = useApiMutate<
         {},
         any,
@@ -24,12 +26,12 @@ const DeleteAgent: React.FC<Props> = ({ open, onClose, agent }) => {
             {},
             {
                 onSuccess: () => {
-                    message.success("Agent deleted successfully");
+                    message.success(td("Agent deleted successfully", { source: "en" }));
                     onClose(true);
                     router.visit(route("agents.index"));
                 },
                 onError: () => {
-                    message.error("Failed to delete agent");
+                    message.error(td("Failed to delete agent", { source: "en" }));
                 },
             },
         );
@@ -45,11 +47,11 @@ const DeleteAgent: React.FC<Props> = ({ open, onClose, agent }) => {
                 fn: handleDelete,
                 loading: loading,
             }}
-            title="Delete Agent"
+            title={td("Delete Agent", { source: "en" })}
             description={`Are you sure you want to delete ${agent?.user?.name ?? "this agent"}? This will remove all associated agent records. This action cannot be undone.`}
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
-            confirmText="Yes, Delete"
-            cancelText="Cancel"
+            confirmText={td("Yes, Delete", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
             confirmType="primary"
             confirmDanger={true}
         />

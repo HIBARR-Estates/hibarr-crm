@@ -21,6 +21,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
 import FormDataSelector from "@/Components/FormDataSelector";
 import PhoneInput from "antd-phone-input";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type FlowStep = "search" | "create" | "selected";
 
@@ -37,6 +38,7 @@ const StepOne: React.FC<StepOneProps> = ({
     existingDeal,
     pipelineId,
 }) => {
+    const { td } = useTd();
     const { props } = usePage<any>();
     const { permissions } = props;
     const [form] = Form.useForm();
@@ -154,18 +156,17 @@ const StepOne: React.FC<StepOneProps> = ({
                     <SearchOutlined className="text-2xl text-blue-500" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                    Find an Existing Lead
+                    {td("Find an Existing Lead", { source: "en" })}
                 </h3>
                 <p className="text-gray-500 max-w-md mx-auto">
-                    Search for an existing lead by name, email, or company. If
-                    you can't find them, you can create a new lead.
+                    {td("Search for an existing lead by name, email, or company. If you can't find them, you can create a new lead.", { source: "en" })}
                 </p>
             </div>
 
             <div className="max-w-md mx-auto mb-8">
                 <FormDataSelector
                     type="leads"
-                    placeholder="Search by name, email, or company..."
+                    placeholder={td("Search by name, email, or company...", { source: "en" })}
                     className="w-full"
                     onSelect={(_, entity) => handleSelectLead(entity)}
                 />
@@ -182,7 +183,7 @@ const StepOne: React.FC<StepOneProps> = ({
                     onClick={handleCreateNew}
                     className="px-8"
                 >
-                    Create New Lead
+                    {td("Create New Lead", { source: "en" })}
                 </Button>
             </div>
         </div>
@@ -236,7 +237,7 @@ const StepOne: React.FC<StepOneProps> = ({
                         onClick={handleChangeLead}
                         className="text-blue-600 hover:text-blue-800"
                     >
-                        Change Lead
+                        {td("Change Lead", { source: "en" })}
                     </Button>
                 </div>
             </div>
@@ -248,7 +249,7 @@ const StepOne: React.FC<StepOneProps> = ({
                     onClick={() => onFinish({})}
                     loading={loading}
                 >
-                    Continue with this Lead
+                    {td("Continue with this Lead", { source: "en" })}
                 </Button>
             </div>
         </div>
@@ -270,14 +271,14 @@ const StepOne: React.FC<StepOneProps> = ({
                     onClick={handleBackToSearch}
                     className="text-gray-500 hover:text-gray-700 -ml-2"
                 >
-                    Back to Search
+                    {td("Back to Search", { source: "en" })}
                 </Button>
             </div>
 
             {/* Lead Type Selection */}
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
                 <div className="text-sm font-medium text-gray-700 mb-3">
-                    What type of lead is this?
+                    {td("What type of lead is this?", { source: "en" })}
                 </div>
                 <Radio.Group
                     value={leadType}
@@ -301,7 +302,7 @@ const StepOne: React.FC<StepOneProps> = ({
             <div>
                 <Row gutter={16}>
                     <Col span={12}>
-                        <Form.Item name="salutation" label="Salutation">
+                        <Form.Item name="salutation" label={td("Salutation", { source: "en" })}>
                             <FormDataSelector
                                 type="salutations"
                                 placeholder="—"
@@ -309,7 +310,7 @@ const StepOne: React.FC<StepOneProps> = ({
                         </Form.Item>
                     </Col>
                     <Col span={12}>
-                        <Form.Item name="gender" label="Gender">
+                        <Form.Item name="gender" label={td("Gender", { source: "en" })}>
                             <FormDataSelector
                                 type="genders"
                                 placeholder="—"
@@ -322,7 +323,7 @@ const StepOne: React.FC<StepOneProps> = ({
                     <Col span={12}>
                         <Form.Item
                             name="name"
-                            label="Name"
+                            label={td("Name", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
@@ -330,13 +331,13 @@ const StepOne: React.FC<StepOneProps> = ({
                                 },
                             ]}
                         >
-                            <Input placeholder="Enter full name" />
+                            <Input placeholder={td("Enter full name", { source: "en" })} />
                         </Form.Item>
                     </Col>
                     <Col span={12}>
                         <Form.Item
                             name="email"
-                            label="Email"
+                            label={td("Email", { source: "en" })}
                             rules={[
                                 {
                                     type: "email",
@@ -344,17 +345,17 @@ const StepOne: React.FC<StepOneProps> = ({
                                 },
                             ]}
                         >
-                            <Input placeholder="email@example.com" />
+                            <Input placeholder={td("email@example.com", { source: "en" })} />
                         </Form.Item>
                     </Col>
                 </Row>
 
                 <Row gutter={16}>
                     <Col span={12}>
-                        <Form.Item name="phone" label="Phone">
+                        <Form.Item name="phone" label={td("Phone", { source: "en" })}>
                             <PhoneInput
                                 enableSearch
-                                placeholder="Phone number"
+                                placeholder={td("Phone number", { source: "en" })}
                             />
                         </Form.Item>
                     </Col>
@@ -362,11 +363,11 @@ const StepOne: React.FC<StepOneProps> = ({
                         <Col span={12}>
                             <Form.Item
                                 name="lead_source_id"
-                                label="Lead Source"
+                                label={td("Lead Source", { source: "en" })}
                             >
                                 <FormDataSelector
                                     type="sources"
-                                    placeholder="Lead source"
+                                    placeholder={td("Lead source", { source: "en" })}
                                 />
                             </Form.Item>
                         </Col>
@@ -375,36 +376,36 @@ const StepOne: React.FC<StepOneProps> = ({
 
                 <Row gutter={16}>
                     <Col span={24}>
-                        <Form.Item name="address" label="Address">
-                            <Input placeholder="Enter street address" />
+                        <Form.Item name="address" label={td("Address", { source: "en" })}>
+                            <Input placeholder={td("Enter street address", { source: "en" })} />
                         </Form.Item>
                     </Col>
                 </Row>
 
                 <Row gutter={16}>
                     <Col span={12}>
-                        <Form.Item name="postal_code" label="Postcode">
-                            <Input placeholder="Enter postcode" />
+                        <Form.Item name="postal_code" label={td("Postcode", { source: "en" })}>
+                            <Input placeholder={td("Enter postcode", { source: "en" })} />
                         </Form.Item>
                     </Col>
                     <Col span={12}>
-                        <Form.Item name="city" label="City">
-                            <Input placeholder="Enter city" />
+                        <Form.Item name="city" label={td("City", { source: "en" })}>
+                            <Input placeholder={td("Enter city", { source: "en" })} />
                         </Form.Item>
                     </Col>
                 </Row>
 
                 <Row gutter={16}>
                     <Col span={12}>
-                        <Form.Item name="state" label="State / Province">
-                            <Input placeholder="Enter state or province" />
+                        <Form.Item name="state" label={td("State / Province", { source: "en" })}>
+                            <Input placeholder={td("Enter state or province", { source: "en" })} />
                         </Form.Item>
                     </Col>
                     <Col span={12}>
-                        <Form.Item name="country" label="Country">
+                        <Form.Item name="country" label={td("Country", { source: "en" })}>
                             <FormDataSelector
                                 type="countries"
-                                placeholder="— Select country —"
+                                placeholder={td("— Select country —", { source: "en" })}
                             />
                         </Form.Item>
                     </Col>
@@ -415,7 +416,7 @@ const StepOne: React.FC<StepOneProps> = ({
                         <Col span={12}>
                             <Form.Item
                                 name="company_name"
-                                label="Company / Agency Name"
+                                label={td("Company / Agency Name", { source: "en" })}
                                 rules={[
                                     {
                                         required: true,
@@ -424,12 +425,12 @@ const StepOne: React.FC<StepOneProps> = ({
                                     },
                                 ]}
                             >
-                                <Input placeholder="Company or agency name" />
+                                <Input placeholder={td("Company or agency name", { source: "en" })} />
                             </Form.Item>
                         </Col>
                         <Col span={12}>
-                            <Form.Item name="referral" label="Referral Source">
-                                <Input placeholder="How did they find you?" />
+                            <Form.Item name="referral" label={td("Referral Source", { source: "en" })}>
+                                <Input placeholder={td("How did they find you?", { source: "en" })} />
                             </Form.Item>
                         </Col>
                     </Row>

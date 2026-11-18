@@ -30,6 +30,7 @@ import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
 import { withMobileResponsiveColumns } from "@/Components/DataTable";
 import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 /** Lower-priority columns hidden below 1024px so the primary fields stay visible. */
 const HIDDEN_ON_MOBILE = ["assigner", "created_at"];
@@ -69,6 +70,7 @@ export const useTasksTableColumns = ({
     onStatusChange,
     exclude = [],
 }: TasksTableColumnsProps): TableColumnsType<Task> => {
+    const { td } = useTd();
     const { props } = usePage();
     const userId = props.auth.user.id;
     const isMobileResponsive = useMobileResponsiveLayoutFlag();
@@ -151,7 +153,7 @@ export const useTasksTableColumns = ({
                 <span className="flex items-center">
                     Status
                     <PageDataSorter
-                        label="Status"
+                        label={td("Status", { source: "en" })}
                         field="board_column_id"
                         routeName="tasks.index"
                     />
@@ -182,7 +184,7 @@ export const useTasksTableColumns = ({
                 <span className="flex items-center">
                     Due Date
                     <PageDataSorter
-                        label="Due Date"
+                        label={td("Due Date", { source: "en" })}
                         field="due_date"
                         routeName="tasks.index"
                     />
@@ -208,10 +210,10 @@ export const useTasksTableColumns = ({
                         <div className="text-xs tabular-nums text-gray-400">
                             {formatTaskCompanyTime(dueDate)}
                             {isOverdue && (
-                                <span className="ml-1.5 font-semibold text-red-500">· Overdue</span>
+                                <span className="ml-1.5 font-semibold text-red-500">{td("· Overdue", { source: "en" })}</span>
                             )}
                             {isDueToday && !isOverdue && (
-                                <span className="ml-1.5 font-semibold text-amber-500">· Today</span>
+                                <span className="ml-1.5 font-semibold text-amber-500">{td("· Today", { source: "en" })}</span>
                             )}
                         </div>
                     </div>
@@ -256,7 +258,7 @@ export const useTasksTableColumns = ({
                 <span className="flex items-center">
                     Created
                     <PageDataSorter
-                        label="Created"
+                        label={td("Created", { source: "en" })}
                         field="created_at"
                         routeName="tasks.index"
                     />

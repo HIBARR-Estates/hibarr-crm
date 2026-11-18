@@ -20,6 +20,7 @@ import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { isLoading as _isLoading } from "@/lib/utils";
 import { useState } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     deal: Deal;
@@ -27,6 +28,7 @@ interface Props {
 }
 
 export default function CommunicationTimeline({ deal, compact = true }: Props) {
+    const { td } = useTd();
     const [isExpandedView, setIsExpandedView] = useState(false);
     const {
         action,
@@ -224,10 +226,10 @@ export default function CommunicationTimeline({ deal, compact = true }: Props) {
                                 compact ? "text-base" : "text-lg"
                             }`}
                         >
-                            Communication Timeline
+                            {td("Communication Timeline", { source: "en" })}
                         </h3>
                         <p className="text-sm text-gray-600">
-                            Recent conversations and interactions
+                            {td("Recent conversations and interactions", { source: "en" })}
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -244,7 +246,7 @@ export default function CommunicationTimeline({ deal, compact = true }: Props) {
                                 onClick={() => setIsExpandedView(true)}
                                 disabled={isLoading}
                                 size="small"
-                                title="Expand timeline view"
+                                title={td("Expand timeline view", { source: "en" })}
                                 type="text"
                             />
                         )}
@@ -269,11 +271,10 @@ export default function CommunicationTimeline({ deal, compact = true }: Props) {
                             description={
                                 <div className="text-gray-500">
                                     <div className="text-base font-medium mb-1">
-                                        Failed to load communications
+                                        {td("Failed to load communications", { source: "en" })}
                                     </div>
                                     <div className="text-sm">
-                                        There was an error loading the
-                                        communication history
+                                        {td("There was an error loading the communication history", { source: "en" })}
                                     </div>
                                 </div>
                             }
@@ -289,11 +290,10 @@ export default function CommunicationTimeline({ deal, compact = true }: Props) {
                             description={
                                 <div className="text-gray-500">
                                     <div className="text-base font-medium mb-1">
-                                        No communications yet
+                                        {td("No communications yet", { source: "en" })}
                                     </div>
                                     <div className="text-sm">
-                                        Start a conversation to see your
-                                        communication history here
+                                        {td("Start a conversation to see your communication history here", { source: "en" })}
                                     </div>
                                 </div>
                             }

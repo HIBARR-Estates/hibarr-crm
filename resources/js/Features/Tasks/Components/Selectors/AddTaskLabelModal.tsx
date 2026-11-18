@@ -1,5 +1,6 @@
 import { Modal, Form, Input, Button, ColorPicker } from "antd";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     open: boolean;
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function AddTaskLabelModal({ open, onClose, onSuccess }: Props) {
+    const { td } = useTd();
     const [form] = Form.useForm();
 
     const { mutate, isPending } = useApiMutate(
@@ -31,7 +33,7 @@ export default function AddTaskLabelModal({ open, onClose, onSuccess }: Props) {
 
     return (
         <Modal
-            title="Add Task Label"
+            title={td("Add Task Label", { source: "en" })}
             open={open}
             onCancel={onClose}
             footer={null}
@@ -40,27 +42,27 @@ export default function AddTaskLabelModal({ open, onClose, onSuccess }: Props) {
             <Form form={form} layout="vertical" onFinish={handleSubmit}>
                 <Form.Item
                     name="label_name"
-                    label="Label Name"
+                    label={td("Label Name", { source: "en" })}
                     rules={[
                         { required: true, message: "Please enter label name" },
                     ]}
                 >
-                    <Input placeholder="Enter label name" />
+                    <Input placeholder={td("Enter label name", { source: "en" })} />
                 </Form.Item>
-                <Form.Item name="description" label="Description">
-                    <Input.TextArea placeholder="Enter description" />
+                <Form.Item name="description" label={td("Description", { source: "en" })}>
+                    <Input.TextArea placeholder={td("Enter description", { source: "en" })} />
                 </Form.Item>
-                <Form.Item name="color" label="Color" initialValue="#1d82f5">
+                <Form.Item name="color" label={td("Color", { source: "en" })} initialValue="#1d82f5">
                     <ColorPicker showText />
                 </Form.Item>
                 <div className="flex justify-end space-x-2">
-                    <Button onClick={onClose}>Cancel</Button>
+                    <Button onClick={onClose}>{td("Cancel", { source: "en" })}</Button>
                     <Button
                         type="primary"
                         htmlType="submit"
                         loading={isPending}
                     >
-                        Save
+                        {td("Save", { source: "en" })}
                     </Button>
                 </div>
             </Form>

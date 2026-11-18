@@ -3,6 +3,7 @@ import { Form, Select, DatePicker, Button, Space, Row, Col, Card } from "antd";
 import { SearchOutlined, ClearOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { companyDateDayjsFormat } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
@@ -58,6 +59,7 @@ const AdvancedTaskFilterForm: React.FC<AdvancedTaskFilterFormProps> = ({
     users = [],
     projects = [],
 }) => {
+    const { td } = useTd();
     const [form] = Form.useForm();
 
     const handleFormChange = (changedFields: any, allFields: any) => {
@@ -106,12 +108,12 @@ const AdvancedTaskFilterForm: React.FC<AdvancedTaskFilterFormProps> = ({
             onValuesChange={handleFormChange}
             className="space-y-4"
         >
-            <Card size="small" title="Task Filters" className="mb-4">
+            <Card size="small" title={td("Task Filters", { source: "en" })} className="mb-4">
                 <Row gutter={[16, 16]}>
                     <Col xs={24} sm={12} lg={12}>
-                        <Form.Item name="status" label="Status">
+                        <Form.Item name="status" label={td("Status", { source: "en" })}>
                             <Select
-                                placeholder="Select status"
+                                placeholder={td("Select status", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
@@ -141,31 +143,31 @@ const AdvancedTaskFilterForm: React.FC<AdvancedTaskFilterFormProps> = ({
                     </Col>
 
                     <Col xs={24} sm={12} lg={12}>
-                        <Form.Item name="priority" label="Priority">
-                            <Select placeholder="Select priority" allowClear>
+                        <Form.Item name="priority" label={td("Priority", { source: "en" })}>
+                            <Select placeholder={td("Select priority", { source: "en" })} allowClear>
                                 <Option value="low">
-                                    <Space>🟢 Low Priority</Space>
+                                    <Space>{td("🟢 Low Priority", { source: "en" })}</Space>
                                 </Option>
                                 <Option value="medium">
-                                    <Space>🔵 Medium Priority</Space>
+                                    <Space>{td("🔵 Medium Priority", { source: "en" })}</Space>
                                 </Option>
                                 <Option value="high">
-                                    <Space>🔴 High Priority</Space>
+                                    <Space>{td("🔴 High Priority", { source: "en" })}</Space>
                                 </Option>
                                 <Option value="highest">
-                                    <Space>🔴 Highest Priority</Space>
+                                    <Space>{td("🔴 Highest Priority", { source: "en" })}</Space>
                                 </Option>
                                 <Option value="urgent">
-                                    <Space>🔴 Urgent Priority</Space>
+                                    <Space>{td("🔴 Urgent Priority", { source: "en" })}</Space>
                                 </Option>
                             </Select>
                         </Form.Item>
                     </Col>
 
                     <Col xs={24} sm={12} lg={12}>
-                        <Form.Item name="assigned_to" label="Assigned To">
+                        <Form.Item name="assigned_to" label={td("Assigned To", { source: "en" })}>
                             <Select
-                                placeholder="Select assignee"
+                                placeholder={td("Select assignee", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
@@ -192,9 +194,9 @@ const AdvancedTaskFilterForm: React.FC<AdvancedTaskFilterFormProps> = ({
                     </Col>
 
                     <Col xs={24} sm={12} lg={12}>
-                        <Form.Item name="project_id" label="Project">
+                        <Form.Item name="project_id" label={td("Project", { source: "en" })}>
                             <Select
-                                placeholder="Select project"
+                                placeholder={td("Select project", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
@@ -221,9 +223,9 @@ const AdvancedTaskFilterForm: React.FC<AdvancedTaskFilterFormProps> = ({
                     </Col>
 
                     <Col xs={24} sm={12} lg={12}>
-                        <Form.Item name="category_id" label="Category">
+                        <Form.Item name="category_id" label={td("Category", { source: "en" })}>
                             <Select
-                                placeholder="Select category"
+                                placeholder={td("Select category", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
@@ -241,10 +243,10 @@ const AdvancedTaskFilterForm: React.FC<AdvancedTaskFilterFormProps> = ({
                     </Col>
 
                     <Col xs={24} sm={12} lg={12}>
-                        <Form.Item name="labels" label="Labels">
+                        <Form.Item name="labels" label={td("Labels", { source: "en" })}>
                             <Select
                                 mode="multiple"
-                                placeholder="Select labels"
+                                placeholder={td("Select labels", { source: "en" })}
                                 allowClear
                                 maxTagCount={2}
                             >
@@ -270,7 +272,7 @@ const AdvancedTaskFilterForm: React.FC<AdvancedTaskFilterFormProps> = ({
                     </Col>
 
                     <Col xs={24} sm={12} lg={12}>
-                        <Form.Item name="due_date_range" label="Due Date Range">
+                        <Form.Item name="due_date_range" label={td("Due Date Range", { source: "en" })}>
                             <RangePicker
                                 style={{ width: "100%" }}
                                 format={companyDateDayjsFormat()}
@@ -282,7 +284,7 @@ const AdvancedTaskFilterForm: React.FC<AdvancedTaskFilterFormProps> = ({
                     <Col xs={24} sm={12} lg={12}>
                         <Form.Item
                             name="created_date_range"
-                            label="Created Date Range"
+                            label={td("Created Date Range", { source: "en" })}
                         >
                             <RangePicker
                                 style={{ width: "100%" }}

@@ -18,6 +18,7 @@ import {
     ExpandOutlined,
     CalendarOutlined,
 } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -50,6 +51,7 @@ export default function PropertyDetailsStep({
     enumValues,
     data,
 }: PropertyDetailsStepProps) {
+    const { td } = useTd();
     return (
         <Card size="small" className="border-0 shadow-none">
             {/* Room Configuration */}
@@ -62,11 +64,11 @@ export default function PropertyDetailsStep({
                 <Col xs={12} md={6}>
                     <Form.Item
                         name="rooms"
-                        label="Total Rooms"
-                        tooltip="Total number of rooms (e.g., 3+1 = 4)"
+                        label={td("Total Rooms", { source: "en" })}
+                        tooltip={td("Total number of rooms (e.g., 3+1 = 4)", { source: "en" })}
                     >
                         <InputNumber
-                            placeholder="Total"
+                            placeholder={td("Total", { source: "en" })}
                             min={0}
                             style={{ width: "100%" }}
                         />
@@ -76,10 +78,10 @@ export default function PropertyDetailsStep({
                 <Col xs={12} md={6}>
                     <Form.Item
                         name="floors_in_building"
-                        label="Floors in Building"
+                        label={td("Floors in Building", { source: "en" })}
                     >
                         <InputNumber
-                            placeholder="Building floors"
+                            placeholder={td("Building floors", { source: "en" })}
                             min={1}
                             style={{ width: "100%" }}
                         />
@@ -89,11 +91,11 @@ export default function PropertyDetailsStep({
                 <Col xs={12} md={6}>
                     <Form.Item
                         name="floor_number"
-                        label="Floor Number"
-                        tooltip="Which floor is this unit on"
+                        label={td("Floor Number", { source: "en" })}
+                        tooltip={td("Which floor is this unit on", { source: "en" })}
                     >
                         <InputNumber
-                            placeholder="Floor #"
+                            placeholder={td("Floor #", { source: "en" })}
                             min={-5}
                             style={{ width: "100%" }}
                         />
@@ -101,9 +103,9 @@ export default function PropertyDetailsStep({
                 </Col>
 
                 <Col xs={12} md={6}>
-                    <Form.Item name="balcony_count" label="Balconies">
+                    <Form.Item name="balcony_count" label={td("Balconies", { source: "en" })}>
                         <InputNumber
-                            placeholder="Count"
+                            placeholder={td("Count", { source: "en" })}
                             min={0}
                             style={{ width: "100%" }}
                         />
@@ -111,7 +113,7 @@ export default function PropertyDetailsStep({
                 </Col>
 
                 <Col xs={12} md={6}>
-                    <Form.Item name="balcony_net_sqm" label="Balcony Size (m²)">
+                    <Form.Item name="balcony_net_sqm" label={td("Balcony Size (m²)", { source: "en" })}>
                         <InputNumber
                             placeholder="m²"
                             min={0}
@@ -130,11 +132,11 @@ export default function PropertyDetailsStep({
                 <Col xs={24} md={8}>
                     <Form.Item
                         name="living_area_sqm"
-                        label="Living Area (m²)"
-                        tooltip="Usable interior space"
+                        label={td("Living Area (m²)", { source: "en" })}
+                        tooltip={td("Usable interior space", { source: "en" })}
                     >
                         <InputNumber
-                            placeholder="Net m²"
+                            placeholder={td("Net m²", { source: "en" })}
                             min={0}
                             style={{ width: "100%" }}
                         />
@@ -144,11 +146,11 @@ export default function PropertyDetailsStep({
                 <Col xs={24} md={8}>
                     <Form.Item
                         name="gross_sqm"
-                        label="Gross Area (m²)"
-                        tooltip="Total area including walls"
+                        label={td("Gross Area (m²)", { source: "en" })}
+                        tooltip={td("Total area including walls", { source: "en" })}
                     >
                         <InputNumber
-                            placeholder="Gross m²"
+                            placeholder={td("Gross m²", { source: "en" })}
                             min={0}
                             style={{ width: "100%" }}
                         />
@@ -158,11 +160,11 @@ export default function PropertyDetailsStep({
                 <Col xs={24} md={8}>
                     <Form.Item
                         name="land_size"
-                        label="Land Size (m²)"
-                        tooltip="For villas/land properties"
+                        label={td("Land Size (m²)", { source: "en" })}
+                        tooltip={td("For villas/land properties", { source: "en" })}
                     >
                         <InputNumber
-                            placeholder="Land m²"
+                            placeholder={td("Land m²", { source: "en" })}
                             min={0}
                             style={{ width: "100%" }}
                         />
@@ -170,13 +172,13 @@ export default function PropertyDetailsStep({
                 </Col>
             </Row>
 
-            <Divider className="my-4">Property Condition</Divider>
+            <Divider className="my-4">{td("Property Condition", { source: "en" })}</Divider>
 
             <Row gutter={[16, 0]}>
                 <Col xs={24} md={8}>
-                    <Form.Item name="building_age" label="Building Age (years)">
+                    <Form.Item name="building_age" label={td("Building Age (years)", { source: "en" })}>
                         <InputNumber
-                            placeholder="Age"
+                            placeholder={td("Age", { source: "en" })}
                             min={0}
                             style={{ width: "100%" }}
                         />
@@ -184,9 +186,9 @@ export default function PropertyDetailsStep({
                 </Col>
 
                 <Col xs={24} md={8}>
-                    <Form.Item name="furniture_status" label="Furniture Status">
+                    <Form.Item name="furniture_status" label={td("Furniture Status", { source: "en" })}>
                         <Select
-                            placeholder="Select furniture status"
+                            placeholder={td("Select furniture status", { source: "en" })}
                             allowClear
                         >
                             {FURNITURE_STATUS_OPTIONS.map((status) => (
@@ -199,8 +201,8 @@ export default function PropertyDetailsStep({
                 </Col>
 
                 <Col xs={24} md={8}>
-                    <Form.Item name="heating_type" label="Heating Type">
-                        <Select placeholder="Select heating type" allowClear>
+                    <Form.Item name="heating_type" label={td("Heating Type", { source: "en" })}>
+                        <Select placeholder={td("Select heating type", { source: "en" })} allowClear>
                             {HEATING_TYPES.map((type) => (
                                 <Option key={type} value={type}>
                                     {type}
@@ -213,11 +215,11 @@ export default function PropertyDetailsStep({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="completion_date"
-                        label="Completion Date"
-                        tooltip="For off-plan or under construction properties"
+                        label={td("Completion Date", { source: "en" })}
+                        tooltip={td("For off-plan or under construction properties", { source: "en" })}
                     >
                         <DatePicker
-                            placeholder="Select completion date"
+                            placeholder={td("Select completion date", { source: "en" })}
                             style={{ width: "100%" }}
                             format="YYYY-MM-DD"
                         />

@@ -15,6 +15,7 @@ import {
     TeamOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -29,6 +30,7 @@ export default function OwnerInfoCard({
     canViewOwnerInfo,
     isSalesManager,
 }: OwnerInfoCardProps) {
+    const { td } = useTd();
     const ownerInfo = property.owner_info;
     const hasOwnerInfo =
         ownerInfo &&
@@ -53,7 +55,7 @@ export default function OwnerInfoCard({
                     <>
                         <Descriptions column={{ xs: 1, sm: 2 }} size="small">
                             {ownerInfo?.full_name && (
-                                <Descriptions.Item label="Owner Name">
+                                <Descriptions.Item label={td("Owner Name", { source: "en" })}>
                                     <Space>
                                         <UserOutlined />
                                         {ownerInfo.full_name}
@@ -61,7 +63,7 @@ export default function OwnerInfoCard({
                                 </Descriptions.Item>
                             )}
                             {ownerInfo?.telephone && (
-                                <Descriptions.Item label="Phone">
+                                <Descriptions.Item label={td("Phone", { source: "en" })}>
                                     <Space>
                                         <PhoneOutlined />
                                         <a href={`tel:${ownerInfo.telephone}`}>
@@ -71,7 +73,7 @@ export default function OwnerInfoCard({
                                 </Descriptions.Item>
                             )}
                             {ownerInfo?.email && (
-                                <Descriptions.Item label="Email">
+                                <Descriptions.Item label={td("Email", { source: "en" })}>
                                     <Space>
                                         <MailOutlined />
                                         <a href={`mailto:${ownerInfo.email}`}>
@@ -81,7 +83,7 @@ export default function OwnerInfoCard({
                                 </Descriptions.Item>
                             )}
                             {ownerInfo?.key_holder_name && (
-                                <Descriptions.Item label="Key Holder">
+                                <Descriptions.Item label={td("Key Holder", { source: "en" })}>
                                     <Space>
                                         <UserOutlined />
                                         {ownerInfo.key_holder_name}
@@ -103,7 +105,7 @@ export default function OwnerInfoCard({
                                 {ownerInfo?.agent_responsible && (
                                     <div className="mt-3 pt-3 border-t border-gray-100">
                                         <Descriptions column={1} size="small">
-                                            <Descriptions.Item label="Agent Responsible">
+                                            <Descriptions.Item label={td("Agent Responsible", { source: "en" })}>
                                                 <Space>
                                                     <TeamOutlined />
                                                     {
@@ -148,7 +150,7 @@ export default function OwnerInfoCard({
                                                     type="secondary"
                                                     className="text-xs"
                                                 >
-                                                    Hangiev:
+                                                    {td("Hangiev:", { source: "en" })}
                                                 </Text>
                                                 <Tag
                                                     color={
@@ -169,14 +171,14 @@ export default function OwnerInfoCard({
                         )}
                     </>
                 ) : (
-                    <Text type="secondary">No owner information available</Text>
+                    <Text type="secondary">{td("No owner information available", { source: "en" })}</Text>
                 )
             ) : (
                 <Alert
                     type="info"
                     icon={<LockOutlined />}
                     showIcon
-                    message="Owner Information Restricted"
+                    message={td("Owner Information Restricted", { source: "en" })}
                     description={
                         <div>
                             <p className="mb-0">

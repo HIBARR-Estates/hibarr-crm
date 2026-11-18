@@ -3,6 +3,7 @@ import { Select, Button, Spin } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { useApiQuery } from "@/lib/api/client";
 import AddTaskCategoryModal from "./AddTaskCategoryModal";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface TaskCategory {
     id: number;
@@ -26,6 +27,7 @@ export default function TaskCategorySelector({
     className,
     allowClear = true,
 }: Props) {
+    const { td } = useTd();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     const {
@@ -55,7 +57,7 @@ export default function TaskCategorySelector({
                     className="w-full text-left hover:bg-gray-50"
                     disabled={disabled}
                 >
-                    Add New Category
+                    {td("Add New Category", { source: "en" })}
                 </Button>
             </div>
         </>

@@ -35,6 +35,7 @@ import type {
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { currencySymbolForCode, formatLocationNameForDisplay } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -98,6 +99,7 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
     onAdd,
     loading = false,
 }) => {
+    const { td } = useTd();
     const [searchValue, setSearchValue] = useState("");
 
     const handleSearch = useCallback((value: string) => {
@@ -181,7 +183,7 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                             {formatLocationNameForDisplay(location.name)}
                         </Tag>
                     ) : (
-                        <span className="text-gray-400">Not assigned</span>
+                        <span className="text-gray-400">{td("Not assigned", { source: "en" })}</span>
                     ),
             },
             {
@@ -280,11 +282,11 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                             key: "delete",
                             label: (
                                 <Popconfirm
-                                    title="Delete Project"
-                                    description="Are you sure? Properties will be unassigned."
+                                    title={td("Delete Project", { source: "en" })}
+                                    description={td("Are you sure? Properties will be unassigned.", { source: "en" })}
                                     onConfirm={() => handleDelete(record)}
-                                    okText="Delete"
-                                    cancelText="Cancel"
+                                    okText={td("Delete", { source: "en" })}
+                                    cancelText={td("Cancel", { source: "en" })}
                                     okButtonProps={{ danger: true }}
                                 >
                                     <span className="text-red-600">
@@ -325,11 +327,11 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
             {/* Toolbar */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <Button type="primary" icon={<PlusOutlined />} onClick={onAdd}>
-                    Add Project
+                    {td("Add Project", { source: "en" })}
                 </Button>
 
                 <Input.Search
-                    placeholder="Search projects..."
+                    placeholder={td("Search projects...", { source: "en" })}
                     allowClear
                     value={searchValue}
                     onChange={(e) => setSearchValue(e.target.value)}

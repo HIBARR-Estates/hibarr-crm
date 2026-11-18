@@ -20,6 +20,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import useClickToCall from "@/Hooks/useClickToCall";
 import useSoftphone, { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     deal: Deal;
@@ -27,6 +28,7 @@ interface Props {
 }
 
 export default function QuickActions2({ deal, permissions }: Props) {
+    const { td } = useTd();
     const { message: messageApi } = App.useApp();
     const { t } = useTranslation();
     const { props } = usePage();
@@ -243,7 +245,7 @@ export default function QuickActions2({ deal, permissions }: Props) {
     return (
         <>
             <Card
-                title="Quick Actions"
+                title={td("Quick Actions", { source: "en" })}
                 size="small"
                 className="shadow-sm border-0 rounded-lg overflow-hidden"
                 bodyStyle={{ padding: "12px" }}

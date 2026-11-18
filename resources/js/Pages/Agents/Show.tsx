@@ -25,6 +25,7 @@ import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import UserIndicator from "@/Components/UserIndicator";
 import SaveAgentModal from "@/Features/Agents/SaveAgentModal";
 import DeleteAgent from "@/Features/Agents/DeleteAgent";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const Show = ({
     pageTitle,
@@ -33,6 +34,7 @@ const Show = ({
     deals,
     permissions,
 }: AgentShowProps) => {
+    const { td } = useTd();
     const { handleAction, handleClose, action, selected } =
         useGenericEntityAction<Agent>();
 
@@ -75,7 +77,7 @@ const Show = ({
                         </div>
 
                         <Descriptions bordered column={2} size="small">
-                            <Descriptions.Item label="Email">
+                            <Descriptions.Item label={td("Email", { source: "en" })}>
                                 {agent.user?.email ? (
                                     <a href={`mailto:${agent.user.email}`}>
                                         <MailOutlined className="mr-1" />
@@ -85,7 +87,7 @@ const Show = ({
                                     "--"
                                 )}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Phone">
+                            <Descriptions.Item label={td("Phone", { source: "en" })}>
                                 {agent.user?.mobile_with_phone_code ? (
                                     <span>
                                         <PhoneOutlined className="mr-1" />
@@ -95,7 +97,7 @@ const Show = ({
                                     "--"
                                 )}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Categories" span={2}>
+                            <Descriptions.Item label={td("Categories", { source: "en" })} span={2}>
                                 {agentCategories.length > 0 ? (
                                     <div className="flex flex-wrap gap-1">
                                         {agentCategories.map((cat) => (
@@ -108,18 +110,18 @@ const Show = ({
                                     "--"
                                 )}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Agent ID">
+                            <Descriptions.Item label={td("Agent ID", { source: "en" })}>
                                 {agent.id}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Total Deals">
+                            <Descriptions.Item label={td("Total Deals", { source: "en" })}>
                                 {agent.deals_count ?? deals.length}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Created">
+                            <Descriptions.Item label={td("Created", { source: "en" })}>
                                 {agent.created_at
                                     ? formatCompanyDate(agent.created_at)
                                     : "--"}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Last Updated">
+                            <Descriptions.Item label={td("Last Updated", { source: "en" })}>
                                 {agent.updated_at
                                     ? formatCompanyDate(agent.updated_at)
                                     : "--"}
@@ -190,7 +192,7 @@ const Show = ({
                             ]}
                         />
                     ) : (
-                        <Empty description="No deals assigned to this agent" />
+                        <Empty description={td("No deals assigned to this agent", { source: "en" })} />
                     )}
                 </Card>
             ),
@@ -210,7 +212,7 @@ const Show = ({
                                 icon={<EditOutlined />}
                                 onClick={() => handleAction("edit", agent)}
                             >
-                                Edit Agent
+                                {td("Edit Agent", { source: "en" })}
                             </Button>
                         )}
                         {permissions.delete_lead_agent !== "none" && (
@@ -219,7 +221,7 @@ const Show = ({
                                 icon={<DeleteOutlined />}
                                 onClick={() => handleAction("delete", agent)}
                             >
-                                Delete
+                                {td("Delete", { source: "en" })}
                             </Button>
                         )}
                     </div>

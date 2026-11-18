@@ -59,11 +59,13 @@ import {
     MergeOutlined,
     PartitionOutlined,
 } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 // ── Agent Detail Content (shared by drawer) ──────────────────────
 const AgentLevelHistorySection: React.FC<{ agentId: number }> = ({
     agentId,
 }) => {
+    const { td } = useTd();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
     const { data, isLoading } = useLevelHistory({
@@ -79,7 +81,7 @@ const AgentLevelHistorySection: React.FC<{ agentId: number }> = ({
     if (records.length === 0) {
         return (
             <Empty
-                description="No level history"
+                description={td("No level history", { source: "en" })}
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
             />
         );
@@ -97,7 +99,7 @@ const AgentLevelHistorySection: React.FC<{ agentId: number }> = ({
                             </Tag>
                             {r.system_assigned && (
                                 <Tag color="default" className="text-xs">
-                                    Auto
+                                    {td("Auto", { source: "en" })}
                                 </Tag>
                             )}
                         </div>
@@ -130,6 +132,7 @@ const AgentDetailContent: React.FC<{
     showRemove?: boolean;
     extraContent?: React.ReactNode;
 }> = ({ node, onRemove, isRemoving, showRemove, extraContent }) => {
+    const { td } = useTd();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
     return (
@@ -164,25 +167,25 @@ const AgentDetailContent: React.FC<{
                 title={
                     <div className="flex items-center gap-2">
                         <Users size={14} className="text-indigo-500" />
-                        <span>Overview</span>
+                        <span>{td("Overview", { source: "en" })}</span>
                     </div>
                 }
             >
                 <Descriptions column={2} size="small">
-                    <Descriptions.Item label="Level">
+                    <Descriptions.Item label={td("Level", { source: "en" })}>
                         {node.level_name ? (
                             <Tag color="blue">{node.level_name}</Tag>
                         ) : (
                             "Unranked"
                         )}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Level Rank">
+                    <Descriptions.Item label={td("Level Rank", { source: "en" })}>
                         {node.level_rank ?? "—"}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Total Sales">
+                    <Descriptions.Item label={td("Total Sales", { source: "en" })}>
                         {node.total_sales?.toLocaleString() ?? "—"}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Direct Downlines">
+                    <Descriptions.Item label={td("Direct Downlines", { source: "en" })}>
                         {node.children?.length ?? 0}
                     </Descriptions.Item>
                 </Descriptions>
@@ -194,7 +197,7 @@ const AgentDetailContent: React.FC<{
                 title={
                     <div className="flex items-center gap-2">
                         <BarChart3 size={14} className="text-indigo-500" />
-                        <span>All-Time Metrics</span>
+                        <span>{td("All-Time Metrics", { source: "en" })}</span>
                     </div>
                 }
             >
@@ -204,7 +207,7 @@ const AgentDetailContent: React.FC<{
                             {node.nsa ?? 0}
                         </div>
                         <div className="text-xs text-blue-600">
-                            Individual Sales
+                            {td("Individual Sales", { source: "en" })}
                         </div>
                     </div>
                     <div className="text-center p-3 rounded-lg bg-purple-50 border border-purple-100">
@@ -212,7 +215,7 @@ const AgentDetailContent: React.FC<{
                             {node.nsd ?? 0}
                         </div>
                         <div className="text-xs text-purple-600">
-                            Team Sales
+                            {td("Team Sales", { source: "en" })}
                         </div>
                     </div>
                     <div className="text-center p-3 rounded-lg bg-green-50 border border-green-100">
@@ -221,7 +224,7 @@ const AgentDetailContent: React.FC<{
                             {(node.vsa ?? 0).toLocaleString()}
                         </div>
                         <div className="text-xs text-green-600">
-                            Individual Revenue
+                            {td("Individual Revenue", { source: "en" })}
                         </div>
                     </div>
                     <div className="text-center p-3 rounded-lg bg-amber-50 border border-amber-100">
@@ -230,7 +233,7 @@ const AgentDetailContent: React.FC<{
                             {(node.vsd ?? 0).toLocaleString()}
                         </div>
                         <div className="text-xs text-amber-600">
-                            Team Revenue
+                            {td("Team Revenue", { source: "en" })}
                         </div>
                     </div>
                 </div>
@@ -242,7 +245,7 @@ const AgentDetailContent: React.FC<{
                 title={
                     <div className="flex items-center gap-2">
                         <History size={14} className="text-indigo-500" />
-                        <span>Level History</span>
+                        <span>{td("Level History", { source: "en" })}</span>
                     </div>
                 }
             >
@@ -255,10 +258,10 @@ const AgentDetailContent: React.FC<{
             {/* Remove button */}
             {showRemove && onRemove && (
                 <Popconfirm
-                    title="Remove from hierarchy?"
-                    description="This will remove the agent's parent-child relationship."
+                    title={td("Remove from hierarchy?", { source: "en" })}
+                    description={td("This will remove the agent's parent-child relationship.", { source: "en" })}
                     onConfirm={onRemove}
-                    okText="Remove"
+                    okText={td("Remove", { source: "en" })}
                     okType="danger"
                 >
                     <Button
@@ -266,7 +269,7 @@ const AgentDetailContent: React.FC<{
                         icon={<Unlink size={14} />}
                         loading={isRemoving}
                     >
-                        Remove from Hierarchy
+                        {td("Remove from Hierarchy", { source: "en" })}
                     </Button>
                 </Popconfirm>
             )}
@@ -283,6 +286,7 @@ const MlmAgentHierarchy: React.FC<Props> = ({
     hierarchy: initialHierarchy,
     agents = [],
 }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { data, isLoading, refetch } = useAgentHierarchy();
     const hierarchy: AgentHierarchyNode[] =
@@ -298,14 +302,14 @@ const MlmAgentHierarchy: React.FC<Props> = ({
     const [form] = Form.useForm();
 
     const assignDownline = useAssignDownline(() => {
-        message.success("Downline assigned successfully");
+        message.success(td("Downline assigned successfully", { source: "en" }));
         refetch();
         setAssignModalOpen(false);
         form.resetFields();
     });
 
     const removeHierarchy = useRemoveHierarchy(selectedNode?.id ?? 0, () => {
-        message.success("Agent removed from hierarchy");
+        message.success(td("Agent removed from hierarchy", { source: "en" }));
         refetch();
         setDrawerOpen(false);
         setSelectedNode(null);
@@ -348,7 +352,7 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                                         className="text-indigo-500"
                                     />
                                     <span className="font-semibold">
-                                        Organization Tree
+                                        {td("Organization Tree", { source: "en" })}
                                     </span>
                                 </div>
                             }
@@ -378,21 +382,21 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                                         icon={<Maximize2 size={14} />}
                                         onClick={() => setFullscreenOpen(true)}
                                     >
-                                        Fullscreen
+                                        {td("Fullscreen", { source: "en" })}
                                     </Button>
                                     <Button
                                         icon={<RefreshCw size={14} />}
                                         onClick={() => refetch()}
                                         loading={isLoading}
                                     >
-                                        Refresh
+                                        {td("Refresh", { source: "en" })}
                                     </Button>
                                     <Button
                                         type="primary"
                                         icon={<Plus size={14} />}
                                         onClick={() => setAssignModalOpen(true)}
                                     >
-                                        Assign Downline
+                                        {td("Assign Downline", { source: "en" })}
                                     </Button>
                                 </Space>
                             }
@@ -428,7 +432,7 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                                 )
                             ) : (
                                 <div className="flex items-center justify-center h-96">
-                                    <Empty description="No hierarchy data. Assign parent-child relationships to build the tree." />
+                                    <Empty description={td("No hierarchy data. Assign parent-child relationships to build the tree.", { source: "en" })} />
                                 </div>
                             )}
                         </Card>
@@ -436,7 +440,7 @@ const MlmAgentHierarchy: React.FC<Props> = ({
 
                     {/* Agent Detail Drawer */}
                     <Drawer
-                        title="Agent Details"
+                        title={td("Agent Details", { source: "en" })}
                         open={drawerOpen}
                         onClose={() => {
                             setDrawerOpen(false);
@@ -464,7 +468,7 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                                     size={18}
                                     className="text-indigo-500"
                                 />
-                                <span>Organization Tree</span>
+                                <span>{td("Organization Tree", { source: "en" })}</span>
                             </div>
                         }
                         open={fullscreenOpen}
@@ -498,14 +502,14 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                             )
                         ) : (
                             <div className="flex items-center justify-center h-96">
-                                <Empty description="No hierarchy data available" />
+                                <Empty description={td("No hierarchy data available", { source: "en" })} />
                             </div>
                         )}
                     </Modal>
 
                     {/* Assign Downline Modal */}
                     <Modal
-                        title="Assign Downline"
+                        title={td("Assign Downline", { source: "en" })}
                         open={assignModalOpen}
                         onOk={handleAssign}
                         onCancel={() => {
@@ -513,12 +517,12 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                             form.resetFields();
                         }}
                         confirmLoading={assignDownline.isPending}
-                        okText="Assign"
+                        okText={td("Assign", { source: "en" })}
                         destroyOnClose
                     >
                         <Form form={form} layout="vertical" className="mt-4">
                             <Form.Item
-                                label="Parent Agent (Upline)"
+                                label={td("Parent Agent (Upline)", { source: "en" })}
                                 name="parent_agent_id"
                                 rules={[
                                     {
@@ -530,7 +534,7 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                                 <Select
                                     showSearch
                                     optionFilterProp="label"
-                                    placeholder="Select parent..."
+                                    placeholder={td("Select parent...", { source: "en" })}
                                     options={agents.map((a) => ({
                                         value: a.id,
                                         label: a.name,
@@ -539,7 +543,7 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                             </Form.Item>
 
                             <Form.Item
-                                label="Child Agent (Downline)"
+                                label={td("Child Agent (Downline)", { source: "en" })}
                                 name="child_agent_id"
                                 rules={[
                                     {
@@ -551,7 +555,7 @@ const MlmAgentHierarchy: React.FC<Props> = ({
                                 <Select
                                     showSearch
                                     optionFilterProp="label"
-                                    placeholder="Select child..."
+                                    placeholder={td("Select child...", { source: "en" })}
                                     options={agents.map((a) => ({
                                         value: a.id,
                                         label: a.name,

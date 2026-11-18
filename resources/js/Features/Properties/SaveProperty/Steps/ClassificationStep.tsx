@@ -2,6 +2,7 @@ import React from "react";
 import { Form, Select, Row, Col, Card, Typography, Divider } from "antd";
 import { FormInstance } from "antd/lib/form";
 import { Property, PropertyEnumValues } from "@/Types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -17,6 +18,7 @@ export default function ClassificationStep({
     enumValues,
     data,
 }: ClassificationStepProps) {
+    const { td } = useTd();
     const constructionStatuses = enumValues?.construction_statuses || [];
     const viewTypes = enumValues?.view_types || [];
     const occupancyTypes = enumValues?.occupancy_types || [];
@@ -31,19 +33,18 @@ export default function ClassificationStep({
     return (
         <Card size="small" className="border-0 shadow-none">
             <Text type="secondary" className="block mb-4">
-                Classify your property to help buyers find it more easily. These
-                fields help generate a unique reference code.
+                {td("Classify your property to help buyers find it more easily. These fields help generate a unique reference code.", { source: "en" })}
             </Text>
 
             <Row gutter={[16, 0]}>
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="construction_status"
-                        label="Construction Status"
-                        tooltip="Current construction or completion status"
+                        label={td("Construction Status", { source: "en" })}
+                        tooltip={td("Current construction or completion status", { source: "en" })}
                     >
                         <Select
-                            placeholder="Select construction status"
+                            placeholder={td("Select construction status", { source: "en" })}
                             allowClear
                         >
                             {constructionStatuses.map((status) => (
@@ -58,11 +59,11 @@ export default function ClassificationStep({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="occupancy_type"
-                        label="Occupancy Status"
-                        tooltip="Whether the property is currently occupied"
+                        label={td("Occupancy Status", { source: "en" })}
+                        tooltip={td("Whether the property is currently occupied", { source: "en" })}
                     >
                         <Select
-                            placeholder="Select occupancy status"
+                            placeholder={td("Select occupancy status", { source: "en" })}
                             allowClear
                         >
                             {occupancyTypes.map((type) => (
@@ -81,12 +82,12 @@ export default function ClassificationStep({
                 <Col span={24}>
                     <Form.Item
                         name="view_types"
-                        label="View Types"
-                        tooltip="Select all views that apply to this property"
+                        label={td("View Types", { source: "en" })}
+                        tooltip={td("Select all views that apply to this property", { source: "en" })}
                     >
                         <Select
                             mode="multiple"
-                            placeholder="Select view types"
+                            placeholder={td("Select view types", { source: "en" })}
                             allowClear
                             maxTagCount={4}
                             maxTagPlaceholder={(omitted) =>

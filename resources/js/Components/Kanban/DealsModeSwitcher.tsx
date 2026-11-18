@@ -2,6 +2,7 @@ import React from "react";
 import { Button } from "antd";
 import { TableOutlined, AppstoreOutlined } from "@ant-design/icons";
 import { router, usePage } from "@inertiajs/react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface DealsModeSwitcherProps {
     view?: "kanban" | "table";
@@ -19,6 +20,7 @@ const DealsModeSwitcher: React.FC<DealsModeSwitcherProps> = ({
     view,
     onChange,
 }) => {
+    const { td } = useTd();
     const { url } = usePage();
 
     // Controlled mode - use props
@@ -37,7 +39,7 @@ const DealsModeSwitcher: React.FC<DealsModeSwitcherProps> = ({
                                 ? "!bg-white !shadow-sm"
                                 : "hover:bg-white hover:shadow-sm"
                         }`}
-                        title="Board View"
+                        title={td("Board View", { source: "en" })}
                         onClick={() => onChange("kanban")}
                     />
                     <Button
@@ -48,7 +50,7 @@ const DealsModeSwitcher: React.FC<DealsModeSwitcherProps> = ({
                                 ? "!bg-white !shadow-sm"
                                 : "hover:bg-white hover:shadow-sm"
                         }`}
-                        title="Table View"
+                        title={td("Table View", { source: "en" })}
                         onClick={() => onChange("table")}
                     />
                 </div>
@@ -80,7 +82,7 @@ const DealsModeSwitcher: React.FC<DealsModeSwitcherProps> = ({
                             ? "!bg-white !shadow-sm"
                             : "hover:bg-white hover:shadow-sm"
                     }`}
-                    title="Board View"
+                    title={td("Board View", { source: "en" })}
                     onClick={() =>
                         router.visit(`/account/deals/kanban${queryString}`)
                     }
@@ -93,7 +95,7 @@ const DealsModeSwitcher: React.FC<DealsModeSwitcherProps> = ({
                             ? "!bg-white !shadow-sm"
                             : "hover:bg-white hover:shadow-sm"
                     }`}
-                    title="Table View"
+                    title={td("Table View", { source: "en" })}
                     onClick={() =>
                         router.visit(route("deals.index") + queryString)
                     }

@@ -8,6 +8,7 @@ import {
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface ClassificationCardProps {
     property: Property;
@@ -16,6 +17,7 @@ interface ClassificationCardProps {
 export default function ClassificationCard({
     property,
 }: ClassificationCardProps) {
+    const { td } = useTd();
     const hasData =
         property.construction_status ||
         (property.view_types && property.view_types.length > 0) ||
@@ -37,7 +39,7 @@ export default function ClassificationCard({
         >
             <Descriptions column={{ xs: 1, sm: 2 }} size="small">
                 {property.construction_status && (
-                    <Descriptions.Item label="Construction Status">
+                    <Descriptions.Item label={td("Construction Status", { source: "en" })}>
                         <Tag
                             color={
                                 property.construction_status ===
@@ -59,7 +61,7 @@ export default function ClassificationCard({
                 )}
 
                 {property.view_types && property.view_types.length > 0 && (
-                    <Descriptions.Item label="Views">
+                    <Descriptions.Item label={td("Views", { source: "en" })}>
                         <div className="flex flex-wrap gap-1">
                             {property.view_types.map((v) => (
                                 <Tag key={v} color="cyan" className="text-xs">
@@ -71,7 +73,7 @@ export default function ClassificationCard({
                 )}
 
                 {property.current_occupancy && (
-                    <Descriptions.Item label="Occupancy">
+                    <Descriptions.Item label={td("Occupancy", { source: "en" })}>
                         <Tag
                             color={
                                 property.current_occupancy === "vacant"
@@ -85,7 +87,7 @@ export default function ClassificationCard({
                 )}
 
                 {property.completion_date && (
-                    <Descriptions.Item label="Completion Date">
+                    <Descriptions.Item label={td("Completion Date", { source: "en" })}>
                         <CalendarOutlined className="mr-1" />
                         {formatCompanyDate(property.completion_date)}
                     </Descriptions.Item>

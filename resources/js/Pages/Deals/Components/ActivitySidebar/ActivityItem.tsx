@@ -4,6 +4,7 @@ import { Activity } from "@/Types/api/activity";
 import { Deal } from "@/Types/api/deals";
 import { useState } from "react";
 import QuickReply from "./QuickReply";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Paragraph } = Typography;
 
@@ -24,6 +25,7 @@ export default function ActivityItem({
     handleReplyToMessage,
     compact = false,
 }: ActivityItemProps) {
+    const { td } = useTd();
     const [isExpanded, setIsExpanded] = useState(false);
     const [showQuickReply, setShowQuickReply] = useState(false);
     const message = activity?.message_content || activity?.message || "";
@@ -82,7 +84,7 @@ export default function ActivityItem({
                                                 className="ml-1 text-blue-600 hover:text-blue-800 cursor-pointer font-medium"
                                                 onClick={handleToggleExpansion}
                                             >
-                                                Read more
+                                                {td("Read more", { source: "en" })}
                                             </span>
                                         </>
                                     )}
@@ -91,7 +93,7 @@ export default function ActivityItem({
                                             className="ml-2 text-blue-600 hover:text-blue-800 cursor-pointer font-medium"
                                             onClick={handleToggleExpansion}
                                         >
-                                            Show less
+                                            {td("Show less", { source: "en" })}
                                         </span>
                                     )}
                                 </div>
@@ -118,9 +120,9 @@ export default function ActivityItem({
                                 <span
                                     className="cursor-pointer text-xs text-blue-900 mx-1 hover:text-blue-700"
                                     onClick={handleReply}
-                                    title="Reply to this message"
+                                    title={td("Reply to this message", { source: "en" })}
                                 >
-                                    Reply
+                                    {td("Reply", { source: "en" })}
                                 </span>
                             )}
                         </div>

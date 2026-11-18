@@ -17,6 +17,7 @@ import PageLayout from "@/Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import AccountDetailsTab from "@/Features/Clients/SaveClient/AccountDetailsTab";
 import CompanyDetailsTab from "@/Features/Clients/SaveClient/CompanyDetailsTab";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     pageTitle: string;
@@ -46,6 +47,7 @@ const CreateClient: React.FC<Props> = ({
     fields,
     permissions,
 }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
@@ -199,7 +201,7 @@ const CreateClient: React.FC<Props> = ({
                                         }
                                         size="large"
                                     >
-                                        Cancel
+                                        {td("Cancel", { source: "en" })}
                                     </Button>
                                 </Space>
                             </Col>

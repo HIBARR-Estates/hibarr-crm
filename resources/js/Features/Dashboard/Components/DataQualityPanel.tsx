@@ -33,6 +33,7 @@ import {
 import { motion } from "framer-motion";
 import { Link, router } from "@inertiajs/react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface DataQualityIssue {
     field: string;
@@ -98,6 +99,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
     countries = [],
     leadAgents = [],
 }) => {
+    const { td } = useTd();
     const {
         action,
         handleAction,
@@ -343,7 +345,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                                     }}
                                     className="text-xs"
                                 >
-                                    Quick Fix
+                                    {td("Quick Fix", { source: "en" })}
                                 </Button>
 
                                 <Button
@@ -360,7 +362,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                                     }}
                                     className="text-xs"
                                 >
-                                    View Details
+                                    {td("View Details", { source: "en" })}
                                 </Button>
                             </Space>
                         </div>
@@ -409,7 +411,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                 variant="outlined"
                 title={
                     <div className="flex items-center justify-between">
-                        <span>Data Quality Monitor</span>
+                        <span>{td("Data Quality Monitor", { source: "en" })}</span>
                         <div className="flex items-center gap-x-4">
                             <div className="text-sm font-normal">
                                 <span className="text-gray-600">
@@ -441,7 +443,7 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                     {criticalCount > 0 && (
                         <Alert
                             message={`${criticalCount} records need immediate attention`}
-                            description="These records have critical data quality issues that may affect sales performance"
+                            description={td("These records have critical data quality issues that may affect sales performance", { source: "en" })}
                             type="error"
                             showIcon
                             closable
@@ -457,10 +459,9 @@ const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                         ) : (
                             <div className="text-center py-8 text-gray-500">
                                 <CheckOutlined className="text-4xl text-green-400 mb-2" />
-                                <div>All records have good data quality!</div>
+                                <div>{td("All records have good data quality!", { source: "en" })}</div>
                                 <div className="text-sm">
-                                    Keep up the great work maintaining clean
-                                    data.
+                                    {td("Keep up the great work maintaining clean data.", { source: "en" })}
                                 </div>
                             </div>
                         )}

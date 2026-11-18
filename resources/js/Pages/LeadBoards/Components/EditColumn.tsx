@@ -7,6 +7,7 @@ import { EditOutlined } from "@ant-design/icons";
 import { ApiResponse } from "@/lib/api/types";
 import { useApiMutate } from "@/lib/api/client";
 import { isLoading } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     stage?: PipelineStage;
@@ -18,6 +19,7 @@ interface EditStageFormData {
 }
 
 const EditColumn: React.FC<Props> = ({ stage, onClose, open }) => {
+    const { td } = useTd();
     const [form] = Form.useForm<EditStageFormData>();
 
     const { mutate, status } = useApiMutate<
@@ -76,7 +78,7 @@ const EditColumn: React.FC<Props> = ({ stage, onClose, open }) => {
             destroyOnClose
         >
             <Alert
-                message="Note: Changes to the stage will affect all deals currently in this stage."
+                message={td("Note: Changes to the stage will affect all deals currently in this stage.", { source: "en" })}
                 type="info"
                 showIcon
                 className="mb-4"
@@ -89,7 +91,7 @@ const EditColumn: React.FC<Props> = ({ stage, onClose, open }) => {
                 autoComplete="off"
             >
                 <Form.Item
-                    label="Stage Name"
+                    label={td("Stage Name", { source: "en" })}
                     name="name"
                     rules={[
                         {
@@ -106,11 +108,11 @@ const EditColumn: React.FC<Props> = ({ stage, onClose, open }) => {
                         },
                     ]}
                 >
-                    <Input placeholder="Enter stage name" size="large" />
+                    <Input placeholder={td("Enter stage name", { source: "en" })} size="large" />
                 </Form.Item>
 
                 <Form.Item
-                    label="Label Color"
+                    label={td("Label Color", { source: "en" })}
                     name="label_color"
                     rules={[
                         {
@@ -144,7 +146,7 @@ const EditColumn: React.FC<Props> = ({ stage, onClose, open }) => {
                 <Form.Item className="mb-0 mt-6">
                     <Space className="w-full justify-end">
                         <Button onClick={handleCancel} size="large">
-                            Cancel
+                            {td("Cancel", { source: "en" })}
                         </Button>
                         <Button
                             type="primary"
@@ -153,7 +155,7 @@ const EditColumn: React.FC<Props> = ({ stage, onClose, open }) => {
                             loading={isLoading({ status })}
                             icon={<EditOutlined />}
                         >
-                            Update Stage
+                            {td("Update Stage", { source: "en" })}
                         </Button>
                     </Space>
                 </Form.Item>

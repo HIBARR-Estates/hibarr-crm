@@ -5,6 +5,7 @@ import { Link } from "@inertiajs/react";
 import { EyeOutlined } from "@ant-design/icons";
 import { DollarSign, TrendingUp, ArrowRight, Building } from "lucide-react";
 import dayjs from "dayjs";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Deal {
     id: number;
@@ -31,6 +32,7 @@ interface DealsWidgetProps {
 }
 
 export default function DealsWidget({ deals }: DealsWidgetProps) {
+    const { td } = useTd();
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -46,10 +48,10 @@ export default function DealsWidget({ deals }: DealsWidgetProps) {
                     <div className="flex justify-between items-center p-6 pb-0">
                         <div>
                             <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                                Recent Deals
+                                {td("Recent Deals", { source: "en" })}
                             </h3>
                             <p className="text-sm text-gray-500">
-                                Latest deal activities
+                                {td("Latest deal activities", { source: "en" })}
                             </p>
                         </div>
                         <Link href={route("deals.index")}>
@@ -71,7 +73,7 @@ export default function DealsWidget({ deals }: DealsWidgetProps) {
                         locale={{
                             emptyText: (
                                 <Empty
-                                    description="No deals found"
+                                    description={td("No deals found", { source: "en" })}
                                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                                     className="py-8"
                                 />
@@ -100,7 +102,7 @@ export default function DealsWidget({ deals }: DealsWidgetProps) {
                                                 icon={<EyeOutlined />}
                                                 className="text-gray-500 hover:text-blue-600 hover:bg-blue-50"
                                             >
-                                                View
+                                                {td("View", { source: "en" })}
                                             </Button>
                                         </Link>,
                                     ]}

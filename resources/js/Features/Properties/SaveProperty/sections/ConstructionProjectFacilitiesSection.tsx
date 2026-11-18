@@ -3,6 +3,7 @@ import { Form, Checkbox, Row, Col, Typography, Spin, Alert } from "antd";
 import type { FormInstance } from "antd/lib/form";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { ConfigItemsResponse } from "@/Types/propertyConfig";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -20,6 +21,7 @@ interface ConstructionProjectFacilitiesSectionProps {
 const ConstructionProjectFacilitiesSection: React.FC<
     ConstructionProjectFacilitiesSectionProps
 > = ({ form, open = true, projectFacilities = null }) => {
+    const { td } = useTd();
     const facilitiesQuery = useApiQuery<ConfigItemsResponse>({
         path: route("property-config.index", { type: "project-facilities" }),
         options: {
@@ -65,7 +67,7 @@ const ConstructionProjectFacilitiesSection: React.FC<
     return (
         <div>
             <Text type="secondary" className="block text-xs mb-3">
-                Select all facilities available in this project
+                {td("Select all facilities available in this project", { source: "en" })}
             </Text>
             {facilitiesQuery.isLoading ? (
                 <div className="flex justify-center py-4">
@@ -78,7 +80,7 @@ const ConstructionProjectFacilitiesSection: React.FC<
                             type="warning"
                             showIcon
                             className="mb-3"
-                            message="Could not load facilities list from config. Showing saved facilities instead."
+                            message={td("Could not load facilities list from config. Showing saved facilities instead.", { source: "en" })}
                         />
                     )}
                     <Form.Item name="facilities" noStyle>

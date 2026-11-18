@@ -27,6 +27,7 @@ import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import { getStatusColor } from "@/lib/utils";
 import useTranslation from "@/Hooks/useTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     lead: Lead;
@@ -43,6 +44,7 @@ export default function LeadFollowUpTab({
     deals = [],
     onScheduleMeeting,
 }: Props) {
+    const { td } = useTd();
     const { props } = usePage();
     const { t } = useTranslation();
     const { formatDate, formatTime } = useUserDateTime();
@@ -93,7 +95,7 @@ export default function LeadFollowUpTab({
                 className="flex items-center space-x-2 text-blue-600 hover:text-blue-800"
             >
                 <VideoCallOutlined className="text-blue-500" />
-                <span className="underline">Join Meeting</span>
+                <span className="underline">{td("Join Meeting", { source: "en" })}</span>
             </a>
         );
     };
@@ -264,7 +266,7 @@ export default function LeadFollowUpTab({
                         description={
                             <div className="text-center">
                                 <p className="text-gray-500 mb-2">
-                                    No follow-ups found
+                                    {td("No follow-ups found", { source: "en" })}
                                 </p>
                                 {canAdd && onScheduleMeeting && (
                                     <Button

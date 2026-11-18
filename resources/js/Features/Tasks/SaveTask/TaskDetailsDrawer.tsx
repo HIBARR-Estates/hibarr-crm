@@ -244,7 +244,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                     }, 1100);
                 },
                 onError: () => {
-                    message.error("Failed to mark task as done");
+                    message.error(td("Failed to mark task as done", { source: "en" }));
                 },
             },
         );
@@ -268,7 +268,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                 },
                 onError: () => {
                     setLocalStatus(null);
-                    message.error("Failed to update status");
+                    message.error(td("Failed to update status", { source: "en" }));
                 },
             },
         );
@@ -328,7 +328,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                     <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center">
                         <CheckOutlined className="text-2xl text-emerald-600" />
                     </div>
-                    <p className="text-[17px] font-bold text-slate-800">Task complete!</p>
+                    <p className="text-[17px] font-bold text-slate-800">{td("Task complete!", { source: "en" })}</p>
                     <p className="text-sm text-slate-400 text-center max-w-[200px] italic">
                         "{task?.heading}"
                     </p>
@@ -399,10 +399,10 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                 {isFetchingTask ? (
                     <div className="flex flex-col items-center justify-center py-16 gap-3">
                         <Spin size="large" />
-                        <p className="text-sm text-slate-400">Loading task…</p>
+                        <p className="text-sm text-slate-400">{td("Loading task…", { source: "en" })}</p>
                     </div>
                 ) : !task ? (
-                    <Empty description="Task not found" style={{ margin: "40px 0" }} />
+                    <Empty description={td("Task not found", { source: "en" })} style={{ margin: "40px 0" }} />
                 ) : (
                     <>
                         {/* Overdue banner */}
@@ -418,13 +418,13 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
 
                         {/* ── Details ── */}
                         <div>
-                            <SectionLabel>Details</SectionLabel>
+                            <SectionLabel>{td("Details", { source: "en" })}</SectionLabel>
                             <PropTable>
                                 {/* Status + Priority */}
                                 <div className="grid grid-cols-2 divide-x divide-slate-100">
                                     <div className="flex items-center gap-3 px-4 py-3">
                                         <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-14 shrink-0">
-                                            Status
+                                            {td("Status", { source: "en" })}
                                         </span>
                                         {columns.length > 0 && canChangeStatus ? (
                                             <TaskStatusDropdownPill
@@ -442,7 +442,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                     </div>
                                     <div className="flex items-center gap-3 px-4 py-3">
                                         <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-14 shrink-0">
-                                            Priority
+                                            {td("Priority", { source: "en" })}
                                         </span>
                                         <Tag
                                             color={priorityCfg?.color}
@@ -458,7 +458,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                 <div className="grid grid-cols-2 divide-x divide-slate-100">
                                     <div className="flex items-center gap-3 px-4 py-3">
                                         <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-14 shrink-0">
-                                            Start
+                                            {td("Start", { source: "en" })}
                                         </span>
                                         <span
                                             className={`text-[12px] ${task.start_date ? "text-slate-800" : "text-slate-500"}`}
@@ -468,7 +468,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                     </div>
                                     <div className="flex items-center gap-3 px-4 py-3">
                                         <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-14 shrink-0">
-                                            Due
+                                            {td("Due", { source: "en" })}
                                         </span>
                                         <div className="flex items-center gap-1.5 flex-wrap">
                                             <span
@@ -478,13 +478,13 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                                     formatDateTime(task.due_date)
                                                 ) : (
                                                     <span className="text-slate-500 font-normal">
-                                                        No due date
+                                                        {td("No due date", { source: "en" })}
                                                     </span>
                                                 )}
                                             </span>
                                             {isOverdue && (
                                                 <span className="text-[10px] font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded border border-red-200 leading-none">
-                                                    Overdue
+                                                    {td("Overdue", { source: "en" })}
                                                 </span>
                                             )}
                                         </div>
@@ -493,7 +493,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
 
                                 {/* Assignees */}
                                 {task.users && task.users.length > 0 && (
-                                    <PropRow label="Assigned">
+                                    <PropRow label={td("Assigned", { source: "en" })}>
                                         <div className="flex flex-wrap gap-2">
                                             {task.users.map((user: any) => (
                                                 <div
@@ -517,7 +517,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
 
                                 {/* Assigner */}
                                 {assigner && (
-                                    <PropRow label="Assigner">
+                                    <PropRow label={td("Assigner", { source: "en" })}>
                                         <div className="flex items-center gap-1.5">
                                             <Avatar
                                                 size={22}
@@ -534,7 +534,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
 
                                 {/* Project */}
                                 {task.project && (
-                                    <PropRow label="Project">
+                                    <PropRow label={td("Project", { source: "en" })}>
                                         <span className="font-medium text-slate-800 text-[13px]">
                                             {task.project.project_name}
                                         </span>
@@ -548,14 +548,14 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
 
                                 {/* Category */}
                                 {task.category && (
-                                    <PropRow label="Category">
+                                    <PropRow label={td("Category", { source: "en" })}>
                                         <Tag>{td(task.category.category_name, { source: "en" })}</Tag>
                                     </PropRow>
                                 )}
 
                                 {/* Labels */}
                                 {task.labels && task.labels.length > 0 && (
-                                    <PropRow label="Labels">
+                                    <PropRow label={td("Labels", { source: "en" })}>
                                         <div className="flex flex-wrap gap-1">
                                             {task.labels.slice(0, 4).map((label: any) => (
                                                 <Tag
@@ -588,10 +588,10 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                         {/* ── Related entities ── */}
                         {hasRelated && (
                             <div>
-                                <SectionLabel>Related</SectionLabel>
+                                <SectionLabel>{td("Related", { source: "en" })}</SectionLabel>
                                 <PropTable>
                                     {task.deals && task.deals.length > 0 && (
-                                        <PropRow label="Deals">
+                                        <PropRow label={td("Deals", { source: "en" })}>
                                             <div className="flex flex-col gap-1">
                                                 {task.deals.map((deal: any) => (
                                                     <TaskEntityLink
@@ -606,7 +606,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                         </PropRow>
                                     )}
                                     {task.leads && task.leads.length > 0 && (
-                                        <PropRow label="Leads">
+                                        <PropRow label={td("Leads", { source: "en" })}>
                                             <div className="flex flex-col gap-1">
                                                 {task.leads.map((lead: any) => (
                                                     <TaskEntityLink
@@ -625,7 +625,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                         </PropRow>
                                     )}
                                     {task.properties && task.properties.length > 0 && (
-                                        <PropRow label="Properties">
+                                        <PropRow label={td("Properties", { source: "en" })}>
                                             <div className="flex flex-col gap-1">
                                                 {task.properties.map((property: any) => (
                                                     <Link
@@ -650,7 +650,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                         {/* ── Time tracking ── */}
                         {(estimatedMinutes > 0 || spentMinutes > 0) && (
                             <div>
-                                <SectionLabel>Time Tracking</SectionLabel>
+                                <SectionLabel>{td("Time Tracking", { source: "en" })}</SectionLabel>
                                 <PropTable>
                                     <div className="grid grid-cols-2 divide-x divide-slate-100">
                                         <div className="px-4 py-3">
@@ -662,7 +662,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                                     formatDuration(estimatedMinutes)
                                                 ) : (
                                                     <span className="text-slate-500 font-normal">
-                                                        Not set
+                                                        {td("Not set", { source: "en" })}
                                                     </span>
                                                 )}
                                             </p>
@@ -676,7 +676,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                                     formatDuration(spentMinutes)
                                                 ) : (
                                                     <span className="text-slate-500 font-normal">
-                                                        None logged
+                                                        {td("None logged", { source: "en" })}
                                                     </span>
                                                 )}
                                             </p>
@@ -704,7 +704,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
 
                         {/* ── Description — last, in a bordered box ── */}
                         <div>
-                            <SectionLabel>Description</SectionLabel>
+                            <SectionLabel>{td("Description", { source: "en" })}</SectionLabel>
                             <div className="rounded-xl border border-slate-100 px-4 py-3 min-h-[72px]">
                                 {task.description ? (
                                     <p className="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap mb-0">

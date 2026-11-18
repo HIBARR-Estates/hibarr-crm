@@ -43,6 +43,7 @@ import type {
     DeveloperProjectUnitType,
 } from "@/Types/developerProject";
 import dayjs from "dayjs";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -117,6 +118,7 @@ const ProjectPanelCreate: React.FC<ProjectPanelCreateProps> = ({
     selectedUnitTypeIds,
     onToggleUnitType,
 }) => {
+    const { td } = useTd();
     const selectedCount = unitTypes.filter((ut) =>
         selectedUnitTypeIds.has(ut.id),
     ).length;
@@ -165,18 +167,18 @@ const ProjectPanelCreate: React.FC<ProjectPanelCreateProps> = ({
                     {loading ? (
                         <div className="flex items-center gap-2 py-3 text-gray-400 text-xs justify-center">
                             <Spin size="small" />
-                            <span>Loading unit types…</span>
+                            <span>{td("Loading unit types…", { source: "en" })}</span>
                         </div>
                     ) : unitTypes.length === 0 ? (
                         <p className="text-xs text-gray-400 py-2 text-center">
-                            No unit types defined for this project yet.
+                            {td("No unit types defined for this project yet.", { source: "en" })}
                         </p>
                     ) : (
                         <>
                             {/* Select-all row */}
                             <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-gray-100">
                                 <Text className="text-xs text-gray-500">
-                                    Choose unit types this offer applies to
+                                    {td("Choose unit types this offer applies to", { source: "en" })}
                                 </Text>
                                 <Button
                                     type="link"
@@ -264,6 +266,7 @@ const ProjectPanelEdit: React.FC<ProjectPanelEditProps> = ({
     offerId,
     onRefetch,
 }) => {
+    const { td } = useTd();
     const [loadingIds, setLoadingIds] = useState<Set<number>>(new Set());
     const [allProjectUnitTypes, setAllProjectUnitTypes] = useState<
         DeveloperProjectUnitType[]
@@ -375,11 +378,11 @@ const ProjectPanelEdit: React.FC<ProjectPanelEditProps> = ({
                 {isLoadingUnitTypes ? (
                     <div className="flex items-center gap-2 py-3 text-gray-400 text-xs justify-center">
                         <Spin size="small" />
-                        <span>Loading unit types...</span>
+                        <span>{td("Loading unit types...", { source: "en" })}</span>
                     </div>
                 ) : unitTypesForRender.length === 0 ? (
                     <p className="text-xs text-gray-400 py-2 text-center">
-                        No unit types in this project.
+                        {td("No unit types in this project.", { source: "en" })}
                     </p>
                 ) : (
                     <div className="space-y-1">
@@ -421,12 +424,12 @@ const ProjectPanelEdit: React.FC<ProjectPanelEditProps> = ({
                                         </Tag>
                                     )}
                                     {isNew && (
-                                        <Tooltip title="Added after broadcast — toggle on to attach">
+                                        <Tooltip title={td("Added after broadcast — toggle on to attach", { source: "en" })}>
                                             <Tag
                                                 color="orange"
                                                 className="text-xs shrink-0"
                                             >
-                                                New
+                                                {td("New", { source: "en" })}
                                             </Tag>
                                         </Tooltip>
                                     )}
@@ -448,6 +451,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
     onSuccess,
     defaultDeveloperId,
 }) => {
+    const { td } = useTd();
     const [form] = Form.useForm<OfferFormValues>();
     const [errors, setErrors] = useState<string[]>([]);
     const isEditing = !!offer;
@@ -693,7 +697,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
             destroyOnHidden
             footer={
                 <div className="flex justify-end gap-3">
-                    <Button onClick={handleCancel}>Cancel</Button>
+                    <Button onClick={handleCancel}>{td("Cancel", { source: "en" })}</Button>
                     <Button
                         type="primary"
                         onClick={handleSubmit}
@@ -708,7 +712,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                 <Alert
                     type="error"
                     className="mb-4"
-                    message="Validation Errors"
+                    message={td("Validation Errors", { source: "en" })}
                     description={
                         <ul className="list-disc list-inside">
                             {errors.map((e, i) => (
@@ -726,7 +730,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                 {isEditing ? (
                     <div className="mb-4">
                         <label className="block text-xs font-medium text-gray-500 mb-1">
-                            Developer
+                            {td("Developer", { source: "en" })}
                         </label>
                         <div className="px-3 py-2 bg-gray-50 rounded border border-gray-200 text-sm text-gray-700">
                             {offer?.developer?.name ?? "—"}
@@ -735,7 +739,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                 ) : (
                     <Form.Item
                         name="developer_id"
-                        label="Developer (Construction Company)"
+                        label={td("Developer (Construction Company)", { source: "en" })}
                         rules={[
                             {
                                 required: true,
@@ -744,7 +748,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                         ]}
                     >
                         <Select
-                            placeholder="Select a developer…"
+                            placeholder={td("Select a developer…", { source: "en" })}
                             showSearch
                             filterOption={(input, option) =>
                                 (option?.label ?? "")
@@ -767,7 +771,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                             <label className="text-sm font-medium text-gray-700">
                                 Projects &amp; Unit Types
                             </label>
-                            <Tooltip title="Select which projects and unit types this offer applies to. Unit types are the primary entry point — offers are resolved at the unit type level.">
+                            <Tooltip title={td("Select which projects and unit types this offer applies to. Unit types are the primary entry point — offers are resolved at the unit type level.", { source: "en" })}>
                                 <InfoCircleOutlined className="text-gray-400 text-xs" />
                             </Tooltip>
                             {checkedProjectIds.size > 0 && (
@@ -783,7 +787,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
 
                         {developerProjects.length === 0 ? (
                             <p className="text-sm text-gray-400 py-3 text-center border border-dashed border-gray-200 rounded-lg">
-                                No projects found for this developer.
+                                {td("No projects found for this developer.", { source: "en" })}
                             </p>
                         ) : (
                             developerProjects.map((project) => (
@@ -819,9 +823,9 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                     <div className="mb-5">
                         <div className="flex items-center gap-2 mb-2">
                             <label className="text-sm font-medium text-gray-700">
-                                Unit Types
+                                {td("Unit Types", { source: "en" })}
                             </label>
-                            <Tooltip title="Toggle individual unit types on or off. 'New' unit types were added after the offer was broadcast — switch them on to attach.">
+                            <Tooltip title={td("Toggle individual unit types on or off. 'New' unit types were added after the offer was broadcast — switch them on to attach.", { source: "en" })}>
                                 <InfoCircleOutlined className="text-gray-400 text-xs" />
                             </Tooltip>
                         </div>
@@ -832,8 +836,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                             </div>
                         ) : editProjects.length === 0 ? (
                             <p className="text-sm text-gray-400 py-3 text-center border border-dashed border-gray-200 rounded-lg">
-                                No projects attached. Use the Offer Detail view
-                                to attach projects.
+                                {td("No projects attached. Use the Offer Detail view to attach projects.", { source: "en" })}
                             </p>
                         ) : (
                             editProjects.map((project) => (
@@ -856,7 +859,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                 {/* ── Offer name + description ── */}
                 <Form.Item
                     name="name"
-                    label="Offer Name"
+                    label={td("Offer Name", { source: "en" })}
                     rules={[
                         {
                             required: true,
@@ -864,13 +867,13 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                         },
                     ]}
                 >
-                    <Input placeholder="e.g. Summer 2026 Early Bird" />
+                    <Input placeholder={td("e.g. Summer 2026 Early Bird", { source: "en" })} />
                 </Form.Item>
 
-                <Form.Item name="description" label="Description">
+                <Form.Item name="description" label={td("Description", { source: "en" })}>
                     <Input.TextArea
                         rows={3}
-                        placeholder="Optional description"
+                        placeholder={td("Optional description", { source: "en" })}
                     />
                 </Form.Item>
 
@@ -879,7 +882,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                     {(fields, { add, remove }) => (
                         <div className="mb-4">
                             <label className="block text-sm font-medium mb-1.5">
-                                Links
+                                {td("Links", { source: "en" })}
                             </label>
                             {fields.map(({ key, name, ...restField }) => (
                                 <Space
@@ -898,7 +901,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                                         ]}
                                         className="mb-0"
                                     >
-                                        <Input placeholder="Label" />
+                                        <Input placeholder={td("Label", { source: "en" })} />
                                     </Form.Item>
                                     <Form.Item
                                         {...restField}
@@ -929,7 +932,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                                 icon={<PlusOutlined />}
                                 size="small"
                             >
-                                Add Link
+                                {td("Add Link", { source: "en" })}
                             </Button>
                         </div>
                     )}
@@ -941,7 +944,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                     <Form.Item
                         name="type"
-                        label="Discount Type"
+                        label={td("Discount Type", { source: "en" })}
                         rules={[
                             { required: true, message: "Please select a type" },
                         ]}
@@ -972,7 +975,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                     {offerType !== "perks" && (
                         <Form.Item
                             name="value"
-                            label="Discount Value"
+                            label={td("Discount Value", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
@@ -1015,8 +1018,8 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                 {offerType === "percentage" && (
                     <Form.Item
                         name="max_discount_amount"
-                        label="Max Discount Cap"
-                        tooltip="Maximum absolute discount amount when using percentage. Leave empty for no cap."
+                        label={td("Max Discount Cap", { source: "en" })}
+                        tooltip={td("Maximum absolute discount amount when using percentage. Leave empty for no cap.", { source: "en" })}
                     >
                         <InputNumber
                             className="w-full"
@@ -1028,10 +1031,10 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
 
                 {/* ── Date range ── */}
                 <div className="grid grid-cols-2 gap-4">
-                    <Form.Item name="starts_at" label="Start Date">
+                    <Form.Item name="starts_at" label={td("Start Date", { source: "en" })}>
                         <DatePicker className="w-full" />
                     </Form.Item>
-                    <Form.Item name="ends_at" label="End Date">
+                    <Form.Item name="ends_at" label={td("End Date", { source: "en" })}>
                         <DatePicker className="w-full" />
                     </Form.Item>
                 </div>

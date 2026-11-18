@@ -3,6 +3,7 @@ import { DatePicker, Select, Segmented, Button } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
 import dayjs, { Dayjs } from "dayjs";
 import quarterOfYear from "dayjs/plugin/quarterOfYear";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 dayjs.extend(quarterOfYear);
 
@@ -41,6 +42,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
     canViewAll,
     onChange,
 }) => {
+    const { td } = useTd();
     const handleDateChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
         if (dates && dates[0] && dates[1]) {
             onChange({
@@ -84,7 +86,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
                 {/* Date Range */}
                 <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1">
-                        Date Range
+                        {td("Date Range", { source: "en" })}
                     </label>
                     <RangePicker
                         value={[
@@ -139,7 +141,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
                 {canViewAll && (
                     <div>
                         <label className="block text-xs font-medium text-gray-500 mb-1">
-                            View
+                            {td("View", { source: "en" })}
                         </label>
                         <Segmented
                             options={[
@@ -156,10 +158,10 @@ const FilterBar: React.FC<FilterBarProps> = ({
                 {canViewAll && filters.view_type === "agent" && (
                     <div>
                         <label className="block text-xs font-medium text-gray-500 mb-1">
-                            Agent
+                            {td("Agent", { source: "en" })}
                         </label>
                         <Select
-                            placeholder="Select agent"
+                            placeholder={td("Select agent", { source: "en" })}
                             allowClear
                             showSearch
                             optionFilterProp="label"
@@ -188,7 +190,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
                         icon={<DownloadOutlined />}
                         onClick={() => handleExport("xlsx")}
                     >
-                        Excel
+                        {td("Excel", { source: "en" })}
                     </Button>
                     {/* <Button
                         icon={<DownloadOutlined />}

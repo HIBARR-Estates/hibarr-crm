@@ -92,7 +92,7 @@ const DealCard: React.FC<DealCardProps> = ({
         {
             key: "view",
             icon: <EyeOutlined />,
-            label: <Link href={route("deals.show", deal.id)}>View Deal</Link>,
+            label: <Link href={route("deals.show", deal.id)}>{td("View Deal", { source: "en" })}</Link>,
         },
         // Edit deal - only if user has edit permission (not for watchers)
         ...(canEdit
@@ -172,7 +172,7 @@ const DealCard: React.FC<DealCardProps> = ({
                                 {deal.contact?.client_id && (
                                     <i
                                         className="fa fa-check-circle text-green-500 ml-1 text-[12px]"
-                                        title="Converted Client"
+                                        title={td("Converted Client", { source: "en" })}
                                     />
                                 )}
                             </Text>
@@ -258,7 +258,7 @@ const DealCard: React.FC<DealCardProps> = ({
                                     <UserOutlined className="text-gray-400 text-[10px]" />
                                 </div>
                                 <Text className="text-[13px] text-gray-400">
-                                    Unassigned
+                                    {td("Unassigned", { source: "en" })}
                                 </Text>
                             </div>
                         )}
@@ -290,7 +290,7 @@ const DealCard: React.FC<DealCardProps> = ({
                             </Tooltip>
                         ) : (
                             <span className="text-[12px] text-gray-300">
-                                No date
+                                {td("No date", { source: "en" })}
                             </span>
                         )}
                     </div>

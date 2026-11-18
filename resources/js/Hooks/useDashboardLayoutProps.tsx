@@ -9,6 +9,7 @@ import {
     CheckSquareIcon,
 } from "../Components/icons";
 import { BuildingIcon } from "../Components/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 // Get current path and determine active menu items
 const getCurrentPath = () => {
@@ -25,6 +26,7 @@ interface Pipeline {
 }
 
 const useDashboardLayoutProps = () => {
+    const { td } = useTd();
     const { props } = usePage();
     const pipelines = (props.pipelines || []) as Pipeline[];
     const defaultPipeline = pipelines.find((p) => p.default === 1);
@@ -156,7 +158,7 @@ const useDashboardLayoutProps = () => {
                             router.visit(route("dashboard"));
                         }}
                     >
-                        Dashboard
+                        {td("Dashboard", { source: "en" })}
                     </Link>
                 ),
                 icon: <HouseIcon />,
@@ -172,7 +174,7 @@ const useDashboardLayoutProps = () => {
                             router.visit(route("lead-contact.index"));
                         }}
                     >
-                        Leads
+                        {td("Leads", { source: "en" })}
                     </Link>
                 ),
                 icon: <PersonIcon />,
@@ -200,7 +202,7 @@ const useDashboardLayoutProps = () => {
                                 );
                             }}
                         >
-                            Deals
+                            {td("Deals", { source: "en" })}
                         </Link>
                     ),
                 icon: <BriefcaseIcon />,
@@ -234,7 +236,7 @@ const useDashboardLayoutProps = () => {
                             router.visit(route("tasks.index"));
                         }}
                     >
-                        Tasks
+                        {td("Tasks", { source: "en" })}
                     </Link>
                 ),
                 icon: <CheckSquareIcon />,
@@ -249,7 +251,7 @@ const useDashboardLayoutProps = () => {
                             router.visit(route("properties.index"));
                         }}
                     >
-                        Properties
+                        {td("Properties", { source: "en" })}
                     </Link>
                 ),
                 icon: <HouseDoorIcon />,
@@ -264,7 +266,7 @@ const useDashboardLayoutProps = () => {
                             router.visit(route("developer-projects.index"));
                         }}
                     >
-                        Developer Projects
+                        {td("Developer Projects", { source: "en" })}
                     </Link>
                 ),
                 icon: <BuildingIcon />,

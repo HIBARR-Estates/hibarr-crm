@@ -43,6 +43,7 @@ import type {
     CrmEventDirection,
     CrmEventGenerationType,
 } from "@/Types/api/crm-event";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 dayjs.extend(relativeTime);
 
@@ -153,6 +154,7 @@ function Index({
     filters,
     filterOptions,
 }: CrmEventsIndexProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [localFilters, setLocalFilters] = useState<
@@ -350,7 +352,7 @@ function Index({
                 {/* Toolbar */}
                 <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                     <Input.Search
-                        placeholder="Search events, users, UUID…"
+                        placeholder={td("Search events, users, UUID…", { source: "en" })}
                         allowClear
                         defaultValue={filters.search}
                         onSearch={handleSearch}
@@ -379,7 +381,7 @@ function Index({
                                 icon={<ClearOutlined />}
                                 onClick={clearFilters}
                             >
-                                Clear
+                                {td("Clear", { source: "en" })}
                             </Button>
                         )}
                         <Button
@@ -428,7 +430,7 @@ function Index({
 
                 {/* Filters Drawer */}
                 <Drawer
-                    title="Filter Events"
+                    title={td("Filter Events", { source: "en" })}
                     open={filtersOpen}
                     onClose={() => setFiltersOpen(false)}
                     width={360}
@@ -440,18 +442,18 @@ function Index({
                                 setFiltersOpen(false);
                             }}
                         >
-                            Apply
+                            {td("Apply", { source: "en" })}
                         </Button>
                     }
                 >
                     <div className="flex flex-col gap-4">
                         <div>
                             <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                Category
+                                {td("Category", { source: "en" })}
                             </label>
                             <Select
                                 className="w-full"
-                                placeholder="All categories"
+                                placeholder={td("All categories", { source: "en" })}
                                 allowClear
                                 value={localFilters.category_slug}
                                 onChange={(val) =>
@@ -468,11 +470,11 @@ function Index({
                         </div>
                         <div>
                             <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                Origin
+                                {td("Origin", { source: "en" })}
                             </label>
                             <Select
                                 className="w-full"
-                                placeholder="All origins"
+                                placeholder={td("All origins", { source: "en" })}
                                 allowClear
                                 value={localFilters.generation_type}
                                 onChange={(val) =>
@@ -486,11 +488,11 @@ function Index({
                         </div>
                         <div>
                             <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                Status
+                                {td("Status", { source: "en" })}
                             </label>
                             <Select
                                 className="w-full"
-                                placeholder="All statuses"
+                                placeholder={td("All statuses", { source: "en" })}
                                 allowClear
                                 value={localFilters.status}
                                 onChange={(val) =>
@@ -504,11 +506,11 @@ function Index({
                         </div>
                         <div>
                             <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                Direction
+                                {td("Direction", { source: "en" })}
                             </label>
                             <Select
                                 className="w-full"
-                                placeholder="All directions"
+                                placeholder={td("All directions", { source: "en" })}
                                 allowClear
                                 value={localFilters.direction}
                                 onChange={(val) =>
@@ -522,11 +524,11 @@ function Index({
                         </div>
                         <div>
                             <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                Source
+                                {td("Source", { source: "en" })}
                             </label>
                             <Select
                                 className="w-full"
-                                placeholder="All sources"
+                                placeholder={td("All sources", { source: "en" })}
                                 allowClear
                                 value={localFilters.source}
                                 onChange={(val) =>
@@ -540,7 +542,7 @@ function Index({
                         </div>
                         <div>
                             <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                Date Range
+                                {td("Date Range", { source: "en" })}
                             </label>
                             <RangePicker
                                 className="w-full"

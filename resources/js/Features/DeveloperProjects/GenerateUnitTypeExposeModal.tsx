@@ -31,6 +31,7 @@ import {
     type ExposeValidationWarning,
 } from "@/lib/expose/formatExposeValidationLabel";
 import ExposeValidationWarnings from "@/Features/Expose/ExposeValidationWarnings";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface GenerateUnitTypeExposeModalProps {
     open: boolean;
@@ -73,6 +74,7 @@ const sanitizeFilePart = (value?: string, fallback = "na") => {
 const GenerateUnitTypeExposeModal: React.FC<
     GenerateUnitTypeExposeModalProps
 > = ({ open, onClose, projectId, projectName, unitType }) => {
+    const { td } = useTd();
     const [warnings, setWarnings] = useState<ExposeValidationWarning[]>([]);
     const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
     const [leadSearch, setLeadSearch] = useState<string>("");
@@ -258,7 +260,7 @@ const GenerateUnitTypeExposeModal: React.FC<
         phase === "form" || phase === "failed"
             ? [
                   <Button key="cancel" onClick={handleClose}>
-                      Cancel
+                      {td("Cancel", { source: "en" })}
                   </Button>,
                   <Button
                       key="generate"
@@ -299,9 +301,7 @@ const GenerateUnitTypeExposeModal: React.FC<
                         Elapsed: {formatExposeElapsed(elapsedSeconds)}
                     </p>
                     <p className="text-gray-600 text-sm max-w-sm">
-                        Large exposes with many photos can take a few minutes.
-                        You can keep this window open or close it — we will
-                        notify you when the PDF is ready.
+                        {td("Large exposes with many photos can take a few minutes. You can keep this window open or close it — we will notify you when the PDF is ready.", { source: "en" })}
                     </p>
                 </div>
             )}
@@ -309,8 +309,7 @@ const GenerateUnitTypeExposeModal: React.FC<
                 <div className="py-8 text-center flex flex-col items-center gap-3">
                     <CheckCircleOutlined className="text-4xl text-green-500" />
                     <p className="text-gray-700 font-medium">
-                        Your PDF is ready! The download should start
-                        automatically.
+                        {td("Your PDF is ready! The download should start automatically.", { source: "en" })}
                     </p>
                 </div>
             )}
@@ -319,7 +318,7 @@ const GenerateUnitTypeExposeModal: React.FC<
                     type="error"
                     showIcon
                     icon={<CloseCircleOutlined />}
-                    message="Generation Failed"
+                    message={td("Generation Failed", { source: "en" })}
                     description={errorMessage}
                     className="mb-4"
                 />
@@ -368,25 +367,23 @@ const GenerateUnitTypeExposeModal: React.FC<
                                     key: "personalization",
                                     label: (
                                         <span className="text-sm font-semibold text-gray-800">
-                                            Personalization (Optional)
+                                            {td("Personalization (Optional)", { source: "en" })}
                                         </span>
                                     ),
                                     children: (
                                         <div className="flex flex-col gap-4">
                                             <p className="text-sm text-gray-500">
-                                                Select a lead to personalize the
-                                                expose. If not found, enter a
-                                                custom client name.
+                                                {td("Select a lead to personalize the expose. If not found, enter a custom client name.", { source: "en" })}
                                             </p>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Lead
+                                                    {td("Lead", { source: "en" })}
                                                 </label>
                                                 <Select
                                                     style={{ width: "100%" }}
                                                     showSearch
                                                     allowClear
-                                                    placeholder="Search and select a lead"
+                                                    placeholder={td("Search and select a lead", { source: "en" })}
                                                     options={leadOptions}
                                                     loading={isLoadingLeads}
                                                     value={
@@ -435,10 +432,10 @@ const GenerateUnitTypeExposeModal: React.FC<
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Client Name (Optional)
+                                                    {td("Client Name (Optional)", { source: "en" })}
                                                 </label>
                                                 <Input
-                                                    placeholder="Enter client name if not found"
+                                                    placeholder={td("Enter client name if not found", { source: "en" })}
                                                     prefix={
                                                         <UserOutlined className="text-gray-400" />
                                                     }

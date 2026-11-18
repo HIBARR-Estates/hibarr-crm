@@ -54,6 +54,7 @@ import { getStatusColor } from "@/lib/utils";
 import { getPriorityConfig } from "@/lib/priority";
 import { SaveTaskModal } from "@/Features/Tasks/SaveTask";
 import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 dayjs.extend(relativeTime);
 
@@ -163,6 +164,7 @@ const TaskShow = ({
     },
     pageTitle,
 }: TaskShowProps) => {
+    const { td } = useTd();
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -170,14 +172,14 @@ const TaskShow = ({
     if (!task) {
         return (
             <PageLayout
-                title="Task Not Found"
+                title={td("Task Not Found", { source: "en" })}
                 breadcrumbs={[
                     { name: "Tasks", url: route("tasks.index") },
                     { name: "Not Found" },
                 ]}
             >
                 <div className="max-w-4xl mx-auto py-12">
-                    <Empty description="Task not found" />
+                    <Empty description={td("Task not found", { source: "en" })} />
                 </div>
             </PageLayout>
         );
@@ -296,7 +298,7 @@ const TaskShow = ({
                                 type="text"
                                 className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
                             >
-                                Back to Tasks
+                                {td("Back to Tasks", { source: "en" })}
                             </Button>
 
                             <Space>
@@ -340,26 +342,26 @@ const TaskShow = ({
                                                     </Tag>
                                                 )}
                                                 {Boolean(task.is_private) && (
-                                                    <Tooltip title="Private Task">
+                                                    <Tooltip title={td("Private Task", { source: "en" })}>
                                                         <Tag
                                                             icon={
                                                                 <LockOutlined />
                                                             }
                                                             color="orange"
                                                         >
-                                                            Private
+                                                            {td("Private", { source: "en" })}
                                                         </Tag>
                                                     </Tooltip>
                                                 )}
                                                 {Boolean(task.billable) && (
-                                                    <Tooltip title="Billable Task">
+                                                    <Tooltip title={td("Billable Task", { source: "en" })}>
                                                         <Tag
                                                             icon={
                                                                 <DollarOutlined />
                                                             }
                                                             color="green"
                                                         >
-                                                            Billable
+                                                            {td("Billable", { source: "en" })}
                                                         </Tag>
                                                     </Tooltip>
                                                 )}
@@ -384,7 +386,7 @@ const TaskShow = ({
                                         <div className="flex items-center gap-4 flex-wrap">
                                             <div className="flex items-center gap-2">
                                                 <Text type="secondary">
-                                                    Status:
+                                                    {td("Status:", { source: "en" })}
                                                 </Text>
                                                 <Tag
                                                     color={getStatusColor(
@@ -398,7 +400,7 @@ const TaskShow = ({
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <Text type="secondary">
-                                                    Priority:
+                                                    {td("Priority:", { source: "en" })}
                                                 </Text>
                                                 <Tag
                                                     color={
@@ -425,7 +427,7 @@ const TaskShow = ({
                                                 strong
                                                 className="text-gray-600 block mb-2"
                                             >
-                                                Description
+                                                {td("Description", { source: "en" })}
                                             </Text>
                                             {task.description ? (
                                                 <Paragraph className="text-gray-700 whitespace-pre-wrap">
@@ -433,7 +435,7 @@ const TaskShow = ({
                                                 </Paragraph>
                                             ) : (
                                                 <Text type="secondary" italic>
-                                                    No description provided
+                                                    {td("No description provided", { source: "en" })}
                                                 </Text>
                                             )}
                                         </div>
@@ -446,7 +448,7 @@ const TaskShow = ({
                                         title={
                                             <Space>
                                                 <CheckSquareOutlined />
-                                                <span>Subtasks</span>
+                                                <span>{td("Subtasks", { source: "en" })}</span>
                                                 <Tag>
                                                     {completedSubtasksCount}/
                                                     {subtasksCount}
@@ -513,7 +515,7 @@ const TaskShow = ({
                                         title={
                                             <Space>
                                                 <LinkOutlined />
-                                                <span>Related Entities</span>
+                                                <span>{td("Related Entities", { source: "en" })}</span>
                                             </Space>
                                         }
                                         className="shadow-sm"
@@ -528,7 +530,7 @@ const TaskShow = ({
                                                             strong
                                                             className="text-gray-600 block mb-2"
                                                         >
-                                                            Deals
+                                                            {td("Deals", { source: "en" })}
                                                         </Text>
                                                         <Space wrap>
                                                             {task.deals.map(
@@ -562,7 +564,7 @@ const TaskShow = ({
                                                             strong
                                                             className="text-gray-600 block mb-2"
                                                         >
-                                                            Leads
+                                                            {td("Leads", { source: "en" })}
                                                         </Text>
                                                         <Space wrap>
                                                             {task.leads.map(
@@ -598,7 +600,7 @@ const TaskShow = ({
                                                             strong
                                                             className="text-gray-600 block mb-2"
                                                         >
-                                                            Properties
+                                                            {td("Properties", { source: "en" })}
                                                         </Text>
                                                         <Space wrap>
                                                             {task.properties.map(
@@ -634,7 +636,7 @@ const TaskShow = ({
                                             <div className="flex items-center justify-center gap-2 text-gray-500 mb-1">
                                                 <FileOutlined />
                                                 <Text type="secondary">
-                                                    Files
+                                                    {td("Files", { source: "en" })}
                                                 </Text>
                                             </div>
                                             <Text strong className="text-2xl">
@@ -647,7 +649,7 @@ const TaskShow = ({
                                             <div className="flex items-center justify-center gap-2 text-gray-500 mb-1">
                                                 <CommentOutlined />
                                                 <Text type="secondary">
-                                                    Comments
+                                                    {td("Comments", { source: "en" })}
                                                 </Text>
                                             </div>
                                             <Text strong className="text-2xl">
@@ -660,7 +662,7 @@ const TaskShow = ({
                                             <div className="flex items-center justify-center gap-2 text-gray-500 mb-1">
                                                 <UnorderedListOutlined />
                                                 <Text type="secondary">
-                                                    Notes
+                                                    {td("Notes", { source: "en" })}
                                                 </Text>
                                             </div>
                                             <Text strong className="text-2xl">
@@ -678,7 +680,7 @@ const TaskShow = ({
                                     title={
                                         <Space>
                                             <CalendarOutlined />
-                                            <span>Timeline</span>
+                                            <span>{td("Timeline", { source: "en" })}</span>
                                         </Space>
                                     }
                                     className="shadow-sm"
@@ -691,7 +693,7 @@ const TaskShow = ({
                                                 type="secondary"
                                                 className="text-xs uppercase tracking-wide"
                                             >
-                                                Start Date
+                                                {td("Start Date", { source: "en" })}
                                             </Text>
                                             <div className="mt-1">
                                                 {startDayjs ? (
@@ -702,7 +704,7 @@ const TaskShow = ({
                                                     </Text>
                                                 ) : (
                                                     <Text type="secondary">
-                                                        Not set
+                                                        {td("Not set", { source: "en" })}
                                                     </Text>
                                                 )}
                                             </div>
@@ -712,7 +714,7 @@ const TaskShow = ({
                                                 type="secondary"
                                                 className="text-xs uppercase tracking-wide"
                                             >
-                                                Due Date
+                                                {td("Due Date", { source: "en" })}
                                             </Text>
                                             <div className="mt-1 flex items-center gap-2">
                                                 {dueDayjs ? (
@@ -730,13 +732,13 @@ const TaskShow = ({
                                                         </Text>
                                                         {isOverdue && (
                                                             <Tag color="red">
-                                                                Overdue
+                                                                {td("Overdue", { source: "en" })}
                                                             </Tag>
                                                         )}
                                                     </>
                                                 ) : (
                                                     <Text type="secondary">
-                                                        No due date
+                                                        {td("No due date", { source: "en" })}
                                                     </Text>
                                                 )}
                                             </div>
@@ -747,7 +749,7 @@ const TaskShow = ({
                                                     type="secondary"
                                                     className="text-xs uppercase tracking-wide"
                                                 >
-                                                    Completed On
+                                                    {td("Completed On", { source: "en" })}
                                                 </Text>
                                                 <div className="mt-1">
                                                     <Text className="text-green-600">
@@ -767,7 +769,7 @@ const TaskShow = ({
                                         title={
                                             <Space>
                                                 <ClockCircleOutlined />
-                                                <span>Time Tracking</span>
+                                                <span>{td("Time Tracking", { source: "en" })}</span>
                                             </Space>
                                         }
                                         className="shadow-sm"
@@ -781,7 +783,7 @@ const TaskShow = ({
                                                         type="secondary"
                                                         className="text-xs uppercase tracking-wide"
                                                     >
-                                                        Estimated
+                                                        {td("Estimated", { source: "en" })}
                                                     </Text>
                                                     <div className="mt-1">
                                                         <Text strong>
@@ -799,7 +801,7 @@ const TaskShow = ({
                                                         type="secondary"
                                                         className="text-xs uppercase tracking-wide"
                                                     >
-                                                        Spent
+                                                        {td("Spent", { source: "en" })}
                                                     </Text>
                                                     <div className="mt-1">
                                                         <Text strong>
@@ -886,7 +888,7 @@ const TaskShow = ({
                                         title={
                                             <Space>
                                                 <ProjectOutlined />
-                                                <span>Project</span>
+                                                <span>{td("Project", { source: "en" })}</span>
                                             </Space>
                                         }
                                         className="shadow-sm"
@@ -917,7 +919,7 @@ const TaskShow = ({
                                         title={
                                             <Space>
                                                 <TagOutlined />
-                                                <span>Category</span>
+                                                <span>{td("Category", { source: "en" })}</span>
                                             </Space>
                                         }
                                         className="shadow-sm"
@@ -934,7 +936,7 @@ const TaskShow = ({
                                         title={
                                             <Space>
                                                 <TagOutlined />
-                                                <span>Labels</span>
+                                                <span>{td("Labels", { source: "en" })}</span>
                                             </Space>
                                         }
                                         className="shadow-sm"
@@ -962,7 +964,7 @@ const TaskShow = ({
                                 {/* Created By Card */}
                                 {task.created_by && (
                                     <Card
-                                        title="Created By"
+                                        title={td("Created By", { source: "en" })}
                                         className="shadow-sm"
                                         size="small"
                                         variant="outlined"

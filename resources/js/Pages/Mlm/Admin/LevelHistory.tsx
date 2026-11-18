@@ -15,6 +15,7 @@ import type {
     PaginatedResponse,
 } from "@/Features/Mlm/types";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { RangePicker } = DatePicker;
 
@@ -23,6 +24,7 @@ interface Props extends PageProps {
 }
 
 const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
@@ -146,7 +148,7 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
                                         className="text-indigo-500"
                                     />
                                     <span className="font-semibold">
-                                        Level Assignment History
+                                        {td("Level Assignment History", { source: "en" })}
                                     </span>
                                 </div>
                             }
@@ -155,7 +157,7 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
                             {/* Filters */}
                             <div className="flex flex-wrap gap-3 mb-4">
                                 <Select
-                                    placeholder="Method"
+                                    placeholder={td("Method", { source: "en" })}
                                     allowClear
                                     className="w-36"
                                     options={[

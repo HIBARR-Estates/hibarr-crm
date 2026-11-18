@@ -2,6 +2,7 @@ import React from "react";
 import { Dropdown, MenuProps } from "antd";
 import { DownOutlined } from "@ant-design/icons";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Pipeline {
     id: number;
@@ -32,6 +33,7 @@ const PipelineSelector: React.FC<PipelineSelectorProps> = ({
     allowAll = false,
     variant = "heading",
 }) => {
+    const { td } = useTd();
     const currentPipeline = pipelines.find((p) => p.id === currentPipelineId);
 
     const items: MenuProps["items"] = [
@@ -84,7 +86,7 @@ const PipelineSelector: React.FC<PipelineSelectorProps> = ({
                     className="text-[11px] font-semibold uppercase tracking-wide"
                     style={{ color: T.TEXT_MUTED }}
                 >
-                    Pipeline
+                    {td("Pipeline", { source: "en" })}
                 </span>
                 <span className="text-[13px] font-semibold">{label}</span>
                 <DownOutlined style={{ fontSize: 10, opacity: 0.6 }} />

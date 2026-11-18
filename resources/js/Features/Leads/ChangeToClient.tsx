@@ -26,6 +26,7 @@ import { isLoading as _isLoading } from "@/lib/utils";
 import FormDataSelector from "@/Components/FormDataSelector";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { FormDataType, useCountries, useFormDataBatch } from "@/Hooks/useFormData";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -69,6 +70,7 @@ interface ClientResponse {
 }
 
 const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
+    const { td } = useTd();
     const { props } = usePage();
     const { countries } = useCountries();
     const {
@@ -239,7 +241,7 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
             {errors.length > 0 && (
                 <div className="mb-4">
                     <Alert
-                        message="Validation Error"
+                        message={td("Validation Error", { source: "en" })}
                         description={
                             <ul className="mb-0">
                                 {errors.map((error, index) => (
@@ -255,20 +257,20 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                 </div>
             )}
 
-            <Card size="small" title="Basic Information" className="mb-4">
+            <Card size="small" title={td("Basic Information", { source: "en" })} className="mb-4">
                 <Row gutter={16}>
                     <Col span={12}>
-                        <Form.Item name="salutation" label="Salutation">
+                        <Form.Item name="salutation" label={td("Salutation", { source: "en" })}>
                             <FormDataSelector
                                 type="salutations"
-                                placeholder="Salutation"
+                                placeholder={td("Salutation", { source: "en" })}
                             />
                         </Form.Item>
                     </Col>
                     <Col span={12}>
                         <Form.Item
                             name="name"
-                            label="Name"
+                            label={td("Name", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
@@ -276,7 +278,7 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                                 },
                             ]}
                         >
-                            <Input placeholder="Enter full name" />
+                            <Input placeholder={td("Enter full name", { source: "en" })} />
                         </Form.Item>
                     </Col>
                 </Row>
@@ -285,7 +287,7 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                     <Col span={12}>
                         <Form.Item
                             name="email"
-                            label="Email"
+                            label={td("Email", { source: "en" })}
                             rules={[
                                 {
                                     type: "email",
@@ -300,14 +302,14 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                                 },
                             ]}
                         >
-                            <Input placeholder="Enter email address" />
+                            <Input placeholder={td("Enter email address", { source: "en" })} />
                         </Form.Item>
                     </Col>
                     <Col span={12}>
-                        <Form.Item name="mobile" label="Mobile">
+                        <Form.Item name="mobile" label={td("Mobile", { source: "en" })}>
                             <PhoneInput 
                                 enableSearch 
-                                placeholder="Enter mobile number"
+                                placeholder={td("Enter mobile number", { source: "en" })}
                                 onChange={(value) => {
                                     if (value && typeof value === 'object') {
                                         form.setFieldValue('mobile', {
@@ -324,43 +326,43 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
 
                 <Row gutter={16}>
                     <Col span={12}>
-                        <Form.Item name="gender" label="Gender">
+                        <Form.Item name="gender" label={td("Gender", { source: "en" })}>
                             <FormDataSelector
                                 type="genders"
-                                placeholder="Gender"
+                                placeholder={td("Gender", { source: "en" })}
                             />
                         </Form.Item>
                     </Col>
                     <Col span={12}>
-                        <Form.Item name="category_id" label="Category">
+                        <Form.Item name="category_id" label={td("Category", { source: "en" })}>
                             <FormDataSelector
                                 type="categories"
-                                placeholder="Category"
+                                placeholder={td("Category", { source: "en" })}
                             />
                         </Form.Item>
                     </Col>
                 </Row>
             </Card>
 
-            <Card size="small" title="Login Settings" className="mb-4">
+            <Card size="small" title={td("Login Settings", { source: "en" })} className="mb-4">
                 <Row gutter={16}>
                     <Col span={12}>
                         <Form.Item
                             name="login"
-                            label="Login Access"
+                            label={td("Login Access", { source: "en" })}
                             initialValue="disable"
                         >
                             <Select>
-                                <Option value="enable">Enable</Option>
-                                <Option value="disable">Disable</Option>
+                                <Option value="enable">{td("Enable", { source: "en" })}</Option>
+                                <Option value="disable">{td("Disable", { source: "en" })}</Option>
                             </Select>
                         </Form.Item>
                     </Col>
                     <Col span={12}>
-                        <Form.Item name="locale" label="Language">
+                        <Form.Item name="locale" label={td("Language", { source: "en" })}>
                             <FormDataSelector
                                 type="languages"
-                                placeholder="Language"
+                                placeholder={td("Language", { source: "en" })}
                             />
                             {/* <Select>
                                 {languages?.map((lang) => (
@@ -386,7 +388,7 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                         getFieldValue("login") === "enable" ? (
                             <Form.Item
                                 name="password"
-                                label="Password"
+                                label={td("Password", { source: "en" })}
                                 rules={[
                                     {
                                         required: true,
@@ -399,7 +401,7 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                                     },
                                 ]}
                             >
-                                <Input.Password placeholder="Enter password (min 8 characters)" />
+                                <Input.Password placeholder={td("Enter password (min 8 characters)", { source: "en" })} />
                             </Form.Item>
                         ) : null
                     }
@@ -410,17 +412,17 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
 
     const companyTab = (
         <div className="flex flex-col gap-y-4">
-            <Card size="small" title="Company Information">
+            <Card size="small" title={td("Company Information", { source: "en" })}>
                 <Row gutter={16}>
                     <Col span={12}>
-                        <Form.Item name="company_name" label="Company Name">
-                            <Input placeholder="Enter company name" />
+                        <Form.Item name="company_name" label={td("Company Name", { source: "en" })}>
+                            <Input placeholder={td("Enter company name", { source: "en" })} />
                         </Form.Item>
                     </Col>
                     <Col span={12}>
                         <Form.Item
                             name="website"
-                            label="Website"
+                            label={td("Website", { source: "en" })}
                             rules={[
                                 {
                                     type: "url",
@@ -434,30 +436,30 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                     </Col>
                 </Row>
 
-                <Form.Item name="address" label="Address">
-                    <TextArea rows={3} placeholder="Enter company address" />
+                <Form.Item name="address" label={td("Address", { source: "en" })}>
+                    <TextArea rows={3} placeholder={td("Enter company address", { source: "en" })} />
                 </Form.Item>
 
                 <Row gutter={16}>
                     <Col span={8}>
-                        <Form.Item name="city" label="City">
-                            <Input placeholder="Enter city" />
+                        <Form.Item name="city" label={td("City", { source: "en" })}>
+                            <Input placeholder={td("Enter city", { source: "en" })} />
                         </Form.Item>
                     </Col>
                     <Col span={8}>
-                        <Form.Item name="state" label="State/Province">
-                            <Input placeholder="Enter state" />
+                        <Form.Item name="state" label={td("State/Province", { source: "en" })}>
+                            <Input placeholder={td("Enter state", { source: "en" })} />
                         </Form.Item>
                     </Col>
                     <Col span={8}>
-                        <Form.Item name="postal_code" label="Postal Code">
-                            <Input placeholder="Enter postal code" />
+                        <Form.Item name="postal_code" label={td("Postal Code", { source: "en" })}>
+                            <Input placeholder={td("Enter postal code", { source: "en" })} />
                         </Form.Item>
                     </Col>
                 </Row>
 
-                <Form.Item name="country" label="Country">
-                    <FormDataSelector type="countries" placeholder="Country" />
+                <Form.Item name="country" label={td("Country", { source: "en" })}>
+                    <FormDataSelector type="countries" placeholder={td("Country", { source: "en" })} />
                     {/* <Select
                         placeholder="Select country"
                         allowClear
@@ -476,10 +478,10 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                     </Select> */}
                 </Form.Item>
 
-                <Form.Item name="office" label="Office Phone">
+                <Form.Item name="office" label={td("Office Phone", { source: "en" })}>
                     <PhoneInput 
                         enableSearch 
-                        placeholder="Enter office phone number"
+                        placeholder={td("Enter office phone number", { source: "en" })}
                         onChange={(value) => {
                             if (value && typeof value === 'object') {
                                 form.setFieldValue('office', {
@@ -496,11 +498,11 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
     );
 
     const noteTab = (
-        <Card size="small" title="Additional Notes">
-            <Form.Item name="note" label="Notes">
+        <Card size="small" title={td("Additional Notes", { source: "en" })}>
+            <Form.Item name="note" label={td("Notes", { source: "en" })}>
                 <TextArea
                     rows={6}
-                    placeholder="Enter any additional notes about the client..."
+                    placeholder={td("Enter any additional notes about the client...", { source: "en" })}
                 />
             </Form.Item>
         </Card>
@@ -562,13 +564,13 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
             width={800}
             footer={
                 <div className="flex justify-end space-x-2">
-                    <Button onClick={handleCancel}>Cancel</Button>
+                    <Button onClick={handleCancel}>{td("Cancel", { source: "en" })}</Button>
                     <Button
                         type="primary"
                         onClick={() => form.submit()}
                         loading={isLoading}
                     >
-                        Convert to Client
+                        {td("Convert to Client", { source: "en" })}
                     </Button>
                 </div>
             }

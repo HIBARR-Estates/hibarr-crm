@@ -82,6 +82,7 @@ import CallStateBadge from "./dock/components/CallStateBadge";
 import CallWaitingBanner from "./dock/components/CallWaitingBanner";
 import CallFailedNotice from "./dock/components/CallFailedNotice";
 import { publishIncomingCall } from "./dock/incomingCallBridge";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 /**
  * Call-control widget for the in-browser softphone (sipgate Neo via SIP.js).
@@ -100,6 +101,7 @@ export default function SoftphoneDock({
     liveCallInDock = true,
     incomingInDock = false,
 }: { liveCallInDock?: boolean; incomingInDock?: boolean } = {}) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { props } = usePage();
     const isAdmin = (props.auth?.user?.roles ?? []).some(
@@ -1834,7 +1836,7 @@ export default function SoftphoneDock({
                 <section
                     className="sp sp--notice"
                     role="dialog"
-                    aria-label="Create lead for new caller"
+                    aria-label={td("Create lead for new caller", { source: "en" })}
                 >
                     <header className="sp__head">
                         <span className="sp__dot sp__dot--notice" />
@@ -1849,7 +1851,7 @@ export default function SoftphoneDock({
                             {unmatchedPromptPhone}
                         </p>
                         <p className="sp__reason sp__reason--notice">
-                            No matching CRM lead was found for this call. Would you like to create one now?
+                            {td("No matching CRM lead was found for this call. Would you like to create one now?", { source: "en" })}
                         </p>
                         <div className="sp__actions">
                             <button
@@ -1895,7 +1897,7 @@ export default function SoftphoneDock({
 
             {/* Idle state — line picker + status (Dev only). In production, the dock stays completely off-screen until a call rings or is placed. */}
             {isDevEnv && !hasCall && !callFailure && open && (
-                <section className="sp" aria-label="Phone status">
+                <section className="sp" aria-label={td("Phone status", { source: "en" })}>
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         {headerTitle}
@@ -1922,11 +1924,11 @@ export default function SoftphoneDock({
                             </p>
                         )}
                         {devices.length === 0 && (
-                            <p className="sp__note">No phone lines configured — add one in Settings.</p>
+                            <p className="sp__note">{td("No phone lines configured — add one in Settings.", { source: "en" })}</p>
                         )}
                         {devices.length > 0 && (
                             <div className="sp__field">
-                                <span>Active line</span>
+                                <span>{td("Active line", { source: "en" })}</span>
                                 <select
                                     value={activeDeviceId ?? ""}
                                     onChange={(e) => setActiveDevice(Number(e.target.value))}
@@ -1940,20 +1942,20 @@ export default function SoftphoneDock({
                                 </select>
                                 {state.registration === "registered" && (
                                     <p className="sp__note sp__note--ok">
-                                        Ready — calls are placed from the CRM.
+                                        {td("Ready — calls are placed from the CRM.", { source: "en" })}
                                     </p>
                                 )}
                             </div>
                         )}
                         {state.registration === "unregistered" && (
-                            <p className="sp__note">Not registered.</p>
+                            <p className="sp__note">{td("Not registered.", { source: "en" })}</p>
                         )}
                         {!isActiveTab && (
-                            <p className="sp__note">Another browser tab is handling calls.</p>
+                            <p className="sp__note">{td("Another browser tab is handling calls.", { source: "en" })}</p>
                         )}
                         {lastRecordingUrl ? (
                             <div className="sp__card">
-                                <p className="sp__note" style={{ marginBottom: 6 }}>Latest recording</p>
+                                <p className="sp__note" style={{ marginBottom: 6 }}>{td("Latest recording", { source: "en" })}</p>
                                 <audio controls preload="none" src={lastRecordingUrl} style={{ width: "100%" }} />
                             </div>
                         ) : null}
@@ -2019,7 +2021,7 @@ export default function SoftphoneDock({
                         {isDevEnv && <SoftphoneMicDiagnostics inCall={false} />}
 
                         <button type="button" className="sp__close" onClick={() => setPinnedOpen(false)}>
-                            Hide
+                            {td("Hide", { source: "en" })}
                         </button>
                     </div>
                 </section>
@@ -2027,7 +2029,7 @@ export default function SoftphoneDock({
 
             {/* Inbound ringing */}
             {ringingInbound && activeCall && !incomingInDock && (
-                <section className="sp sp--incoming" aria-label="Phone, incoming call">
+                <section className="sp sp--incoming" aria-label={td("Phone, incoming call", { source: "en" })}>
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         {headerTitle}
@@ -2108,7 +2110,7 @@ export default function SoftphoneDock({
                                 textAlign: "center",
                                 margin: "8px 0"
                             }}>
-                                <strong>Voice Fallback:</strong> {voiceMessageStatus}
+                                <strong>{td("Voice Fallback:", { source: "en" })}</strong> {voiceMessageStatus}
                             </div>
                         )}
                         <div className="sp__actions">
@@ -2151,14 +2153,14 @@ export default function SoftphoneDock({
 
             {/* Call waiting, when the live call is drawn outside the dock */}
             {!liveCallInDock && callWaitingBanner && (
-                <section className="sp sp--waiting" aria-label="Phone, call waiting">
+                <section className="sp sp--waiting" aria-label={td("Phone, call waiting", { source: "en" })}>
                     <div className="sp__body">{callWaitingBanner}</div>
                 </section>
             )}
 
             {/* Live / outbound call */}
             {liveCallInDock && inCall && activeCall && (
-                <section className="sp sp--active" aria-label="Phone, in call">
+                <section className="sp sp--active" aria-label={td("Phone, in call", { source: "en" })}>
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         {headerTitle}
@@ -2210,7 +2212,7 @@ export default function SoftphoneDock({
                                     Forwarded · Last user: {lastForwardedUser.name}
                                 </span>
                             ) : matchedLead ? (
-                                <span className="sp__lead">Matching lead</span>
+                                <span className="sp__lead">{td("Matching lead", { source: "en" })}</span>
                             ) : matchSummaryLabel ? (
                                 displayMultipleMatchesUrl ? (
                                     <Link
@@ -2277,8 +2279,8 @@ export default function SoftphoneDock({
                     type="button"
                     className="sp__launcher"
                     onClick={() => setPinnedOpen(true)}
-                    aria-label="Phone & Mic Test"
-                    title="Open Phone & Mic Test"
+                    aria-label={td("Phone & Mic Test", { source: "en" })}
+                    title={td("Open Phone & Mic Test", { source: "en" })}
                 >
                     <span className={statusDotClass} />
                     <Phone size={14} />

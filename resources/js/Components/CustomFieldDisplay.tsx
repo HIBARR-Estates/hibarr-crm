@@ -30,6 +30,7 @@ import useClickToCall from "@/Hooks/useClickToCall";
 import useSoftphone, { canPlaceCrmCall } from "@/Hooks/useSoftphone";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import { useCurrencies } from "@/Hooks/useFormData";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const DEFAULT_CURRENCY_CODE = "USD";
 
@@ -347,6 +348,7 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
     multiple = true, // Default to supporting multiple files
     activateOnSingleClick = false,
 }) => {
+    const { td } = useTd();
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -396,7 +398,7 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
             );
         } catch (error) {
             console.error("File upload failed:", error);
-            message.error("Failed to upload file(s)");
+            message.error(td("Failed to upload file(s)", { source: "en" }));
         } finally {
             setUploading(false);
             setUploadProgress(0);
@@ -441,9 +443,9 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
                 // Clear all files
                 await onSave(fieldKey, "");
             }
-            message.success("File removed successfully");
+            message.success(td("File removed successfully", { source: "en" }));
         } catch (error) {
-            message.error("Failed to remove file");
+            message.error(td("Failed to remove file", { source: "en" }));
         } finally {
             setUploading(false);
         }
@@ -499,7 +501,7 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
                                 href={fileUrl}
                                 className="text-blue-600 hover:text-blue-800 flex-shrink-0"
                                 download
-                                title="Download"
+                                title={td("Download", { source: "en" })}
                             >
                                 <DownloadOutlined />
                             </a>
@@ -511,7 +513,7 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
                                     icon={<DeleteOutlined />}
                                     onClick={() => handleRemove(fileValue)}
                                     className="flex-shrink-0"
-                                    title="Remove file"
+                                    title={td("Remove file", { source: "en" })}
                                 />
                             )}
                         </div>
@@ -533,7 +535,7 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
                             className="mt-1"
                             loading={uploading}
                         >
-                            Add File(s)
+                            {td("Add File(s)", { source: "en" })}
                         </Button>
                     </Upload>
                 )}
@@ -654,6 +656,7 @@ export default function CustomFieldDisplay({
     bare = false,
     recordId,
 }: Props) {
+    const { td } = useTd();
     const { props } = usePage<any>();
     const { currencies } = useCurrencies();
     const { isEnabled: clickToCallEnabled } = useClickToCall();
@@ -937,7 +940,7 @@ export default function CustomFieldDisplay({
                                         href={fileUrl}
                                         className="text-blue-600 hover:text-blue-800 flex-shrink-0"
                                         download
-                                        title="Download"
+                                        title={td("Download", { source: "en" })}
                                     >
                                         <DownloadOutlined />
                                     </a>
@@ -1520,7 +1523,7 @@ export default function CustomFieldDisplay({
         return (
             <div className="text-center py-8">
                 <span className="text-gray-500">
-                    No custom fields available
+                    {td("No custom fields available", { source: "en" })}
                 </span>
             </div>
         );

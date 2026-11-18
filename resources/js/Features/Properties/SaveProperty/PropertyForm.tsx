@@ -10,6 +10,7 @@ import PropertyDetailsTab from "./PropertyDetailsTab";
 import LegalFinancialTab from "./LegalFinancialTab";
 import AssetsTab from "./AssetsTab";
 import FeaturesAndAddOnsTab from "./FeaturesAndAddOnsTab";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface PropertyFormProps {
     data?: Partial<Property>;
@@ -38,6 +39,7 @@ export default function PropertyForm({
     setProperty,
     visible,
 }: PropertyFormProps) {
+    const { td } = useTd();
     const [activeTab, setActiveTab] = useState("basic");
     useEffect(() => {
         if (!visible) {
@@ -153,7 +155,7 @@ export default function PropertyForm({
             {errors.length > 0 && (
                 <div className="mb-4">
                     <Alert
-                        message="Validation Error"
+                        message={td("Validation Error", { source: "en" })}
                         description={
                             <ul className="mb-0">
                                 {errors.map((error, index) => (

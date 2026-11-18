@@ -8,6 +8,7 @@ import type {
     DealPaymentResponse,
 } from "@/Types/api/deal-payment";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 function stringifyMessage(value: unknown): string | null {
     if (typeof value === "string" && value.trim() !== "") {
@@ -61,6 +62,7 @@ export type DealPaymentActionResult =
     | { ok: false; message: string };
 
 export default function useDealPayment(dealId: number) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { message } = App.useApp();
     const {
@@ -100,7 +102,7 @@ export default function useDealPayment(dealId: number) {
                 );
                 if (response.data?.status === "success" && response.data.data) {
                     upsertPaymentRequest(response.data.data);
-                    message.success("Payment request created.");
+                    message.success(td("Payment request created.", { source: "en" }));
                     return { ok: true, data: response.data.data };
                 }
                 const failMessage =

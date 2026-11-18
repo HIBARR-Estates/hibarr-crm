@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Deferred, router, usePage } from "@inertiajs/react";
 import DashboardLayout from "@/Components/DashboardLayout";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const GRID_COLS =
     "130px minmax(150px, 1.4fr) minmax(140px, 1fr) 84px 96px 118px 172px";
@@ -173,6 +174,7 @@ function RowActions({
     onSend: (id: number) => void;
     onCancel: (id: number) => void;
 }) {
+    const { td } = useTd();
     if (!row.cancellable) {
         return null;
     }
@@ -200,7 +202,7 @@ function RowActions({
                     whiteSpace: "nowrap",
                 }}
             >
-                Send now
+                {td("Send now", { source: "en" })}
             </button>
             <button
                 type="button"
@@ -220,7 +222,7 @@ function RowActions({
                     whiteSpace: "nowrap",
                 }}
             >
-                Cancel
+                {td("Cancel", { source: "en" })}
             </button>
         </span>
     );
@@ -251,6 +253,7 @@ function DetailDrawer({
     onAbortSend: () => void;
     onAbortCancel: () => void;
 }) {
+    const { td } = useTd();
     const drawerStyle: React.CSSProperties = isMobile
         ? {
               position: "fixed",
@@ -440,7 +443,7 @@ function DetailDrawer({
                                 marginBottom: 8,
                             }}
                         >
-                            Email message
+                            {td("Email message", { source: "en" })}
                         </div>
                         <div
                             style={{
@@ -482,7 +485,7 @@ function DetailDrawer({
                                 marginBottom: 8,
                             }}
                         >
-                            Who
+                            {td("Who", { source: "en" })}
                         </div>
                         <div
                             style={{
@@ -554,7 +557,7 @@ function DetailDrawer({
                                 marginBottom: 8,
                             }}
                         >
-                            Timeline
+                            {td("Timeline", { source: "en" })}
                         </div>
                         {row.timeline.map((ev) => (
                             <div
@@ -662,7 +665,7 @@ function DetailDrawer({
                                         minHeight: 44,
                                     }}
                                 >
-                                    Yes, cancel
+                                    {td("Yes, cancel", { source: "en" })}
                                 </button>
                                 <button
                                     type="button"
@@ -682,7 +685,7 @@ function DetailDrawer({
                                         minHeight: 44,
                                     }}
                                 >
-                                    Keep
+                                    {td("Keep", { source: "en" })}
                                 </button>
                             </div>
                         )}
@@ -702,7 +705,7 @@ function DetailDrawer({
                                         flex: "1 1 100%",
                                     }}
                                 >
-                                    Send this reminder now, ahead of schedule?
+                                    {td("Send this reminder now, ahead of schedule?", { source: "en" })}
                                 </span>
                                 <button
                                     type="button"
@@ -722,7 +725,7 @@ function DetailDrawer({
                                         minHeight: 44,
                                     }}
                                 >
-                                    Yes, send now
+                                    {td("Yes, send now", { source: "en" })}
                                 </button>
                                 <button
                                     type="button"
@@ -742,7 +745,7 @@ function DetailDrawer({
                                         minHeight: 44,
                                     }}
                                 >
-                                    Not yet
+                                    {td("Not yet", { source: "en" })}
                                 </button>
                             </div>
                         )}
@@ -772,7 +775,7 @@ function DetailDrawer({
                                         minHeight: 48,
                                     }}
                                 >
-                                    Send now
+                                    {td("Send now", { source: "en" })}
                                 </button>
                                 <button
                                     type="button"
@@ -792,7 +795,7 @@ function DetailDrawer({
                                         minHeight: 48,
                                     }}
                                 >
-                                    Cancel reminder
+                                    {td("Cancel reminder", { source: "en" })}
                                 </button>
                             </div>
                         )}
@@ -819,6 +822,7 @@ function RemindersSkeleton({ height = 120 }: { height?: number }) {
 }
 
 export default function RemindersIndex() {
+    const { td } = useTd();
     const { props: pageProps } = usePage<any>();
     const typedProps = pageProps as RemindersPageProps;
     const pagination = typedProps.pagination ?? {
@@ -1002,7 +1006,7 @@ export default function RemindersIndex() {
                                     letterSpacing: "-0.02em",
                                 }}
                             >
-                                Reminders
+                                {td("Reminders", { source: "en" })}
                             </h1>
                             <p
                                 style={{
@@ -1011,7 +1015,7 @@ export default function RemindersIndex() {
                                     color: "#667085",
                                 }}
                             >
-                                Scheduled and sent reminder emails
+                                {td("Scheduled and sent reminder emails", { source: "en" })}
                             </p>
                         </div>
                     </div>
@@ -1205,7 +1209,7 @@ export default function RemindersIndex() {
                                         reload({ search: searchValue });
                                     }
                                 }}
-                                placeholder="Search reminder, email, or entity…"
+                                placeholder={td("Search reminder, email, or entity…", { source: "en" })}
                                 style={{
                                     flex: "1 1 200px",
                                     minWidth: 0,
@@ -1241,7 +1245,7 @@ export default function RemindersIndex() {
                                     minHeight: 44,
                                 }}
                             >
-                                <option value="all">All types</option>
+                                <option value="all">{td("All types", { source: "en" })}</option>
                                 {entityTypes.map((type) => (
                                     <option key={type} value={type}>
                                         {ENTITY_LABELS[type] ||
@@ -1274,11 +1278,11 @@ export default function RemindersIndex() {
                                     minHeight: 44,
                                 }}
                             >
-                                <option value="all">All dates</option>
-                                <option value="today">Today</option>
-                                <option value="yesterday">Yesterday</option>
-                                <option value="7d">Last 7 days</option>
-                                <option value="custom">Specific day…</option>
+                                <option value="all">{td("All dates", { source: "en" })}</option>
+                                <option value="today">{td("Today", { source: "en" })}</option>
+                                <option value="yesterday">{td("Yesterday", { source: "en" })}</option>
+                                <option value="7d">{td("Last 7 days", { source: "en" })}</option>
+                                <option value="custom">{td("Specific day…", { source: "en" })}</option>
                             </select>
                             {showDatePicker && (
                                 <input
@@ -1330,7 +1334,7 @@ export default function RemindersIndex() {
                                         minHeight: 44,
                                     }}
                                 >
-                                    Reset
+                                    {td("Reset", { source: "en" })}
                                 </button>
                             )}
                             <div
@@ -1828,7 +1832,7 @@ export default function RemindersIndex() {
                                         color: "#344054",
                                     }}
                                 >
-                                    No reminders match
+                                    {td("No reminders match", { source: "en" })}
                                 </div>
                                 <div
                                     style={{
@@ -1837,8 +1841,7 @@ export default function RemindersIndex() {
                                         marginTop: 4,
                                     }}
                                 >
-                                    Try clearing the search, date, or tab
-                                    filters.
+                                    {td("Try clearing the search, date, or tab filters.", { source: "en" })}
                                 </div>
                             </div>
                         )}

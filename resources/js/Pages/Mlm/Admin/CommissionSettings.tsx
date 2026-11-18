@@ -33,6 +33,7 @@ import type {
     CommissionSimulationResult,
     CycleDurationType,
 } from "@/Features/Mlm/types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends PageProps {
     settings: MlmSettings;
@@ -43,6 +44,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
     settings: initialSettings,
     agents = [],
 }) => {
+    const { td } = useTd();
     const { data: settingsData, isLoading } = useMlmSettings();
     const { t } = useTranslation();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
@@ -56,7 +58,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
     const [durationType, setDurationType] = useState<string>("monthly");
 
     const updateSettings = useUpdateMlmSettings(() => {
-        message.success("Settings updated successfully");
+        message.success(td("Settings updated successfully", { source: "en" }));
     });
 
     // An active cycle pays from a snapshot taken when it started, so edits on
@@ -71,7 +73,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
 
     const resnapshot = useResnapshot(activeCycle?.id ?? 0, () => {
         message.success(
-            "Cycle re-snapshotted. New commissions will use the current rules.",
+            td("Cycle re-snapshotted. New commissions will use the current rules.", { source: "en" }),
         );
         refetchActiveCycle();
     });
@@ -130,7 +132,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                 <Card
                                     title={
                                         <span className="font-semibold">
-                                            Global MLM Settings
+                                            {td("Global MLM Settings", { source: "en" })}
                                         </span>
                                     }
                                     className="shadow-sm"
@@ -142,9 +144,9 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                             initialValues={settings}
                                         >
                                             <Form.Item
-                                                label="Max Commission Percentage"
+                                                label={td("Max Commission Percentage", { source: "en" })}
                                                 name="max_commission_percentage"
-                                                tooltip="The maximum total commission that can be distributed across all levels for a single deal."
+                                                tooltip={td("The maximum total commission that can be distributed across all levels for a single deal.", { source: "en" })}
                                                 rules={[
                                                     {
                                                         required: true,
@@ -183,27 +185,14 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                                                     : `Cycle #${activeCycle.cycle_number} froze the commission percentages and level rules when it started. Changes made here — including level percentages — only reach live commissions once the snapshot is retaken.`}
                                                             </div>
                                                             <Popconfirm
-                                                                title="Re-snapshot this cycle?"
+                                                                title={td("Re-snapshot this cycle?", { source: "en" })}
                                                                 description={
                                                                     <div className="max-w-xs">
-                                                                        Commissions
-                                                                        calculated
-                                                                        from now
-                                                                        on will
-                                                                        use the
-                                                                        current
-                                                                        rules.
-                                                                        Commissions
-                                                                        already
-                                                                        recorded
-                                                                        keep the
-                                                                        amounts
-                                                                        they were
-                                                                        paid at.
+                                                                        {td("Commissions calculated from now on will use the current rules. Commissions already recorded keep the amounts they were paid at.", { source: "en" })}
                                                                     </div>
                                                                 }
-                                                                okText="Re-snapshot"
-                                                                cancelText="Cancel"
+                                                                okText={td("Re-snapshot", { source: "en" })}
+                                                                cancelText={td("Cancel", { source: "en" })}
                                                                 onConfirm={() =>
                                                                     resnapshot.mutate(
                                                                         {},
@@ -226,8 +215,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                                                         resnapshot.isPending
                                                                     }
                                                                 >
-                                                                    Re-snapshot
-                                                                    cycle
+                                                                    {td("Re-snapshot cycle", { source: "en" })}
                                                                 </Button>
                                                             </Popconfirm>
                                                         </div>
@@ -236,32 +224,32 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                             )}
 
                                             <Form.Item
-                                                label="Auto-Evaluate Ancestors"
+                                                label={td("Auto-Evaluate Ancestors", { source: "en" })}
                                                 name="auto_evaluate_ancestors"
                                                 valuePropName="checked"
-                                                tooltip="When enabled, the system will automatically evaluate if upline agents should be promoted when a deal is closed."
+                                                tooltip={td("When enabled, the system will automatically evaluate if upline agents should be promoted when a deal is closed.", { source: "en" })}
                                             >
                                                 <Switch />
                                             </Form.Item>
 
                                             <Form.Item
-                                                label="Enable Commission Reversal"
+                                                label={td("Enable Commission Reversal", { source: "en" })}
                                                 name="enable_commission_reversal"
                                                 valuePropName="checked"
-                                                tooltip="Allow admins to revert paid commissions (e.g., when a deal is cancelled)."
+                                                tooltip={td("Allow admins to revert paid commissions (e.g., when a deal is cancelled).", { source: "en" })}
                                             >
                                                 <Switch />
                                             </Form.Item>
 
                                             <Divider>
-                                                Cycle Auto-Generation Defaults
+                                                {td("Cycle Auto-Generation Defaults", { source: "en" })}
                                             </Divider>
 
                                             <Form.Item
-                                                label="Auto-Generate Cycles"
+                                                label={td("Auto-Generate Cycles", { source: "en" })}
                                                 name="auto_generate_cycles"
                                                 valuePropName="checked"
-                                                tooltip="When enabled, new cycles are created automatically by the scheduler."
+                                                tooltip={td("When enabled, new cycles are created automatically by the scheduler.", { source: "en" })}
                                             >
                                                 <Switch />
                                             </Form.Item>
@@ -269,9 +257,9 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                             <Row gutter={16}>
                                                 <Col xs={24} md={12}>
                                                     <Form.Item
-                                                        label="Default Duration Type"
+                                                        label={td("Default Duration Type", { source: "en" })}
                                                         name="default_cycle_duration_type"
-                                                        tooltip="Duration type applied when auto-generating cycles."
+                                                        tooltip={td("Duration type applied when auto-generating cycles.", { source: "en" })}
                                                     >
                                                         <Select
                                                             onChange={(v) =>
@@ -300,7 +288,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                                 {durationType === "custom" && (
                                                     <Col xs={24} md={12}>
                                                         <Form.Item
-                                                            label="Custom Duration (days)"
+                                                            label={td("Custom Duration (days)", { source: "en" })}
                                                             name="default_cycle_duration_days"
                                                             rules={[
                                                                 {
@@ -344,7 +332,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                                     updateSettings.isPending
                                                 }
                                             >
-                                                Save Settings
+                                                {td("Save Settings", { source: "en" })}
                                             </Button>
                                         </Form>
                                     </Spin>
@@ -367,7 +355,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                                 className="text-blue-500"
                                             />
                                             <span className="font-semibold">
-                                                Commission Simulator
+                                                {td("Commission Simulator", { source: "en" })}
                                             </span>
                                         </div>
                                     }
@@ -376,20 +364,20 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                     <Alert
                                         type="info"
                                         showIcon
-                                        message="Test how commissions will be distributed for a hypothetical deal."
+                                        message={td("Test how commissions will be distributed for a hypothetical deal.", { source: "en" })}
                                         className="mb-4"
                                     />
 
                                     <div className="space-y-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Deal Value
+                                                {td("Deal Value", { source: "en" })}
                                             </label>
                                             <InputNumber
                                                 className="w-full"
                                                 min={0}
                                                 prefix={currencySymbol}
-                                                placeholder="Enter deal value"
+                                                placeholder={td("Enter deal value", { source: "en" })}
                                                 value={
                                                     simDealValue || undefined
                                                 }
@@ -402,11 +390,11 @@ const MlmCommissionSettings: React.FC<Props> = ({
 
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Closing Agent
+                                                {td("Closing Agent", { source: "en" })}
                                             </label>
                                             <Select
                                                 className="w-full"
-                                                placeholder="Select an agent"
+                                                placeholder={td("Select an agent", { source: "en" })}
                                                 showSearch
                                                 optionFilterProp="label"
                                                 options={agents.map((a) => ({
@@ -434,7 +422,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                             animate={{ opacity: 1, y: 0 }}
                                             className="mt-6"
                                         >
-                                            <Divider>Simulation Result</Divider>
+                                            <Divider>{td("Simulation Result", { source: "en" })}</Divider>
 
                                             <div className="space-y-2">
                                                 {simResult.entries.map(
@@ -485,7 +473,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
 
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-gray-600">
-                                                    Total Distributed
+                                                    {td("Total Distributed", { source: "en" })}
                                                 </span>
                                                 <span className="font-bold text-green-600">
                                                     {currencySymbol}
@@ -499,7 +487,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                             </div>
                                             <div className="flex justify-between text-sm mt-1">
                                                 <span className="text-gray-600">
-                                                    System Retains
+                                                    {td("System Retains", { source: "en" })}
                                                 </span>
                                                 <span className="font-bold">
                                                     {currencySymbol}
@@ -520,7 +508,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
                                         simAgentId > 0 && (
                                             <Empty
                                                 className="mt-6"
-                                                description="No simulation data"
+                                                description={td("No simulation data", { source: "en" })}
                                             />
                                         )}
                                 </Card>

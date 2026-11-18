@@ -9,6 +9,7 @@ import {
     PROJECT_PRIMARY_CATEGORY_OPTIONS,
     FURNITURE_PACKAGES,
 } from "../constructionProjectConfig";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface ConstructionProjectDetailsSectionProps {
     form: FormInstance;
@@ -30,16 +31,17 @@ interface ConstructionProjectDetailsSectionProps {
 const ConstructionProjectDetailsSection: React.FC<
     ConstructionProjectDetailsSectionProps
 > = ({ form }) => {
+    const { td } = useTd();
     return (
         <Row gutter={[16, 0]}>
             {/* Property-level Construction Status */}
             <Col xs={24} md={8}>
                 <Form.Item
                     name="construction_status"
-                    label="Construction Status"
+                    label={td("Construction Status", { source: "en" })}
                 >
                     <Select
-                        placeholder="Select status"
+                        placeholder={td("Select status", { source: "en" })}
                         allowClear
                         options={PROJECT_CONSTRUCTION_STATUSES.map((s) => ({
                             value: s.value,
@@ -51,18 +53,18 @@ const ConstructionProjectDetailsSection: React.FC<
 
             {/* Completion Date */}
             <Col xs={24} md={8}>
-                <Form.Item name="completion_date" label="Completion Date">
+                <Form.Item name="completion_date" label={td("Completion Date", { source: "en" })}>
                     <DatePicker
                         picker="month"
                         style={{ width: "100%" }}
-                        placeholder="Select completion date"
+                        placeholder={td("Select completion date", { source: "en" })}
                     />
                 </Form.Item>
             </Col>
 
             {/* Number of Phases */}
             <Col xs={24} md={8}>
-                <Form.Item name="number_of_phases" label="Number of Phases">
+                <Form.Item name="number_of_phases" label={td("Number of Phases", { source: "en" })}>
                     <InputNumber
                         min={1}
                         max={50}
@@ -74,10 +76,10 @@ const ConstructionProjectDetailsSection: React.FC<
 
             {/* Primary Category (multi-select) */}
             <Col xs={24} md={12}>
-                <Form.Item name="primary_categories" label="Primary Category">
+                <Form.Item name="primary_categories" label={td("Primary Category", { source: "en" })}>
                     <Select
                         mode="multiple"
-                        placeholder="Select categories"
+                        placeholder={td("Select categories", { source: "en" })}
                         allowClear
                         options={PROJECT_PRIMARY_CATEGORY_OPTIONS.map((o) => ({
                             value: o.value,
@@ -89,9 +91,9 @@ const ConstructionProjectDetailsSection: React.FC<
 
             {/* Title Deed Type */}
             <Col xs={24} md={12}>
-                <Form.Item name="title_deed_type" label="Title Deed Type">
+                <Form.Item name="title_deed_type" label={td("Title Deed Type", { source: "en" })}>
                     <Select
-                        placeholder="Select deed type"
+                        placeholder={td("Select deed type", { source: "en" })}
                         allowClear
                         options={TITLE_DEED_TYPE_OPTIONS.map((o) => ({
                             value: o.value,
@@ -103,10 +105,10 @@ const ConstructionProjectDetailsSection: React.FC<
 
             {/* Unit Types (multi-select) */}
             <Col xs={24} md={12}>
-                <Form.Item name="unit_types" label="Unit Types">
+                <Form.Item name="unit_types" label={td("Unit Types", { source: "en" })}>
                     <Select
                         mode="multiple"
-                        placeholder="Select unit types"
+                        placeholder={td("Select unit types", { source: "en" })}
                         allowClear
                         options={UNIT_TYPE_OPTIONS.map((o) => ({
                             value: o.value,
@@ -130,7 +132,7 @@ const ConstructionProjectDetailsSection: React.FC<
 
             {/* Number of Blocks (Apt) */}
             <Col xs={24} md={6}>
-                <Form.Item name="number_of_blocks" label="Number of Blocks">
+                <Form.Item name="number_of_blocks" label={td("Number of Blocks", { source: "en" })}>
                     <InputNumber
                         min={1}
                         max={100}
@@ -144,7 +146,7 @@ const ConstructionProjectDetailsSection: React.FC<
             <Col xs={24} md={8}>
                 <Form.Item
                     name="project_total_area_sqm"
-                    label="Project Total Area (m²)"
+                    label={td("Project Total Area (m²)", { source: "en" })}
                 >
                     <InputNumber<number>
                         min={0}
@@ -168,9 +170,9 @@ const ConstructionProjectDetailsSection: React.FC<
 
             {/* Furniture Package */}
             <Col xs={24} md={8}>
-                <Form.Item name="furniture_package" label="Furniture Package">
+                <Form.Item name="furniture_package" label={td("Furniture Package", { source: "en" })}>
                     <Select
-                        placeholder="Select furniture option"
+                        placeholder={td("Select furniture option", { source: "en" })}
                         allowClear
                         options={FURNITURE_PACKAGES.map((o) => ({
                             value: o.value,
@@ -182,9 +184,9 @@ const ConstructionProjectDetailsSection: React.FC<
 
             {/* Rental Guarantee */}
             <Col xs={24} md={8}>
-                <Form.Item name="rental_guarantee" label="Rental Guarantee">
+                <Form.Item name="rental_guarantee" label={td("Rental Guarantee", { source: "en" })}>
                     <Select
-                        placeholder="Select"
+                        placeholder={td("Select", { source: "en" })}
                         allowClear
                         options={[
                             { value: true, label: "Yes" },

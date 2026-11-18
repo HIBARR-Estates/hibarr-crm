@@ -7,6 +7,7 @@ import {
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -15,6 +16,7 @@ interface AgentInfoCardProps {
 }
 
 export default function AgentInfoCard({ property }: AgentInfoCardProps) {
+    const { td } = useTd();
     return (
         <Card
             title={
@@ -40,7 +42,7 @@ export default function AgentInfoCard({ property }: AgentInfoCardProps) {
                                 {property.addedBy.name}
                             </Text>
                             <Text type="secondary" className="text-xs">
-                                Added by
+                                {td("Added by", { source: "en" })}
                             </Text>
                         </div>
                     </div>
@@ -52,7 +54,7 @@ export default function AgentInfoCard({ property }: AgentInfoCardProps) {
                                 {`No agent created this property`}
                             </Text>
                             <Text type="secondary" className="text-xs">
-                                Added by
+                                {td("Added by", { source: "en" })}
                             </Text>
                         </div>
                     </div>
@@ -73,7 +75,7 @@ export default function AgentInfoCard({ property }: AgentInfoCardProps) {
                                     {property.responsible_agent.name}
                                 </Text>
                                 <Text type="secondary" className="text-xs">
-                                    Responsible Agent
+                                    {td("Responsible Agent", { source: "en" })}
                                 </Text>
                             </div>
                         </div>
@@ -86,7 +88,7 @@ export default function AgentInfoCard({ property }: AgentInfoCardProps) {
                                 {`No agent assigned`}
                             </Text>
                             <Text type="secondary" className="text-xs">
-                                Responsible Agent
+                                {td("Responsible Agent", { source: "en" })}
                             </Text>
                         </div>
                     </div>
@@ -99,7 +101,7 @@ export default function AgentInfoCard({ property }: AgentInfoCardProps) {
                     <Space>
                         <CalendarOutlined className="text-gray-400" />
                         <Text type="secondary" className="text-xs">
-                            Listed
+                            {td("Listed", { source: "en" })}
                         </Text>
                     </Space>
                     <Text className="text-xs">

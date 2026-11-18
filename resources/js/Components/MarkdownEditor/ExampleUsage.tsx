@@ -3,10 +3,12 @@
 import React from "react";
 import { Form, Button, Input, Select } from "antd";
 import MarkdownEditor from "@/Components/MarkdownEditor";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 
 const ExampleMarkdownForm = () => {
+    const { td } = useTd();
     const [form] = Form.useForm();
 
     const handleSubmit = (values: any) => {
@@ -62,23 +64,23 @@ console.log(hello);
             }}
         >
             <Form.Item
-                label="Title"
+                label={td("Title", { source: "en" })}
                 name="title"
                 rules={[{ required: true, message: "Please enter title" }]}
             >
-                <Input placeholder="Enter title" />
+                <Input placeholder={td("Enter title", { source: "en" })} />
             </Form.Item>
 
-            <Form.Item label="Preview Mode" name="preview">
+            <Form.Item label={td("Preview Mode", { source: "en" })} name="preview">
                 <Select onChange={handlePreviewChange}>
-                    <Option value="live">Live Preview</Option>
-                    <Option value="edit">Edit Only</Option>
-                    <Option value="preview">Preview Only</Option>
+                    <Option value="live">{td("Live Preview", { source: "en" })}</Option>
+                    <Option value="edit">{td("Edit Only", { source: "en" })}</Option>
+                    <Option value="preview">{td("Preview Only", { source: "en" })}</Option>
                 </Select>
             </Form.Item>
 
             <Form.Item
-                label="Details (Markdown)"
+                label={td("Details (Markdown)", { source: "en" })}
                 name="details"
                 rules={[
                     {
@@ -97,7 +99,7 @@ console.log(hello);
                 ]}
             >
                 <MarkdownEditor
-                    placeholder="Enter markdown content..."
+                    placeholder={td("Enter markdown content...", { source: "en" })}
                     height={400}
                     preview={form.getFieldValue("preview") || "live"}
                 />
@@ -105,9 +107,9 @@ console.log(hello);
 
             <div className="flex gap-2">
                 <Button type="primary" htmlType="submit">
-                    Submit
+                    {td("Submit", { source: "en" })}
                 </Button>
-                <Button onClick={handleGetValues}>Get Values</Button>
+                <Button onClick={handleGetValues}>{td("Get Values", { source: "en" })}</Button>
             </div>
         </Form>
     );
@@ -115,16 +117,17 @@ console.log(hello);
 
 // Example of different configurations
 const MinimalMarkdownEditor = () => {
+    const { td } = useTd();
     const [form] = Form.useForm();
 
     return (
         <Form form={form} layout="vertical">
-            <Form.Item label="Simple Markdown" name="content">
+            <Form.Item label={td("Simple Markdown", { source: "en" })} name="content">
                 <MarkdownEditor
                     height={200}
                     preview="edit"
                     hideToolbar={false}
-                    placeholder="Write your markdown here..."
+                    placeholder={td("Write your markdown here...", { source: "en" })}
                 />
             </Form.Item>
         </Form>
@@ -133,6 +136,7 @@ const MinimalMarkdownEditor = () => {
 
 // Example with disabled state
 const DisabledMarkdownEditor = () => {
+    const { td } = useTd();
     const [form] = Form.useForm();
 
     return (
@@ -144,7 +148,7 @@ const DisabledMarkdownEditor = () => {
                     "# Read-only content\n\nThis content cannot be edited.",
             }}
         >
-            <Form.Item label="Read-only Markdown" name="content">
+            <Form.Item label={td("Read-only Markdown", { source: "en" })} name="content">
                 <MarkdownEditor
                     height={200}
                     disabled={true}

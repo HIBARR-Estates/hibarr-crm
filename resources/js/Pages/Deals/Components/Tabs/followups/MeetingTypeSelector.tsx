@@ -1,5 +1,6 @@
 import { Select, Spin, Space } from "antd";
 import { useApiQuery } from "@/lib/api/client";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface MeetingType {
     id: number;
@@ -34,6 +35,7 @@ export default function MeetingTypeSelector({
     renderAsChips = false,
     onNameChange,
 }: Props) {
+    const { td } = useTd();
     const platformOptions = [
         { value: "zoho", label: "Video Meeting" },
         { value: "office", label: "HIBARR Office" },
@@ -62,7 +64,7 @@ export default function MeetingTypeSelector({
             return (
                 <div className="flex items-center gap-2 py-1">
                     <Spin size="small" />
-                    <span className="text-sm text-gray-400">Loading types…</span>
+                    <span className="text-sm text-gray-400">{td("Loading types…", { source: "en" })}</span>
                 </div>
             );
         }
@@ -88,7 +90,7 @@ export default function MeetingTypeSelector({
                 })}
                 {meetingTypes.length === 0 && (
                     <p className="text-sm text-gray-400 italic">
-                        No meeting types available
+                        {td("No meeting types available", { source: "en" })}
                     </p>
                 )}
             </div>
@@ -122,7 +124,7 @@ export default function MeetingTypeSelector({
                     <Select
                         value={platformValue}
                         onChange={onPlatformChange}
-                        placeholder="Platform"
+                        placeholder={td("Platform", { source: "en" })}
                         disabled={disabled}
                         className={className || ""}
                         options={platformOptions}
