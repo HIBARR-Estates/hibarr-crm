@@ -3,6 +3,7 @@
 namespace Tests\Feature\Partners;
 
 use App\Contracts\KeycloakIdentityClient;
+use App\Http\Controllers\PartnerAdminController;
 use App\Exceptions\OlKeycloakException;
 use App\Models\LeadAgent;
 use App\Models\Permission;
@@ -662,6 +663,74 @@ class PartnerInviteServiceTest extends TestCase
         $this->assertSame(__('pages.partners.msg_busy_created'), $result['message']);
         $this->assertNotNull($result['agent']->id);
         $this->assertNull($this->keycloak->idForEmail('ada@example.test'));
+    }
+
+    /**
+     * The Partners page reads these payloads: `status` decides the toast and
+     * `agent` patches the row. Pinned here so a change to either shows up.
+     */
+    public function test_resend_endpoint_payload_on_success(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+
+        $response = $this->partnerController()->resendInvite($invite['agent']->id);
+
+        $this->assertSame('success', $response['status']);
+        $this->assertSame(__('pages.partners.invite_sent'), $response['message']);
+        $this->assertSame($invite['agent']->id, $response['agent']->id);
+        $this->assertSame(PartnerInviteService::STATUS_INVITED, $response['agent']->partner_invite_status);
+        $this->assertTrue($response['agent']->can_resend);
+    }
+
+    public function test_resend_endpoint_payload_when_refused(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+        app(PartnerInviteService::class)->markAccepted($invite['agent']->user);
+
+        $response = $this->partnerController()->resendInvite($invite['agent']->id);
+
+        // HTTP 200 with status "fail": the page must read the body, and still
+        // gets the row so the badge shows the real state.
+        $this->assertSame('fail', $response['status']);
+        $this->assertSame(__('pages.partners.msg_resend_accepted'), $response['message']);
+        $this->assertSame($invite['agent']->id, $response['agent']->id);
+        $this->assertSame(PartnerInviteService::STATUS_ACCEPTED, $response['agent']->partner_invite_status);
+        $this->assertFalse($response['agent']->can_resend);
+    }
+
+    public function test_remove_endpoint_reports_busy_instead_of_failing(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+        config()->set('services.ol.keycloak.lock_wait_seconds', 1);
+        $held = \Illuminate\Support\Facades\Cache::lock('partner-invite:'.$invite['agent']->user_id, 60);
+        $this->assertTrue($held->get());
+
+        try {
+            $response = $this->partnerController()->destroy($invite['agent']->id);
+        } finally {
+            $held->release();
+        }
+
+        $this->assertSame('fail', $response['status']);
+        $this->assertSame(__('pages.partners.msg_busy'), $response['message']);
+        $this->assertTrue((bool) $invite['agent']->fresh()->is_partner);
+    }
+
+    /** The controller without its constructor (it builds view state these tests don't need). */
+    private function partnerController(): PartnerAdminController
+    {
+        session(['company' => (object) ['id' => 1], 'user' => $this->admin]);
+
+        $controller = (new \ReflectionClass(PartnerAdminController::class))->newInstanceWithoutConstructor();
+        $service = app(PartnerInviteService::class);
+        (function () use ($service) {
+            $this->invites = $service;
+        })->call($controller);
+
+        return $controller;
     }
 
     /**
