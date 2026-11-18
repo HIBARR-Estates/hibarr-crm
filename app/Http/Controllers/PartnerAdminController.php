@@ -48,7 +48,9 @@ class PartnerAdminController extends AccountBaseController
             ->paginate($request->input('per_page', 15));
 
         // Users and roles came with the page query; don't load them again per row.
-        $agents->getCollection()->each(fn (LeadAgent $agent) => $this->invites->decorate($agent));
+        // One lookup for the page's Keycloak ids, not one per row.
+        $keycloakIds = $this->invites->keycloakIdsFor($agents->getCollection());
+        $agents->getCollection()->each(fn (LeadAgent $agent) => $this->invites->decorate($agent, $keycloakIds));
 
         return Inertia::render('Partners/Index', [
             'pageTitle' => 'Partners',
@@ -91,7 +93,7 @@ class PartnerAdminController extends AccountBaseController
             ->where('id', $request->agent_id)
             ->firstOrFail();
 
-        $agent->update(['is_partner' => true]);
+        $this->invites->add($agent);
         $this->invites->present($agent);
 
         return Reply::successWithData(__('messages.recordSaved'), [

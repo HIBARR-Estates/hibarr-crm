@@ -507,6 +507,92 @@ class PartnerInviteServiceTest extends TestCase
         $this->assertSame([], $this->keycloak->updates);
     }
 
+    public function test_re_adding_a_removed_partner_switches_their_identity_back_on(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+        $service = app(PartnerInviteService::class);
+
+        $service->destroy($invite['agent']->fresh(['user', 'user.roles']));
+        $this->assertFalse($this->keycloak->updates[0]['patch']['enabled']);
+
+        $agent = $invite['agent']->fresh();
+        $service->add($agent);
+
+        $this->assertTrue((bool) $agent->fresh()->is_partner);
+        $this->assertCount(2, $this->keycloak->updates);
+        $this->assertTrue($this->keycloak->updates[1]['patch']['enabled']);
+    }
+
+    public function test_re_adding_does_not_switch_on_a_deactivated_partner(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+        $service = app(PartnerInviteService::class);
+        $service->destroy($invite['agent']->fresh(['user', 'user.roles']));
+        DB::table('users')->where('id', $invite['agent']->user_id)->update(['status' => 'deactive']);
+        $updatesBefore = count($this->keycloak->updates);
+
+        $service->add($invite['agent']->fresh());
+
+        $this->assertCount($updatesBefore, $this->keycloak->updates);
+    }
+
+    public function test_adding_a_staff_agent_as_partner_sends_nothing_to_keycloak(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $staff = $this->insertStaffWithKeycloakLogin();
+        $agent = LeadAgent::create([
+            'company_id' => 1,
+            'user_id' => $staff->id,
+            'status' => 'enabled',
+            'is_partner' => false,
+            'added_by' => $this->admin->id,
+        ]);
+
+        app(PartnerInviteService::class)->add($agent);
+
+        $this->assertTrue((bool) $agent->fresh()->is_partner);
+        $this->assertSame([], $this->keycloak->updates);
+    }
+
+    public function test_roster_rows_without_an_invite_status_use_one_batched_lookup(): void
+    {
+        // Partners invited while the flag was off have no invite status.
+        $this->setFeatureFlag(PartnerInviteService::FLAG, false);
+        $one = app(PartnerInviteService::class)->invite(['name' => 'Ada One', 'email' => 'one@example.test'], 1, $this->admin);
+        $two = app(PartnerInviteService::class)->invite(['name' => 'Bea Two', 'email' => 'two@example.test'], 1, $this->admin);
+        Social::create(['user_id' => $two['agent']->user_id, 'social_id' => 'kc-two', 'social_service' => 'keycloak']);
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+
+        $agents = LeadAgent::query()
+            ->whereIn('id', [$one['agent']->id, $two['agent']->id])
+            ->withCount('referredLeads')
+            ->with(PartnerInviteService::AGENT_RELATIONS)
+            ->orderBy('id')
+            ->get();
+
+        $service = app(PartnerInviteService::class);
+        $ids = $service->keycloakIdsFor($agents);
+        $this->assertSame([$two['agent']->user_id => 'kc-two'], $ids);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $agents->each(fn (LeadAgent $agent) => $service->decorate($agent, $ids));
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
+
+        $this->assertSame([], $queries);
+        $this->assertTrue($agents[0]->can_resend);   // no identity yet: Resend enrols them
+        $this->assertFalse($agents[1]->can_resend);  // already has one
+    }
+
     /**
      * Save like the app does, then run the observer's sync. Model events are
      * switched off in this class (setUp), so the UserObserver::updated hook is

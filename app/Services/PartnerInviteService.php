@@ -225,19 +225,27 @@ class PartnerInviteService
      * Add the invite status and resend flag from relations that are already
      * loaded (user + roles), without querying them again.
      */
-    public function decorate(LeadAgent $agent): LeadAgent
+    /**
+     * @param  array<int, string>|null  $keycloakIds  user id => Keycloak id for the whole
+     *                                                page (see keycloakIdsFor()), so rows
+     *                                                with no invite status need no query.
+     */
+    public function decorate(LeadAgent $agent, ?array $keycloakIds = null): LeadAgent
     {
         $inviteStatus = PartnerRole::isPartnerOnly($agent->user)
             ? $agent->user?->partner_invite_status
             : null;
 
         $agent->setAttribute('partner_invite_status', $inviteStatus);
-        $agent->setAttribute('can_resend', $this->canResend($agent));
+        $agent->setAttribute('can_resend', $this->canResend($agent, $keycloakIds));
 
         return $agent;
     }
 
-    public function canResend(LeadAgent $agent): bool
+    /**
+     * @param  array<int, string>|null  $keycloakIds  See decorate().
+     */
+    public function canResend(LeadAgent $agent, ?array $keycloakIds = null): bool
     {
         if (! PartnerRole::isPartnerOnly($agent->user)) {
             return false;
@@ -257,7 +265,37 @@ class PartnerInviteService
             return true;
         }
 
+        if ($keycloakIds !== null) {
+            return ! isset($keycloakIds[$agent->user_id]);
+        }
+
         return $this->keycloakId($agent->user) === null;
+    }
+
+    /**
+     * One query for a page of roster rows: user id => Keycloak id. Empty when
+     * provisioning is off (the ids are not consulted then).
+     *
+     * @param  iterable<LeadAgent>  $agents
+     * @return array<int, string>
+     */
+    public function keycloakIdsFor(iterable $agents): array
+    {
+        if (! self::enabled()) {
+            return [];
+        }
+
+        $userIds = collect($agents)->pluck('user_id')->filter()->unique()->values();
+        if ($userIds->isEmpty()) {
+            return [];
+        }
+
+        return Social::query()
+            ->whereIn('user_id', $userIds)
+            ->where('social_service', 'keycloak')
+            ->pluck('social_id', 'user_id')
+            ->filter(fn ($id) => is_string($id) && $id !== '')
+            ->all();
     }
 
     public function markAccepted(User $user): void
@@ -327,7 +365,30 @@ class PartnerInviteService
         });
     }
 
+    /**
+     * Flag an existing agent as a partner again (the Add Partner picker).
+     *
+     * Removing a partner disabled their Keycloak identity, so adding the same
+     * person back must switch it on again, or the roster would show them as
+     * invited while they still cannot sign in.
+     */
+    public function add(LeadAgent $agent): void
+    {
+        $this->withAccountLock($agent->user_id, function () use ($agent) {
+            $agent->update(['is_partner' => true]);
+
+            if (self::enabled() && $this->managesIdentity($agent->user) && $agent->user->status !== 'deactive') {
+                $this->setIdentityEnabled($agent->user, true);
+            }
+        });
+    }
+
     public function disableIdentity(?User $user): void
+    {
+        $this->setIdentityEnabled($user, false);
+    }
+
+    private function setIdentityEnabled(?User $user, bool $enabled): void
     {
         if (! $user) {
             return;
@@ -339,10 +400,10 @@ class PartnerInviteService
         }
 
         try {
-            $this->keycloak->update($id, ['enabled' => false]);
+            $this->keycloak->update($id, ['enabled' => $enabled]);
         } catch (\Throwable $e) {
             report($e);
-            Log::warning('Partner Keycloak disable failed', [
+            Log::warning($enabled ? 'Partner Keycloak enable failed' : 'Partner Keycloak disable failed', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);
