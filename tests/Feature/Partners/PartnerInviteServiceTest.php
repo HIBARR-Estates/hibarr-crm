@@ -747,6 +747,23 @@ class PartnerInviteServiceTest extends TestCase
         $this->assertStringContainsString('updated_at', implode(',', PartnerInviteService::AGENT_RELATIONS));
     }
 
+    public function test_an_accepted_partner_is_not_resendable_even_if_provisioning_is_switched_off(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+        app(PartnerInviteService::class)->markAccepted($invite['agent']->user);
+        $this->setFeatureFlag(PartnerInviteService::FLAG, false);
+        Notification::fake();
+
+        $agent = $invite['agent']->fresh(['user', 'user.roles']);
+        $result = app(PartnerInviteService::class)->resend($agent, $this->admin);
+
+        $this->assertFalse(app(PartnerInviteService::class)->canResend($agent));
+        $this->assertFalse($result['ok']);
+        $this->assertSame(__('pages.partners.msg_resend_accepted'), $result['message']);
+        Notification::assertNothingSent();
+    }
+
     /**
      * Save like the app does, then run the observer's sync. Model events are
      * switched off in this class (setUp), so the UserObserver::updated hook is

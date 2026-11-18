@@ -274,14 +274,16 @@ class PartnerInviteService
             return false;
         }
 
-        if (! self::enabled()) {
-            return true;
-        }
-
         $status = $agent->user?->partner_invite_status;
 
+        // Accepted stays accepted, whatever the provisioning flag says now:
+        // the flag may have been switched off after they signed in.
         if ($status === self::STATUS_ACCEPTED) {
             return false;
+        }
+
+        if (! self::enabled()) {
+            return true;
         }
 
         if (in_array($status, [self::STATUS_INVITED, self::STATUS_FAILED], true)) {
