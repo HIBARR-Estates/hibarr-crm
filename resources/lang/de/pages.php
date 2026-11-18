@@ -1330,6 +1330,7 @@ return [
                 'referral_percent_of_package' => 'Anteil an der Paketprovision',
                 'referral_percent_invalid' => 'Geben Sie einen Prozentsatz zwischen 0 und 100 ein.',
                 'referral_amount_too_high' => 'Der vereinbarte Betrag darf die für dieses Angebot mögliche Provision ({{max}}) nicht übersteigen.',
+                'referral_amount_unreadable' => 'Dieser Betrag konnte nicht gelesen werden. Geben Sie ihn so ein: 1234.50.',
                 'your_commission' => 'Ihre Provision',
                 'your_commission_projected' => 'Ihre Provision (Prognose)',
                 'revenue_to_company' => 'Umsatz für das Unternehmen',

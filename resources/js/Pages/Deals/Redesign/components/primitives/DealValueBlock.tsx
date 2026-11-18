@@ -548,6 +548,7 @@ function ReferralShareFields({
     const [mode, setMode] = useState<ReferralMode>(savedMode);
     const [percent, setPercent] = useState(toText(savedPercent));
     const [amount, setAmount] = useState(toText(savedAmount));
+    const [pasteRejected, setPasteRejected] = useState(false);
 
     // Only a changed saved value resets the inputs, so a failed save keeps
     // what was typed.
@@ -665,8 +666,14 @@ function ReferralShareFields({
                                 value={amount}
                                 disabled={saving}
                                 ariaLabel={t("pages.deals.info.value_insight.referral_agreed")}
-                                onChange={setAmount}
+                                onChange={(next) => {
+                                    setPasteRejected(false);
+                                    setAmount(next);
+                                }}
+                                onInvalidPaste={() => setPasteRejected(true)}
                             />
+                            {pasteRejected &&
+                                hint(t("pages.deals.info.value_insight.referral_amount_unreadable"), T.RED)}
                             {amountTooHigh &&
                                 hint(
                                     t("pages.deals.info.value_insight.referral_amount_too_high", {

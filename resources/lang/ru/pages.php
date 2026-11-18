@@ -1311,6 +1311,7 @@ return [
                 'referral_percent_of_package' => 'Доля комиссии пакета',
                 'referral_percent_invalid' => 'Введите процент от 0 до 100.',
                 'referral_amount_too_high' => 'Согласованная сумма не может превышать комиссию, доступную по этой сделке ({{max}}).',
+                'referral_amount_unreadable' => 'Не удалось прочитать эту сумму. Введите её в виде 1234.50.',
                 'your_commission' => 'Ваша комиссия',
                 'your_commission_projected' => 'Ваша комиссия (прогноз)',
                 'revenue_to_company' => 'Доход компании',

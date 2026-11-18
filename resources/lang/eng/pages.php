@@ -1347,6 +1347,7 @@ return [
                 'referral_percent_of_package' => 'Share of the package commission',
                 'referral_percent_invalid' => 'Enter a percentage between 0 and 100.',
                 'referral_amount_too_high' => 'The agreed amount can\'t be more than the commission this deal can carry ({{max}}).',
+                'referral_amount_unreadable' => 'That amount couldn\'t be read. Enter it like 1234.50.',
                 'your_commission' => 'Your commission',
                 'your_commission_projected' => 'Your commission (projected)',
                 'revenue_to_company' => 'Revenue to company',

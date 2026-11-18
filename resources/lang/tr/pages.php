@@ -1314,6 +1314,7 @@ return [
                 'referral_percent_of_package' => 'Paket komisyonundaki pay',
                 'referral_percent_invalid' => '0 ile 100 arasında bir yüzde girin.',
                 'referral_amount_too_high' => 'Kararlaştırılan tutar bu anlaşmanın taşıyabileceği komisyonu ({{max}}) aşamaz.',
+                'referral_amount_unreadable' => 'Bu tutar okunamadı. 1234.50 şeklinde girin.',
                 'your_commission' => 'Komisyonunuz',
                 'your_commission_projected' => 'Komisyonunuz (tahmini)',
                 'revenue_to_company' => 'Şirket geliri',
