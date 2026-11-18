@@ -439,6 +439,7 @@ return [
 
     'leads' => [
         'save_form' => [
+            'create_new_deal' => 'Yeni fırsat oluştur',
             'add_lead' => 'Potansiyel müşteri ekle',
             'added_by' => 'Ekleyen',
             'address' => 'Adres',

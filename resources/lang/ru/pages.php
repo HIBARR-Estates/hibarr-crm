@@ -439,6 +439,7 @@ return [
 
     'leads' => [
         'save_form' => [
+            'create_new_deal' => 'Создать новую сделку',
             'add_lead' => 'Добавить лид',
             'added_by' => 'Добавил',
             'address' => 'Адрес',

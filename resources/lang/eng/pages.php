@@ -470,6 +470,7 @@ return [
 
     'leads' => [
         'save_form' => [
+            'create_new_deal' => 'Create New Deal',
             'add_lead' => 'Add lead',
             'added_by' => 'Added By',
             'address' => 'Address',

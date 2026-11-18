@@ -458,6 +458,7 @@ return [
 
     'leads' => [
         'save_form' => [
+            'create_new_deal' => 'Neuen Deal erstellen',
             'add_lead' => 'Lead hinzufügen',
             'added_by' => 'Hinzugefügt von',
             'address' => 'Adresse',

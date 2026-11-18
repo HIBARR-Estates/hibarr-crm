@@ -181,7 +181,7 @@ export default function CreateLead({
                 </div>
             )}
 
-            <h2 style={{ marginBottom: 24 }}>Create New Deal</h2>
+            <h2 style={{ marginBottom: 24 }}>{t("pages.leads.save_form.create_new_deal")}</h2>
         </div>
     );
 }
