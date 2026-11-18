@@ -20,6 +20,7 @@ import {
 } from "@/lib/leadAge";
 import { DetailFieldEditContext } from "./DetailSection";
 import { useTranslation } from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface LeadAgeFieldsGroupProps {
     dateOfBirth: string | null;
@@ -81,6 +82,7 @@ export default function LeadAgeFieldsGroup({
     onChange,
 }: LeadAgeFieldsGroupProps) {
     const { t } = useTranslation();
+    const { td } = useTd();
     const detailFieldCtx = useContext(DetailFieldEditContext);
     const [isEditing, setIsEditing] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -177,7 +179,9 @@ export default function LeadAgeFieldsGroup({
             message.success(t("pages.leads.save_form.field_updated"));
         } catch (error: any) {
             message.error(
-                error?.message || t("pages.leads.save_form.failed_update"),
+                (error?.message
+                    ? td(error.message, { source: "en" })
+                    : t("pages.leads.save_form.failed_update")),
             );
         } finally {
             setSaving(false);
@@ -194,6 +198,7 @@ export default function LeadAgeFieldsGroup({
         isEditing,
         onSave,
         t,
+        td,
     ]);
 
     const scheduleInlineSave = useCallback(() => {
