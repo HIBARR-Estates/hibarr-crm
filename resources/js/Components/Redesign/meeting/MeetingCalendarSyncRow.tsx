@@ -51,7 +51,7 @@ export default function MeetingCalendarSyncRow({
               ? { className: "dr-pill", label: td("Sync failed", { source: "en" }) }
               : {
                     className: "dr-pill dr-pill-gray",
-                    label: hasMaxAttempts ? "Sync pending" : "Syncing…",
+                    label: td(hasMaxAttempts ? "Sync pending" : "Syncing…", { source: "en" }),
                 };
 
     return (

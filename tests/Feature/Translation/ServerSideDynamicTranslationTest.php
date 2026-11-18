@@ -54,6 +54,7 @@ class ServerSideDynamicTranslationTest extends TestCase
     public function test_reply_translates_inline_english_but_leaves_keys_and_interpolated_text_alone(): void
     {
         Queue::fake();
+        config(['services.dynamic_translation.reply_fallback' => true]);
         $this->seedTranslation('Lead saved.', 'Lead gespeichert.');
         app()->setLocale('de');
 

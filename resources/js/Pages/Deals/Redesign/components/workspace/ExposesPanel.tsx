@@ -291,7 +291,7 @@ export default function ExposesPanel({
                                         .dot,
                                 }}
                             />
-                            {entry.count} {td(entry.label)}
+                            {entry.count} {entry.label}
                         </div>
                     ))}
                 </div>
