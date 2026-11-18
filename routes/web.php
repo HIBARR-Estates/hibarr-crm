@@ -665,7 +665,6 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     // deals route
 
     // Marketing lead flow — members of the departments picked in Lead settings only
-    Route::get('marketing-leads', [MarketingLeadController::class, 'page'])->name('marketing-leads.index');
     Route::get('marketing-leads/options', [MarketingLeadController::class, 'options'])->name('marketing-leads.options');
     Route::get('marketing-leads/utm-configs', [MarketingLeadController::class, 'utmConfigs'])->name('marketing-leads.utm-configs');
     Route::post('marketing-leads', [MarketingLeadController::class, 'store'])->name('marketing-leads.store');

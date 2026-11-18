@@ -4860,8 +4860,6 @@ return [
         ],
     ],
     'marketing_leads' => [
-        'page_title' => 'Marketing-Leads',
-        'page_intro' => 'Erfassen Sie Leads, die Ihr Team gesammelt hat. Jeder gespeicherte Lead wird automatisch als Marketing-Lead markiert.',
         'open_button' => 'Marketing-Lead',
         'title' => 'Neuer Marketing-Lead',
         'title_named' => 'Neuer Marketing-Lead: {{name}}',
