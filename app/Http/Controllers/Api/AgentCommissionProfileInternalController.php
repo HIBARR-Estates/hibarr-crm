@@ -24,15 +24,9 @@ class AgentCommissionProfileInternalController extends Controller
         $companyId = (int) $request->header('X-COMPANY-ID');
         $perPage = min((int) $request->input('audit_per_page', 15), 100);
 
-        $profile = $this->profileService->getProfile($agentId, $companyId, $perPage);
-
-        if (! $this->overrideEnabled()) {
-            $profile['custom_commission_rate'] = null;
-        }
-
         return response()->json([
             'status' => 'success',
-            'data' => $profile,
+            'data' => $this->profileService->getProfile($agentId, $companyId, $perPage),
         ]);
     }
 

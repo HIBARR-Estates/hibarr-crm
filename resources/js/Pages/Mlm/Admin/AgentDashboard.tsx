@@ -784,9 +784,9 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                         )}
                                                         {agent.is_partner && (
                                                             <Form.Item
-                                                                label={td("Referral share", { source: "en" })}
+                                                                label={t("pages.agents.referral_share")}
                                                                 name="referral_pool_rate"
-                                                                tooltip={td("Percent of the commission pool for deals this partner referred. Leave empty for no referral share.", { source: "en" })}
+                                                                tooltip={t("pages.agents.referral_share_tooltip")}
                                                                 rules={[
                                                                     {
                                                                         validator:
@@ -812,7 +812,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                                         100
                                                                                 ) {
                                                                                     throw new Error(
-                                                                                        td("Referral share must be between 0 and 100%.", { source: "en" }),
+                                                                                        t("pages.agents.referral_share_invalid"),
                                                                                     );
                                                                                 }
                                                                             },
@@ -824,7 +824,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                     max={100}
                                                                     className="w-full"
                                                                     addonAfter="%"
-                                                                    placeholder={td("No referral share", { source: "en" })}
+                                                                    placeholder={t("pages.agents.referral_share_none")}
                                                                 />
                                                             </Form.Item>
                                                         )}

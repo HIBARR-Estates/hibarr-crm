@@ -20,6 +20,7 @@ class AgentCommissionProfileService
         $agent = LeadAgent::where('company_id', $companyId)->findOrFail($agentId);
         $level = $this->levelService->getCurrentLevel($agent);
         $bounds = $this->boundService->resolveBounds($agent);
+        $overrideEnabled = FeatureFlags::enabled('sales.per-agent-commission-override');
 
         return [
             'agent_id' => $agent->id,
@@ -29,7 +30,9 @@ class AgentCommissionProfileService
                 'rank' => $level->rank,
                 'default_commission_rate' => (float) $level->commission_percentage,
             ] : null,
-            'custom_commission_rate' => $this->resolveUnifiedCustomRate($agent),
+            // With per-agent overrides off, only the referral share is served: the
+            // saved override rate and its history stay out of the payload.
+            'custom_commission_rate' => $overrideEnabled ? $this->resolveUnifiedCustomRate($agent) : null,
             'referral_pool_rate' => FeatureFlags::enabled('crm.partner-referral-commission') && $agent->referral_pool_rate !== null
                 ? (float) $agent->referral_pool_rate
                 : null,
@@ -38,7 +41,7 @@ class AgentCommissionProfileService
                 'max_ceiling' => $this->boundService->getEffectiveCeiling($agent),
                 'is_highest_visible_level' => $bounds['isHighestVisibleLevel'],
             ],
-            'audit' => $this->getAuditLogs($agentId, $companyId, $auditPerPage),
+            'audit' => $this->getAuditLogs($agentId, $companyId, $auditPerPage, $overrideEnabled),
         ];
     }
 
@@ -243,9 +246,9 @@ class AgentCommissionProfileService
         return $stats;
     }
 
-    protected function getAuditLogs(int $agentId, int $companyId, int $perPage): LengthAwarePaginator
+    protected function getAuditLogs(int $agentId, int $companyId, int $perPage, bool $includeOverrideRates = true): LengthAwarePaginator
     {
-        return AgentCommissionRateAuditLog::where('company_id', $companyId)
+        $logs = AgentCommissionRateAuditLog::where('company_id', $companyId)
             ->where('agent_id', $agentId)
             ->with([
                 'changedByUser' => fn ($query) => $query
@@ -254,5 +257,17 @@ class AgentCommissionProfileService
             ])
             ->orderByDesc('changed_at')
             ->paginate($perPage);
+
+        if (! $includeOverrideRates) {
+            // In memory only, for this response: nothing is saved.
+            $logs->getCollection()->each(fn (AgentCommissionRateAuditLog $row) => $row->forceFill([
+                'previous_direct_rate' => null,
+                'new_direct_rate' => null,
+                'previous_override_rate' => null,
+                'new_override_rate' => null,
+            ]));
+        }
+
+        return $logs;
     }
 }
