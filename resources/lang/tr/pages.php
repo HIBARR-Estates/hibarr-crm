@@ -4385,8 +4385,6 @@ return [
                 'delete_message' => 'Uçuş ve bileti fırsattan kaldırılır.',
                 'mark_arrived' => 'Vardı olarak işaretle',
                 'mark_departed' => 'Ayrıldı olarak işaretle',
-                'book_transfer' => 'Transfer ayarla',
-                'book_transfer_held' => 'Transferler henüz CRM üzerinden ayarlanamıyor',
                 'no_flight_number' => 'Uçuş numarası yok',
                 'when' => 'Ne zaman',
                 'transfer' => 'Transfer',

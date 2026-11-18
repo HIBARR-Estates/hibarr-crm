@@ -4407,8 +4407,6 @@ return [
                 'delete_message' => 'Der Flug und sein Ticket werden vom Deal entfernt.',
                 'mark_arrived' => 'Als angekommen markieren',
                 'mark_departed' => 'Als abgeflogen markieren',
-                'book_transfer' => 'Transfer buchen',
-                'book_transfer_held' => 'Transfers können noch nicht im CRM gebucht werden',
                 'no_flight_number' => 'Keine Flugnummer',
                 'when' => 'Wann',
                 'transfer' => 'Transfer',

@@ -4432,8 +4432,6 @@ return [
                 'delete_message' => 'Перелёт и билет будут удалены из сделки.',
                 'mark_arrived' => 'Отметить прилёт',
                 'mark_departed' => 'Отметить вылет',
-                'book_transfer' => 'Заказать трансфер',
-                'book_transfer_held' => 'Трансферы пока нельзя заказать из CRM',
                 'no_flight_number' => 'Без номера рейса',
                 'when' => 'Когда',
                 'transfer' => 'Трансфер',
