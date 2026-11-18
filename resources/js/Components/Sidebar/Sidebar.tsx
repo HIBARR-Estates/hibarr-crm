@@ -119,14 +119,18 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored) {
                 const parsed = JSON.parse(stored);
-                if (Array.isArray(parsed) && parsed.length > 0) {
+                // An empty array is a valid saved choice (user collapsed the
+                // open group), so it must be restored rather than treated as
+                // "nothing stored".
+                if (Array.isArray(parsed)) {
                     return new Set(parsed);
                 }
             }
         } catch {
             // ignore parse errors
         }
-        return new Set(["deals"]);
+        // Nothing saved yet: groups start collapsed.
+        return new Set<string>();
     });
 
     // Persist expanded state to localStorage whenever it changes
