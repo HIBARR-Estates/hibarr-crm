@@ -201,7 +201,7 @@ class PartnerInviteService
             // Only invitation-owned accounts have an identity this flow may
             // disable. A staff member flagged as a partner keeps their SSO
             // login: they only lose the partner flag.
-            if (self::enabled() && PartnerRole::isPartnerOnly($agent->user)) {
+            if (self::enabled() && $this->managesIdentity($agent->user)) {
                 $this->disableIdentity($agent->user);
             }
 
@@ -262,7 +262,10 @@ class PartnerInviteService
 
     public function markAccepted(User $user): void
     {
-        if ($user->partner_invite_status !== self::STATUS_INVITED) {
+        // A partner who signs in has accepted, even if the last enrolment
+        // attempt failed (they already had a verified Keycloak account).
+        // Accounts with no invite status (legacy) are left as they are.
+        if (! in_array($user->partner_invite_status, [self::STATUS_INVITED, self::STATUS_FAILED], true)) {
             return;
         }
 
@@ -284,7 +287,7 @@ class PartnerInviteService
             return;
         }
 
-        if (! PartnerRole::isPartnerOnly($user)) {
+        if (! $this->managesIdentity($user)) {
             return;
         }
 
@@ -376,15 +379,49 @@ class PartnerInviteService
                 return self::PROVISION_FAILED;
             }
 
-            Social::updateOrCreate(['user_id' => $user->id], [
-                'social_id' => $result->keycloakUserId,
-                'social_service' => 'keycloak',
-            ]);
+            // The link and the status are saved together: a link without a
+            // status would hide Resend and block a new invite for good.
+            try {
+                DB::transaction(function () use ($user, $result) {
+                    Social::updateOrCreate(['user_id' => $user->id], [
+                        'social_id' => $result->keycloakUserId,
+                        'social_service' => 'keycloak',
+                    ]);
 
-            $this->setInviteStatus($user, self::STATUS_INVITED);
+                    $this->setInviteStatus($user, self::STATUS_INVITED);
+                });
+            } catch (\Throwable $e) {
+                report($e);
+                Log::warning('Partner invite: could not record the Keycloak identity', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                // Nothing was saved; mark the attempt failed (best effort) so
+                // Resend is offered and the retry reuses the remote identity.
+                try {
+                    $this->setInviteStatus($user, self::STATUS_FAILED);
+                } catch (\Throwable) {
+                }
+
+                return self::PROVISION_FAILED;
+            }
 
             return self::PROVISIONED;
         });
+    }
+
+    /**
+     * Whether this flow owns the user's Keycloak identity: a partner-only
+     * account that went through an invitation (the persisted status is the
+     * marker). A Keycloak sign-in link alone proves nothing: every SSO user,
+     * staff included, has one.
+     */
+    private function managesIdentity(?User $user): bool
+    {
+        return $user !== null
+            && $user->partner_invite_status !== null
+            && PartnerRole::isPartnerOnly($user);
     }
 
     private function isActivePartner(User $user): bool

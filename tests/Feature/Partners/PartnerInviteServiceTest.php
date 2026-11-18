@@ -210,7 +210,7 @@ class PartnerInviteServiceTest extends TestCase
         ], 1, $this->admin);
 
         // Through a real save: the UserObserver syncs after the write.
-        $invite['agent']->user->update(['status' => 'deactive']);
+        $this->saveAndSync($invite['agent']->user, ['status' => 'deactive']);
 
         $this->assertNotEmpty($this->keycloak->updates);
         $this->assertFalse($this->keycloak->updates[array_key_last($this->keycloak->updates)]['patch']['enabled']);
@@ -225,8 +225,8 @@ class PartnerInviteServiceTest extends TestCase
         ], 1, $this->admin);
 
         $user = $invite['agent']->user;
-        $user->update(['status' => 'deactive']);
-        $user->update(['status' => 'active']);
+        $this->saveAndSync($user, ['status' => 'deactive']);
+        $this->saveAndSync($user, ['status' => 'active']);
 
         $this->assertCount(2, $this->keycloak->updates);
         $this->assertTrue($this->keycloak->updates[1]['patch']['enabled']);
@@ -241,11 +241,11 @@ class PartnerInviteServiceTest extends TestCase
         ], 1, $this->admin);
 
         $user = $invite['agent']->user;
-        $user->update(['status' => 'deactive']);
+        $this->saveAndSync($user, ['status' => 'deactive']);
         app(PartnerInviteService::class)->destroy($invite['agent']->fresh(['user', 'user.roles']));
         $updatesBefore = count($this->keycloak->updates);
 
-        $user->update(['status' => 'active']);
+        $this->saveAndSync($user, ['status' => 'active']);
 
         $this->assertCount($updatesBefore, $this->keycloak->updates);
     }
@@ -258,7 +258,7 @@ class PartnerInviteServiceTest extends TestCase
             'email' => 'ada@example.test',
         ], 1, $this->admin);
 
-        $invite['agent']->user->update(['email' => 'Ada.New@Example.test']);
+        $this->saveAndSync($invite['agent']->user, ['email' => 'Ada.New@Example.test']);
 
         $this->assertSame(['email' => 'ada.new@example.test'], $this->keycloak->updates[0]['patch']);
     }
@@ -268,8 +268,8 @@ class PartnerInviteServiceTest extends TestCase
         $this->setFeatureFlag(PartnerInviteService::FLAG, true);
         $staff = $this->insertStaffWithKeycloakLogin();
 
-        $staff->update(['status' => 'deactive']);
-        $staff->update(['email' => 'renamed@example.test']);
+        $this->saveAndSync($staff, ['status' => 'deactive']);
+        $this->saveAndSync($staff, ['email' => 'renamed@example.test']);
 
         $this->assertSame([], $this->keycloak->updates);
     }
@@ -285,7 +285,7 @@ class PartnerInviteServiceTest extends TestCase
 
         try {
             DB::transaction(function () use ($user) {
-                $user->update(['status' => 'deactive']);
+                $this->saveAndSync($user, ['status' => 'deactive']);
 
                 throw new \RuntimeException('roll back');
             });
@@ -436,6 +436,88 @@ class PartnerInviteServiceTest extends TestCase
         $this->assertSame([], $queries);
         $this->assertTrue($agent->can_resend);
         $this->assertSame(PartnerInviteService::STATUS_INVITED, $agent->partner_invite_status);
+    }
+
+    public function test_signing_in_after_a_failed_enrolment_counts_as_accepted(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $this->keycloak->failNextProvision(new OlKeycloakException('Keycloak down'));
+        $invite = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+        $user = $invite['agent']->user;
+        $this->assertSame(PartnerInviteService::STATUS_FAILED, $user->partner_invite_status);
+
+        app(PartnerInviteService::class)->markAccepted($user);
+
+        $this->assertSame(
+            PartnerInviteService::STATUS_ACCEPTED,
+            DB::table('users')->where('id', $user->id)->value('partner_invite_status'),
+        );
+    }
+
+    public function test_signing_in_leaves_accounts_without_an_invite_status_alone(): void
+    {
+        $user = $this->insertUser('Legacy', 'legacy@example.test');
+
+        app(PartnerInviteService::class)->markAccepted($user);
+
+        $this->assertNull(DB::table('users')->where('id', $user->id)->value('partner_invite_status'));
+    }
+
+    public function test_a_failed_save_of_the_identity_link_leaves_the_invite_retryable(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        // Recording the Keycloak link fails after OL already created the identity.
+        Schema::drop('socials');
+
+        $result = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+
+        $this->assertFalse($result['invite_sent']);
+        $this->assertSame(__('pages.partners.msg_enrolment_failed_created'), $result['message']);
+        $this->assertSame(PartnerInviteService::STATUS_FAILED, $result['agent']->partner_invite_status);
+        $this->assertTrue($result['agent']->can_resend);
+        Notification::assertNothingSent();
+    }
+
+    public function test_accounts_without_an_invite_status_are_not_managed_by_the_invite_flow(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        // Partner-only role and a Keycloak login, but never invited through this flow.
+        $user = $this->insertUser('Legacy Partner', 'legacy@example.test');
+        $user->attachRole(PartnerRole::ensureFor(1)->id);
+        Social::create(['user_id' => $user->id, 'social_id' => 'kc-legacy', 'social_service' => 'keycloak']);
+        $user = $user->load('roles');
+        $this->assertTrue(PartnerRole::isPartnerOnly($user));
+
+        $this->saveAndSync($user, ['status' => 'deactive']);
+        $agent = LeadAgent::create([
+            'company_id' => 1,
+            'user_id' => $user->id,
+            'status' => 'enabled',
+            'is_partner' => true,
+            'added_by' => $this->admin->id,
+        ]);
+        app(PartnerInviteService::class)->destroy($agent->load('user'));
+
+        $this->assertSame([], $this->keycloak->updates);
+    }
+
+    /**
+     * Save like the app does, then run the observer's sync. Model events are
+     * switched off in this class (setUp), so the UserObserver::updated hook is
+     * called by hand: syncLifecycle() reads wasChanged() from the real save.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    private function saveAndSync(User $user, array $attributes): void
+    {
+        $user->update($attributes);
+        app(PartnerInviteService::class)->syncLifecycle($user);
     }
 
     /** A staff member (admin role) who signs in with Keycloak SSO like everyone else. */
