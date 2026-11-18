@@ -15,6 +15,7 @@ use App\Services\CallBridge\InboundCallRotation;
 use App\Services\CallBridge\LeadPhoneMatcher;
 use App\Services\CallBridge\LineConcurrencyManager;
 use App\Services\PermissionService;
+use App\Support\CallRefOwnership;
 use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -122,7 +123,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
             ]);
         }
 
-        $this->emitIncomingCallOnce($companyId, $authoritativeCallKey ?? $callId ?? $callRef, $request->input('phone'), $matchingLeads->first());
+        $this->emitIncomingCallOnce($companyId, $authoritativeCallKey ?? $callId ?? $callRef, $request->input('phone'), $matchingLeads->first(), is_scalar($callRef) ? (string) $callRef : null);
 
         $poolUsers = $this->getAvailableAgentsForTier($companyId, SoftphoneCallPoolAgent::TIER_LINE, $deviceId, 'pool');
         [$lead, $owner] = $this->resolveLeadAndOwner($matchingLeads, $companyId, $deviceId);
@@ -278,7 +279,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
     }
 
     /** Tell the call bridge (OL) about an incoming call, once per call. */
-    private function emitIncomingCallOnce(int $companyId, ?string $callKey, ?string $phone, ?Lead $lead): void
+    private function emitIncomingCallOnce(int $companyId, ?string $callKey, ?string $phone, ?Lead $lead, ?string $callRef = null): void
     {
         $callKey = trim((string) $callKey);
         if ($callKey === '') {
@@ -296,6 +297,9 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 'direction' => 'inbound',
                 'phone_number' => $phone,
                 'status' => 'ringing',
+                // Same key the answer/hang-up events and the recording use, so
+                // OL keeps one row per call instead of one per identifier.
+                'call_ref' => $callRef ?: $callKey,
             ];
             if ($lead !== null) {
                 $payload['entity_type'] = 'lead';
@@ -614,6 +618,20 @@ class TelephonySoftphoneEventController extends AccountBaseController
             'forwarded_from_user_name' => 'nullable|string|max:180',
         ]);
 
+        // The call ref comes from the browser and links timeline rows, the
+        // recording and OL's call log. One another company already uses is
+        // dropped before anything stores or forwards it; the event itself is
+        // still logged.
+        if (! empty($validated['call_ref'])
+            && CallRefOwnership::belongsToAnotherCompany((string) $validated['call_ref'], (int) company()->id)) {
+            Log::warning('TelephonySoftphoneEventController: call ref used by another company; dropped', [
+                'user_id' => (int) user()->id,
+                'company_id' => (int) company()->id,
+                'event' => $validated['event'] ?? null,
+            ]);
+            unset($validated['call_ref']);
+        }
+
         $isInbound = in_array($validated['direction'] ?? null, ['inbound', 'incoming'], true);
         $entityType = $validated['entity_type'] ?? null;
         $entityId = isset($validated['entity_id']) ? (int) $validated['entity_id'] : null;
@@ -800,6 +818,11 @@ class TelephonySoftphoneEventController extends AccountBaseController
                     'direction' => $emitDirection,
                     'phone_number' => $validated['phone'],
                     'status' => $validated['status'] ?? null,
+                    'duration' => $validated['duration'] ?? null,
+                    // OL keys the call on call_ref, so the recording upload
+                    // (which carries the same ref) lands on the same OL row.
+                    'call_ref' => $validated['call_ref'] ?? $callId,
+                    'agent_email' => user()?->email,
                 ];
                 if (! empty($entityType) && ! empty($entityId)) {
                     $emitPayload['entity_type'] = $entityType;
