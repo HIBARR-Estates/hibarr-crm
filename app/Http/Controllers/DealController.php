@@ -1329,6 +1329,7 @@ class DealController extends AccountBaseController
         $dealFollowUps = DealFollowUp::with([
             'addedBy:id,name,image',
             'host:id,name,image',
+            'outcomeLoggedBy:id,name,image',
             'meetingType',
             'meetingSummary',
             'lead:id,client_name,mobile,cell,office',
@@ -3420,6 +3421,7 @@ class DealController extends AccountBaseController
         $followUp = DealFollowUp::with([
             'addedBy:id,name,image',
             'host:id,name,image',
+            'outcomeLoggedBy:id,name,image',
             'meetingType',
             'meetingSummary',
             'lead:id,client_name,mobile,cell,office',

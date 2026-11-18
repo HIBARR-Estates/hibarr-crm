@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\CallLog\CallKey;
 use App\Services\CallLog\CallLogService;
 use App\Services\FeatureFlagService;
 use Illuminate\Database\Schema\Blueprint;
@@ -35,6 +36,9 @@ class CallLogServiceTest extends TestCase
     private const VISIBLE_DEAL_ID = 20;
 
     private const HIDDEN_DEAL_ID = 21;
+
+    /** Key rows as they are inserted (the created hook); off to test the backfill. */
+    private bool $keyOnInsert = true;
 
     protected function setUp(): void
     {
@@ -181,6 +185,280 @@ class CallLogServiceTest extends TestCase
         $this->assertNotNull($summary['last_at']);
     }
 
+    // ─── One row per call ───────────────────────────────────────────────
+
+    public function test_a_call_that_rang_several_agents_is_one_row_with_every_leg(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $this->insertUser(self::VIEWER_ID, 'Ana');
+        $this->insertUser(self::OTHER_AGENT_ID, 'Ben');
+        $this->insertUser(101, 'Cem');
+        $recordingId = $this->insertRecording(self::VIEWER_ID);
+        $sip = ['call_id' => 'sip-abc', 'phone_number' => '+49 170 1'];
+        $inbound = ['direction' => 'inbound', 'model_type' => \App\Models\Lead::class, 'model_id' => self::LEAD_ID];
+
+        $this->insertEvent($inbound + ['user_id' => self::OTHER_AGENT_ID, 'slug' => 'call_declined', 'metadata' => $sip, 'occurred_at' => now()->subSeconds(40)]);
+        $this->insertEvent($inbound + ['user_id' => 101, 'slug' => 'call_declined', 'metadata' => $sip, 'occurred_at' => now()->subSeconds(30)]);
+        $this->insertEvent($inbound + ['user_id' => self::VIEWER_ID, 'slug' => 'call_started', 'metadata' => $sip + ['call_ref' => 'r1'], 'occurred_at' => now()->subSeconds(20)]);
+        $answered = $this->insertEvent($inbound + ['user_id' => self::VIEWER_ID, 'metadata' => $sip + ['call_ref' => 'r1', 'duration' => 15, 'recording_id' => $recordingId]]);
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50));
+
+        $this->assertCount(1, $rows, 'Every leg of one call must fold into one row.');
+        $row = $rows[0];
+        $this->assertSame($answered, $row['id']);
+        $this->assertSame('ended', $row['outcome']);
+        $this->assertTrue($row['answered']);
+        $this->assertSame('Ana', $row['answered_by_user_name']);
+        $this->assertSame(15, $row['duration']);
+        $this->assertSame('playable', $row['recording']['state']);
+        $this->assertSame(3, $row['rang_count']);
+        $this->assertSame(
+            [['Ben', 'declined'], ['Cem', 'declined'], ['Ana', 'ended']],
+            array_map(fn ($leg) => [$leg['user_name'], $leg['outcome']], $row['legs'])
+        );
+    }
+
+    public function test_older_unanswered_legs_with_per_browser_ids_still_fold_into_one_call(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+
+        foreach ([self::VIEWER_ID, self::OTHER_AGENT_ID, 101] as $i => $agent) {
+            $ref = 'browser-'.$agent;
+            $this->insertEvent([
+                'direction' => 'inbound',
+                'user_id' => $agent,
+                'slug' => 'call_missed',
+                'metadata' => ['call_id' => $ref, 'call_ref' => $ref, 'phone_number' => '+49 170 2'],
+                'occurred_at' => now()->startOfMinute()->addSeconds($i * 5),
+            ]);
+        }
+        // Another caller at the same moment stays its own call.
+        $this->insertEvent([
+            'direction' => 'inbound',
+            'slug' => 'call_missed',
+            'metadata' => ['call_id' => 'x', 'call_ref' => 'x', 'phone_number' => '+49 170 3'],
+            'occurred_at' => now()->startOfMinute(),
+        ]);
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50));
+
+        $this->assertCount(2, $rows);
+        $grouped = collect($rows)->firstWhere('phone_number', '+49 170 2');
+        $this->assertSame('missed', $grouped['outcome']);
+        $this->assertFalse($grouped['answered']);
+        $this->assertSame(3, $grouped['rang_count']);
+        $this->assertNull($grouped['user_id'], 'Nobody answered, so no single agent owns the call.');
+    }
+
+    public function test_a_call_that_only_rang_two_agents_before_the_caller_hung_up_is_not_answered(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $ringing = ['direction' => 'inbound', 'slug' => 'call_started'];
+
+        // incoming_call from each ringing agent's tab is stored as call_started.
+        $this->insertEvent($ringing + ['user_id' => self::VIEWER_ID, 'metadata' => ['call_id' => 'sip-gone', 'call_ref' => 'ra', 'phone_number' => '+49 1'], 'occurred_at' => now()->subSeconds(20)]);
+        $this->insertEvent($ringing + ['user_id' => self::OTHER_AGENT_ID, 'metadata' => ['call_id' => 'sip-gone', 'call_ref' => 'rb', 'phone_number' => '+49 1'], 'occurred_at' => now()->subSeconds(19)]);
+
+        $row = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50))[0];
+
+        $this->assertFalse($row['answered'], 'Ringing is not answering.');
+        $this->assertNull($row['answered_by_user_id']);
+        $this->assertSame(2, $row['rang_count']);
+        $this->assertSame(0, app(CallLogService::class)->summary(self::COMPANY_ID, null)['connected']);
+    }
+
+    public function test_an_outbound_call_logged_as_started_then_busy_reads_busy(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+
+        // Click-to-call logs call_started when it dials, before anyone answers.
+        $this->insertEvent(['slug' => 'call_started', 'metadata' => ['call_id' => 'out-1'], 'occurred_at' => now()->subSeconds(5)]);
+        $this->insertEvent(['slug' => 'call_busy', 'metadata' => ['call_id' => 'out-1', 'failure_reason' => 'busy']]);
+
+        $row = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50))[0];
+
+        $this->assertSame('busy', $row['outcome']);
+        $this->assertFalse($row['answered']);
+        $this->assertSame('busy', $row['failure_reason'], 'The reason it did not connect is kept.');
+    }
+
+    public function test_an_older_missed_leg_joins_the_call_it_rang_for_across_window_boundaries(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $this->insertUser(self::VIEWER_ID, 'Ana');
+        $this->insertUser(self::OTHER_AGENT_ID, 'Ben');
+        $inbound = ['direction' => 'inbound'];
+        // Straddles a three-minute boundary, which the number-only fallback would split.
+        $ringAt = now()->setTime(10, 2, 50);
+
+        $this->insertEvent($inbound + ['slug' => 'call_started', 'user_id' => self::OTHER_AGENT_ID, 'metadata' => ['call_id' => 'sip-9', 'call_ref' => 'b1', 'phone_number' => '+49 9'], 'occurred_at' => $ringAt]);
+        $this->insertEvent($inbound + ['slug' => 'call_started', 'user_id' => self::VIEWER_ID, 'metadata' => ['call_id' => 'sip-9', 'call_ref' => 'a1', 'phone_number' => '+49 9'], 'occurred_at' => $ringAt]);
+        // Ben's slot timed out; the old dock logged it under a per-browser id.
+        $this->insertEvent($inbound + ['slug' => 'call_missed', 'user_id' => self::OTHER_AGENT_ID, 'metadata' => ['call_id' => 'b1', 'call_ref' => 'b1', 'phone_number' => '+49 9'], 'occurred_at' => $ringAt->copy()->addSeconds(20)]);
+        $this->insertEvent($inbound + ['user_id' => self::VIEWER_ID, 'metadata' => ['call_id' => 'sip-9', 'call_ref' => 'a1', 'phone_number' => '+49 9', 'duration' => 30], 'occurred_at' => $ringAt->copy()->addSeconds(25)]);
+        // A later, separate call from the same number stays its own row.
+        $this->insertEvent($inbound + ['slug' => 'call_missed', 'user_id' => self::OTHER_AGENT_ID, 'metadata' => ['call_id' => 'b2', 'call_ref' => 'b2', 'phone_number' => '+49 9'], 'occurred_at' => $ringAt->copy()->addMinutes(10)]);
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50));
+
+        $this->assertCount(2, $rows);
+        $call = collect($rows)->firstWhere('answered', true);
+        $this->assertSame('Ana', $call['answered_by_user_name']);
+        $this->assertSame(
+            [['Ben', 'missed'], ['Ana', 'ended']],
+            array_map(fn ($leg) => [$leg['user_name'], $leg['outcome']], $call['legs'])
+        );
+    }
+
+    public function test_started_and_completed_sharing_only_a_call_ref_are_one_call(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $meta = ['call_ref' => 'e83fa496', 'phone_number' => '015792530585'];
+
+        $this->insertEvent(['direction' => 'inbound', 'slug' => 'call_started', 'metadata' => $meta, 'correlation_id' => (string) Str::uuid(), 'occurred_at' => now()->subSeconds(16)]);
+        $this->insertEvent(['direction' => 'inbound', 'metadata' => $meta + ['duration' => 15], 'correlation_id' => (string) Str::uuid()]);
+        // A placeholder ref shared by unrelated calls must not merge them.
+        $this->insertEvent(['direction' => 'inbound', 'slug' => 'call_started', 'metadata' => ['call_ref' => 'call-179', 'phone_number' => '1'], 'occurred_at' => now()->subHour()]);
+        $this->insertEvent(['direction' => 'inbound', 'slug' => 'call_started', 'metadata' => ['call_ref' => 'call-179', 'phone_number' => '2'], 'occurred_at' => now()->subHours(2)]);
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50));
+
+        $this->assertCount(3, $rows);
+        $this->assertSame('ended', $rows[0]['outcome']);
+        $this->assertCount(2, $rows[0]['event_ids']);
+        $this->assertSame(15, $rows[0]['duration']);
+    }
+
+    public function test_an_outbound_start_without_ids_joins_the_outcome_that_followed_it(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $to = ['direction' => 'outbound', 'model_type' => \App\Models\Lead::class, 'model_id' => self::LEAD_ID];
+        $base = now()->subHour();
+
+        // Two unanswered attempts, then a third that connected.
+        $first = $this->insertEvent($to + ['slug' => 'call_started', 'metadata' => ['phone_number' => '+90 1'], 'occurred_at' => $base]);
+        $second = $this->insertEvent($to + ['slug' => 'call_started', 'metadata' => ['phone_number' => '+90 1'], 'occurred_at' => $base->copy()->addMinutes(3)]);
+        $this->insertEvent($to + ['slug' => 'call_started', 'metadata' => ['phone_number' => '+90 1'], 'occurred_at' => $base->copy()->addMinutes(6)]);
+        $ended = $this->insertEvent($to + ['metadata' => ['phone_number' => '+90 1', 'call_ref' => '03cc5777', 'duration' => 11], 'occurred_at' => $base->copy()->addMinutes(6)->addSeconds(17)]);
+        // Another agent's call to the same number is not this one.
+        $this->insertEvent($to + ['user_id' => self::OTHER_AGENT_ID, 'slug' => 'call_started', 'metadata' => ['phone_number' => '+90 1'], 'occurred_at' => $base->copy()->addMinutes(5)]);
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50));
+
+        $this->assertCount(4, $rows, 'Three calls by the viewer, one by the other agent.');
+        $connected = collect($rows)->firstWhere('id', $ended);
+        $this->assertSame('ended', $connected['outcome']);
+        $this->assertCount(2, $connected['event_ids'], 'Started and completed are one row.');
+        $this->assertNull(collect($rows)->first(fn ($r) => in_array($first, $r['event_ids'], true) && in_array($ended, $r['event_ids'], true)));
+        $this->assertSame([$second], collect($rows)->first(fn ($r) => in_array($second, $r['event_ids'], true))['event_ids']);
+    }
+
+    public function test_the_backfill_keys_existing_rows_the_same_way_as_writes_do(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $this->keyOnInsert = false;
+        $to = ['direction' => 'outbound'];
+
+        $this->insertEvent($to + ['slug' => 'call_started', 'metadata' => ['phone_number' => '+90 2'], 'occurred_at' => now()->subSeconds(30)]);
+        $this->insertEvent($to + ['metadata' => ['phone_number' => '+90 2', 'call_ref' => 'ref-1', 'duration' => 12]]);
+        $this->insertEvent(['direction' => 'inbound', 'slug' => 'call_started', 'metadata' => ['call_id' => 'sip-7', 'phone_number' => '3']]);
+        $this->assertSame(3, DB::table('crm_events')->whereNull('call_key')->count());
+
+        $this->assertSame(3, app(CallKey::class)->backfill(2));
+        $this->assertSame(0, DB::table('crm_events')->whereNull('call_key')->count());
+        $this->assertSame(0, app(CallKey::class)->backfill(), 'Re-running only fills rows still missing a key.');
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50));
+        $this->assertCount(2, $rows);
+        $this->assertSame(['started', 'ended'], array_column($rows, 'outcome'), 'Newest first: the inbound call, then the outbound one folded into one row.');
+        $this->assertCount(2, $rows[1]['event_ids']);
+    }
+
+    public function test_a_call_that_connects_after_midnight_keeps_its_outcome_under_a_date_filter(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $inbound = ['direction' => 'inbound', 'user_id' => self::VIEWER_ID];
+
+        $this->insertEvent($inbound + ['slug' => 'call_started', 'metadata' => ['call_id' => 'sip-night', 'call_ref' => 'r', 'phone_number' => '5'], 'occurred_at' => '2026-11-10 23:59:50']);
+        $this->insertEvent($inbound + ['metadata' => ['call_id' => 'sip-night', 'call_ref' => 'r', 'phone_number' => '5', 'duration' => 40], 'occurred_at' => '2026-11-11 00:00:35']);
+        // Entirely on the next day, so outside the range.
+        $this->insertEvent($inbound + ['slug' => 'call_missed', 'metadata' => ['call_id' => 'sip-next', 'phone_number' => '6'], 'occurred_at' => '2026-11-11 09:00:00']);
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, ['from' => '2026-11-10', 'to' => '2026-11-10'], null, 50));
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('ended', $rows[0]['outcome'], 'The connected leg after midnight still counts.');
+        $this->assertTrue($rows[0]['answered']);
+        $this->assertSame(40, $rows[0]['duration']);
+    }
+
+    public function test_only_browser_local_placeholders_are_ignored_as_call_ids(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $inbound = ['direction' => 'inbound', 'slug' => 'call_started'];
+
+        // A PBX id that happens to start with "call-" is a real shared id.
+        $this->insertEvent($inbound + ['user_id' => self::VIEWER_ID, 'metadata' => ['call_id' => 'call-abc@pbx', 'call_ref' => 'a', 'phone_number' => '7']]);
+        $this->insertEvent($inbound + ['user_id' => self::OTHER_AGENT_ID, 'metadata' => ['call_id' => 'call-abc@pbx', 'call_ref' => 'b', 'phone_number' => '7']]);
+        // Browser-local counters repeat across unrelated calls.
+        $this->insertEvent($inbound + ['metadata' => ['call_id' => 'call-3', 'phone_number' => '8'], 'occurred_at' => now()->subHour()]);
+        $this->insertEvent($inbound + ['metadata' => ['call_id' => 'call-3', 'phone_number' => '9'], 'occurred_at' => now()->subHours(2)]);
+        $this->insertEvent($inbound + ['metadata' => ['call_id' => 'call-waiting-2', 'phone_number' => '8'], 'occurred_at' => now()->subHours(3)]);
+        $this->insertEvent($inbound + ['metadata' => ['call_id' => 'call-waiting-2', 'phone_number' => '9'], 'occurred_at' => now()->subHours(4)]);
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50));
+
+        $this->assertCount(5, $rows);
+        $this->assertSame(2, $rows[0]['rang_count'], 'Both legs of the PBX call are one row.');
+    }
+
+    public function test_two_redials_in_the_same_second_stay_separate_calls(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $to = ['direction' => 'outbound'];
+        $at = now()->subMinute()->startOfSecond();
+
+        $first = $this->insertEvent($to + ['slug' => 'call_started', 'metadata' => ['phone_number' => '+90 3'], 'occurred_at' => $at]);
+        $second = $this->insertEvent($to + ['slug' => 'call_started', 'metadata' => ['phone_number' => '+90 3'], 'occurred_at' => $at]);
+        $ended = $this->insertEvent($to + ['metadata' => ['phone_number' => '+90 3', 'call_ref' => 'r-2', 'duration' => 5], 'occurred_at' => $at->copy()->addSeconds(10)]);
+
+        $rows = collect($this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50)));
+
+        $this->assertCount(2, $rows);
+        $this->assertSame([$second, $ended], $rows->firstWhere('id', $ended)['event_ids'], 'Only the later redial joins the outcome.');
+        $this->assertSame([$first], $rows->first(fn ($r) => in_array($first, $r['event_ids'], true))['event_ids']);
+    }
+
+    public function test_filters_and_summary_judge_the_call_not_its_legs(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+        $inbound = ['direction' => 'inbound', 'model_type' => \App\Models\Lead::class, 'model_id' => self::LEAD_ID];
+
+        // Answered by the viewer after another agent passed it.
+        $this->insertEvent($inbound + ['user_id' => self::OTHER_AGENT_ID, 'slug' => 'call_declined', 'metadata' => ['call_id' => 'a']]);
+        $this->insertEvent($inbound + ['metadata' => ['call_id' => 'a', 'duration' => 40]]);
+        // Rang two agents, nobody answered.
+        $this->insertEvent($inbound + ['slug' => 'call_missed', 'metadata' => ['call_id' => 'b']]);
+        $this->insertEvent($inbound + ['user_id' => self::OTHER_AGENT_ID, 'slug' => 'call_declined', 'metadata' => ['call_id' => 'b']]);
+
+        $service = app(CallLogService::class);
+
+        $missed = $this->rows($service->paginate($viewer, self::COMPANY_ID, ['outcome' => 'missed'], null, 50));
+        $this->assertCount(1, $missed, 'A call someone answered is not missed because another agent passed it.');
+        $this->assertSame(2, $missed[0]['rang_count']);
+
+        $byAgent = $service->paginate($viewer, self::COMPANY_ID, ['user_id' => self::OTHER_AGENT_ID], null, 50);
+        $this->assertSame(2, $byAgent->total(), 'Both calls rang the other agent.');
+        $this->assertSame(2, $this->rows($byAgent)[0]['rang_count'], 'The agent filter still shows the whole call.');
+
+        $summary = $service->summary(self::COMPANY_ID, ['lead_ids' => [self::LEAD_ID]]);
+        $this->assertSame(2, $summary['total']);
+        $this->assertSame(1, $summary['connected']);
+        $this->assertSame(40, $summary['connected_seconds']);
+        $this->assertSame(1, $summary['missed']);
+    }
+
     // ─── Endpoint gate ──────────────────────────────────────────────────
 
     public function test_the_company_call_log_needs_manage_calls(): void
@@ -229,6 +507,7 @@ class CallLogServiceTest extends TestCase
         $flags = Mockery::mock(FeatureFlagService::class);
         $flags->shouldReceive('isEnabled')->andReturn(true);
         $flags->shouldReceive('all')->andReturn([]);
+        $flags->shouldReceive('clearTestingOverrides')->andReturnNull();
         $this->instance(FeatureFlagService::class, $flags);
     }
 
@@ -242,7 +521,7 @@ class CallLogServiceTest extends TestCase
         $metadata = $attributes['metadata'] ?? [];
         unset($attributes['metadata']);
 
-        return (int) DB::table('crm_events')->insertGetId(array_merge([
+        $id = (int) DB::table('crm_events')->insertGetId(array_merge([
             'uuid' => (string) Str::uuid(),
             'company_id' => self::COMPANY_ID,
             'event_type_id' => (int) DB::table('crm_event_types')->where('slug', $slug)->value('id'),
@@ -259,6 +538,19 @@ class CallLogServiceTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ], $attributes));
+
+        // Keyed as CrmEvent::created does in production, unless the test
+        // checks the backfill.
+        if ($this->keyOnInsert) {
+            app(CallKey::class)->assignFor(\App\Models\CrmEvent::withoutGlobalScopes()->findOrFail($id));
+        }
+
+        return $id;
+    }
+
+    private function insertUser(int $id, string $name): void
+    {
+        DB::table('users')->insert(['id' => $id, 'name' => $name, 'company_id' => self::COMPANY_ID, 'created_at' => now(), 'updated_at' => now()]);
     }
 
     private function insertRecording(int $userId, $expiresAt = null): int
@@ -301,8 +593,8 @@ class CallLogServiceTest extends TestCase
             DB::table('crm_event_types')->insert([
                 'company_id' => null,
                 'category_id' => $categoryId,
-                'name' => 'call_' . $outcome,
-                'slug' => 'call_' . $outcome,
+                'name' => 'call_'.$outcome,
+                'slug' => 'call_'.$outcome,
                 'is_system' => true,
                 'is_active' => true,
                 'created_at' => now(),
@@ -387,6 +679,7 @@ class CallLogServiceTest extends TestCase
             $table->string('model_type')->nullable();
             $table->unsignedBigInteger('model_id')->nullable();
             $table->uuid('correlation_id')->nullable();
+            $table->string('call_key', 191)->nullable();
             $table->unsignedInteger('causation_id')->nullable();
             $table->string('source')->nullable();
             $table->string('ip_address')->nullable();
