@@ -2,13 +2,17 @@
 
 namespace Tests\Feature\PaymentRequests;
 
+use App\Models\Deal;
+use App\Models\Payment;
 use App\Models\User;
+use App\Services\DealPaymentService;
 use App\Support\FeatureFlags;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\Concerns\SetsFeatureFlags;
 use Tests\TestCase;
 
@@ -438,15 +442,6 @@ class PaymentRequestListTest extends TestCase
             ->assertStatus(422);
     }
 
-    /**
-     * Full HTTP-level 404/403 assertions would require reproducing
-     * AccountBaseController's whole authenticated-request environment
-     * (admin approval, company, modules, sidebar perms, ...) — there is no
-     * existing precedent for that combined with a real middleware stack in
-     * this repo. Instead, and matching the established style of
-     * DealPaymentPermissionTest, these assert the exact two conditions the
-     * controller's constructor gate is built from.
-     */
     public function test_a_cancelled_request_can_be_deleted_and_leaves_every_total(): void
     {
         $this->withoutMiddleware();
@@ -455,9 +450,7 @@ class PaymentRequestListTest extends TestCase
         $keep = $this->insertPayment(['external_reference' => '801', 'ol_status' => 'pending', 'ol_payment_type' => 'manual', 'base_amount' => 100]);
         $cancelled = $this->insertPayment(['external_reference' => '802', 'ol_status' => 'cancelled', 'base_amount' => 40]);
 
-        $this->deleteJson(route('deals.payment-requests.destroy', ['deal' => 10, 'payment' => $cancelled]))
-            ->assertOk()
-            ->assertJsonPath('status', 'success');
+        $this->deleteCancelled(10, $cancelled);
 
         // Soft deleted: the row stays as a trace, but nothing counts it.
         $this->assertSoftDeleted('payments', ['id' => $cancelled]);
@@ -476,9 +469,6 @@ class PaymentRequestListTest extends TestCase
 
     public function test_only_cancelled_requests_can_be_deleted(): void
     {
-        $this->withoutMiddleware();
-        $this->actingAsEditor();
-
         foreach ([
             ['pending', 'manual'],
             ['confirming', 'manual'],
@@ -488,27 +478,54 @@ class PaymentRequestListTest extends TestCase
         ] as $i => [$olStatus, $type]) {
             $id = $this->insertPayment(['external_reference' => '90'.$i, 'ol_status' => $olStatus, 'ol_payment_type' => $type]);
 
-            $this->deleteJson(route('deals.payment-requests.destroy', ['deal' => 10, 'payment' => $id]))
-                ->assertStatus(409)
-                ->assertJsonPath('status', 'fail');
+            try {
+                $this->deleteCancelled(10, $id);
+                $this->fail("A {$olStatus} request must not be deletable.");
+            } catch (HttpException $e) {
+                $this->assertSame(409, $e->getStatusCode());
+            }
 
-            $this->assertDatabaseHas('payments', ['id' => $id]);
+            $this->assertDatabaseHas('payments', ['id' => $id, 'deleted_at' => null]);
         }
     }
 
     public function test_a_request_cannot_be_deleted_through_another_deal(): void
     {
-        $this->withoutMiddleware();
-        $this->actingAsEditor();
-
         $id = $this->insertPayment(['external_reference' => '950', 'ol_status' => 'cancelled']);
 
-        $this->deleteJson(route('deals.payment-requests.destroy', ['deal' => 11, 'payment' => $id]))
-            ->assertStatus(404);
+        try {
+            $this->deleteCancelled(11, $id);
+            $this->fail('A request must not be deletable through another deal.');
+        } catch (HttpException $e) {
+            $this->assertSame(404, $e->getStatusCode());
+        }
 
-        $this->assertDatabaseHas('payments', ['id' => $id]);
+        $this->assertDatabaseHas('payments', ['id' => $id, 'deleted_at' => null]);
     }
 
+    /**
+     * Calls the service the route's controller delegates to. The route itself
+     * is not driven here: its deal and payment bindings need the full app
+     * schema, and the repo has no precedent for combining that with this
+     * minimal one.
+     */
+    private function deleteCancelled(int $dealId, int $paymentId): void
+    {
+        $deal = (new Deal)->forceFill(['id' => $dealId]);
+        $payment = Payment::withoutGlobalScopes()->findOrFail($paymentId);
+
+        app(DealPaymentService::class)->deleteCancelled($deal, $payment);
+    }
+
+    /**
+     * Full HTTP-level 404/403 assertions would require reproducing
+     * AccountBaseController's whole authenticated-request environment
+     * (admin approval, company, modules, sidebar perms, ...) — there is no
+     * existing precedent for that combined with a real middleware stack in
+     * this repo. Instead, and matching the established style of
+     * DealPaymentPermissionTest, these assert the exact two conditions the
+     * controller's constructor gate is built from.
+     */
     public function test_gate_denies_when_feature_flag_disabled(): void
     {
         $this->setFeatureFlag('packages.online-payment', false);
@@ -541,6 +558,8 @@ class PaymentRequestListTest extends TestCase
         $user->id = 99;
         $user->company_id = $this->companyId;
         $user->shouldReceive('permission')->andReturn('all');
+        // The finance gate reads roles first; an empty set avoids the role_user table.
+        $user->setRelation('roles', collect());
         $this->actingAs($user);
         session(['user' => $user, 'company' => (object) ['id' => $this->companyId]]);
     }
