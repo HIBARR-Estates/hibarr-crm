@@ -32,7 +32,7 @@ interface PartnerAgent {
     /** True for an account made through Invite Partner, which can be re-invited. */
     can_resend?: boolean;
     partner_invite_status?: InviteStatus | null;
-    user: { id: number; name: string; email: string; image?: string | null; updated_at?: string | null } | null;
+    user: { id: number; name: string; email: string; image?: string | null; partner_invite_version?: number | null } | null;
 }
 
 interface Stats {
@@ -85,10 +85,10 @@ const ROW_GRID = "xl:grid xl:grid-cols-[32px_minmax(0,1fr)_88px_92px_120px_220px
 
 /** True when `incoming` carries an older version of the user than `current`. */
 const isOlder = (incoming: PartnerAgent, current: PartnerAgent): boolean => {
-    const a = incoming.user?.updated_at;
-    const b = current.user?.updated_at;
-    if (!a || !b) return false;
-    return new Date(a).getTime() < new Date(b).getTime();
+    const a = incoming.user?.partner_invite_version;
+    const b = current.user?.partner_invite_version;
+    if (a == null || b == null) return false;
+    return a < b;
 };
 
 const inviteBadgeVariant = (status: InviteStatus): "amber" | "green" | "red" => {
@@ -190,7 +190,7 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
             // The server reports a failed resend in the body (HTTP 200), and the
             // invite status may have changed either way: patch the row from it,
             // unless the row on screen is already newer (compared by the user's
-            // updated_at, which every status change bumps).
+            // partner_invite_version, which every status change increments).
             if (data?.agent) {
                 const updated = data.agent as PartnerAgent;
                 setRows((prev) =>

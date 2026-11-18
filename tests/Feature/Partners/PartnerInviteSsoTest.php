@@ -51,6 +51,7 @@ class PartnerInviteSsoTest extends TestCase
             $table->string('status')->default('active');
             $table->string('login')->default('enable');
             $table->string('partner_invite_status', 16)->nullable();
+            $table->unsignedInteger('partner_invite_version')->default(0);
             $table->timestamp('partner_invited_at')->nullable();
             $table->integer('admin_approval')->nullable();
             $table->text('headers')->nullable();

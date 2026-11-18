@@ -733,18 +733,44 @@ class PartnerInviteServiceTest extends TestCase
         return $controller;
     }
 
-    public function test_every_invite_status_change_bumps_the_users_version(): void
+    public function test_every_invite_status_change_increments_the_version_even_within_one_second(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $service = app(PartnerInviteService::class);
+        $invite = $service->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+        $userId = $invite['agent']->user_id;
+        $afterInvite = (int) DB::table('users')->where('id', $userId)->value('partner_invite_version');
+        $this->assertGreaterThanOrEqual(1, $afterInvite);
+
+        // Two changes back to back (same second): resend, then acceptance.
+        $service->resend($invite['agent']->fresh(['user', 'user.roles']), $this->admin);
+        $afterResend = (int) DB::table('users')->where('id', $userId)->value('partner_invite_version');
+        $service->markAccepted(User::withoutGlobalScopes()->find($userId));
+        $afterAccept = (int) DB::table('users')->where('id', $userId)->value('partner_invite_version');
+
+        $this->assertSame($afterInvite + 1, $afterResend);
+        $this->assertSame($afterResend + 1, $afterAccept);
+    }
+
+    public function test_the_version_reaches_the_browser_in_the_roster_and_resend_payloads(): void
     {
         $this->setFeatureFlag(PartnerInviteService::FLAG, true);
         $invite = app(PartnerInviteService::class)->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
-        $userId = $invite['agent']->user_id;
-        DB::table('users')->where('id', $userId)->update(['updated_at' => '2020-01-01 00:00:00']);
 
-        app(PartnerInviteService::class)->markAccepted($invite['agent']->user);
+        $roster = LeadAgent::query()
+            ->withCount('referredLeads')
+            ->with(PartnerInviteService::AGENT_RELATIONS)
+            ->findOrFail($invite['agent']->id);
+        app(PartnerInviteService::class)->decorate($roster);
+        $response = $this->partnerController()->resendInvite($invite['agent']->id);
 
-        $this->assertNotSame('2020-01-01 00:00:00', (string) DB::table('users')->where('id', $userId)->value('updated_at'));
-        // The roster reads it through the shared relation list.
-        $this->assertStringContainsString('updated_at', implode(',', PartnerInviteService::AGENT_RELATIONS));
+        // toArray() is what is sent as JSON: hidden attributes would be missing.
+        $this->assertArrayHasKey('partner_invite_version', $roster->toArray()['user']);
+        $this->assertArrayHasKey('partner_invite_version', $response['agent']->toArray()['user']);
+        $this->assertGreaterThan(
+            $roster->toArray()['user']['partner_invite_version'],
+            $response['agent']->toArray()['user']['partner_invite_version'],
+        );
     }
 
     public function test_an_accepted_partner_is_not_resendable_even_if_provisioning_is_switched_off(): void
@@ -827,6 +853,7 @@ class PartnerInviteServiceTest extends TestCase
             $t->string('status')->default('active');
             $t->string('login')->default('enable');
             $t->string('partner_invite_status', 16)->nullable();
+            $t->unsignedInteger('partner_invite_version')->default(0);
             $t->timestamp('partner_invited_at')->nullable();
             $t->text('headers')->nullable();
             $t->string('register_ip')->nullable();

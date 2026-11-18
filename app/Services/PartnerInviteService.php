@@ -26,7 +26,7 @@ class PartnerInviteService
 
     /** The user columns a roster row needs; company_id keeps the company relation (invite email link and sender). */
     public const AGENT_RELATIONS = [
-        'user:id,company_id,name,email,image,status,partner_invite_status,partner_invited_at,updated_at',
+        'user:id,company_id,name,email,image,status,partner_invite_status,partner_invited_at,partner_invite_version',
         'user.roles',
     ];
 
@@ -569,9 +569,13 @@ class PartnerInviteService
      */
     private function setInviteStatus(User $user, string $status): void
     {
-        // updated_at is the row's version: the roster compares it so an older
+        // partner_invite_version counts status changes (incremented in SQL, so
+        // concurrent changes each add one): the roster compares it so an older
         // response never replaces newer state on screen.
-        $values = ['partner_invite_status' => $status, 'updated_at' => now()];
+        $values = [
+            'partner_invite_status' => $status,
+            'partner_invite_version' => DB::raw('partner_invite_version + 1'),
+        ];
         if ($status === self::STATUS_INVITED) {
             $values['partner_invited_at'] = now();
         }
