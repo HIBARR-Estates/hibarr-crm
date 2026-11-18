@@ -77,7 +77,7 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
                         placeholder
                             ? td(placeholder, { source: "en" })
                             : t("pages.filters.placeholder_search", {
-                                  label: td(label, { source: "en" }).toLowerCase(),
+                                  label: td(label, { source: "en" }),
                               })
                     }
                     value={value || ""}
@@ -121,7 +121,7 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
                         placeholder
                             ? td(placeholder, { source: "en" })
                             : t("pages.filters.placeholder_select", {
-                                  label: td(label, { source: "en" }).toLowerCase(),
+                                  label: td(label, { source: "en" }),
                               })
                     }
                     style={{ width: "100%" }}
@@ -172,7 +172,7 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
                         placeholder
                             ? td(placeholder, { source: "en" })
                             : t("pages.filters.placeholder_select", {
-                                  label: td(label, { source: "en" }).toLowerCase(),
+                                  label: td(label, { source: "en" }),
                               })
                     }
                     style={{ width: "100%" }}
@@ -217,7 +217,7 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
                         placeholder
                             ? td(placeholder, { source: "en" })
                             : t("pages.filters.placeholder_select", {
-                                  label: td(label, { source: "en" }).toLowerCase(),
+                                  label: td(label, { source: "en" }),
                               })
                     }
                     style={{ width: "100%" }}
@@ -267,7 +267,7 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
                         placeholder
                             ? td(placeholder, { source: "en" })
                             : t("pages.filters.placeholder_enter", {
-                                  label: td(label, { source: "en" }).toLowerCase(),
+                                  label: td(label, { source: "en" }),
                               })
                     }
                     style={{ width: "100%" }}
@@ -351,11 +351,11 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
         <div className="space-y-6">
             {Object.entries(groupedFields).map(
                 ([sectionName, sectionFields], index) => (
-                    <div key={td(sectionName, { source: "en" })}>
+                    <div key={sectionName}>
                         {index > 0 && <Divider />}
                         <div>
                             <Title level={5} className="!mb-3">
-                                {sectionName}
+                                {td(sectionName, { source: "en" })}
                             </Title>
                             <Row gutter={[16, 16]}>
                                 {sectionFields.map((field, fieldIndex) => (

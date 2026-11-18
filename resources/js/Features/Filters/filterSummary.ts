@@ -101,7 +101,7 @@ export function describeFilters(
         const noun = capitalize(
             field.sentence
                 ? i18n.td(field.sentence, { source: "en" })
-                : fieldLabel.toLowerCase(),
+                : fieldLabel,
         );
 
         // Date range spans two keys.
