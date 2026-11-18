@@ -147,4 +147,5 @@ return array(
     'resyncUserPermissionsAlreadyRunning' => 'Синхронизация прав пользователей для этой компании уже выполняется.',
     'resyncUserPermissionsSuccess' => 'Права синхронизированы для :synced пользователей. Пропущено без роли: :skipped.',
     'resyncUserPermissionsFailed' => 'Не удалось синхронизировать права пользователей. Проверьте журналы приложения и повторите попытку.',
+    'paymentRequestDeleteOnlyCancelled' => 'Удалить можно только отменённый запрос на оплату.',
 );
