@@ -1142,7 +1142,7 @@ return [
             'cancel_failed' => 'Unable to cancel the payment request.',
             'delete_action' => 'Delete request',
             'delete_title' => 'Delete this payment request?',
-            'delete_message' => 'This permanently removes the cancelled request. It will no longer appear in the list or count toward any totals. This can\'t be undone.',
+            'delete_message' => 'This removes the cancelled request. It will no longer appear in the list or count toward any totals. A record of the deletion is kept for audit.',
             'delete_confirm' => 'Delete request',
             'deleted_toast' => 'Payment request deleted.',
             'delete_failed' => 'Unable to delete the payment request.',

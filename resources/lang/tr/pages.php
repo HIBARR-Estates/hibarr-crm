@@ -1106,7 +1106,7 @@ return [
             'cancel_failed' => 'Ödeme talebi iptal edilemedi.',
             'delete_action' => 'Talebi sil',
             'delete_title' => 'Bu ödeme talebi silinsin mi?',
-            'delete_message' => 'İptal edilen talep kalıcı olarak silinir. Listede görünmez ve hiçbir toplama dahil edilmez. Bu işlem geri alınamaz.',
+            'delete_message' => 'İptal edilen talep silinir. Listede görünmez ve hiçbir toplama dahil edilmez. Denetim için silme kaydı saklanır.',
             'delete_confirm' => 'Talebi sil',
             'deleted_toast' => 'Ödeme talebi silindi.',
             'delete_failed' => 'Ödeme talebi silinemedi.',

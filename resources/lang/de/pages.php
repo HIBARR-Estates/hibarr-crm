@@ -1125,7 +1125,7 @@ return [
             'cancel_failed' => 'Die Zahlungsanforderung konnte nicht storniert werden.',
             'delete_action' => 'Anforderung löschen',
             'delete_title' => 'Diese Zahlungsanforderung löschen?',
-            'delete_message' => 'Die stornierte Anforderung wird endgültig entfernt. Sie erscheint nicht mehr in der Liste und zählt in keiner Summe mit. Das kann nicht rückgängig gemacht werden.',
+            'delete_message' => 'Die stornierte Anforderung wird entfernt. Sie erscheint nicht mehr in der Liste und zählt in keiner Summe mit. Ein Nachweis der Löschung bleibt zur Prüfung erhalten.',
             'delete_confirm' => 'Anforderung löschen',
             'deleted_toast' => 'Zahlungsanforderung gelöscht.',
             'delete_failed' => 'Die Zahlungsanforderung konnte nicht gelöscht werden.',
