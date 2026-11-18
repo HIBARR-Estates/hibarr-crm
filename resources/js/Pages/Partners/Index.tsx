@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { router } from "@inertiajs/react";
 import { message } from "antd";
 import axios from "axios";
@@ -32,7 +32,7 @@ interface PartnerAgent {
     /** True for an account made through Invite Partner, which can be re-invited. */
     can_resend?: boolean;
     partner_invite_status?: InviteStatus | null;
-    user: { id: number; name: string; email: string; image?: string | null } | null;
+    user: { id: number; name: string; email: string; image?: string | null; updated_at?: string | null } | null;
 }
 
 interface Stats {
@@ -83,6 +83,14 @@ const StatTile = ({ label, value }: { label: string; value: number }) => (
  */
 const ROW_GRID = "xl:grid xl:grid-cols-[32px_minmax(0,1fr)_88px_92px_120px_220px] xl:gap-3";
 
+/** True when `incoming` carries an older version of the user than `current`. */
+const isOlder = (incoming: PartnerAgent, current: PartnerAgent): boolean => {
+    const a = incoming.user?.updated_at;
+    const b = current.user?.updated_at;
+    if (!a || !b) return false;
+    return new Date(a).getTime() < new Date(b).getTime();
+};
+
 const inviteBadgeVariant = (status: InviteStatus): "amber" | "green" | "red" => {
     if (status === "accepted") return "green";
     if (status === "failed") return "red";
@@ -95,13 +103,7 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
 
     const [rows, setRows] = useState<PartnerAgent[]>(agents.data);
     const [stats, setStats] = useState<Stats>(initialStats);
-    // Bumped whenever the server sends a fresh roster (search, paging), so a
-    // slower resend response can tell it is older than what is on screen.
-    const rosterVersion = useRef(0);
-    useEffect(() => {
-        rosterVersion.current += 1;
-        setRows(agents.data);
-    }, [agents.data]);
+    useEffect(() => setRows(agents.data), [agents.data]);
     useEffect(() => setStats(initialStats), [initialStats]);
 
     const [search, setSearch] = useState(filters.search ?? "");
@@ -183,15 +185,17 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
 
     const handleResend = async (agent: PartnerAgent) => {
         setResendingId(agent.id);
-        const rosterAtStart = rosterVersion.current;
         try {
             const { data } = await axios.post(route("partners.resend_invite", agent.id));
             // The server reports a failed resend in the body (HTTP 200), and the
             // invite status may have changed either way: patch the row from it,
-            // unless a newer roster has arrived since (it is already current).
-            if (data?.agent && rosterVersion.current === rosterAtStart) {
+            // unless the row on screen is already newer (compared by the user's
+            // updated_at, which every status change bumps).
+            if (data?.agent) {
                 const updated = data.agent as PartnerAgent;
-                setRows((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
+                setRows((prev) =>
+                    prev.map((row) => (row.id === updated.id && !isOlder(updated, row) ? updated : row)),
+                );
             }
             if (data?.status !== "success") {
                 message.error(data?.message || t("pages.partners.error_generic"));

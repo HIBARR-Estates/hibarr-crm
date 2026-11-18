@@ -733,6 +733,20 @@ class PartnerInviteServiceTest extends TestCase
         return $controller;
     }
 
+    public function test_every_invite_status_change_bumps_the_users_version(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+        $userId = $invite['agent']->user_id;
+        DB::table('users')->where('id', $userId)->update(['updated_at' => '2020-01-01 00:00:00']);
+
+        app(PartnerInviteService::class)->markAccepted($invite['agent']->user);
+
+        $this->assertNotSame('2020-01-01 00:00:00', (string) DB::table('users')->where('id', $userId)->value('updated_at'));
+        // The roster reads it through the shared relation list.
+        $this->assertStringContainsString('updated_at', implode(',', PartnerInviteService::AGENT_RELATIONS));
+    }
+
     /**
      * Save like the app does, then run the observer's sync. Model events are
      * switched off in this class (setUp), so the UserObserver::updated hook is
