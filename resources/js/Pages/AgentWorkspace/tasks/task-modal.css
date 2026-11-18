@@ -3,7 +3,7 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
-    padding: 18px 20px 22px;
+    padding: 16px 20px 20px;
 }
 
 .agent-task__errors {
@@ -26,7 +26,7 @@
     color: var(--dr-text);
     font: inherit;
     font-size: 18px;
-    font-weight: 700;
+    font-weight: 600;
     outline: none;
 }
 
@@ -45,8 +45,8 @@
     border-radius: 10px;
     color: var(--dr-text);
     font: inherit;
-    font-size: 13.5px;
-    line-height: 1.5;
+    font-size: 13px;
+    line-height: 1.45;
     outline: none;
     resize: vertical;
 }
@@ -55,21 +55,21 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .agent-task__chip {
     display: inline-flex;
-    min-height: 34px;
+    min-height: 32px;
     align-items: center;
     gap: 6px;
-    padding: 0 12px;
+    padding: 0 11px;
     border: 1px solid var(--dr-border);
     border-radius: 999px;
     background: var(--dr-white);
     color: var(--dr-text);
     font: inherit;
-    font-size: 13px;
+    font-size: 12px;
     white-space: nowrap;
     cursor: pointer;
 }
@@ -98,7 +98,7 @@
 }
 
 .agent-task__chip-value {
-    font-weight: 650;
+    font-weight: 600;
 }
 
 .agent-task__avatar {
@@ -203,7 +203,7 @@
     align-items: center;
     gap: 10px;
     border-bottom: 1px solid #eef0f3;
-    font-size: 13.5px;
+    font-size: 13px;
 }
 
 .agent-task__box {
@@ -245,7 +245,7 @@
     border: 1px solid var(--dr-border);
     border-radius: 8px;
     font: inherit;
-    font-size: 13.5px;
+    font-size: 13px;
     outline: none;
 }
 
