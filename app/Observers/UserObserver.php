@@ -22,11 +22,16 @@ class UserObserver
             }
         }
 
-        if ($user->exists && ($user->isDirty('status') || $user->isDirty('email'))) {
+        session()->forget('user');
+    }
+
+    public function updated(User $user)
+    {
+        // After the UPDATE (not on create), so a failed save never leaves
+        // Keycloak changed. syncLifecycle() only acts on partner-only accounts.
+        if ($user->wasChanged(['status', 'email'])) {
             app(PartnerInviteService::class)->syncLifecycle($user);
         }
-
-        session()->forget('user');
     }
 
     public function created(User $user)

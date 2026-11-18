@@ -4919,7 +4919,8 @@ return [
         'search_agents' => 'Temsilci ara…',
         'no_agents' => 'Eşleşen temsilci yok',
         'invite_title' => 'Partner davet et',
-        'invite_subtitle' => 'Yalnızca kendi yönlendirdiği leadleri gören bir partner hesabı oluşturur. Parola belirlemek için bir e-posta alır, ardından tek oturum açma ile giriş yapar.',
+        'invite_subtitle' => 'Yalnızca kendi yönlendirdiği leadleri gören bir partner hesabı oluşturur. Bu e-posta adresiyle tek oturum açma ile giriş yapar.',
+        'invite_subtitle_provisioned' => 'Yalnızca kendi yönlendirdiği leadleri gören bir partner hesabı oluşturur. Parola belirlemek için bir e-posta alır, ardından tek oturum açma ile giriş yapar.',
         'full_name' => 'Ad soyad',
         'email' => 'E-posta',
         'mobile' => 'Cep (isteğe bağlı)',
@@ -4929,6 +4930,13 @@ return [
         'remove_title' => 'Partner kaldırılsın mı?',
         'remove_message' => '{{name}} artık lead yönlendiren olarak seçilemez. Mevcut yönlendirilmiş leadler atıflarını korur.',
         'error_generic' => 'Bir şeyler ters gitti. Lütfen tekrar deneyin.',
+        'msg_removed_while_inviting' => 'Davet tamamlanamadan partner kaldırıldı.',
+        'msg_enrolment_failed_created' => 'Partner oluşturuldu ancak Keycloak kaydı tamamlanamadı. “Daveti tekrar gönder” seçeneğini kullanın.',
+        'msg_email_failed_created' => 'Partner oluşturuldu ancak davet e-postası gönderilemedi. “Daveti tekrar gönder” seçeneğini kullanın.',
+        'msg_resend_partner_only' => 'Yalnızca “Partner davet et” ile oluşturulan partner hesapları yeniden davet edilebilir.',
+        'msg_resend_accepted' => 'Bu partner daveti zaten kabul etti.',
+        'msg_enrolment_failed_retry' => 'Keycloak kaydı tamamlanamadı. Lütfen tekrar deneyin.',
+        'msg_email_failed_retry' => 'Davet e-postası gönderilemedi. Lütfen tekrar deneyin.',
     ],
 
 ];

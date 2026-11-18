@@ -20,6 +20,7 @@ import {
 import "@/Components/Redesign/redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
 import { useDebounce } from "@/Hooks/useDebounce";
+import usePartnerKeycloakProvisionFlag from "@/Hooks/usePartnerKeycloakProvisionFlag";
 
 type InviteStatus = "invited" | "accepted" | "failed";
 
@@ -74,6 +75,12 @@ const StatTile = ({ label, value }: { label: string; value: number }) => (
     </div>
 );
 
+/**
+ * One column template for the header and every row (sm and up), so labels sit
+ * over the cells they describe whatever a row contains. Below sm the row wraps.
+ */
+const ROW_GRID = "sm:grid sm:grid-cols-[32px_minmax(0,1fr)_88px_92px_120px_220px] sm:gap-3";
+
 const inviteBadgeVariant = (status: InviteStatus): "amber" | "green" | "red" => {
     if (status === "accepted") return "green";
     if (status === "failed") return "red";
@@ -82,6 +89,7 @@ const inviteBadgeVariant = (status: InviteStatus): "amber" | "green" | "red" => 
 
 const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Props) => {
     const { t } = useTranslation();
+    const provisioning = usePartnerKeycloakProvisionFlag();
 
     const [rows, setRows] = useState<PartnerAgent[]>(agents.data);
     const [stats, setStats] = useState<Stats>(initialStats);
@@ -162,7 +170,17 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
     const handleResend = async (agent: PartnerAgent) => {
         setResendingId(agent.id);
         try {
-            await axios.post(route("partners.resend_invite", agent.id));
+            const { data } = await axios.post(route("partners.resend_invite", agent.id));
+            // The server reports a failed resend in the body (HTTP 200), and the
+            // invite status may have changed either way: patch the row from it.
+            if (data?.agent) {
+                const updated = data.agent as PartnerAgent;
+                setRows((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
+            }
+            if (data?.status !== "success") {
+                message.error(data?.message || t("pages.partners.error_generic"));
+                return;
+            }
             message.success(t("pages.partners.invite_sent"));
         } catch (error: any) {
             message.error(error?.response?.data?.message || t("pages.partners.error_generic"));
@@ -251,20 +269,20 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
                 ) : (
                     <div>
                         <div
-                            className="mb-2 hidden items-center gap-3 px-4 sm:flex"
+                            className={`mb-2 hidden items-center px-4 ${ROW_GRID}`}
                             style={{ fontSize: TYPE.CAPTION, fontWeight: 600, color: T.TEXT_MUTED, letterSpacing: 0.3 }}
                         >
-                            <div style={{ width: 32 }} />
-                            <div style={{ flex: 1 }}>{t("pages.partners.col_partner")}</div>
-                            <div className="w-[88px]">{t("pages.partners.col_account")}</div>
-                            <div className="w-[92px]">{t("pages.partners.col_invite")}</div>
-                            <div className="w-[120px]">{t("pages.partners.col_referrals")}</div>
-                            <div className="w-[168px] text-right">{t("pages.partners.col_actions")}</div>
+                            <div />
+                            <div>{t("pages.partners.col_partner")}</div>
+                            <div>{t("pages.partners.col_account")}</div>
+                            <div>{t("pages.partners.col_invite")}</div>
+                            <div>{t("pages.partners.col_referrals")}</div>
+                            <div className="text-right">{t("pages.partners.col_actions")}</div>
                         </div>
                         {rows.map((agent) => (
                             <div
                                 key={agent.id}
-                                className="dr-card flex flex-wrap items-center gap-3"
+                                className={`dr-card flex flex-wrap items-center gap-3 ${ROW_GRID}`}
                             >
                                 <Avatar
                                     type="agent"
@@ -286,24 +304,28 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
                                         {agent.user?.email}
                                     </div>
                                 </div>
-                                <Badge variant={agent.status === "enabled" ? "green" : "gray"}>
-                                    {agent.status === "enabled"
-                                        ? t("pages.partners.enabled")
-                                        : t("pages.partners.disabled")}
-                                </Badge>
-                                {agent.partner_invite_status ? (
-                                    <Badge variant={inviteBadgeVariant(agent.partner_invite_status)}>
-                                        {inviteStatusLabel(agent.partner_invite_status)}
+                                <div>
+                                    <Badge variant={agent.status === "enabled" ? "green" : "gray"}>
+                                        {agent.status === "enabled"
+                                            ? t("pages.partners.enabled")
+                                            : t("pages.partners.disabled")}
                                     </Badge>
-                                ) : (
-                                    <span className="hidden w-[92px] sm:block" />
-                                )}
-                                <Badge variant="blue">
-                                    {t("pages.partners.leads_referred", {
-                                        count: agent.referred_leads_count,
-                                    })}
-                                </Badge>
-                                <div className="ml-auto flex shrink-0 gap-2">
+                                </div>
+                                <div>
+                                    {agent.partner_invite_status && (
+                                        <Badge variant={inviteBadgeVariant(agent.partner_invite_status)}>
+                                            {inviteStatusLabel(agent.partner_invite_status)}
+                                        </Badge>
+                                    )}
+                                </div>
+                                <div>
+                                    <Badge variant="blue">
+                                        {t("pages.partners.leads_referred", {
+                                            count: agent.referred_leads_count,
+                                        })}
+                                    </Badge>
+                                </div>
+                                <div className="ml-auto flex shrink-0 gap-2 sm:ml-0 sm:justify-end">
                                     {agent.can_resend && (
                                         <Button
                                             variant="ghost"
@@ -388,7 +410,11 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
             <Modal
                 open={inviteOpen}
                 title={t("pages.partners.invite_title")}
-                subtitle={t("pages.partners.invite_subtitle")}
+                subtitle={t(
+                    provisioning
+                        ? "pages.partners.invite_subtitle_provisioned"
+                        : "pages.partners.invite_subtitle",
+                )}
                 onClose={closeInvite}
             >
                 <div className="flex flex-col gap-3">

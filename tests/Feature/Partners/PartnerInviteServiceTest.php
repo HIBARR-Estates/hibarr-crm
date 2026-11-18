@@ -209,12 +209,247 @@ class PartnerInviteServiceTest extends TestCase
             'email' => 'ada@example.test',
         ], 1, $this->admin);
 
-        $user = $invite['agent']->user;
-        $user->status = 'deactive';
-        app(PartnerInviteService::class)->syncLifecycle($user);
+        // Through a real save: the UserObserver syncs after the write.
+        $invite['agent']->user->update(['status' => 'deactive']);
 
         $this->assertNotEmpty($this->keycloak->updates);
         $this->assertFalse($this->keycloak->updates[array_key_last($this->keycloak->updates)]['patch']['enabled']);
+    }
+
+    public function test_lifecycle_reenables_identity_when_partner_is_reactivated(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+
+        $user = $invite['agent']->user;
+        $user->update(['status' => 'deactive']);
+        $user->update(['status' => 'active']);
+
+        $this->assertCount(2, $this->keycloak->updates);
+        $this->assertTrue($this->keycloak->updates[1]['patch']['enabled']);
+    }
+
+    public function test_lifecycle_does_not_reenable_a_removed_partner(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+
+        $user = $invite['agent']->user;
+        $user->update(['status' => 'deactive']);
+        app(PartnerInviteService::class)->destroy($invite['agent']->fresh(['user', 'user.roles']));
+        $updatesBefore = count($this->keycloak->updates);
+
+        $user->update(['status' => 'active']);
+
+        $this->assertCount($updatesBefore, $this->keycloak->updates);
+    }
+
+    public function test_lifecycle_pushes_email_changes_for_partners(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+
+        $invite['agent']->user->update(['email' => 'Ada.New@Example.test']);
+
+        $this->assertSame(['email' => 'ada.new@example.test'], $this->keycloak->updates[0]['patch']);
+    }
+
+    public function test_lifecycle_never_touches_staff_who_share_the_identity_realm(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $staff = $this->insertStaffWithKeycloakLogin();
+
+        $staff->update(['status' => 'deactive']);
+        $staff->update(['email' => 'renamed@example.test']);
+
+        $this->assertSame([], $this->keycloak->updates);
+    }
+
+    public function test_lifecycle_is_not_sent_when_the_save_rolls_back(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+        $user = $invite['agent']->user;
+
+        try {
+            DB::transaction(function () use ($user) {
+                $user->update(['status' => 'deactive']);
+
+                throw new \RuntimeException('roll back');
+            });
+        } catch (\RuntimeException) {
+        }
+
+        $this->assertSame([], $this->keycloak->updates);
+        $this->assertSame('active', User::withoutGlobalScopes()->find($user->id)->status);
+    }
+
+    public function test_removing_a_staff_partner_leaves_their_identity_alone(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $staff = $this->insertStaffWithKeycloakLogin();
+        $agent = LeadAgent::create([
+            'company_id' => 1,
+            'user_id' => $staff->id,
+            'status' => 'enabled',
+            'is_partner' => true,
+            'added_by' => $this->admin->id,
+        ]);
+
+        app(PartnerInviteService::class)->destroy($agent->load('user'));
+
+        $this->assertFalse((bool) $agent->fresh()->is_partner);
+        $this->assertSame([], $this->keycloak->updates);
+    }
+
+    public function test_resend_is_refused_once_the_invitation_was_accepted(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+        $staleAgent = $invite['agent']->fresh(['user', 'user.roles']);
+        $this->keycloak->actionsEmails = [];
+
+        // The partner signs in after the roster was loaded.
+        DB::table('users')->where('id', $staleAgent->user_id)
+            ->update(['partner_invite_status' => PartnerInviteService::STATUS_ACCEPTED]);
+
+        $result = app(PartnerInviteService::class)->resend($staleAgent, $this->admin);
+
+        $this->assertFalse($result['ok']);
+        $this->assertSame(__('pages.partners.msg_resend_accepted'), $result['message']);
+        $this->assertSame([], $this->keycloak->actionsEmails);
+        $this->assertSame(
+            PartnerInviteService::STATUS_ACCEPTED,
+            DB::table('users')->where('id', $staleAgent->user_id)->value('partner_invite_status'),
+        );
+    }
+
+    public function test_accepted_is_never_moved_back_by_a_late_invite(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+        $user = $invite['agent']->user;
+
+        app(PartnerInviteService::class)->markAccepted($user);
+        $this->assertSame(PartnerInviteService::STATUS_ACCEPTED, $user->partner_invite_status);
+
+        $method = new \ReflectionMethod(PartnerInviteService::class, 'setInviteStatus');
+        $method->setAccessible(true);
+        $method->invoke(app(PartnerInviteService::class), $user, PartnerInviteService::STATUS_INVITED);
+
+        $this->assertSame(
+            PartnerInviteService::STATUS_ACCEPTED,
+            DB::table('users')->where('id', $user->id)->value('partner_invite_status'),
+        );
+        $this->assertSame(PartnerInviteService::STATUS_ACCEPTED, $user->partner_invite_status);
+    }
+
+    public function test_nothing_is_provisioned_for_a_partner_removed_before_enrolment(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, false);
+        $invite = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+        $agent = $invite['agent']->fresh(['user', 'user.roles']);
+
+        // Removed in the meantime; provisioning is switched on afterwards.
+        DB::table('lead_agents')->where('id', $agent->id)->update(['is_partner' => false]);
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+
+        $result = app(PartnerInviteService::class)->resend($agent, $this->admin);
+
+        $this->assertFalse($result['ok']);
+        $this->assertSame(__('pages.partners.msg_removed_while_inviting'), $result['message']);
+        $this->assertNull($this->keycloak->idForEmail('ada@example.test'));
+        $this->assertNull(Social::where('user_id', $agent->user_id)->first());
+    }
+
+    public function test_resend_failure_message_is_a_translated_string(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $this->keycloak->failNextProvision(new OlKeycloakException('Keycloak down'));
+        $invite = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+        $this->assertSame(__('pages.partners.msg_enrolment_failed_created'), $invite['message']);
+
+        $this->keycloak->failNextProvision(new OlKeycloakException('Still down'));
+        $result = app(PartnerInviteService::class)->resend($invite['agent']->fresh(['user', 'user.roles']), $this->admin);
+
+        $this->assertFalse($result['ok']);
+        $this->assertSame(__('pages.partners.msg_enrolment_failed_retry'), $result['message']);
+        $this->assertStringNotContainsString('pages.partners', $result['message']);
+    }
+
+    public function test_presented_agent_keeps_company_so_the_invite_email_resolves_it(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+
+        $result = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+
+        $this->assertSame(1, (int) $result['agent']->user->company_id);
+        $this->assertNotNull($result['agent']->user->company);
+    }
+
+    public function test_decorating_a_loaded_roster_row_runs_no_queries(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+
+        $agent = LeadAgent::query()
+            ->withCount('referredLeads')
+            ->with(PartnerInviteService::AGENT_RELATIONS)
+            ->findOrFail($invite['agent']->id);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        app(PartnerInviteService::class)->decorate($agent);
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
+
+        $this->assertSame([], $queries);
+        $this->assertTrue($agent->can_resend);
+        $this->assertSame(PartnerInviteService::STATUS_INVITED, $agent->partner_invite_status);
+    }
+
+    /** A staff member (admin role) who signs in with Keycloak SSO like everyone else. */
+    private function insertStaffWithKeycloakLogin(): User
+    {
+        $staff = $this->insertUser('Staff', 'staff@example.test');
+        $staff->attachRole(Role::withoutGlobalScopes()->where('name', 'admin')->first()->id);
+        Social::create([
+            'user_id' => $staff->id,
+            'social_id' => 'kc-staff-1',
+            'social_service' => 'keycloak',
+        ]);
+
+        return $staff->load('roles');
     }
 
     private function insertUser(string $name, string $email): User

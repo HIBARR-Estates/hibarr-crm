@@ -5098,7 +5098,8 @@ return [
         'search_agents' => 'Search agents…',
         'no_agents' => 'No agents match',
         'invite_title' => 'Invite partner',
-        'invite_subtitle' => 'Creates a partner account that sees only the leads they refer. They will get an email to set a password, then sign in with single sign-on.',
+        'invite_subtitle' => 'Creates a partner account that sees only the leads they refer. They sign in with single sign-on using this email address.',
+        'invite_subtitle_provisioned' => 'Creates a partner account that sees only the leads they refer. They will get an email to set a password, then sign in with single sign-on.',
         'full_name' => 'Full name',
         'email' => 'Email',
         'mobile' => 'Mobile (optional)',
@@ -5108,6 +5109,13 @@ return [
         'remove_title' => 'Remove partner?',
         'remove_message' => '{{name}} will no longer be selectable as a lead referrer. Existing referred leads keep their attribution.',
         'error_generic' => 'Something went wrong. Please try again.',
+        'msg_removed_while_inviting' => 'The partner was removed before the invitation could be completed.',
+        'msg_enrolment_failed_created' => 'The partner was created, but Keycloak enrolment could not be completed. Use Resend invite.',
+        'msg_email_failed_created' => 'The partner was created, but the invitation email could not be sent. Use Resend invite.',
+        'msg_resend_partner_only' => 'Only partner accounts created through Invite Partner can be re-invited.',
+        'msg_resend_accepted' => 'This partner has already accepted their invitation.',
+        'msg_enrolment_failed_retry' => 'Keycloak enrolment could not be completed. Please try again.',
+        'msg_email_failed_retry' => 'The invitation email could not be sent. Please try again.',
     ],
 
 ];

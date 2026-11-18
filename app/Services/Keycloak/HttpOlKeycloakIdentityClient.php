@@ -21,7 +21,7 @@ class HttpOlKeycloakIdentityClient implements KeycloakIdentityClient
             'firstName' => $firstName,
             'lastName' => $lastName,
             'sendSetupEmail' => $sendSetupEmail,
-        ]);
+        ], acceptExistingUserConflict: true);
 
         $payload = $this->payload($response);
         $id = $payload['keycloakUserId'] ?? $payload['keycloak_user_id'] ?? null;
@@ -51,9 +51,17 @@ class HttpOlKeycloakIdentityClient implements KeycloakIdentityClient
 
     /**
      * @param  array<string, mixed>  $payload
+     * @param  bool  $acceptExistingUserConflict  Provisioning only: a 409 that names the
+     *                                            existing user means "already there".
+     *                                            For update and actions-email a 409 is an
+     *                                            error (e.g. an email clash).
      */
-    private function request(string $method, string $path, array $payload): Response
-    {
+    private function request(
+        string $method,
+        string $path,
+        array $payload,
+        bool $acceptExistingUserConflict = false,
+    ): Response {
         $baseUrl = (string) config('services.ol.base_url', '');
         $apiKey = (string) config('services.ol.api_key', '');
         $timeout = (int) config('services.ol.timeout', 15);
@@ -100,7 +108,7 @@ class HttpOlKeycloakIdentityClient implements KeycloakIdentityClient
             return $response;
         }
 
-        if ($response->status() === 409) {
+        if ($acceptExistingUserConflict && $response->status() === 409) {
             $id = $this->payload($response)['keycloakUserId']
                 ?? $this->payload($response)['keycloak_user_id']
                 ?? null;

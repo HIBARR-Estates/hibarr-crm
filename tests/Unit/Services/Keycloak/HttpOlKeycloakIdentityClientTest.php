@@ -95,4 +95,25 @@ class HttpOlKeycloakIdentityClientTest extends TestCase
             && str_ends_with($request->url(), '/internal/keycloak/users/kc-9')
             && $request['enabled'] === false);
     }
+
+    public function test_update_treats_409_as_an_error_even_with_an_id_in_the_body(): void
+    {
+        // An email clash on update must not look like success.
+        Http::fake(['*' => Http::response(['keycloakUserId' => 'kc-9', 'message' => 'Email in use'], 409)]);
+
+        try {
+            $this->client->update('kc-9', ['email' => 'taken@example.com']);
+            $this->fail('Expected OlKeycloakException');
+        } catch (OlKeycloakException $e) {
+            $this->assertSame(409, $e->httpStatus);
+        }
+    }
+
+    public function test_actions_email_treats_409_as_an_error(): void
+    {
+        Http::fake(['*' => Http::response(['keycloakUserId' => 'kc-9'], 409)]);
+
+        $this->expectException(OlKeycloakException::class);
+        $this->client->sendActionsEmail('kc-9');
+    }
 }

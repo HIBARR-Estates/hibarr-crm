@@ -11,6 +11,8 @@ use App\Models\User;
 use App\Notifications\PartnerInvited;
 use App\Support\FeatureFlags;
 use App\Support\PartnerRole;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -22,7 +24,20 @@ class PartnerInviteService
 
     public const STATUS_ACCEPTED = 'accepted';
 
+    /** The user columns a roster row needs; company_id keeps the company relation (invite email link and sender). */
+    public const AGENT_RELATIONS = [
+        'user:id,company_id,name,email,image,status,partner_invite_status,partner_invited_at',
+        'user.roles',
+    ];
+
     public const STATUS_FAILED = 'failed';
+
+    private const PROVISIONED = 'provisioned';
+
+    private const PROVISION_FAILED = 'failed';
+
+    /** The partner was removed before (or while) the identity was created. */
+    private const REMOVED = 'removed';
 
     public function __construct(
         private readonly KeycloakIdentityClient $keycloak,
@@ -85,22 +100,25 @@ class PartnerInviteService
             ]);
         });
 
-        $provisioned = true;
+        $outcome = self::PROVISIONED;
         if (self::enabled()) {
-            $provisioned = $this->provisionFor($agent->user);
+            $outcome = $this->provisionFor($agent->user);
         }
 
         $this->present($agent);
 
+        $provisioned = $outcome === self::PROVISIONED;
         $sent = false;
         if ($provisioned) {
             $sent = $this->sendCrmInvite($agent, $invitedBy);
         }
 
-        if (! $provisioned) {
-            $message = 'The partner was created, but Keycloak enrolment could not be completed. Use Resend invite.';
+        if ($outcome === self::REMOVED) {
+            $message = __('pages.partners.msg_removed_while_inviting');
+        } elseif (! $provisioned) {
+            $message = __('pages.partners.msg_enrolment_failed_created');
         } elseif (! $sent) {
-            $message = 'The partner was created, but the invitation email could not be sent. Use Resend invite.';
+            $message = __('pages.partners.msg_email_failed_created');
         } else {
             $message = __('messages.recordSaved');
         }
@@ -120,7 +138,17 @@ class PartnerInviteService
         if (! PartnerRole::isPartnerOnly($agent->user)) {
             return [
                 'ok' => false,
-                'message' => 'Only partner accounts created through Invite Partner can be re-invited.',
+                'message' => __('pages.partners.msg_resend_partner_only'),
+            ];
+        }
+
+        // The roster can be stale: re-read the invite state so an invitation
+        // accepted since the page loaded is not sent again or reset.
+        $agent->user->refresh();
+        if (! $this->canResend($agent)) {
+            return [
+                'ok' => false,
+                'message' => __('pages.partners.msg_resend_accepted'),
             ];
         }
 
@@ -129,12 +157,21 @@ class PartnerInviteService
             try {
                 if ($keycloakId) {
                     $this->keycloak->sendActionsEmail($keycloakId);
-                    $this->markInvited($agent->user);
-                } elseif (! $this->provisionFor($agent->user)) {
-                    return [
-                        'ok' => false,
-                        'message' => 'Keycloak enrolment could not be completed. Please try again.',
-                    ];
+                    $this->setInviteStatus($agent->user, self::STATUS_INVITED);
+                } else {
+                    $outcome = $this->provisionFor($agent->user);
+                    if ($outcome === self::REMOVED) {
+                        return [
+                            'ok' => false,
+                            'message' => __('pages.partners.msg_removed_while_inviting'),
+                        ];
+                    }
+                    if ($outcome !== self::PROVISIONED) {
+                        return [
+                            'ok' => false,
+                            'message' => __('pages.partners.msg_enrolment_failed_retry'),
+                        ];
+                    }
                 }
             } catch (OlKeycloakException $e) {
                 Log::warning('Partner invite resend: Keycloak request failed', [
@@ -144,35 +181,52 @@ class PartnerInviteService
 
                 return [
                     'ok' => false,
-                    'message' => 'Keycloak enrolment could not be completed. Please try again.',
+                    'message' => __('pages.partners.msg_enrolment_failed_retry'),
                 ];
             }
         }
 
         $sent = $this->sendCrmInvite($agent, $invitedBy);
-        $this->present($agent);
 
         return $sent
-            ? ['ok' => true, 'message' => 'Invitation sent.']
-            : ['ok' => false, 'message' => 'The invitation email could not be sent. Please try again.'];
+            ? ['ok' => true, 'message' => __('pages.partners.invite_sent')]
+            : ['ok' => false, 'message' => __('pages.partners.msg_email_failed_retry')];
     }
 
     public function destroy(LeadAgent $agent): void
     {
-        if (self::enabled()) {
-            $this->disableIdentity($agent->user);
-        }
+        // Same lock as provisioning, so removal cannot slip between the
+        // identity being created and it being recorded against the user.
+        $this->withAccountLock($agent->user_id, function () use ($agent) {
+            // Only invitation-owned accounts have an identity this flow may
+            // disable. A staff member flagged as a partner keeps their SSO
+            // login: they only lose the partner flag.
+            if (self::enabled() && PartnerRole::isPartnerOnly($agent->user)) {
+                $this->disableIdentity($agent->user);
+            }
 
-        $agent->update(['is_partner' => false]);
+            $agent->update(['is_partner' => false]);
+        });
     }
 
+    /**
+     * Load what the roster row needs, then present it. For a single agent
+     * (store, invite, resend); the roster itself loads these in one batch
+     * and calls decorate().
+     */
     public function present(LeadAgent $agent): LeadAgent
     {
-        $agent->loadCount('referredLeads')->load([
-            'user:id,name,email,image,status,partner_invite_status,partner_invited_at',
-            'user.roles',
-        ]);
+        $agent->loadCount('referredLeads')->load(self::AGENT_RELATIONS);
 
+        return $this->decorate($agent);
+    }
+
+    /**
+     * Add the invite status and resend flag from relations that are already
+     * loaded (user + roles), without querying them again.
+     */
+    public function decorate(LeadAgent $agent): LeadAgent
+    {
         $inviteStatus = PartnerRole::isPartnerOnly($agent->user)
             ? $agent->user?->partner_invite_status
             : null;
@@ -212,13 +266,25 @@ class PartnerInviteService
             return;
         }
 
-        $user->partner_invite_status = self::STATUS_ACCEPTED;
-        $user->save();
+        $this->setInviteStatus($user, self::STATUS_ACCEPTED);
     }
 
+    /**
+     * Mirror a saved status/email change to the partner's Keycloak identity.
+     *
+     * Call from the model's `updated` event. Only invitation-owned (partner-only)
+     * accounts are touched: staff share their Keycloak realm with other apps,
+     * so a staff status or email change must never be pushed from here. The
+     * change is read now (wasChanged) and sent once the surrounding transaction
+     * has committed, so a rolled-back save never leaves Keycloak ahead of the CRM.
+     */
     public function syncLifecycle(User $user): void
     {
         if (! self::enabled()) {
+            return;
+        }
+
+        if (! PartnerRole::isPartnerOnly($user)) {
             return;
         }
 
@@ -228,10 +294,15 @@ class PartnerInviteService
         }
 
         $patch = [];
-        if ($user->isDirty('status') && $user->status === 'deactive') {
-            $patch['enabled'] = false;
+        if ($user->wasChanged('status')) {
+            if ($user->status === 'deactive') {
+                $patch['enabled'] = false;
+            } elseif ($this->isActivePartner($user)) {
+                // Reactivated: let a partner who is still a partner sign in again.
+                $patch['enabled'] = true;
+            }
         }
-        if ($user->isDirty('email') && filled($user->email)) {
+        if ($user->wasChanged('email') && filled($user->email)) {
             $patch['email'] = strtolower(trim((string) $user->email));
         }
 
@@ -239,15 +310,18 @@ class PartnerInviteService
             return;
         }
 
-        try {
-            $this->keycloak->update($id, $patch);
-        } catch (\Throwable $e) {
-            report($e);
-            Log::warning('Partner Keycloak lifecycle sync failed', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        $userId = $user->id;
+        DB::afterCommit(function () use ($id, $patch, $userId) {
+            try {
+                $this->keycloak->update($id, $patch);
+            } catch (\Throwable $e) {
+                report($e);
+                Log::warning('Partner Keycloak lifecycle sync failed', [
+                    'user_id' => $userId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        });
     }
 
     public function disableIdentity(?User $user): void
@@ -272,38 +346,91 @@ class PartnerInviteService
         }
     }
 
-    private function provisionFor(User $user): bool
+    /**
+     * Create (or find) the Keycloak identity and record it on the user.
+     *
+     * Runs under the per-account lock that destroy() also takes: either the
+     * partner is removed first (nothing is sent to Keycloak), or provisioning
+     * finishes and is recorded first (removal then disables the new identity).
+     *
+     * @return self::PROVISIONED|self::PROVISION_FAILED|self::REMOVED
+     */
+    private function provisionFor(User $user): string
     {
-        [$first, $last] = self::splitName((string) $user->name);
+        return $this->withAccountLock($user->id, function () use ($user) {
+            if (! $this->isActivePartner($user)) {
+                return self::REMOVED;
+            }
 
-        try {
-            $result = $this->keycloak->provision((string) $user->email, $first, $last, true);
-        } catch (OlKeycloakException $e) {
-            Log::warning('Partner invite: Keycloak provision failed', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage(),
+            [$first, $last] = self::splitName((string) $user->name);
+
+            try {
+                $result = $this->keycloak->provision((string) $user->email, $first, $last, true);
+            } catch (OlKeycloakException $e) {
+                Log::warning('Partner invite: Keycloak provision failed', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+                $this->setInviteStatus($user, self::STATUS_FAILED);
+
+                return self::PROVISION_FAILED;
+            }
+
+            Social::updateOrCreate(['user_id' => $user->id], [
+                'social_id' => $result->keycloakUserId,
+                'social_service' => 'keycloak',
             ]);
-            $user->partner_invite_status = self::STATUS_FAILED;
-            $user->save();
 
-            return false;
-        }
+            $this->setInviteStatus($user, self::STATUS_INVITED);
 
-        Social::updateOrCreate(['user_id' => $user->id], [
-            'social_id' => $result->keycloakUserId,
-            'social_service' => 'keycloak',
-        ]);
-
-        $this->markInvited($user);
-
-        return true;
+            return self::PROVISIONED;
+        });
     }
 
-    private function markInvited(User $user): void
+    private function isActivePartner(User $user): bool
     {
-        $user->partner_invite_status = self::STATUS_INVITED;
-        $user->partner_invited_at = now();
-        $user->save();
+        return LeadAgent::withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->where('is_partner', true)
+            ->exists();
+    }
+
+    /**
+     * Serialize provisioning and removal for one account. The lock outlives the
+     * OL timeout; if it cannot be had in time the caller gets the exception
+     * rather than racing.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $callback
+     * @return T
+     *
+     * @throws LockTimeoutException
+     */
+    private function withAccountLock(int $userId, callable $callback): mixed
+    {
+        return Cache::lock('partner-invite:'.$userId, 30)->block(20, $callback);
+    }
+
+    /**
+     * Set the invite status without ever moving an accepted invitation back:
+     * the partner may accept while an admin's request is still in flight.
+     */
+    private function setInviteStatus(User $user, string $status): void
+    {
+        $values = ['partner_invite_status' => $status];
+        if ($status === self::STATUS_INVITED) {
+            $values['partner_invited_at'] = now();
+        }
+
+        User::withoutGlobalScopes()
+            ->whereKey($user->id)
+            ->where(fn ($query) => $query
+                ->whereNull('partner_invite_status')
+                ->orWhere('partner_invite_status', '!=', self::STATUS_ACCEPTED))
+            ->update($values);
+
+        $user->refresh();
     }
 
     private function keycloakId(?User $user): ?string

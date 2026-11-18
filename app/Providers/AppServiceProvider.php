@@ -62,6 +62,13 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(\App\Contracts\KeycloakIdentityClient::class, function ($app) {
             $driver = (string) config('services.ol.keycloak.driver', 'http');
+            if ($driver === 'fake' && ! $app->environment(['local', 'testing'])) {
+                // The fake invents identity ids: with provisioning on it would
+                // mark partners "invited" with no real Keycloak user behind them.
+                throw new \InvalidArgumentException(
+                    'OL_KEYCLOAK_DRIVER=fake is only allowed in the local and testing environments.'
+                );
+            }
             if ($app->environment('testing') || $driver === 'fake') {
                 return new \App\Services\Keycloak\FakeOlKeycloakIdentityClient;
             }

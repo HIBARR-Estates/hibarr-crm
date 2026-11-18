@@ -4941,7 +4941,8 @@ return [
         'search_agents' => 'Agenten suchen…',
         'no_agents' => 'Keine passenden Agenten',
         'invite_title' => 'Partner einladen',
-        'invite_subtitle' => 'Erstellt ein Partnerkonto, das nur die selbst empfohlenen Leads sieht. Die Person erhält eine E-Mail zum Festlegen des Passworts und meldet sich danach per Single Sign-on an.',
+        'invite_subtitle' => 'Erstellt ein Partnerkonto, das nur die selbst empfohlenen Leads sieht. Die Person meldet sich mit dieser E-Mail-Adresse per Single Sign-on an.',
+        'invite_subtitle_provisioned' => 'Erstellt ein Partnerkonto, das nur die selbst empfohlenen Leads sieht. Die Person erhält eine E-Mail zum Festlegen des Passworts und meldet sich danach per Single Sign-on an.',
         'full_name' => 'Vollständiger Name',
         'email' => 'E-Mail',
         'mobile' => 'Mobil (optional)',
@@ -4951,6 +4952,13 @@ return [
         'remove_title' => 'Partner entfernen?',
         'remove_message' => '{{name}} kann nicht mehr als Lead-Empfehler ausgewählt werden. Bestehende zugewiesene Leads behalten ihre Zuordnung.',
         'error_generic' => 'Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.',
+        'msg_removed_while_inviting' => 'Der Partner wurde entfernt, bevor die Einladung abgeschlossen werden konnte.',
+        'msg_enrolment_failed_created' => 'Der Partner wurde angelegt, aber die Keycloak-Registrierung konnte nicht abgeschlossen werden. Verwenden Sie „Einladung erneut senden“.',
+        'msg_email_failed_created' => 'Der Partner wurde angelegt, aber die Einladungs-E-Mail konnte nicht gesendet werden. Verwenden Sie „Einladung erneut senden“.',
+        'msg_resend_partner_only' => 'Nur über „Partner einladen“ erstellte Partnerkonten können erneut eingeladen werden.',
+        'msg_resend_accepted' => 'Dieser Partner hat die Einladung bereits angenommen.',
+        'msg_enrolment_failed_retry' => 'Die Keycloak-Registrierung konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.',
+        'msg_email_failed_retry' => 'Die Einladungs-E-Mail konnte nicht gesendet werden. Bitte versuchen Sie es erneut.',
     ],
 
 ];

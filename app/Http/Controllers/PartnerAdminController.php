@@ -36,10 +36,7 @@ class PartnerAdminController extends AccountBaseController
         $query = LeadAgent::where('company_id', $companyId)
             ->where('is_partner', true)
             ->withCount('referredLeads')
-            ->with([
-                'user:id,name,email,image,status,partner_invite_status,partner_invited_at',
-                'user.roles',
-            ]);
+            ->with(PartnerInviteService::AGENT_RELATIONS);
 
         if ($request->filled('search')) {
             $search = $request->get('search');
@@ -50,7 +47,8 @@ class PartnerAdminController extends AccountBaseController
         $agents = $query->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 15));
 
-        $agents->getCollection()->each(fn (LeadAgent $agent) => $this->invites->present($agent));
+        // Users and roles came with the page query; don't load them again per row.
+        $agents->getCollection()->each(fn (LeadAgent $agent) => $this->invites->decorate($agent));
 
         return Inertia::render('Partners/Index', [
             'pageTitle' => 'Partners',
@@ -145,9 +143,13 @@ class PartnerAdminController extends AccountBaseController
 
         $result = $this->invites->resend($agent, user());
 
+        // The invite status may have changed either way (failed -> invited,
+        // or failed again): send the row back so the page can patch it.
+        $this->invites->present($agent);
+
         return $result['ok']
-            ? Reply::success($result['message'])
-            : Reply::error($result['message']);
+            ? Reply::successWithData($result['message'], ['agent' => $agent])
+            : array_merge(Reply::error($result['message']), ['agent' => $agent]);
     }
 
     /**

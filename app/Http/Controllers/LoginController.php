@@ -215,10 +215,7 @@ class LoginController extends Controller
                     'social_service' => $provider,
                 ]);
 
-                if ($user->partner_invite_status === PartnerInviteService::STATUS_INVITED) {
-                    $user->partner_invite_status = PartnerInviteService::STATUS_ACCEPTED;
-                    $user->save();
-                }
+                app(PartnerInviteService::class)->markAccepted($user);
 
                 DB::commit();
             } catch (Exception $e) {
