@@ -126,6 +126,12 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
             const response = await axios.post(route("partners.store"), {
                 agent_id: agent.id,
             });
+            // A refused change (e.g. another change in progress) comes back as
+            // HTTP 200 with status "fail": show it, don't touch the roster.
+            if (response.data?.status !== "success") {
+                message.error(response.data?.message || t("pages.partners.error_generic"));
+                return;
+            }
             const newAgent = response.data.agent as PartnerAgent;
             setRows((prev) => [newAgent, ...prev]);
             setStats((prev) => ({ ...prev, total_partners: prev.total_partners + 1 }));
@@ -206,7 +212,12 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
         if (!removeTarget) return;
         setRemoving(true);
         try {
-            await axios.delete(route("partners.destroy", removeTarget.id));
+            const { data } = await axios.delete(route("partners.destroy", removeTarget.id));
+            // Same as above: a "fail" body means nothing was removed.
+            if (data?.status !== "success") {
+                message.error(data?.message || t("pages.partners.error_generic"));
+                return;
+            }
             setRows((prev) => prev.filter((row) => row.id !== removeTarget.id));
             setStats((prev) => ({
                 ...prev,
