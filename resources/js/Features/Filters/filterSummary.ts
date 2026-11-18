@@ -11,6 +11,32 @@ export interface FilterSummaryPart {
     chip: string;
 }
 
+export interface SummaryI18n {
+    t: (key: string, options?: Record<string, any>) => string;
+    td: (text: string, options?: { source: "en" }) => string;
+}
+
+const EN_SUMMARY: Record<string, string> = {
+    summary_between: "{{noun}} between {{a}} and {{b}}",
+    summary_after: "{{noun}} after {{a}}",
+    summary_before: "{{noun}} before {{a}}",
+    summary_is: "{{noun}} is {{value}}",
+    summary_contains: "{{noun}} contains “{{value}}”",
+    summary_or: "{{a}} or {{b}}",
+    summary_one_of: "one of {{n}}",
+    untitled_view: "Untitled view",
+};
+
+/** English fallback for callers that only need counts (no i18n hooks). */
+const EN_I18N: SummaryI18n = {
+    t: (key, options = {}) =>
+        (EN_SUMMARY[key.split(".").pop() ?? ""] ?? key).replace(
+            /\{\{(\w+)\}\}/g,
+            (_, name) => String(options[name] ?? ""),
+        ),
+    td: (text) => text,
+};
+
 function optionsOf(field: FilterFieldConfig) {
     const options =
         typeof field.options === "function" ? field.options() : field.options;
@@ -25,18 +51,25 @@ function capitalize(text: string): string {
     return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function labelFor(field: FilterFieldConfig, value: any): string {
+function labelFor(
+    field: FilterFieldConfig,
+    value: any,
+    i18n: SummaryI18n,
+): string {
     const match = optionsOf(field).find(
         (option) => String(option.value) === String(value),
     );
-    return capitalize(match ? String(match.label) : String(value));
+    return capitalize(
+        i18n.td(match ? String(match.label) : String(value), { source: "en" }),
+    );
 }
 
 /** "A", "A or B", "one of 4" */
-function joinValues(labels: string[]): string {
+function joinValues(labels: string[], i18n: SummaryI18n): string {
     if (labels.length === 1) return labels[0];
-    if (labels.length === 2) return `${labels[0]} or ${labels[1]}`;
-    return `one of ${labels.length}`;
+    if (labels.length === 2)
+        return i18n.t("pages.filters.summary_or", { a: labels[0], b: labels[1] });
+    return i18n.t("pages.filters.summary_one_of", { n: labels.length });
 }
 
 function isEmpty(value: any): boolean {
@@ -54,6 +87,7 @@ function isEmpty(value: any): boolean {
 export function describeFilters(
     config: FilterConfig | null,
     filters: Record<string, any>,
+    i18n: SummaryI18n = EN_I18N,
 ): FilterSummaryPart[] {
     if (!config) return [];
 
@@ -63,7 +97,12 @@ export function describeFilters(
     for (const field of config.fields) {
         if (field.hidden || consumed.has(field.key)) continue;
 
-        const noun = capitalize(field.sentence ?? field.label.toLowerCase());
+        const fieldLabel = i18n.td(field.label, { source: "en" });
+        const noun = capitalize(
+            field.sentence
+                ? i18n.td(field.sentence, { source: "en" })
+                : fieldLabel.toLowerCase(),
+        );
 
         // Date range spans two keys.
         if (field.control === "datePresets") {
@@ -79,13 +118,13 @@ export function describeFilters(
 
             const text =
                 !isEmpty(start) && !isEmpty(end)
-                    ? `${noun} between ${start} and ${end}`
+                    ? i18n.t("pages.filters.summary_between", { noun, a: start, b: end })
                     : !isEmpty(start)
-                      ? `${noun} after ${start}`
-                      : `${noun} before ${end}`;
+                      ? i18n.t("pages.filters.summary_after", { noun, a: start })
+                      : i18n.t("pages.filters.summary_before", { noun, a: end });
             parts.push({
                 keys: [startKey, endKey],
-                label: field.label,
+                label: fieldLabel,
                 text,
                 chip: !isEmpty(start) && !isEmpty(end) ? `${start} → ${end}` : text,
             });
@@ -102,13 +141,13 @@ export function describeFilters(
 
             const text =
                 !isEmpty(min) && !isEmpty(max)
-                    ? `${noun} between ${min} and ${max}`
+                    ? i18n.t("pages.filters.summary_between", { noun, a: min, b: max })
                     : !isEmpty(min)
                       ? `${noun} ≥ ${min}`
                       : `${noun} ≤ ${max}`;
             parts.push({
                 keys: [`min_${field.key}`, `max_${field.key}`],
-                label: field.label,
+                label: fieldLabel,
                 text,
                 chip: text,
             });
@@ -120,35 +159,38 @@ export function describeFilters(
         consumed.add(field.key);
 
         if (field.control === "segmented" || field.type === "select") {
-            const label = labelFor(field, value);
+            const label = labelFor(field, value, i18n);
             parts.push({
                 keys: [field.key],
-                label: field.label,
-                text: `${noun} is ${label}`,
-                chip: `${field.label}: ${label}`,
+                label: fieldLabel,
+                text: i18n.t("pages.filters.summary_is", { noun, value: label }),
+                chip: `${fieldLabel}: ${label}`,
             });
             continue;
         }
 
         if (Array.isArray(value)) {
-            const labels = value.map((entry) => labelFor(field, entry));
+            const labels = value.map((entry) => labelFor(field, entry, i18n));
             parts.push({
                 keys: [field.key],
-                label: field.label,
-                text: `${noun} is ${joinValues(labels)}`,
+                label: fieldLabel,
+                text: i18n.t("pages.filters.summary_is", {
+                    noun,
+                    value: joinValues(labels, i18n),
+                }),
                 chip:
                     labels.length > 2
-                        ? `${field.label} · ${labels.length}`
-                        : `${field.label}: ${labels.join(", ")}`,
+                        ? `${fieldLabel} · ${labels.length}`
+                        : `${fieldLabel}: ${labels.join(", ")}`,
             });
             continue;
         }
 
         parts.push({
             keys: [field.key],
-            label: field.label,
-            text: `${noun} contains “${value}”`,
-            chip: `${field.label}: ${value}`,
+            label: fieldLabel,
+            text: i18n.t("pages.filters.summary_contains", { noun, value }),
+            chip: `${fieldLabel}: ${value}`,
         });
     }
 
@@ -164,8 +206,11 @@ export function joinSentence(parts: FilterSummaryPart[]): string {
 }
 
 /** Name suggestion for "Save as view", built from the strongest filters. */
-export function suggestViewName(parts: FilterSummaryPart[]): string {
-    if (parts.length === 0) return "Untitled view";
+export function suggestViewName(
+    parts: FilterSummaryPart[],
+    i18n: SummaryI18n = EN_I18N,
+): string {
+    if (parts.length === 0) return i18n.t("pages.filters.untitled_view");
     return parts
         .slice(0, 3)
         .map((part) => part.chip.replace(/^[^:]+:\s*/, ""))

@@ -17,6 +17,8 @@ import {
     companyDateDayjsFormat,
     formatCompanyDate,
 } from "@/lib/companyDateTime";
+import { useTranslation } from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -32,6 +34,8 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
     config,
     optionsLoading = false,
 }) => {
+    const { t } = useTranslation();
+    const { td } = useTd();
     // Use draftFilters for form display (pending changes before Apply)
     const { draftFilters: filters, setFilter, setConfig } = useFilter();
     const { props } = usePage<any>();
@@ -70,7 +74,11 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
             return (
                 <Input.Search
                     placeholder={
-                        placeholder || `Search ${label.toLowerCase()}...`
+                        placeholder
+                            ? td(placeholder, { source: "en" })
+                            : t("pages.filters.placeholder_search", {
+                                  label: td(label, { source: "en" }).toLowerCase(),
+                              })
                     }
                     value={value || ""}
                     onChange={(e) => setFilter(key, e.target.value)}
@@ -109,7 +117,13 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
                             }
                         });
                     }}
-                    placeholder={placeholder || `Select ${label.toLowerCase()}`}
+                    placeholder={
+                        placeholder
+                            ? td(placeholder, { source: "en" })
+                            : t("pages.filters.placeholder_select", {
+                                  label: td(label, { source: "en" }).toLowerCase(),
+                              })
+                    }
                     style={{ width: "100%" }}
                     allowClear
                     showSearch
@@ -124,7 +138,9 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
                             key={option.value || option.id}
                             value={option.value || option.id}
                         >
-                            {option.label || option.name}
+                            {td(String(option.label || option.name), {
+                                source: "en",
+                            })}
                         </Option>
                     ))}
                 </Select>
@@ -152,7 +168,13 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
                             .join(", ");
                         setFilter(key, val, label, displayValue);
                     }}
-                    placeholder={placeholder || `Select ${label.toLowerCase()}`}
+                    placeholder={
+                        placeholder
+                            ? td(placeholder, { source: "en" })
+                            : t("pages.filters.placeholder_select", {
+                                  label: td(label, { source: "en" }).toLowerCase(),
+                              })
+                    }
                     style={{ width: "100%" }}
                     allowClear
                     showSearch
@@ -167,7 +189,9 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
                             key={option.value || option.id}
                             value={option.value || option.id}
                         >
-                            {option.label || option.name}
+                            {td(String(option.label || option.name), {
+                                source: "en",
+                            })}
                         </Option>
                     ))}
                 </Select>
@@ -189,7 +213,13 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
                             displayValue,
                         );
                     }}
-                    placeholder={placeholder || `Select ${label.toLowerCase()}`}
+                    placeholder={
+                        placeholder
+                            ? td(placeholder, { source: "en" })
+                            : t("pages.filters.placeholder_select", {
+                                  label: td(label, { source: "en" }).toLowerCase(),
+                              })
+                    }
                     style={{ width: "100%" }}
                     format={companyDateDayjsFormat()}
                 />
@@ -233,7 +263,13 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
                 <InputNumber
                     value={value}
                     onChange={(val) => setFilter(key, val)}
-                    placeholder={placeholder || `Enter ${label.toLowerCase()}`}
+                    placeholder={
+                        placeholder
+                            ? td(placeholder, { source: "en" })
+                            : t("pages.filters.placeholder_enter", {
+                                  label: td(label, { source: "en" }).toLowerCase(),
+                              })
+                    }
                     style={{ width: "100%" }}
                 />
             );
@@ -261,7 +297,7 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
                                     displayValue
                                 );
                             }}
-                            placeholder="Min"
+                            placeholder={t("pages.filters.min")}
                             style={{ width: "100%" }}
                         />
                     </Col>
@@ -279,7 +315,7 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
                                     displayValue
                                 );
                             }}
-                            placeholder="Max"
+                            placeholder={t("pages.filters.max")}
                             style={{ width: "100%" }}
                         />
                     </Col>
@@ -315,7 +351,7 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
         <div className="space-y-6">
             {Object.entries(groupedFields).map(
                 ([sectionName, sectionFields], index) => (
-                    <div key={sectionName}>
+                    <div key={td(sectionName, { source: "en" })}>
                         {index > 0 && <Divider />}
                         <div>
                             <Title level={5} className="!mb-3">
@@ -333,7 +369,7 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
                                         }
                                     >
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            {field.label}
+                                            {td(field.label, { source: "en" })}
                                         </label>
                                         {renderField(field)}
                                     </Col>

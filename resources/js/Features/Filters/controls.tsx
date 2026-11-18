@@ -4,6 +4,8 @@ import dayjs from "dayjs";
 import { companyDateDayjsFormat } from "@/lib/companyDateTime";
 import { viewerDayjsNow, viewerTodayDateString } from "@/lib/userDateTime";
 import type { FilterOption } from "@/contexts/FilterContext";
+import { useTranslation } from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { RangePicker } = DatePicker;
 
@@ -51,10 +53,13 @@ export function FieldShell({
     action?: React.ReactNode;
     children: React.ReactNode;
 }) {
+    const { td } = useTd();
     return (
         <div className="lfm-field">
             <div className="lfm-field__head">
-                <span className="lfm-field__label">{label}</span>
+                <span className="lfm-field__label">
+                    {td(label, { source: "en" })}
+                </span>
                 {hint ? <span className="lfm-field__hint">{hint}</span> : null}
                 {action ? (
                     <span className="lfm-field__action">{action}</span>
@@ -79,6 +84,8 @@ export function PillGroup({
     onChange: (next: any[]) => void;
     collapseAfter?: number;
 }) {
+    const { t } = useTranslation();
+    const { td } = useTd();
     const [expanded, setExpanded] = useState(false);
     const selected = new Set((value ?? []).map(String));
     const hidden = Math.max(0, options.length - collapseAfter);
@@ -93,7 +100,7 @@ export function PillGroup({
     };
 
     if (options.length === 0) {
-        return <div className="lfm-empty">No options available</div>;
+        return <div className="lfm-empty">{t("pages.filters.no_options")}</div>;
     }
 
     return (
@@ -108,7 +115,7 @@ export function PillGroup({
                         className={`lfm-pill${isOn ? " is-on" : ""}`}
                         onClick={() => toggle(option.value)}
                     >
-                        {option.label}
+                        {td(String(option.label), { source: "en" })}
                         {count != null && (
                             <span className="lfm-pill__count">{fmt(count)}</span>
                         )}
@@ -121,7 +128,7 @@ export function PillGroup({
                     className="lfm-pill lfm-pill--ghost"
                     onClick={() => setExpanded(true)}
                 >
-                    +{hidden} more
+                    {t("pages.filters.more_n", { n: hidden })}
                 </button>
             )}
         </div>
@@ -140,6 +147,8 @@ export function TemperatureCards({
     counts?: FacetCounts;
     onChange: (next: any[]) => void;
 }) {
+    const { t } = useTranslation();
+    const { td } = useTd();
     const selected = new Set((value ?? []).map(String));
 
     return (
@@ -182,14 +191,14 @@ export function TemperatureCards({
                                 className="lfm-temp__name"
                                 style={isOn ? { color: style.text } : undefined}
                             >
-                                {option.label}
+                                {td(String(option.label), { source: "en" })}
                             </span>
                         </span>
                         <span
                             className="lfm-temp__count"
                             style={isOn ? { color: style.sub } : undefined}
                         >
-                            {count != null ? `${fmt(count)} leads` : " "}
+                            {count != null ? t("pages.filters.count_leads", { n: fmt(count) }) : " "}
                         </span>
                     </button>
                 );
@@ -208,7 +217,9 @@ export function Segmented({
     onChange: (next: any) => void;
     options: FilterOption[];
 }) {
-    const items = [{ value: "", label: "Any" }, ...options];
+    const { t } = useTranslation();
+    const { td } = useTd();
+    const items = [{ value: "", label: t("pages.filters.any") }, ...options];
     const current = value == null || value === "" ? "" : String(value);
 
     return (
@@ -224,7 +235,9 @@ export function Segmented({
                             onChange(item.value === "" ? null : item.value)
                         }
                     >
-                        {item.label}
+                        {item.value === ""
+                            ? item.label
+                            : td(String(item.label), { source: "en" })}
                     </button>
                 );
             })}
@@ -247,7 +260,7 @@ export function CheckList({
     value,
     counts,
     onChange,
-    searchPlaceholder = "Search…",
+    searchPlaceholder,
 }: {
     options: FilterOption[];
     value: any[];
@@ -255,6 +268,7 @@ export function CheckList({
     onChange: (next: any[]) => void;
     searchPlaceholder?: string;
 }) {
+    const { t } = useTranslation();
     const [query, setQuery] = useState("");
     const selected = new Set((value ?? []).map(String));
 
@@ -285,13 +299,13 @@ export function CheckList({
                 <input
                     className="lfm-checklist__search"
                     value={query}
-                    placeholder={searchPlaceholder}
+                    placeholder={searchPlaceholder ?? t("pages.filters.search_ellipsis")}
                     onChange={(event) => setQuery(event.target.value)}
                 />
                 <div className="lfm-checklist__body">
                     {visible.length === 0 && (
                         <div className="lfm-empty lfm-empty--pad">
-                            No matches
+                            {t("pages.filters.no_matches")}
                         </div>
                     )}
                     {visible.map((option) => {
@@ -334,7 +348,7 @@ export function CheckList({
                             <button
                                 type="button"
                                 className="lfm-tray__x"
-                                aria-label={`Remove ${option.label}`}
+                                aria-label={t("pages.filters.remove_item", { label: String(option.label) })}
                                 onClick={() => toggle(option.value)}
                             >
                                 ✕
@@ -359,16 +373,18 @@ export function TokenSelect({
     onChange: (next: any[]) => void;
     placeholder?: string;
 }) {
+    const { td } = useTd();
+    const { t } = useTranslation();
     return (
         <Select
             mode="multiple"
             className="lfm-tokens"
             value={value ?? []}
             onChange={onChange}
-            placeholder={placeholder || "Type to add…"}
+            placeholder={placeholder || t("pages.filters.type_to_add")}
             options={options.map((option) => ({
                 value: option.value,
-                label: option.label,
+                label: td(String(option.label), { source: "en" }),
             }))}
             optionFilterProp="label"
             allowClear
@@ -389,6 +405,8 @@ export function SingleSelect({
     onChange: (next: any) => void;
     placeholder?: string;
 }) {
+    const { td } = useTd();
+    const { t } = useTranslation();
     return (
         <Select
             allowClear
@@ -396,10 +414,10 @@ export function SingleSelect({
             className="lfm-tokens"
             value={value ?? undefined}
             onChange={(next) => onChange(next ?? null)}
-            placeholder={placeholder || "Type to search…"}
+            placeholder={placeholder || t("pages.filters.type_to_search")}
             options={options.map((option) => ({
                 value: option.value,
-                label: option.label,
+                label: td(String(option.label), { source: "en" }),
             }))}
             optionFilterProp="label"
             style={{ width: "100%" }}
@@ -407,11 +425,11 @@ export function SingleSelect({
     );
 }
 
-const DATE_PRESETS: Array<{ key: string; label: string; days: number }> = [
-    { key: "today", label: "Today", days: 0 },
-    { key: "7", label: "7 days", days: 7 },
-    { key: "30", label: "30 days", days: 30 },
-    { key: "quarter", label: "Quarter", days: 90 },
+const DATE_PRESETS: Array<{ key: string; days: number }> = [
+    { key: "today", days: 0 },
+    { key: "7", days: 7 },
+    { key: "30", days: 30 },
+    { key: "quarter", days: 90 },
 ];
 
 /** Quick presets + explicit range, writing the existing *_start/_end keys. */
@@ -424,6 +442,7 @@ export function DatePresets({
     end?: string | null;
     onChange: (start: string | null, end: string | null) => void;
 }) {
+    const { t } = useTranslation();
     const activePreset = useMemo(() => {
         if (!start || !end) return null;
         const today = viewerTodayDateString();
@@ -456,7 +475,7 @@ export function DatePresets({
                         );
                     }}
                 >
-                    {preset.label}
+                    {t(`pages.filters.preset_${preset.key}`)}
                 </button>
             ))}
             <span className="lfm-dates__sep" />
@@ -488,6 +507,7 @@ export function ScoreRange({
     max?: number | null;
     onChange: (min: number | null, max: number | null) => void;
 }) {
+    const { t } = useTranslation();
     const parse = (raw: string) => {
         if (raw.trim() === "") return null;
         const n = Number(raw);
@@ -499,7 +519,7 @@ export function ScoreRange({
             <input
                 type="number"
                 className="lfm-range__input"
-                placeholder="Min"
+                placeholder={t("pages.filters.min")}
                 value={min ?? ""}
                 onChange={(event) =>
                     onChange(parse(event.target.value), max ?? null)
@@ -509,7 +529,7 @@ export function ScoreRange({
             <input
                 type="number"
                 className="lfm-range__input"
-                placeholder="Max"
+                placeholder={t("pages.filters.max")}
                 value={max ?? ""}
                 onChange={(event) =>
                     onChange(min ?? null, parse(event.target.value))
