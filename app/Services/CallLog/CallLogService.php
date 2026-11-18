@@ -4,7 +4,6 @@ namespace App\Services\CallLog;
 
 use App\Models\CallRecording;
 use App\Models\CrmEvent;
-use App\Models\CrmEventType;
 use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\User;
@@ -29,6 +28,34 @@ class CallLogService
     public const OUTCOMES = ['started', 'ended', 'missed', 'declined', 'voicemail', 'busy', 'failed'];
 
     /**
+     * Outcome precedence when one call has several legs (a ring group rings
+     * four agents: one answers, the rest miss or pass). The lowest rank wins
+     * and becomes the call's outcome: answered beats everything, and a call
+     * nobody took reads as missed even when some agents passed it.
+     *
+     * Only call_ended means answered (the dock's answer event carries status
+     * "answered", which the bridge stores as call_ended). call_started is
+     * written when a call starts ringing for an agent (`incoming_call`) or is
+     * dialled (click-to-call, before anyone picks up), so it ranks last: any
+     * real outcome on the same call wins over it.
+     */
+    private const OUTCOME_RANK = [
+        'call_ended' => 1,
+        'call_voicemail' => 2,
+        'call_missed' => 3,
+        'call_busy' => 4,
+        'call_declined' => 5,
+        'call_failed' => 6,
+        'call_started' => 7,
+    ];
+
+    /** Ranks counted as "missed" on the summary tiles. */
+    private const MISSED_RANKS = [2, 3, 4, 5];
+
+    /**
+     * One row per call: every agent's leg of the same call is folded into
+     * one entry that says who it rang, who answered and how it ended.
+     *
      * @param  array{outcome?: string|null, direction?: string|null, user_id?: int|null, search?: string|null, from?: string|null, to?: string|null, has_recording?: bool|null, unlinked?: bool|null}  $filters
      * @param  array{lead_ids?: list<int>, deal_ids?: list<int>}|null  $scope  null = the whole company
      */
@@ -36,27 +63,60 @@ class CallLogService
     {
         $types = $this->callTypes($companyId);
         $query = $this->baseQuery($companyId, $types, $scope);
-        $this->applyFilters($query, $types, $filters);
+        $this->applyEventFilters($query, $filters);
 
-        $paginator = $query
-            ->with(['user:id,name', 'eventType:id,slug'])
-            ->orderByDesc('crm_events.occurred_at')
-            ->orderByDesc('crm_events.id')
-            ->paginate($perPage, ['crm_events.*'], 'page', $page);
+        $rank = $this->rankExpression($types);
 
-        $events = $paginator->getCollection();
+        // call_key is set when each event is written (see CallKey), so this
+        // groups and looks up on the indexed (company_id, call_key) column.
+        // The date range picks which calls show; a picked call keeps all of
+        // its events, so one that rang before midnight and connected after
+        // still reads as connected.
+        $calls = (clone $query)->toBase();
+        if (! empty($filters['from']) || ! empty($filters['to'])) {
+            $inRange = (clone $query)->toBase()->select('crm_events.call_key')->whereNotNull('crm_events.call_key');
+            $this->applyDateFilters($inRange, $filters);
+            $calls->whereIn('crm_events.call_key', $inRange);
+        }
+        $calls
+            ->selectRaw('crm_events.call_key as call_key, MIN(crm_events.occurred_at) as started_at, MAX(crm_events.id) as last_id')
+            ->groupBy('crm_events.call_key');
+        $this->applyCallFilters($calls, $rank, $filters);
+
+        $paginator = $calls
+            ->orderByDesc('started_at')
+            ->orderByDesc('last_id')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        $keys = collect($paginator->items())->pluck('call_key')->map(fn ($k) => (string) $k)->values()->all();
+
+        $events = $keys === []
+            ? new \Illuminate\Database\Eloquent\Collection
+            : (clone $query)
+                ->select('crm_events.*')
+                ->whereIn('crm_events.call_key', $keys)
+                ->with(['user:id,name', 'eventType:id,slug'])
+                ->orderBy('crm_events.occurred_at')
+                ->orderBy('crm_events.id')
+                ->get();
+
         $entities = $this->entityNames($events, $companyId);
         $recordings = $this->recordings($events, $companyId);
+        $byKey = $events->groupBy(fn (CrmEvent $e) => (string) $e->getAttribute('call_key'));
 
-        $paginator->setCollection(
-            $events->map(fn (CrmEvent $event) => $this->serialize($event, $viewer, $entities, $recordings))->values()
-        );
+        $rows = collect($keys)
+            ->map(fn (string $k) => isset($byKey[$k]) ? $this->serializeCall($byKey[$k], $viewer, $entities, $recordings) : null)
+            ->filter()
+            ->values();
+
+        $paginator->setCollection($rows);
 
         return $paginator;
     }
 
     /**
-     * Counts for the summary tiles, over the same scope (no filters).
+     * Counts for the summary tiles, per call (not per leg), over the same
+     * scope (no filters).
      *
      * @param  array{lead_ids?: list<int>, deal_ids?: list<int>}|null  $scope
      * @return array{total: int, connected: int, connected_seconds: int, missed: int, with_recording: int, unlinked: int, last_at: string|null}
@@ -70,28 +130,64 @@ class CallLogService
             $query->where('crm_events.occurred_at', '>=', $from);
         }
 
-        $endedId = $types['call_ended'] ?? 0;
-        $missedIds = array_values(array_filter([
-            $types['call_missed'] ?? null,
-            $types['call_declined'] ?? null,
-            $types['call_busy'] ?? null,
-            $types['call_voicemail'] ?? null,
-        ]));
+        $key = 'crm_events.call_key';
+        $rank = $this->rankExpression($types);
+        $grammar = $query->getQuery()->getGrammar();
+        $duration = $grammar->wrap('crm_events.metadata->duration');
+        $recordingId = $grammar->wrap('crm_events.metadata->recording_id');
+        $endedId = (int) ($types['call_ended'] ?? 0);
+        $int = $query->getQuery()->getConnection()->getDriverName() === 'sqlite' ? 'INTEGER' : 'SIGNED';
 
-        // SQL aggregates over the same base query, so the cost does not grow
-        // with a lead's call history (no rows are hydrated).
-        $connected = (clone $query)->where('crm_events.event_type_id', $endedId);
-        $lastAt = (clone $query)->max('crm_events.occurred_at');
+        // SQL aggregates over one row per call, so the cost does not grow
+        // with the number of legs (no events are hydrated).
+        $perCall = (clone $query)->toBase()
+            ->selectRaw(
+                "{$key} as call_key, MIN({$rank}) as outcome_rank, "
+                ."MAX(CASE WHEN crm_events.event_type_id = {$endedId} THEN CAST({$duration} AS {$int}) ELSE 0 END) as duration, "
+                ."MAX(CASE WHEN {$recordingId} IS NOT NULL THEN 1 ELSE 0 END) as has_recording, "
+                .'MAX(crm_events.model_id) as model_id, MAX(crm_events.occurred_at) as last_at'
+            )
+            ->groupBy('crm_events.call_key');
+
+        $missed = implode(',', self::MISSED_RANKS);
+        $totals = DB::connection($query->getQuery()->getConnection()->getName())
+            ->query()
+            ->fromSub($perCall, 'calls')
+            ->selectRaw(
+                'COUNT(*) as total, '
+                .'SUM(CASE WHEN outcome_rank = 1 THEN 1 ELSE 0 END) as connected, '
+                .'SUM(CASE WHEN outcome_rank = 1 THEN duration ELSE 0 END) as connected_seconds, '
+                ."SUM(CASE WHEN outcome_rank IN ({$missed}) THEN 1 ELSE 0 END) as missed, "
+                .'SUM(has_recording) as with_recording, '
+                .'SUM(CASE WHEN model_id IS NULL THEN 1 ELSE 0 END) as unlinked, '
+                .'MAX(last_at) as last_at'
+            )
+            ->first();
+
+        $lastAt = $totals->last_at ?? null;
 
         return [
-            'total' => (clone $query)->count(),
-            'connected' => (clone $connected)->count(),
-            'connected_seconds' => (int) (clone $connected)->sum('crm_events.metadata->duration'),
-            'missed' => $missedIds === [] ? 0 : (clone $query)->whereIn('crm_events.event_type_id', $missedIds)->count(),
-            'with_recording' => (clone $query)->whereNotNull('crm_events.metadata->recording_id')->count(),
-            'unlinked' => (clone $query)->whereNull('crm_events.model_id')->count(),
+            'total' => (int) ($totals->total ?? 0),
+            'connected' => (int) ($totals->connected ?? 0),
+            'connected_seconds' => (int) ($totals->connected_seconds ?? 0),
+            'missed' => (int) ($totals->missed ?? 0),
+            'with_recording' => (int) ($totals->with_recording ?? 0),
+            'unlinked' => (int) ($totals->unlinked ?? 0),
             'last_at' => $lastAt !== null ? \Illuminate\Support\Carbon::parse($lastAt)->toIso8601String() : null,
         ];
+    }
+
+    /** @param  Collection<string, int>  $types */
+    private function rankExpression(Collection $types): string
+    {
+        $cases = [];
+        foreach (self::OUTCOME_RANK as $slug => $rank) {
+            if (isset($types[$slug])) {
+                $cases[] = 'WHEN '.(int) $types[$slug].' THEN '.$rank;
+            }
+        }
+
+        return $cases === [] ? '99' : '(CASE crm_events.event_type_id '.implode(' ', $cases).' ELSE 99 END)';
     }
 
     /**
@@ -129,11 +225,7 @@ class CallLogService
     /** @return Collection<string, int> slug => id */
     private function callTypes(int $companyId): Collection
     {
-        // System types are seeded with company_id NULL and shared by everyone.
-        return CrmEventType::withoutGlobalScopes()
-            ->where(fn ($q) => $q->whereNull('company_id')->orWhere('company_id', $companyId))
-            ->whereIn('slug', array_map(fn ($o) => 'call_' . $o, self::OUTCOMES))
-            ->pluck('id', 'slug');
+        return app(CallKey::class)->callTypes($companyId);
     }
 
     /**
@@ -161,25 +253,8 @@ class CallLogService
             });
         }
 
-        $startedId = $types['call_started'] ?? null;
-        $outcomeIds = $types->except('call_started')->values()->all();
-
-        // A call that has an outcome event shows one row (the outcome), not a
-        // "started" row plus an outcome row. Started rows stay when nothing
-        // else shares their correlation id (still ringing, or no outcome came).
-        if ($startedId !== null && $outcomeIds !== []) {
-            $query->where(function ($q) use ($startedId, $outcomeIds) {
-                $q->where('crm_events.event_type_id', '!=', $startedId)
-                    ->orWhereNull('crm_events.correlation_id')
-                    ->orWhereNotExists(function ($sub) use ($outcomeIds) {
-                        $sub->select(DB::raw(1))
-                            ->from('crm_events as outcome')
-                            ->whereColumn('outcome.correlation_id', 'crm_events.correlation_id')
-                            ->whereColumn('outcome.company_id', 'crm_events.company_id')
-                            ->whereIn('outcome.event_type_id', $outcomeIds);
-                    });
-            });
-        }
+        // Legs of one call are folded into one row by paginate() and
+        // summary() on call_key (see CallKey), so nothing is de-duplicated here.
 
         return $query;
     }
@@ -197,38 +272,164 @@ class CallLogService
     }
 
     /**
-     * @param  Collection<string, int>  $types
+     * Filters that hold for every leg of a call (direction).
+     *
      * @param  array<string, mixed>  $filters
      */
-    private function applyFilters(Builder $query, Collection $types, array $filters): void
+    private function applyEventFilters(Builder $query, array $filters): void
     {
-        if (! empty($filters['outcome'])) {
-            $query->where('crm_events.event_type_id', $types['call_' . $filters['outcome']] ?? 0);
-        }
         if (! empty($filters['direction'])) {
             $query->where('crm_events.direction', $filters['direction']);
         }
-        if (! empty($filters['user_id'])) {
-            $query->where('crm_events.user_id', (int) $filters['user_id']);
-        }
+    }
+
+    /**
+     * The date range, applied when picking calls (not when loading them).
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    private function applyDateFilters(\Illuminate\Database\Query\Builder $query, array $filters): void
+    {
         if (! empty($filters['from'])) {
             $query->where('crm_events.occurred_at', '>=', $filters['from']);
         }
         if (! empty($filters['to'])) {
-            $query->where('crm_events.occurred_at', '<=', $filters['to'] . ' 23:59:59');
+            $query->where('crm_events.occurred_at', '<=', $filters['to'].' 23:59:59');
+        }
+    }
+
+    /**
+     * Filters on the call as a whole: its outcome is the best leg's, and it
+     * matches an agent, number or recording when any leg does.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    private function applyCallFilters(\Illuminate\Database\Query\Builder $calls, string $rank, array $filters): void
+    {
+        if (! empty($filters['outcome'])) {
+            $calls->havingRaw("MIN({$rank}) = ?", [self::OUTCOME_RANK['call_'.$filters['outcome']] ?? 0]);
+        }
+        if (! empty($filters['user_id'])) {
+            $calls->havingRaw('SUM(CASE WHEN crm_events.user_id = ? THEN 1 ELSE 0 END) > 0', [(int) $filters['user_id']]);
         }
         if (! empty($filters['has_recording'])) {
-            $query->where('crm_events.metadata', 'like', '%"recording_id"%');
+            $calls->havingRaw('SUM(CASE WHEN crm_events.metadata LIKE ? THEN 1 ELSE 0 END) > 0', ['%"recording_id"%']);
         }
         if (! empty($filters['unlinked'])) {
-            $query->whereNull('crm_events.model_id');
+            $calls->havingRaw('MAX(crm_events.model_id) IS NULL');
         }
         if (! empty($filters['search'])) {
             // Numbers are stored as typed ("+49 170 1234567"), so match the
             // raw term; escape LIKE wildcards so "%" / "_" are literal.
             $term = addcslashes(trim((string) $filters['search']), '%_\\');
-            $query->where('crm_events.metadata', 'like', '%' . $term . '%');
+            $calls->havingRaw('SUM(CASE WHEN crm_events.metadata LIKE ? THEN 1 ELSE 0 END) > 0', ['%'.$term.'%']);
         }
+    }
+
+    /**
+     * One call from all of its legs: the best leg gives the outcome, the
+     * answering agent and the duration; every agent it reached is listed in
+     * `legs` with how their leg ended; the recording comes from whichever leg
+     * has one.
+     *
+     * @param  Collection<int, CrmEvent>  $events  oldest first
+     * @param  array<string, array{name: string|null, url: string}>  $entities
+     * @param  array<string, mixed>  $recordings
+     * @return array<string, mixed>
+     */
+    private function serializeCall(Collection $events, User $viewer, array $entities, array $recordings): array
+    {
+        $rankOf = fn (CrmEvent $e) => self::OUTCOME_RANK[(string) $e->eventType?->slug] ?? 99;
+
+        // Best outcome wins; between equals, the latest leg.
+        $primary = $events->reduce(function (?CrmEvent $best, CrmEvent $e) use ($rankOf) {
+            return $best === null || $rankOf($e) <= $rankOf($best) ? $e : $best;
+        });
+
+        $rows = $events->mapWithKeys(fn (CrmEvent $e) => [$e->id => $this->serialize($e, $viewer, $entities, $recordings)]);
+        $row = $rows[$primary->id];
+
+        // Entity and number may only be on some legs.
+        foreach (['entity_type', 'entity_id', 'entity_name', 'entity_url', 'phone_number'] as $field) {
+            if ($row[$field] === null) {
+                $row[$field] = $rows->pluck($field)->filter()->first();
+            }
+        }
+
+        // The recording comes from whichever leg captured one.
+        $statePriority = ['playable' => 0, 'restricted' => 1, 'expired' => 2, 'processing' => 3, 'failed' => 4];
+        $withRecording = $rows
+            ->filter(fn ($r) => $r['recording'] !== null)
+            ->sortBy(fn ($r) => $statePriority[$r['recording']['state']] ?? 5)
+            ->first();
+        if ($withRecording !== null) {
+            $row['recording'] = $withRecording['recording'];
+            $row['has_recording'] = $withRecording['has_recording'];
+        }
+
+        $row['duration'] = $rows->pluck('duration')->filter()->max() ?? $row['duration'];
+
+        $forwarded = $rows->first(fn ($r) => $r['is_forwarded']);
+        if ($forwarded !== null && ! $row['is_forwarded']) {
+            foreach (['is_forwarded', 'forwarded_from_user_id', 'forwarded_from_user_name'] as $field) {
+                $row[$field] = $forwarded[$field];
+            }
+        }
+
+        // Each agent the call reached, once, in the order it reached them,
+        // with how their leg ended.
+        $legs = [];
+        foreach ($events as $event) {
+            if ($event->user_id === null) {
+                continue;
+            }
+            $uid = (int) $event->user_id;
+            $rank = $rankOf($event);
+            if (! isset($legs[$uid]) || $rank < $legs[$uid]['rank']) {
+                $legs[$uid] = [
+                    'rank' => $rank,
+                    'user_id' => $uid,
+                    'user_name' => $event->user?->name,
+                    'outcome' => str_replace('call_', '', (string) $event->eventType?->slug),
+                    'at' => $legs[$uid]['at'] ?? $event->occurred_at?->toIso8601String(),
+                ];
+            }
+        }
+        $legs = array_values(array_map(function (array $leg) {
+            unset($leg['rank']);
+
+            return $leg;
+        }, $legs));
+
+        // call_started only means it rang or was dialled; a call is answered
+        // when one of its legs ended as connected (see OUTCOME_RANK).
+        $answered = $row['outcome'] === 'ended';
+        if ($answered) {
+            // A leg that failed before someone else picked up is not the
+            // call's failure.
+            $row['failure_reason'] = null;
+            $row['failure_message'] = null;
+        } else {
+            // Nobody took it: no single agent owns the call unless only one
+            // agent was rung.
+            $row['user_id'] = count($legs) === 1 ? $legs[0]['user_id'] : null;
+            $row['user_name'] = count($legs) === 1 ? $legs[0]['user_name'] : null;
+        }
+
+        $first = $events->first();
+        $last = $events->last();
+        $row['occurred_at'] = $first->occurred_at?->toIso8601String();
+
+        return $row + [
+            'started_at' => $first->occurred_at?->toIso8601String(),
+            'ended_at' => $last->occurred_at?->toIso8601String(),
+            'answered' => $answered,
+            'answered_by_user_id' => $answered ? $row['user_id'] : null,
+            'answered_by_user_name' => $answered ? $row['user_name'] : null,
+            'legs' => $legs,
+            'rang_count' => count($legs),
+            'event_ids' => $events->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
+        ];
     }
 
     /**
@@ -241,13 +442,13 @@ class CallLogService
         $meta = (array) ($event->metadata ?? []);
         $type = $this->modelKey($event) ?: (string) ($meta['entity_type'] ?? '');
         $entityId = (int) ($event->model_id ?? $meta['entity_id'] ?? 0);
-        $entity = $entities[$type . ':' . $entityId] ?? null;
+        $entity = $entities[$type.':'.$entityId] ?? null;
 
         $recordingId = isset($meta['recording_id']) ? (int) $meta['recording_id'] : null;
         $callRef = isset($meta['call_ref']) && is_string($meta['call_ref']) ? $meta['call_ref'] : null;
-        $recording = $recordingId !== null ? ($recordings['id:' . $recordingId] ?? null) : null;
+        $recording = $recordingId !== null ? ($recordings['id:'.$recordingId] ?? null) : null;
         if ($recording === null && $callRef !== null) {
-            $candidates = $recordings['refs:' . $callRef] ?? [];
+            $candidates = $recordings['refs:'.$callRef] ?? [];
             foreach ($candidates as $candidate) {
                 // Apply linker owner-eligibility: exclude recordings belonging to another agent, while allowing system events.
                 if ($event->user_id === null || (int) $candidate->user_id === (int) $event->user_id) {
@@ -366,9 +567,9 @@ class CallLogService
 
         $byKey = [];
         foreach ($recordings as $rec) {
-            $byKey['id:' . $rec->id] = $rec;
+            $byKey['id:'.$rec->id] = $rec;
             if (! empty($rec->call_ref)) {
-                $byKey['refs:' . $rec->call_ref][] = $rec;
+                $byKey['refs:'.$rec->call_ref][] = $rec;
             }
         }
 
@@ -402,7 +603,7 @@ class CallLogService
                 ->whereIn('id', array_values($ids['lead']))
                 ->get(['id', 'client_name'])
                 ->each(function (Lead $lead) use (&$out) {
-                    $out['lead:' . $lead->id] = [
+                    $out['lead:'.$lead->id] = [
                         'name' => $lead->client_name,
                         'url' => route('lead-contact.show', $lead->id),
                     ];
@@ -415,7 +616,7 @@ class CallLogService
                 ->whereIn('id', array_values($ids['deal']))
                 ->get(['id', 'name'])
                 ->each(function (Deal $deal) use (&$out) {
-                    $out['deal:' . $deal->id] = [
+                    $out['deal:'.$deal->id] = [
                         'name' => $deal->name,
                         'url' => route('deals.show', $deal->id),
                     ];

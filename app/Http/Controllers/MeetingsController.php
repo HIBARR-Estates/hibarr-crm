@@ -92,6 +92,7 @@ class MeetingsController extends AccountBaseController
             // to "User #<id>" because `host_id` came through as a bare id
             // with no relation attached to resolve it from.
             'host:id,name,image',
+            'outcomeLoggedBy:id,name,image',
             'meetingType',
             'meetingSummary',
         ];
@@ -874,6 +875,7 @@ class MeetingsController extends AccountBaseController
             'lead:id,client_name,salutation,company_name,mobile,cell,office',
             'addedBy:id,name,image',
             'host:id,name,image',
+            'outcomeLoggedBy:id,name,image',
             'meetingType',
             'meetingSummary',
         ]);

@@ -1064,6 +1064,7 @@ class SoftphoneClient {
             peer: call.peer,
             direction: call.direction,
             context: call.context,
+            callId: call.id,
         };
         this.setState({
             callFailure: failure,

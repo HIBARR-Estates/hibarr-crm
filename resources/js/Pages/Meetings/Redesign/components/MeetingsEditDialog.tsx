@@ -62,8 +62,6 @@ export default function MeetingsEditDialog({
         meeting && confirmationPatch
             ? { ...meeting, ...confirmationPatch }
             : meeting;
-    const hostId = meeting?.host_id ?? meeting?.added_by?.id;
-    const canConfirmAttendance = Boolean(currentUserId && hostId === currentUserId);
 
     // Names for everyone already on this meeting — the host/participant
     // pickers only search a separate "employees" directory, which won't
@@ -185,8 +183,6 @@ export default function MeetingsEditDialog({
                 showConfirmation && effectiveMeeting ? (
                     <MeetingConfirmationPanel
                         meeting={effectiveMeeting}
-                        canConfirm={canConfirmAttendance}
-                        allowEditLogged
                         onSaved={(patch) =>
                             setConfirmationPatch((prev) => ({
                                 ...prev,

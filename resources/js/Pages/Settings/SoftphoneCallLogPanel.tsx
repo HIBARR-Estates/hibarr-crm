@@ -1,4 +1,6 @@
 import React, { useRef, useState } from "react";
+import CallLegs from "@/Components/Redesign/calls/CallLegs";
+import type { CallLeg } from "@/Components/Redesign/calls/types";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
@@ -34,6 +36,9 @@ interface CallLogRow {
     forwarded_from_user_id?: number | null;
     forwarded_from_user_name?: string | null;
     has_recording: boolean;
+    answered?: boolean;
+    answered_by_user_name?: string | null;
+    legs?: CallLeg[];
 }
 
 interface CallLogResponse {
@@ -229,7 +234,7 @@ export default function SoftphoneCallLogPanel() {
                         <span>{td("When", { source: "en" })}</span>
                         <span>{td("Lead / deal", { source: "en" })}</span>
                         <span>{td("Number", { source: "en" })}</span>
-                        <span>{td("Agent", { source: "en" })}</span>
+                        <span>{td("Agents", { source: "en" })}</span>
                         <span>{td("Outcome", { source: "en" })}</span>
                         <span>{td("Duration", { source: "en" })}</span>
                     </div>
@@ -261,8 +266,8 @@ export default function SoftphoneCallLogPanel() {
                                     )}{" "}
                                     {row.phone_number ?? "—"}
                                 </span>
-                                <span className="cb-col-agent" title={row.user_name ?? undefined}>
-                                    {row.user_name ?? "—"}
+                                <span className="cb-col-agent">
+                                    <CallLegs row={row} compact />
                                     {row.is_forwarded && row.forwarded_from_user_name && (
                                         <div className="cb-ctx cb-ctx--empty">
                                             {td("Forwarded", { source: "en" })} · {td("Last user", { source: "en" })}: {row.forwarded_from_user_name}

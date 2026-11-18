@@ -77,6 +77,8 @@ export interface DealFollowup {
     attendance_outcome?: MeetingAttendanceOutcome | null;
     attendance_outcome_logged_at?: string | null;
     attendance_outcome_logged_by?: number | null;
+    /** Who recorded (or last changed) the outcome — eager-loaded as `outcomeLoggedBy`. */
+    outcome_logged_by?: { id: number; name: string; image?: string | null } | null;
     lead?: Pick<
         Lead,
         | "id"

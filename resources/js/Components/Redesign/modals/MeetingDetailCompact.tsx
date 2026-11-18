@@ -173,7 +173,6 @@ export default function MeetingDetailCompact({
     const hiddenAttendeeCount = attendees.length - visibleAttendees.length;
     const hostId = meeting.host_id ?? meeting.added_by?.id;
     const record = meetingRecordLink(meeting);
-    const canConfirmAttendance = Boolean(userId && hostId === userId);
     const isActionable =
         (item.isUpcoming || item.isLive) && item.statusLabel === "scheduled";
     const showReschedule = (canReschedule ?? canEdit) && isActionable && !!onReschedule;
@@ -321,8 +320,6 @@ export default function MeetingDetailCompact({
                 {panel === "confirmation" ? (
                     <MeetingConfirmationPanel
                         meeting={meeting}
-                        canConfirm={canConfirmAttendance}
-                        allowEditLogged
                         onSaved={(patch) =>
                             setConfirmationPatch((prev) => ({
                                 ...prev,

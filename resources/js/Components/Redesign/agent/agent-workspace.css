@@ -1008,6 +1008,17 @@ button .agent-new-tag {
     background: rgba(15, 28, 56, 0.58);
 }
 
+/* Dialogs portal to <body>, outside .agent-ws, and the layout's body carries
+   `leading-none`: every wrapped line (a value over its hint, a two-line step,
+   a lead card's name over its meta) collapsed onto the next. The boards set
+   no line height, so text runs at the font's normal one. Body is marked
+   while the agent workspace is mounted (AgentWorkspaceLayout). */
+.agent-ws-body .redesign-modal-overlay,
+.agent-ws-body .analysis-modal-overlay,
+.agent-ws-body .agent-sheet-overlay {
+    line-height: normal;
+}
+
 .agent-dlg {
     display: flex;
     width: 100%;
@@ -1148,9 +1159,51 @@ button .agent-new-tag {
     background: #fafbfc;
 }
 
-/* A form dialog: the footer is part of the white sheet. */
+/* A form dialog (canvas L7-32, L7-33, L7-34): a shorter header than the
+   read-mostly dialogs: 36px icon, 17px title, 12px line under it and a
+   bare close; a 16px radius; a light footer with 38px buttons. */
+.agent-dlg--form {
+    border-radius: 16px;
+}
+
+.agent-dlg--form .agent-dlg__head {
+    padding: 14px 20px;
+}
+
+.agent-dlg--form .agent-dlg__icon {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+    background: #e8f1fb;
+}
+
+.agent-dlg--form .agent-dlg__title {
+    font-size: 17px;
+}
+
+.agent-dlg--form .agent-dlg__subtitle {
+    font-size: 12px;
+}
+
+.agent-dlg--form .agent-dlg__close {
+    border-color: transparent;
+    color: var(--dr-text-muted);
+}
+
 .agent-dlg--form .agent-dlg__foot {
-    background: var(--dr-white);
+    gap: 10px;
+    padding: 12px 20px;
+}
+
+.agent-dlg--form .agent-dlg__foot .dr-btn {
+    height: 38px;
+    padding: 0 16px;
+    border-radius: 10px;
+    font-size: 13px;
+}
+
+.agent-dlg--form .agent-dlg__foot .dr-btn-ghost {
+    font-weight: 500;
 }
 
 .agent-dlg__spacer {
@@ -1274,7 +1327,7 @@ button .agent-new-tag {
     display: flex;
     align-items: center;
     gap: 14px;
-    margin: 0 0 18px;
+    margin: 0 0 14px;
     padding: 0;
     list-style: none;
 }
@@ -1283,7 +1336,7 @@ button .agent-new-tag {
     align-items: center;
     gap: 8px;
     color: var(--dr-text-muted);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
 }
 .agent-cdm__stepper + .agent-cdm__stepper::before {
@@ -1394,4 +1447,158 @@ button .agent-new-tag {
     border-color: var(--dr-white);
     background: var(--dr-white);
     color: var(--dr-navy);
+}
+
+/* ── Form dialog fields (canvas L7-32, L7-33, L7-34) ──
+   One rhythm for every field in an agent form dialog: a 12px label 5px over
+   a 38px control with 13px text, 12px between rows. The shared ModalField,
+   MenuSelect and pickers carry the classic modal's 44px / 14px inline, so
+   the sizes here have to win over inline styles. */
+.agent-dlg--form .modal-field {
+    margin-bottom: 12px !important;
+}
+
+.agent-dlg--form .modal-field > label {
+    margin-bottom: 5px;
+    color: #374151;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.agent-dlg--form .modal-field--section > label {
+    margin-bottom: 8px;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.agent-dlg--form .modal-field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.agent-dlg--form .modal-field select,
+.agent-dlg--form .modal-field > button[aria-haspopup],
+.agent-dlg--form .modal-field > div > button[aria-haspopup],
+.agent-dlg--form .agent-cdm .modal-field > button {
+    min-height: 38px !important;
+    padding: 0 11px !important;
+    border-radius: 9px !important;
+    font-size: 13px !important;
+    line-height: 1.3 !important;
+}
+
+.agent-dlg--form .modal-field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.agent-dlg--form .modal-field select {
+    height: 38px;
+}
+
+.agent-dlg--form .modal-field textarea {
+    padding: 9px 11px !important;
+    border-radius: 9px !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+}
+
+.agent-dlg--form .modal-field input:focus,
+.agent-dlg--form .modal-field select:focus,
+.agent-dlg--form .modal-field textarea:focus {
+    border-color: var(--dr-blue);
+    box-shadow: 0 0 0 1px var(--dr-blue);
+}
+
+/* Meeting form in the agent dialog (canvas L7-32): 34px option pills with
+   regular weight, the chosen one outlined in blue; no provider logos;
+   reminders as plain outlined pills; 16px / 20px columns. */
+.agent-dlg--form .meeting-form-fields {
+    font-size: 13px;
+}
+
+.agent-dlg--form .meeting-form-fields__col {
+    padding: 16px 20px;
+}
+
+.agent-dlg--form .meeting-form-fields__col + .meeting-form-fields__col {
+    padding-left: 24px;
+}
+
+.agent-dlg--form .meeting-form-fields__pair,
+.agent-dlg--form .meeting-form-fields__when {
+    column-gap: 14px;
+}
+
+.agent-dlg--form .meeting-form-fields__when > .modal-field {
+    margin-bottom: 12px;
+}
+
+.agent-dlg--form .meeting-form-fields .meeting-form-fields__under,
+.agent-dlg--form .meeting-form-fields .meeting-form-hint {
+    margin-top: 5px;
+    color: var(--dr-text-muted);
+    font-size: 11px;
+    font-weight: 400;
+}
+
+.agent-dlg--form .meeting-form-fields .meeting-form-fields__under {
+    font-weight: 500;
+}
+
+.agent-dlg--form .meeting-form-fields .modal-field--section button[aria-pressed] {
+    display: inline-flex;
+    width: auto;
+    height: 34px;
+    align-items: center;
+    gap: 7px;
+    padding: 0 12px !important;
+    border-radius: 9px !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    white-space: nowrap;
+}
+
+.agent-dlg--form .meeting-form-fields .modal-field--section button[aria-pressed] span {
+    font-size: 13px !important;
+    font-weight: inherit !important;
+}
+
+.agent-dlg--form .meeting-form-fields .modal-field--section button[aria-pressed="true"] {
+    border: 2px solid var(--dr-blue) !important;
+    padding: 0 11px !important;
+    font-weight: 600 !important;
+}
+
+.agent-dlg--form .meeting-form-providers {
+    gap: 6px !important;
+}
+
+.agent-dlg--form .meeting-form-providers img {
+    display: none;
+}
+
+.agent-dlg--form .meeting-form-fields .modal-field--section .dr-pill {
+    height: 34px;
+    gap: 7px;
+    padding: 0 12px;
+    border-radius: 9px;
+    font-size: 13px !important;
+    font-weight: 400;
+}
+
+.agent-dlg--form .meeting-form-fields .modal-field--section .dr-pill-gray {
+    border-color: #d5dae1;
+    background: var(--dr-white);
+    color: var(--dr-text);
+}
+
+.agent-dlg--form .meeting-form-fields .meeting-form-add-reminder {
+    height: 34px;
+    margin-top: 6px;
+    padding: 0 11px;
+    font-size: 12px;
+}
+
+.agent-dlg--form .meeting-form-fields__tz {
+    min-height: 38px;
+    padding: 0 11px;
+    border-radius: 9px;
 }

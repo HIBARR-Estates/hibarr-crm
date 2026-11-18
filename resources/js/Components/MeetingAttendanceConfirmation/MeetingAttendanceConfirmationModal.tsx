@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
 import dayjs from "dayjs";
 import TaskModalShell from "@/Components/Redesign/primitives/ModalShell";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -19,16 +19,32 @@ interface OutcomeDef {
     icon: React.ReactNode;
 }
 
+export interface MeetingOutcomeSaveResult {
+    id: number;
+    attendance_outcome?: MeetingAttendanceOutcome | null;
+    attendance_outcome_logged_at?: string | null;
+    attendance_outcome_logged_by?: number | null;
+    outcome_logged_by?: { id: number; name: string; image?: string | null } | null;
+}
+
 interface MeetingAttendanceConfirmationModalProps {
     meeting: PendingMeetingAttendanceConfirmation;
     onDismiss: () => void;
-    onConfirmed: (outcome: MeetingAttendanceOutcome) => void;
+    /**
+     * `saved` is the server's record of what was stored ("update" mode
+     * returns who logged it and when), so a caller can show "Added by"
+     * without a refetch. Absent for the dock's "confirm" action.
+     */
+    onConfirmed: (
+        outcome: MeetingAttendanceOutcome,
+        saved?: MeetingOutcomeSaveResult,
+    ) => void;
     /**
      * "confirm" (default) is the one-shot prompt action — the backend claims
      * it with a `whereNull` guard and no-ops if already logged. "update"
-     * changes an already-logged outcome instead, for a meeting's edit form;
-     * the backend authorizes that one on ordinary edit permission rather than
-     * the prompt's assignee-only check.
+     * sets or changes the outcome from a meeting's own show/edit view; the
+     * backend lets anyone who can see the meeting do that (stamping them as
+     * who logged it), unlike the prompt's assignee-only check.
      */
     mode?: "confirm" | "update";
     /** Pre-selects this outcome — for "update", seeded from what's already logged. */
@@ -55,6 +71,9 @@ export default function MeetingAttendanceConfirmationModal({
         initialOutcome,
     );
     const [note, setNote] = useState("");
+    // The outcome actually sent with the in-flight save — the picker stays
+    // interactive while it's pending, so live `selected` can drift from it.
+    const submittedOutcomeRef = useRef<MeetingAttendanceOutcome | null>(null);
     const [noteFocused, setNoteFocused] = useState(false);
 
     const outcomes: OutcomeDef[] = useMemo(
@@ -134,8 +153,8 @@ export default function MeetingAttendanceConfirmationModal({
 
     const confirmMutation = useApiMutate<
         { outcome: MeetingAttendanceOutcome; note: string | null },
-        { id: number },
-        ApiResponse<{ id: number }>
+        MeetingOutcomeSaveResult,
+        ApiResponse<MeetingOutcomeSaveResult>
     >(
         route(
             mode === "update"
@@ -144,7 +163,15 @@ export default function MeetingAttendanceConfirmationModal({
             { followUp: meeting.id },
         ),
         mode === "update" ? "PATCH" : "POST",
-        () => selected && onConfirmed(selected),
+        (res) => {
+            const saved =
+                res && "data" in res
+                    ? (res.data as MeetingOutcomeSaveResult)
+                    : undefined;
+            const outcome =
+                saved?.attendance_outcome ?? submittedOutcomeRef.current;
+            if (outcome) onConfirmed(outcome, saved);
+        },
     );
 
     const selectedOutcome = outcomes.find((o) => o.key === selected) ?? null;
@@ -168,6 +195,7 @@ export default function MeetingAttendanceConfirmationModal({
 
     const handleConfirm = () => {
         if (!selectedOutcome || confirmMutation.isPending) return;
+        submittedOutcomeRef.current = selectedOutcome.key;
         confirmMutation.mutate({
             outcome: selectedOutcome.key,
             note: note.trim() !== "" ? note.trim() : null,
