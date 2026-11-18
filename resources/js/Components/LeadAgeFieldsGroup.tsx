@@ -19,6 +19,7 @@ import {
     isValidDateOfBirth,
 } from "@/lib/leadAge";
 import { DetailFieldEditContext } from "./DetailSection";
+import { useTranslation } from "@/Hooks/useTranslation";
 
 export interface LeadAgeFieldsGroupProps {
     dateOfBirth: string | null;
@@ -79,6 +80,7 @@ export default function LeadAgeFieldsGroup({
     onSave,
     onChange,
 }: LeadAgeFieldsGroupProps) {
+    const { t } = useTranslation();
     const detailFieldCtx = useContext(DetailFieldEditContext);
     const [isEditing, setIsEditing] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -172,10 +174,10 @@ export default function LeadAgeFieldsGroup({
         try {
             await onSave(payload);
             exitInlineEdit();
-            message.success("Field updated successfully");
+            message.success(t("pages.leads.save_form.field_updated"));
         } catch (error: any) {
             message.error(
-                error?.message || "Failed to update field. Please try again.",
+                error?.message || t("pages.leads.save_form.failed_update"),
             );
         } finally {
             setSaving(false);
@@ -191,6 +193,7 @@ export default function LeadAgeFieldsGroup({
         exitInlineEdit,
         isEditing,
         onSave,
+        t,
     ]);
 
     const scheduleInlineSave = useCallback(() => {
@@ -356,7 +359,7 @@ export default function LeadAgeFieldsGroup({
             <div className="flex-1 grid grid-cols-[minmax(0,1fr)_4.5rem_minmax(0,1fr)] gap-2 min-w-0">
                 <div className="flex flex-col gap-1 min-w-0">
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 leading-none">
-                        Date of Birth
+                        {t("pages.leads.save_form.date_of_birth")}
                     </span>
                     <Input
                         type="date"
@@ -372,7 +375,7 @@ export default function LeadAgeFieldsGroup({
 
                 <div className="flex flex-col gap-1 min-w-0">
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 leading-none">
-                        Age
+                        {t("pages.leads.save_form.age")}
                     </span>
                     <InputNumber
                         className="!w-full"
@@ -391,12 +394,12 @@ export default function LeadAgeFieldsGroup({
 
                 <div className="flex flex-col gap-1 min-w-0">
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 leading-none">
-                        Age Range
+                        {t("pages.leads.save_form.age_range")}
                     </span>
                     <Select
                         className="w-full"
                         allowClear
-                        placeholder="Select age range"
+                        placeholder={t("pages.leads.save_form.select_age_range")}
                         value={draftAgeRange ?? undefined}
                         options={ageRangeOptions}
                         onChange={(value) =>
@@ -417,7 +420,7 @@ export default function LeadAgeFieldsGroup({
                 <>
                     <button
                         type="button"
-                        aria-label="Save"
+                        aria-label={t("pages.leads.save_form.save")}
                         disabled={isLocked}
                         onMouseDown={handleActionMouseDown}
                         onClick={() => void handleInlineSave()}
@@ -431,7 +434,7 @@ export default function LeadAgeFieldsGroup({
                     </button>
                     <button
                         type="button"
-                        aria-label="Cancel"
+                        aria-label={t("pages.leads.save_form.cancel")}
                         disabled={isLocked}
                         onMouseDown={handleActionMouseDown}
                         onClick={handleInlineCancel}

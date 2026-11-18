@@ -11,10 +11,14 @@ import {
 } from "antd";
 import { usePage } from "@inertiajs/react";
 import { useFormDataBatch } from "@/Hooks/useFormData";
+import { useTranslation } from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface LeadDealCreationProps {}
 
 const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
+    const { t } = useTranslation();
+    const { td } = useTd();
     const form = Form.useFormInstance();
     const categoryId = Form.useWatch("category_id", form);
     const { props } = usePage<any>();
@@ -108,21 +112,21 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
     }, [categoryId, currentUserId, leadAgents, form]);
 
     return (
-        <Card title="Deal Information" size="small">
+        <Card title={t("pages.leads.save_form.deal_information")} size="small">
             <Row gutter={[16, 16]}>
                 <Col span={8}>
                     <Form.Item
                         name="lead_contact"
-                        label="Lead Contact"
+                        label={t("pages.leads.save_form.lead_contact")}
                         rules={[
                             {
                                 required: true,
-                                message: "Please select a lead contact",
+                                message: t("pages.leads.save_form.select_lead_contact_required"),
                             },
                         ]}
                     >
                         <Select
-                            placeholder="Select Lead Contact"
+                            placeholder={t("pages.leads.save_form.select_lead_contact")}
                             showSearch
                             filterOption={(input, option) =>
                                 (option?.children as unknown as string)
@@ -141,31 +145,31 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
                 <Col span={8}>
                     <Form.Item
                         name="name"
-                        label="Deal Name"
+                        label={t("pages.leads.save_form.deal_name")}
                         rules={[
                             {
                                 required: true,
-                                message: "Please enter deal name",
+                                message: t("pages.leads.save_form.deal_name_required"),
                             },
                         ]}
                     >
-                        <Input placeholder="Enter deal name" />
+                        <Input placeholder={t("pages.leads.save_form.enter_deal_name")} />
                     </Form.Item>
                 </Col>
 
                 <Col span={8}>
                     <Form.Item
                         name="pipeline"
-                        label="Pipeline"
+                        label={t("pages.leads.save_form.pipeline")}
                         rules={[
                             {
                                 required: true,
-                                message: "Please select a pipeline",
+                                message: t("pages.leads.save_form.pipeline_required"),
                             },
                         ]}
                     >
                         <Select
-                            placeholder="Select Pipeline"
+                            placeholder={t("pages.leads.save_form.select_pipeline")}
                             onChange={handlePipelineChange}
                         >
                             {leadPipelines.map((pipeline: any) => (
@@ -173,7 +177,7 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
                                     key={pipeline.id}
                                     value={pipeline.id}
                                 >
-                                    {pipeline.name}
+                                    {td(pipeline.name, { source: "en" })}
                                 </Select.Option>
                             ))}
                         </Select>
@@ -183,15 +187,15 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
                 <Col span={8}>
                     <Form.Item
                         name="stage_id"
-                        label="Stage"
+                        label={t("pages.leads.save_form.stage")}
                         rules={[
                             {
                                 required: true,
-                                message: "Please select a stage",
+                                message: t("pages.leads.save_form.stage_required"),
                             },
                         ]}
                     >
-                        <Select placeholder="Select Stage">
+                        <Select placeholder={t("pages.leads.save_form.select_stage")}>
                             {stages
                                 .filter((stage: any) =>
                                     pipelineId
@@ -210,7 +214,7 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
                                                     stage.label_color,
                                             }}
                                         ></span>
-                                        {stage.name}
+                                        {td(stage.name, { source: "en" })}
                                     </Select.Option>
                                 ))}
                         </Select>
@@ -220,17 +224,17 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
                 <Col span={8}>
                     <Form.Item
                         name="value"
-                        label="Deal Value"
+                        label={t("pages.leads.save_form.deal_value")}
                         rules={[
                             {
                                 required: true,
-                                message: "Please enter deal value",
+                                message: t("pages.leads.save_form.deal_value_required"),
                             },
                         ]}
                     >
                         <InputNumber
                             style={{ width: "100%" }}
-                            placeholder="Enter Value"
+                            placeholder={t("pages.leads.save_form.enter_value")}
                             min={0}
                             prefix={defaultCurrencySymbol}
                             parser={(value) => {
@@ -244,9 +248,9 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
                 </Col>
 
                 <Col span={8}>
-                    <Form.Item name="close_date" label="Close Date">
+                    <Form.Item name="close_date" label={t("pages.leads.save_form.close_date")}>
                         <DatePicker
-                            placeholder="Select close date"
+                            placeholder={t("pages.leads.save_form.select_close_date")}
                             className="w-full"
                             format="YYYY-MM-DD"
                             allowClear
@@ -255,9 +259,9 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
                 </Col>
 
                 <Col span={8}>
-                    <Form.Item name="category_id" label="Deal Category">
+                    <Form.Item name="category_id" label={t("pages.leads.save_form.deal_category")}>
                         <Select
-                            placeholder="Select Category"
+                            placeholder={t("pages.leads.save_form.select_category")}
                             onChange={handleCategoryChange}
                             allowClear
                         >
@@ -266,7 +270,7 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
                                     key={category.id}
                                     value={category.id}
                                 >
-                                    {category.category_name}
+                                    {td(category.category_name, { source: "en" })}
                                 </Select.Option>
                             ))}
                         </Select>
@@ -274,9 +278,9 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
                 </Col>
 
                 <Col span={8}>
-                    <Form.Item name="agent_id" label="Deal Agent">
+                    <Form.Item name="agent_id" label={t("pages.leads.save_form.deal_agent")}>
                         <Select
-                            placeholder="Select Agent"
+                            placeholder={t("pages.leads.save_form.select_agent")}
                             allowClear
                             showSearch
                             optionFilterProp="children"
@@ -294,10 +298,10 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
                 </Col>
 
                 <Col span={24}>
-                    <Form.Item name="product_id" label="Products">
+                    <Form.Item name="product_id" label={t("pages.leads.save_form.products")}>
                         <Select
                             mode="multiple"
-                            placeholder="Select Products"
+                            placeholder={t("pages.leads.save_form.select_products")}
                             allowClear
                             showSearch
                             optionFilterProp="children"
@@ -315,10 +319,10 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
                 </Col>
 
                 <Col span={24}>
-                    <Form.Item name="deal_watcher" label="Deal Watchers">
+                    <Form.Item name="deal_watcher" label={t("pages.leads.save_form.deal_watchers")}>
                         <Select
                             mode="multiple"
-                            placeholder="Select Watchers"
+                            placeholder={t("pages.leads.save_form.select_watchers")}
                             allowClear
                             showSearch
                             optionFilterProp="children"

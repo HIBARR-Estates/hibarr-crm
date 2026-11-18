@@ -5,6 +5,32 @@ import {
     useFormData,
     useFormDataBatch,
 } from "@/Hooks/useFormData";
+import { useTranslation } from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
+
+/**
+ * Types whose option labels are admin-defined English (pipelines, stages,
+ * categories, sources, statuses...) and should go through dynamic translation.
+ * People, currencies, UTM values and free-form custom data are left as-is.
+ */
+const DYNAMIC_LABEL_TYPES = new Set<FormDataType>([
+    "salutations",
+    "categories",
+    "sources",
+    "lead-pipelines",
+    "lead-stages",
+    "products",
+    "countries",
+    "client-categories",
+    "languages",
+    "lead-statuses",
+    "genders",
+    "age-ranges",
+    "temperatures",
+    "preferred-contact-times",
+    "lead-origins",
+    "packages",
+]);
 
 interface FormDataSelectorProps {
     type: FormDataType;
@@ -39,6 +65,11 @@ const FormDataSelector: React.FC<FormDataSelectorProps> = ({
     partnersOnly,
     excludePartners,
 }) => {
+    const { t } = useTranslation();
+    const { td } = useTd();
+    const translateLabel = (text: string) =>
+        DYNAMIC_LABEL_TYPES.has(type) ? td(text, { source: "en" }) : text;
+
     // Memoize params to ensure referential stability and prevent infinite loops
     const params = React.useMemo(
         () => ({
@@ -59,7 +90,7 @@ const FormDataSelector: React.FC<FormDataSelectorProps> = ({
         if (type === "packages") {
             label = item.name || "Unknown Package";
             return {
-                label,
+                label: translateLabel(label),
                 value: item.id,
             };
         }
@@ -88,7 +119,7 @@ const FormDataSelector: React.FC<FormDataSelectorProps> = ({
         }
 
         return {
-            label,
+            label: translateLabel(label),
             value: item.value || item.id,
         };
     });
@@ -104,7 +135,12 @@ const FormDataSelector: React.FC<FormDataSelectorProps> = ({
                 )
             }
             onChange={onChange}
-            placeholder={placeholder || `Select ${type.replace("-", " ")}`}
+            placeholder={
+                placeholder ||
+                t("pages.leads.save_form.select_type", {
+                    type: type.replace("-", " "),
+                })
+            }
             allowClear={allowClear}
             loading={loading}
             disabled={disabled || loading}
@@ -120,7 +156,7 @@ const FormDataSelector: React.FC<FormDataSelectorProps> = ({
                 loading ? (
                     <Skeleton active paragraph={{ rows: 1 }} />
                 ) : (
-                    "No data found"
+                    t("pages.leads.save_form.no_data_found")
                 )
             }
         />
