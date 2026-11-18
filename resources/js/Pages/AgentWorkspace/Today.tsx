@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Deferred, Head, router } from "@inertiajs/react";
 import {
     AgentPillRow,
@@ -33,6 +33,8 @@ import AgendaHeader from "./agenda/AgendaHeader";
 import { useAgendaOutcomes } from "./agenda/OutcomePanel";
 import { AGENDA_VIEWS, isDayKey, shiftDate, type AgendaView } from "./agenda/range";
 import useAgendaData from "./agenda/useAgendaData";
+import { meetingHeldLabel, rowOf, taskDoneLabel, type DoNextSaved } from "./donext/doNext";
+import useDoNext, { DoNext } from "./donext/useDoNext";
 import "./today/today.css";
 import "./agenda/agenda.css";
 
@@ -238,9 +240,38 @@ export default function Today({
         [Math.floor(nowMs / 3_600_000), locale, timezone],
     );
 
+    // Do next (L7-43, L7-44): after a task is done or a meeting held, the
+    // next step for the same deal or person, opened under that row.
+    const doNext = useDoNext();
+    // A meeting logged as Attended from Do next leaves "Did these happen?"
+    // once the prompt closes, so the row it opened under stays put meanwhile.
+    const reportedRef = useRef<number | null>(null);
+    const offerAfterTask = (task: QueueTask, from: HTMLElement | null) => {
+        if (task.related) doNext.offer({ record: task.related, done: { kind: "task", label: taskDoneLabel(task) }, anchor: rowOf(from) });
+    };
+    const offerAfterMeeting = (id: number, from: HTMLElement | null) => {
+        const meeting = [...(work.schedule?.meetings ?? []), ...(work.agenda?.meetings ?? [])].find((item) => item.id === id);
+        if (!meeting?.related) return;
+        doNext.offer({ record: meeting.related, done: { kind: "meeting", label: meetingHeldLabel(meeting, locale, timezone) }, anchor: rowOf(from) });
+    };
+    const closeNext = () => {
+        doNext.close();
+        if (reportedRef.current !== null) outcomes.confirmedInDialog(reportedRef.current);
+        reportedRef.current = null;
+    };
+    const savedNext = (saved: DoNextSaved) => {
+        closeNext();
+        if (saved.kind === "task") work.reloadTasks();
+        else router.reload({ only: MEETING_RELOAD_KEYS });
+        void agenda.refresh();
+    };
+
     const meetingHandlers = {
         onOpenMeeting: setOpenMeeting,
-        onMarkHeld: work.markHeld,
+        onMarkHeld: (id: number, from?: HTMLElement | null) => {
+            work.markHeld(id);
+            offerAfterMeeting(id, from ?? null);
+        },
         isMarkingHeld: work.isHeldPending,
     };
 
@@ -248,7 +279,10 @@ export default function Today({
         nowMs,
         timeZone: timezone,
         onOpen: setOpenTask,
-        onComplete: work.completeTask,
+        onComplete: (task, from) => {
+            work.completeTask(task);
+            offerAfterTask(task, from ?? null);
+        },
         onReschedule: setSnoozeTask,
         isCompleting: work.isStatusPending,
         isRescheduling: work.isReschedulePending,
@@ -299,6 +333,8 @@ export default function Today({
                         handlers={handlers}
                         meetingHandlers={meetingHandlers}
                         outcomes={outcomes}
+                        offerNext={doNext.offer}
+                        attending={doNext.request?.report?.meetingId ?? null}
                     />
                 </div>
             ) : (
@@ -379,6 +415,7 @@ export default function Today({
                         onComplete={(task) => {
                             work.completeTask(task);
                             setOpenTask(null);
+                            offerAfterTask(task as QueueTask, null);
                         }}
                         onChanged={() => {
                             work.reloadTasks();
@@ -393,6 +430,7 @@ export default function Today({
                         onMarkHeld={(id) => {
                             work.markHeld(id);
                             setOpenMeeting(null);
+                            offerAfterMeeting(id, null);
                         }}
                         markingHeld={work.isHeldPending(openMeeting.id)}
                         reloadKeys={MEETING_RELOAD_KEYS}
@@ -439,6 +477,14 @@ export default function Today({
                     />
                 ) : null}
             </Suspense>
+            <DoNext
+                request={doNext.request}
+                onClose={closeNext}
+                onSaved={savedNext}
+                onReported={() => {
+                    reportedRef.current = doNext.request?.report?.meetingId ?? null;
+                }}
+            />
         </>
     );
 }

@@ -1,11 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import { Deferred } from "@inertiajs/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Deferred, router } from "@inertiajs/react";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import { AgentNewTag } from "@/Components/Redesign/agent";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
+import useMediaQuery from "@/Hooks/useMediaQuery";
 import useTranslation from "@/Hooks/useTranslation";
 import { avatarFill } from "../people/format";
 import AgentPanel from "./AgentPanel";
+import AgentSheet from "./AgentSheet";
+import NetworkTree from "./NetworkTree";
+import { buildNetworkTree } from "./networkTreeModel";
 import EarningsHeader from "./EarningsHeader";
 import { joinedRecently, monthYear } from "./format";
 import type { NetworkPayload, NetworkRow } from "./types";
@@ -18,8 +22,42 @@ interface NetworkViewProps {
 
 const INDENT = 26;
 
-/** The tabs and the view switch on the band. Only Network is built: the rest have no data behind them yet. */
-function NetworkControls() {
+type NetworkLayout = "list" | "tree";
+
+/** List or tree, kept in ?layout= so a reload or a shared link opens the same view; switching never leaves the page. */
+function readLayout(): NetworkLayout {
+    return typeof window !== "undefined" && new URLSearchParams(window.location.search).get("layout") === "tree" ? "tree" : "list";
+}
+
+function useNetworkLayout() {
+    const [layout, setLayoutState] = useState<NetworkLayout>(readLayout);
+    // An Inertia visit or back/forward can change the URL while this view stays mounted; follow it.
+    useEffect(() => {
+        const sync = () => setLayoutState(readLayout());
+        const stop = router.on("navigate", sync);
+        window.addEventListener("popstate", sync);
+        return () => {
+            stop();
+            window.removeEventListener("popstate", sync);
+        };
+    }, []);
+    const setLayout = useCallback((next: NetworkLayout) => {
+        setLayoutState(next);
+        const url = new URL(window.location.href);
+        if (next === "tree") url.searchParams.set("layout", "tree");
+        else url.searchParams.delete("layout");
+        window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    }, []);
+    return [layout, setLayout] as const;
+}
+
+interface ControlsProps {
+    layout: NetworkLayout;
+    onLayout: (layout: NetworkLayout) => void;
+}
+
+/** The tabs and the view switch on the band. Network and its List | Tree switch are built; the other tabs have no data behind them yet. */
+function NetworkControls({ layout, onLayout }: ControlsProps) {
     const { t } = useTranslation();
 
     return (
@@ -38,13 +76,12 @@ function NetworkControls() {
                 </span>
             </div>
             <div className="agent-ea__switch" role="group" aria-label={t("pages.agent_workspace.earnings.network.view.label")}>
-                <button type="button" aria-pressed="true">
+                <button type="button" aria-pressed={layout === "list"} onClick={() => onLayout("list")}>
                     {t("pages.agent_workspace.earnings.network.view.list")}
                 </button>
-                <span aria-disabled="true" className="agent-ea__switch-held">
+                <button type="button" aria-pressed={layout === "tree"} onClick={() => onLayout("tree")}>
                     {t("pages.agent_workspace.earnings.network.view.tree")}
-                    <AgentNewTag hint={t("pages.agent_workspace.earnings.held.tree")} />
-                </span>
+                </button>
             </div>
             <button type="button" className="agent-ea__btn agent-ea__btn--call" disabled>
                 + {t("pages.agent_workspace.earnings.network.invite")}
@@ -54,7 +91,16 @@ function NetworkControls() {
     );
 }
 
-function TableSkeleton() {
+function TableSkeleton({ layout }: { layout: NetworkLayout }) {
+    if (layout === "tree") {
+        return (
+            <div className="agent-ea__tree-wrap" aria-busy="true">
+                <div className="agent-ea-tree dr-skeleton" style={{ height: 340 }} />
+                <div className="agent-ea__panel dr-skeleton" style={{ minHeight: 220 }} />
+            </div>
+        );
+    }
+
     return (
         <div className="agent-ea__split agent-ea__split--network" aria-busy="true">
             <div className="agent-table agent-ea__table">
@@ -70,13 +116,13 @@ function TableSkeleton() {
     );
 }
 
-interface BodyProps {
+interface BodyProps extends ControlsProps {
     selfId: number | null;
     currencySymbol: string;
     network: NetworkPayload | undefined;
 }
 
-function NetworkBody({ selfId, currencySymbol, network }: BodyProps) {
+function NetworkBody({ selfId, currencySymbol, network, layout, onLayout }: BodyProps) {
     const { t, locale } = useTranslation();
     const rows = network?.rows ?? [];
     const below = useMemo(() => rows.filter((row) => row.kind === "downline"), [rows]);
@@ -88,6 +134,8 @@ function NetworkBody({ selfId, currencySymbol, network }: BodyProps) {
         if (pickedId !== null && !below.some((row) => row.id === pickedId)) setPickedId(null);
     }, [below, pickedId]);
     const picked = below.find((row) => row.id === pickedId) ?? below[0] ?? null;
+    const tree = useMemo(() => buildNetworkTree(rows), [rows]);
+    const phone = useMediaQuery("(max-width: 639px)");
 
     const subtitle =
         below.length === 0
@@ -97,11 +145,16 @@ function NetworkBody({ selfId, currencySymbol, network }: BodyProps) {
     return (
         <>
             <EarningsHeader title={t("pages.agent_workspace.earnings.network.title")} subtitle={subtitle}>
-                <NetworkControls />
+                <NetworkControls layout={layout} onLayout={onLayout} />
             </EarningsHeader>
 
             {below.length === 0 && !rows.some((row) => row.kind === "upline") ? (
                 <EmptyState icon="users" title={t("pages.agent_workspace.earnings.network.empty_title")} description={t("pages.agent_workspace.earnings.network.empty_description")} />
+            ) : layout === "tree" ? (
+                <div className="agent-ea__tree-wrap">
+                    <NetworkTree tree={tree} pickedId={picked?.id ?? null} onPick={setPickedId} nowMs={nowMs} compact={phone} />
+                    {phone ? <AgentSheet agent={picked} currencySymbol={currencySymbol} /> : <AgentPanel agent={picked} currencySymbol={currencySymbol} variant="strip" />}
+                </div>
             ) : (
                 <div className="agent-ea__split agent-ea__split--network">
                     <div role="table" aria-label={t("pages.agent_workspace.earnings.network.table.label")} className="agent-table agent-ea__table agent-ea__table--network">
@@ -192,11 +245,13 @@ function NetworkLine({ row, selfId, active, onPick, nowMs, locale }: LineProps) 
 }
 
 /**
- * Network (L7-37): the upline, you and everyone below, with each agent's level
- * and sales; picking an agent below you opens their details beside the list.
+ * Network (L7-37 list, L9-C tree): the upline, you and everyone below, with
+ * each agent's level and sales; picking an agent below you opens their details
+ * beside the list or under the tree. The pick carries across List and Tree.
  */
 export default function NetworkView({ selfId, currencySymbol, network }: NetworkViewProps) {
     const { t } = useTranslation();
+    const [layout, setLayout] = useNetworkLayout();
 
     return (
         <Deferred
@@ -204,13 +259,13 @@ export default function NetworkView({ selfId, currencySymbol, network }: Network
             fallback={
                 <>
                     <EarningsHeader title={t("pages.agent_workspace.earnings.network.title")} subtitle={t("pages.agent_workspace.earnings.network.subtitle_loading")}>
-                        <NetworkControls />
+                        <NetworkControls layout={layout} onLayout={setLayout} />
                     </EarningsHeader>
-                    <TableSkeleton />
+                    <TableSkeleton layout={layout} />
                 </>
             }
         >
-            <NetworkBody selfId={selfId} currencySymbol={currencySymbol} network={network} />
+            <NetworkBody selfId={selfId} currencySymbol={currencySymbol} network={network} layout={layout} onLayout={setLayout} />
         </Deferred>
     );
 }

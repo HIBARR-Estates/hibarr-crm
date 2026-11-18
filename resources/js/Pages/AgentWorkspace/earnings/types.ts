@@ -69,6 +69,8 @@ export interface NetworkRow {
     id: number;
     name: string | null;
     kind: "upline" | "self" | "downline";
+    /** The agent this one sits under; null for the upline. */
+    parent_id: number | null;
     depth: number;
     generation: number;
     level: string | null;

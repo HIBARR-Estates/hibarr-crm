@@ -961,7 +961,7 @@ export default function CreateDealModal({
                 subtitle={subtitle}
                 icon={<span className="agent-cdm__diamond" aria-hidden="true" />}
                 closeLabel={td("Close", { source: "en" })}
-                width={680}
+                width={640}
                 form
                 footer={
                     <>

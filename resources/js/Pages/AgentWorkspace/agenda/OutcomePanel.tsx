@@ -10,6 +10,8 @@ import type {
     MeetingAttendanceOutcome,
     PendingMeetingAttendanceConfirmation,
 } from "@/Types/api/meeting-attendance-confirmation";
+import type { ScheduleEntry } from "@/Types/personal-work";
+import { meetingHeldLabel, rowOf, type DoNextRequest } from "../donext/doNext";
 import { instantTime } from "../today/format";
 
 const ConfirmationModal = lazy(() => import("@/Components/MeetingAttendanceConfirmation/MeetingAttendanceConfirmationModal"));
@@ -70,14 +72,50 @@ function untilText(at: number, locale: string, timeZone: string): string {
 interface OutcomePanelProps {
     outcomes: ReturnType<typeof useAgendaOutcomes>;
     timeZone: string;
+    /**
+     * Attended opens Do next with the meeting's report (canvas L7-44) when
+     * the deal or person still keeps a next step; returns whether it did.
+     */
+    offerNext?: (request: DoNextRequest) => boolean;
+    /** The meeting Do next is open for: its Attended reads as chosen. */
+    attending?: number | null;
 }
 
-export default function OutcomePanel({ outcomes, timeZone }: OutcomePanelProps) {
+export default function OutcomePanel({ outcomes, timeZone, offerNext, attending = null }: OutcomePanelProps) {
     const { t, locale } = useTranslation();
     const { td } = useTd();
     // The meeting whose dialog is open, and the outcome the button pressed (none when the name was).
     const [noteFor, setNoteFor] = useState<{ item: PendingMeetingAttendanceConfirmation; outcome: MeetingAttendanceOutcome | null } | null>(null);
+    // A meeting whose record is being read before Do next opens.
+    const [reading, setReading] = useState<number | null>(null);
     const key = "pages.agent_workspace.agenda.outcome";
+
+    const choose = (item: PendingMeetingAttendanceConfirmation, outcome: MeetingAttendanceOutcome, button: HTMLElement) => {
+        if (outcome !== "attended" || !offerNext) {
+            setNoteFor({ item, outcome });
+            return;
+        }
+        // The row only has the meeting's id: read where its deal or person
+        // stands, then either ask for the next step or log it as before.
+        const row = rowOf(button);
+        setReading(item.id);
+        axios
+            .get<{ meeting: ScheduleEntry }>(route("agent.meetings.show", item.id))
+            .then(({ data }) => {
+                const meeting = data.meeting;
+                const opened =
+                    meeting.related != null &&
+                    offerNext({
+                        record: meeting.related,
+                        done: { kind: "meeting", label: meetingHeldLabel(meeting, locale, timeZone) },
+                        anchor: row,
+                        report: { meetingId: item.id },
+                    });
+                if (!opened) setNoteFor({ item, outcome });
+            })
+            .catch(() => setNoteFor({ item, outcome }))
+            .finally(() => setReading(null));
+    };
 
     if (outcomes.items.length === 0) return null;
 
@@ -115,8 +153,10 @@ export default function OutcomePanel({ outcomes, timeZone }: OutcomePanelProps) 
                                     <button
                                         key={outcome}
                                         type="button"
-                                        className="dr-btn dr-btn-ghost dr-btn-sm"
-                                        onClick={() => setNoteFor({ item, outcome })}
+                                        className={`dr-btn dr-btn-ghost dr-btn-sm${outcome === "attended" && attending === item.id ? " agent-outcome__chosen" : ""}`}
+                                        aria-pressed={outcome === "attended" && attending === item.id ? true : undefined}
+                                        disabled={reading === item.id}
+                                        onClick={(event) => choose(item, outcome, event.currentTarget)}
                                     >
                                         {t(`${key}.${outcome}`)}
                                     </button>

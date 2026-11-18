@@ -180,7 +180,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 $routing = array_merge($routing, [
                     'id' => $lead->id,
                     'lead_id' => $lead->id,
-                    'name' => $leadName !== '' ? $leadName : ('Lead #' . $lead->id),
+                    'name' => $leadName !== '' ? $leadName : ('Lead #'.$lead->id),
                     'url' => route('lead-contact.show', $lead->id),
                 ]);
             }
@@ -460,7 +460,9 @@ class TelephonySoftphoneEventController extends AccountBaseController
         }
 
         $trimmed = trim($callId);
-        if ($trimmed === '' || preg_match('/^call-\d+$/', $trimmed)) {
+        // Browser-local ids ("call-3", "call-waiting-3") mean a different
+        // call in every browser; CallKey applies the same rule.
+        if ($trimmed === '' || preg_match('/^call-(waiting-)?\d+$/', $trimmed)) {
             return false;
         }
 
@@ -490,6 +492,48 @@ class TelephonySoftphoneEventController extends AccountBaseController
         ];
 
         Cache::put(sprintf('softphone:call_status:id:%d:%s', $companyId, trim($callId)), $payload, 300);
+    }
+
+    /**
+     * Move a call's shared status under one per-call lock, so an agent
+     * answering and another passing at the same moment cannot interleave the
+     * check and the write. "answered" always lands, and always under the
+     * lock: it waits longer than the lock can be held, so a holder that
+     * stalls has its lease expire first. "ended" never overwrites another
+     * agent's answer, and is skipped if the lock cannot be had rather than
+     * written unchecked.
+     */
+    private function transitionCallStatus(int $companyId, ?string $callId, string $status, int $userId): void
+    {
+        if (! $this->isAuthoritativeCallId($callId)) {
+            return;
+        }
+
+        $apply = function () use ($companyId, $callId, $status, $userId): void {
+            if ($status === 'ended') {
+                $current = $this->getCallStatus($companyId, $callId);
+                if (($current['status'] ?? null) === 'answered' && (int) ($current['user_id'] ?? 0) !== $userId) {
+                    return;
+                }
+            }
+            $this->recordCallStatus($companyId, $callId, $status, $userId);
+        };
+
+        $lease = 5;
+        $wait = $status === 'answered' ? $lease + 2 : 3;
+
+        try {
+            Cache::lock(sprintf('softphone:call_status_lock:%d:%s', $companyId, trim((string) $callId)), $lease)->block($wait, $apply);
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException) {
+            // Waiting past the lease means no earlier holder can still be
+            // mid-write, so this is only reached when the cache keeps
+            // refusing the lock. Losing the answer would leave the other
+            // browsers ringing, so it is still written; "ended" is dropped.
+            Log::warning('Softphone: call status lock unavailable', ['status' => $status, 'call_id' => $callId]);
+            if ($status === 'answered') {
+                $apply();
+            }
+        }
     }
 
     /**
@@ -626,9 +670,11 @@ class TelephonySoftphoneEventController extends AccountBaseController
                     LineConcurrencyManager::reserve($line, (int) user()->id, force: true);
                 }
                 $this->clearPassedUsers($companyId, $line?->id, $incomingDigits, $callId);
-                $this->recordCallStatus($companyId, $authoritativeKey, 'answered', (int) user()->id);
+                $this->transitionCallStatus($companyId, $authoritativeKey, 'answered', (int) user()->id);
             } elseif (in_array($eventSlug, ['call.ended', 'call.completed', 'call.failed', 'call.declined'], true)) {
-                $this->recordCallStatus($companyId, $authoritativeKey, 'ended', (int) user()->id);
+                // Missed/declined legs carry the shared SIP Call-ID, so an agent
+                // passing late must not end a call another agent has answered.
+                $this->transitionCallStatus($companyId, $authoritativeKey, 'ended', (int) user()->id);
             }
         }
 
@@ -838,7 +884,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
             ->unique('user_id')
             ->map(fn (SoftphoneCallPoolAgent $agent): array => [
                 'id' => (int) $agent->user_id,
-                'name' => trim((string) ($agent->user?->name ?? '')) ?: ('User #' . $agent->user_id),
+                'name' => trim((string) ($agent->user?->name ?? '')) ?: ('User #'.$agent->user_id),
                 'role' => $role,
                 'priority' => (int) $agent->priority,
             ])

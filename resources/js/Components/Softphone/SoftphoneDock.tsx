@@ -1647,7 +1647,9 @@ export default function SoftphoneDock({
             .post(route("telephony.softphone.events.store"), {
                 phone: callFailure.peer,
                 device_id: activeDeviceId,
-                call_id: effectiveCallRef,
+                // The shared SIP Call-ID joins this leg to the other agents'
+                // legs of the same call, so the call log shows one row.
+                call_id: callFailure.callId || effectiveCallRef,
                 call_ref: effectiveCallRef,
                 ...(leadId ? { entity_type: "lead", entity_id: leadId } : {}),
                 direction: callFailure.direction,
