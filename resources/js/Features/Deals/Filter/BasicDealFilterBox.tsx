@@ -1,6 +1,7 @@
 import FilterBox, { SearchFilter } from "@/Components/FilterBox";
 import { TFilter } from "@/Types/common";
 import React from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     filters: TFilter;
@@ -20,6 +21,7 @@ const BasicDealFilterBox: React.FC<Props> = ({
     handleResetFilters,
     handleSubmit,
 }) => {
+    const { td } = useTd();
     const { search } = filters;
 
     return (
@@ -30,7 +32,7 @@ const BasicDealFilterBox: React.FC<Props> = ({
         >
             {/* Search Filter */}
             <SearchFilter
-                placeholder="Search leads by contact name, email, ..."
+                placeholder={td("Search leads by contact name, email, ...", { source: "en" })}
                 value={search || ""}
                 onChange={(value) => handleQuickFilter("search", value)}
                 onSearch={(value) => {

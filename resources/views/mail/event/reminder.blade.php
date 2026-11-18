@@ -112,7 +112,7 @@
 
                     <!-- Header with Logo -->
                     <tr>
-                        <td role="banner" aria-label="Email header" class="header-td"
+                        <td role="banner" aria-label="{{ td('Email header') }}" class="header-td"
                             style="padding:24px 40px; border-bottom:1px solid #e5e7eb;">
                             <table cellpadding="0" cellspacing="0" border="0" role="presentation">
                                 <tr>
@@ -132,7 +132,7 @@
 
                     <!-- Body Content -->
                     <tr>
-                        <td role="main" aria-label="Main email content" style="padding:0;">
+                        <td role="main" aria-label="{{ td('Main email content') }}" style="padding:0;">
 
                             <!-- Header Image from User Snippet -->
                             <img src="https://img.zohocdn.com/calendar/email-template-assets/calendar-header-doodle-v1.png"
@@ -146,12 +146,12 @@
                                         <!-- Heading -->
                                         <h1 class="heading-primary"
                                             style="margin:0 0 24px 0; font-size:24px; font-weight:500; color:#111827; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-                                            New event reminder</h1>
+                                            {{ td('New event reminder') }}</h1>
 
                                         <!-- Subtitle -->
                                         <p class="text-secondary"
                                             style="margin:0 0 32px 0; font-size:15px; color:#6b7280; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-                                            You have set a reminder for <strong>{{ $eventName }}</strong>
+                                            {{ td('You have set a reminder for') }} <strong>{{ $eventName }}</strong>
                                         </p>
 
                                         <!-- Event Details -->
@@ -172,7 +172,7 @@
                                                             <td style="vertical-align:top;">
                                                                 <div class="text-secondary"
                                                                     style="font-size:14px; color:#9ca3af; margin-bottom:4px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-                                                                    Event title</div>
+                                                                    {{ td('Event title') }}</div>
                                                                 <div class="text-primary"
                                                                     style="font-size:16px; color:#111827; font-weight:400; line-height:1.5; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
                                                                     {{ $eventName }}</div>
@@ -196,7 +196,7 @@
                                                             <td style="vertical-align:top;">
                                                                 <div class="text-secondary"
                                                                     style="font-size:14px; color:#9ca3af; margin-bottom:4px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-                                                                    Date and time</div>
+                                                                    {{ td('Date and time') }}</div>
                                                                 <div class="text-primary"
                                                                     style="font-size:16px; color:#111827; font-weight:400; line-height:1.5; margin-bottom:4px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
                                                                     {{ $dateTime }}
@@ -228,7 +228,7 @@
                                                             <td style="vertical-align:top;">
                                                                 <div class="text-secondary"
                                                                     style="font-size:14px; color:#9ca3af; margin-bottom:4px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-                                                                    Virtual Meeting Link</div>
+                                                                    {{ td('Virtual Meeting Link') }}</div>
                                                             </td>
                                                         </tr>
                                                     </table>
@@ -245,7 +245,7 @@
                                                             <td style="padding:12px 16px;">
                                                                 <div class="text-primary"
                                                                     style="color:#111827; margin-bottom:8px; font-weight:500; font-size:14px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-                                                                    Meeting Link</div>
+                                                                    {{ td('Meeting Link') }}</div>
                                                                 <a href="{{ $meetingLink }}"
                                                                     class="link-subtext"
                                                                     style="color:#6b7280; font-size:13px; text-decoration:none; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; display:block; word-break:break-all;"
@@ -255,7 +255,7 @@
                                                                 style="width:80px; text-align:right; padding:12px 16px;">
                                                                 <a href="{{ $meetingLink }}"
                                                                     style="background:#2563eb; color:#ffffff !important; padding:8px 16px; border-radius:4px; text-decoration:none; display:inline-block; font-size:14px; font-weight:500; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;"
-                                                                    target="_blank">Join</a>
+                                                                    target="_blank">{{ td('Join') }}</a>
                                                             </td>
                                                         </tr>
                                                     </table>
@@ -270,8 +270,7 @@
                                             <tr>
                                                 <td style="padding-right:12px;">
                                                     <a href="{{ $viewEventUrl }}" target="_blank" rel="noopener"
-                                                        style="display:inline-block; padding:12px 24px; border-radius:8px; background:#2563eb; color:#ffffff; text-decoration:none; font-weight:600; font-size:15px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">View
-                                                        Event</a>
+                                                        style="display:inline-block; padding:12px 24px; border-radius:8px; background:#2563eb; color:#ffffff; text-decoration:none; font-weight:600; font-size:15px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">{{ td('View Event') }}</a>
                                                 </td>
 
                                             </tr>

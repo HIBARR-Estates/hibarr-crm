@@ -2,7 +2,7 @@
     <h5 class="modal-title" id="modelHeading">
         @lang('app.updateShift')
     </h5>
-    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+    <button type="button" class="close" data-dismiss="modal" aria-label="{{ td('Close') }}"><span
             aria-hidden="true">×</span></button>
 </div>
 <div class="modal-body">
@@ -56,7 +56,7 @@
                 <div class="col-lg-12">
                     <x-forms.file class="mr-0 mr-lg-2 mr-md-2 cropper" :fieldLabel="__('app.menu.addFile')" fieldName="file" fieldId="file" :fieldValue="(!is_null($shiftSchedule) && $shiftSchedule->file ? $shiftSchedule->file_url : '')" />
                     @if (!is_null($shiftSchedule) && $shiftSchedule->file)
-                        <x-cards.data-row :label="__('app.downloadFile')" :value="'<a href='.$shiftSchedule->download_file_url.' download>'.$shiftSchedule->download_file_url.'</a>'" />
+                        <x-cards.data-row :label="__('app.downloadFile')" :value="'<a href='.$shiftSchedule->download_file_url.' download>'.$shiftSchedule->{{ td('download_file_url.\'') }}</a>'" />
                     @endif
                 </div>
             @endif

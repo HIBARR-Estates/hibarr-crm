@@ -12,6 +12,7 @@ import type { BulkTarget } from "@/Features/BulkActions/bulkTarget";
 import { buildBulkTargetPayload } from "@/Features/BulkActions/bulkTarget";
 import { fmt } from "@/Features/Filters/controls";
 import type { BulkActionSummaryData } from "@/Features/BulkActions/BulkActionSummary";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     target: BulkTarget;
@@ -20,6 +21,7 @@ interface Props extends IModalProps {
 }
 
 const BulkDeleteLeads: React.FC<Props> = ({ open, onClose, target, onCompleted }) => {
+    const { td } = useTd();
     const { mutate: bulkDelete, status } = useApiMutate<
         Record<string, unknown>,
         any,
@@ -44,7 +46,7 @@ const BulkDeleteLeads: React.FC<Props> = ({ open, onClose, target, onCompleted }
                     };
                 };
 
-                message.success("Leads deleted successfully");
+                message.success(td("Leads deleted successfully", { source: "en" }));
                 onCompleted?.({
                     verb: "deleted",
                     entityLabel: "leads",
@@ -55,7 +57,7 @@ const BulkDeleteLeads: React.FC<Props> = ({ open, onClose, target, onCompleted }
                 router.reload({ only: ["leads"] });
             },
             onError: () => {
-                message.error("Failed to delete leads");
+                message.error(td("Failed to delete leads", { source: "en" }));
             },
         });
     };
@@ -71,15 +73,15 @@ const BulkDeleteLeads: React.FC<Props> = ({ open, onClose, target, onCompleted }
                 fn: handleBulkDelete,
                 loading: loading,
             }}
-            title="Delete Selected Contacts"
+            title={td("Delete Selected Contacts", { source: "en" })}
             description={`Are you sure you want to delete ${
                 target.mode === "all_matching"
                     ? `all ${fmt(count)} matching contacts`
                     : pluralOrSingular(count, "this contact", `${fmt(count)} contacts`)
             }? This action cannot be undone.`}
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
-            confirmText="Yes, Delete All"
-            cancelText="Cancel"
+            confirmText={td("Yes, Delete All", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
             confirmType="primary"
             confirmDanger={true}
         />

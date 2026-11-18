@@ -93,9 +93,8 @@
                           :fieldValue="global_setting()->google_map_key"/>
 
             <small class="form-text text-muted my-0">@lang('messages.googleMapRemove')</small>
-            <small class="form-text text-muted my-2">Visit <a
-                    href='https://console.cloud.google.com/project/_/google/maps-apis/overview' target="_blank"> Google
-                    Cloud Console</a> to get the keys</small>
+            <small class="form-text text-muted my-2">{{ td('Visit') }} <a
+                    href='https://console.cloud.google.com/project/_/google/maps-apis/overview' target="_blank"> {{ td('Google Cloud Console') }}</a> {{ td('to get the keys') }}</small>
         </div>
     </div>
 </div>

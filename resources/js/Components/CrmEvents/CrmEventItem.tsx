@@ -304,7 +304,7 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                     <span
                         className={`text-[11px] rounded-sm font-medium px-1.5 py-0.5 bg-gray-100 text-gray-600`}
                     >
-                        {event.event_type.category.name}
+                        {td(event.event_type.category.name, { source: "en" })}
                     </span>
                 )}
                 {!hideStatusChip && (

@@ -12,10 +12,10 @@
         <thead class="thead-light">
             <tr>
                 <th>@lang('app.name')</th>
-                <th>Slug</th>
-                <th>Category</th>
-                <th>Model</th>
-                <th class="text-center">Processing</th>
+                <th>{{ td('Slug') }}</th>
+                <th>{{ td('Category') }}</th>
+                <th>{{ td('Model') }}</th>
+                <th class="text-center">{{ td('Processing') }}</th>
                 <th class="text-center">@lang('app.status')</th>
                 <th class="text-right">@lang('app.action')</th>
             </tr>
@@ -28,7 +28,7 @@
                             {{ $eventType->name }}
                             @if($eventType->is_system)
                                 <i class="fa fa-lock f-11 text-lightest ml-1" data-toggle="tooltip"
-                                   title="System-managed"></i>
+                                   title="{{ td('System-managed') }}"></i>
                             @endif
                         </h5>
                         @if($eventType->description)
@@ -52,9 +52,9 @@
                     </td>
                     <td class="text-center">
                         @if($eventType->sync_processing)
-                            <span class="badge badge-warning f-10">Sync</span>
+                            <span class="badge badge-warning f-10">{{ td('Sync') }}</span>
                         @else
-                            <span class="badge badge-success f-10">Async</span>
+                            <span class="badge badge-success f-10">{{ td('Async') }}</span>
                         @endif
                     </td>
                     <td class="text-center">

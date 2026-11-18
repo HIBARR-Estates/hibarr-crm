@@ -537,7 +537,7 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                 <div className="flex items-center gap-3">
                     {errors.length > 0 && (
                         <p className="text-[11px] text-red-500 italic">
-                            Please fix the errors above
+                            {td("Please fix the errors above", { source: "en" })}
                         </p>
                     )}
                     <button

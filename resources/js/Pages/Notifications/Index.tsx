@@ -584,6 +584,7 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
  * Main Notifications Page Component
  */
 const NotificationsPage: React.FC = () => {
+    const { td } = useTd();
     const {
         notifications,
         pagination,
@@ -762,7 +763,7 @@ const NotificationsPage: React.FC = () => {
                                         description={
                                             <div className="space-y-2">
                                                 <Text className="text-gray-500 text-lg">
-                                                    No notifications found
+                                                    {td("No notifications found", { source: "en" })}
                                                 </Text>
                                                 <Paragraph className="text-gray-400">
                                                     {filters.status === "unread"

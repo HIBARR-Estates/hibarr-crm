@@ -25,6 +25,7 @@ import {
     REDESIGN_TOKENS as T,
     REDESIGN_FONT_STACK,
 } from "@/Components/Redesign/tokens";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export type NotchSeverity =
     | "blue"
@@ -199,6 +200,7 @@ export default function NotificationAlertProvider({
 }: {
     children: ReactNode;
 }) {
+    const { td } = useTd();
     const [current, setCurrent] = useState<NotificationAlertPayload | null>(
         null,
     );
@@ -808,7 +810,7 @@ export default function NotificationAlertProvider({
                                                                 cursor: "pointer",
                                                             }}
                                                         >
-                                                            Open
+                                                            {td("Open", { source: "en" })}
                                                         </button>
                                                     )}
                                                 <button
@@ -834,7 +836,7 @@ export default function NotificationAlertProvider({
                                                         cursor: "pointer",
                                                     }}
                                                 >
-                                                    Dismiss
+                                                    {td("Dismiss", { source: "en" })}
                                                 </button>
                                             </div>
                                         )}

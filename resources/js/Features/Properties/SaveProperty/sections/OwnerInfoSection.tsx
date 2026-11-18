@@ -2,6 +2,7 @@ import React from "react";
 import { Form, Input, Row, Col, Switch, Typography, Divider } from "antd";
 import type { FormInstance } from "antd/lib/form";
 import type { PrimaryCategory } from "@/Types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -17,6 +18,7 @@ const OwnerInfoSection: React.FC<OwnerInfoSectionProps> = ({
     primaryCategory,
     isSalesManager = false,
 }) => {
+    const { td } = useTd();
     return (
         <div>
             {/* ─── Owner Contact Details ─── */}
@@ -25,9 +27,9 @@ const OwnerInfoSection: React.FC<OwnerInfoSectionProps> = ({
                 <Col xs={24} md={8}>
                     <Form.Item
                         name={["owner_info", "name"]}
-                        label="Full Name of the Owner"
+                        label={td("Full Name of the Owner", { source: "en" })}
                     >
-                        <Input placeholder="Full name" />
+                        <Input placeholder={td("Full name", { source: "en" })} />
                     </Form.Item>
                 </Col>
 
@@ -35,9 +37,9 @@ const OwnerInfoSection: React.FC<OwnerInfoSectionProps> = ({
                 <Col xs={24} md={8}>
                     <Form.Item
                         name={["owner_info", "phone"]}
-                        label="Telephone Number"
+                        label={td("Telephone Number", { source: "en" })}
                     >
-                        <Input placeholder="+90 533 XXX XXXX" />
+                        <Input placeholder={td("+90 533 XXX XXXX", { source: "en" })} />
                     </Form.Item>
                 </Col>
 
@@ -45,7 +47,7 @@ const OwnerInfoSection: React.FC<OwnerInfoSectionProps> = ({
                 <Col xs={24} md={8}>
                     <Form.Item
                         name={["owner_info", "email"]}
-                        label="E-mail Address"
+                        label={td("E-mail Address", { source: "en" })}
                         rules={[
                             {
                                 type: "email",
@@ -53,7 +55,7 @@ const OwnerInfoSection: React.FC<OwnerInfoSectionProps> = ({
                             },
                         ]}
                     >
-                        <Input placeholder="owner@example.com" />
+                        <Input placeholder={td("owner@example.com", { source: "en" })} />
                     </Form.Item>
                 </Col>
             </Row>
@@ -61,23 +63,23 @@ const OwnerInfoSection: React.FC<OwnerInfoSectionProps> = ({
             {/* ─── Key Holder ─── */}
             <Divider className="!my-3" />
             <Text strong className="text-sm block mb-3">
-                Key Holder
+                {td("Key Holder", { source: "en" })}
             </Text>
             <Row gutter={[16, 0]}>
                 <Col xs={24} md={8}>
                     <Form.Item
                         name={["owner_info", "key_holder_name"]}
-                        label="Key Holder Name"
+                        label={td("Key Holder Name", { source: "en" })}
                     >
-                        <Input placeholder="Name of the key holder" />
+                        <Input placeholder={td("Name of the key holder", { source: "en" })} />
                     </Form.Item>
                 </Col>
                 <Col xs={24} md={8}>
                     <Form.Item
                         name={["owner_info", "key_holder_phone"]}
-                        label="Key Holder Telephone"
+                        label={td("Key Holder Telephone", { source: "en" })}
                     >
-                        <Input placeholder="+90 533 XXX XXXX" />
+                        <Input placeholder={td("+90 533 XXX XXXX", { source: "en" })} />
                     </Form.Item>
                 </Col>
             </Row>
@@ -87,13 +89,13 @@ const OwnerInfoSection: React.FC<OwnerInfoSectionProps> = ({
                 <>
                     <Divider className="!my-3" />
                     <Text strong className="text-sm block mb-3">
-                        Publishing Permissions
+                        {td("Publishing Permissions", { source: "en" })}
                     </Text>
                     <Row gutter={[16, 0]}>
                         <Col xs={24} md={8}>
                             <Form.Item
                                 name={["owner_info", "allow_101evler_publish"]}
-                                label="Permission for 101evler"
+                                label={td("Permission for 101evler", { source: "en" })}
                                 valuePropName="checked"
                             >
                                 <Switch
@@ -105,7 +107,7 @@ const OwnerInfoSection: React.FC<OwnerInfoSectionProps> = ({
                         <Col xs={24} md={8}>
                             <Form.Item
                                 name={["owner_info", "allow_hangiev_publish"]}
-                                label="Permission for Hangiev"
+                                label={td("Permission for Hangiev", { source: "en" })}
                                 valuePropName="checked"
                             >
                                 <Switch

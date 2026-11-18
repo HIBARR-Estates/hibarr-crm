@@ -165,7 +165,7 @@ export default function TaskFormLinksPopover({
                                                 color: T.TEXT,
                                             }}
                                         >
-                                            {option.name}
+                                            {td(option.name, { source: "en" })}
                                         </span>
                                         {option.meta && (
                                             <span

@@ -45,6 +45,7 @@ import OfferFormModal from "@/Features/Offers/OfferFormModal";
 import OfferDetailDrawer from "@/Features/Offers/OfferDetailDrawer";
 import { formatLocationNameForDisplay } from "@/lib/utils";
 import HiddenBadge from "../DeveloperProjects/components/HiddenBadge";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -91,6 +92,7 @@ const Show = ({
     filters,
     visibility,
 }: ShowProps) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [editProject, setEditProject] = useState<DeveloperProject | null>(
@@ -130,7 +132,7 @@ const Show = ({
     // Table columns for projects
     const columns: TableColumnsType<DeveloperProject> = [
         {
-            title: "Project Name",
+            title: td("Project Name", { source: "en" }),
             dataIndex: "name",
             key: "name",
             render: (name: string, record) => (
@@ -151,7 +153,7 @@ const Show = ({
             ),
         },
         {
-            title: "Location",
+            title: td("Location", { source: "en" }),
             dataIndex: "location",
             key: "location",
             render: (location: ProjectLocation | undefined) =>
@@ -161,18 +163,18 @@ const Show = ({
                         <span>{formatLocationNameForDisplay(location.name)}</span>
                     </Space>
                 ) : (
-                    <Text type="secondary">No location</Text>
+                    <Text type="secondary">{td("No location", { source: "en" })}</Text>
                 ),
         },
         {
-            title: "Properties",
+            title: td("Properties", { source: "en" }),
             dataIndex: "properties_count",
             key: "properties_count",
             align: "center",
             render: (count: number) => <Tag color="blue">{count || 0}</Tag>,
         },
         {
-            title: "Links",
+            title: td("Links", { source: "en" }),
             key: "links",
             render: (_, record) => (
                 <Space size="small" wrap>
@@ -187,7 +189,7 @@ const Show = ({
                                 icon={<SettingOutlined />}
                                 className="cursor-pointer"
                             >
-                                Drive
+                                {td("Drive", { source: "en" })}
                             </Tag>
                         </a>
                     )}
@@ -198,7 +200,7 @@ const Show = ({
                             rel="noopener noreferrer"
                         >
                             <Tag color="purple" className="cursor-pointer">
-                                Availability
+                                {td("Availability", { source: "en" })}
                             </Tag>
                         </a>
                     )}
@@ -209,13 +211,13 @@ const Show = ({
             ),
         },
         {
-            title: "Expose",
+            title: td("Expose", { source: "en" }),
             dataIndex: "expose_config",
             key: "expose_config",
             align: "center",
             render: (config: any, record) =>
                 config ? (
-                    <Tag color="green">Configured</Tag>
+                    <Tag color="green">{td("Configured", { source: "en" })}</Tag>
                 ) : (
                     <Link
                         href={route(
@@ -228,13 +230,13 @@ const Show = ({
                             size="small"
                             icon={<SettingOutlined />}
                         >
-                            Setup
+                            {td("Setup", { source: "en" })}
                         </Button>
                     </Link>
                 ),
         },
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             align: "center",
             width: 80,
@@ -243,7 +245,7 @@ const Show = ({
                     {
                         key: "edit",
                         icon: <EditOutlined />,
-                        label: "Edit Project",
+                        label: td("Edit Project", { source: "en" }),
                         onClick: () => setEditProject(record),
                     },
                     {
@@ -256,7 +258,7 @@ const Show = ({
                                     record.id,
                                 )}
                             >
-                                View
+                                {td("View", { source: "en" })}
                             </Link>
                         ),
                     },
@@ -270,7 +272,7 @@ const Show = ({
                                     record.id,
                                 )}
                             >
-                                Expose Config
+                                {td("Expose Config", { source: "en" })}
                             </Link>
                         ),
                     },
@@ -300,7 +302,7 @@ const Show = ({
                         icon={<EditOutlined />}
                         onClick={() => setEditModalOpen(true)}
                     >
-                        Edit Company
+                        {td("Edit Company", { source: "en" })}
                     </Button>
                 </div>
 
@@ -326,7 +328,7 @@ const Show = ({
                                     type="info"
                                     showIcon
                                     className="mb-4"
-                                    message="This developer is hidden from view-only users. All of its projects are also hidden for those users, even if a project’s own Hidden flag is off."
+                                    message={td("This developer is hidden from view-only users. All of its projects are also hidden for those users, even if a project’s own Hidden flag is off.", { source: "en" })}
                                 />
                             )}
                             {developer.description && (
@@ -346,7 +348,7 @@ const Show = ({
                                             rel="noopener noreferrer"
                                             className="text-green-600 hover:text-green-800 flex items-center gap-1"
                                         >
-                                            <WhatsAppOutlined /> WhatsApp Group
+                                            <WhatsAppOutlined /> {td("WhatsApp Group", { source: "en" })}
                                         </a>
                                         <Button
                                             type="text"
@@ -357,7 +359,7 @@ const Show = ({
                                                     developer.whatsapp_group_link!,
                                                 );
                                                 message.success(
-                                                    "Link copied to clipboard",
+                                                    td("Link copied to clipboard", { source: "en" }),
                                                 );
                                             }}
                                         />
@@ -371,7 +373,7 @@ const Show = ({
                                             rel="noopener noreferrer"
                                             className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
                                         >
-                                            <FolderOpenOutlined /> Google Drive
+                                            <FolderOpenOutlined /> {td("Google Drive", { source: "en" })}
                                         </a>
                                         <Button
                                             type="text"
@@ -382,7 +384,7 @@ const Show = ({
                                                     developer.google_drive_link!,
                                                 );
                                                 message.success(
-                                                    "Link copied to clipboard",
+                                                    td("Link copied to clipboard", { source: "en" }),
                                                 );
                                             }}
                                         />
@@ -395,10 +397,10 @@ const Show = ({
 
                 {/* Projects Table */}
                 <Card
-                    title="Projects"
+                    title={td("Projects", { source: "en" })}
                     extra={
                         <Input.Search
-                            placeholder="Search projects..."
+                            placeholder={td("Search projects...", { source: "en" })}
                             allowClear
                             value={searchValue}
                             onChange={(e) => setSearchValue(e.target.value)}
@@ -410,10 +412,10 @@ const Show = ({
                     {projects.data.length === 0 ? (
                         <Empty
                             image={Empty.PRESENTED_IMAGE_SIMPLE}
-                            description="No projects found for this developer"
+                            description={td("No projects found for this developer", { source: "en" })}
                         >
                             <Link href={route("developer-projects.index")}>
-                                <Button type="primary">Go to Projects</Button>
+                                <Button type="primary">{td("Go to Projects", { source: "en" })}</Button>
                             </Link>
                         </Empty>
                     ) : (
@@ -459,14 +461,14 @@ const Show = ({
                                 setOfferModalOpen(true);
                             }}
                         >
-                            New Offer
+                            {td("New Offer", { source: "en" })}
                         </Button>
                     }
                 >
                     {offers.length === 0 ? (
                         <Empty
                             image={Empty.PRESENTED_IMAGE_SIMPLE}
-                            description="No offers for this developer"
+                            description={td("No offers for this developer", { source: "en" })}
                         >
                             <Button
                                 type="primary"
@@ -475,7 +477,7 @@ const Show = ({
                                     setOfferModalOpen(true);
                                 }}
                             >
-                                Create First Offer
+                                {td("Create First Offer", { source: "en" })}
                             </Button>
                         </Empty>
                     ) : (
@@ -485,7 +487,7 @@ const Show = ({
                             size="small"
                             columns={[
                                 {
-                                    title: "Name",
+                                    title: td("Name", { source: "en" }),
                                     dataIndex: "name",
                                     key: "name",
                                     render: (name: string, record: Offer) => (
@@ -499,7 +501,7 @@ const Show = ({
                                     ),
                                 },
                                 {
-                                    title: "Type",
+                                    title: td("Type", { source: "en" }),
                                     dataIndex: "type",
                                     key: "type",
                                     width: 100,
@@ -518,7 +520,7 @@ const Show = ({
                                     ),
                                 },
                                 {
-                                    title: "Value",
+                                    title: td("Value", { source: "en" }),
                                     key: "value",
                                     width: 100,
                                     render: (_: any, record: Offer) =>
@@ -529,7 +531,7 @@ const Show = ({
                                               ).toLocaleString("en-GB"),
                                 },
                                 {
-                                    title: "Status",
+                                    title: td("Status", { source: "en" }),
                                     dataIndex: "is_active",
                                     key: "status",
                                     width: 90,
@@ -542,7 +544,7 @@ const Show = ({
                                     ),
                                 },
                                 {
-                                    title: "Projects",
+                                    title: td("Projects", { source: "en" }),
                                     dataIndex: "developer_projects_count",
                                     key: "projects",
                                     width: 80,
@@ -550,7 +552,7 @@ const Show = ({
                                     render: (v: number) => v ?? 0,
                                 },
                                 {
-                                    title: "Actions",
+                                    title: td("Actions", { source: "en" }),
                                     key: "actions",
                                     width: 80,
                                     align: "center" as const,

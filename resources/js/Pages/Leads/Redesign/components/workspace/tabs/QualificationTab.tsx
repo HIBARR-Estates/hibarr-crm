@@ -321,7 +321,7 @@ export default function QualificationTab({
                                     className="flex-1 min-w-0 text-[12px] font-bold uppercase tracking-wider leading-snug"
                                     style={{ color: T.TEXT_MUTED }}
                                 >
-                                    {group.name}
+                                    {td(group.name, { source: "en" })}
                                 </span>
                                 <span
                                     className="text-[12px] shrink-0"

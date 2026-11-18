@@ -2,6 +2,7 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import useTranslation from "@/Hooks/useTranslation";
 import type { PipelineRow } from "./types";
 import { dominantTotal } from "./format";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface PipelineSplitProps {
     pipelines: PipelineRow[];
@@ -35,6 +36,7 @@ export default function PipelineSplit({
     pipelines,
     dealsHref,
 }: PipelineSplitProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
 
     if (!pipelines.length) {
@@ -123,7 +125,7 @@ export default function PipelineSplit({
                                 <span
                                     style={{ fontWeight: 600, color: T.TEXT }}
                                 >
-                                    {pipeline.name}
+                                    {td(pipeline.name, { source: "en" })}
                                 </span>
                                 <span
                                     style={{

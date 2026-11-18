@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import FloatingDropdown from "../ui/FloatingDropdown";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface DateInputProps {
     value: string;
@@ -29,6 +30,7 @@ function daysInMonth(y: number, m: number) { return new Date(y, m + 1, 0).getDat
 function firstDay(y: number, m: number) { const d = new Date(y, m, 1).getDay(); return d === 0 ? 6 : d - 1; }
 
 export default function DateInput({ value, onChange }: DateInputProps) {
+    const { td } = useTd();
     const selected = parseISO(value);
     const today = new Date();
     const [viewYear, setViewYear] = useState(selected?.getFullYear() ?? today.getFullYear());
@@ -258,7 +260,7 @@ export default function DateInput({ value, onChange }: DateInputProps) {
                             className="w-full text-center text-xs font-medium py-1 transition-colors hover:opacity-70"
                             style={{ color: T.NAVY }}
                         >
-                            Today
+                            {td("Today", { source: "en" })}
                         </button>
                     </div>
                 </div>

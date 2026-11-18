@@ -3,6 +3,7 @@ import { Form, Input, Switch, Row, Col, Typography } from "antd";
 import type { FormInstance } from "antd/lib/form";
 import type { PrimaryCategory } from "@/Types";
 import CurrencyInput from "@/Components/CurrencyInput";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -27,6 +28,7 @@ const InternalInfoSection: React.FC<InternalInfoSectionProps> = ({
     primaryCategory,
     selectedCurrency,
 }) => {
+    const { td } = useTd();
     return (
         <div>
             <Row gutter={[16, 0]}>
@@ -34,13 +36,13 @@ const InternalInfoSection: React.FC<InternalInfoSectionProps> = ({
                 <Col xs={24} md={8}>
                     <Form.Item
                         name="price_to_owner"
-                        label="Price to Owner"
-                        tooltip="The price agreed with the property owner"
+                        label={td("Price to Owner", { source: "en" })}
+                        tooltip={td("The price agreed with the property owner", { source: "en" })}
                     >
                         <CurrencyInput
                             noFormItem
                             defaultCurrency={selectedCurrency}
-                            placeholder="Owner's asking price"
+                            placeholder={td("Owner's asking price", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>
@@ -49,13 +51,13 @@ const InternalInfoSection: React.FC<InternalInfoSectionProps> = ({
                 <Col xs={24} md={8}>
                     <Form.Item
                         name="hibarr_price"
-                        label="HIBARR Price"
-                        tooltip="HIBARR's listed price"
+                        label={td("HIBARR Price", { source: "en" })}
+                        tooltip={td("HIBARR's listed price", { source: "en" })}
                     >
                         <CurrencyInput
                             noFormItem
                             defaultCurrency={selectedCurrency}
-                            placeholder="Listed price"
+                            placeholder={td("Listed price", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>
@@ -64,13 +66,13 @@ const InternalInfoSection: React.FC<InternalInfoSectionProps> = ({
                 <Col xs={24} md={8}>
                     <Form.Item
                         name="dues"
-                        label="Monthly Dues / Aidât"
-                        tooltip="Monthly maintenance or site fees"
+                        label={td("Monthly Dues / Aidât", { source: "en" })}
+                        tooltip={td("Monthly maintenance or site fees", { source: "en" })}
                     >
                         <CurrencyInput
                             noFormItem
                             defaultCurrency={selectedCurrency}
-                            placeholder="Monthly dues"
+                            placeholder={td("Monthly dues", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>
@@ -81,7 +83,7 @@ const InternalInfoSection: React.FC<InternalInfoSectionProps> = ({
                 <Col xs={24} md={8}>
                     <Form.Item
                         name="commission_agreement_signed"
-                        label="Commission Agreement Signed"
+                        label={td("Commission Agreement Signed", { source: "en" })}
                         valuePropName="checked"
                     >
                         <Switch checkedChildren="Yes" unCheckedChildren="No" />
@@ -94,12 +96,12 @@ const InternalInfoSection: React.FC<InternalInfoSectionProps> = ({
                 <Col span={24}>
                     <Form.Item
                         name="general_notes"
-                        label="General Notes"
-                        tooltip="Internal notes visible only to staff"
+                        label={td("General Notes", { source: "en" })}
+                        tooltip={td("Internal notes visible only to staff", { source: "en" })}
                     >
                         <TextArea
                             rows={3}
-                            placeholder="Any additional internal notes about this property..."
+                            placeholder={td("Any additional internal notes about this property...", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>

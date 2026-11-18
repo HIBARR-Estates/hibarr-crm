@@ -7,6 +7,7 @@ import {
     EditOutlined,
     EyeOutlined,
 } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export type NotesView = "list" | "add" | "edit" | "view";
 
@@ -21,6 +22,7 @@ export const NotesBreadcrumb: React.FC<NotesBreadcrumbProps> = ({
     noteTitle,
     onNavigate,
 }) => {
+    const { td } = useTd();
     const breadcrumbItems = [
         {
             title: (
@@ -29,7 +31,7 @@ export const NotesBreadcrumb: React.FC<NotesBreadcrumbProps> = ({
                     onClick={() => onNavigate("list")}
                 >
                     {/* <FileTextOutlined className="mr-1" /> */}
-                    Notes
+                    {td("Notes", { source: "en" })}
                 </span>
             ),
         },
@@ -41,7 +43,7 @@ export const NotesBreadcrumb: React.FC<NotesBreadcrumbProps> = ({
                 title: (
                     <span className="flex items-center text-blue-600">
                         {/* <PlusOutlined className="mr-1" /> */}
-                        New
+                        {td("New", { source: "en" })}
                     </span>
                 ),
             });
@@ -60,7 +62,7 @@ export const NotesBreadcrumb: React.FC<NotesBreadcrumbProps> = ({
                         title: (
                             <span className="flex items-center text-blue-600">
                                 {/* <EditOutlined className="mr-1" /> */}
-                                Edit
+                                {td("Edit", { source: "en" })}
                             </span>
                         ),
                     },

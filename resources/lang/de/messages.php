@@ -149,4 +149,8 @@ return [
     'resyncUserPermissionsAlreadyRunning' => 'Für dieses Unternehmen läuft bereits eine Neusynchronisierung der Benutzerberechtigungen.',
     'resyncUserPermissionsSuccess' => 'Berechtigungen für :synced Benutzer neu synchronisiert. :skipped ohne Rolle übersprungen.',
     'resyncUserPermissionsFailed' => 'Die Neusynchronisierung der Benutzerberechtigungen ist fehlgeschlagen. Prüfen Sie die Anwendungsprotokolle und versuchen Sie es erneut.',
+    'paymentRequestDeleteOnlyCancelled' => 'Nur eine stornierte Zahlungsanforderung kann gelöscht werden.',
+    'deleteTaskCategory' => 'Die gelöschte Aufgabenkategorie kann nicht wiederhergestellt werden!',
+    'noLeadSourceAdded' => 'Keine Lead-Quelle hinzugefügt.',
+    'somethingWentWrong' => 'Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.',
 ];

@@ -317,6 +317,32 @@ class DealPaymentService
     }
 
     /**
+     * Deletes a cancelled request. Payments are soft-deleted, so the row drops out of the list, the status counts, and every total on the
+     * payment-requests page, and out of the deal's request history,
+     * while the row itself stays for audit.
+     *
+     * Only a request the CRM cancelled (ol_status "cancelled") qualifies. Anything
+     * else is, or may become, a record of money, and stays.
+     */
+    public function deleteCancelled(Deal $deal, Payment $payment, ?User $user = null): void
+    {
+        if ((int) $payment->deal_id !== (int) $deal->id) {
+            throw new HttpException(404, 'Payment request not found.');
+        }
+
+        if (self::uiStateOf($payment) !== 'invalidated') {
+            throw new HttpException(409, __('messages.paymentRequestDeleteOnlyCancelled'));
+        }
+
+        // Soft delete: the row stays as a trace (who and when), and the
+        // SoftDeletes scope on Payment keeps it out of every list and total.
+        // The author is written straight to the row so the payment observers
+        // (built for invoice payments) do not run an update for it.
+        Payment::withoutGlobalScopes()->whereKey($payment->id)->update(['deleted_by_user_id' => $user?->id]);
+        $payment->delete();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function markInvalidated(Payment $payment, ?User $user, string $reason): array

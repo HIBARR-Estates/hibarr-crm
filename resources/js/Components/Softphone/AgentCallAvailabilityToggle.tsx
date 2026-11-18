@@ -4,6 +4,7 @@ import { usePage } from "@inertiajs/react";
 import { Tooltip, message } from "antd";
 import useTranslation from "@/Hooks/useTranslation";
 import { hasAnySoftphonePermission } from "@/Hooks/useSoftphone";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface AgentCallAvailabilityToggleProps {
     className?: string;
@@ -26,6 +27,7 @@ export default function AgentCallAvailabilityToggle({
     className,
     style,
 }: AgentCallAvailabilityToggleProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { props } = usePage<any>();
 
@@ -98,7 +100,7 @@ export default function AgentCallAvailabilityToggle({
             }
         } catch {
             setCanReceive(!nextValue); // rollback on error
-            void message.error("Could not update incoming call availability.");
+            void message.error(td("Could not update incoming call availability.", { source: "en" }));
         } finally {
             setLoading(false);
         }

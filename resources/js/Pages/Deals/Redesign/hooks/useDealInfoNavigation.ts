@@ -19,6 +19,7 @@ import {
     toCategorySectionId,
 } from "../config/dealInfoSections";
 import type { DealInfoCoreSectionId, DealInfoSectionId } from "../types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface CustomFieldDefinition {
     id: number;
@@ -266,6 +267,7 @@ export default function useDealInfoNavigation(
     gdprSetting?: { enable_gdpr?: boolean } | null,
     visibleFieldKeys?: string[] | null,
 ) {
+    const { td } = useTd();
     return useMemo(() => {
         const nowSections = DEAL_INFO_CORE_SECTION_ORDER.slice(
             0,
@@ -399,8 +401,8 @@ export default function useDealInfoNavigation(
         ];
 
         const navGroups: NavGroup[] = [
-            { label: "Overview", items: nowItems },
-            { label: "For this pipeline", items: laterItems },
+            { label: td("Overview", { source: "en" }), items: nowItems },
+            { label: td("For this pipeline", { source: "en" }), items: laterItems },
         ];
 
         return { navGroups };

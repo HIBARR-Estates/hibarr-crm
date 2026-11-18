@@ -73,7 +73,7 @@
                         </x-cards.data>
 
                         <x-cards.data>
-                            <p class="f-w-500">Share Direct link</p>
+                            <p class="f-w-500">{{ td('Share Direct link') }}</p>
                             <p class="f-12"><a href="{{ route('front.ticket_form', [company()->hash]).'?styled=1&lang='.company()->locale }}" target="_blank">{{ route('front.ticket_form', [company()->hash]).'?styled=1&lang='.company()->locale }}</a></p>
                             <p class="f-12"><a href="{{ route('front.ticket_form', [company()->hash]).'?styled=1&with_logo=1&lang='.company()->locale }}" target="_blank">{{ route('front.ticket_form', [company()->hash]).'?styled=1&with_logo=1&lang='.company()->locale }}</a></p>
                         </x-cards.data>

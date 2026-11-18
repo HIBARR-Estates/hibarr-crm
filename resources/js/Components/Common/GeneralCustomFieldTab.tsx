@@ -19,6 +19,7 @@ import { useCustomFieldVisibility } from "@/Hooks/useCustomFieldVisibility";
 import CurrencyInput from "@/Components/CurrencyInput";
 import RepeatableFieldRenderer from "@/Components/RepeatableFieldRenderer";
 import { useCountries } from "@/Hooks/useFormData";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface CustomFieldTabProps<CustomFormData = any> {
     data: CustomFormData;
@@ -41,6 +42,7 @@ const GeneralCustomFieldTab = <
     customFields: customFieldsOverride,
     dealCustomFields: dealCustomFieldsOverride,
 }: CustomFieldTabProps<T>) => {
+    const { td } = useTd();
     const { props } = usePage<any>();
     const { countries } = useCountries();
     const customFields = customFieldsOverride ?? props.customFields ?? [];
@@ -384,7 +386,7 @@ const GeneralCustomFieldTab = <
                         ))
                     ) : (
                         <Select.Option disabled value="">
-                            No countries available
+                            {td("No countries available", { source: "en" })}
                         </Select.Option>
                     )}
                 </Select>
@@ -454,7 +456,7 @@ const GeneralCustomFieldTab = <
                         ))
                     ) : (
                         <Select.Option disabled value="">
-                            No countries available
+                            {td("No countries available", { source: "en" })}
                         </Select.Option>
                     )}
                 </Select>
@@ -508,7 +510,7 @@ const GeneralCustomFieldTab = <
             ]}
         >
             <Upload beforeUpload={() => false} maxCount={1}>
-                <Button icon={<UploadOutlined />}>Select File</Button>
+                <Button icon={<UploadOutlined />}>{td("Select File", { source: "en" })}</Button>
             </Upload>
         </Form.Item>
     );

@@ -11,6 +11,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { router } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export type MeetingDrawerContext = "lead" | "deal";
 
@@ -38,6 +39,7 @@ const AddFollowup: React.FC<Props> = ({
     onClose,
     open,
 }) => {
+    const { td } = useTd();
     const { message } = App.useApp();
     const { t } = useTranslation();
     const [errors, setErrors] = useState<string[]>([]);
@@ -93,7 +95,7 @@ const AddFollowup: React.FC<Props> = ({
                     (deal.lead_agent != null && deal.lead_agent.id != null);
                 if (!hasAgent) {
                     message.warning(
-                        "This deal has no agent assigned. Please assign an agent to the deal before booking a meeting.",
+                        td("This deal has no agent assigned. Please assign an agent to the deal before booking a meeting.", { source: "en" }),
                     );
                     return;
                 }

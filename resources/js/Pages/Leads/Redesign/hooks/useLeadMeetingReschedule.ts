@@ -8,6 +8,7 @@ import {
     formatMeetingTimeForApi,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import { useLeadWorkspace } from "../context/LeadWorkspaceContext";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface LeadMeetingRescheduleInput {
     date: string;
@@ -26,6 +27,7 @@ interface RescheduleResponse {
 }
 
 export default function useLeadMeetingReschedule(followupId: number | null) {
+    const { td } = useTd();
     const [errors, setErrors] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { props } = usePage();
@@ -80,7 +82,7 @@ export default function useLeadMeetingReschedule(followupId: number | null) {
                 const json = (await response.json()) as RescheduleResponse;
 
                 if (json.success) {
-                    message.success("Meeting rescheduled");
+                    message.success(td("Meeting rescheduled", { source: "en" }));
                     // Instant local patch — avoid waiting on a full deferred reload.
                     const nextDate =
                         json.data?.next_follow_up_date ||

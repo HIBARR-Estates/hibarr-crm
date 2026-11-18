@@ -3,6 +3,7 @@ import { message } from "antd";
 import type { LeadQualification, TemplateTree } from "@/Types/qualification";
 import { useLeadQualificationService } from "@/Services/LeadQualificationService";
 import { getQualificationTemplateService } from "@/Services/QualificationTemplateService";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export type QualificationLoaderPhase =
     | "loading"
@@ -41,6 +42,7 @@ export default function useLeadQualificationLoader(
     leadId: number,
     { enabled = true, seed = null }: UseLeadQualificationLoaderOptions = {},
 ) {
+    const { td } = useTd();
     const qualificationService = useLeadQualificationService();
     const templateService = useMemo(
         () => getQualificationTemplateService(),
@@ -131,7 +133,7 @@ export default function useLeadQualificationLoader(
                 }
 
                 setTreeLoading(false);
-                message.error("Failed to load template");
+                message.error(td("Failed to load template", { source: "en" }));
                 return false;
             }
         },
@@ -193,7 +195,7 @@ export default function useLeadQualificationLoader(
                 await qualificationServiceRef.current.getQualifications(leadId);
             await applyWorkspace(response);
         } catch {
-            message.error("Failed to load qualifications");
+            message.error(td("Failed to load qualifications", { source: "en" }));
             setTreeLoading(false);
             setPhase("empty");
         }
@@ -221,7 +223,7 @@ export default function useLeadQualificationLoader(
         const initialSeed = seedRef.current;
         if (initialSeed) {
             void applyWorkspace(initialSeed).catch(() => {
-                message.error("Failed to load qualifications");
+                message.error(td("Failed to load qualifications", { source: "en" }));
                 setTreeLoading(false);
                 setPhase("empty");
             });
@@ -349,7 +351,7 @@ export default function useLeadQualificationLoader(
                 await applyWorkspace(workspace);
                 return true;
             } catch {
-                message.error("Failed to delete qualification");
+                message.error(td("Failed to delete qualification", { source: "en" }));
                 return false;
             }
         },

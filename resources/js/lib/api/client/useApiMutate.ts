@@ -20,6 +20,7 @@ import {
 import { App } from "antd";
 import { invalidateOnSuccess } from "../utils";
 import { getFirstValidationMessage } from "../utils/common";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 /** First field error from a 422 body, else the generic form-error hint. */
 const firstFieldError = (response: ApiFormErrorResponse): string =>
@@ -144,6 +145,7 @@ export const useApiMutate = <
     callbackFn?: (res?: MutationResponse) => void,
     isFormData?: boolean
 ): UseApiMutateResult<Payload, T, MutationResponse> => {
+    const { td } = useTd();
     const { props } = usePage();
     const { auth } = props;
 
@@ -186,7 +188,7 @@ export const useApiMutate = <
             } else if (isFormErrorResponse(response)) {
                 // Handle form validation errors
                 notification.error({
-                    message: "Validation Error",
+                    message: td("Validation Error", { source: "en" }),
                     description: firstFieldError(response),
                     duration: 5,
                 });
@@ -211,7 +213,7 @@ export const useApiMutate = <
 
             if (isFormErrorResponse(apiError)) {
                 notification.error({
-                    message: "Validation Error",
+                    message: td("Validation Error", { source: "en" }),
                     description: firstFieldError(apiError),
                     duration: 5,
                 });

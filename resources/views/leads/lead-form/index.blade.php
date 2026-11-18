@@ -68,7 +68,7 @@
                             </code>
                         </x-cards.data>
                         <x-cards.data>
-                            <p class="f-w-500">Share Direct link</p>
+                            <p class="f-w-500">{{ td('Share Direct link') }}</p>
                             <p class="f-12"><a href="{{ route('front.lead_form', [company()->hash]).'?styled=1' }}"
                                                target="_blank">{{ route('front.lead_form', [company()->hash]).'?styled=1' }}</a>
                             </p>

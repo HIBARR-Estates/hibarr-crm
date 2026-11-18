@@ -57,6 +57,9 @@ return [
         'editLead' => 'Potansiyel Müşteri Düzenle',
         'noLeadFound' => 'Potansiyel müşteri bulunamadı',
         'followUp' => 'Toplantılar',
+        'addLeadSource' => 'Potansiyel müşteri kaynağı ekle',
+        'editLeadSource' => 'Potansiyel müşteri kaynağını düzenle',
+        'leadSource' => 'Potansiyel müşteri kaynağı',
     ],
     'deal' => [
         'title' => 'Anlaşma',
@@ -65,6 +68,15 @@ return [
         'noDealFound' => 'Anlaşma bulunamadı',
         'dealPipeline' => 'Anlaşma Pipeline\'ı',
         'dealSource' => 'Anlaşma Kaynağı',
+        'addRoutingTrigger' => 'Alan tetikleyicisi ekle',
+        'packageRoutingTriggers' => 'Alan yönlendirme tetikleyicileri',
+        'packageRoutingTriggersHint' => 'Bir fırsat alanı kuralınızla eşleştiğinde, fırsata bu paket atanır ve bağlantılı süreç hattına taşınır.',
+        'packageRoutingTriggersNoFields' => 'Paket tetikleyicileri eklemeden önce Fırsat Ayarları\'ndan hangi fırsat alanlarının yönlendirmeyi tetikleyebileceğini seçin.',
+        'routingTriggerField' => 'Fırsat alanı',
+        'routingTriggerFieldDisabledRow' => 'Bu tetikleyici artık yönlendirme için etkin olmayan bir alan kullanıyor. Kaldırın veya alanı Fırsat Ayarları\'ndan yeniden etkinleştirin.',
+        'routingTriggerMatchMode' => 'Ne zaman yönlendirilecek',
+        'routingTriggerMatchModeExact' => 'Değer eşittir',
+        'routingTriggerMatchValue' => 'Eşleşecek değer',
     ],
     'property' => [
         'addProperty' => 'Mülk Ekle',
@@ -104,5 +116,17 @@ return [
         'leadMeetingCadenceDeleteHint' => 'Bu geçersiz kılmayı temizlemek, lead alıcıları için şirket toplantı varsayılanını geri yükler.',
         'leadMeetingCadenceDeleteConfirm' => 'Lead toplantı kadans geçersiz kılmasını temizleyip şirket toplantı varsayılanına dönülsün mü?',
         'clearLeadMeetingCadence' => 'Geçersiz kılmayı temizle',
+    ],
+    'emailSettings' => [
+        'notificationTitle' => 'E-posta bildirim ayarları',
+    ],
+    'projectCategory' => [
+        'categoryName' => 'Kategori adı',
+    ],
+    'taskCategory' => [
+        'editTaskCategory' => 'Görev kategorisini düzenle',
+    ],
+    'tasks' => [
+        'taskCategory' => 'Görev kategorisi',
     ],
 ];

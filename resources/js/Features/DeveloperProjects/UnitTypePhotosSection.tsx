@@ -42,6 +42,7 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import { compressImagesForUpload } from "@/lib/compressImageForUpload";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Title } = Typography;
 
@@ -101,6 +102,7 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
     unitTypeId,
     onSaveForUpload,
 }) => {
+    const { td } = useTd();
     const { message: messageApi } = App.useApp();
 
     // Upload modal state
@@ -384,7 +386,7 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
             if (!projectId || !unitTypeId) return;
 
             deleteModal.confirm({
-                title: "Delete Photo",
+                title: td("Delete Photo", { source: "en" }),
                 content: `Delete "${asset.name}"? This cannot be undone.`,
                 okText: "Delete",
                 okType: "danger",
@@ -485,10 +487,10 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                     className="mb-4"
                 />
                 <Title level={5} type="secondary">
-                    Save the unit type to upload photos
+                    {td("Save the unit type to upload photos", { source: "en" })}
                 </Title>
                 <Text type="secondary" className="block mb-4">
-                    Photos can be uploaded once the unit type has been saved.
+                    {td("Photos can be uploaded once the unit type has been saved.", { source: "en" })}
                 </Text>
                 {onSaveForUpload && (
                     <Button
@@ -530,15 +532,15 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                             icon={<EditOutlined />}
                             onClick={() => setIsSelecting(true)}
                         >
-                            Select
+                            {td("Select", { source: "en" })}
                         </Button>
                     ) : (
                         <>
                             <Button size="small" onClick={selectAllUnitPhotos}>
-                                Select All
+                                {td("Select All", { source: "en" })}
                             </Button>
                             <Button size="small" onClick={deselectAllUnitPhotos}>
-                                Deselect
+                                {td("Deselect", { source: "en" })}
                             </Button>
                             <Button
                                 size="small"
@@ -566,7 +568,7 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                                 size="small"
                                 onClick={exitUnitSelectionMode}
                             >
-                                Cancel
+                                {td("Cancel", { source: "en" })}
                             </Button>
                         </>
                     )}
@@ -575,7 +577,7 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                         icon={<UploadOutlined />}
                         onClick={() => setIsUploadModalOpen(true)}
                     >
-                        Upload Photos
+                        {td("Upload Photos", { source: "en" })}
                     </Button>
                 </Space>
             </div>
@@ -697,7 +699,7 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
             ) : (
                 <Empty
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description="No photos uploaded yet"
+                    description={td("No photos uploaded yet", { source: "en" })}
                     className="my-4"
                 >
                     <Button
@@ -705,14 +707,14 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                         icon={<UploadOutlined />}
                         onClick={() => setIsUploadModalOpen(true)}
                     >
-                        Upload Your First Photo
+                        {td("Upload Your First Photo", { source: "en" })}
                     </Button>
                 </Empty>
             )}
 
             {/* Upload Modal */}
             <Modal
-                title="Upload Unit Type Photos"
+                title={td("Upload Unit Type Photos", { source: "en" })}
                 open={isUploadModalOpen}
                 onCancel={() => {
                     if (!isUploading) {
@@ -729,7 +731,7 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                         onClick={() => setIsUploadModalOpen(false)}
                         disabled={isUploading || isSavingToBackend}
                     >
-                        Cancel
+                        {td("Cancel", { source: "en" })}
                     </Button>,
                     <Button
                         key="upload"
@@ -750,10 +752,10 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
             >
                 {/* Tag selector */}
                 <div className="mb-4">
-                    <Text className="text-sm block mb-1">Tags (optional)</Text>
+                    <Text className="text-sm block mb-1">{td("Tags (optional)", { source: "en" })}</Text>
                     <Select
                         mode="multiple"
-                        placeholder="Select tags to apply to all photos"
+                        placeholder={td("Select tags to apply to all photos", { source: "en" })}
                         options={TAG_OPTIONS}
                         value={selectedTags}
                         onChange={setSelectedTags}
@@ -776,11 +778,10 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                             <CameraOutlined style={{ fontSize: 36 }} />
                         </p>
                         <p className="ant-upload-text">
-                            Click or drag photos here
+                            {td("Click or drag photos here", { source: "en" })}
                         </p>
                         <p className="ant-upload-hint text-xs">
-                            JPG, PNG, GIF, WebP — up to 50 MB each. Large images
-                            are auto-resized for the web.
+                            {td("JPG, PNG, GIF, WebP — up to 50 MB each. Large images are auto-resized for the web.", { source: "en" })}
                         </p>
                     </Upload.Dragger>
                 ) : (
@@ -838,7 +839,7 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                         onClick={() => setIsTagModalOpen(false)}
                         disabled={isBulkUpdating}
                     >
-                        Cancel
+                        {td("Cancel", { source: "en" })}
                     </Button>,
                     <Button
                         key="apply"
@@ -847,22 +848,22 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                         loading={isBulkUpdating}
                         disabled={bulkTags.length === 0}
                     >
-                        Apply Tags
+                        {td("Apply Tags", { source: "en" })}
                     </Button>,
                 ]}
                 maskClosable={!isBulkUpdating}
             >
                 <div className="mb-4">
                     <Text className="text-sm block mb-1 font-medium">
-                        Action
+                        {td("Action", { source: "en" })}
                     </Text>
                     <Radio.Group
                         value={bulkTagAction}
                         onChange={(e) => setBulkTagAction(e.target.value)}
                     >
-                        <Radio value="add">Add tags</Radio>
-                        <Radio value="remove">Remove tags</Radio>
-                        <Radio value="replace">Replace all tags</Radio>
+                        <Radio value="add">{td("Add tags", { source: "en" })}</Radio>
+                        <Radio value="remove">{td("Remove tags", { source: "en" })}</Radio>
+                        <Radio value="replace">{td("Replace all tags", { source: "en" })}</Radio>
                     </Radio.Group>
                     <div className="mt-1">
                         <Text type="secondary" className="text-xs">
@@ -877,10 +878,10 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                 </div>
 
                 <div>
-                    <Text className="text-sm block mb-1 font-medium">Tags</Text>
+                    <Text className="text-sm block mb-1 font-medium">{td("Tags", { source: "en" })}</Text>
                     <Select
                         mode="multiple"
-                        placeholder="Select tags"
+                        placeholder={td("Select tags", { source: "en" })}
                         options={TAG_OPTIONS}
                         value={bulkTags}
                         onChange={setBulkTags}

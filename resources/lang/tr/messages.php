@@ -149,4 +149,8 @@ return [
     'resyncUserPermissionsAlreadyRunning' => 'Bu şirket için kullanıcı izinleri yeniden senkronizasyonu zaten çalışıyor.',
     'resyncUserPermissionsSuccess' => ':synced kullanıcı için izinler yeniden senkronize edildi. Rolü olmayan :skipped kullanıcı atlandı.',
     'resyncUserPermissionsFailed' => 'Kullanıcı izinleri yeniden senkronizasyonu başarısız oldu. Uygulama günlüklerini kontrol edip tekrar deneyin.',
+    'paymentRequestDeleteOnlyCancelled' => 'Yalnızca iptal edilmiş bir ödeme talebi silinebilir.',
+    'deleteTaskCategory' => 'Silinen görev kategorisini geri alamayacaksınız!',
+    'noLeadSourceAdded' => 'Potansiyel müşteri kaynağı eklenmedi.',
+    'somethingWentWrong' => 'Bir şeyler ters gitti. Lütfen tekrar deneyin.',
 ];

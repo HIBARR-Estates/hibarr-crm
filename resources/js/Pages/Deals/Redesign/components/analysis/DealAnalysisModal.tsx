@@ -474,7 +474,7 @@ export default function DealAnalysisModal({
                                 className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700"
                                 aria-hidden
                             />
-                            <p className="m-0 text-sm text-dr-text-muted">Loading analysis script…</p>
+                            <p className="m-0 text-sm text-dr-text-muted">{td("Loading analysis script…", { source: "en" })}</p>
                         </div>
                     </div>
                 </div>

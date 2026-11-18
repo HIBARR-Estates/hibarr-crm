@@ -3,6 +3,7 @@ import { Modal, List, Spin, Empty, message } from "antd";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import { WebinarSession } from "@/Types/qualification";
 import { RegistrationService } from "@/Services/RegistrationService";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface WebinarSessionPickerModalProps {
     open: boolean;
@@ -19,6 +20,7 @@ const WebinarSessionPickerModal: React.FC<WebinarSessionPickerModalProps> = ({
     onClose,
     onSelect,
 }) => {
+    const { td } = useTd();
     const [loading, setLoading] = useState(false);
     const [sessions, setSessions] = useState<WebinarSession[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -33,7 +35,7 @@ const WebinarSessionPickerModal: React.FC<WebinarSessionPickerModalProps> = ({
                     await registrationService.getNextWebinarSessions(webinarId);
                 setSessions(response.data ?? []);
             } catch {
-                message.error("Failed to load webinar sessions");
+                message.error(td("Failed to load webinar sessions", { source: "en" }));
             } finally {
                 setLoading(false);
             }
@@ -44,12 +46,12 @@ const WebinarSessionPickerModal: React.FC<WebinarSessionPickerModalProps> = ({
 
     const handleConfirm = () => {
         if (!selectedId) {
-            message.warning("Please select a session");
+            message.warning(td("Please select a session", { source: "en" }));
             return;
         }
         const selected = sessions.find((session) => session.id === selectedId);
         if (!selected) {
-            message.warning("Please select a session");
+            message.warning(td("Please select a session", { source: "en" }));
             return;
         }
 
@@ -60,10 +62,10 @@ const WebinarSessionPickerModal: React.FC<WebinarSessionPickerModalProps> = ({
     return (
         <Modal
             open={open}
-            title="Select webinar session"
+            title={td("Select webinar session", { source: "en" })}
             onCancel={onClose}
             onOk={handleConfirm}
-            okText="Register & complete"
+            okText={td("Register & complete", { source: "en" })}
             okButtonProps={{ disabled: !selectedId }}
             width={520}
         >
@@ -72,7 +74,7 @@ const WebinarSessionPickerModal: React.FC<WebinarSessionPickerModalProps> = ({
                     <Spin />
                 </div>
             ) : sessions.length === 0 ? (
-                <Empty description="No upcoming sessions" />
+                <Empty description={td("No upcoming sessions", { source: "en" })} />
             ) : (
                 <List
                     dataSource={sessions}

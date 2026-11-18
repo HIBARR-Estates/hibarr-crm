@@ -9,7 +9,7 @@
 </style>
 <div class="modal-header">
     <h5 class="modal-title" id="modelHeading">@lang('modules.followup.addFollowUp')</h5>
-    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+    <button type="button" class="close" data-dismiss="modal" aria-label="{{ td('Close') }}"><span
             aria-hidden="true">×</span></button>
 </div>
 <div class="modal-body">
@@ -59,7 +59,7 @@
                         </x-forms.select>
                         <div class="mt-2 mb-3">
                             <button type="button" class="btn btn-sm btn-outline-secondary mr-2 meeting-timezone-option"
-                                data-timezone="{{ $meetingTimezone }}">My timezone</button>
+                                data-timezone="{{ $meetingTimezone }}">{{ td('My timezone') }}</button>
                             @if ($hostTimezone)
                                 <button type="button" class="btn btn-sm btn-outline-secondary meeting-timezone-option"
                                     data-timezone="{{ $hostTimezone }}">Host's timezone ({{ $hostUser->name }})</button>
@@ -69,7 +69,7 @@
                     <div class="col-md-6">
                         <x-forms.select fieldId="meeting_type_id" :fieldLabel="__('Meeting Type')" fieldName="meeting_type_id"
                             search="true">
-                            <option value="">-- Select Meeting Type --</option>
+                            <option value="">{{ td('-- Select Meeting Type --') }}</option>
                             @foreach (\App\Models\MeetingType::where('company_id', company()->id)->get() as $meetingType)
                                 <option value="{{ $meetingType->id }}" data-color="{{ $meetingType->color }}">
                                     {{ $meetingType->name }}
@@ -80,10 +80,10 @@
                     <div class="col-md-6">
                         <x-forms.select fieldId="location" :fieldLabel="__('Meeting Location')" fieldName="location"
                             search="true">
-                            <option value="office">Office</option>
-                            <option value="zoom">Zoom</option>
-                            <option value="zoho_meet">Zoho Meet</option>
-                            <option value="google_meet">Google Meet</option>
+                            <option value="office">{{ td('Office') }}</option>
+                            <option value="zoom">{{ td('Zoom') }}</option>
+                            <option value="zoho_meet">{{ td('Zoho Meet') }}</option>
+                            <option value="google_meet">{{ td('Google Meet') }}</option>
                         </x-forms.select>
                     </div>
                     
@@ -101,7 +101,7 @@
                                     fieldId="send_reminder" fieldValue="yes" fieldRequired="true" />
                             </div>
                             <div class="col-lg-6 reminder_info d-none">
-                                <i class="fa fa-info-circle"></i> You will be reminded 30mins before the meeting starts
+                                <i class="fa fa-info-circle"></i> {{ td('You will be reminded 30mins before the meeting starts') }}
                             </div>
                         </div>
                     </div>
@@ -119,7 +119,7 @@
                                     <option value="day">@lang('app.day')</option>
                                     <option value="hour">@lang('app.hour')</option>
                                     <option value="minute">@lang('app.minute')</option>
-                                    <option value="minute" selected>minute</option>
+                                    <option value="minute" selected>{{ td('minute') }}</option>
                                 </x-forms.select>
                             </div>
                         </div>

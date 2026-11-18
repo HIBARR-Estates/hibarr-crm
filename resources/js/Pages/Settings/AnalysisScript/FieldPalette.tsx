@@ -4,6 +4,7 @@ import Icon from "@/Components/Redesign/primitives/Icon";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { ANALYSIS_FIELD_META } from "@/Pages/Deals/Redesign/config/analysisFieldMeta";
 import { makeKey, type BuilderRow, type ScriptItemType } from "./types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface PaletteCustomField {
     id: number;
@@ -134,6 +135,7 @@ export default function FieldPalette({
     onAddSection,
     onAddCategorySection,
 }: Props) {
+    const { td } = useTd();
     const [query, setQuery] = useState("");
 
     const entries = useMemo<PaletteEntry[]>(() => {
@@ -141,14 +143,14 @@ export default function FieldPalette({
 
         out.push({
             id: "question",
-            label: "Question",
+            label: td("Question", { source: "en" }),
             context: null,
             group: "Prompts",
             make: () => row("question", `q_${Date.now()}`, "Question"),
         });
         out.push({
             id: "instruction",
-            label: "Instruction",
+            label: td("Instruction", { source: "en" }),
             context: null,
             group: "Prompts",
             make: () => row("instruction", `i_${Date.now()}`, "Instruction"),
@@ -240,13 +242,13 @@ export default function FieldPalette({
                 <input
                     className="dr-input"
                     type="search"
-                    placeholder="Search fields…"
+                    placeholder={td("Search fields…", { source: "en" })}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     style={{ fontSize: 14 }}
                 />
                 <p style={{ fontSize: 12, color: T.TEXT_HINT, margin: "6px 2px 0" }}>
-                    Drag onto a section, or click to add.
+                    {td("Drag onto a section, or click to add.", { source: "en" })}
                 </p>
             </div>
 
@@ -254,7 +256,7 @@ export default function FieldPalette({
                 {/* Section creators — these make sections, not rows */}
                 {!q && (
                     <>
-                        <GroupLabel>Sections</GroupLabel>
+                        <GroupLabel>{td("Sections", { source: "en" })}</GroupLabel>
                         <button
                             type="button"
                             className="dr-btn dr-btn-ghost"
@@ -262,14 +264,14 @@ export default function FieldPalette({
                             onClick={onAddSection}
                         >
                             <Icon name="plus" size={16} />
-                            New section
+                            {td("New section", { source: "en" })}
                         </button>
                     </>
                 )}
 
                 {matchingCategories.length > 0 && (
                     <>
-                        <GroupLabel>Field Group Sections</GroupLabel>
+                        <GroupLabel>{td("Field Group Sections", { source: "en" })}</GroupLabel>
                         <div style={{ marginBottom: 10 }}>
                             {matchingCategories.map((c) => (
                                 <div
@@ -308,7 +310,7 @@ export default function FieldPalette({
                 )}
 
                 {loading && (
-                    <p style={{ fontSize: 14, color: T.TEXT_MUTED, padding: 8 }}>Loading fields…</p>
+                    <p style={{ fontSize: 14, color: T.TEXT_MUTED, padding: 8 }}>{td("Loading fields…", { source: "en" })}</p>
                 )}
 
                 {!loading && matchCount === 0 && matchingCategories.length === 0 && (

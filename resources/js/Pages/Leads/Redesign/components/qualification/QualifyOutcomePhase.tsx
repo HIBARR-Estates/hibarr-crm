@@ -1315,15 +1315,15 @@ function OutcomeDetail({
                                                 [
                                                     {
                                                         key: "specialist" as const,
-                                                        title: "With an agent",
+                                                        title: td("With an agent", { source: "en" }),
                                                         subtitle:
-                                                            "Schedule it here in the CRM.",
+                                                            td("Schedule it here in the CRM.", { source: "en" }),
                                                     },
                                                     {
                                                         key: "ceo" as const,
-                                                        title: "With Mr. Rabih (CEO)",
+                                                        title: td("With Mr. Rabih (CEO)", { source: "en" }),
                                                         subtitle:
-                                                            "Opens Calendly in a new tab.",
+                                                            td("Opens Calendly in a new tab.", { source: "en" }),
                                                     },
                                                 ]
                                             ).map((track) => {
@@ -1656,7 +1656,7 @@ function OutcomeDetail({
                                                         webinarLocked.firstName ||
                                                         webinarLocked.lastName
                                                             ? {
-                                                                  label: "Name",
+                                                                  label: td("Name", { source: "en" }),
                                                                   value: [
                                                                       webinarForm.firstName,
                                                                       webinarForm.lastName,
@@ -1671,19 +1671,19 @@ function OutcomeDetail({
                                                             : null,
                                                         webinarLocked.email
                                                             ? {
-                                                                  label: "Email",
+                                                                  label: td("Email", { source: "en" }),
                                                                   value: webinarForm.email,
                                                               }
                                                             : null,
                                                         webinarLocked.phone
                                                             ? {
-                                                                  label: "Phone",
+                                                                  label: td("Phone", { source: "en" }),
                                                                   value: webinarForm.phone,
                                                               }
                                                             : null,
                                                         webinarLocked.gender
                                                             ? {
-                                                                  label: "Gender",
+                                                                  label: td("Gender", { source: "en" }),
                                                                   value:
                                                                       webinarForm.gender ===
                                                                       "male"

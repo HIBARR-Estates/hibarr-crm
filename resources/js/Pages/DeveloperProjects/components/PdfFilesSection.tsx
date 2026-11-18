@@ -9,6 +9,7 @@ import GenerateProjectExposeModal from "../../../Features/DeveloperProjects/Gene
 import ShareExposeLinkModal from "../../../Features/Expose/ShareExposeLinkModal";
 import useExposeShareLinksFlag from "@/Hooks/useExposeShareLinksFlag";
 import { snakeToReadable } from "../../../lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Paragraph } = Typography;
 
@@ -25,6 +26,7 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
     unitTypes,
     priceList,
 }) => {
+    const { td } = useTd();
     const shareLinksEnabled = useExposeShareLinksFlag();
 
     const [projectExposeModalOpen, setProjectExposeModalOpen] = useState(false);
@@ -83,7 +85,7 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
             <div className="flex flex-col gap-6">
                 {shareLinksEnabled ? (
                     <Card
-                        title="Project exposé"
+                        title={td("Project exposé", { source: "en" })}
                         extra={
                             <Button
                                 size="small"
@@ -91,14 +93,12 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
                                 icon={<LinkOutlined />}
                                 onClick={handleShareProject}
                             >
-                                Share link
+                                {td("Share link", { source: "en" })}
                             </Button>
                         }
                     >
                         <Paragraph className="text-gray-600 mb-0">
-                            Create a personalized shareable link for the full
-                            project exposé, including overview, unit types,
-                            facilities, and location details.
+                            {td("Create a personalized shareable link for the full project exposé, including overview, unit types, facilities, and location details.", { source: "en" })}
                         </Paragraph>
                     </Card>
                 ) : null}
@@ -157,7 +157,7 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
                                                         handleShareUnitType(ut)
                                                     }
                                                 >
-                                                    Share link
+                                                    {td("Share link", { source: "en" })}
                                                 </Button>
                                             ) : (
                                                 <Button
@@ -170,7 +170,7 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
                                                         )
                                                     }
                                                 >
-                                                    Generate Expose
+                                                    {td("Generate Expose", { source: "en" })}
                                                 </Button>
                                             ),
                                         ]}

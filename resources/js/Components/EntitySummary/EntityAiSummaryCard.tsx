@@ -256,7 +256,7 @@ export default function EntityAiSummaryCard({
                                         This summary may be out of date because the{" "}
                                         {entityType} changed.{" "}
                                         <button type="button" onClick={startRegenerate}>
-                                            Refresh
+                                            {td("Refresh", { source: "en" })}
                                         </button>
                                     </>
                                 )}
@@ -277,7 +277,7 @@ export default function EntityAiSummaryCard({
                                         Showing a fallback summary because AI was
                                         unavailable.{" "}
                                         <button type="button" onClick={startRegenerate}>
-                                            Retry AI
+                                            {td("Retry AI", { source: "en" })}
                                         </button>
                                     </>
                                 )}
@@ -296,7 +296,7 @@ export default function EntityAiSummaryCard({
                                     className="entity-ai-summary-next-step__button entity-ai-summary-empty__cta"
                                     onClick={startGenerate}
                                 >
-                                    Generate AI Summary
+                                    {td("Generate AI Summary", { source: "en" })}
                                 </button>
                             </div>
                         )}

@@ -84,7 +84,7 @@ export default function AiSummaryPanel({ entityType, entityId, initialSummary, l
         <SummaryPersonalizationProvider values={tokens}>
             <section className="agent-ai" aria-busy={loading || undefined} aria-label={t("pages.agent_workspace.contact.ai.label")}>
                 <div className="agent-ai__head">
-                    <span className="agent-ai__badge">AI</span>
+                    <span className="agent-ai__badge">{td("AI", { source: "en" })}</span>
                     <b className="agent-ai__line">
                         {loading && !summary
                             ? t("pages.agent_workspace.contact.ai.writing")

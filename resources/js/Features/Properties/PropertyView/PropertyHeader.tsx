@@ -43,6 +43,7 @@ import useExposeShareLinksFlag from "@/Hooks/useExposeShareLinksFlag";
 import usePropertyCompletenessFlag from "@/Hooks/usePropertyCompletenessFlag";
 import ProgressRing from "@/Components/Redesign/primitives/ProgressRing";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title, Text } = Typography;
 
@@ -65,6 +66,7 @@ function PropertyHeader({
     onShare,
     onGenerateExpose,
 }: PropertyHeaderProps) {
+    const { td } = useTd();
     const { props } = usePage<any>();
     const { t } = useTranslation();
     const { currencies } = useCurrencies();
@@ -152,7 +154,7 @@ function PropertyHeader({
         >(route("edit-access-requests.store"), "POST", () => {
             setEditAccessModal(false);
             setEditAccessMessage("");
-            message.success("Edit access request sent successfully.");
+            message.success(td("Edit access request sent successfully.", { source: "en" }));
             router.reload({
                 only: ["property", "hasPendingEditAccessRequest"],
             });
@@ -194,10 +196,10 @@ function PropertyHeader({
                 document.body.removeChild(textarea);
             }
             setCopied(true);
-            message.success("Reference code copied!");
+            message.success(td("Reference code copied!", { source: "en" }));
             setTimeout(() => setCopied(false), 2000);
         } catch {
-            message.error("Failed to copy");
+            message.error(td("Failed to copy", { source: "en" }));
         }
     };
 
@@ -299,7 +301,7 @@ function PropertyHeader({
                         </Tag>
                         {permissions.isCollaborator && (
                             <Tag color="blue" className="text-sm px-3 py-1">
-                                Collaborator
+                                {td("Collaborator", { source: "en" })}
                             </Tag>
                         )}
                         {/* Publishing Status Badge */}
@@ -394,7 +396,7 @@ function PropertyHeader({
                                 loading={isUnpublishing}
                                 disabled={isUnpublishing}
                             >
-                                Unpublish
+                                {td("Unpublish", { source: "en" })}
                             </Button>
                         ) : (
                             <Button
@@ -405,20 +407,20 @@ function PropertyHeader({
                                 loading={isPublishing}
                                 disabled={isPublishing}
                             >
-                                Publish
+                                {td("Publish", { source: "en" })}
                             </Button>
                         ))}
                     {/* Request Publishing Button (non-SM agents) */}
                     {permissions.canRequestPublish &&
                         !property.is_published &&
                         (hasPendingPublishRequest ? (
-                            <Tooltip title="A publish request is pending review by a Sales Manager">
+                            <Tooltip title={td("A publish request is pending review by a Sales Manager", { source: "en" })}>
                                 <Tag
                                     icon={<ClockCircleOutlined />}
                                     color="orange"
                                     className="text-sm px-3 py-1 m-0"
                                 >
-                                    Pending Review
+                                    {td("Pending Review", { source: "en" })}
                                 </Tag>
                             </Tooltip>
                         ) : (
@@ -429,40 +431,40 @@ function PropertyHeader({
                                 onClick={handleRequestPublish}
                                 loading={isSubmittingPublishRequest}
                             >
-                                Request Publishing
+                                {td("Request Publishing", { source: "en" })}
                             </Button>
                         ))}
                     {/* Check Availability Button */}
                     {permissions.canRequestAccess && !permissions.isAdmin && (
-                        <Tooltip title="Request availability check before presenting to customer">
+                        <Tooltip title={td("Request availability check before presenting to customer", { source: "en" })}>
                             <Button
                                 icon={<SafetyOutlined />}
                                 onClick={handleCheckAvailability}
                                 loading={isRequestingAvailability}
                             >
-                                Check Availability
+                                {td("Check Availability", { source: "en" })}
                             </Button>
                         </Tooltip>
                     )}
                     {permissions.canRequestEditAccess && (
                         hasPendingEditAccessRequest ? (
-                            <Tooltip title="Your edit access request is pending review by the responsible agent">
+                            <Tooltip title={td("Your edit access request is pending review by the responsible agent", { source: "en" })}>
                                 <Tag
                                     icon={<ClockCircleOutlined />}
                                     color="orange"
                                     className="text-sm px-3 py-1 m-0"
                                 >
-                                    Edit Access Pending
+                                    {td("Edit Access Pending", { source: "en" })}
                                 </Tag>
                             </Tooltip>
                         ) : (
-                            <Tooltip title="Request permission to edit listing content">
+                            <Tooltip title={td("Request permission to edit listing content", { source: "en" })}>
                                 <Button
                                     icon={<EditOutlined />}
                                     onClick={handleRequestEditAccess}
                                     loading={isRequestingEditAccess}
                                 >
-                                    Request Edit Access
+                                    {td("Request Edit Access", { source: "en" })}
                                 </Button>
                             </Tooltip>
                         )
@@ -478,7 +480,7 @@ function PropertyHeader({
                             icon={<LinkOutlined />}
                             onClick={onGenerateExpose}
                         >
-                            Share exposé
+                            {td("Share exposé", { source: "en" })}
                         </Button>
                     )}
                     {permissions.canEdit && (
@@ -529,7 +531,7 @@ function PropertyHeader({
 
             {/* Check Availability Modal */}
             <Modal
-                title="Check Property Availability"
+                title={td("Check Property Availability", { source: "en" })}
                 open={availabilityModal}
                 onOk={handleSubmitAvailabilityRequest}
                 onCancel={() => {
@@ -539,15 +541,12 @@ function PropertyHeader({
                     }
                 }}
                 confirmLoading={isRequestingAvailability}
-                okText="Send Request"
-                cancelText="Cancel"
+                okText={td("Send Request", { source: "en" })}
+                cancelText={td("Cancel", { source: "en" })}
             >
                 <div className="py-2">
                     <p className="mb-3 text-gray-600">
-                        Before presenting this property to your customer, you
-                        must request an availability check from the responsible
-                        agent. They will be notified and have 8 business hours
-                        to respond.
+                        {td("Before presenting this property to your customer, you must request an availability check from the responsible agent. They will be notified and have 8 business hours to respond.", { source: "en" })}
                     </p>
                     <p className="mb-2 font-medium">
                         Property: {property.display_title || property.title}
@@ -558,7 +557,7 @@ function PropertyHeader({
                         </p>
                     )}
                     <Input.TextArea
-                        placeholder="Optional message to the responsible agent (e.g., customer details, urgency)"
+                        placeholder={td("Optional message to the responsible agent (e.g., customer details, urgency)", { source: "en" })}
                         value={availabilityMessage}
                         onChange={(e) => setAvailabilityMessage(e.target.value)}
                         rows={3}
@@ -570,7 +569,7 @@ function PropertyHeader({
 
             {/* Request Edit Access Modal */}
             <Modal
-                title="Request Edit Access"
+                title={td("Request Edit Access", { source: "en" })}
                 open={editAccessModal}
                 onOk={handleSubmitEditAccessRequest}
                 onCancel={() => {
@@ -580,15 +579,12 @@ function PropertyHeader({
                     }
                 }}
                 confirmLoading={isRequestingEditAccess}
-                okText="Send Request"
-                cancelText="Cancel"
+                okText={td("Send Request", { source: "en" })}
+                cancelText={td("Cancel", { source: "en" })}
             >
                 <div className="py-2">
                     <p className="mb-3 text-gray-600">
-                        Use this when you need to update the property listing
-                        (description, photos, features, or price). This is
-                        different from an availability check before showing the
-                        property to a client.
+                        {td("Use this when you need to update the property listing (description, photos, features, or price). This is different from an availability check before showing the property to a client.", { source: "en" })}
                     </p>
                     <p className="mb-2 font-medium">
                         Property: {property.display_title || property.title}
@@ -599,7 +595,7 @@ function PropertyHeader({
                         </p>
                     )}
                     <Input.TextArea
-                        placeholder="Optional message explaining why you need edit access"
+                        placeholder={td("Optional message explaining why you need edit access", { source: "en" })}
                         value={editAccessMessage}
                         onChange={(e) => setEditAccessMessage(e.target.value)}
                         rows={3}
@@ -611,7 +607,7 @@ function PropertyHeader({
 
             {/* Request Publishing Modal */}
             <Modal
-                title="Request Property Publishing"
+                title={td("Request Property Publishing", { source: "en" })}
                 open={publishRequestModal}
                 onOk={handleSubmitPublishRequest}
                 onCancel={() => {
@@ -621,14 +617,12 @@ function PropertyHeader({
                     }
                 }}
                 confirmLoading={isSubmittingPublishRequest}
-                okText="Submit Request"
-                cancelText="Cancel"
+                okText={td("Submit Request", { source: "en" })}
+                cancelText={td("Cancel", { source: "en" })}
             >
                 <div className="py-2">
                     <p className="mb-3 text-gray-600">
-                        Your property will be reviewed by a Sales Manager before
-                        being published. You will be notified when your request
-                        is approved or rejected.
+                        {td("Your property will be reviewed by a Sales Manager before being published. You will be notified when your request is approved or rejected.", { source: "en" })}
                     </p>
                     <p className="mb-2 font-medium">
                         Property: {property.display_title || property.title}
@@ -639,7 +633,7 @@ function PropertyHeader({
                         </p>
                     )}
                     <Input.TextArea
-                        placeholder="Optional message to the Sales Manager (e.g., why this property should be published)"
+                        placeholder={td("Optional message to the Sales Manager (e.g., why this property should be published)", { source: "en" })}
                         value={publishRequestMessage}
                         onChange={(e) =>
                             setPublishRequestMessage(e.target.value)

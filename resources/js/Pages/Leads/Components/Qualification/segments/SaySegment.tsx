@@ -3,6 +3,7 @@ import { Tag } from "antd";
 import { SoundOutlined } from "@ant-design/icons";
 import QualificationScriptHtml from "../QualificationScriptHtml";
 import { useTranslatedScriptLabel } from "../useTranslatedScriptLabel";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface SaySegmentProps {
     label: string;
@@ -10,6 +11,7 @@ interface SaySegmentProps {
 }
 
 const SaySegment: React.FC<SaySegmentProps> = ({ label, translateScript }) => {
+    const { td } = useTd();
     const translated = translateScript(useTranslatedScriptLabel(label));
 
     return (
@@ -19,7 +21,7 @@ const SaySegment: React.FC<SaySegmentProps> = ({ label, translateScript }) => {
                 icon={<SoundOutlined />}
                 className="text-xs uppercase tracking-wide"
             >
-                Read aloud
+                {td("Read aloud", { source: "en" })}
             </Tag>
             <QualificationScriptHtml
                 html={translated}

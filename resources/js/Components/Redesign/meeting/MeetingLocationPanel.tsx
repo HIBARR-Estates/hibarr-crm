@@ -43,6 +43,7 @@ export default function MeetingLocationPanel({
     actionable = true,
     className,
 }: MeetingLocationPanelProps) {
+    const { td } = useTd();
     const item = toWorkspaceMeetingListItem(meeting);
 
     if (item.locationType === "video" && item.meetingLink) {
@@ -97,7 +98,7 @@ export default function MeetingLocationPanel({
                             color: T.BLUE,
                         }}
                     >
-                        {item.platformLabel}
+                        {td(item.platformLabel, { source: "en" })}
                     </div>
                     <div
                         className="font-semibold"

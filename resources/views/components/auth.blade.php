@@ -491,7 +491,7 @@
 
         <div class="auth-panel">
             <div class="auth-card">
-                <img class="auth-logo" src="{{ $hibarrLogo }}" alt="HIBARR" width="156" height="40" />
+                <img class="auth-logo" src="{{ $hibarrLogo }}" alt="{{ td('HIBARR') }}" width="156" height="40" />
 
                 <div class="auth-content">
                     {{ $slot }}

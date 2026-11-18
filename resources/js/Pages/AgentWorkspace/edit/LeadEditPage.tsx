@@ -186,7 +186,7 @@ export default function LeadEditPage({ options, statusLabel, duplicates, onMerge
                     <option value="">{empty ? addText(field) : t(`${PREFIX}.not_set`)}</option>
                     {selectOptions(field).map((option) => (
                         <option key={option.value} value={option.value}>
-                            {option.label}
+                            {td(option.label, { source: "en" })}
                         </option>
                     ))}
                 </select>
@@ -210,7 +210,7 @@ export default function LeadEditPage({ options, statusLabel, duplicates, onMerge
                                     )
                                 }
                             >
-                                {option.label}
+                                {td(option.label, { source: "en" })}
                             </button>
                         );
                     })}

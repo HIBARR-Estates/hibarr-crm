@@ -7,8 +7,7 @@
             @if ($smtpSetting->mail_driver == 'smtp')
                 @if(!app()->environment(['codecanyon','demo']))
                     <x-alert type="danger" icon="info-circle">
-                        It seems you have changed the <code class="font-weight-bold">APP_ENV=codecanyon</code> to
-                        something else in <code>.env</code> file.
+                        {{ td('It seems you have changed the') }} <code class="font-weight-bold">APP_ENV=codecanyon</code> {{ td('to something else in') }} <code>{{ td('.env') }}</code> file.
                         Please do not change it, otherwise below SMTP details won't be taken from here.
                     </x-alert>
                 @endif
@@ -24,8 +23,8 @@
                     <x-alert type="secondary" icon="info-circle">
                         <strong>@lang('messages.smtpRecommendation')</strong>
                         <ul>
-                            <li class="py-2">1. <a href="https://get.smtp2go.com/froiden" target="_blank">SMTP2GO.COM</a></li>
-                            <li>2. <a href="https://pstk.smtp.com/froiden" target="_blank">SMTP.COM</a></li>
+                            <li class="py-2">1. <a href="https://get.smtp2go.com/froiden" target="_blank">{{ td('SMTP2GO.COM') }}</a></li>
+                            <li>2. <a href="https://pstk.smtp.com/froiden" target="_blank">{{ td('SMTP.COM') }}</a></li>
                         </ul>
                     </x-alert>
                 @endif
@@ -55,10 +54,10 @@
             <x-forms.select fieldId="mail_connection" :fieldLabel="__('modules.emailSettings.mailConnection')"
                             fieldName="mail_connection" :popover="__('modules.emailSettings.mailConnectionInfo')">
                 <option @if ($smtpSetting->mail_connection == 'sync') selected @endif value="sync">
-                    No
+                    {{ td('No') }}
                 </option>
                 <option @if ($smtpSetting->mail_connection == 'database') selected @endif value="database">
-                    Yes
+                    {{ td('Yes') }}
                 </option>
             </x-forms.select>
         </div>
@@ -66,10 +65,10 @@
         <div class="col-lg-6 col-md-6 form-group my-3">
             <label class="f-14 text-dark-grey mb-12 w-100" for="usr">@lang('modules.emailSettings.mailDriver')</label>
             <div class="d-flex">
-                <x-forms.radio fieldId="mail_driver-mail" fieldLabel="Mail" fieldName="mail_driver" fieldValue="mail"
+                <x-forms.radio fieldId="mail_driver-mail" :fieldLabel="td('Mail')" fieldName="mail_driver" fieldValue="mail"
                                checked="true" :checked="($smtpSetting->mail_driver == 'mail') ? 'checked' : ''">
                 </x-forms.radio>
-                <x-forms.radio fieldId="mail_driver-smtp" fieldLabel="SMTP" fieldValue="smtp" fieldName="mail_driver"
+                <x-forms.radio fieldId="mail_driver-smtp" :fieldLabel="td('SMTP')" fieldValue="smtp" fieldName="mail_driver"
                                :checked="($smtpSetting->mail_driver == 'smtp') ? 'checked' : ''">
                 </x-forms.radio>
             </div>
@@ -95,16 +94,16 @@
             <x-forms.select fieldId="mail_encryption" :fieldLabel="__('modules.emailSettings.mailEncryption')"
                             fieldName="mail_encryption">
                 <option @if ($smtpSetting->mail_encryption == 'tls') selected @endif>
-                    tls
+                    {{ td('tls') }}
                 </option>
                 <option @if ($smtpSetting->mail_encryption == 'ssl') selected @endif>
-                    ssl
+                    {{ td('ssl') }}
                 </option>
                 <option @if ($smtpSetting->mail_encryption == 'starttls') selected @endif>
-                    starttls
+                    {{ td('starttls') }}
                 </option>
                 <option value="null" @if ($smtpSetting->mail_encryption == null) selected @endif>
-                    none
+                    {{ td('none') }}
                 </option>
             </x-forms.select>
         </div>

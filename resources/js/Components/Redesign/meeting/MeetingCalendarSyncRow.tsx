@@ -46,12 +46,12 @@ export default function MeetingCalendarSyncRow({
 
     const pill =
         status === "synced"
-            ? { className: "dr-pill dr-pill-green", label: "Synced" }
+            ? { className: "dr-pill dr-pill-green", label: td("Synced", { source: "en" }) }
             : status === "failed"
-              ? { className: "dr-pill", label: "Sync failed" }
+              ? { className: "dr-pill", label: td("Sync failed", { source: "en" }) }
               : {
                     className: "dr-pill dr-pill-gray",
-                    label: hasMaxAttempts ? "Sync pending" : "Syncing…",
+                    label: td(hasMaxAttempts ? "Sync pending" : "Syncing…", { source: "en" }),
                 };
 
     return (

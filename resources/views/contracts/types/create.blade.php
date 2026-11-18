@@ -4,7 +4,7 @@
 
 <div class="modal-header">
     <h5 class="modal-title" id="modelHeading">@lang('modules.contracts.contractType')</h5>
-    <button type="button"  class="close" data-dismiss="modal" aria-label="Close"><span
+    <button type="button"  class="close" data-dismiss="modal" aria-label="{{ td('Close') }}"><span
             aria-hidden="true">×</span></button>
 </div>
 <div class="modal-body">

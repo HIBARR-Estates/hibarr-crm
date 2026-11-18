@@ -23,6 +23,7 @@ import InternalInfoCard from "./InternalInfoCard";
 import PropertyLocation from "./PropertyLocation";
 import AgentInfoCard from "./AgentInfoCard";
 import PropertyTeamCard from "./PropertyTeamCard";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface PropertyViewProps {
     property: Property;
@@ -55,6 +56,7 @@ export default function PropertyView({
     employees,
     projects,
 }: PropertyViewProps) {
+    const { td } = useTd();
     // Centralised permission check — passed to children as props
     const permissions = usePropertyPermissions(property, {
         hasPendingEditAccessRequest,
@@ -140,7 +142,7 @@ export default function PropertyView({
                             )}
 
                         {/* Tasks */}
-                        <Card title="Tasks" variant="outlined" size="small">
+                        <Card title={td("Tasks", { source: "en" })} variant="outlined" size="small">
                             <TasksTab
                                 tasks={tasks}
                                 relatedEntity={{

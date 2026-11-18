@@ -20,6 +20,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useMyDealContributions, useMyEnrollment } from "@/Features/Mlm/api";
 import type { PaginatedResponse } from "@/Features/Mlm/types";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { RangePicker } = DatePicker;
 
@@ -39,6 +40,7 @@ interface Props extends PageProps {
 }
 
 const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
@@ -69,7 +71,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
 
     const columns = [
         {
-            title: "Deal",
+            title: td("Deal", { source: "en" }),
             key: "deal",
             render: (_: any, r: DealContribution) => (
                 <div>
@@ -79,21 +81,21 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
             ),
         },
         {
-            title: "Closed By",
+            title: td("Closed By", { source: "en" }),
             key: "closed_by",
             render: (_: any, r: DealContribution) => (
                 <div className="flex items-center gap-2">
                     <span className="text-sm">{r.closed_by}</span>
                     {r.closed_by_self && (
                         <Tag color="blue" className="text-xs">
-                            You
+                            {td("You", { source: "en" })}
                         </Tag>
                     )}
                 </div>
             ),
         },
         {
-            title: "Deal Value",
+            title: td("Deal Value", { source: "en" }),
             dataIndex: "deal_value",
             key: "deal_value",
             align: "right" as const,
@@ -107,7 +109,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
             ),
         },
         {
-            title: "Your Commission",
+            title: td("Your Commission", { source: "en" }),
             dataIndex: "commission_amount",
             key: "commission_amount",
             align: "right" as const,
@@ -121,7 +123,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
             ),
         },
         {
-            title: "Type",
+            title: td("Type", { source: "en" }),
             dataIndex: "commission_type",
             key: "commission_type",
             render: (t: string) => (
@@ -139,7 +141,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
             ),
         },
         {
-            title: "Date",
+            title: td("Date", { source: "en" }),
             dataIndex: "date",
             key: "date",
             render: (d: string) => formatCompanyDate(d, "—"),
@@ -166,7 +168,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
                             >
                                 <Card size="small" className="shadow-sm">
                                     <Statistic
-                                        title="Total Deal Value"
+                                        title={td("Total Deal Value", { source: "en" })}
                                         value={totalDealValue}
                                         prefix={currencySymbol}
                                         precision={2}
@@ -182,7 +184,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
                             >
                                 <Card size="small" className="shadow-sm">
                                     <Statistic
-                                        title="Your Commission"
+                                        title={td("Your Commission", { source: "en" })}
                                         value={totalCommission}
                                         prefix={currencySymbol}
                                         precision={2}
@@ -199,7 +201,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
                             >
                                 <Card size="small" className="shadow-sm">
                                     <Statistic
-                                        title="Total Contributions"
+                                        title={td("Total Contributions", { source: "en" })}
                                         value={contributions?.total ?? 0}
                                     />
                                 </Card>
@@ -286,7 +288,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
                                         className="text-blue-500"
                                     />
                                     <span className="font-semibold">
-                                        Deal Contributions
+                                        {td("Deal Contributions", { source: "en" })}
                                     </span>
                                 </div>
                             }

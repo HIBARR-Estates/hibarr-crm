@@ -18,6 +18,7 @@ import { formatCompanyDate } from "@/lib/companyDateTime";
 import CompletionDot from "@/Components/Redesign/primitives/CompletionDot";
 import usePropertyCompletenessFlag from "@/Hooks/usePropertyCompletenessFlag";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface PropertyCardProps {
     property: Property;
@@ -104,6 +105,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     onEdit,
     onDelete,
 }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const showCompleteness = usePropertyCompletenessFlag();
     const completeness = property.completeness;
@@ -127,7 +129,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                     className="flex items-center gap-2"
                 >
                     <Eye size={13} />
-                    View
+                    {td("View", { source: "en" })}
                 </Link>
             ),
         },
@@ -139,7 +141,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                     onClick={() => onEdit?.(property)}
                 >
                     <Pencil size={13} />
-                    Edit
+                    {td("Edit", { source: "en" })}
                 </span>
             ),
         },
@@ -148,16 +150,16 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
             key: "delete",
             label: (
                 <Popconfirm
-                    title="Delete Property"
-                    description="Are you sure you want to delete this property?"
+                    title={td("Delete Property", { source: "en" })}
+                    description={td("Are you sure you want to delete this property?", { source: "en" })}
                     onConfirm={() => onDelete?.(property)}
-                    okText="Delete"
-                    cancelText="Cancel"
+                    okText={td("Delete", { source: "en" })}
+                    cancelText={td("Cancel", { source: "en" })}
                     okButtonProps={{ danger: true }}
                 >
                     <span className="flex items-center gap-2 text-red-500">
                         <Trash2 size={13} />
-                        Delete
+                        {td("Delete", { source: "en" })}
                     </span>
                 </Popconfirm>
             ),
@@ -221,7 +223,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                         onClick={(e) => e.stopPropagation()}
                     >
                         <Tag color="green" className="!m-0 !text-[10px]">
-                            Published
+                            {td("Published", { source: "en" })}
                         </Tag>
                     </div>
                 )}
@@ -302,7 +304,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                 <div className="flex items-end justify-between border-t border-gray-100 pt-2.5">
                     <div>
                         <p className="text-[10px] text-gray-400 mb-0.5">
-                            Price
+                            {td("Price", { source: "en" })}
                         </p>
                         <p className="font-bold text-sm text-slate-900">
                             {formatPrice(

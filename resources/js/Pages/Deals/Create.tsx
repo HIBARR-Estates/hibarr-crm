@@ -2,6 +2,7 @@ import React from "react";
 import { Head } from "@inertiajs/react";
 import { Card } from "antd";
 import DashboardLayout from "@/Components/DashboardLayout";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface CreateProps {
     pageTitle: string;
@@ -21,13 +22,14 @@ interface CreateProps {
 }
 
 const Create: React.FC<CreateProps> = (props) => {
+    const { td } = useTd();
     return (
         <DashboardLayout>
-            <Head title="Create Deal" />
+            <Head title={td("Create Deal", { source: "en" })} />
 
             <div style={{ padding: "24px" }}>
                 <Card>
-                    <h2 style={{ marginBottom: 24 }}>Create New Deal</h2>
+                    <h2 style={{ marginBottom: 24 }}>{td("Create New Deal", { source: "en" })}</h2>
                 </Card>
             </div>
         </DashboardLayout>

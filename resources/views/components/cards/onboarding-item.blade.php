@@ -11,7 +11,7 @@
             @if ($completed)
                 <div class="completed-badge">
                     <i class="bi bi-check-circle-fill text-success f-20"></i>
-                    <span class="ms-1 small text-success">Completed</span>
+                    <span class="ms-1 small text-success">{{ td('Completed') }}</span>
                 </div>
             @else
                 <x-forms.link-secondary
@@ -19,7 +19,7 @@
                     data-redirect-url="{{ url()->full() }}"
                     class="btn-sm"
                     icon="arrow-right">
-                    <span>Start</span>
+                    <span>{{ td('Start') }}</span>
                 </x-forms.link-secondary>
             @endif
         </div>

@@ -10,6 +10,7 @@ import { findLowestAvailablePriority, POOL_GRID_STYLE } from "../utils";
 import { usePermissionToggle } from "../hooks/usePermissionToggle";
 import AgentPoolTable from "./AgentPoolTable";
 import AddAgentInlineForm from "./AddAgentInlineForm";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface LinePoolProps {
     device: SoftphoneDeviceSummary;
@@ -19,6 +20,7 @@ interface LinePoolProps {
  * Collapsible Tier 1 Line Pool card for a specific phone line.
  */
 export default function LinePool({ device }: LinePoolProps) {
+    const { td } = useTd();
     const { message } = App.useApp();
     const [isOpen, setIsOpen] = useState(true);
     const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -66,7 +68,7 @@ export default function LinePool({ device }: LinePoolProps) {
                 },
                 { headers: { Accept: "application/json" } },
             );
-            void message.success("Agent added to the line pool.");
+            void message.success(td("Agent added to the line pool.", { source: "en" }));
             setSelectedUserId(null);
             await Promise.all([poolQuery.refetch(), eligibleQuery.refetch()]);
         } catch (error: any) {
@@ -83,7 +85,7 @@ export default function LinePool({ device }: LinePoolProps) {
             await axios.delete(route("telephony.softphone.call-pool.destroy", deleteTarget.id), {
                 headers: { Accept: "application/json" },
             });
-            void message.success("Agent removed from line pool.");
+            void message.success(td("Agent removed from line pool.", { source: "en" }));
             setDeleteTarget(null);
             await Promise.all([poolQuery.refetch(), eligibleQuery.refetch()]);
         } catch (error: any) {
@@ -106,7 +108,7 @@ export default function LinePool({ device }: LinePoolProps) {
                         {device.phone_number}
                     </span>
                 )}
-                {device.is_default && <span className="cb-chip cb-chip--default">Default Line</span>}
+                {device.is_default && <span className="cb-chip cb-chip--default">{td("Default Line", { source: "en" })}</span>}
                 <span className="cb-group__count">
                     {agents.length} agent{agents.length === 1 ? "" : "s"}
                 </span>
@@ -123,12 +125,12 @@ export default function LinePool({ device }: LinePoolProps) {
                     role="row"
                     style={POOL_GRID_STYLE}
                 >
-                    <span>Agent</span>
-                    <span title="Order in which calls ring agents on this line (1 rings first, 2 rings second, etc.)">
-                        Routing Order
+                    <span>{td("Agent", { source: "en" })}</span>
+                    <span title={td("Order in which calls ring agents on this line (1 rings first, 2 rings second, etc.)", { source: "en" })}>
+                        {td("Routing Order", { source: "en" })}
                     </span>
-                    <span title="Controls whether this agent has softphone access to receive calls on this line">
-                        Softphone Access
+                    <span title={td("Controls whether this agent has softphone access to receive calls on this line", { source: "en" })}>
+                        {td("Softphone Access", { source: "en" })}
                     </span>
                     <span aria-hidden="true" style={{ textAlign: "right" }} />
                 </div>
@@ -136,7 +138,7 @@ export default function LinePool({ device }: LinePoolProps) {
                 <AgentPoolTable
                     agents={agents}
                     isLoading={poolQuery.isLoading}
-                    emptyMessage="No agents assigned to this line yet."
+                    emptyMessage={td("No agents assigned to this line yet.", { source: "en" })}
                     mode="line"
                     togglingUserIds={togglingUserIds}
                     onToggleAccess={(agent) => void togglePermission(agent.user_id, agent.active && Boolean(agent.has_permission))}
@@ -152,7 +154,7 @@ export default function LinePool({ device }: LinePoolProps) {
                     selectedPriority={selectedPriority}
                     usedPriorities={usedPriorities}
                     isSubmitting={isAdding}
-                    placeholder="Search active users"
+                    placeholder={td("Search active users", { source: "en" })}
                     addLabel={`Add agent to ${device.label}`}
                     onUserSelected={setSelectedUserId}
                     onPrioritySelected={setSelectedPriority}
@@ -162,10 +164,10 @@ export default function LinePool({ device }: LinePoolProps) {
 
             <ConfirmDialog
                 open={deleteTarget !== null}
-                title="Remove agent from pool?"
+                title={td("Remove agent from pool?", { source: "en" })}
                 message={deleteTarget ? `${deleteTarget.name ?? "This agent"} will no longer receive calls routed to this line.` : ""}
-                confirmLabel="Remove"
-                cancelLabel="Cancel"
+                confirmLabel={td("Remove", { source: "en" })}
+                cancelLabel={td("Cancel", { source: "en" })}
                 danger
                 onConfirm={() => void handleConfirmDelete()}
                 onCancel={() => setDeleteTarget(null)}

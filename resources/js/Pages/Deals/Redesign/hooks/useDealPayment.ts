@@ -8,6 +8,7 @@ import type {
     DealPaymentResponse,
 } from "@/Types/api/deal-payment";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 function stringifyMessage(value: unknown): string | null {
     if (typeof value === "string" && value.trim() !== "") {
@@ -61,12 +62,14 @@ export type DealPaymentActionResult =
     | { ok: false; message: string };
 
 export default function useDealPayment(dealId: number) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { message } = App.useApp();
     const {
         paymentRequest,
         paymentRequests,
         upsertPaymentRequest,
+        removePaymentRequest,
         refreshPaymentRequest,
         paymentRequestLoading,
         setDeal,
@@ -75,6 +78,7 @@ export default function useDealPayment(dealId: number) {
     const [confirming, setConfirming] = useState(false);
     const [cancelling, setCancelling] = useState(false);
     const [retrying, setRetrying] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
     // Pull the deal again after a payment is confirmed. The outcome changes
@@ -100,7 +104,7 @@ export default function useDealPayment(dealId: number) {
                 );
                 if (response.data?.status === "success" && response.data.data) {
                     upsertPaymentRequest(response.data.data);
-                    message.success("Payment request created.");
+                    message.success(td("Payment request created.", { source: "en" }));
                     return { ok: true, data: response.data.data };
                 }
                 const failMessage =
@@ -181,6 +185,37 @@ export default function useDealPayment(dealId: number) {
         }
     }, [dealId, message, t, upsertPaymentRequest]);
 
+    /** Permanently deletes a cancelled request, then drops it from local state. */
+    const deleteRequest = useCallback(
+        async (paymentId: number): Promise<{ ok: boolean; message?: string }> => {
+            setDeleting(true);
+            try {
+                const response = await axios.delete<{ status?: string; message?: string }>(
+                    route("deals.payment-requests.destroy", { deal: dealId, payment: paymentId }),
+                );
+                if (response.data?.status === "success") {
+                    removePaymentRequest(paymentId);
+                    message.success(t("pages.deals.payment_request.deleted_toast"));
+                    return { ok: true };
+                }
+                const failMessage =
+                    response.data?.message ?? t("pages.deals.payment_request.delete_failed");
+                message.error(failMessage);
+                return { ok: false, message: failMessage };
+            } catch (error: unknown) {
+                const failMessage = apiErrorMessage(
+                    error,
+                    t("pages.deals.payment_request.delete_failed"),
+                );
+                message.error(failMessage);
+                return { ok: false, message: failMessage };
+            } finally {
+                setDeleting(false);
+            }
+        },
+        [dealId, message, removePaymentRequest, t],
+    );
+
     const retryRequest = useCallback(async (paymentId: number): Promise<DealPaymentActionResult> => {
         setRetrying(true);
         try {
@@ -228,11 +263,13 @@ export default function useDealPayment(dealId: number) {
         confirmTransfer,
         cancelRequest,
         retryRequest,
+        deleteRequest,
         refreshStatus,
         creating,
         confirming,
         cancelling,
         retrying,
+        deleting,
         refreshing,
     };
 }

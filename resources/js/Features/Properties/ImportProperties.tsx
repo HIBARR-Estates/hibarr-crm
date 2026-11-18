@@ -3,10 +3,12 @@ import { IModalProps } from "@/Types/common";
 import { router } from "@inertiajs/react";
 import { message } from "antd";
 import React, { useState } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type Props = IModalProps;
 
 const ImportProperties: React.FC<Props> = ({ open, onClose }) => {
+    const { td } = useTd();
     const [importLoading, setImportLoading] = useState(false);
     // Import handler
     const handleImport = (formData: FormData) => {
@@ -31,7 +33,7 @@ const ImportProperties: React.FC<Props> = ({ open, onClose }) => {
             forceFormData: true, // Force Inertia to send as FormData
             onSuccess: (response) => {
                 console.log("Import success:", response);
-                message.success("Import completed successfully");
+                message.success(td("Import completed successfully", { source: "en" }));
                 onClose();
                 // Refresh the properties list
                 router.reload();
@@ -52,9 +54,9 @@ const ImportProperties: React.FC<Props> = ({ open, onClose }) => {
             onClose={onClose}
             onSubmit={handleImport}
             loading={importLoading}
-            title="Import Properties"
+            title={td("Import Properties", { source: "en" })}
             sampleDownloadUrl={route("properties.sample_import")}
-            description="Import multiple properties at once using an Excel file. Make sure to follow the template format for successful import."
+            description={td("Import multiple properties at once using an Excel file. Make sure to follow the template format for successful import.", { source: "en" })}
             acceptedFileTypes=".xlsx,.xls"
             maxFileSize={10}
         />

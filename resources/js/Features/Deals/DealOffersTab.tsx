@@ -58,7 +58,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
 
     const columns: TableColumnsType<DealOfferApplication> = [
         {
-            title: "Offer",
+            title: td("Offer", { source: "en" }),
             key: "offer",
             render: (_, record) => (
                 <Space>
@@ -68,7 +68,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
             ),
         },
         {
-            title: "Property",
+            title: td("Property", { source: "en" }),
             key: "product",
             render: (_, record) =>
                 generatePropertySubtitle((record.product as any)?.property) ||
@@ -77,7 +77,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
         },
 
         {
-            title: "Type",
+            title: td("Type", { source: "en" }),
             key: "type",
             width: 100,
             render: (_, record) => (
@@ -100,7 +100,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
         //     render: (v: number) => formatMoney(v),
         // },
         {
-            title: "Discount",
+            title: td("Discount", { source: "en" }),
             dataIndex: "discount_amount",
             key: "discount_amount",
             width: 120,
@@ -132,13 +132,11 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
         return (
             <div className="p-6">
                 <Empty
-                    description="No offers applied to this deal"
+                    description={td("No offers applied to this deal", { source: "en" })}
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                 >
                     <Text type="secondary" className="text-xs">
-                        Offers are applied when attaching a property from a
-                        project. Use the Properties section to attach properties
-                        with offers.
+                        {td("Offers are applied when attaching a property from a project. Use the Properties section to attach properties with offers.", { source: "en" })}
                     </Text>
                 </Empty>
             </div>
@@ -150,7 +148,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
             <div className="rounded-md border border-gray-200 p-3 bg-gray-50">
                 <Space size={24} wrap>
                     <div>
-                        <Text type="secondary">Final</Text>
+                        <Text type="secondary">{td("Final", { source: "en" })}</Text>
                         <div>
                             <Text strong>
                                 {formatMoney(insight.finalValue)}
@@ -158,13 +156,13 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                         </div>
                     </div>
                     <div>
-                        <Text type="secondary">Base</Text>
+                        <Text type="secondary">{td("Base", { source: "en" })}</Text>
                         <div>
                             <Text>{formatMoney(insight.baseTotal)}</Text>
                         </div>
                     </div>
                     <div>
-                        <Text type="secondary">Discount</Text>
+                        <Text type="secondary">{td("Discount", { source: "en" })}</Text>
                         <div>
                             <Text type="success">
                                 -{formatMoney(insight.discountTotal)}
@@ -172,7 +170,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                         </div>
                     </div>
                     <div>
-                        <Text type="secondary">Calculated</Text>
+                        <Text type="secondary">{td("Calculated", { source: "en" })}</Text>
                         <div>
                             <Text>{formatMoney(insight.calculatedValue)}</Text>
                         </div>
@@ -181,12 +179,12 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
             </div>
 
             <div className="flex items-center justify-between">
-                <Text strong>Applied Offers</Text>
+                <Text strong>{td("Applied Offers", { source: "en" })}</Text>
                 <Space>
                     <Popconfirm
-                        title="Remove all applied offers from this deal? You can re-apply offers by re-attaching properties."
+                        title={td("Remove all applied offers from this deal? You can re-apply offers by re-attaching properties.", { source: "en" })}
                         onConfirm={handleRemoveAll}
-                        okText="Remove"
+                        okText={td("Remove", { source: "en" })}
                         okType="danger"
                         disabled={deal.is_locked}
                     >
@@ -197,7 +195,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                             disabled={deal.is_locked}
                             loading={isRemovingAllOffers}
                         >
-                            Clear All Offers
+                            {td("Clear All Offers", { source: "en" })}
                         </Button>
                     </Popconfirm>
                 </Space>
@@ -213,7 +211,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                 summary={() => (
                     <Table.Summary.Row>
                         <Table.Summary.Cell index={0} colSpan={4} align="right">
-                            <Text strong>Total Discount</Text>
+                            <Text strong>{td("Total Discount", { source: "en" })}</Text>
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={4} align="right">
                             <Text strong type="success">

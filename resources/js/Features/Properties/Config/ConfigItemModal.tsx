@@ -30,6 +30,7 @@ import {
 import HtmlEditor from "@/Components/HtmlEditor";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import type { RcFile } from "antd/lib/upload";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -61,6 +62,7 @@ const ConfigItemModal = ({
     cities,
     primaryCategories,
 }: ConfigItemModalProps) => {
+    const { td } = useTd();
     const [form] = Form.useForm<PropertyConfigPayload>();
     const [imageFile, setImageFile] = useState<RcFile | null>(null);
     const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(
@@ -168,7 +170,7 @@ const ConfigItemModal = ({
                     folder,
                 );
                 imageUrl = uploadResult.downloadUrl;
-                message.success("Image uploaded successfully");
+                message.success(td("Image uploaded successfully", { source: "en" }));
             } catch (error) {
                 const errorMsg =
                     error instanceof Error
@@ -248,13 +250,13 @@ const ConfigItemModal = ({
                 beforeUpload={(file: RcFile) => {
                     const isImage = file.type.startsWith("image/");
                     if (!isImage) {
-                        message.error("Only image files are allowed");
+                        message.error(td("Only image files are allowed", { source: "en" }));
                         return false;
                     }
 
                     const isLt10M = file.size / 1024 / 1024 < 10;
                     if (!isLt10M) {
-                        message.error("Image must be smaller than 10MB");
+                        message.error(td("Image must be smaller than 10MB", { source: "en" }));
                         return false;
                     }
 
@@ -274,7 +276,7 @@ const ConfigItemModal = ({
                                     ? URL.createObjectURL(imageFile)
                                     : uploadedImageUrl!
                             }
-                            alt="Default"
+                            alt={td("Default", { source: "en" })}
                             style={{ maxHeight: "200px", maxWidth: "100%" }}
                         />
                         <p className="mt-2 text-sm text-gray-600">
@@ -289,10 +291,10 @@ const ConfigItemModal = ({
                             <InboxOutlined />
                         </p>
                         <p className="ant-upload-text">
-                            Click or drag image here
+                            {td("Click or drag image here", { source: "en" })}
                         </p>
                         <p className="ant-upload-hint">
-                            Supported: JPG, PNG, GIF (Max 10MB)
+                            {td("Supported: JPG, PNG, GIF (Max 10MB)", { source: "en" })}
                         </p>
                     </div>
                 )}
@@ -346,7 +348,7 @@ const ConfigItemModal = ({
                 <Form form={form} layout="vertical" requiredMark="optional">
                     <Form.Item
                         name="label"
-                        label="Display Label"
+                        label={td("Display Label", { source: "en" })}
                         rules={[
                             {
                                 required: true,
@@ -354,9 +356,9 @@ const ConfigItemModal = ({
                             },
                             { max: 255, message: "Max 255 characters" },
                         ]}
-                        tooltip="User-facing label shown in dropdowns and forms"
+                        tooltip={td("User-facing label shown in dropdowns and forms", { source: "en" })}
                     >
-                        <Input placeholder="e.g. Sea View" />
+                        <Input placeholder={td("e.g. Sea View", { source: "en" })} />
                     </Form.Item>
 
                     <Form.Item name="name" hidden>
@@ -366,27 +368,27 @@ const ConfigItemModal = ({
                     {activeType === "sub-types" && (
                         <Form.Item
                             name="parent_type"
-                            label="Parent Type"
-                            tooltip="The parent property type this sub-type belongs to"
+                            label={td("Parent Type", { source: "en" })}
+                            tooltip={td("The parent property type this sub-type belongs to", { source: "en" })}
                         >
-                            <Input placeholder="e.g. APARTMENT" />
+                            <Input placeholder={td("e.g. APARTMENT", { source: "en" })} />
                         </Form.Item>
                     )}
 
                     {activeType === "areas" && (
                         <Form.Item
                             name="city_id"
-                            label="City"
+                            label={td("City", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
                                     message: "City is required for areas",
                                 },
                             ]}
-                            tooltip="The city this area belongs to"
+                            tooltip={td("The city this area belongs to", { source: "en" })}
                         >
                             <Select
-                                placeholder="Select city"
+                                placeholder={td("Select city", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="label"
@@ -401,7 +403,7 @@ const ConfigItemModal = ({
                     {activeType === "property-types" && (
                         <Form.Item
                             name="category"
-                            label="Primary Category"
+                            label={td("Primary Category", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
@@ -409,10 +411,10 @@ const ConfigItemModal = ({
                                         "Category is required for property types",
                                 },
                             ]}
-                            tooltip="The primary category this property type belongs to (Residential, Commercial, or Land)"
+                            tooltip={td("The primary category this property type belongs to (Residential, Commercial, or Land)", { source: "en" })}
                         >
                             <Select
-                                placeholder="Select category"
+                                placeholder={td("Select category", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="label"
@@ -427,34 +429,34 @@ const ConfigItemModal = ({
                     {activeType === "airports" && (
                         <Form.Item
                             name="code"
-                            label="Airport Code"
+                            label={td("Airport Code", { source: "en" })}
                             rules={[
                                 { max: 10, message: "Max 10 characters" },
                             ]}
-                            tooltip="Optional airport code (e.g. ECN, LCA)"
+                            tooltip={td("Optional airport code (e.g. ECN, LCA)", { source: "en" })}
                         >
-                            <Input placeholder="e.g. ECN" />
+                            <Input placeholder={td("e.g. ECN", { source: "en" })} />
                         </Form.Item>
                     )}
 
                     {activeType === "cities" ? (
-                        <Form.Item name="description" label="Description">
+                        <Form.Item name="description" label={td("Description", { source: "en" })}>
                             <HtmlEditor
                                 height={200}
-                                placeholder="Optional description..."
+                                placeholder={td("Optional description...", { source: "en" })}
                             />
                         </Form.Item>
                     ) : (
                         <Form.Item
                             name="description"
-                            label="Description"
+                            label={td("Description", { source: "en" })}
                             rules={[
                                 { max: 1000, message: "Max 1000 characters" },
                             ]}
                         >
                             <Input.TextArea
                                 rows={3}
-                                placeholder="Optional description..."
+                                placeholder={td("Optional description...", { source: "en" })}
                             />
                         </Form.Item>
                     )}
@@ -462,7 +464,7 @@ const ConfigItemModal = ({
                     {activeType === "cities" && (
                         <>
                             <Divider orientation="left" plain>
-                                Default Distances (km)
+                                {td("Default Distances (km)", { source: "en" })}
                             </Divider>
                             <Row gutter={[12, 0]}>
                                 {DISTANCE_FIELDS.map((field) => (
@@ -494,11 +496,11 @@ const ConfigItemModal = ({
                         <>
                             <Form.Item
                                 name="icon"
-                                label="Icon"
-                                tooltip="Select an icon to represent this facility"
+                                label={td("Icon", { source: "en" })}
+                                tooltip={td("Select an icon to represent this facility", { source: "en" })}
                             >
                                 <Select
-                                    placeholder="Select an icon"
+                                    placeholder={td("Select an icon", { source: "en" })}
                                     allowClear
                                     showSearch
                                     optionFilterProp="label"
@@ -530,13 +532,13 @@ const ConfigItemModal = ({
                     {activeType === "infrastructures" && (
                         <Form.Item
                             name="icon"
-                            label="Icon"
+                            label={td("Icon", { source: "en" })}
                             rules={[
                                 { max: 100, message: "Max 100 characters" },
                             ]}
-                            tooltip="Optional icon identifier"
+                            tooltip={td("Optional icon identifier", { source: "en" })}
                         >
-                            <Input placeholder="e.g. heart-pulse" />
+                            <Input placeholder={td("e.g. heart-pulse", { source: "en" })} />
                         </Form.Item>
                     )}
 
