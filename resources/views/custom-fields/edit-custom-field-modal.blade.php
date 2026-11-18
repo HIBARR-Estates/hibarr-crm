@@ -152,7 +152,7 @@
                             </div>
                             <div class="col-md-4">
                                 <input class="form-control height-35 f-14" name="value[{{ $idx }}][label]" type="text"
-                                    value="{{ $row['label'] ?? '' }}" placeholder="Label" />
+                                    value="{{ $row['label'] ?? '' }}" placeholder="{{ td('Label') }}" />
                             </div>
                             <div class="col-md-1">
                                 <a href="javascript:;" class="task_view_more d-flex align-items-center mt-2" onclick="removeSchemaRow({{ $idx }})"><i class="fa fa-trash"></i></a>
@@ -269,7 +269,7 @@
         var html = '<div class="row mt-2 schema-row" id="schemaRow' + schemaIndex + '" data-index="' + schemaIndex + '">' +
             '<div class="col-md-3"><input class="form-control height-35 f-14" name="value[' + schemaIndex + '][key]" type="text" value="" placeholder="key" /></div>' +
             '<div class="col-md-3"><select class="form-control height-35 f-14" name="value[' + schemaIndex + '][type]">' + typeOpts + '</select></div>' +
-            '<div class="col-md-4"><input class="form-control height-35 f-14" name="value[' + schemaIndex + '][label]" type="text" value="" placeholder="Label" /></div>' +
+            '<div class="col-md-4"><input class="form-control height-35 f-14" name="value[' + schemaIndex + '][label]" type="text" value="" placeholder="{{ td('Label') }}" /></div>' +
             '<div class="col-md-1"><a href="javascript:;" class="task_view_more d-flex align-items-center mt-2" onclick="removeSchemaRow(' + schemaIndex + ')"><i class="fa fa-trash"></i></a></div></div>';
         $(html).insertBefore('#schemaInsertBefore');
         schemaIndex++;

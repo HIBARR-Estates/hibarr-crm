@@ -9,7 +9,7 @@
 <x-form id="editLeadLifecycleStatus" method="PUT" class="ajax-form">
     <div class="modal-header">
         <h5 class="modal-title" id="modelHeading">@lang('modules.lead.editLifecycleStatus')</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <button type="button" class="close" data-dismiss="modal" aria-label="{{ td('Close') }}">
             <span aria-hidden="true">×</span>
         </button>
     </div>

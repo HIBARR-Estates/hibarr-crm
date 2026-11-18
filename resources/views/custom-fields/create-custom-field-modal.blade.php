@@ -126,7 +126,7 @@
                     <div class="row mt-2">
                         <div class="col-md-6">
                             <x-forms.text :fieldLabel="__('modules.customFields.aggregateFieldKey')" fieldName="display_config[fieldKey]"
-                                fieldId="create_display_config_field_key" :fieldPlaceholder="'e.g. price'" />
+                                fieldId="create_display_config_field_key" :fieldPlaceholder="{{ td('\'e.g. price\'') }}" />
                         </div>
                         <div class="col-md-6">
                             <label class="control-label">@lang('modules.customFields.aggregateBy')</label>

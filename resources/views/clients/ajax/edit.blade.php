@@ -284,22 +284,22 @@ $addClientSubCategoryPermission = user()->permission('manage_client_subcategory'
                     </div>
 
                     <div class="col-lg-3 col-md-6">
-                        <x-forms.text fieldId="skype" fieldLabel="Skype" fieldName="skype"
+                        <x-forms.text fieldId="skype" :fieldLabel="td('Skype')" fieldName="skype"
                             :fieldPlaceholder="__('placeholders.client.skype')" :fieldValue="$client->clientDetails->skype">
                         </x-forms.text>
                     </div>
                     <div class="col-lg-3 col-md-6">
-                        <x-forms.text fieldId="linkedin" fieldLabel="Linkedin" fieldName="linkedin"
+                        <x-forms.text fieldId="linkedin" :fieldLabel="td('Linkedin')" fieldName="linkedin"
                             :fieldPlaceholder="__('placeholders.client.linkedin')"
                             :fieldValue="$client->clientDetails->linkedin"></x-forms.text>
                     </div>
                     <div class="col-lg-3 col-md-6">
-                        <x-forms.text fieldId="twitter" fieldLabel="Twitter" fieldName="twitter"
+                        <x-forms.text fieldId="twitter" :fieldLabel="td('Twitter')" fieldName="twitter"
                             :fieldPlaceholder="__('placeholders.client.twitter')" :fieldValue="$client->clientDetails->twitter">
                         </x-forms.text>
                     </div>
                     <div class="col-lg-3 col-md-6">
-                        <x-forms.text fieldId="facebook" fieldLabel="Facebook" fieldName="facebook"
+                        <x-forms.text fieldId="facebook" :fieldLabel="td('Facebook')" fieldName="facebook"
                             :fieldPlaceholder="__('placeholders.client.facebook')"
                             :fieldValue="$client->clientDetails->facebook"></x-forms.text>
                     </div>

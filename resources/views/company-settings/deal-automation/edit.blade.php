@@ -25,7 +25,7 @@
                 @endif
 
                 <div class="alert alert-info mb-4">
-                    <h5 class="alert-heading f-14 font-weight-bold"><i class="fa fa-info-circle"></i> How Automations Work</h5>
+                    <h5 class="alert-heading f-14 font-weight-bold"><i class="fa fa-info-circle"></i> {{ td('How Automations Work') }}</h5>
                     <p class="mb-0 f-13">
                         This rule runs only when the selected trigger event happens. It does not lock the deal/lead state.
                         If a user manually changes it, this automation will not revert it unless a new event triggers the rule again.
@@ -52,14 +52,14 @@
                 <div class="row">
                     <div class="col-md-6">
                         <x-forms.select fieldId="subject_type" :fieldLabel="__('Automation For')" fieldName="subject_type" fieldRequired="true">
-                            <option value="deal" {{ ($automation->subject_type ?? 'deal') == 'deal' ? 'selected' : '' }}>Deals</option>
-                            <option value="lead" {{ ($automation->subject_type ?? 'deal') == 'lead' ? 'selected' : '' }}>Leads</option>
+                            <option value="deal" {{ ($automation->subject_type ?? 'deal') == 'deal' ? 'selected' : '' }}>{{ td('Deals') }}</option>
+                            <option value="lead" {{ ($automation->subject_type ?? 'deal') == 'lead' ? 'selected' : '' }}>{{ td('Leads') }}</option>
                         </x-forms.select>
                         <p class="f-11 text-lightest mt-1">Deal automations can move stage/lock the deal; lead automations run directly on the lead (no pipeline).</p>
                     </div>
                     <div class="col-md-6" id="pipeline-scope-col">
                         <x-forms.select fieldId="pipeline_id" :fieldLabel="__('Pipeline Scope (Optional)')" fieldName="pipeline_id">
-                            <option value="">-- All Pipelines --</option>
+                            <option value="">{{ td('-- All Pipelines --') }}</option>
                             @foreach($pipelines as $pipeline)
                                 <option value="{{ $pipeline->id }}" {{ ($automation->pipeline_id ?? '') == $pipeline->id ? 'selected' : '' }}>
                                     {{ $pipeline->name }}
@@ -72,17 +72,17 @@
                 <div class="row">
                     <div class="col-md-6">
                         <x-forms.select fieldId="trigger" :fieldLabel="__('Trigger (Optional)')" fieldName="trigger">
-                            <option value="">-- Run on Any Update --</option>
-                            <option value="deal_created" data-subject="deal" {{ ($automation->trigger ?? '') == 'deal_created' ? 'selected' : '' }}>Deal Created</option>
-                            <option value="deal_updated" data-subject="deal" {{ ($automation->trigger ?? '') == 'deal_updated' ? 'selected' : '' }}>Deal Updated</option>
-                            <option value="followup_created" data-subject="deal" {{ ($automation->trigger ?? '') == 'followup_created' ? 'selected' : '' }}>Follow-up Created</option>
-                            <option value="custom_field_updated" data-subject="any" {{ ($automation->trigger ?? '') == 'custom_field_updated' ? 'selected' : '' }}>Custom Field Updated</option>
-                            <option value="lead_created" data-subject="lead" {{ ($automation->trigger ?? '') == 'lead_created' ? 'selected' : '' }}>Lead Created</option>
-                            <option value="lead_updated" data-subject="lead" {{ ($automation->trigger ?? '') == 'lead_updated' ? 'selected' : '' }}>Lead Updated</option>
-                            <option value="lead_followup_created" data-subject="lead" {{ ($automation->trigger ?? '') == 'lead_followup_created' ? 'selected' : '' }}>Lead Follow-up Created</option>
-                            <option value="meeting_attended" data-subject="any" {{ ($automation->trigger ?? '') == 'meeting_attended' ? 'selected' : '' }}>Meeting Attended</option>
-                            <option value="deal_payment_received" data-subject="deal" {{ ($automation->trigger ?? '') == 'deal_payment_received' ? 'selected' : '' }}>Payment Received</option>
-                            <option value="date_based" data-subject="any" {{ ($automation->trigger ?? '') == 'date_based' ? 'selected' : '' }}>Specific Date / Birthday</option>
+                            <option value="">{{ td('-- Run on Any Update --') }}</option>
+                            <option value="deal_created" data-subject="deal" {{ ($automation->trigger ?? '') == 'deal_created' ? 'selected' : '' }}>{{ td('Deal Created') }}</option>
+                            <option value="deal_updated" data-subject="deal" {{ ($automation->trigger ?? '') == 'deal_updated' ? 'selected' : '' }}>{{ td('Deal Updated') }}</option>
+                            <option value="followup_created" data-subject="deal" {{ ($automation->trigger ?? '') == 'followup_created' ? 'selected' : '' }}>{{ td('Follow-up Created') }}</option>
+                            <option value="custom_field_updated" data-subject="any" {{ ($automation->trigger ?? '') == 'custom_field_updated' ? 'selected' : '' }}>{{ td('Custom Field Updated') }}</option>
+                            <option value="lead_created" data-subject="lead" {{ ($automation->trigger ?? '') == 'lead_created' ? 'selected' : '' }}>{{ td('Lead Created') }}</option>
+                            <option value="lead_updated" data-subject="lead" {{ ($automation->trigger ?? '') == 'lead_updated' ? 'selected' : '' }}>{{ td('Lead Updated') }}</option>
+                            <option value="lead_followup_created" data-subject="lead" {{ ($automation->trigger ?? '') == 'lead_followup_created' ? 'selected' : '' }}>{{ td('Lead Follow-up Created') }}</option>
+                            <option value="meeting_attended" data-subject="any" {{ ($automation->trigger ?? '') == 'meeting_attended' ? 'selected' : '' }}>{{ td('Meeting Attended') }}</option>
+                            <option value="deal_payment_received" data-subject="deal" {{ ($automation->trigger ?? '') == 'deal_payment_received' ? 'selected' : '' }}>{{ td('Payment Received') }}</option>
+                            <option value="date_based" data-subject="any" {{ ($automation->trigger ?? '') == 'date_based' ? 'selected' : '' }}>{{ td('Specific Date / Birthday') }}</option>
                         </x-forms.select>
                         <p class="f-11 text-lightest mt-1" id="trigger-help-text">
                             @if(($automation->trigger ?? '') == '')
@@ -110,7 +110,7 @@
                             @endif
                         </p>
                         <div id="trigger-warning" class="alert alert-warning f-13 mt-2 p-2" style="display: none;">
-                            <i class="fa fa-exclamation-triangle"></i> <strong>Note:</strong> This rule evaluates every time the record is saved. Ensure your conditions are specific to avoid unintended changes.
+                            <i class="fa fa-exclamation-triangle"></i> <strong>{{ td('Note:') }}</strong> This rule evaluates every time the record is saved. Ensure your conditions are specific to avoid unintended changes.
                         </div>
                     </div>
                 </div>
@@ -119,7 +119,7 @@
                 <div class="row" id="date-trigger-config" style="display: none;">
                     <div class="col-md-6">
                         <x-forms.select fieldId="trigger_date_field" :fieldLabel="__('Date Field')" fieldName="trigger_date_field" fieldRequired="true">
-                            <option value="">-- Select Date --</option>
+                            <option value="">{{ td('-- Select Date --') }}</option>
                             @include('company-settings.deal-automation._date-field-options', ['selectedDateField' => $automation->date_field ?? ''])
                         </x-forms.select>
                     </div>
@@ -151,7 +151,7 @@
                 <p class="f-11 text-lightest mt-1">Conditions are checked again when the wait ends — if they no longer hold, nothing runs. While waiting, only one delayed run is kept per deal/lead.</p>
 
                 <hr>
-                <h4 class="mb-3">Conditions</h4>
+                <h4 class="mb-3">{{ td('Conditions') }}</h4>
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <x-forms.select fieldId="condition_logic" :fieldLabel="__('Combine Conditions')" fieldName="condition_logic">
@@ -169,10 +169,10 @@
                         @include('company-settings.deal-automation.condition-row', ['index' => 0, 'condition' => null])
                     @endif
                 </div>
-                <button type="button" class="btn btn-sm btn-secondary mt-2" id="add-condition"><i class="fa fa-plus"></i> Add Condition</button>
+                <button type="button" class="btn btn-sm btn-secondary mt-2" id="add-condition"><i class="fa fa-plus"></i> {{ td('Add Condition') }}</button>
 
                 <hr>
-                <h4 class="mb-3">Actions</h4>
+                <h4 class="mb-3">{{ td('Actions') }}</h4>
                 <div id="actions-container">
                     @if(isset($automation) && $automation->actions->count() > 0)
                         @foreach($automation->actions as $index => $action)
@@ -182,7 +182,7 @@
                         @include('company-settings.deal-automation.action-row', ['index' => 0, 'action' => null])
                     @endif
                 </div>
-                <button type="button" class="btn btn-sm btn-secondary mt-2" id="add-action"><i class="fa fa-plus"></i> Add Action</button>
+                <button type="button" class="btn btn-sm btn-secondary mt-2" id="add-action"><i class="fa fa-plus"></i> {{ td('Add Action') }}</button>
 
             </div>
 

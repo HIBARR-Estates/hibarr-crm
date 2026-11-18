@@ -135,9 +135,9 @@
                         {{ collect([$seller['phone'] ? 'Tel: ' . $seller['phone'] : null, $seller['email']])->filter()->implode(' · ') }}
                     </div>
                     <div class="seller-lines" style="margin-top:6px">
-                        @if ($seller['tax_office'])<b>Vergi Dairesi:</b> {{ $seller['tax_office'] }} &nbsp;·&nbsp; @endif
-                        <b>Vergi Sicil No:</b> {{ $seller['tax_number'] ?: '—' }}
-                        @if ($seller['registration_number'])<br><b>Şirket Sicil No:</b> {{ $seller['registration_number'] }}@endif
+                        @if ($seller['tax_office'])<b>{{ td('Vergi Dairesi:') }}</b> {{ $seller['tax_office'] }} &nbsp;·&nbsp; @endif
+                        <b>{{ td('Vergi Sicil No:') }}</b> {{ $seller['tax_number'] ?: '—' }}
+                        @if ($seller['registration_number'])<br><b>{{ td('Şirket Sicil No:') }}</b> {{ $seller['registration_number'] }}@endif
                     </div>
                 </td>
                 <td style="text-align:right">
@@ -155,13 +155,13 @@
                         <div style="margin-top:8px"><span class="stamp">{{ $stamp['tr'] }}</span></div>
                     @endif
                     <table class="meta" style="width:auto;margin:10px 0 0 auto;border-top:1px solid #c9d0d7">
-                        <tr><td class="k"><span class="label">SERİ / SIRA NO</span> {!! $en('No.') !!}</td><td class="serial" style="font-size:12px">№ {{ $number }}</td></tr>
-                        <tr><td class="k"><span class="label">TARİH</span> {!! $en('Date') !!}</td><td>{{ $issued_on }}</td></tr>
+                        <tr><td class="k"><span class="label">{{ td('SERİ / SIRA NO') }}</span> {!! $en('No.') !!}</td><td class="serial" style="font-size:12px">№ {{ $number }}</td></tr>
+                        <tr><td class="k"><span class="label">{{ td('TARİH') }}</span> {!! $en('Date') !!}</td><td>{{ $issued_on }}</td></tr>
                         @if ($due_on)
-                            <tr><td class="k"><span class="label">VADE</span> {!! $en('Due') !!}</td><td>{{ $due_on }}</td></tr>
+                            <tr><td class="k"><span class="label">{{ td('VADE') }}</span> {!! $en('Due') !!}</td><td>{{ $due_on }}</td></tr>
                         @endif
                         @if ($reference)
-                            <tr><td class="k"><span class="label">REFERANS</span> {!! $en('Ref.') !!}</td><td>{{ $reference }}</td></tr>
+                            <tr><td class="k"><span class="label">{{ td('REFERANS') }}</span> {!! $en('Ref.') !!}</td><td>{{ $reference }}</td></tr>
                         @endif
                     </table>
                 </td>
@@ -173,12 +173,12 @@
             <tr>
                 <td style="width:56%;padding-right:14px">
                     <div class="box">
-                        <span class="label">SAYIN / ALICI</span> {!! $en('Billed to') !!}
+                        <span class="label">{{ td('SAYIN / ALICI') }}</span> {!! $en('Billed to') !!}
                         <div style="font-size:11px;font-weight:bold;margin-top:3px">{{ $buyer['name'] ?: '—' }}</div>
                         @if (! empty($buyer['lines']))
                             <div class="muted" style="font-size:8.5px">Adresi: {{ implode(', ', $buyer['lines']) }}</div>
                         @else
-                            <div class="muted" style="font-size:8.5px">Adresi: ..............................................................</div>
+                            <div class="muted" style="font-size:8.5px">{{ td('Adresi: ..............................................................') }}</div>
                         @endif
                         @if (! empty($buyer['tax_id']))
                             <div class="muted" style="font-size:8.5px">Vergi / Kimlik No: {{ $buyer['tax_id'] }}</div>
@@ -187,7 +187,7 @@
                 </td>
                 <td>
                     <div class="box">
-                        <span class="label">KONU</span> {!! $en('Subject') !!}
+                        <span class="label">{{ td('KONU') }}</span> {!! $en('Subject') !!}
                         <div style="font-size:11px;font-weight:bold;margin-top:3px">{{ $deal_name ?: '—' }}</div>
                     </div>
                 </td>
@@ -225,25 +225,25 @@
         <table style="margin-top:14px">
             <tr>
                 <td style="padding-right:22px">
-                    <div class="words"><span class="label">YAZI İLE</span> {!! $en('In words') !!}<br><b>{{ $amount_in_words }}</b></div>
+                    <div class="words"><span class="label">{{ td('YAZI İLE') }}</span> {!! $en('In words') !!}<br><b>{{ $amount_in_words }}</b></div>
                     @if ($bank['name'] || $bank['iban'])
                         <div class="box" style="margin-top:10px">
-                            <span class="label">ÖDEME BİLGİLERİ</span> {!! $en('Payment details') !!}
+                            <span class="label">{{ td('ÖDEME BİLGİLERİ') }}</span> {!! $en('Payment details') !!}
                             <table class="bank" style="margin-top:4px">
-                                @if ($bank['name'])<tr><td class="faint" style="width:70px">Banka</td><td>{{ $bank['name'] }}</td></tr>@endif
-                                @if ($bank['account_name'])<tr><td class="faint">Hesap adı</td><td>{{ $bank['account_name'] }}</td></tr>@endif
-                                @if ($bank['iban'])<tr><td class="faint">IBAN</td><td class="mono">{{ $bank['iban'] }}</td></tr>@endif
-                                @if ($bank['swift'])<tr><td class="faint">SWIFT</td><td class="mono">{{ $bank['swift'] }}</td></tr>@endif
-                                <tr><td class="faint">Açıklama</td><td class="mono">{{ $number }}</td></tr>
+                                @if ($bank['name'])<tr><td class="faint" style="width:70px">{{ td('Banka') }}</td><td>{{ $bank['name'] }}</td></tr>@endif
+                                @if ($bank['account_name'])<tr><td class="faint">{{ td('Hesap adı') }}</td><td>{{ $bank['account_name'] }}</td></tr>@endif
+                                @if ($bank['iban'])<tr><td class="faint">{{ td('IBAN') }}</td><td class="mono">{{ $bank['iban'] }}</td></tr>@endif
+                                @if ($bank['swift'])<tr><td class="faint">{{ td('SWIFT') }}</td><td class="mono">{{ $bank['swift'] }}</td></tr>@endif
+                                <tr><td class="faint">{{ td('Açıklama') }}</td><td class="mono">{{ $number }}</td></tr>
                             </table>
                         </div>
                     @endif
                 </td>
                 <td style="width:236px">
                     <table class="totals">
-                        <tr><td class="muted">Ara Toplam @if ($bilingual)<span class="en">Subtotal</span>@endif</td><td class="num">{{ $subtotal_display }}</td></tr>
-                        <tr><td class="muted">KDV %{{ $vat_rate_display }} @if ($bilingual)<span class="en">VAT</span>@endif</td><td class="num">{{ $vat_display }}</td></tr>
-                        <tr class="grand"><td style="white-space:nowrap;font-size:10px;letter-spacing:0.6px">GENEL TOPLAM</td><td class="num">{{ $currency_prefix }}{{ $total_display }} {{ $currency_label }}</td></tr>
+                        <tr><td class="muted">Ara Toplam @if ($bilingual)<span class="en">{{ td('Subtotal') }}</span>@endif</td><td class="num">{{ $subtotal_display }}</td></tr>
+                        <tr><td class="muted">KDV %{{ $vat_rate_display }} @if ($bilingual)<span class="en">{{ td('VAT') }}</span>@endif</td><td class="num">{{ $vat_display }}</td></tr>
+                        <tr class="grand"><td style="white-space:nowrap;font-size:10px;letter-spacing:0.6px">{{ td('GENEL TOPLAM') }}</td><td class="num">{{ $currency_prefix }}{{ $total_display }} {{ $currency_label }}</td></tr>
                     </table>
                     @if ($try_display)
                         <div class="faint" style="text-align:right;font-size:7.5px;margin-top:5px">
@@ -262,12 +262,12 @@
             <tr>
                 <td style="vertical-align:bottom">
                     <div class="sig-line"></div>
-                    <span class="label">TESLİM EDEN</span> {!! $en('Issued by') !!}
+                    <span class="label">{{ td('TESLİM EDEN') }}</span> {!! $en('Issued by') !!}
                     <div class="sig-who">{{ $seller['legal_name'] }} · kaşe / imza</div>
                 </td>
                 <td style="padding-left:40px;vertical-align:bottom">
                     <div class="sig-line"></div>
-                    <span class="label">TESLİM ALAN</span> {!! $en('Received by') !!}
+                    <span class="label">{{ td('TESLİM ALAN') }}</span> {!! $en('Received by') !!}
                     <div class="sig-who">{{ $buyer['name'] ? $buyer['name'].' · ' : '' }}imza</div>
                 </td>
             </tr>
@@ -275,7 +275,7 @@
         <div class="footer" style="margin-top:12px">
             <table><tr>
                 <td>{{ $footer_note }}</td>
-                <td class="num" style="width:60px">Sayfa 1 / 1</td>
+                <td class="num" style="width:60px">{{ td('Sayfa 1 / 1') }}</td>
             </tr></table>
         </div>
     </div>
@@ -293,7 +293,7 @@
                             <div class="seller-name" style="font-size:11.5px">{{ $seller['legal_name'] ?: config('app.name') }}</div>
                             <div class="seller-lines">
                                 {{ collect([$seller['address'] ? str_replace(["\r\n", "\n"], ', ', $seller['address']) : null, $seller['phone'] ? 'Tel: ' . $seller['phone'] : null])->filter()->implode(' · ') }}<br>
-                                @if ($seller['tax_office'])<b>Vergi Dairesi:</b> {{ $seller['tax_office'] }} · @endif<b>Vergi Sicil No:</b> {{ $seller['tax_number'] ?: '—' }}
+                                @if ($seller['tax_office'])<b>{{ td('Vergi Dairesi:') }}</b> {{ $seller['tax_office'] }} · @endif<b>{{ td('Vergi Sicil No:') }}</b> {{ $seller['tax_number'] ?: '—' }}
                             </div>
                         </td>
                     </tr></table>
@@ -307,7 +307,7 @@
                     </tr></table>
                     @if ($approvalLine)<div class="approval" style="margin-top:4px;white-space:nowrap">{!! $approvalLine !!}</div>@endif
                     <div class="serial" style="font-size:13px;margin-top:6px">№ {{ $number }}</div>
-                    <div style="margin-top:3px"><span class="label">TARİH</span> {!! $en('Date') !!} &nbsp;{{ $issued_on }}</div>
+                    <div style="margin-top:3px"><span class="label">{{ td('TARİH') }}</span> {!! $en('Date') !!} &nbsp;{{ $issued_on }}</div>
                     @if ($stamp)
                         <div style="margin-top:6px"><span class="stamp">{{ $stamp['tr'] }}</span></div>
                     @endif
@@ -318,7 +318,7 @@
         <table style="margin-top:14px">
             <tr>
                 <td class="statement" style="padding-right:20px">
-                    <span class="label">SAYIN</span> {!! $en('Received from') !!}<br>
+                    <span class="label">{{ td('SAYIN') }}</span> {!! $en('Received from') !!}<br>
                     <span class="fill">{{ $payer_ablative ?: '..............................' }}</span>,
                     @if ($invoice_number)
                         <span class="fill">{{ $invoice_number }} no.lu fatura</span>
@@ -337,12 +337,12 @@
             </tr>
         </table>
 
-        <div class="words" style="margin-top:12px"><span class="label">YAZI İLE</span> {!! $en('In words') !!}<br><b>{{ $amount_in_words }}</b></div>
+        <div class="words" style="margin-top:12px"><span class="label">{{ td('YAZI İLE') }}</span> {!! $en('In words') !!}<br><b>{{ $amount_in_words }}</b></div>
 
         <table class="pay" style="margin-top:12px">
             <tr>
                 <td style="width:44%">
-                    <span class="label">ÖDEME ŞEKLİ</span> {!! $en('Method') !!}
+                    <span class="label">{{ td('ÖDEME ŞEKLİ') }}</span> {!! $en('Method') !!}
                     {{-- A table, not inline-blocks: dompdf misplaces inline-block boxes. --}}
                     <table class="chks"><tr>
                         @foreach ($methods as $key => $label)
@@ -352,11 +352,11 @@
                     </tr></table>
                 </td>
                 <td>
-                    <span class="label">BANKA</span> {!! $en('Bank') !!}<br>
+                    <span class="label">{{ td('BANKA') }}</span> {!! $en('Bank') !!}<br>
                     {{ in_array($method, ['transfer', 'cheque'], true) ? ($bank['name'] ?: '—') : '—' }}
                 </td>
                 <td>
-                    <span class="label">ÇEK / DEKONT / İŞLEM NO</span> {!! $en('Ref.') !!}<br>
+                    <span class="label">{{ td('ÇEK / DEKONT / İŞLEM NO') }}</span> {!! $en('Ref.') !!}<br>
                     <span class="mono">{{ $transaction_reference ?: ($reference ?: '—') }}</span>
                 </td>
             </tr>
@@ -374,7 +374,7 @@
                 </td>
                 <td style="width:200px;vertical-align:bottom">
                     <div class="sig-line"></div>
-                    <span class="label">PARAYI ALAN</span> {!! $en('Received by') !!}
+                    <span class="label">{{ td('PARAYI ALAN') }}</span> {!! $en('Received by') !!}
                     <div class="sig-who">{{ collect([$received_by, $seller['legal_name']])->filter()->implode(', ') }} · kaşe / imza</div>
                 </td>
             </tr>

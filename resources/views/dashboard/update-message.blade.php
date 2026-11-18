@@ -4,12 +4,12 @@
             <x-alert type="danger">
                 <div class="d-flex justify-content-between">
                     <div class="align-self-center">
-                        <b>Note:-</b> Please update and reactivate  <b>{{implode(', ', $updateArray)}}</b>
+                        <b>{{ td('Note:-') }}</b> {{ td('Please update and reactivate') }}  <b>{{implode(', ', $updateArray)}}</b>
                         @if(count($updateArray)>1) modules @else module @endif
                         to make the
                         modules work properly
                     </div>
-                    <x-forms.link-primary :link="route('custom-modules.index').'?tab=custom'">Update Custom Modules</x-forms.link-primary>
+                    <x-forms.link-primary :link="route('custom-modules.index').'?tab=custom'">{{ td('Update Custom Modules') }}</x-forms.link-primary>
                 </div>
             </x-alert>
         </div>

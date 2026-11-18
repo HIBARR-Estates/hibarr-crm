@@ -107,7 +107,7 @@ $recurringEventPermission = user()->permission('manage_recurring_event');
                 @endif
             </div>
 
-            <div class="btn-group mt-2 mt-lg-0 mt-md-0 ml-0 ml-lg-3 ml-md-3" role="group" aria-label="Basic example">
+            <div class="btn-group mt-2 mt-lg-0 mt-md-0 ml-0 ml-lg-3 ml-md-3" role="group" aria-label="{{ td('Basic example') }}">
                 <a href="{{ route('events.index') }}" class="btn btn-secondary f-14 btn-active" data-toggle="tooltip"
                     data-original-title="@lang('app.menu.calendar')"><i class="side-icon bi bi-calendar"></i></a>
                 <a href="{{ route('events.table_view') }}" class="btn btn-secondary f-14" data-toggle="tooltip"

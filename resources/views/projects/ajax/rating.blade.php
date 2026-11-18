@@ -62,27 +62,27 @@
                                 <ul id="stars">
                                     <li class="star @if (!is_null($project->rating) &&
                                         $project->rating->rating >= 1) selected @endif"
-                                        title="Poor" data-value="1">
+                                        title="{{ td('Poor') }}" data-value="1">
                                         <i class="fa fa-star f-18"></i>
                                     </li>
                                     <li class="star @if (!is_null($project->rating) &&
                                         $project->rating->rating >= 2) selected @endif"
-                                        title="Fair" data-value="2">
+                                        title="{{ td('Fair') }}" data-value="2">
                                         <i class="fa fa-star f-18"></i>
                                     </li>
                                     <li class="star @if (!is_null($project->rating) &&
                                         $project->rating->rating >= 3) selected @endif"
-                                        title="Good" data-value="3">
+                                        title="{{ td('Good') }}" data-value="3">
                                         <i class="fa fa-star f-18"></i>
                                     </li>
                                     <li class="star @if (!is_null($project->rating) &&
                                         $project->rating->rating >= 4) selected @endif"
-                                        title="Excellent" data-value="4">
+                                        title="{{ td('Excellent') }}" data-value="4">
                                         <i class="fa fa-star f-18"></i>
                                     </li>
                                     <li class="star @if (!is_null($project->rating) &&
                                         $project->rating->rating >= 5) selected @endif"
-                                        title="WOW!!!" data-value="5">
+                                        title="{{ td('WOW!!!') }}" data-value="5">
                                         <i class="fa fa-star f-18"></i>
                                     </li>
                                 </ul>
@@ -130,19 +130,19 @@
                         <div class="col-md-12 mt-1 rating-detail">
                             <div class="rating-stars">
                                 <ul>
-                                    <li class="star @if ($project->rating->rating >= 1) selected @endif" title="Poor" data-value="1">
+                                    <li class="star @if ($project->rating->rating >= 1) selected @endif" title="{{ td('Poor') }}" data-value="1">
                                         <i class="fa fa-star f-18"></i>
                                     </li>
-                                    <li class="star @if ($project->rating->rating >= 2) selected @endif" title="Fair" data-value="2">
+                                    <li class="star @if ($project->rating->rating >= 2) selected @endif" title="{{ td('Fair') }}" data-value="2">
                                         <i class="fa fa-star f-18"></i>
                                     </li>
-                                    <li class="star @if ($project->rating->rating >= 3) selected @endif" title="Good" data-value="3">
+                                    <li class="star @if ($project->rating->rating >= 3) selected @endif" title="{{ td('Good') }}" data-value="3">
                                         <i class="fa fa-star f-18"></i>
                                     </li>
-                                    <li class="star @if ($project->rating->rating >= 4) selected @endif" title="Excellent" data-value="4">
+                                    <li class="star @if ($project->rating->rating >= 4) selected @endif" title="{{ td('Excellent') }}" data-value="4">
                                         <i class="fa fa-star f-18"></i>
                                     </li>
-                                    <li class="star @if ($project->rating->rating >= 5) selected @endif" title="WOW!!!" data-value="5">
+                                    <li class="star @if ($project->rating->rating >= 5) selected @endif" title="{{ td('WOW!!!') }}" data-value="5">
                                         <i class="fa fa-star f-18"></i>
                                     </li>
                                 </ul>

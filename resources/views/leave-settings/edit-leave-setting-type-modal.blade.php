@@ -53,7 +53,7 @@
                         </div>
 
                         <div class="col-lg-4">
-                            <x-forms.select fieldId="paid" fieldLabel="Leave Paid Status" fieldName="paid" search="true" :popover="__('messages.leave.paidStatus')">
+                            <x-forms.select fieldId="paid" :fieldLabel="td('Leave Paid Status')" fieldName="paid" search="true" :popover="__('messages.leave.paidStatus')">
                                 <option value="1" {{ $leaveType->paid == 1 ? 'selected' : '' }}>@lang('app.paid')</option>
                                 <option value="0" {{ $leaveType->paid == 0 ? 'selected' : '' }}>@lang('app.unpaid')</option>
                             </x-forms.select>

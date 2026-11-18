@@ -61,8 +61,8 @@
                             @endforeach
                             @endif
                             
-                            <p style="margin: 0 0 14px;">We look forward to hearing from you.</p>
-                            <p style="margin: 0 0 20px;">Sincerely,</p>
+                            <p style="margin: 0 0 14px;">{{ td('We look forward to hearing from you.') }}</p>
+                            <p style="margin: 0 0 20px;">{{ td('Sincerely,') }}</p>
 
                             {{-- Signature block: photo, name, designation, website, email, address, logo (blue #053160) --}}
                             <table cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 400px; margin: 0; font-family: Arial, sans-serif; background-color: #ffffff;">
