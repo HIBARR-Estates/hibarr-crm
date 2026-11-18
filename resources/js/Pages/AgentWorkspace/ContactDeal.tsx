@@ -669,6 +669,7 @@ function ContactDealInner(props: ContactDealProps) {
                 documents={documents}
                 showExposes={viewExposes}
                 showPayments={props.showOnlinePayment === true}
+                showTalkingPoints={showAiSummary}
                 onOpenFiles={() => jump("deal-files")}
                 onClose={() => setBriefId(null)}
             />
