@@ -147,4 +147,7 @@ return array(
     'resyncUserPermissionsAlreadyRunning' => 'Синхронизация прав пользователей для этой компании уже выполняется.',
     'resyncUserPermissionsSuccess' => 'Права синхронизированы для :synced пользователей. Пропущено без роли: :skipped.',
     'resyncUserPermissionsFailed' => 'Не удалось синхронизировать права пользователей. Проверьте журналы приложения и повторите попытку.',
+    'deleteTaskCategory' => 'Удалённую категорию задач нельзя будет восстановить!',
+    'noLeadSourceAdded' => 'Источники лидов не добавлены.',
+    'somethingWentWrong' => 'Что-то пошло не так. Повторите попытку.',
 );
