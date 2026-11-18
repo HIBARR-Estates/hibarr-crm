@@ -582,7 +582,7 @@ const Index = ({
                                             type="text"
                                             icon={<FileTextOutlined />}
                                         >
-                                            Expose Configuration
+                                            {td("Expose Configuration", { source: "en" })}
                                         </Button>
                                     </Link>
                                 </div>
@@ -619,7 +619,7 @@ const Index = ({
                                         <Button
                                             type="text"
                                             icon={<BarsOutlined />}
-                                            title="List view"
+                                            title={td("List view", { source: "en" })}
                                             className={
                                                 viewMode === "list"
                                                     ? "!bg-white !shadow-sm"
@@ -632,7 +632,7 @@ const Index = ({
                                         <Button
                                             type="text"
                                             icon={<AppstoreOutlined />}
-                                            title="Grid view"
+                                            title={td("Grid view", { source: "en" })}
                                             className={
                                                 viewMode === "grid"
                                                     ? "!bg-white !shadow-sm"
@@ -691,7 +691,7 @@ const Index = ({
                                         handlePropertiesPageSizeChange
                                     }
                                     emptyState={{
-                                        title: "No properties found",
+                                        title: td("No properties found", { source: "en" }),
                                         description:
                                             "Try adjusting your filters or add a new property.",
                                     }}
@@ -759,7 +759,7 @@ const Index = ({
                                                     )
                                                 }
                                             >
-                                                Previous
+                                                {td("Previous", { source: "en" })}
                                             </Button>
                                             <span className="px-4 flex items-center text-sm text-gray-500">
                                                 Page {properties.current_page}{" "}
@@ -793,7 +793,7 @@ const Index = ({
                                                     )
                                                 }
                                             >
-                                                Next
+                                                {td("Next", { source: "en" })}
                                             </Button>
                                         </div>
                                     )}

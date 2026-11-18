@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Card, Row, Col, Statistic, Switch } from "antd";
 import { usePage } from "@inertiajs/react";
 import { BarChart3 } from "lucide-react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface MetricSet {
     nsa: number;
@@ -29,6 +30,7 @@ const CycleMetricsDisplay: React.FC<Props> = ({
     showToggle = true,
     compact = false,
 }) => {
+    const { td } = useTd();
     const [showAllTime, setShowAllTime] = useState(false);
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
@@ -50,20 +52,20 @@ const CycleMetricsDisplay: React.FC<Props> = ({
 
     const items = [
         {
-            title: "Individual Sales",
+            title: td("Individual Sales", { source: "en" }),
             value: metrics?.nsa ?? 0,
         },
         {
-            title: "Team Sales",
+            title: td("Team Sales", { source: "en" }),
             value: metrics?.nsd ?? 0,
         },
         {
-            title: "Individual Revenue",
+            title: td("Individual Revenue", { source: "en" }),
             value: metrics?.vsa ?? 0,
             prefix: currencySymbol,
         },
         {
-            title: "Team Revenue",
+            title: td("Team Revenue", { source: "en" }),
             value: metrics?.vsd ?? 0,
             prefix: currencySymbol,
         },
@@ -92,7 +94,7 @@ const CycleMetricsDisplay: React.FC<Props> = ({
                                         : "text-gray-400"
                                 }
                             >
-                                Cycle
+                                {td("Cycle", { source: "en" })}
                             </span>
                             <Switch
                                 size="small"
@@ -106,7 +108,7 @@ const CycleMetricsDisplay: React.FC<Props> = ({
                                         : "text-gray-400"
                                 }
                             >
-                                All-Time
+                                {td("All-Time", { source: "en" })}
                             </span>
                         </div>
                     </div>

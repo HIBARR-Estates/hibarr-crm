@@ -1,6 +1,7 @@
 import React from "react";
 import { Dropdown, Popconfirm } from "antd";
 import type { LeadSavedView } from "./useLeadSavedViews";
+import { useTranslation } from "@/Hooks/useTranslation";
 
 interface ViewsBarProps {
     views: LeadSavedView[];
@@ -25,12 +26,13 @@ export default function ViewsBar({
     onRename,
     onDelete,
 }: ViewsBarProps) {
+    const { t } = useTranslation();
     const pinned = views.filter((view) => view.pinned);
     const unpinned = views.filter((view) => !view.pinned);
 
     return (
         <div className="lfm-views">
-            <span className="lfm-views__label">Views</span>
+            <span className="lfm-views__label">{t("pages.filters.views")}</span>
             <div className="lfm-views__list">
                 {pinned.map((view) => {
                     const isActive = view.id === activeViewId;
@@ -43,15 +45,15 @@ export default function ViewsBar({
                                     ? [
                                           {
                                               key: "rename",
-                                              label: "Rename",
+                                              label: t("pages.filters.rename"),
                                               onClick: () => onRename(view),
                                           },
                                           {
                                               key: "delete",
                                               label: (
                                                   <Popconfirm
-                                                      title="Delete this view?"
-                                                      okText="Delete"
+                                                      title={t("pages.filters.delete_view_q")}
+                                                      okText={t("pages.filters.delete")}
                                                       okButtonProps={{
                                                           danger: true,
                                                       }}
@@ -60,7 +62,7 @@ export default function ViewsBar({
                                                       }
                                                   >
                                                       <span className="text-red-600">
-                                                          Delete
+                                                          {t("pages.filters.delete")}
                                                       </span>
                                                   </Popconfirm>
                                               ),
@@ -69,7 +71,11 @@ export default function ViewsBar({
                                     : [
                                           {
                                               key: "shared",
-                                              label: `Shared by ${view.owner_name ?? "a teammate"}`,
+                                              label: t("pages.filters.shared_by", {
+                                                  name:
+                                                      view.owner_name ??
+                                                      t("pages.filters.teammate"),
+                                              }),
                                               disabled: true,
                                           },
                                       ],
@@ -79,13 +85,13 @@ export default function ViewsBar({
                                 type="button"
                                 className={`lfm-viewpill${isActive ? " is-on" : ""}`}
                                 onClick={() => onApplyView(view)}
-                                title="Right-click for options"
+                                title={t("pages.filters.right_click")}
                             >
                                 {isActive && <span className="lfm-viewpill__dot" />}
                                 {view.name}
                                 {view.visibility === "team" && (
                                     <span className="lfm-viewpill__meta">
-                                        · team
+                                        {t("pages.filters.team_tag")}
                                     </span>
                                 )}
                             </button>
@@ -105,20 +111,20 @@ export default function ViewsBar({
                         }}
                     >
                         <button type="button" className="lfm-viewpill">
-                            More views ({unpinned.length})
+                            {t("pages.filters.more_views", { n: unpinned.length })}
                         </button>
                     </Dropdown>
                 )}
 
                 {dirty && hasFilters ? (
                     <span className="lfm-viewpill lfm-viewpill--unsaved">
-                        Unsaved filter set
+                        {t("pages.filters.unsaved_set")}
                         <button
                             type="button"
                             className="lfm-viewpill__save"
                             onClick={onSaveCurrent}
                         >
-                            Save
+                            {t("pages.filters.save")}
                         </button>
                     </span>
                 ) : (
@@ -128,7 +134,7 @@ export default function ViewsBar({
                         onClick={onSaveCurrent}
                         disabled={!hasFilters}
                     >
-                        + Save current
+                        {t("pages.filters.save_current")}
                     </button>
                 )}
             </div>

@@ -10,7 +10,7 @@ $deleteAttendancePermission = user()->permission('delete_attendance');
         @lang('modules.attendance.markAttendance')
         @endif
     </h5>
-    <button type="button"  class="close" data-dismiss="modal" aria-label="Close"><span
+    <button type="button"  class="close" data-dismiss="modal" aria-label="{{ td('Close') }}"><span
         aria-hidden="true">×</span></button>
     </div>
     <div class="modal-body">

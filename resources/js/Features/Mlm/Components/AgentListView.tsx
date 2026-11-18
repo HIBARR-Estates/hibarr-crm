@@ -5,6 +5,7 @@ import type { DataNode } from "antd/es/tree";
 import type { AgentHierarchyNode } from "../types";
 import LevelBadge from "./LevelBadge";
 import type { MlmLevel } from "../types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface AgentListViewProps {
     data: AgentHierarchyNode | AgentHierarchyNode[];
@@ -79,6 +80,7 @@ function NodeTitle({
     searchTerm: string;
     onClick?: (node: AgentHierarchyNode) => void;
 }) {
+    const { td } = useTd();
     const levelObj: MlmLevel | null = node.level_rank
         ? ({
               id: 0,
@@ -128,12 +130,12 @@ function NodeTitle({
                     {highlightName(node.name)}
                     {node.is_upline && (
                         <span className="ml-1 text-xs font-normal text-amber-600">
-                            (Upline)
+                            {td("(Upline)", { source: "en" })}
                         </span>
                     )}
                     {node.is_self && (
                         <span className="ml-1 text-xs font-normal text-indigo-600">
-                            (You)
+                            {td("(You)", { source: "en" })}
                         </span>
                     )}
                 </div>
@@ -187,6 +189,7 @@ export default function AgentListView({
     loading = false,
     height = 600,
 }: AgentListViewProps) {
+    const { td } = useTd();
     const [searchTerm, setSearchTerm] = useState("");
 
     const nodes: AgentHierarchyNode[] = useMemo(() => {
@@ -226,7 +229,7 @@ export default function AgentListView({
                 className="flex items-center justify-center"
                 style={{ height }}
             >
-                <Empty description="No hierarchy data available" />
+                <Empty description={td("No hierarchy data available", { source: "en" })} />
             </div>
         );
     }
@@ -239,7 +242,7 @@ export default function AgentListView({
             <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
                 <Input
                     prefix={<SearchOutlined className="text-gray-400" />}
-                    placeholder="Search agents by name, email, or level..."
+                    placeholder={td("Search agents by name, email, or level...", { source: "en" })}
                     allowClear
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}

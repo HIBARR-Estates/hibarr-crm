@@ -6,6 +6,7 @@ import { DeleteOutlined } from "@ant-design/icons";
 import { ApiResponse } from "@/lib/api/types";
 import { useApiMutate } from "@/lib/api/client";
 import { isLoading } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     note?: LeadNote;
@@ -13,6 +14,7 @@ interface Props extends IModalProps {
 }
 
 const DeleteNote: React.FC<Props> = ({ note, onClose, open, onDeleted }) => {
+    const { td } = useTd();
     const handleCancel = () => {
         onClose();
     };
@@ -43,15 +45,15 @@ const DeleteNote: React.FC<Props> = ({ note, onClose, open, onDeleted }) => {
                 fn: onSubmit,
                 loading: isLoading({ status }),
             }}
-            title="Delete Note"
+            title={td("Delete Note", { source: "en" })}
             description={
                 note
                     ? `Are you sure you want to delete "${note?.title}"? This action cannot be undone.`
                     : "Are you sure you want to delete this note? This action cannot be undone."
             }
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
-            confirmText="Yes, Delete"
-            cancelText="Cancel"
+            confirmText={td("Yes, Delete", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
             confirmType="primary"
             confirmDanger={true}
         />

@@ -1,7 +1,7 @@
 <x-form id="addCustomLink">
     <div class="modal-header">
         <h5 class="modal-title" id="modelHeading">@lang('modules.customLinkSettings.addNewCustomLink')</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+        <button type="button" class="close" data-dismiss="modal" aria-label="{{ td('Close') }}"><span
                 aria-hidden="true">×</span></button>
     </div>
     <div class="modal-body">
@@ -43,7 +43,7 @@
             </div>
 
             <div class=" col-md-6">
-                <x-forms.select class="mr-0 mr-lg-2 mr-md-2" fieldId="status" fieldLabel="Status" fieldName="status" search="true">
+                <x-forms.select class="mr-0 mr-lg-2 mr-md-2" fieldId="status" :fieldLabel="td('Status')" fieldName="status" search="true">
                     <option value="active">@lang('app.active')</option>
                     <option value="inactive">@lang('app.inactive')</option>
                 </x-forms.select>

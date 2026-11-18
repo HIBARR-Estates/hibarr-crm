@@ -209,7 +209,7 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
             >
                 <div className="flex items-center justify-between mb-1.5">
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-dr-text-hint">
-                        Analysis Progress
+                        {td("Analysis Progress", { source: "en" })}
                     </span>
                     <span className="text-xs tabular-nums text-dr-text-muted">
                         <span className="font-semibold text-dr-text">{totalFilled}</span>

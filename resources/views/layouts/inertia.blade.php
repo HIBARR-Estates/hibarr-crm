@@ -24,7 +24,7 @@
 <body class="font-sans leading-none text-gray-700 antialiased">
     {{-- Visual debug banner --}}
     <div style="position: fixed; top: 0; left: 0; background: red; color: white; padding: 5px; z-index: 9999;">
-        HTML Loaded - Waiting for React/Inertia...
+        {{ td('HTML Loaded - Waiting for React/Inertia...') }}
     </div>
 
     {{-- Inertia mount point --}}

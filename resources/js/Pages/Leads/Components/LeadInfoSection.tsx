@@ -1426,7 +1426,7 @@ const ageRangeOptions = useMemo(
                                             }
                                             className="font-medium"
                                         >
-                                            {selectedLifecycleStatus.label}
+                                            {td(selectedLifecycleStatus.label, { source: "en" })}
                                         </Tag>
                                     ) : (
                                         <span className="text-gray-400">--</span>

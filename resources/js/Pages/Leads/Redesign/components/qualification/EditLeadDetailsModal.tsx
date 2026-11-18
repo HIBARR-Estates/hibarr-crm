@@ -105,7 +105,7 @@ export default function EditLeadDetailsModal({
     }, []);
 
     const tabs: { id: EditTabId; label: string }[] = [
-        { id: "identity", label: "Identity" },
+        { id: "identity", label: td("Identity", { source: "en" }) },
         ...LEAD_INFO_CORE_SECTIONS.map((section) => ({
             id: section.id as EditTabId,
             label: section.title,
@@ -221,7 +221,7 @@ export default function EditLeadDetailsModal({
                     <option value="">{td("Select…", { source: "en" })}</option>
                     {(options ?? []).map((option) => (
                         <option key={option.value} value={option.value}>
-                            {option.label}
+                            {td(option.label, { source: "en" })}
                         </option>
                     ))}
                 </select>
@@ -372,7 +372,7 @@ export default function EditLeadDetailsModal({
                                                     key={c.id}
                                                     value={String(c.id)}
                                                 >
-                                                    {c.category_name}
+                                                    {td(c.category_name, { source: "en" })}
                                                 </option>
                                             ))}
                                         </select>
@@ -567,7 +567,7 @@ export default function EditLeadDetailsModal({
                                                         key={option.value}
                                                         value={option.value}
                                                     >
-                                                        {option.label}
+                                                        {td(option.label, { source: "en" })}
                                                     </option>
                                                 ))}
                                             </select>

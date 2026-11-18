@@ -1,4 +1,5 @@
 import "./agent-qualify.css";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface OutcomeCardItem {
     key: string;
@@ -22,6 +23,7 @@ interface OutcomeCardsProps {
  * moves the lead to. The chosen one is outlined in its status colour.
  */
 export default function OutcomeCards({ items, selected, onSelect, disabled = false }: OutcomeCardsProps) {
+    const { td } = useTd();
     return (
         <div className="agent-qo__cards" role="radiogroup">
             {items.map((item) => {
@@ -39,7 +41,7 @@ export default function OutcomeCards({ items, selected, onSelect, disabled = fal
                     >
                         <span className="agent-qo__card-top">
                             <span className="agent-qo__card-title">{item.title}</span>
-                            {item.status ? <span className="agent-qo__tag">→ {item.status.label}</span> : null}
+                            {item.status ? <span className="agent-qo__tag">→ {td(item.status.label, { source: "en" })}</span> : null}
                         </span>
                         <span className="agent-qo__card-desc">{item.description}</span>
                     </button>

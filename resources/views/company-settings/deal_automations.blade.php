@@ -31,12 +31,12 @@
                     <table class="table table-bordered table-hover">
                         <thead>
                             <tr>
-                                <th>Priority</th>
-                                <th>Automation Name</th>
-                                <th>For</th>
+                                <th>{{ td('Priority') }}</th>
+                                <th>{{ td('Automation Name') }}</th>
+                                <th>{{ td('For') }}</th>
                                 <th>Scope & Trigger</th>
                                 <th>Actions (Result)</th>
-                                <th>Status</th>
+                                <th>{{ td('Status') }}</th>
                                 <th class="text-right">@lang('app.action')</th>
                             </tr>
                         </thead>
@@ -49,15 +49,15 @@
                                     </td>
                                     <td>
                                         @if(($automation->subject_type ?? 'deal') === 'lead')
-                                            <span class="badge badge-info">Leads</span>
+                                            <span class="badge badge-info">{{ td('Leads') }}</span>
                                         @else
-                                            <span class="badge badge-primary">Deals</span>
+                                            <span class="badge badge-primary">{{ td('Deals') }}</span>
                                         @endif
                                     </td>
                                     <td>
                                         <div class="d-flex flex-column">
                                             @if(($automation->subject_type ?? 'deal') === 'lead')
-                                                <span class="badge badge-light mb-1">All Leads</span>
+                                                <span class="badge badge-light mb-1">{{ td('All Leads') }}</span>
                                             @else
                                                 <span class="badge badge-light mb-1">{{ $automation->pipeline->name ?? 'All Pipelines' }}</span>
                                             @endif
@@ -72,24 +72,24 @@
                                             <div class="mb-1">
                                                 @if(($action->action_type ?? 'stage_transition') === 'stage_transition')
                                                     <i class="fa fa-arrow-right text-lightest"></i>
-                                                    Move to <strong>{{ $action->targetStage->name ?? 'Unknown Stage' }}</strong>
+                                                    {{ td('Move to') }} <strong>{{ $action->targetStage->name ?? 'Unknown Stage' }}</strong>
                                                     @if($action->targetPipeline)
                                                         in {{ $action->targetPipeline->name }}
                                                     @endif
                                                 @elseif($action->action_type === 'set_field_value')
                                                     <i class="fa fa-edit text-primary"></i>
-                                                    Set <strong>{{ ucwords(str_replace('_', ' ', $action->field_name)) }}</strong>
+                                                    {{ td('Set') }} <strong>{{ ucwords(str_replace('_', ' ', $action->field_name)) }}</strong>
                                                     = <code>{{ $action->field_value }}</code>
                                                 @elseif($action->action_type === 'lock_deal')
                                                     <i class="fa fa-lock text-warning"></i>
-                                                    <strong>Lock Deal</strong>
+                                                    <strong>{{ td('Lock Deal') }}</strong>
                                                 @elseif($action->action_type === 'send_email')
                                                     <i class="fa fa-envelope text-primary"></i>
-                                                    Send email <strong>{{ $action->emailTemplate->name ?? 'Unknown Template' }}</strong>
+                                                    {{ td('Send email') }} <strong>{{ $action->emailTemplate->name ?? 'Unknown Template' }}</strong>
                                                     <br><small class="text-muted">to: {{ collect($action->recipient_types ?: ['client'])->map(fn($t) => \App\Services\AutomationFieldCatalog::RECIPIENT_TYPES[$t]['label'] ?? $t)->implode(', ') }}</small>
                                                 @elseif($action->action_type === 'create_task')
                                                     <i class="fa fa-check-square text-primary"></i>
-                                                    Create task <strong>{{ $action->title ?: 'Automated Task' }}</strong>
+                                                    {{ td('Create task') }} <strong>{{ $action->title ?: 'Automated Task' }}</strong>
                                                     (assign: {{ $action->assignee_type === 'specific_user' ? ($action->assigneeUser->name ?? 'Unknown User') : (\App\Services\AutomationFieldCatalog::ASSIGNMENT_TYPES[$action->assignee_type]['label'] ?? $action->assignee_type ?? 'Lead Owner') }})
                                                 @elseif($action->action_type === 'create_note')
                                                     <i class="fa fa-sticky-note text-primary"></i>

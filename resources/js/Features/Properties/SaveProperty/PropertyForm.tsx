@@ -10,6 +10,7 @@ import PropertyDetailsTab from "./PropertyDetailsTab";
 import LegalFinancialTab from "./LegalFinancialTab";
 import AssetsTab from "./AssetsTab";
 import FeaturesAndAddOnsTab from "./FeaturesAndAddOnsTab";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface PropertyFormProps {
     data?: Partial<Property>;
@@ -38,6 +39,7 @@ export default function PropertyForm({
     setProperty,
     visible,
 }: PropertyFormProps) {
+    const { td } = useTd();
     const [activeTab, setActiveTab] = useState("basic");
     useEffect(() => {
         if (!visible) {
@@ -54,7 +56,7 @@ export default function PropertyForm({
     const tabItems: TabsProps["items"] = [
         {
             key: "basic",
-            label: "Basic Info",
+            label: td("Basic Info", { source: "en" }),
             children: (
                 <BasicInfoTab
                     onSubmit={onSubmit}
@@ -71,7 +73,7 @@ export default function PropertyForm({
         },
         {
             key: "location",
-            label: "Location",
+            label: td("Location", { source: "en" }),
             children: (
                 <LocationInfoTab
                     onCancel={onCancel}
@@ -88,7 +90,7 @@ export default function PropertyForm({
         },
         {
             key: "details",
-            label: "Details",
+            label: td("Details", { source: "en" }),
             children: (
                 <PropertyDetailsTab
                     onCancel={onCancel}
@@ -105,7 +107,7 @@ export default function PropertyForm({
         },
         {
             key: "legal",
-            label: "Legal & Finance",
+            label: td("Legal & Finance", { source: "en" }),
             children: (
                 <LegalFinancialTab
                     onCancel={onCancel}
@@ -122,7 +124,7 @@ export default function PropertyForm({
         },
         {
             key: "features",
-            label: "Features & Add-Ons",
+            label: td("Features & Add-Ons", { source: "en" }),
             children: (
                 <FeaturesAndAddOnsTab
                     onCancel={onCancel}
@@ -139,7 +141,7 @@ export default function PropertyForm({
         },
         {
             key: "assets",
-            label: "Assets",
+            label: td("Assets", { source: "en" }),
             children: data ? (
                 <AssetsTab property={data} canEdit={true} />
             ) : null,
@@ -153,7 +155,7 @@ export default function PropertyForm({
             {errors.length > 0 && (
                 <div className="mb-4">
                     <Alert
-                        message="Validation Error"
+                        message={td("Validation Error", { source: "en" })}
                         description={
                             <ul className="mb-0">
                                 {errors.map((error, index) => (

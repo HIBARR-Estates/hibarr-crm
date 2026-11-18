@@ -3,6 +3,7 @@ import { Tag } from "antd";
 import { EyeInvisibleOutlined } from "@ant-design/icons";
 import QualificationScriptHtml from "../QualificationScriptHtml";
 import { useTranslatedScriptLabel } from "../useTranslatedScriptLabel";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface InstructionSegmentProps {
     label: string;
@@ -13,6 +14,7 @@ const InstructionSegment: React.FC<InstructionSegmentProps> = ({
     label,
     translateScript,
 }) => {
+    const { td } = useTd();
     const translated = translateScript(useTranslatedScriptLabel(label));
 
     return (
@@ -21,7 +23,7 @@ const InstructionSegment: React.FC<InstructionSegmentProps> = ({
                 icon={<EyeInvisibleOutlined />}
                 className="text-xs uppercase tracking-wide text-gray-500 border-gray-300"
             >
-                Do not read aloud
+                {td("Do not read aloud", { source: "en" })}
             </Tag>
             <QualificationScriptHtml
                 html={translated}

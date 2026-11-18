@@ -418,7 +418,7 @@ export default function ItineraryTab({ canEdit = true }: ItineraryTabProps) {
                             aria-pressed={filter === option.id}
                             onClick={() => setFilter(option.id)}
                         >
-                            {option.label}
+                            {td(option.label, { source: "en" })}
                         </button>
                     ))}
                 </div>

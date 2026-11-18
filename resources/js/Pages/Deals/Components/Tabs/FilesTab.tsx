@@ -6,6 +6,7 @@ import { useState } from "react";
 import { usePage, router } from "@inertiajs/react";
 import FileCard from "./files/FileCard";
 import FileUpload from "./files/FileUpload";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     deal: Deal;
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export default function FilesTab({ deal, files, permissions }: Props) {
+    const { td } = useTd();
     const { props } = usePage();
     const user = props.auth.user;
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -102,7 +104,7 @@ export default function FilesTab({ deal, files, permissions }: Props) {
                         description={
                             <div className="text-center">
                                 <p className="text-gray-500 mb-2">
-                                    No files uploaded
+                                    {td("No files uploaded", { source: "en" })}
                                 </p>
                                 {canAdd && (
                                     <Button
@@ -110,7 +112,7 @@ export default function FilesTab({ deal, files, permissions }: Props) {
                                         icon={<PlusOutlined />}
                                         onClick={() => setUploadModalOpen(true)}
                                     >
-                                        Upload First File
+                                        {td("Upload First File", { source: "en" })}
                                     </Button>
                                 )}
                             </div>
@@ -129,7 +131,7 @@ export default function FilesTab({ deal, files, permissions }: Props) {
                                     onClick={handleRefresh}
                                     loading={loading}
                                 >
-                                    Refresh
+                                    {td("Refresh", { source: "en" })}
                                 </Button>
                             </div>
                         </div>

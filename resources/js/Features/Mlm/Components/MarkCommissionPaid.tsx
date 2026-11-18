@@ -6,6 +6,7 @@ import { IModalProps } from "@/Types/common";
 import { useMarkCommissionPaid } from "@/Features/Mlm/api";
 import type { MlmCommission } from "@/Features/Mlm/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     commission?: MlmCommission | null;
@@ -18,6 +19,7 @@ const MarkCommissionPaid: React.FC<Props> = ({
     open,
     handleSuccessCallback,
 }) => {
+    const { td } = useTd();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
     const { mutate: markPaid, status } = useMarkCommissionPaid(
@@ -43,15 +45,15 @@ const MarkCommissionPaid: React.FC<Props> = ({
                 fn: handleConfirm,
                 loading,
             }}
-            title="Mark Commission as Paid"
+            title={td("Mark Commission as Paid", { source: "en" })}
             description={
                 commission
                     ? `Are you sure you want to mark this ${currencySymbol}${Number(commission.amount).toLocaleString()} commission as paid?`
                     : "Are you sure you want to mark this commission as paid?"
             }
             icon={<CheckCircleOutlined className="text-green-500 text-3xl" />}
-            confirmText="Yes, Mark Paid"
-            cancelText="Cancel"
+            confirmText={td("Yes, Mark Paid", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
         />
     );
 };

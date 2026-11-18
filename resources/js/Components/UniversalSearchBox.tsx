@@ -4,6 +4,7 @@ import { CornerDownLeft } from "lucide-react";
 import { useFilter } from "@/contexts/FilterContext";
 import { router } from "@inertiajs/react";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface UniversalSearchBoxProps {
     placeholder?: string;
@@ -22,6 +23,7 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
     disabled = false,
     onSearch,
 }) => {
+    const { td } = useTd();
     const { filters, setFilter, config } = useFilter();
     const [localValue, setLocalValue] = useState<string>(() => {
         if (typeof window !== "undefined") {
@@ -145,7 +147,7 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
                 onChange={handleInputChange}
                 onSearch={handleSearchSubmit}
                 suffix={
-                    <Tooltip title="Press Enter to search">
+                    <Tooltip title={td("Press Enter to search", { source: "en" })}>
                         <CornerDownLeft
                             size={13}
                             className="text-gray-400"

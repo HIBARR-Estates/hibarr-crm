@@ -13,6 +13,7 @@ import {
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
 import "@/Components/Redesign/redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface RoleOption {
     id: number;
@@ -83,6 +84,7 @@ export default function EmployeesIndex({
     designations,
     roles,
 }: Props) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const [search, setSearch] = useState(filters.search);
     const [pending, setPending] = useState<EmployeeRow | null>(null);
@@ -379,7 +381,7 @@ export default function EmployeesIndex({
                                                                     className="break-words"
                                                                 >
                                                                     {
-                                                                        role.display_name
+                                                                        td(role.display_name, { source: "en" })
                                                                     }
                                                                 </li>
                                                             ),

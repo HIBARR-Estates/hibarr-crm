@@ -1,6 +1,6 @@
 <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
-    <title>Attendace Report</title>
+    <title>{{ td('Attendace Report') }}</title>
     <meta name="author" content="Andrés Herrera García">
     <meta name="description" content="PDF de una fotomulta">
     <meta name="keywords" content="fotomulta, comparendo">

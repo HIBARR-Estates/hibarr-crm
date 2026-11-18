@@ -6,6 +6,7 @@ import type {
     PublishedTemplate,
 } from "@/Types/qualification";
 import useLeadQualificationLoader from "@/Pages/Leads/Components/Qualification/useLeadQualificationLoader";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface QualificationWorkspaceSeed {
     current: LeadQualification | null;
@@ -21,6 +22,7 @@ export default function useLeadQualificationWorkspace(
     lead: Lead,
     { enabled = true, seed = null }: UseLeadQualificationWorkspaceOptions = {},
 ) {
+    const { td } = useTd();
     const loader = useLeadQualificationLoader(lead.id, { enabled, seed });
     const [isStartingFlow, setIsStartingFlow] = useState(false);
     // Ref, not state: a second click firing before the `isStartingFlow`
@@ -95,7 +97,7 @@ export default function useLeadQualificationWorkspace(
 
             if (!template) {
                 message.warning(
-                    "No published qualification templates available",
+                    td("No published qualification templates available", { source: "en" }),
                 );
                 return false;
             }
@@ -118,7 +120,7 @@ export default function useLeadQualificationWorkspace(
                 await loader.handleStarted(qualification);
                 return true;
             } catch {
-                message.error("Failed to start qualification script");
+                message.error(td("Failed to start qualification script", { source: "en" }));
                 return false;
             } finally {
                 startingRef.current = false;

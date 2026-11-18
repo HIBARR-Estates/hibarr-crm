@@ -21,7 +21,7 @@ $statuses = ['complete', 'incomplete']; // Define all your possible statuses her
                 <x-table class="border-0 pb-3 admin-dash-table table-hover">
 
                     <x-slot name="thead">
-                        <th class="pl-20">S. No.</th>
+                        <th class="pl-20">{{ td('S. No.') }}</th>
                         <th>@lang('modules.projects.milestoneTitle')</th>
                         <th>@lang('modules.projects.milestoneCost')</th>
                         {{-- <th>@lang('modules.projects.taskCount')</th> --}}

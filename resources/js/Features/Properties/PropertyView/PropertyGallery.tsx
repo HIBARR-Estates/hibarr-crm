@@ -8,6 +8,7 @@ import {
 import { Property, PropertyAsset } from "@/Types";
 import { router } from "@inertiajs/react";
 import { capitalizeFirstLetter } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -20,6 +21,7 @@ export default function PropertyGallery({
     property,
     canEdit = false,
 }: PropertyGalleryProps) {
+    const { td } = useTd();
     const imageAssets =
         property.assets?.filter((a) => a.asset_type === "image") || [];
     const images = imageAssets
@@ -35,7 +37,7 @@ export default function PropertyGallery({
             <div className="relative rounded-xl bg-gray-50 border border-gray-200 h-80 flex items-center justify-center mb-6">
                 <div className="text-center text-gray-400">
                     <CameraOutlined className="text-5xl mb-3" />
-                    <p className="text-base">No photos yet</p>
+                    <p className="text-base">{td("No photos yet", { source: "en" })}</p>
                     {canEdit && (
                         <Button
                             type="primary"
@@ -44,7 +46,7 @@ export default function PropertyGallery({
                             icon={<FolderOpenOutlined />}
                             onClick={handleManageAssets}
                         >
-                            Upload Photos
+                            {td("Upload Photos", { source: "en" })}
                         </Button>
                     )}
                 </div>
@@ -76,14 +78,14 @@ export default function PropertyGallery({
                     <div className="col-span-2 row-span-2 relative group cursor-pointer">
                         <Image
                             src={heroImage}
-                            alt="Property photo"
+                            alt={td("Property photo", { source: "en" })}
                             className="object-cover w-full h-full"
                             style={{ height: "100%", width: "100%" }}
                             preview={{
                                 mask: (
                                     <div className="flex items-center gap-2">
                                         <ExpandOutlined />
-                                        <span>View</span>
+                                        <span>{td("View", { source: "en" })}</span>
                                     </div>
                                 ),
                             }}
@@ -155,7 +157,7 @@ export default function PropertyGallery({
                         onClick={handleManageAssets}
                         className="bg-white/90 hover:bg-white"
                     >
-                        Manage
+                        {td("Manage", { source: "en" })}
                     </Button>
                 )}
             </div>

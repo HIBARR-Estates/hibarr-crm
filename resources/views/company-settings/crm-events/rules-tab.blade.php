@@ -12,9 +12,9 @@
         <thead class="thead-light">
             <tr>
                 <th>@lang('app.name')</th>
-                <th>Slug</th>
-                <th>Description</th>
-                <th class="text-center">Linked Event Types</th>
+                <th>{{ td('Slug') }}</th>
+                <th>{{ td('Description') }}</th>
+                <th class="text-center">{{ td('Linked Event Types') }}</th>
                 <th class="text-center">@lang('app.status')</th>
                 <th class="text-right">@lang('app.action')</th>
             </tr>

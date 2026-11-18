@@ -9,6 +9,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { router } from "@inertiajs/react";
 import "@/Components/Common/note-modal.css";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface SaveNoteFormData {
     title: string;
@@ -21,6 +22,7 @@ interface Props extends IModalProps {
 }
 
 const AddNote: React.FC<Props> = ({ deal, onClose, open }) => {
+    const { td } = useTd();
     const [errors, setErrors] = useState<string[]>([]);
 
     const handleCancel = () => {
@@ -69,7 +71,7 @@ const AddNote: React.FC<Props> = ({ deal, onClose, open }) => {
         >
             <div className="px-6 pt-6 pb-5 pr-14 border-b border-gray-100 shrink-0">
                 <h2 className="text-xl font-semibold text-gray-900 leading-tight">
-                    Add Note
+                    {td("Add Note", { source: "en" })}
                 </h2>
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-5">

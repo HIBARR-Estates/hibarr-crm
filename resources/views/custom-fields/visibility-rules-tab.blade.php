@@ -1,7 +1,7 @@
 <div class="visibility-rules-tab">
     <div class="alert alert-info mb-3">
         <i class="fa fa-info-circle"></i> 
-        Configure when this field should be visible based on values in other fields.
+        {{ td('Configure when this field should be visible based on values in other fields.') }}
     </div>
 
     <form id="visibilityRulesForm">
@@ -11,7 +11,7 @@
             <label class="control-label">
                 <input type="checkbox" id="enableRules" name="enabled" value="1" 
                        {{ ($field->showRuleSet && $field->showRuleSet->enabled) ? 'checked' : '' }} />
-                Enable visibility rules
+                {{ td('Enable visibility rules') }}
             </label>
             <small class="form-text text-muted">
                 When enabled, this field will only be visible when the conditions below are met.
@@ -19,7 +19,7 @@
         </div>
 
         <div class="form-group">
-            <label class="control-label">Default Visibility</label>
+            <label class="control-label">{{ td('Default Visibility') }}</label>
             <div class="radio-group">
                 <label class="radio-inline">
                     <input type="radio" name="default_visibility" value="1" 
@@ -33,13 +33,13 @@
                 </label>
             </div>
             <small class="form-text text-muted">
-                What should happen when rules are disabled or no rules match?
+                {{ td('What should happen when rules are disabled or no rules match?') }}
             </small>
         </div>
 
         <div id="rulesContainer" style="{{ (!$field->showRuleSet || !$field->showRuleSet->enabled) ? 'display: none;' : '' }}">
             <div id="groupsOperatorContainer" class="form-group mb-3" style="display: none;">
-                <label class="control-label">Show Groups Operator</label>
+                <label class="control-label">{{ td('Show Groups Operator') }}</label>
                 <select name="groups_operator" id="groupsOperator" class="form-control select-picker" data-size="8">
                     <option value="AND" {{ (!$field->showRuleSet || !$field->showRuleSet->groups_operator || $field->showRuleSet->groups_operator == 'AND') ? 'selected' : '' }}>
                         AND (all show groups must match)
@@ -49,10 +49,10 @@
                     </option>
                 </select>
                 <small class="form-text text-muted">
-                    <strong>Note:</strong> Hide groups always take precedence. If any hide group matches, the field will be hidden regardless of show groups or this operator. This operator only applies to show groups.
+                    <strong>{{ td('Note:') }}</strong> Hide groups always take precedence. If any hide group matches, the field will be hidden regardless of show groups or this operator. This operator only applies to show groups.
                 </small>
                 <small class="form-text text-muted">
-                    How to combine multiple rule groups.
+                    {{ td('How to combine multiple rule groups.') }}
                 </small>
             </div>
             
@@ -133,7 +133,7 @@
                             <h5 class="mb-0">Rule Group {{ $groupIndex + 1 }}</h5>
                             @if(count($groupsToShow) > 1 && !$groupIsLocked)
                                 <button type="button" class="btn btn-danger btn-sm remove-group">
-                                    <i class="fa fa-trash"></i> Remove Group
+                                    <i class="fa fa-trash"></i> {{ td('Remove Group') }}
                                 </button>
                             @endif
                         </div>
@@ -148,21 +148,21 @@
                                     <input type="checkbox" name="groups[{{ $groupIndex }}][enabled]" value="1" 
                                            {{ (!$group || $group->enabled !== false) ? 'checked' : '' }}
                                            @if($groupIsLocked) disabled @endif />
-                                    Enable this group
+                                    {{ td('Enable this group') }}
                                 </label>
                                 <small class="form-text text-muted">
-                                    When disabled, this group will be ignored when evaluating visibility rules.
+                                    {{ td('When disabled, this group will be ignored when evaluating visibility rules.') }}
                                 </small>
                             </div>
                             
                             <div class="form-group mb-3">
-                                <label class="control-label">Visibility Action</label>
+                                <label class="control-label">{{ td('Visibility Action') }}</label>
                                 <select name="groups[{{ $groupIndex }}][visibility_action]" class="form-control select-picker visibility-action-select" data-size="8" @if($groupIsLocked) disabled @endif>
                                     <option value="show" {{ (!$group || $group->visibility_action == 'show' || !$group->visibility_action) ? 'selected' : '' }}>
-                                        Show field when this group matches
+                                        {{ td('Show field when this group matches') }}
                                     </option>
                                     <option value="hide" {{ ($group && $group->visibility_action == 'hide') ? 'selected' : '' }}>
-                                        Hide field when this group matches
+                                        {{ td('Hide field when this group matches') }}
                                     </option>
                                 </select>
                                 <small class="form-text text-muted">
@@ -171,7 +171,7 @@
                             </div>
                             
                             <div class="form-group">
-                                <label class="control-label">Group Operator</label>
+                                <label class="control-label">{{ td('Group Operator') }}</label>
                                 <select name="groups[{{ $groupIndex }}][group_operator]" class="form-control select-picker group-operator-select" data-size="8" @if($groupIsLocked) disabled @endif>
                                     <option value="AND" {{ (!$group || $group->group_operator == 'AND') ? 'selected' : '' }}>
                                         AND (all criteria must match)
@@ -207,15 +207,15 @@
                                                         ][$criterionSource] ?? 'pipeline stage';
                                                     @endphp
                                                     <div class="alert alert-secondary mb-2 py-1 px-2" style="font-size: 12px;">
-                                                        This criterion reads the deal's <strong>{{ $criterionSourceLabel }}</strong> — edit it from the field's visibility rule builder, not here.
+                                                        {{ td('This criterion reads the deal\'s') }} <strong>{{ $criterionSourceLabel }}</strong> {{ td('— edit it from the field\'s visibility rule builder, not here.') }}
                                                     </div>
                                                 @endif
                                                 <div class="row">
                                                     <div class="col-md-4">
                                                         <div class="form-group">
-                                                            <label>Reference Field</label>
+                                                            <label>{{ td('Reference Field') }}</label>
                                                             <select name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][reference_field_id]" class="form-control select-picker reference-field-select" data-live-search="true" data-size="8" @if($criterionSource !== 'custom_field') disabled @endif>
-                                                                <option value="">Select field...</option>
+                                                                <option value="">{{ td('Select field...') }}</option>
                                                                 @foreach($otherFields as $availableField)
                                                                     <option value="{{ $availableField->id }}"
                                                                             {{ $criterion->reference_field_id == $availableField->id ? 'selected' : '' }}>
@@ -227,29 +227,29 @@
                                                     </div>
                                                     <div class="col-md-3">
                                                         <div class="form-group">
-                                                            <label>Operator</label>
+                                                            <label>{{ td('Operator') }}</label>
                                                             <select name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][operator]" class="form-control select-picker operator-select" data-size="8" @if($criterionSource !== 'custom_field') disabled @endif>
-                                                                <option value="equals" {{ $criterion->operator == 'equals' ? 'selected' : '' }}>equals</option>
-                                                                <option value="exists" {{ $criterion->operator == 'exists' ? 'selected' : '' }}>exists</option>
-                                                                <option value="boolean" {{ $criterion->operator == 'boolean' ? 'selected' : '' }}>is boolean</option>
-                                                                <option value=">" {{ $criterion->operator == '>' ? 'selected' : '' }}>greater than</option>
-                                                                <option value="<" {{ $criterion->operator == '<' ? 'selected' : '' }}>less than</option>
-                                                                <option value=">=" {{ $criterion->operator == '>=' ? 'selected' : '' }}>greater than or equal</option>
-                                                                <option value="<=" {{ $criterion->operator == '<=' ? 'selected' : '' }}>less than or equal</option>
-                                                                <option value="in" {{ $criterion->operator == 'in' ? 'selected' : '' }}>in list</option>
-                                                                <option value="not_in" {{ $criterion->operator == 'not_in' ? 'selected' : '' }}>not in list</option>
+                                                                <option value="equals" {{ $criterion->operator == 'equals' ? 'selected' : '' }}>{{ td('equals') }}</option>
+                                                                <option value="exists" {{ $criterion->operator == 'exists' ? 'selected' : '' }}>{{ td('exists') }}</option>
+                                                                <option value="boolean" {{ $criterion->operator == 'boolean' ? 'selected' : '' }}>{{ td('is boolean') }}</option>
+                                                                <option value=">" {{ $criterion->operator == '>' ? 'selected' : '' }}>{{ td('greater than') }}</option>
+                                                                <option value="<" {{ $criterion->operator == '<' ? 'selected' : '' }}>{{ td('less than') }}</option>
+                                                                <option value=">=" {{ $criterion->operator == '>=' ? 'selected' : '' }}>{{ td('greater than or equal') }}</option>
+                                                                <option value="<=" {{ $criterion->operator == '<=' ? 'selected' : '' }}>{{ td('less than or equal') }}</option>
+                                                                <option value="in" {{ $criterion->operator == 'in' ? 'selected' : '' }}>{{ td('in list') }}</option>
+                                                                <option value="not_in" {{ $criterion->operator == 'not_in' ? 'selected' : '' }}>{{ td('not in list') }}</option>
                                                             </select>
                                                         </div>
                                                     </div>
                                                     <div class="col-md-4">
                                                         <div class="form-group value-input-group">
-                                                            <label>Value</label>
+                                                            <label>{{ td('Value') }}</label>
                                                             <input type="text"
                                                                    name="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][reference_value]"
                                                                    id="groups[{{ $groupIndex }}][criteria][{{ $criterionIndex }}][reference_value]"
                                                                    class="form-control height-35 f-14 reference-value-input"
                                                                    value="{{ $criterion->reference_value ?? '' }}"
-                                                                   placeholder="Enter value"
+                                                                   placeholder="{{ td('Enter value') }}"
                                                                    @if($criterionSource !== 'custom_field') disabled @endif />
                                                         </div>
                                                     </div>
@@ -282,7 +282,7 @@
 
                             @if(!$groupIsLocked)
                                 <button type="button" class="btn btn-secondary btn-sm add-criterion" data-group-index="{{ $groupIndex }}">
-                                    <i class="fa fa-plus"></i> Add Criterion
+                                    <i class="fa fa-plus"></i> {{ td('Add Criterion') }}
                                 </button>
                             @endif
                         </div>
@@ -291,16 +291,16 @@
             </div>
             
             <button type="button" id="addGroup" class="btn btn-primary btn-sm mb-3">
-                <i class="fa fa-plus"></i> Add Group
+                <i class="fa fa-plus"></i> {{ td('Add Group') }}
             </button>
         </div>
 
         <div class="form-group mt-3">
             <button type="button" id="saveVisibilityRules" class="btn btn-primary">
-                <i class="fa fa-save"></i> Save Rules
+                <i class="fa fa-save"></i> {{ td('Save Rules') }}
             </button>
             <button type="button" class="btn btn-secondary" onclick="$('#basic-tab').tab('show');">
-                Cancel
+                {{ td('Cancel') }}
             </button>
         </div>
     </form>
@@ -357,25 +357,25 @@ $(document).ready(function() {
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Rule Group ${groupIndex + 1}</h5>
                     <button type="button" class="btn btn-danger btn-sm remove-group">
-                        <i class="fa fa-trash"></i> Remove Group
+                        <i class="fa fa-trash"></i> {{ td('Remove Group') }}
                     </button>
                 </div>
                     <div class="card-body">
                     <div class="form-group mb-3">
                         <label class="control-label">
                             <input type="checkbox" name="groups[${groupIndex}][enabled]" value="1" checked />
-                            Enable this group
+                            {{ td('Enable this group') }}
                         </label>
                         <small class="form-text text-muted">
-                            When disabled, this group will be ignored when evaluating visibility rules.
+                            {{ td('When disabled, this group will be ignored when evaluating visibility rules.') }}
                         </small>
                     </div>
                     
                     <div class="form-group mb-3">
-                        <label class="control-label">Visibility Action</label>
+                        <label class="control-label">{{ td('Visibility Action') }}</label>
                         <select name="groups[${groupIndex}][visibility_action]" class="form-control select-picker visibility-action-select" data-size="8">
-                            <option value="show">Show field when this group matches</option>
-                            <option value="hide">Hide field when this group matches</option>
+                            <option value="show">{{ td('Show field when this group matches') }}</option>
+                            <option value="hide">{{ td('Hide field when this group matches') }}</option>
                         </select>
                         <small class="form-text text-muted">
                             Choose whether this group should show or hide the field when its conditions are met. Hide groups take precedence over show groups.
@@ -383,7 +383,7 @@ $(document).ready(function() {
                     </div>
                     
                     <div class="form-group">
-                        <label class="control-label">Group Operator</label>
+                        <label class="control-label">{{ td('Group Operator') }}</label>
                         <select name="groups[${groupIndex}][group_operator]" class="form-control select-picker group-operator-select" data-size="8">
                             <option value="AND">AND (all criteria must match)</option>
                             <option value="OR">OR (any criterion must match)</option>
@@ -391,7 +391,7 @@ $(document).ready(function() {
                     </div>
                     <div class="criteria-container" data-group-index="${groupIndex}"></div>
                     <button type="button" class="btn btn-secondary btn-sm add-criterion" data-group-index="${groupIndex}">
-                        <i class="fa fa-plus"></i> Add Criterion
+                        <i class="fa fa-plus"></i> {{ td('Add Criterion') }}
                     </button>
                 </div>
             </div>
@@ -493,9 +493,9 @@ $(document).ready(function() {
                     <div class="row">
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label>Reference Field</label>
+                                <label>{{ td('Reference Field') }}</label>
                                 <select name="groups[${groupIdx}][criteria][${criterionIdx}][reference_field_id]" class="form-control select-picker reference-field-select" data-live-search="true" data-size="8">
-                                    <option value="">Select field...</option>
+                                    <option value="">{{ td('Select field...') }}</option>
                                     @foreach($otherFields as $availableField)
                                         <option value="{{ $availableField->id }}">{{ $availableField->label }} ({{ $availableField->type }})</option>
                                     @endforeach
@@ -504,26 +504,26 @@ $(document).ready(function() {
                         </div>
                         <div class="col-md-3">
                             <div class="form-group">
-                                <label>Operator</label>
+                                <label>{{ td('Operator') }}</label>
                                 <select name="groups[${groupIdx}][criteria][${criterionIdx}][operator]" class="form-control select-picker operator-select" data-size="8">
-                                    <option value="equals">equals</option>
-                                    <option value="exists">exists</option>
-                                    <option value="boolean">is boolean</option>
-                                    <option value=">">greater than</option>
-                                    <option value="<">less than</option>
-                                    <option value=">=">greater than or equal</option>
-                                    <option value="<=">less than or equal</option>
-                                    <option value="in">in list</option>
-                                    <option value="not_in">not in list</option>
+                                    <option value="equals">{{ td('equals') }}</option>
+                                    <option value="exists">{{ td('exists') }}</option>
+                                    <option value="boolean">{{ td('is boolean') }}</option>
+                                    <option value=">">{{ td('greater than') }}</option>
+                                    <option value="<">{{ td('less than') }}</option>
+                                    <option value=">=">{{ td('greater than or equal') }}</option>
+                                    <option value="<=">{{ td('less than or equal') }}</option>
+                                    <option value="in">{{ td('in list') }}</option>
+                                    <option value="not_in">{{ td('not in list') }}</option>
                                 </select>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="form-group value-input-group">
-                                <label>Value</label>
+                                <label>{{ td('Value') }}</label>
                                 <input type="text" name="groups[${groupIdx}][criteria][${criterionIdx}][reference_value]" 
                                        class="form-control height-35 f-14 reference-value-input" 
-                                       placeholder="Enter value" />
+                                       placeholder="{{ td('Enter value') }}" />
                             </div>
                         </div>
                         <div class="col-md-1">

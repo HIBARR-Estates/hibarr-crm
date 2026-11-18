@@ -42,13 +42,12 @@
                             <span class="text-danger">
                                     Your Server upload_max_filesize = {{\App\Helper\Files::getUploadMaxFilesize()['size']}}.
                                     Please change to min <strong>{{\App\Helper\Files::REQUIRED_FILE_UPLOAD_SIZE}}MB</strong>
-                                    to upload big modules
+                                    {{ td('to upload big modules') }}
                             </span>
                         @elseif(!$postMaxSize['greater'])
                             <span class="text-danger">
                                     Your Server post_max_size = {{\App\Helper\Files::getPostMaxSize()['size']}}.
-                                    Please change to min <strong>{{\App\Helper\Files::REQUIRED_FILE_UPLOAD_SIZE}}MB</strong> to
-                                    upload big modules
+                                    Please change to min <strong>{{\App\Helper\Files::REQUIRED_FILE_UPLOAD_SIZE}}MB</strong> {{ td('to upload big modules') }}
                             </span>
                         @endif
 

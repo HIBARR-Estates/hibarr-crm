@@ -62,6 +62,7 @@ import type {
 } from "@/Features/Mlm/types";
 import { COMMISSION_TYPE_LABELS } from "@/Features/Mlm/types";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface AgentInfo {
     id: number;
@@ -79,6 +80,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
     agent,
     stats: initialStats,
 }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { props } = usePage<PageProps>();
     const currencySymbol = (props as any).default_currency_symbol ?? "";
@@ -96,7 +98,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
     const updateCommissionProfile = useUpdateAgentCommissionProfile(
         agent.id,
         () => {
-            message.success("Commission rates updated");
+            message.success(td("Commission rates updated", { source: "en" }));
             refetchProfile();
         },
     );
@@ -118,7 +120,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
 
     const statCards = [
         {
-            title: "Total Earnings",
+            title: td("Total Earnings", { source: "en" }),
             value: stats.total_earnings ?? 0,
             prefix: currencySymbol,
             precision: 2,
@@ -126,7 +128,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
             iconBg: "bg-green-100 text-green-600",
         },
         {
-            title: "Pending Earnings",
+            title: td("Pending Earnings", { source: "en" }),
             value: stats.pending_earnings ?? 0,
             prefix: currencySymbol,
             precision: 2,
@@ -134,13 +136,13 @@ const AdminAgentDashboard: React.FC<Props> = ({
             iconBg: "bg-orange-100 text-orange-600",
         },
         {
-            title: "Total Sales",
+            title: td("Total Sales", { source: "en" }),
             value: stats.total_sales ?? 0,
             icon: <TrendingUp size={20} />,
             iconBg: "bg-blue-100 text-blue-600",
         },
         {
-            title: "Downlines",
+            title: td("Downlines", { source: "en" }),
             value: stats.total_downlines ?? 0,
             icon: <Users size={20} />,
             iconBg: "bg-purple-100 text-purple-600",
@@ -149,7 +151,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
 
     const recentCommissionCols = [
         {
-            title: "Deal",
+            title: td("Deal", { source: "en" }),
             key: "deal",
             render: (_: any, r: MlmCommission) => (
                 <span className="font-medium text-sm">
@@ -158,7 +160,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
             ),
         },
         {
-            title: "Type",
+            title: td("Type", { source: "en" }),
             dataIndex: "type",
             key: "type",
             render: (t: string) => (
@@ -178,7 +180,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
             ),
         },
         {
-            title: "Amount",
+            title: td("Amount", { source: "en" }),
             dataIndex: "amount",
             key: "amount",
             align: "right" as const,
@@ -192,7 +194,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
             ),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             render: (s: any) => <CommissionStatusBadge status={s} />,
@@ -284,7 +286,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                 <Award size={36} />
                                             </div>
                                             <div className="text-sm text-gray-500 mb-2">
-                                                Current Level
+                                                {td("Current Level", { source: "en" })}
                                             </div>
                                             {levelData?.current_level ? (
                                                 <div className="flex flex-col items-center gap-2">
@@ -312,13 +314,13 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                     {levelData.current_level
                                                         .is_hidden && (
                                                         <Tag color="default">
-                                                            Hidden
+                                                            {td("Hidden", { source: "en" })}
                                                         </Tag>
                                                     )}
                                                 </div>
                                             ) : (
                                                 <Tag className="text-lg">
-                                                    Unranked
+                                                    {td("Unranked", { source: "en" })}
                                                 </Tag>
                                             )}
                                         </div>
@@ -355,14 +357,14 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                     className="text-green-500"
                                                 />
                                                 <span className="font-semibold">
-                                                    Progress to Next Level
+                                                    {td("Progress to Next Level", { source: "en" })}
                                                 </span>
                                                 {levelData?.cycle_metrics && (
                                                     <Tag
                                                         color="blue"
                                                         className="ml-2 text-xs"
                                                     >
-                                                        Current Cycle
+                                                        {td("Current Cycle", { source: "en" })}
                                                     </Tag>
                                                 )}
                                             </div>
@@ -375,12 +377,12 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                             <div>
                                                 <div className="mb-4 flex items-center justify-between">
                                                     <span className="text-sm text-gray-500">
-                                                        Next:{" "}
+                                                        {td("Next:", { source: "en" })}{" "}
                                                         <strong>
                                                             {
-                                                                levelData
+                                                                td(levelData
                                                                     .next_level
-                                                                    .name
+                                                                    .name, { source: "en" })
                                                             }
                                                         </strong>
                                                     </span>
@@ -484,7 +486,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                     <Card
                                         title={
                                             <span className="font-semibold text-sm">
-                                                Commission Trend
+                                                {td("Commission Trend", { source: "en" })}
                                             </span>
                                         }
                                         variant="outlined"
@@ -550,7 +552,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                 </AreaChart>
                                             </ResponsiveContainer>
                                         ) : (
-                                            <Empty description="No commission data yet" />
+                                            <Empty description={td("No commission data yet", { source: "en" })} />
                                         )}
                                     </Card>
                                 </motion.div>
@@ -565,7 +567,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                     <Card
                                         title={
                                             <span className="font-semibold text-sm">
-                                                Network Growth
+                                                {td("Network Growth", { source: "en" })}
                                             </span>
                                         }
                                         variant="outlined"
@@ -598,7 +600,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                 </BarChart>
                                             </ResponsiveContainer>
                                         ) : (
-                                            <Empty description="No network data yet" />
+                                            <Empty description={td("No network data yet", { source: "en" })} />
                                         )}
                                     </Card>
                                 </motion.div>
@@ -614,7 +616,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                             <Card
                                 title={
                                     <span className="font-semibold text-sm">
-                                        Recent Commissions
+                                        {td("Recent Commissions", { source: "en" })}
                                     </span>
                                 }
                                 variant="outlined"
@@ -651,8 +653,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                         className="text-indigo-500"
                                                     />
                                                     <span className="font-semibold">
-                                                        Commission Rate
-                                                        Overrides
+                                                        {td("Commission Rate Overrides", { source: "en" })}
                                                     </span>
                                                 </div>
                                             }
@@ -664,8 +665,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                                             <div>
                                                                 <span className="text-gray-500">
-                                                                    Level
-                                                                    default
+                                                                    {td("Level default", { source: "en" })}
                                                                 </span>
                                                                 <div className="font-medium">
                                                                     {commissionProfile
@@ -677,7 +677,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                             </div>
                                                             <div>
                                                                 <span className="text-gray-500">
-                                                                    Max allowed
+                                                                    {td("Max allowed", { source: "en" })}
                                                                 </span>
                                                                 <div className="font-medium">
                                                                     ≤{" "}
@@ -691,23 +691,18 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                             </div>
                                                             <div>
                                                                 <span className="text-gray-500">
-                                                                    Status
+                                                                    {td("Status", { source: "en" })}
                                                                 </span>
                                                                 <div>
                                                                     {commissionProfile
                                                                         .bounds
                                                                         .is_highest_visible_level ? (
                                                                         <Tag color="gold">
-                                                                            Highest
-                                                                            visible
-                                                                            level
+                                                                            {td("Highest visible level", { source: "en" })}
                                                                         </Tag>
                                                                     ) : (
                                                                         <Tag color="blue">
-                                                                            Bounded
-                                                                            by
-                                                                            next
-                                                                            level
+                                                                            {td("Bounded by next level", { source: "en" })}
                                                                         </Tag>
                                                                     )}
                                                                 </div>
@@ -728,9 +723,9 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                             }
                                                         >
                                                             <Form.Item
-                                                                label="Custom Commission Rate"
+                                                                label={td("Custom Commission Rate", { source: "en" })}
                                                                 name="custom_commission_rate"
-                                                                tooltip="Leave empty to use level default"
+                                                                tooltip={td("Leave empty to use level default", { source: "en" })}
                                                                 rules={[
                                                                     {
                                                                         validator:
@@ -781,12 +776,12 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                 />
                                                             </Form.Item>
                                                             <Form.Item
-                                                                label="Reason"
+                                                                label={td("Reason", { source: "en" })}
                                                                 name="reason"
                                                             >
                                                                 <Input.TextArea
                                                                     rows={2}
-                                                                    placeholder="Optional reason for audit log"
+                                                                    placeholder={td("Optional reason for audit log", { source: "en" })}
                                                                 />
                                                             </Form.Item>
                                                             <div className="flex gap-2">
@@ -797,8 +792,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                         updateCommissionProfile.isPending
                                                                     }
                                                                 >
-                                                                    Save
-                                                                    Override
+                                                                    {td("Save Override", { source: "en" })}
                                                                 </Button>
                                                                 <Button
                                                                     onClick={() =>
@@ -811,8 +805,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                         )
                                                                     }
                                                                 >
-                                                                    Clear
-                                                                    Override
+                                                                    {td("Clear Override", { source: "en" })}
                                                                 </Button>
                                                             </div>
                                                         </Form>
@@ -824,7 +817,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                 <DataTable
                                                                     columns={[
                                                                         {
-                                                                            title: "Changed At",
+                                                                            title: td("Changed At", { source: "en" }),
                                                                             dataIndex:
                                                                                 "changed_at",
                                                                             key: "changed_at",
@@ -836,7 +829,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                                 ),
                                                                         },
                                                                         {
-                                                                            title: "Rate",
+                                                                            title: td("Rate", { source: "en" }),
                                                                             key: "rate",
                                                                             render: (
                                                                                 _: unknown,
@@ -845,7 +838,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                                 `${row.previous_direct_rate ?? "—"} → ${row.new_direct_rate ?? "—"}`,
                                                                         },
                                                                         {
-                                                                            title: "By",
+                                                                            title: td("By", { source: "en" }),
                                                                             key: "by",
                                                                             render: (
                                                                                 _: unknown,
@@ -857,7 +850,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                                 "System",
                                                                         },
                                                                         {
-                                                                            title: "Reason",
+                                                                            title: td("Reason", { source: "en" }),
                                                                             dataIndex:
                                                                                 "reason",
                                                                             key: "reason",
@@ -879,7 +872,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                         ) : null}
                                                     </div>
                                                 ) : (
-                                                    <Empty description="No commission profile available" />
+                                                    <Empty description={td("No commission profile available", { source: "en" })} />
                                                 )}
                                             </Skeleton>
                                         </Card>

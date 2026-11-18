@@ -7,6 +7,7 @@ import Icon from "../../primitives/Icon";
 import { agoText, meetingText, ringClock } from "./incomingFormat";
 import useCallerGlance from "./useCallerGlance";
 import "./agent-call.css";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface AgentIncomingCardProps {
     /** "popover" under the dock's pill; "sheet" above the tab bar on a phone. */
@@ -40,6 +41,7 @@ export default function AgentIncomingCard({ variant }: AgentIncomingCardProps) {
 }
 
 function IncomingBody({ incoming, variant }: { incoming: IncomingCallView; variant: "popover" | "sheet" }) {
+    const { td } = useTd();
     const { t, locale } = useTranslation();
     const { timezone } = useUserDateTime();
     const clock = useRingClock(incoming.startedAt);
@@ -111,7 +113,7 @@ function IncomingBody({ incoming, variant }: { incoming: IncomingCallView; varia
                             className="agent-incoming__status"
                             style={glance.status.color ? ({ "--tag": glance.status.color } as React.CSSProperties) : undefined}
                         >
-                            {t("pages.agent_workspace.incoming.lead")} · {glance.status.label}
+                            {t("pages.agent_workspace.incoming.lead")} · {td(glance.status.label, { source: "en" })}
                         </span>
                     ) : loading ? (
                         <span className="agent-incoming__chip-skeleton" aria-hidden="true" />

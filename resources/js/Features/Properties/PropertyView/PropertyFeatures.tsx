@@ -11,6 +11,7 @@ import {
     PlusOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Title } = Typography;
 
@@ -78,6 +79,7 @@ function FeatureList({ features, title, icon }: FeatureListProps) {
 }
 
 export default function PropertyFeatures({ property }: PropertyFeaturesProps) {
+    const { td } = useTd();
     const hasAnyFeatures =
         (property.exterior_features && property.exterior_features.length > 0) ||
         (property.interior_features && property.interior_features.length > 0) ||
@@ -87,28 +89,28 @@ export default function PropertyFeatures({ property }: PropertyFeaturesProps) {
     if (!hasAnyFeatures) return null;
 
     return (
-        <Card title="Property Features" className="mb-6">
+        <Card title={td("Property Features", { source: "en" })} className="mb-6">
             <FeatureList
                 features={property.exterior_features || []}
-                title="Exterior Features"
+                title={td("Exterior Features", { source: "en" })}
                 icon={<HomeOutlined />}
             />
 
             <FeatureList
                 features={property.interior_features || []}
-                title="Interior Features"
+                title={td("Interior Features", { source: "en" })}
                 icon={<AppstoreOutlined />}
             />
 
             <FeatureList
                 features={property.location_features || []}
-                title="Location Features"
+                title={td("Location Features", { source: "en" })}
                 icon={<EnvironmentOutlined />}
             />
 
             <FeatureList
                 features={property.add_ons || []}
-                title="Add-Ons"
+                title={td("Add-Ons", { source: "en" })}
                 icon={<PlusOutlined />}
             />
         </Card>

@@ -9,6 +9,7 @@ import {
 import type { AgentHierarchyNode } from "../types";
 import LevelBadge from "./LevelBadge";
 import type { MlmLevel } from "../types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -234,6 +235,7 @@ export default function AgentTreeView({
     orientation = "vertical",
     height = 600,
 }: AgentTreeViewProps) {
+    const { td } = useTd();
     const [visibleCounts, setVisibleCounts] = useState<Map<number, number>>(
         new Map(),
     );
@@ -301,7 +303,7 @@ export default function AgentTreeView({
                 className="flex items-center justify-center"
                 style={{ height }}
             >
-                <Empty description="No hierarchy data available" />
+                <Empty description={td("No hierarchy data available", { source: "en" })} />
             </div>
         );
     }

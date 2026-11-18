@@ -10,7 +10,7 @@
         </div>
     </x-form>
     <x-alert type="warning">
-    <div><br><b>Information:</b><br><br>@lang('modules.deal.roundrobinNote')<br>
+    <div><br><b>{{ td('Information:') }}</b><br><br>@lang('modules.deal.roundrobinNote')<br>
         <br>&bull;@lang('modules.deal.equalDistribution')
         <br>&bull;@lang('modules.deal.sequentialAssignment')
         <br>&bull;@lang('modules.deal.fairRotation')

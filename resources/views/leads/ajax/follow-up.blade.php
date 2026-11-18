@@ -43,26 +43,26 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                                        @switch($folllowUp->location)
                                            @case('zoom')
                                                <a href="{{ $folllowUp->meeting_link }}" target="_blank" class="d-flex align-items-center">
-                                                   <img src="https://img.icons8.com/color/20/000000/zoom.png" alt="Zoom" class="mr-2" style="width: 20px; height: 20px;">
-                                                    <span class="text-info" style="text-decoration: underline;">Join Meeting</span>
+                                                   <img src="https://img.icons8.com/color/20/000000/zoom.png" alt="{{ td('Zoom') }}" class="mr-2" style="width: 20px; height: 20px;">
+                                                    <span class="text-info" style="text-decoration: underline;">{{ td('Join Meeting') }}</span>
                                                </a>
                                                @break
                                            @case('google_meet')
                                                <a href="{{ $folllowUp->meeting_link }}" target="_blank" class="d-flex align-items-center">
-                                                   <img src="https://img.icons8.com/color/20/000000/google-meet.png" alt="Google Meet" class="mr-2" style="width: 20px; height: 20px;">
-                                                   <span class="text-info" style="text-decoration: underline;">Join Meeting</span>
+                                                   <img src="https://img.icons8.com/color/20/000000/google-meet.png" alt="{{ td('Google Meet') }}" class="mr-2" style="width: 20px; height: 20px;">
+                                                   <span class="text-info" style="text-decoration: underline;">{{ td('Join Meeting') }}</span>
                                                </a>
                                                @break
                                            @case('zoho_meet')
                                                <a href="{{ $folllowUp->meeting_link }}" target="_blank" class="d-flex align-items-center">
-                                                   <img src="https://img.icons8.com/color/20/000000/zoho.png" alt="Zoho Meet" class="mr-2" style="width: 20px; height: 20px;">
-                                                   <span class="text-info" style="text-decoration: underline;">Join Meeting</span>
+                                                   <img src="https://img.icons8.com/color/20/000000/zoho.png" alt="{{ td('Zoho Meet') }}" class="mr-2" style="width: 20px; height: 20px;">
+                                                   <span class="text-info" style="text-decoration: underline;">{{ td('Join Meeting') }}</span>
                                                </a>
                                                @break
                                            @default
                                                <a href="{{ $folllowUp->meeting_link }}" target="_blank" class="d-flex align-items-center">
                                                    <i class="fa fa-external-link-alt mr-2"></i>
-                                                   <span class="text-primary">Join Meeting</span>
+                                                   <span class="text-primary">{{ td('Join Meeting') }}</span>
                                                </a>
                                        @endswitch
                                    </div>
@@ -72,13 +72,13 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                                             <div class="d-flex align-items-center" >
                                                @switch($folllowUp->location)
                                                 @case('zoom')
-                                                    <img src="https://img.icons8.com/color/20/000000/zoom.png" alt="Zoom" class="mr-2" style="width: 20px; height: 20px;">
+                                                    <img src="https://img.icons8.com/color/20/000000/zoom.png" alt="{{ td('Zoom') }}" class="mr-2" style="width: 20px; height: 20px;">
                                                     @break
                                                 @case('google_meet')
-                                                    <img src="https://img.icons8.com/color/20/000000/google-meet.png" alt="Google Meet" class="mr-2" style="width: 20px; height: 20px;">
+                                                    <img src="https://img.icons8.com/color/20/000000/google-meet.png" alt="{{ td('Google Meet') }}" class="mr-2" style="width: 20px; height: 20px;">
                                                     @break
                                                 @case('zoho_meet')
-                                                    <img src="https://img.icons8.com/color/20/000000/zoho.png" alt="Zoho Meet" class="mr-2" style="width: 20px; height: 20px;">
+                                                    <img src="https://img.icons8.com/color/20/000000/zoho.png" alt="{{ td('Zoho Meet') }}" class="mr-2" style="width: 20px; height: 20px;">
                                                     @break
                                                 @default
                                                 
@@ -87,7 +87,7 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                                              data-followup-id="{{ $folllowUp->id }}"
                                              style="padding:4px 8px; align-items: center; background-color:rgb(212, 0, 0); border-radius: 4px; color:#fff; text-decoration: none; cursor: pointer;">
                                            
-                                           <i class="fa fa-magic mr-2"></i><span>Generate</span>
+                                           <i class="fa fa-magic mr-2"></i><span>{{ td('Generate') }}</span>
                                         </div> 
                                     </div>
                                 </div>
@@ -96,7 +96,7 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
                                    @endif
                                 @else
                                     <div>
-                                        <i class="fa fa-building text-primary" style="margin-right:8px; width:18px; height:18px;"></i> Hibarr Office
+                                        <i class="fa fa-building text-primary" style="margin-right:8px; width:18px; height:18px;"></i> {{ td('Hibarr Office') }}
                                     </div>
                                 @endif
                             </td>
@@ -152,16 +152,16 @@ $deleteLeadFollowUpPermission = user()->permission('delete_lead_follow_up');
             <div class="row w-100 mb-3">
                 <div class="col-md-12 text-right">
                     <div class="d-flex align-items-center justify-content-end">
-                        <span id="paginationInfo" class="mr-3" style="color: #6c757d; font-size: 14px;">Showing 1 to 10 of 0 entries</span>
+                        <span id="paginationInfo" class="mr-3" style="color: #6c757d; font-size: 14px;">{{ td('Showing 1 to 10 of 0 entries') }}</span>
                         <div id="paginationControls" class="d-flex align-items-center">
                             <button id="prevPage" class="btn btn-sm mr-1" disabled 
                                     style="border: 1px solid #dee2e6; background-color: #fff; color: #6c757d; padding: 6px 12px; border-radius: 4px; font-size: 14px;">
-                                Previous
+                                {{ td('Previous') }}
                             </button>
                             <span id="pageNumbers" class="mx-1"></span>
                             <button id="nextPage" class="btn btn-sm ml-1" disabled 
                                     style="border: 1px solid #dee2e6; background-color: #fff; color: #6c757d; padding: 6px 12px; border-radius: 4px; font-size: 14px;">
-                                Next
+                                {{ td('Next') }}
                             </button>
                         </div>
                     </div>
@@ -352,7 +352,7 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.status === 'success') {
                     // Show success state - change to Join Meeting style
-                    button.html('<span class="text-primary">Join Meeting</span>');
+                    button.html('<span class="text-primary">{{ td('Join Meeting') }}</span>');
                     button.css({
                         'background-color': 'transparent',
                         'color': '#007bff',

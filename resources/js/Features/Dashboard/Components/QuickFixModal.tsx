@@ -17,6 +17,7 @@ import { isLoading as getLoadingStatus } from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { IModalProps } from "@/Types/common";
 import PhoneInput from "antd-phone-input";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface DataQualityRecord {
     id: number;
@@ -61,6 +62,7 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
     countries = [],
     leadAgents = [],
 }) => {
+    const { td } = useTd();
     const [form] = Form.useForm<QuickFixFormData>();
     const [errors, setErrors] = useState<string[]>([]);
 
@@ -107,7 +109,7 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
                         setErrors([]);
                         handleCancel();
                         router.reload();
-                        message.success("Deal updated successfully");
+                        message.success(td("Deal updated successfully", { source: "en" }));
                     },
                     onError: (errorResponse) => {
                         const responseErrors =
@@ -124,7 +126,7 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
                         setErrors([]);
                         handleCancel();
                         router.reload();
-                        message.success("Lead updated successfully");
+                        message.success(td("Lead updated successfully", { source: "en" }));
                     },
                     onError: (errorResponse) => {
                         const responseErrors =
@@ -137,7 +139,7 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
                 });
             }
         } catch (error) {
-            message.error("An unexpected error occurred");
+            message.error(td("An unexpected error occurred", { source: "en" }));
         }
     };
 
@@ -194,7 +196,7 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
                     {errors.length > 0 && (
                         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
                             <div className="text-red-800 text-sm font-medium mb-1">
-                                Please correct the following errors:
+                                {td("Please correct the following errors:", { source: "en" })}
                             </div>
                             <ul className="text-red-700 text-sm list-disc list-inside">
                                 {errors.map((error, index) => (
@@ -206,16 +208,16 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
                     {/* Contact Information */}
                     <div className="mb-4">
                         <h4 className="font-medium mb-3">
-                            Contact Information
+                            {td("Contact Information", { source: "en" })}
                         </h4>
 
-                        <Form.Item name="client_name" label="Contact Name">
-                            <Input placeholder="Enter contact name" />
+                        <Form.Item name="client_name" label={td("Contact Name", { source: "en" })}>
+                            <Input placeholder={td("Enter contact name", { source: "en" })} />
                         </Form.Item>
 
                         <Form.Item
                             name="client_email"
-                            label="Email Address"
+                            label={td("Email Address", { source: "en" })}
                             rules={[
                                 {
                                     type: "email",
@@ -223,13 +225,13 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
                                 },
                             ]}
                         >
-                            <Input placeholder="Enter email address" />
+                            <Input placeholder={td("Enter email address", { source: "en" })} />
                         </Form.Item>
 
-                        <Form.Item name="mobile" label="Phone Number">
+                        <Form.Item name="mobile" label={td("Phone Number", { source: "en" })}>
                             <PhoneInput 
                                 enableSearch 
-                                placeholder="Enter phone number"
+                                placeholder={td("Enter phone number", { source: "en" })}
                                 country=""
                             />
                         </Form.Item>
@@ -239,16 +241,16 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
                     {record.type === "deal" && (
                         <div className="mb-4">
                             <h4 className="font-medium mb-3">
-                                Deal Information
+                                {td("Deal Information", { source: "en" })}
                             </h4>
 
                             <Form.Item
                                 name="lead_agent_id"
-                                label="Assigned Agent"
+                                label={td("Assigned Agent", { source: "en" })}
                             >
                                 <Select
                                     showSearch
-                                    placeholder="Select an agent"
+                                    placeholder={td("Select an agent", { source: "en" })}
                                     optionFilterProp="children"
                                     filterOption={(input, option) =>
                                         (option?.children as unknown as string)
@@ -273,50 +275,50 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
                     {record.type === "lead" && (
                         <div className="mb-4">
                             <h4 className="font-medium mb-3">
-                                Lead Information
+                                {td("Lead Information", { source: "en" })}
                             </h4>
 
-                            <Form.Item name="company_name" label="Company Name">
-                                <Input placeholder="Enter company name" />
+                            <Form.Item name="company_name" label={td("Company Name", { source: "en" })}>
+                                <Input placeholder={td("Enter company name", { source: "en" })} />
                             </Form.Item>
 
-                            <Form.Item name="website" label="Website">
-                                <Input placeholder="Enter website URL" />
+                            <Form.Item name="website" label={td("Website", { source: "en" })}>
+                                <Input placeholder={td("Enter website URL", { source: "en" })} />
                             </Form.Item>
 
                             <h5 className="font-medium mt-4 mb-2 text-gray-600">
-                                Address Information
+                                {td("Address Information", { source: "en" })}
                             </h5>
 
-                            <Form.Item name="address" label="Address">
+                            <Form.Item name="address" label={td("Address", { source: "en" })}>
                                 <Input.TextArea
                                     rows={2}
-                                    placeholder="Enter address"
+                                    placeholder={td("Enter address", { source: "en" })}
                                 />
                             </Form.Item>
 
                             <div className="grid grid-cols-2 gap-4">
-                                <Form.Item name="city" label="City">
-                                    <Input placeholder="Enter city" />
+                                <Form.Item name="city" label={td("City", { source: "en" })}>
+                                    <Input placeholder={td("Enter city", { source: "en" })} />
                                 </Form.Item>
 
-                                <Form.Item name="state" label="State">
-                                    <Input placeholder="Enter state" />
+                                <Form.Item name="state" label={td("State", { source: "en" })}>
+                                    <Input placeholder={td("Enter state", { source: "en" })} />
                                 </Form.Item>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <Form.Item
                                     name="postal_code"
-                                    label="Postal Code"
+                                    label={td("Postal Code", { source: "en" })}
                                 >
-                                    <Input placeholder="Enter postal code" />
+                                    <Input placeholder={td("Enter postal code", { source: "en" })} />
                                 </Form.Item>
 
-                                <Form.Item name="country" label="Country">
+                                <Form.Item name="country" label={td("Country", { source: "en" })}>
                                     <Select
                                         showSearch
-                                        placeholder="Select country"
+                                        placeholder={td("Select country", { source: "en" })}
                                         optionFilterProp="children"
                                     >
                                         {countries.map((country: any) => (
@@ -324,7 +326,7 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
                                                 key={country.id}
                                                 value={country.name}
                                             >
-                                                {country.name}
+                                                {td(country.name, { source: "en" })}
                                             </Select.Option>
                                         ))}
                                     </Select>
@@ -334,13 +336,13 @@ const QuickFixModal: React.FC<QuickFixModalProps> = ({
                     )}
                     <Divider />
                     <div className="flex justify-end gap-x-2 pt-4 ">
-                        <Button onClick={handleCancel}>Cancel</Button>
+                        <Button onClick={handleCancel}>{td("Cancel", { source: "en" })}</Button>
                         <Button
                             type="primary"
                             htmlType="submit"
                             loading={isLoading}
                         >
-                            Update Record
+                            {td("Update Record", { source: "en" })}
                         </Button>
                     </div>
                 </Form>

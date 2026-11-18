@@ -56,7 +56,7 @@
 <x-form id="editStatus" method="PUT" class="ajax-form">
     <div class="modal-header">
         <h5 class="modal-title" id="modelHeading">@lang('app.edit') @lang('modules.deal.pipeline')</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="{{ td('Close') }}"><span aria-hidden="true">×</span></button>
     </div>
 
     <div class="modal-body">
@@ -239,12 +239,12 @@
                          the whole script, silently dropping everything it could not show. --}}
                     <div class="col-md-12">
                         <hr class="my-3">
-                        <div class="f-16 text-dark mb-2">Analysis Script</div>
+                        <div class="f-16 text-dark mb-2">{{ td('Analysis Script') }}</div>
                         <p class="f-12 text-lightest mb-2">
-                            Configure the sections and steps agents follow during a deal analysis call.
+                            {{ td('Configure the sections and steps agents follow during a deal analysis call.') }}
                         </p>
                         <a href="{{ route('analysis-script-builder.show') }}" class="btn btn-outline-secondary btn-sm">
-                            <i class="fa fa-external-link-alt mr-1"></i> Open Analysis Script Builder
+                            <i class="fa fa-external-link-alt mr-1"></i> {{ td('Open Analysis Script Builder') }}
                         </a>
                     </div>
 

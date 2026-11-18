@@ -55,7 +55,7 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
         ApiResponse<Note>
     >(route("deal-notes.update", note.id), "PUT", (response) => {
         if (response?.status === "success") {
-            message.success("Note updated successfully!");
+            message.success(td("Note updated successfully!", { source: "en" }));
             setErrors([]);
             router.reload();
             onCancel();

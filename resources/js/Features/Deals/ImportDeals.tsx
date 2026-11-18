@@ -3,10 +3,12 @@ import { IModalProps } from "@/Types/common";
 import { router } from "@inertiajs/react";
 import { message } from "antd";
 import React, { useState } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type Props = IModalProps;
 
 const ImportDeals: React.FC<Props> = ({ open, onClose }) => {
+    const { td } = useTd();
     const [importLoading, setImportLoading] = useState(false);
 
     // Import handler
@@ -33,7 +35,7 @@ const ImportDeals: React.FC<Props> = ({ open, onClose }) => {
             onSuccess: (response) => {
                 console.log("Import success:", response);
                 message.success(
-                    "Import file uploaded successfully. Processing will begin shortly."
+                    td("Import file uploaded successfully. Processing will begin shortly.", { source: "en" })
                 );
                 onClose();
                 // X2: refresh list + board columns (cheap [] in table view)
@@ -56,9 +58,9 @@ const ImportDeals: React.FC<Props> = ({ open, onClose }) => {
             onClose={onClose}
             onSubmit={handleImport}
             loading={importLoading}
-            title="Import Deals"
+            title={td("Import Deals", { source: "en" })}
             sampleDownloadUrl={route("lead-contact.sample_import")}
-            description="Import multiple deals at once using an Excel file. Make sure to follow the template format for successful import."
+            description={td("Import multiple deals at once using an Excel file. Make sure to follow the template format for successful import.", { source: "en" })}
             acceptedFileTypes=".xlsx,.xls"
             maxFileSize={10}
         />

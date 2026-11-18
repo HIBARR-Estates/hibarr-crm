@@ -12,6 +12,7 @@ import {
 import { usePage } from "@inertiajs/react";
 import { TFilter } from "@/Types/common";
 import dayjs from "dayjs";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -33,6 +34,7 @@ const AdvancedLeadFilterForm: React.FC<AdvancedLeadFilterFormProps> = ({
     filters,
     onFilterChange,
 }) => {
+    const { td } = useTd();
     const { props } = usePage<any>();
     const { sources = [], employees = [], categories = [] } = props;
 
@@ -56,10 +58,10 @@ const AdvancedLeadFilterForm: React.FC<AdvancedLeadFilterFormProps> = ({
                 <Row gutter={[16, 16]}>
                     <Col span={24}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Search
+                            {td("Search", { source: "en" })}
                         </label>
                         <Input.Search
-                            placeholder="Search leads by contact name, email, company..."
+                            placeholder={td("Search leads by contact name, email, company...", { source: "en" })}
                             value={search}
                             onChange={(e) =>
                                 onFilterChange("search", e.target.value)
@@ -70,33 +72,33 @@ const AdvancedLeadFilterForm: React.FC<AdvancedLeadFilterFormProps> = ({
 
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Lead Type
+                            {td("Lead Type", { source: "en" })}
                         </label>
                         <Select
                             value={lead_type || undefined}
                             onChange={(value) =>
                                 onFilterChange("lead_type", value)
                             }
-                            placeholder="Select lead type"
+                            placeholder={td("Select lead type", { source: "en" })}
                             style={{ width: "100%" }}
                             allowClear
                             options={[
-                                { label: "Lead", value: "lead" },
-                                { label: "Client", value: "client" },
+                                { label: td("Lead", { source: "en" }), value: "lead" },
+                                { label: td("Client", { source: "en" }), value: "client" },
                             ]}
                         />
                     </Col>
 
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Lead Source
+                            {td("Lead Source", { source: "en" })}
                         </label>
                         <Select
                             value={lead_source || undefined}
                             onChange={(value) =>
                                 onFilterChange("lead_source", value)
                             }
-                            placeholder="Select lead source"
+                            placeholder={td("Select lead source", { source: "en" })}
                             style={{ width: "100%" }}
                             allowClear
                             showSearch
@@ -129,14 +131,14 @@ const AdvancedLeadFilterForm: React.FC<AdvancedLeadFilterFormProps> = ({
                 <Row gutter={[16, 16]}>
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Lead Owner
+                            {td("Lead Owner", { source: "en" })}
                         </label>
                         <Select
                             value={lead_owner_id || undefined}
                             onChange={(value) =>
                                 onFilterChange("lead_owner_id", value)
                             }
-                            placeholder="Select lead owner"
+                            placeholder={td("Select lead owner", { source: "en" })}
                             style={{ width: "100%" }}
                             allowClear
                             showSearch
@@ -159,14 +161,14 @@ const AdvancedLeadFilterForm: React.FC<AdvancedLeadFilterFormProps> = ({
 
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Added By
+                            {td("Added By", { source: "en" })}
                         </label>
                         <Select
                             value={added_by_id || undefined}
                             onChange={(value) =>
                                 onFilterChange("added_by_id", value)
                             }
-                            placeholder="Select who added"
+                            placeholder={td("Select who added", { source: "en" })}
                             style={{ width: "100%" }}
                             allowClear
                             showSearch
@@ -194,12 +196,12 @@ const AdvancedLeadFilterForm: React.FC<AdvancedLeadFilterFormProps> = ({
             {/* Date Filters */}
             <div>
                 <Title level={5} className="!mb-3">
-                    Date Range
+                    {td("Date Range", { source: "en" })}
                 </Title>
                 <Row gutter={[16, 16]}>
                     <Col span={24}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Created Date Range
+                            {td("Created Date Range", { source: "en" })}
                         </label>
                         <RangePicker
                             value={[

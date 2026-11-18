@@ -11,6 +11,7 @@ import { TabDeferredSkeleton } from "@/Pages/Deals/Redesign/components/workspace
 import useTranslation from "@/Hooks/useTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { formatCallDuration } from "@/lib/crmEvents/callSummary";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type Filter = "all" | "inbound" | "outbound" | "missed" | "recorded";
 
@@ -32,6 +33,7 @@ interface CallsTabProps {
  * when the tab opens; the tab count comes from the deferred `callSummary`.
  */
 export default function CallsTab({ leadId }: CallsTabProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { formatDate } = useUserDateTime();
     const [filter, setFilter] = useState<Filter>("all");
@@ -184,7 +186,7 @@ export default function CallsTab({ leadId }: CallsTabProps) {
                                     background: T.SURFACE_2,
                                 }}
                             >
-                                {group.label}
+                                {td(group.label, { source: "en" })}
                             </div>
                             {group.rows.map((row) => (
                                 <CallLogItem key={row.id} row={row} timeOnly />

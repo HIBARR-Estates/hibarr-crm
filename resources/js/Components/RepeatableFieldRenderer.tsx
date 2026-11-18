@@ -16,6 +16,7 @@ import { UploadOutlined } from "@ant-design/icons";
 import type { RepeatableItemSchema } from "@/Types";
 import CurrencyInput from "./CurrencyInput";
 import { useCountries } from "@/Hooks/useFormData";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface RepeatableFieldRendererProps {
     field: {
@@ -51,6 +52,7 @@ const RepeatableFieldRenderer: React.FC<RepeatableFieldRendererProps> = ({
     isFieldVisible,
     currentCustomFieldsData: providedData,
 }) => {
+    const { td } = useTd();
     const { countries } = useCountries();
     const watched = Form.useWatch(namePrefix, form);
     const currentCustomFieldsData = providedData ?? watched ?? {};
@@ -213,7 +215,7 @@ const RepeatableFieldRenderer: React.FC<RepeatableFieldRendererProps> = ({
                         getValueFromEvent={(e: any) => (Array.isArray(e) ? e : e?.fileList)}
                     >
                         <Upload beforeUpload={() => false} maxCount={1}>
-                            <Button icon={<UploadOutlined />}>Select file</Button>
+                            <Button icon={<UploadOutlined />}>{td("Select file", { source: "en" })}</Button>
                         </Upload>
                     </Form.Item>
                 </Col>
@@ -241,7 +243,7 @@ const RepeatableFieldRenderer: React.FC<RepeatableFieldRendererProps> = ({
 
     return (
         <div className="repeatable-field">
-            <div className="mb-2 font-medium">{field.label}</div>
+            <div className="mb-2 font-medium">{td(field.label, { source: "en" })}</div>
             {err && <div className="text-red-500 text-sm mb-2">{err}</div>}
             <Collapse
                 items={collapseItems}

@@ -1,6 +1,7 @@
 import React from "react";
 import { Tag } from "antd";
 import type { MlmLevel } from "../types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const RANK_COLORS: Record<number, string> = {
     1: "#92400e", // Bronze
@@ -39,10 +40,11 @@ export default function LevelBadge({
     showPercentage = false,
     size = "default",
 }: LevelBadgeProps) {
+    const { td } = useTd();
     if (!level) {
         return (
             <Tag color="default" className="rounded-full">
-                No Level
+                {td("No Level", { source: "en" })}
             </Tag>
         );
     }
@@ -61,7 +63,7 @@ export default function LevelBadge({
                 className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: color }}
             />
-            {level.name}
+            {td(level.name, { source: "en" })}
             {showPercentage && (
                 <span className="text-gray-400 font-normal ml-1">
                     ({level.commission_percentage}%)

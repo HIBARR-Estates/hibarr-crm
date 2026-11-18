@@ -28,7 +28,7 @@
             <div class="col-lg-12 col-md-12 ntfcn-tab-content-left w-100 p-4 ">
                 <p class="f-13 text-lightest mb-3">
                     Reusable email templates for deal automation “Send Email” actions. Use merge tags like
-                    <code>@{{value}}</code>, <code>@{{lead_field_client_name}}</code>, or
+                    <code>@{{value}}</code>, <code>@{{lead_field_client_name}}</code>{{ td(', or') }}
                     <code>@{{lead_field_client_email}}</code> in the subject or body — they are filled from the
                     deal and its lead when the email is sent.
                 </p>
@@ -36,8 +36,8 @@
                     <table class="table table-bordered table-hover">
                         <thead>
                             <tr>
-                                <th>Name</th>
-                                <th>Subject</th>
+                                <th>{{ td('Name') }}</th>
+                                <th>{{ td('Subject') }}</th>
                                 <th class="text-right">@lang('app.action')</th>
                             </tr>
                         </thead>
@@ -48,7 +48,7 @@
                                         <h5 class="mb-0 f-14 text-darkest-grey">
                                             {{ $template->name }}
                                             @if($template->plunk_template_id)
-                                                <span class="badge badge-light ml-1" title="Sends via Plunk template {{ $template->plunk_template_id }}">Plunk</span>
+                                                <span class="badge badge-light ml-1" title="Sends via Plunk template {{ $template->plunk_template_id }}">{{ td('Plunk') }}</span>
                                             @endif
                                         </h5>
                                     </td>
@@ -58,7 +58,7 @@
                                             <a href="javascript:;" class="task_view_more d-flex align-items-center justify-content-center preview-email-template"
                                                 data-template-id="{{ $template->id }}"
                                                 data-subject="{{ $template->subject }}">
-                                                <i class="fa fa-eye icons mr-2"></i> Preview
+                                                <i class="fa fa-eye icons mr-2"></i> {{ td('Preview') }}
                                             </a>
                                             <a href="{{ route('email-templates.edit', $template->id) }}" class="task_view_more d-flex align-items-center justify-content-center">
                                                 <i class="fa fa-edit icons mr-2"></i> @lang('app.edit')

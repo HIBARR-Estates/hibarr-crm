@@ -3,6 +3,7 @@ import { Phone, PhoneForwarded, PhoneIncoming, PhoneOff, X } from "lucide-react"
 import useTranslation from "@/Hooks/useTranslation";
 import type { SoftphoneCallFailure } from "@/lib/softphone/SoftphoneClient";
 import type { SoftphoneDeviceSummary } from "@/Types/api/softphone";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface CallFailedNoticeProps {
     failure: SoftphoneCallFailure;
@@ -26,6 +27,7 @@ export default function CallFailedNotice({
     onClose,
     isAnsweredElsewhere = false,
 }: CallFailedNoticeProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const activeLabel = devices.find((d) => d.id === activeDeviceId)?.label;
     const isInbound = failure.direction === "inbound";
@@ -35,7 +37,7 @@ export default function CallFailedNotice({
 
     if (isInboundOrNotice) {
         return (
-            <section className="sp sp--notice" role="status" aria-label="Call status">
+            <section className="sp sp--notice" role="status" aria-label={td("Call status", { source: "en" })}>
                 <header className="sp__head">
                     <span className={`sp__dot ${answeredElsewhere ? "sp__dot--answered" : "sp__dot--notice"}`} />
                     {activeLabel ? `Softphone · ${activeLabel}` : "Softphone"}
@@ -95,7 +97,7 @@ export default function CallFailedNotice({
     }
 
     return (
-        <section className="sp sp--failed" role="alertdialog" aria-label="Call failed">
+        <section className="sp sp--failed" role="alertdialog" aria-label={td("Call failed", { source: "en" })}>
             <header className="sp__head">
                 <span className="sp__dot sp__dot--failed" />
                 {activeLabel ? `Phone · ${activeLabel}` : "Phone"}
@@ -120,7 +122,7 @@ export default function CallFailedNotice({
 
                 {devices.length > 1 && (
                     <div className="sp__field" style={{ width: "100%", marginTop: 8 }}>
-                        <span>Active line</span>
+                        <span>{td("Active line", { source: "en" })}</span>
                         <select
                             value={activeDeviceId ?? ""}
                             onChange={(e) => onSelectDevice(Number(e.target.value))}
@@ -140,13 +142,13 @@ export default function CallFailedNotice({
                         <span className="act__btn">
                             <Phone size={24} strokeWidth={2} />
                         </span>
-                        Try again
+                        {td("Try again", { source: "en" })}
                     </button>
                     <button type="button" className="act" onClick={onClose}>
                         <span className="act__btn">
                             <X size={24} strokeWidth={2} />
                         </span>
-                        Close
+                        {td("Close", { source: "en" })}
                     </button>
                 </div>
             </div>

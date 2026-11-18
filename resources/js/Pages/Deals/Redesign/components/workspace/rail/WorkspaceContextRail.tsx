@@ -18,6 +18,7 @@ import DealDocumentSlotRow from "../DealDocumentSlotRow";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import PackagePropertyManager from "./PackagePropertyManager";
 import { initialsFromName } from "../../../adapters/initials";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface WorkspaceContextRailProps {
     deal: Deal;
@@ -60,6 +61,7 @@ export default function WorkspaceContextRail({
     onNavigateToSubTab,
     onSwitchToDealInfo,
 }: WorkspaceContextRailProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { message: appMessage } = App.useApp();
     const toast = appMessage ?? message;
@@ -153,7 +155,7 @@ export default function WorkspaceContextRail({
     }> = useMemo(
         () => [
             {
-                title: "Lead",
+                title: td("Lead", { source: "en" }),
                 summary: leadName,
                 body: (
                     <>
@@ -245,7 +247,7 @@ export default function WorkspaceContextRail({
                 ),
             },
             {
-                title: "Deal details",
+                title: td("Deal details", { source: "en" }),
                 summary: packageSummary,
                 body: (
                     <PackagePropertyManager
@@ -255,7 +257,7 @@ export default function WorkspaceContextRail({
                 ),
             },
             {
-                title: "Documents",
+                title: td("Documents", { source: "en" }),
                 summary: `${documentSlots.filter((doc) => doc.uploaded).length}/${documentSlots.length}`,
                 body: (
                     <div>
