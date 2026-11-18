@@ -138,7 +138,7 @@ const FormDataSelector: React.FC<FormDataSelectorProps> = ({
             placeholder={
                 placeholder ||
                 t("pages.leads.save_form.select_type", {
-                    type: type.replace(/-/g, " "),
+                    type: td(type.replace(/-/g, " "), { source: "en" }),
                 })
             }
             allowClear={allowClear}
