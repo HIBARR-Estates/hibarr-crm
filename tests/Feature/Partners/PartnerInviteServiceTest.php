@@ -593,6 +593,77 @@ class PartnerInviteServiceTest extends TestCase
         $this->assertFalse($agents[1]->can_resend);  // already has one
     }
 
+    public function test_resend_for_a_legacy_partner_with_an_identity_is_refused_with_an_accurate_message(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, false);
+        $invite = app(PartnerInviteService::class)->invite(['name' => 'Ada One', 'email' => 'one@example.test'], 1, $this->admin);
+        Social::create(['user_id' => $invite['agent']->user_id, 'social_id' => 'kc-legacy', 'social_service' => 'keycloak']);
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+
+        $result = app(PartnerInviteService::class)->resend($invite['agent']->fresh(['user', 'user.roles']), $this->admin);
+
+        $this->assertFalse($result['ok']);
+        $this->assertSame(__('pages.partners.msg_resend_unavailable'), $result['message']);
+        $this->assertNotSame(__('pages.partners.msg_resend_accepted'), $result['message']);
+    }
+
+    public function test_removal_decides_from_the_user_as_it_is_after_the_lock(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+
+        // The roster row was loaded before provisioning finished: stale status.
+        $stale = $invite['agent']->fresh(['user', 'user.roles']);
+        $stale->user->partner_invite_status = null;
+
+        app(PartnerInviteService::class)->destroy($stale);
+
+        $this->assertCount(1, $this->keycloak->updates);
+        $this->assertFalse($this->keycloak->updates[0]['patch']['enabled']);
+    }
+
+    public function test_a_delayed_enable_is_dropped_if_the_partner_was_removed_meanwhile(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+        $user = $invite['agent']->user;
+        $user->update(['status' => 'deactive']);
+        $service = app(PartnerInviteService::class);
+        $service->syncLifecycle($user); // deactivate pushed
+        $before = count($this->keycloak->updates);
+
+        // Reactivate inside a transaction (the enable is deferred to commit),
+        // and remove the partner before it commits.
+        DB::transaction(function () use ($user, $service, $invite) {
+            $user->update(['status' => 'active']);
+            $service->syncLifecycle($user);
+            DB::table('lead_agents')->where('id', $invite['agent']->id)->update(['is_partner' => false]);
+        });
+
+        $this->assertCount($before, $this->keycloak->updates);
+    }
+
+    public function test_a_busy_lock_returns_a_retryable_message_and_keeps_the_saved_partner(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        config()->set('services.ol.keycloak.lock_wait_seconds', 1);
+        // Hold the new partner's lock for the duration of the call.
+        $held = \Illuminate\Support\Facades\Cache::lock('partner-invite:2', 60);
+        $this->assertTrue($held->get());
+
+        try {
+            // user id 2 is the partner created below (admin is id 1).
+            $result = app(PartnerInviteService::class)->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+        } finally {
+            $held->release();
+        }
+
+        $this->assertFalse($result['invite_sent']);
+        $this->assertSame(__('pages.partners.msg_busy_created'), $result['message']);
+        $this->assertNotNull($result['agent']->id);
+        $this->assertNull($this->keycloak->idForEmail('ada@example.test'));
+    }
+
     /**
      * Save like the app does, then run the observer's sync. Model events are
      * switched off in this class (setUp), so the UserObserver::updated hook is
@@ -616,8 +687,11 @@ class PartnerInviteServiceTest extends TestCase
             'social_id' => 'kc-staff-1',
             'social_service' => 'keycloak',
         ]);
+        // Give staff an invite status too, so it is the partner-only role check
+        // (not just a missing status) that keeps them out of the sync.
+        DB::table('users')->where('id', $staff->id)->update(['partner_invite_status' => PartnerInviteService::STATUS_INVITED]);
 
-        return $staff->load('roles');
+        return $staff->fresh('roles');
     }
 
     private function insertUser(string $name, string $email): User

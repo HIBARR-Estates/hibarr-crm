@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { router } from "@inertiajs/react";
 import { message } from "antd";
 import axios from "axios";
@@ -76,10 +76,12 @@ const StatTile = ({ label, value }: { label: string; value: number }) => (
 );
 
 /**
- * One column template for the header and every row (sm and up), so labels sit
- * over the cells they describe whatever a row contains. Below sm the row wraps.
+ * One column template for the header and every row, so labels sit over the
+ * cells they describe whatever a row contains. The fixed columns need ~612px
+ * plus a usable name column, so the grid starts at xl (with the sidebar open);
+ * below that the row wraps.
  */
-const ROW_GRID = "sm:grid sm:grid-cols-[32px_minmax(0,1fr)_88px_92px_120px_220px] sm:gap-3";
+const ROW_GRID = "xl:grid xl:grid-cols-[32px_minmax(0,1fr)_88px_92px_120px_220px] xl:gap-3";
 
 const inviteBadgeVariant = (status: InviteStatus): "amber" | "green" | "red" => {
     if (status === "accepted") return "green";
@@ -93,7 +95,13 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
 
     const [rows, setRows] = useState<PartnerAgent[]>(agents.data);
     const [stats, setStats] = useState<Stats>(initialStats);
-    useEffect(() => setRows(agents.data), [agents.data]);
+    // Bumped whenever the server sends a fresh roster (search, paging), so a
+    // slower resend response can tell it is older than what is on screen.
+    const rosterVersion = useRef(0);
+    useEffect(() => {
+        rosterVersion.current += 1;
+        setRows(agents.data);
+    }, [agents.data]);
     useEffect(() => setStats(initialStats), [initialStats]);
 
     const [search, setSearch] = useState(filters.search ?? "");
@@ -169,11 +177,13 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
 
     const handleResend = async (agent: PartnerAgent) => {
         setResendingId(agent.id);
+        const rosterAtStart = rosterVersion.current;
         try {
             const { data } = await axios.post(route("partners.resend_invite", agent.id));
             // The server reports a failed resend in the body (HTTP 200), and the
-            // invite status may have changed either way: patch the row from it.
-            if (data?.agent) {
+            // invite status may have changed either way: patch the row from it,
+            // unless a newer roster has arrived since (it is already current).
+            if (data?.agent && rosterVersion.current === rosterAtStart) {
                 const updated = data.agent as PartnerAgent;
                 setRows((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
             }
@@ -325,7 +335,7 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
                                         })}
                                     </Badge>
                                 </div>
-                                <div className="ml-auto flex shrink-0 gap-2 sm:ml-0 sm:justify-end">
+                                <div className="ml-auto flex shrink-0 gap-2 xl:ml-0 xl:justify-end">
                                     {agent.can_resend && (
                                         <Button
                                             variant="ghost"

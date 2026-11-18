@@ -39,9 +39,17 @@ class PartnerInviteService
     /** The partner was removed before (or while) the identity was created. */
     private const REMOVED = 'removed';
 
-    public function __construct(
-        private readonly KeycloakIdentityClient $keycloak,
-    ) {
+    /** Another request holds this partner's lock; nothing was changed. */
+    private const BUSY = 'busy';
+
+    /**
+     * The Keycloak client is resolved only when a call to Keycloak is made, so
+     * code that just reads local invite state (SSO marking acceptance, the
+     * roster) never depends on the provisioning configuration.
+     */
+    private function keycloak(): KeycloakIdentityClient
+    {
+        return app(KeycloakIdentityClient::class);
     }
 
     public static function enabled(): bool
@@ -115,6 +123,8 @@ class PartnerInviteService
 
         if ($outcome === self::REMOVED) {
             $message = __('pages.partners.msg_removed_while_inviting');
+        } elseif ($outcome === self::BUSY) {
+            $message = __('pages.partners.msg_busy_created');
         } elseif (! $provisioned) {
             $message = __('pages.partners.msg_enrolment_failed_created');
         } elseif (! $sent) {
@@ -148,7 +158,9 @@ class PartnerInviteService
         if (! $this->canResend($agent)) {
             return [
                 'ok' => false,
-                'message' => __('pages.partners.msg_resend_accepted'),
+                'message' => $agent->user->partner_invite_status === self::STATUS_ACCEPTED
+                    ? __('pages.partners.msg_resend_accepted')
+                    : __('pages.partners.msg_resend_unavailable'),
             ];
         }
 
@@ -156,7 +168,7 @@ class PartnerInviteService
             $keycloakId = $this->keycloakId($agent->user);
             try {
                 if ($keycloakId) {
-                    $this->keycloak->sendActionsEmail($keycloakId);
+                    $this->keycloak()->sendActionsEmail($keycloakId);
                     $this->setInviteStatus($agent->user, self::STATUS_INVITED);
                 } else {
                     $outcome = $this->provisionFor($agent->user);
@@ -164,6 +176,12 @@ class PartnerInviteService
                         return [
                             'ok' => false,
                             'message' => __('pages.partners.msg_removed_while_inviting'),
+                        ];
+                    }
+                    if ($outcome === self::BUSY) {
+                        return [
+                            'ok' => false,
+                            'message' => __('pages.partners.msg_busy'),
                         ];
                     }
                     if ($outcome !== self::PROVISIONED) {
@@ -198,11 +216,16 @@ class PartnerInviteService
         // Same lock as provisioning, so removal cannot slip between the
         // identity being created and it being recorded against the user.
         $this->withAccountLock($agent->user_id, function () use ($agent) {
+            // Provisioning may have finished while this waited for the lock, so
+            // decide from the user as it is now (invite status and roles), not
+            // as it was when the roster row was loaded.
+            $user = $agent->user?->fresh('roles');
+
             // Only invitation-owned accounts have an identity this flow may
             // disable. A staff member flagged as a partner keeps their SSO
             // login: they only lose the partner flag.
-            if (self::enabled() && $this->managesIdentity($agent->user)) {
-                $this->disableIdentity($agent->user);
+            if (self::enabled() && $this->managesIdentity($user)) {
+                $this->disableIdentity($user);
             }
 
             $agent->update(['is_partner' => false]);
@@ -354,7 +377,23 @@ class PartnerInviteService
         $userId = $user->id;
         DB::afterCommit(function () use ($id, $patch, $userId) {
             try {
-                $this->keycloak->update($id, $patch);
+                // Removal may have disabled the identity since this was decided:
+                // an enable is sent only if the user is still a partner, checked
+                // under the same lock removal takes.
+                if (($patch['enabled'] ?? false) === true) {
+                    $this->withAccountLock($userId, function () use ($id, $patch, $userId) {
+                        if (! LeadAgent::withoutGlobalScopes()->where('user_id', $userId)->where('is_partner', true)->exists()) {
+                            unset($patch['enabled']);
+                        }
+                        if ($patch !== []) {
+                            $this->keycloak()->update($id, $patch);
+                        }
+                    });
+
+                    return;
+                }
+
+                $this->keycloak()->update($id, $patch);
             } catch (\Throwable $e) {
                 report($e);
                 Log::warning('Partner Keycloak lifecycle sync failed', [
@@ -400,7 +439,7 @@ class PartnerInviteService
         }
 
         try {
-            $this->keycloak->update($id, ['enabled' => $enabled]);
+            $this->keycloak()->update($id, ['enabled' => $enabled]);
         } catch (\Throwable $e) {
             report($e);
             Log::warning($enabled ? 'Partner Keycloak enable failed' : 'Partner Keycloak disable failed', [
@@ -417,9 +456,18 @@ class PartnerInviteService
      * partner is removed first (nothing is sent to Keycloak), or provisioning
      * finishes and is recorded first (removal then disables the new identity).
      *
-     * @return self::PROVISIONED|self::PROVISION_FAILED|self::REMOVED
+     * @return self::PROVISIONED|self::PROVISION_FAILED|self::REMOVED|self::BUSY
      */
     private function provisionFor(User $user): string
+    {
+        try {
+            return $this->provisionLocked($user);
+        } catch (LockTimeoutException) {
+            return self::BUSY;
+        }
+    }
+
+    private function provisionLocked(User $user): string
     {
         return $this->withAccountLock($user->id, function () use ($user) {
             if (! $this->isActivePartner($user)) {
@@ -429,7 +477,7 @@ class PartnerInviteService
             [$first, $last] = self::splitName((string) $user->name);
 
             try {
-                $result = $this->keycloak->provision((string) $user->email, $first, $last, true);
+                $result = $this->keycloak()->provision((string) $user->email, $first, $last, true);
             } catch (OlKeycloakException $e) {
                 Log::warning('Partner invite: Keycloak provision failed', [
                     'user_id' => $user->id,
@@ -507,7 +555,10 @@ class PartnerInviteService
      */
     private function withAccountLock(int $userId, callable $callback): mixed
     {
-        return Cache::lock('partner-invite:'.$userId, 30)->block(20, $callback);
+        // Waits for the lock a little longer than one OL call can take.
+        $wait = (int) config('services.ol.keycloak.lock_wait_seconds', 20);
+
+        return Cache::lock('partner-invite:'.$userId, 30)->block($wait, $callback);
     }
 
     /**

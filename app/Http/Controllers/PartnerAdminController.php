@@ -6,6 +6,7 @@ use App\Helper\Reply;
 use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Services\PartnerInviteService;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -93,7 +94,11 @@ class PartnerAdminController extends AccountBaseController
             ->where('id', $request->agent_id)
             ->firstOrFail();
 
-        $this->invites->add($agent);
+        try {
+            $this->invites->add($agent);
+        } catch (LockTimeoutException) {
+            return Reply::error(__('pages.partners.msg_busy'));
+        }
         $this->invites->present($agent);
 
         return Reply::successWithData(__('messages.recordSaved'), [
@@ -163,7 +168,11 @@ class PartnerAdminController extends AccountBaseController
             ->with('user')
             ->findOrFail($id);
 
-        $this->invites->destroy($agent);
+        try {
+            $this->invites->destroy($agent);
+        } catch (LockTimeoutException) {
+            return Reply::error(__('pages.partners.msg_busy'));
+        }
 
         return Reply::success(__('messages.updateSuccess'));
     }
