@@ -103,7 +103,16 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
 
     const [rows, setRows] = useState<PartnerAgent[]>(agents.data);
     const [stats, setStats] = useState<Stats>(initialStats);
-    useEffect(() => setRows(agents.data), [agents.data]);
+    // A roster from the server replaces the rows, but a row already on screen
+    // keeps its newer invite state if this (slower) roster read it earlier.
+    useEffect(() => {
+        setRows((prev) =>
+            agents.data.map((incoming) => {
+                const current = prev.find((row) => row.id === incoming.id);
+                return current && isOlder(incoming, current) ? current : incoming;
+            }),
+        );
+    }, [agents.data]);
     useEffect(() => setStats(initialStats), [initialStats]);
 
     const [search, setSearch] = useState(filters.search ?? "");
