@@ -274,6 +274,15 @@ class DealFollowUp extends BaseModel
         return $this->belongsTo(User::class, 'host_id');
     }
 
+    /** Whoever recorded (or last changed) this meeting's attendance outcome. */
+    public function outcomeLoggedBy(): BelongsTo
+    {
+        // Without ActiveScope, so a since-deactivated recorder still shows as
+        // "Added by" — same reasoning as attachParticipantUsers().
+        return $this->belongsTo(User::class, 'attendance_outcome_logged_by')
+            ->withoutGlobalScope(ActiveScope::class);
+    }
+
     /**
      * Resolve the participants JSON into the {id, name, image, email} rows the
      * meeting modals read, and stamp the effective duration.
