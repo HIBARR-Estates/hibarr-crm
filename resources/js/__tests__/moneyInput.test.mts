@@ -3,6 +3,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
     parsePastedAmount,
+    regroupTypedComma,
     sanitizeAmount,
 } from "../Pages/Deals/Redesign/adapters/moneyInput.ts";
 
@@ -51,5 +52,28 @@ describe("parsePastedAmount", () => {
         assert.equal(parsePastedAmount("1,50,0.5"), null);
         assert.equal(parsePastedAmount("abc"), null);
         assert.equal(parsePastedAmount(""), null);
+    });
+});
+
+describe("regroupTypedComma", () => {
+    test("a typed comma followed by three digits is grouping, like a paste", () => {
+        assert.equal(regroupTypedComma("1.500", true), "1500");
+        assert.equal(regroupTypedComma("12.505", true), "12505");
+        assert.equal(parsePastedAmount("1,500"), regroupTypedComma("1.500", true));
+    });
+
+    test("fewer or more digits stay a decimal", () => {
+        assert.equal(regroupTypedComma("12.50", true), "12.50");
+        assert.equal(regroupTypedComma("1.5", true), "1.5");
+        assert.equal(regroupTypedComma("1.5000", true), "1.5000");
+    });
+
+    test("a dot the person typed is never regrouped", () => {
+        assert.equal(regroupTypedComma("1.500", false), "1.500");
+    });
+
+    test("a leading zero is a decimal, not grouping", () => {
+        assert.equal(regroupTypedComma("0.500", true), "0.500");
+        assert.equal(parsePastedAmount("0,500"), "0.500");
     });
 });

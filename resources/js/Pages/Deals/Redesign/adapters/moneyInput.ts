@@ -45,7 +45,7 @@ export function parsePastedAmount(text: string): string | null {
 
         // The decimal separator appears once, and the other one only groups: in
         // groups of three, nothing after the decimal point.
-        const groupedWhole = new RegExp(`^\\d{1,3}(\\${grouping}\\d{3})*$`).test(whole);
+        const groupedWhole = new RegExp(`^[1-9]\\d{0,2}(\\${grouping}\\d{3})*$`).test(whole) || whole === "0";
         const plainWhole = !whole.includes(grouping) && !whole.includes(decimal);
 
         if (cleaned.slice(at + 1).includes(grouping) || !(groupedWhole || plainWhole)) {
@@ -62,7 +62,7 @@ export function parsePastedAmount(text: string): string | null {
     }
 
     const occurrences = cleaned.split(separator).length - 1;
-    const grouped = new RegExp(`^\\d{1,3}(\\${separator}\\d{3})+$`).test(cleaned);
+    const grouped = new RegExp(`^[1-9]\\d{0,2}(\\${separator}\\d{3})+$`).test(cleaned);
 
     if (occurrences > 1) {
         return grouped ? strip(cleaned) : null;
@@ -75,4 +75,15 @@ export function parsePastedAmount(text: string): string | null {
     const at = cleaned.indexOf(separator);
 
     return join(cleaned.slice(0, at), cleaned.slice(at + 1));
+}
+
+/**
+ * A typed comma becomes the decimal point (see DealMoneyInput), so "12,50" is
+ * 12.50. Once exactly three digits follow it, though, it reads the way a pasted
+ * amount does: "1,500" is 1500, the way this app writes amounts. Typing and
+ * pasting the same text must mean the same amount. A dot the person typed
+ * themselves is never touched.
+ */
+export function regroupTypedComma(raw: string, commaTyped: boolean): string {
+    return commaTyped && /^[1-9]\d{0,2}\.\d{3}$/.test(raw) ? raw.replace(".", "") : raw;
 }

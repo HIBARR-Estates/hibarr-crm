@@ -1,5 +1,10 @@
+import { useRef } from "react";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
-import { parsePastedAmount, sanitizeAmount } from "../../adapters/moneyInput";
+import {
+    parsePastedAmount,
+    regroupTypedComma,
+    sanitizeAmount,
+} from "../../adapters/moneyInput";
 
 interface DealMoneyInputProps {
     /** Raw digits, no separators — "1500", not "1,500". */
@@ -43,6 +48,9 @@ export default function DealMoneyInput({
     onChange,
     onInvalidPaste,
 }: DealMoneyInputProps) {
+    // True while the decimal point in the value was typed as a comma.
+    const commaTyped = useRef(false);
+
     return (
         <div className="relative w-full">
             <span
@@ -68,14 +76,21 @@ export default function DealMoneyInput({
                         const at = (e.target.selectionStart ?? text.length) - 1;
                         if (text[at] === ",") {
                             text = `${text.slice(0, at)}.${text.slice(at + 1)}`;
+                            commaTyped.current = true;
                         }
                     }
 
-                    // One optional decimal point, digits either side.
-                    onChange(sanitizeAmount(text));
+                    // One optional decimal point, digits either side. "1,500" typed reads
+                    // as 1500, the same as pasted; "12,50" stays 12.50.
+                    const next = regroupTypedComma(sanitizeAmount(text), commaTyped.current);
+                    if (!next.includes(".")) {
+                        commaTyped.current = false;
+                    }
+                    onChange(next);
                 }}
                 onPaste={(e) => {
                     e.preventDefault();
+                    commaTyped.current = false;
                     const pasted = parsePastedAmount(e.clipboardData.getData("text"));
 
                     if (pasted === null) {
