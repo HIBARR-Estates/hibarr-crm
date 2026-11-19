@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\CalendlyWebhookController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\ImageController;
@@ -33,10 +32,6 @@ Route::get('/forgot-password', fn () => redirect()->route('login'))->name('passw
 Route::post('/forgot-password', fn () => redirect()->route('login'))->name('password.email');
 Route::get('/reset-password/{token}', fn () => redirect()->route('login'))->name('password.reset');
 Route::post('/reset-password', fn () => redirect()->route('login'))->name('password.update');
-
-// Calendly reports a booking (or its cancellation) here. Authenticated by the
-// unguessable token plus Calendly's signature, not by a session.
-Route::post('calendly-webhook/{token}', CalendlyWebhookController::class)->middleware('throttle:120,1')->name('calendly.webhook');
 
 Route::get('/invitation/{code}', [RegisterController::class, 'invitation'])->middleware('throttle:10,1')->name('invitation');
 Route::post('/invitation/accept-invite', [RegisterController::class, 'acceptInvite'])->middleware('throttle:10,1')->name('accept_invite');

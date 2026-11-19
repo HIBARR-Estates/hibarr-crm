@@ -3,20 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\CalendlyMeetingLink;
-use App\Models\CalendlyWebhookSetting;
-use App\Models\MeetingType;
 use App\Models\Role;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 /**
  * Settings → Meetings → Calendly booking links.
  *
- * Admins decide which Calendly links the schedule-meeting modal offers, which
- * roles see each one, and set up where Calendly reports bookings back to.
+ * Admins decide which Calendly links the schedule-meeting modal offers and
+ * which roles see each one.
  * What the modal itself reads is CalendlyMeetingLinkOptionsController.
  */
 class CalendlyMeetingLinkController extends AccountBaseController
@@ -69,31 +66,6 @@ class CalendlyMeetingLinkController extends AccountBaseController
         return response()->json(['status' => 'success']);
     }
 
-    /** Saves the key Calendly signs its deliveries with. */
-    public function updateWebhook(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'signing_key' => 'nullable|string|max:255',
-        ]);
-
-        $setting = CalendlyWebhookSetting::forCompany((int) company()->id);
-        $key = trim((string) ($validated['signing_key'] ?? ''));
-        $setting->signing_key = $key === '' ? null : $key;
-        $setting->save();
-
-        return response()->json(['status' => 'success', 'data' => $this->webhookData($setting)]);
-    }
-
-    /** A new address, for when the old one should stop working. */
-    public function rotateWebhookToken(): JsonResponse
-    {
-        $setting = CalendlyWebhookSetting::forCompany((int) company()->id);
-        $setting->webhook_token = Str::random(40);
-        $setting->save();
-
-        return response()->json(['status' => 'success', 'data' => $this->webhookData($setting)]);
-    }
-
     /**
      * @return array<string, mixed>
      */
@@ -107,24 +79,6 @@ class CalendlyMeetingLinkController extends AccountBaseController
                     'id' => $role->id,
                     'name' => $role->display_name ?: $role->name,
                 ])->values()->all(),
-            'meeting_types' => MeetingType::where('company_id', company()->id)->where('is_active', true)
-                ->orderBy('name')->get(['id', 'name'])->map(fn (MeetingType $type) => [
-                    'id' => $type->id,
-                    'name' => $type->name,
-                ])->values()->all(),
-            'webhook' => $this->webhookData(CalendlyWebhookSetting::forCompany((int) company()->id)),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function webhookData(CalendlyWebhookSetting $setting): array
-    {
-        return [
-            'url' => route('calendly.webhook', ['token' => $setting->webhook_token]),
-            'has_signing_key' => ! empty($setting->signing_key),
-            'last_received_at' => $setting->last_received_at?->toIso8601String(),
         ];
     }
 
@@ -138,7 +92,6 @@ class CalendlyMeetingLinkController extends AccountBaseController
             'name' => $link->name,
             'description' => $link->description,
             'url' => $link->url,
-            'meeting_type_id' => $link->meeting_type_id,
             'role_ids' => array_map('intval', $link->role_ids ?? []),
             'is_active' => $link->is_active,
             'sort_order' => $link->sort_order,
@@ -174,11 +127,6 @@ class CalendlyMeetingLinkController extends AccountBaseController
                     $fail(__('messages.calendlyLinkMustBeCalendly'));
                 }
             }],
-            'meeting_type_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('meeting_types', 'id')->where(fn ($q) => $q->where('company_id', $companyId)),
-            ],
             'role_ids' => 'nullable|array',
             'role_ids.*' => [
                 'integer',

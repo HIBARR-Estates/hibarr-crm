@@ -1,59 +1,43 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Deferred, usePage } from "@inertiajs/react";
-import {
-    Alert,
-    App,
-    Button,
-    Card,
-    Form,
-    Input,
-    Modal,
-    Popconfirm,
-    Select,
-    Skeleton,
-    Space,
-    Switch,
-    Table,
-    Tag,
-    Typography,
-} from "antd";
-import {
-    CalendarOutlined,
-    CopyOutlined,
-    DeleteOutlined,
-    EditOutlined,
-    PlusOutlined,
-} from "@ant-design/icons";
+import { App } from "antd";
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import Button from "@/Components/Redesign/primitives/Button";
+import ChipToggle from "@/Components/Redesign/primitives/ChipToggle";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
+import EmptyState from "@/Components/Redesign/primitives/EmptyState";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
+import Switch from "@/Components/Redesign/primitives/Switch";
+import ToggleField from "@/Components/Redesign/primitives/ToggleField";
+import {
+    REDESIGN_FONT_STACK,
+    REDESIGN_TOKENS as T,
+    REDESIGN_TYPE,
+} from "@/Components/Redesign/tokens";
+import "@/Components/Redesign/redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
-import useCopyToClipboard from "@/Hooks/useCopyToClipboard";
 import useCalendlyLinkMutations, {
     calendlyErrorMessage,
     type CalendlyLinkInput,
     type CalendlyLinkSetting,
-    type CalendlyWebhookSetting,
 } from "./hooks/useCalendlyLinkMutations";
-
-const { Title, Text, Paragraph } = Typography;
 
 interface ConfigData {
     links: CalendlyLinkSetting[];
     roles: Array<{ id: number; name: string }>;
-    meeting_types: Array<{ id: number; name: string }>;
-    webhook: CalendlyWebhookSetting;
 }
 
-interface LinkFormValues {
-    name: string;
-    description?: string;
-    url: string;
-    meeting_type_id?: number | null;
-    role_ids: number[];
-    is_active: boolean;
-}
-
+/** Same rule the server applies: a secure link on calendly.com. */
 const CALENDLY_URL = /^https:\/\/([a-z0-9-]+\.)*calendly\.com(\/|\?|#|$)/i;
+
+const ROW_GRID =
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 px-3.5 py-3 border-b last:border-b-0";
+
+/** `https://calendly.com/team/intro?x=1` → `calendly.com/team/intro` */
+const shortUrl = (url: string) =>
+    url.replace(/^https?:\/\//i, "").replace(/[?#].*$/, "");
 
 export default function CalendlyMeetingLinks({
     pageTitle,
@@ -64,48 +48,33 @@ export default function CalendlyMeetingLinks({
     const { message } = App.useApp();
     const config = (usePage().props as { config?: ConfigData }).config;
     const mutations = useCalendlyLinkMutations();
-    const { copy, copied } = useCopyToClipboard();
 
     // The page's own copy of what the server sent: edits patch it directly
     // rather than reloading the page.
     const [links, setLinks] = useState<CalendlyLinkSetting[]>([]);
-    const [webhook, setWebhook] = useState<CalendlyWebhookSetting | null>(null);
-    const [signingKey, setSigningKey] = useState("");
     const [editing, setEditing] = useState<CalendlyLinkSetting | "new" | null>(
         null,
     );
+    const [deleteTarget, setDeleteTarget] =
+        useState<CalendlyLinkSetting | null>(null);
 
     useEffect(() => {
-        if (config) {
-            setLinks(config.links);
-            setWebhook(config.webhook);
-        }
+        if (config) setLinks(config.links);
     }, [config]);
 
-    const roleNames = useMemo(
-        () => new Map((config?.roles ?? []).map((role) => [role.id, role.name])),
-        [config?.roles],
-    );
-    const typeNames = useMemo(
-        () =>
-            new Map(
-                (config?.meeting_types ?? []).map((type) => [type.id, type.name]),
+    const roles = config?.roles ?? [];
+    const roleName = (id: number) =>
+        roles.find((role) => role.id === id)?.name ?? `#${id}`;
+
+    const fail = (error: unknown) =>
+        message.error(
+            calendlyErrorMessage(
+                error,
+                t("pages.meetings.calendly_settings.save_failed"),
             ),
-        [config?.meeting_types],
-    );
+        );
 
-    const openEditor = (target: CalendlyLinkSetting | "new") => setEditing(target);
-
-    const handleSaveLink = async (values: LinkFormValues) => {
-        const input: CalendlyLinkInput = {
-            name: values.name.trim(),
-            description: values.description?.trim() || null,
-            url: values.url.trim(),
-            meeting_type_id: values.meeting_type_id ?? null,
-            role_ids: values.role_ids ?? [],
-            is_active: values.is_active,
-        };
-
+    const handleSave = async (input: CalendlyLinkInput) => {
         try {
             if (editing && editing !== "new") {
                 const saved = await mutations.updateLink(editing.id, input);
@@ -119,400 +88,333 @@ export default function CalendlyMeetingLinks({
             message.success(t("pages.meetings.calendly_settings.saved"));
             setEditing(null);
         } catch (error) {
-            message.error(
-                calendlyErrorMessage(
-                    error,
-                    t("pages.meetings.calendly_settings.save_failed"),
-                ),
-            );
+            fail(error);
         }
     };
 
-    const handleDeleteLink = async (link: CalendlyLinkSetting) => {
+    const handleToggle = async (link: CalendlyLinkSetting) => {
         try {
-            await mutations.deleteLink(link.id);
-            setLinks((current) => current.filter((item) => item.id !== link.id));
+            const saved = await mutations.setActive(link, !link.is_active);
+            setLinks((current) =>
+                current.map((item) => (item.id === saved.id ? saved : item)),
+            );
+        } catch (error) {
+            fail(error);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!deleteTarget) return;
+        try {
+            await mutations.deleteLink(deleteTarget.id);
+            setLinks((current) =>
+                current.filter((link) => link.id !== deleteTarget.id),
+            );
             message.success(t("pages.meetings.calendly_settings.deleted"));
+            setDeleteTarget(null);
         } catch (error) {
-            message.error(
-                calendlyErrorMessage(
-                    error,
-                    t("pages.meetings.calendly_settings.save_failed"),
-                ),
-            );
+            fail(error);
         }
     };
-
-    const handleSaveKey = async () => {
-        try {
-            setWebhook(await mutations.saveSigningKey(signingKey));
-            setSigningKey("");
-            message.success(t("pages.meetings.calendly_settings.saved"));
-        } catch (error) {
-            message.error(
-                calendlyErrorMessage(
-                    error,
-                    t("pages.meetings.calendly_settings.save_failed"),
-                ),
-            );
-        }
-    };
-
-    const handleRotate = async () => {
-        try {
-            setWebhook(await mutations.rotateWebhookAddress());
-            message.success(t("pages.meetings.calendly_settings.saved"));
-        } catch (error) {
-            message.error(
-                calendlyErrorMessage(
-                    error,
-                    t("pages.meetings.calendly_settings.save_failed"),
-                ),
-            );
-        }
-    };
-
-    const breadcrumbs = [
-        { name: t("app.menu.settings"), url: route("profile-settings.index") },
-        { name: t("app.menu.meetings") },
-    ];
 
     return (
         <PageLayout
-            title={pageTitle}
-            breadcrumbs={breadcrumbs}
-            config={{ showTitle: true }}
+            breadcrumbs={[
+                {
+                    name: t("app.menu.settings"),
+                    url: route("settings-overview.index"),
+                },
+                { name: pageTitle },
+            ]}
         >
-            <div className="max-w-4xl mx-auto">
-                <Card className="mb-6">
-                    <div className="flex items-start gap-4">
-                        <div className="p-3 bg-amber-50 rounded-lg">
-                            <CalendarOutlined className="text-2xl text-amber-500" />
-                        </div>
-                        <div className="flex-1">
-                            <Title level={4} className="mb-1">
-                                {t("pages.meetings.calendly_settings.title")}
-                            </Title>
-                            <Paragraph type="secondary" className="mb-0">
-                                {t(
-                                    "pages.meetings.calendly_settings.description",
-                                )}
-                            </Paragraph>
-                        </div>
+            <div
+                className="mx-auto flex w-full max-w-4xl flex-col"
+                style={{
+                    padding: "8px 0 32px",
+                    fontFamily: REDESIGN_FONT_STACK,
+                }}
+            >
+                <div style={{ marginBottom: 20 }}>
+                    <div
+                        style={{
+                            fontSize: REDESIGN_TYPE.CAPTION,
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            color: T.TEXT_HINT,
+                            marginBottom: 6,
+                        }}
+                    >
+                        {t("app.menu.settings")}
                     </div>
-                </Card>
+                    <h1
+                        style={{
+                            margin: 0,
+                            fontSize: REDESIGN_TYPE.DISPLAY,
+                            fontWeight: 700,
+                            color: T.NAVY,
+                            letterSpacing: "-0.01em",
+                        }}
+                    >
+                        {t("pages.meetings.calendly_settings.title")}
+                    </h1>
+                    <p
+                        style={{
+                            margin: "6px 0 0",
+                            fontSize: REDESIGN_TYPE.BODY,
+                            color: T.TEXT_MUTED,
+                            lineHeight: 1.45,
+                            maxWidth: 600,
+                        }}
+                    >
+                        {t("pages.meetings.calendly_settings.description")}
+                    </p>
+                </div>
 
-                <Deferred
-                    data="config"
-                    fallback={
-                        <Card>
-                            <Skeleton active paragraph={{ rows: 5 }} />
-                        </Card>
-                    }
+                <div
+                    style={{
+                        background: T.WHITE,
+                        border: `1px solid ${T.BORDER}`,
+                        borderRadius: 10,
+                        padding: "20px 22px 24px",
+                    }}
                 >
-                    <>
-                        <Card
-                            className="mb-6"
-                            title={t(
-                                "pages.meetings.calendly_settings.links_title",
-                            )}
-                            extra={
-                                <Button
-                                    type="primary"
-                                    icon={<PlusOutlined />}
-                                    onClick={() => openEditor("new")}
-                                >
-                                    {t(
-                                        "pages.meetings.calendly_settings.add_link",
-                                    )}
-                                </Button>
-                            }
-                        >
-                            <Table<CalendlyLinkSetting>
-                                rowKey="id"
-                                dataSource={links}
-                                pagination={false}
-                                locale={{
-                                    emptyText: t(
-                                        "pages.meetings.calendly_settings.empty",
-                                    ),
-                                }}
-                                columns={[
-                                    {
-                                        title: t(
-                                            "pages.meetings.calendly_settings.col_name",
-                                        ),
-                                        dataIndex: "name",
-                                        render: (name: string, link) => (
-                                            <div>
-                                                <Text strong>{name}</Text>
-                                                {link.description && (
-                                                    <div>
-                                                        <Text
-                                                            type="secondary"
-                                                            className="text-xs"
-                                                        >
-                                                            {link.description}
-                                                        </Text>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ),
-                                    },
-                                    {
-                                        title: t(
-                                            "pages.meetings.calendly_settings.col_meeting_type",
-                                        ),
-                                        dataIndex: "meeting_type_id",
-                                        render: (id: number | null) =>
-                                            id ? (typeNames.get(id) ?? "—") : "—",
-                                    },
-                                    {
-                                        title: t(
-                                            "pages.meetings.calendly_settings.col_visible_to",
-                                        ),
-                                        dataIndex: "role_ids",
-                                        render: (ids: number[]) =>
-                                            ids.length === 0 ? (
-                                                <Tag>
-                                                    {t(
-                                                        "pages.meetings.calendly_settings.everyone",
-                                                    )}
-                                                </Tag>
-                                            ) : (
-                                                <Space size={[4, 4]} wrap>
-                                                    {ids.map((id) => (
-                                                        <Tag key={id}>
-                                                            {roleNames.get(id) ??
-                                                                id}
-                                                        </Tag>
-                                                    ))}
-                                                </Space>
-                                            ),
-                                    },
-                                    {
-                                        title: t(
-                                            "pages.meetings.calendly_settings.col_status",
-                                        ),
-                                        dataIndex: "is_active",
-                                        render: (active: boolean) => (
-                                            <Tag
-                                                color={
-                                                    active ? "green" : "default"
-                                                }
-                                            >
-                                                {active
-                                                    ? t(
-                                                          "pages.meetings.calendly_settings.status_active",
-                                                      )
-                                                    : t(
-                                                          "pages.meetings.calendly_settings.status_hidden",
-                                                      )}
-                                            </Tag>
-                                        ),
-                                    },
-                                    {
-                                        key: "actions",
-                                        align: "right" as const,
-                                        render: (_: unknown, link) => (
-                                            <Space>
-                                                <Button
-                                                    type="text"
-                                                    icon={<EditOutlined />}
-                                                    aria-label={t(
-                                                        "pages.meetings.calendly_settings.edit_link",
-                                                    )}
-                                                    onClick={() =>
-                                                        openEditor(link)
-                                                    }
-                                                />
-                                                <Popconfirm
-                                                    title={t(
-                                                        "pages.meetings.calendly_settings.delete_confirm",
-                                                    )}
-                                                    okButtonProps={{
-                                                        danger: true,
-                                                    }}
-                                                    onConfirm={() =>
-                                                        handleDeleteLink(link)
-                                                    }
-                                                >
-                                                    <Button
-                                                        type="text"
-                                                        danger
-                                                        icon={
-                                                            <DeleteOutlined />
-                                                        }
-                                                        aria-label={t(
-                                                            "pages.meetings.calendly_settings.delete",
-                                                        )}
-                                                    />
-                                                </Popconfirm>
-                                            </Space>
-                                        ),
-                                    },
-                                ]}
-                            />
-                        </Card>
-
-                        <Card
-                            title={t(
-                                "pages.meetings.calendly_settings.bookings_title",
-                            )}
-                        >
-                            <Paragraph type="secondary">
-                                {t(
-                                    "pages.meetings.calendly_settings.bookings_description",
-                                )}
-                            </Paragraph>
-
-                            {webhook && (
-                                <>
-                                    <Alert
-                                        className="mb-4"
-                                        type={
-                                            webhook.has_signing_key
-                                                ? webhook.last_received_at
-                                                    ? "success"
-                                                    : "info"
-                                                : "warning"
-                                        }
-                                        showIcon
-                                        message={
-                                            !webhook.has_signing_key
-                                                ? t(
-                                                      "pages.meetings.calendly_settings.status_no_key",
-                                                  )
-                                                : webhook.last_received_at
-                                                  ? t(
-                                                        "pages.meetings.calendly_settings.status_receiving",
-                                                        {
-                                                            when: new Date(
-                                                                webhook.last_received_at,
-                                                            ).toLocaleString(),
-                                                        },
-                                                    )
-                                                  : t(
-                                                        "pages.meetings.calendly_settings.status_waiting",
-                                                    )
-                                        }
-                                    />
-
-                                    <div className="mb-5">
-                                        <Text strong>
-                                            {t(
-                                                "pages.meetings.calendly_settings.address_label",
-                                            )}
-                                        </Text>
-                                        <Paragraph
-                                            type="secondary"
-                                            className="text-sm mb-2"
-                                        >
-                                            {t(
-                                                "pages.meetings.calendly_settings.address_help",
-                                            )}
-                                        </Paragraph>
-                                        <Space.Compact className="w-full">
-                                            <Input readOnly value={webhook.url} />
-                                            <Button
-                                                icon={<CopyOutlined />}
-                                                onClick={() =>
-                                                    void copy(webhook.url)
-                                                }
-                                            >
-                                                {copied
-                                                    ? t(
-                                                          "pages.meetings.calendly_settings.copied",
-                                                      )
-                                                    : t(
-                                                          "pages.meetings.calendly_settings.copy",
-                                                      )}
-                                            </Button>
-                                        </Space.Compact>
-                                        <Popconfirm
-                                            title={t(
-                                                "pages.meetings.calendly_settings.rotate_confirm",
-                                            )}
-                                            onConfirm={handleRotate}
-                                        >
-                                            <Button
-                                                type="link"
-                                                className="px-0"
-                                                loading={mutations.saving}
-                                            >
-                                                {t(
-                                                    "pages.meetings.calendly_settings.rotate",
-                                                )}
-                                            </Button>
-                                        </Popconfirm>
-                                    </div>
-
-                                    <div>
-                                        <Text strong>
-                                            {t(
-                                                "pages.meetings.calendly_settings.key_label",
-                                            )}
-                                        </Text>
-                                        <Paragraph
-                                            type="secondary"
-                                            className="text-sm mb-2"
-                                        >
-                                            {t(
-                                                "pages.meetings.calendly_settings.key_help",
-                                            )}
-                                        </Paragraph>
-                                        <Space.Compact className="w-full">
-                                            <Input.Password
-                                                value={signingKey}
-                                                onChange={(event) =>
-                                                    setSigningKey(
-                                                        event.target.value,
-                                                    )
-                                                }
-                                                placeholder={
-                                                    webhook.has_signing_key
-                                                        ? t(
-                                                              "pages.meetings.calendly_settings.key_saved_placeholder",
-                                                          )
-                                                        : t(
-                                                              "pages.meetings.calendly_settings.key_placeholder",
-                                                          )
-                                                }
-                                                autoComplete="off"
-                                            />
-                                            <Button
-                                                type="primary"
-                                                onClick={handleSaveKey}
-                                                loading={mutations.saving}
-                                                disabled={
-                                                    signingKey.trim() === ""
-                                                }
-                                            >
-                                                {t("app.save")}
-                                            </Button>
-                                        </Space.Compact>
-                                    </div>
-                                </>
-                            )}
-                        </Card>
-                    </>
-                </Deferred>
+                    <Deferred data="config" fallback={<LinksSkeleton />}>
+                        <LinksPanel
+                            links={links}
+                            roleName={roleName}
+                            togglingId={mutations.togglingId}
+                            deletingId={mutations.deletingId}
+                            onAdd={() => setEditing("new")}
+                            onEdit={setEditing}
+                            onToggle={handleToggle}
+                            onDelete={setDeleteTarget}
+                        />
+                    </Deferred>
+                </div>
             </div>
 
             {editing !== null && (
                 <LinkEditorModal
-                    // Mounted fresh for every open, with its own form, so one
-                    // dialog's values can never carry over into the next.
+                    // Mounted fresh for every open, so one dialog's values can
+                    // never carry over into the next.
                     key={editing === "new" ? "new" : editing.id}
                     link={editing === "new" ? null : editing}
-                    roles={config?.roles ?? []}
-                    meetingTypes={config?.meeting_types ?? []}
+                    roles={roles}
                     saving={mutations.saving}
-                    onSave={handleSaveLink}
+                    onSave={handleSave}
                     onClose={() => setEditing(null)}
                 />
             )}
+
+            <ConfirmDialog
+                open={deleteTarget !== null}
+                title={t("app.delete")}
+                message={t("pages.meetings.calendly_settings.delete_confirm")}
+                confirmLabel={t("messages.confirmDelete")}
+                cancelLabel={t("app.cancel")}
+                danger
+                confirmLoading={mutations.deletingId !== null}
+                onConfirm={() => void handleDelete()}
+                onCancel={() => setDeleteTarget(null)}
+            />
         </PageLayout>
+    );
+}
+
+function LinksSkeleton() {
+    return (
+        <div className="animate-pulse" aria-hidden="true">
+            {[0, 1, 2].map((i) => (
+                <div
+                    key={i}
+                    style={{
+                        height: 52,
+                        marginBottom: 8,
+                        borderRadius: 8,
+                        background: T.SURFACE_2,
+                    }}
+                />
+            ))}
+        </div>
+    );
+}
+
+interface LinksPanelProps {
+    links: CalendlyLinkSetting[];
+    roleName: (id: number) => string;
+    togglingId: number | null;
+    deletingId: number | null;
+    onAdd: () => void;
+    onEdit: (link: CalendlyLinkSetting) => void;
+    onToggle: (link: CalendlyLinkSetting) => void;
+    onDelete: (link: CalendlyLinkSetting) => void;
+}
+
+function LinksPanel({
+    links,
+    roleName,
+    togglingId,
+    deletingId,
+    onAdd,
+    onEdit,
+    onToggle,
+    onDelete,
+}: LinksPanelProps) {
+    const { t } = useTranslation();
+
+    if (links.length === 0) {
+        return (
+            <EmptyState
+                icon="calendar"
+                title={t("pages.meetings.calendly_settings.empty_title")}
+                description={t("pages.meetings.calendly_settings.empty")}
+                action={{
+                    label: t("pages.meetings.calendly_settings.add_link"),
+                    onClick: onAdd,
+                }}
+            />
+        );
+    }
+
+    return (
+        <div>
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    flexWrap: "wrap",
+                    marginBottom: 16,
+                }}
+            >
+                <p
+                    style={{
+                        margin: 0,
+                        flex: "1 1 220px",
+                        fontSize: REDESIGN_TYPE.BODY,
+                        color: T.TEXT_MUTED,
+                        lineHeight: 1.45,
+                    }}
+                >
+                    {t("pages.meetings.calendly_settings.links_help")}
+                </p>
+                <Button
+                    variant="primary"
+                    size="sm"
+                    icon={<Icon name="plus" size={14} />}
+                    onClick={onAdd}
+                >
+                    {t("pages.meetings.calendly_settings.add_link")}
+                </Button>
+            </div>
+
+            <div
+                className="overflow-hidden rounded-[10px] border"
+                style={{ borderColor: T.BORDER }}
+            >
+                {links.map((link) => (
+                    <div
+                        key={link.id}
+                        className={ROW_GRID}
+                        style={{
+                            borderColor: T.BORDER_SOFT,
+                            background: T.SURFACE,
+                            opacity: link.is_active ? 1 : 0.7,
+                        }}
+                    >
+                        <div className="min-w-0">
+                            <div
+                                className="truncate text-sm font-semibold"
+                                style={{ color: T.TEXT }}
+                                title={link.name}
+                            >
+                                {link.name}
+                            </div>
+                            {link.description && (
+                                <div
+                                    className="truncate"
+                                    style={{
+                                        fontSize: REDESIGN_TYPE.CAPTION,
+                                        color: T.TEXT_MUTED,
+                                    }}
+                                >
+                                    {link.description}
+                                </div>
+                            )}
+                            <div
+                                className="mt-1 flex flex-wrap items-center gap-1.5"
+                                style={{ fontSize: REDESIGN_TYPE.CAPTION }}
+                            >
+                                <span
+                                    className="truncate"
+                                    style={{ color: T.TEXT_HINT, maxWidth: 280 }}
+                                    title={link.url}
+                                >
+                                    {shortUrl(link.url)}
+                                </span>
+                                <span aria-hidden="true" style={{ color: T.BORDER }}>
+                                    ·
+                                </span>
+                                {link.role_ids.length === 0 ? (
+                                    <RoleChip>
+                                        {t("pages.meetings.calendly_settings.everyone")}
+                                    </RoleChip>
+                                ) : (
+                                    link.role_ids.map((id) => (
+                                        <RoleChip key={id}>{roleName(id)}</RoleChip>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        <span className="flex items-center justify-end gap-1">
+                            <Switch
+                                checked={link.is_active}
+                                loading={togglingId === link.id}
+                                onChange={() => onToggle(link)}
+                                aria-label={t(
+                                    "pages.meetings.calendly_settings.active_label",
+                                )}
+                            />
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                icon={<Icon name="edit" size={14} />}
+                                aria-label={t("app.edit")}
+                                onClick={() => onEdit(link)}
+                            />
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                icon={<Icon name="trash" size={14} />}
+                                aria-label={t("app.delete")}
+                                loading={deletingId === link.id}
+                                onClick={() => onDelete(link)}
+                                style={{ color: T.RED }}
+                            />
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function RoleChip({ children }: { children: React.ReactNode }) {
+    return (
+        <span
+            style={{
+                background: T.GRAY_MID,
+                color: T.TEXT_MUTED,
+                borderRadius: 999,
+                padding: "1px 8px",
+                fontWeight: 600,
+            }}
+        >
+            {children}
+        </span>
     );
 }
 
@@ -520,172 +422,177 @@ interface LinkEditorModalProps {
     /** The link being edited, or null when adding a new one. */
     link: CalendlyLinkSetting | null;
     roles: Array<{ id: number; name: string }>;
-    meetingTypes: Array<{ id: number; name: string }>;
     saving: boolean;
-    onSave: (values: LinkFormValues) => void | Promise<void>;
+    onSave: (input: CalendlyLinkInput) => void | Promise<void>;
     onClose: () => void;
 }
 
 function LinkEditorModal({
     link,
     roles,
-    meetingTypes,
     saving,
     onSave,
     onClose,
 }: LinkEditorModalProps) {
     const { t } = useTranslation();
-    const [form] = Form.useForm<LinkFormValues>();
+    const [name, setName] = useState(link?.name ?? "");
+    const [url, setUrl] = useState(link?.url ?? "");
+    const [description, setDescription] = useState(link?.description ?? "");
+    const [roleIds, setRoleIds] = useState<number[]>(link?.role_ids ?? []);
+    const [isActive, setIsActive] = useState(link?.is_active ?? true);
+    // Shown only once the person has tried to save, so the form opens calm.
+    const [tried, setTried] = useState(false);
 
-    const initialValues: Partial<LinkFormValues> = link
-        ? {
-              name: link.name,
-              description: link.description ?? undefined,
-              url: link.url,
-              meeting_type_id: link.meeting_type_id,
-              role_ids: link.role_ids,
-              is_active: link.is_active,
-          }
-        : { role_ids: [], is_active: true };
+    const nameError = name.trim() === "";
+    const urlTrimmed = url.trim();
+    const urlError =
+        urlTrimmed === ""
+            ? t("pages.meetings.calendly_settings.url_required")
+            : CALENDLY_URL.test(urlTrimmed)
+              ? null
+              : t("pages.meetings.calendly_settings.url_invalid");
 
-    const submit = async () => {
-        try {
-            await onSave(await form.validateFields());
-        } catch {
-            // Validation failures are shown on the fields themselves.
-        }
+    const toggleRole = (id: number) =>
+        setRoleIds((current) =>
+            current.includes(id)
+                ? current.filter((roleId) => roleId !== id)
+                : [...current, id],
+        );
+
+    const submit = () => {
+        setTried(true);
+        if (nameError || urlError) return;
+        void onSave({
+            name: name.trim(),
+            description: description.trim() || null,
+            url: urlTrimmed,
+            role_ids: roleIds,
+            is_active: isActive,
+        });
     };
 
+    const errorStyle = {
+        margin: "6px 0 0",
+        fontSize: REDESIGN_TYPE.CAPTION,
+        color: T.RED,
+    } as const;
+    const helpStyle = {
+        margin: "6px 0 0",
+        fontSize: REDESIGN_TYPE.CAPTION,
+        color: T.TEXT_MUTED,
+        lineHeight: 1.4,
+    } as const;
+
     return (
-            <Modal
-                open
-                title={
-                    link === null
-                        ? t("pages.meetings.calendly_settings.add_link")
-                        : t("pages.meetings.calendly_settings.edit_link")
-                }
-                okText={t("app.save")}
-                cancelText={t("app.cancel")}
-                confirmLoading={saving}
-                onOk={submit}
-                onCancel={onClose}
+        <Modal
+            open
+            title={
+                link === null
+                    ? t("pages.meetings.calendly_settings.add_link")
+                    : t("pages.meetings.calendly_settings.edit_link")
+            }
+            onClose={onClose}
+            dirty={name.trim() !== "" || urlTrimmed !== ""}
+            maxWidth={520}
+            footer={
+                <>
+                    <Button variant="ghost" onClick={onClose} disabled={saving}>
+                        {t("app.cancel")}
+                    </Button>
+                    <Button variant="primary" onClick={submit} loading={saving}>
+                        {t("app.save")}
+                    </Button>
+                </>
+            }
+        >
+            <ModalField label={t("pages.meetings.calendly_settings.name_label")}>
+                <input
+                    className="dr-input"
+                    value={name}
+                    maxLength={120}
+                    autoFocus
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder={t(
+                        "pages.meetings.calendly_settings.name_placeholder",
+                    )}
+                />
+                {tried && nameError ? (
+                    <p role="alert" style={errorStyle}>
+                        {t("pages.meetings.calendly_settings.name_required")}
+                    </p>
+                ) : (
+                    <p style={helpStyle}>
+                        {t("pages.meetings.calendly_settings.name_help")}
+                    </p>
+                )}
+            </ModalField>
+
+            <ModalField label={t("pages.meetings.calendly_settings.url_label")}>
+                <input
+                    className="dr-input"
+                    value={url}
+                    maxLength={500}
+                    inputMode="url"
+                    onChange={(event) => setUrl(event.target.value)}
+                    placeholder="https://calendly.com/your-team/intro-call"
+                />
+                {tried && urlError ? (
+                    <p role="alert" style={errorStyle}>
+                        {urlError}
+                    </p>
+                ) : (
+                    <p style={helpStyle}>
+                        {t("pages.meetings.calendly_settings.url_help")}
+                    </p>
+                )}
+            </ModalField>
+
+            <ModalField
+                label={t("pages.meetings.calendly_settings.description_label")}
             >
-                <Form
-                    form={form}
-                    layout="vertical"
-                    requiredMark={false}
-                    initialValues={initialValues}
-                >
-                    <Form.Item
-                        name="name"
-                        label={t("pages.meetings.calendly_settings.name_label")}
-                        extra={t("pages.meetings.calendly_settings.name_help")}
-                        rules={[
-                            {
-                                required: true,
-                                whitespace: true,
-                                message: t(
-                                    "pages.meetings.calendly_settings.name_required",
-                                ),
-                            },
-                        ]}
+                <input
+                    className="dr-input"
+                    value={description}
+                    maxLength={255}
+                    onChange={(event) => setDescription(event.target.value)}
+                />
+                <p style={helpStyle}>
+                    {t("pages.meetings.calendly_settings.description_help")}
+                </p>
+            </ModalField>
+
+            <ModalField label={t("pages.meetings.calendly_settings.roles_label")}>
+                <div className="flex flex-wrap gap-1.5">
+                    <ChipToggle
+                        shape="pill"
+                        active={roleIds.length === 0}
+                        onClick={() => setRoleIds([])}
                     >
-                        <Input maxLength={120} />
-                    </Form.Item>
-                    <Form.Item
-                        name="url"
-                        label={t("pages.meetings.calendly_settings.url_label")}
-                        extra={t("pages.meetings.calendly_settings.url_help")}
-                        rules={[
-                            {
-                                required: true,
-                                whitespace: true,
-                                message: t(
-                                    "pages.meetings.calendly_settings.url_required",
-                                ),
-                            },
-                            {
-                                validator: (_, value?: string) =>
-                                    !value || CALENDLY_URL.test(value.trim())
-                                        ? Promise.resolve()
-                                        : Promise.reject(
-                                              new Error(
-                                                  t(
-                                                      "pages.meetings.calendly_settings.url_invalid",
-                                                  ),
-                                              ),
-                                          ),
-                            },
-                        ]}
-                    >
-                        <Input
-                            maxLength={500}
-                            placeholder="https://calendly.com/your-team/intro-call"
-                        />
-                    </Form.Item>
-                    <Form.Item
-                        name="description"
-                        label={t(
-                            "pages.meetings.calendly_settings.description_label",
-                        )}
-                        extra={t(
-                            "pages.meetings.calendly_settings.description_help",
-                        )}
-                    >
-                        <Input maxLength={255} />
-                    </Form.Item>
-                    <Form.Item
-                        name="meeting_type_id"
-                        label={t(
-                            "pages.meetings.calendly_settings.meeting_type_label",
-                        )}
-                        extra={t(
-                            "pages.meetings.calendly_settings.meeting_type_help",
-                        )}
-                    >
-                        <Select
-                            allowClear
-                            placeholder={t(
-                                "pages.meetings.calendly_settings.meeting_type_none",
-                            )}
-                            options={(meetingTypes).map(
-                                (type) => ({
-                                    value: type.id,
-                                    label: type.name,
-                                }),
-                            )}
-                        />
-                    </Form.Item>
-                    <Form.Item
-                        name="role_ids"
-                        label={t("pages.meetings.calendly_settings.roles_label")}
-                        extra={t("pages.meetings.calendly_settings.roles_help")}
-                    >
-                        <Select
-                            mode="multiple"
-                            allowClear
-                            placeholder={t(
-                                "pages.meetings.calendly_settings.everyone",
-                            )}
-                            optionFilterProp="label"
-                            options={(roles).map((role) => ({
-                                value: role.id,
-                                label: role.name,
-                            }))}
-                        />
-                    </Form.Item>
-                    <Form.Item
-                        name="is_active"
-                        label={t(
-                            "pages.meetings.calendly_settings.active_label",
-                        )}
-                        extra={t("pages.meetings.calendly_settings.active_help")}
-                        valuePropName="checked"
-                    >
-                        <Switch />
-                    </Form.Item>
-                </Form>
-            </Modal>
+                        {t("pages.meetings.calendly_settings.everyone")}
+                    </ChipToggle>
+                    {roles.map((role) => (
+                        <ChipToggle
+                            key={role.id}
+                            shape="pill"
+                            active={roleIds.includes(role.id)}
+                            onClick={() => toggleRole(role.id)}
+                        >
+                            {role.name}
+                        </ChipToggle>
+                    ))}
+                </div>
+                <p style={helpStyle}>
+                    {t("pages.meetings.calendly_settings.roles_help")}
+                </p>
+            </ModalField>
+
+            <ToggleField
+                checked={isActive}
+                onChange={() => setIsActive((current) => !current)}
+                title={t("pages.meetings.calendly_settings.active_label")}
+                description={t("pages.meetings.calendly_settings.active_help")}
+            />
+        </Modal>
     );
 }
 

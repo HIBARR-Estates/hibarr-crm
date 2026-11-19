@@ -230,14 +230,12 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('meeting-attendance-confirmation-settings/data', [MeetingAttendanceConfirmationSettingsApiController::class, 'index'])->name('meeting-attendance-confirmation-settings.data');
     Route::put('meeting-attendance-confirmation-settings/data', [MeetingAttendanceConfirmationSettingsApiController::class, 'update'])->name('meeting-attendance-confirmation-settings.update');
 
-    // Calendly booking links offered in the schedule-meeting modal, who sees
-    // them, and where Calendly reports bookings back to.
+    // Calendly booking links offered in the schedule-meeting modal, and which
+    // roles see them.
     Route::get('calendly-meeting-links', [CalendlyMeetingLinkController::class, 'page'])->name('calendly-meeting-links.index');
     Route::post('calendly-meeting-links/data', [CalendlyMeetingLinkController::class, 'store'])->name('calendly-meeting-links.store');
     Route::put('calendly-meeting-links/data/{link}', [CalendlyMeetingLinkController::class, 'update'])->whereNumber('link')->name('calendly-meeting-links.update');
     Route::delete('calendly-meeting-links/data/{link}', [CalendlyMeetingLinkController::class, 'destroy'])->whereNumber('link')->name('calendly-meeting-links.destroy');
-    Route::put('calendly-meeting-links/webhook', [CalendlyMeetingLinkController::class, 'updateWebhook'])->name('calendly-meeting-links.webhook.update');
-    Route::post('calendly-meeting-links/webhook/rotate', [CalendlyMeetingLinkController::class, 'rotateWebhookToken'])->name('calendly-meeting-links.webhook.rotate');
 
     // Call Bridge — channels, per-line call pool and call recordings.
     Route::get('call-bridge', [\App\Http\Controllers\CallBridgeSettingsController::class, 'page'])->name('call-bridge.index');

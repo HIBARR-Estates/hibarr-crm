@@ -6,7 +6,6 @@ export interface CalendlyLinkSetting {
     name: string;
     description: string | null;
     url: string;
-    meeting_type_id: number | null;
     role_ids: number[];
     is_active: boolean;
     sort_order: number;
@@ -16,15 +15,8 @@ export interface CalendlyLinkInput {
     name: string;
     description?: string | null;
     url: string;
-    meeting_type_id?: number | null;
     role_ids: number[];
     is_active: boolean;
-}
-
-export interface CalendlyWebhookSetting {
-    url: string;
-    has_signing_key: boolean;
-    last_received_at: string | null;
 }
 
 /** The first thing the server objected to, else a fallback for the caller to show. */
@@ -46,77 +38,77 @@ export function calendlyErrorMessage(error: unknown, fallback: string): string {
  */
 export default function useCalendlyLinkMutations() {
     const [saving, setSaving] = useState(false);
+    const [togglingId, setTogglingId] = useState<number | null>(null);
+    const [deletingId, setDeletingId] = useState<number | null>(null);
 
-    const run = useCallback(async <T>(request: () => Promise<T>): Promise<T> => {
+    const createLink = useCallback(async (input: CalendlyLinkInput) => {
         setSaving(true);
         try {
-            return await request();
+            const { data } = await axios.post<{ data: CalendlyLinkSetting }>(
+                route("calendly-meeting-links.store"),
+                input,
+            );
+            return data.data;
         } finally {
             setSaving(false);
         }
     }, []);
 
-    const createLink = useCallback(
-        (input: CalendlyLinkInput) =>
-            run(async () => {
-                const { data } = await axios.post<{ data: CalendlyLinkSetting }>(
-                    route("calendly-meeting-links.store"),
-                    input,
-                );
-                return data.data;
-            }),
-        [run],
-    );
-
     const updateLink = useCallback(
-        (id: number, input: CalendlyLinkInput) =>
-            run(async () => {
+        async (id: number, input: CalendlyLinkInput) => {
+            setSaving(true);
+            try {
                 const { data } = await axios.put<{ data: CalendlyLinkSetting }>(
                     route("calendly-meeting-links.update", id),
                     input,
                 );
                 return data.data;
-            }),
-        [run],
+            } finally {
+                setSaving(false);
+            }
+        },
+        [],
     );
 
-    const deleteLink = useCallback(
-        (id: number) =>
-            run(async () => {
-                await axios.delete(route("calendly-meeting-links.destroy", id));
-            }),
-        [run],
-    );
-
-    const saveSigningKey = useCallback(
-        (signingKey: string) =>
-            run(async () => {
-                const { data } = await axios.put<{ data: CalendlyWebhookSetting }>(
-                    route("calendly-meeting-links.webhook.update"),
-                    { signing_key: signingKey },
+    /** Shows or hides a link from its row, without opening the editor. */
+    const setActive = useCallback(
+        async (link: CalendlyLinkSetting, isActive: boolean) => {
+            setTogglingId(link.id);
+            try {
+                const { data } = await axios.put<{ data: CalendlyLinkSetting }>(
+                    route("calendly-meeting-links.update", link.id),
+                    {
+                        name: link.name,
+                        description: link.description,
+                        url: link.url,
+                        role_ids: link.role_ids,
+                        is_active: isActive,
+                    },
                 );
                 return data.data;
-            }),
-        [run],
+            } finally {
+                setTogglingId(null);
+            }
+        },
+        [],
     );
 
-    const rotateWebhookAddress = useCallback(
-        () =>
-            run(async () => {
-                const { data } = await axios.post<{ data: CalendlyWebhookSetting }>(
-                    route("calendly-meeting-links.webhook.rotate"),
-                );
-                return data.data;
-            }),
-        [run],
-    );
+    const deleteLink = useCallback(async (id: number) => {
+        setDeletingId(id);
+        try {
+            await axios.delete(route("calendly-meeting-links.destroy", id));
+        } finally {
+            setDeletingId(null);
+        }
+    }, []);
 
     return {
         saving,
+        togglingId,
+        deletingId,
         createLink,
         updateLink,
+        setActive,
         deleteLink,
-        saveSigningKey,
-        rotateWebhookAddress,
     };
 }

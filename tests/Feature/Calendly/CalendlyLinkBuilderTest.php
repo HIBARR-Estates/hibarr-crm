@@ -3,69 +3,83 @@
 namespace Tests\Feature\Calendly;
 
 use App\Support\CalendlyLinkBuilder;
-use Illuminate\Support\Facades\DB;
 
 class CalendlyLinkBuilderTest extends CalendlyTestCase
 {
-    public function test_the_link_is_filled_in_with_the_contact_and_tagged_with_the_record(): void
+    private function queryOf(string $url): array
     {
-        $link = $this->link(['url' => 'https://calendly.com/team/intro?hide_gdpr_banner=1']);
-        DB::table('lead_contact_methods')->insert([
-            ['lead_id' => 5, 'type' => 'email', 'identifier' => 'ada@example.com'],
-            ['lead_id' => 5, 'type' => 'email', 'identifier' => 'ADA.WORK@example.com'],
-            ['lead_id' => 5, 'type' => 'phone', 'identifier' => '+4915112345678'],
-            ['lead_id' => 6, 'type' => 'email', 'identifier' => 'someone.else@example.com'],
-        ]);
-
-        $url = CalendlyLinkBuilder::build($link, 'lead', 5, $this->lead(5, 'Ada Lovelace', 'ada@example.com'), 42);
-
-        $this->assertStringStartsWith('https://calendly.com/team/intro?', $url);
         parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
 
+        return $query;
+    }
+
+    public function test_the_link_is_filled_in_with_the_contact_and_the_guests(): void
+    {
+        $link = $this->link(['url' => 'https://calendly.com/team/intro?hide_gdpr_banner=1']);
+
+        $url = CalendlyLinkBuilder::build($link, $this->lead('Ada Lovelace', 'ada@example.com'), ['sam@hibarr.de', 'kim@hibarr.de']);
+        $query = $this->queryOf($url);
+
+        $this->assertStringStartsWith('https://calendly.com/team/intro?', $url);
         $this->assertSame('Ada Lovelace', $query['name']);
         $this->assertSame('Ada', $query['first_name']);
         $this->assertSame('Lovelace', $query['last_name']);
         $this->assertSame('ada@example.com', $query['email']);
-        // Only this lead's other emails, and never their main address again.
-        $this->assertSame('ADA.WORK@example.com', $query['guests']);
+        $this->assertSame('sam@hibarr.de,kim@hibarr.de', $query['guests']);
         $this->assertSame('1', $query['hide_gdpr_banner'], 'what the admin put on the link is kept');
-        $this->assertSame(CalendlyLinkBuilder::UTM_SOURCE, $query['utm_source']);
-        $this->assertSame('lead', $query['utm_medium']);
-        $this->assertSame('5', $query['utm_campaign']);
-        $this->assertSame((string) $link->id, $query['utm_content']);
+    }
+
+    public function test_no_guests_leaves_the_guests_field_off(): void
+    {
+        $query = $this->queryOf(CalendlyLinkBuilder::build($this->link(), $this->lead('Ada Lovelace', 'ada@example.com'), []));
+
+        $this->assertArrayNotHasKey('guests', $query);
+    }
+
+    public function test_guests_are_deduplicated_and_never_include_the_contact(): void
+    {
+        $query = $this->queryOf(CalendlyLinkBuilder::build(
+            $this->link(),
+            $this->lead('Ada Lovelace', 'ada@example.com'),
+            ['Sam@hibarr.de', 'sam@hibarr.de', '', ' ADA@example.com ', 'kim@hibarr.de'],
+        ));
+
+        $this->assertSame('Sam@hibarr.de,kim@hibarr.de', $query['guests']);
+    }
+
+    public function test_guests_are_capped_at_what_calendly_accepts(): void
+    {
+        $emails = array_map(fn ($i) => "person{$i}@hibarr.de", range(1, 14));
+
+        $query = $this->queryOf(CalendlyLinkBuilder::build($this->link(), $this->lead('Ada Lovelace', 'ada@example.com'), $emails));
+
+        $this->assertCount(CalendlyLinkBuilder::MAX_GUESTS, explode(',', $query['guests']));
+    }
+
+    public function test_a_guest_list_saved_on_the_link_never_leaks_into_a_booking(): void
+    {
+        $link = $this->link(['url' => 'https://calendly.com/team/intro?guests=old@example.com']);
+
+        $query = $this->queryOf(CalendlyLinkBuilder::build($link, $this->lead('Ada Lovelace', 'ada@example.com'), ['sam@hibarr.de']));
+        $this->assertSame('sam@hibarr.de', $query['guests']);
+
+        $query = $this->queryOf(CalendlyLinkBuilder::build($link, $this->lead('Ada Lovelace', 'ada@example.com'), []));
+        $this->assertArrayNotHasKey('guests', $query, 'removing everybody means no guests, whatever the stored link says');
     }
 
     public function test_a_single_word_name_leaves_the_last_name_out(): void
     {
-        $url = CalendlyLinkBuilder::build($this->link(), 'lead', 5, $this->lead(5, 'Madonna', 'm@example.com'), null);
-        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+        $query = $this->queryOf(CalendlyLinkBuilder::build($this->link(), $this->lead('Madonna', 'm@example.com')));
 
         $this->assertSame('Madonna', $query['first_name']);
         $this->assertArrayNotHasKey('last_name', $query);
     }
 
-    public function test_a_booking_tag_reads_back_to_the_record_it_was_made_for(): void
+    public function test_a_deal_without_a_lead_still_gets_the_guests(): void
     {
-        $link = $this->link();
-        $url = CalendlyLinkBuilder::build($link, 'deal', 9, $this->lead(5, 'Ada Lovelace', 'ada@example.com'), 42);
-        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+        $query = $this->queryOf(CalendlyLinkBuilder::build($this->link(), null, ['sam@hibarr.de']));
 
-        $this->assertSame(
-            ['record_type' => 'deal', 'record_id' => 9, 'link_id' => $link->id, 'user_id' => 42],
-            CalendlyLinkBuilder::parseTracking($query, $this->companyId),
-        );
-    }
-
-    public function test_a_tag_that_was_changed_or_is_for_another_company_is_refused(): void
-    {
-        $url = CalendlyLinkBuilder::build($this->link(), 'lead', 5, $this->lead(5, 'Ada Lovelace', 'ada@example.com'), 42);
-        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
-
-        $this->assertNull(CalendlyLinkBuilder::parseTracking(array_merge($query, ['utm_campaign' => '6']), $this->companyId), 'another lead');
-        $this->assertNull(CalendlyLinkBuilder::parseTracking(array_merge($query, ['utm_medium' => 'deal']), $this->companyId), 'another kind of record');
-        $this->assertNull(CalendlyLinkBuilder::parseTracking(array_merge($query, ['utm_term' => '7.'.explode('.', $query['utm_term'])[1]]), $this->companyId), 'another user');
-        $this->assertNull(CalendlyLinkBuilder::parseTracking($query, $this->companyId + 1), 'another company');
-        $this->assertNull(CalendlyLinkBuilder::parseTracking(['utm_source' => 'newsletter'], $this->companyId), 'not ours');
-        $this->assertNull(CalendlyLinkBuilder::parseTracking([], $this->companyId));
+        $this->assertSame('sam@hibarr.de', $query['guests']);
+        $this->assertArrayNotHasKey('email', $query);
     }
 }

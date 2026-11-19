@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
+import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
@@ -121,7 +122,15 @@ export default function ScheduleMeetingModal({
     const seededForOpenRef = useRef(false);
 
     // How the time gets decided: here, or on one of the Calendly booking pages.
-    const { links: calendlyLinks } = useCalendlyLinks(calendlyTarget, open);
+    const { props } = usePage();
+    const currentUserId = props.auth?.user?.id as number | undefined;
+    // Colleagues added to the booking as guests: the signed-in user by default,
+    // and anyone — including them — can be taken off or added.
+    const [guestIds, setGuestIds] = useState<number[]>(
+        currentUserId ? [currentUserId] : [],
+    );
+    const { links: calendlyLinks, refreshing: linksRefreshing } =
+        useCalendlyLinks(calendlyTarget, open, guestIds);
     const [choice, setChoice] = useState<SchedulingChoice>("manual");
     // A link that has since been removed or hidden falls back to the form.
     const selectedLink =
@@ -135,10 +144,11 @@ export default function ScheduleMeetingModal({
     // over to another lead would open a link filled in for the wrong person.
     useEffect(() => {
         setChoice("manual");
-    }, [open, calendlyTarget?.type, calendlyTarget?.id]);
+        setGuestIds(currentUserId ? [currentUserId] : []);
+    }, [open, calendlyTarget?.type, calendlyTarget?.id, currentUserId]);
 
     const openBookingPage = () => {
-        if (!selectedLink) return;
+        if (!selectedLink || linksRefreshing) return;
         window.open(selectedLink.url, "_blank", "noopener,noreferrer");
     };
 
@@ -194,6 +204,7 @@ export default function ScheduleMeetingModal({
                             <Button
                                 variant="primary"
                                 onClick={openBookingPage}
+                                disabled={linksRefreshing}
                                 icon={<Icon name="calendar" size={14} />}
                             >
                                 {t("pages.meetings.calendly.open")}
@@ -230,6 +241,9 @@ export default function ScheduleMeetingModal({
                     <CalendlyBookingPanel
                         link={selectedLink}
                         recordType={calendlyType}
+                        guestIds={guestIds}
+                        onGuestsChange={setGuestIds}
+                        refreshing={linksRefreshing}
                     />
                 ) : (
                     <MeetingFormFields
@@ -275,6 +289,7 @@ export default function ScheduleMeetingModal({
                         <Button
                             variant="primary"
                             onClick={openBookingPage}
+                            disabled={linksRefreshing}
                             icon={<Icon name="calendar" size={14} />}
                         >
                             {t("pages.meetings.calendly.open")}
@@ -348,6 +363,9 @@ export default function ScheduleMeetingModal({
                 <CalendlyBookingPanel
                     link={selectedLink}
                     recordType={calendlyType}
+                    guestIds={guestIds}
+                    onGuestsChange={setGuestIds}
+                    refreshing={linksRefreshing}
                 />
             ) : (
                 <MeetingFormFields

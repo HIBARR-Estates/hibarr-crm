@@ -14,7 +14,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $name
  * @property string|null $description
  * @property string $url
- * @property int|null $meeting_type_id
  * @property array<int, int>|null $role_ids
  * @property bool $is_active
  * @property int $sort_order
@@ -27,7 +26,6 @@ class CalendlyMeetingLink extends Model
         'name',
         'description',
         'url',
-        'meeting_type_id',
         'role_ids',
         'is_active',
         'sort_order',
@@ -36,7 +34,6 @@ class CalendlyMeetingLink extends Model
     protected $casts = [
         'role_ids' => 'array',
         'is_active' => 'boolean',
-        'meeting_type_id' => 'integer',
         'sort_order' => 'integer',
     ];
 
