@@ -641,10 +641,13 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
             }
         });
 
-        // Initialize both applied and draft state from URL
-        setFilters(initialFilters);
+        // Initialize both applied and draft state from URL. An "Is not" with
+        // nothing to exclude (an older bookmark, a hand-edited link) filters
+        // nothing and would reopen the modal on "Is not", so it is dropped here too.
+        const restored = withoutIdleModes(newConfig, initialFilters);
+        setFilters(restored);
         setFilterMetadata(initialMetadata);
-        setDraftFilters(initialFilters);
+        setDraftFilters(restored);
         setDraftFilterMetadata(initialMetadata);
     }, []);
 

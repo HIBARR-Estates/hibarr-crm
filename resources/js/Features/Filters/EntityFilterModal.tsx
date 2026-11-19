@@ -297,7 +297,10 @@ export default function EntityFilterModal({
 
     const applyView = (view: LeadSavedView) => {
         clearDraft();
-        for (const [key, value] of Object.entries(view.filters ?? {})) {
+        // A view saved before idle modes were dropped may still carry one.
+        for (const [key, value] of Object.entries(
+            withoutIdleModes(config, view.filters ?? {}),
+        )) {
             setFilter(key, value);
         }
         setActiveViewId(view.id);
