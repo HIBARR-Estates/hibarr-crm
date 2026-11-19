@@ -45,6 +45,9 @@ class PartnerInviteService
     /** The user is deactivated: no identity is created or enrolment mail sent. */
     private const DEACTIVATED = 'deactivated';
 
+    /** The partner signed in (accepted) after the roster loaded: nothing is sent. */
+    private const ACCEPTED = 'accepted';
+
     /**
      * The Keycloak client is resolved only when a call to Keycloak is made, so
      * code that just reads local invite state (SSO marking acceptance, the
@@ -190,6 +193,11 @@ class PartnerInviteService
                         if ($this->isDeactivated($agent->user)) {
                             return self::DEACTIVATED;
                         }
+                        // A first sign-in can commit between the check above and
+                        // this lock: an onboarded partner gets no enrolment mail.
+                        if ($this->isAccepted($agent->user)) {
+                            return self::ACCEPTED;
+                        }
 
                         $this->keycloak()->sendActionsEmail($keycloakId);
                         $this->setInviteStatus($agent->user, self::STATUS_INVITED);
@@ -206,6 +214,12 @@ class PartnerInviteService
                         return [
                             'ok' => false,
                             'message' => __('pages.partners.msg_resend_deactivated'),
+                        ];
+                    }
+                    if ($outcome === self::ACCEPTED) {
+                        return [
+                            'ok' => false,
+                            'message' => __('pages.partners.msg_resend_accepted'),
                         ];
                     }
                 } else {
@@ -611,6 +625,12 @@ class PartnerInviteService
         return $user !== null
             && $user->partner_invite_status !== null
             && PartnerRole::isPartnerOnly($user);
+    }
+
+    /** Read from the database: the in-memory invite status may be older than the lock. */
+    private function isAccepted(User $user): bool
+    {
+        return User::withoutGlobalScopes()->whereKey($user->id)->value('partner_invite_status') === self::STATUS_ACCEPTED;
     }
 
     /** Read from the database: the in-memory status may be older than the lock. */
