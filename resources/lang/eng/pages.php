@@ -5110,6 +5110,7 @@ return [
         'remove_message' => '{{name}} will no longer be selectable as a lead referrer. Existing referred leads keep their attribution.',
         'error_generic' => 'Something went wrong. Please try again.',
         'msg_removed_while_inviting' => 'The partner was removed before the invitation could be completed.',
+        'msg_resend_deactivated' => 'This partner account is deactivated. Reactivate it before sending an invitation.',
         'msg_enrolment_failed_created' => 'The partner was created, but Keycloak enrolment could not be completed. Use Resend invite.',
         'msg_email_failed_created' => 'The partner was created, but the invitation email could not be sent. Use Resend invite.',
         'msg_resend_partner_only' => 'Only partner accounts created through Invite Partner can be re-invited.',

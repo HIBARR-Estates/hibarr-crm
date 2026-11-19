@@ -4931,6 +4931,7 @@ return [
         'remove_message' => '{{name}} artık lead yönlendiren olarak seçilemez. Mevcut yönlendirilmiş leadler atıflarını korur.',
         'error_generic' => 'Bir şeyler ters gitti. Lütfen tekrar deneyin.',
         'msg_removed_while_inviting' => 'Davet tamamlanamadan partner kaldırıldı.',
+        'msg_resend_deactivated' => 'Bu partnerin hesabı devre dışı. Davet göndermeden önce hesabı etkinleştirin.',
         'msg_enrolment_failed_created' => 'Partner oluşturuldu ancak Keycloak kaydı tamamlanamadı. “Daveti tekrar gönder” seçeneğini kullanın.',
         'msg_email_failed_created' => 'Partner oluşturuldu ancak davet e-postası gönderilemedi. “Daveti tekrar gönder” seçeneğini kullanın.',
         'msg_resend_partner_only' => 'Yalnızca “Partner davet et” ile oluşturulan partner hesapları yeniden davet edilebilir.',

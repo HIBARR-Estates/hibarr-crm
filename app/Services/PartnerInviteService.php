@@ -42,6 +42,9 @@ class PartnerInviteService
     /** Another request holds this partner's lock; nothing was changed. */
     private const BUSY = 'busy';
 
+    /** The user is deactivated: no identity is created or enrolment mail sent. */
+    private const DEACTIVATED = 'deactivated';
+
     /**
      * The Keycloak client is resolved only when a call to Keycloak is made, so
      * code that just reads local invite state (SSO marking acceptance, the
@@ -184,6 +187,9 @@ class PartnerInviteService
                         if (! $this->isActivePartner($agent->user)) {
                             return self::REMOVED;
                         }
+                        if ($this->isDeactivated($agent->user)) {
+                            return self::DEACTIVATED;
+                        }
 
                         $this->keycloak()->sendActionsEmail($keycloakId);
                         $this->setInviteStatus($agent->user, self::STATUS_INVITED);
@@ -196,12 +202,24 @@ class PartnerInviteService
                             'message' => __('pages.partners.msg_removed_while_inviting'),
                         ];
                     }
+                    if ($outcome === self::DEACTIVATED) {
+                        return [
+                            'ok' => false,
+                            'message' => __('pages.partners.msg_resend_deactivated'),
+                        ];
+                    }
                 } else {
                     $outcome = $this->provisionFor($agent->user);
                     if ($outcome === self::REMOVED) {
                         return [
                             'ok' => false,
                             'message' => __('pages.partners.msg_removed_while_inviting'),
+                        ];
+                    }
+                    if ($outcome === self::DEACTIVATED) {
+                        return [
+                            'ok' => false,
+                            'message' => __('pages.partners.msg_resend_deactivated'),
                         ];
                     }
                     if ($outcome === self::BUSY) {
@@ -512,7 +530,7 @@ class PartnerInviteService
      * partner is removed first (nothing is sent to Keycloak), or provisioning
      * finishes and is recorded first (removal then disables the new identity).
      *
-     * @return self::PROVISIONED|self::PROVISION_FAILED|self::REMOVED|self::BUSY
+     * @return self::PROVISIONED|self::PROVISION_FAILED|self::REMOVED|self::DEACTIVATED|self::BUSY
      */
     private function provisionFor(User $user): string
     {
@@ -528,6 +546,12 @@ class PartnerInviteService
         return $this->withAccountLock($user->id, function () use ($user) {
             if (! $this->isActivePartner($user)) {
                 return self::REMOVED;
+            }
+            // A deactivated user must not get a new, enabled identity (OL creates
+            // it enabled) or a set-password mail. Reactivating them later syncs
+            // the identity; until then there is nothing to create.
+            if ($this->isDeactivated($user)) {
+                return self::DEACTIVATED;
             }
 
             [$first, $last] = self::splitName((string) $user->name);
@@ -587,6 +611,12 @@ class PartnerInviteService
         return $user !== null
             && $user->partner_invite_status !== null
             && PartnerRole::isPartnerOnly($user);
+    }
+
+    /** Read from the database: the in-memory status may be older than the lock. */
+    private function isDeactivated(User $user): bool
+    {
+        return User::withoutGlobalScopes()->whereKey($user->id)->value('status') === 'deactive';
     }
 
     private function isActivePartner(User $user): bool

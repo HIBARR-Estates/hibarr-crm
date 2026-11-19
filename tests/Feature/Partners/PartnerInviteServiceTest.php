@@ -151,6 +151,40 @@ class PartnerInviteServiceTest extends TestCase
         $this->assertCount(1, $this->keycloak->actionsEmails);
     }
 
+    public function test_resend_does_not_enrol_a_deactivated_partner_with_an_existing_identity(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+        DB::table('users')->where('id', $invite['agent']->user_id)->update(['status' => 'deactive']);
+        $this->keycloak->actionsEmails = [];
+
+        $result = app(PartnerInviteService::class)->resend($invite['agent']->fresh(['user', 'user.roles']), $this->admin);
+
+        $this->assertFalse($result['ok']);
+        $this->assertSame(__('pages.partners.msg_resend_deactivated'), $result['message']);
+        $this->assertSame([], $this->keycloak->actionsEmails);
+    }
+
+    public function test_resend_does_not_create_an_identity_for_a_deactivated_partner(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $this->keycloak->failNextProvision(new OlKeycloakException('Keycloak down'));
+        $invite = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+        DB::table('users')->where('id', $invite['agent']->user_id)->update(['status' => 'deactive']);
+
+        $result = app(PartnerInviteService::class)->resend($invite['agent']->fresh(['user', 'user.roles']), $this->admin);
+
+        $this->assertFalse($result['ok']);
+        $this->assertSame(__('pages.partners.msg_resend_deactivated'), $result['message']);
+        $this->assertSame(0, Social::where('user_id', $invite['agent']->user_id)->count());
+    }
+
     public function test_destroy_disables_keycloak_best_effort(): void
     {
         $this->setFeatureFlag(PartnerInviteService::FLAG, true);

@@ -4953,6 +4953,7 @@ return [
         'remove_message' => '{{name}} kann nicht mehr als Lead-Empfehler ausgewählt werden. Bestehende zugewiesene Leads behalten ihre Zuordnung.',
         'error_generic' => 'Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.',
         'msg_removed_while_inviting' => 'Der Partner wurde entfernt, bevor die Einladung abgeschlossen werden konnte.',
+        'msg_resend_deactivated' => 'Das Konto dieses Partners ist deaktiviert. Aktivieren Sie es, bevor Sie eine Einladung senden.',
         'msg_enrolment_failed_created' => 'Der Partner wurde angelegt, aber die Keycloak-Registrierung konnte nicht abgeschlossen werden. Verwenden Sie „Einladung erneut senden“.',
         'msg_email_failed_created' => 'Der Partner wurde angelegt, aber die Einladungs-E-Mail konnte nicht gesendet werden. Verwenden Sie „Einladung erneut senden“.',
         'msg_resend_partner_only' => 'Nur über „Partner einladen“ erstellte Partnerkonten können erneut eingeladen werden.',
