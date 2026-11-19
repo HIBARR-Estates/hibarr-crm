@@ -1,6 +1,6 @@
 import React from "react";
 import { Dropdown, Popconfirm } from "antd";
-import type { LeadSavedView } from "./useLeadSavedViews";
+import { canManageView, type LeadSavedView } from "./useLeadSavedViews";
 import { useTranslation } from "@/Hooks/useTranslation";
 
 interface ViewsBarProps {
@@ -13,6 +13,8 @@ interface ViewsBarProps {
     onSaveCurrent: () => void;
     onRename: (view: LeadSavedView) => void;
     onDelete: (view: LeadSavedView) => void;
+    /** Opens the saved views drawer. Omit to hide the button. */
+    onManage?: () => void;
 }
 
 /** Views bar from mockups 1a / 2a / 2c. */
@@ -25,6 +27,7 @@ export default function ViewsBar({
     onSaveCurrent,
     onRename,
     onDelete,
+    onManage,
 }: ViewsBarProps) {
     const { t } = useTranslation();
     const pinned = views.filter((view) => view.pinned);
@@ -41,7 +44,7 @@ export default function ViewsBar({
                             key={view.id}
                             trigger={["contextMenu"]}
                             menu={{
-                                items: view.is_owner
+                                items: canManageView(view)
                                     ? [
                                           {
                                               key: "rename",
@@ -114,6 +117,16 @@ export default function ViewsBar({
                             {t("pages.filters.more_views", { n: unpinned.length })}
                         </button>
                     </Dropdown>
+                )}
+
+                {onManage && (
+                    <button
+                        type="button"
+                        className="lfm-viewpill lfm-viewpill--manage"
+                        onClick={onManage}
+                    >
+                        {t("pages.filters.manage_views")}
+                    </button>
                 )}
 
                 {dirty && hasFilters ? (

@@ -3,7 +3,11 @@ import { DatePicker, Select } from "antd";
 import dayjs from "dayjs";
 import { companyDateDayjsFormat } from "@/lib/companyDateTime";
 import { viewerDayjsNow, viewerTodayDateString } from "@/lib/userDateTime";
-import type { FilterOption } from "@/contexts/FilterContext";
+import type {
+    ExclusionMode,
+    FilterFieldConfig,
+    FilterOption,
+} from "@/contexts/FilterContext";
 import { useTranslation } from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
@@ -238,6 +242,58 @@ export function Segmented({
                         {item.value === ""
                             ? item.label
                             : td(String(item.label), { source: "en" })}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+/**
+ * "Is one of / Is not / Is empty / Has any" switch that sits in a field's
+ * header. Only the modes the field offers are shown; the first item is always
+ * the default ("is one of"), which is stored as no mode at all.
+ */
+export function ModeSwitch({
+    modes,
+    value,
+    labels,
+    onChange,
+    label,
+}: {
+    modes: ExclusionMode[];
+    value: ExclusionMode | null;
+    labels?: FilterFieldConfig["exclusionLabels"];
+    onChange: (next: ExclusionMode | null) => void;
+    /** Accessible name, e.g. "Lead owner matching". */
+    label: string;
+}) {
+    const { t } = useTranslation();
+    const { td } = useTd();
+    const text = (mode: "in" | ExclusionMode, fallbackKey: string) =>
+        labels?.[mode] ? td(labels[mode] as string, { source: "en" }) : t(fallbackKey);
+
+    const items: Array<{ mode: ExclusionMode | null; label: string }> = [
+        { mode: null, label: text("in", "pages.filters.mode_in") },
+        ...modes.map((mode) => ({
+            mode,
+            label: text(mode, `pages.filters.mode_${mode}`),
+        })),
+    ];
+
+    return (
+        <div className="lfm-seg lfm-modeswitch" role="group" aria-label={label}>
+            {items.map((item) => {
+                const isOn = (value ?? null) === item.mode;
+                return (
+                    <button
+                        key={item.mode ?? "in"}
+                        type="button"
+                        className={`lfm-seg__item${isOn ? " is-on" : ""}`}
+                        aria-pressed={isOn}
+                        onClick={() => onChange(item.mode)}
+                    >
+                        {item.label}
                     </button>
                 );
             })}

@@ -2,7 +2,13 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Modal, message } from "antd";
 import { router, usePage } from "@inertiajs/react";
 import {
+    activeModeOf,
+    isValuelessMode,
+    modeKeyOf,
     useFilter,
+    valueKeysOf,
+    withoutIdleModes,
+    type ExclusionMode,
     type FilterConfig,
     type FilterFieldConfig,
     type FilterOption,
@@ -11,6 +17,7 @@ import {
     CheckList,
     DatePresets,
     FieldShell,
+    ModeSwitch,
     PillGroup,
     ScoreRange,
     Segmented,
@@ -23,6 +30,7 @@ import {
 import UtmSection from "./UtmSection";
 import SaveViewPopover from "./SaveViewPopover";
 import ViewsBar from "./ViewsBar";
+import SavedViewsDrawer from "./SavedViewsDrawer";
 import { describeFilters, suggestViewName } from "./filterSummary";
 import useLeadSavedViews, {
     type LeadSavedView,
@@ -45,6 +53,18 @@ interface EntityFilterModalProps {
     savedViews?: boolean;
     /** Which saved-view route group the bar reads and writes. */
     savedViewEntity?: SavedViewEntity;
+}
+
+/** Exactly what the backend will read back as query params: no blanks. */
+function storableFilters(filters: Record<string, any>): Record<string, any> {
+    return Object.fromEntries(
+        Object.entries(filters).filter(
+            ([, value]) =>
+                value != null &&
+                value !== "" &&
+                !(Array.isArray(value) && value.length === 0),
+        ),
+    );
 }
 
 function optionsOf(field: FilterFieldConfig): FilterOption[] {
@@ -134,6 +154,7 @@ export default function EntityFilterModal({
     const { saving, createView, updateView, deleteView } =
         useLeadSavedViews(savedViewEntity);
     const [savePopoverOpen, setSavePopoverOpen] = useState(false);
+    const [viewsDrawerOpen, setViewsDrawerOpen] = useState(false);
     const [renameTarget, setRenameTarget] = useState<LeadSavedView | null>(
         null,
     );
@@ -194,11 +215,31 @@ export default function EntityFilterModal({
         [config, draftFilters, t, td],
     );
 
+    /** Whether a field has a value of its own, apart from its mode. */
+    const hasDraftValue = (field: FilterFieldConfig) => {
+        return valueKeysOf(field).some((key) => {
+            const value = draftFilters[key];
+            return (
+                value != null &&
+                value !== "" &&
+                !(Array.isArray(value) && value.length === 0)
+            );
+        });
+    };
+
     /** Active-filter count per section, for the rail badges. */
     const sectionCounts = useMemo(() => {
         const counts: Record<string, number> = {};
         for (const section of sections) {
             counts[section.name] = section.fields.reduce((total, field) => {
+                // "Is empty" / "Has any" filter with no value of their own. "Is not"
+                // with nothing picked filters nothing, so it does not count.
+                if (
+                    isValuelessMode(activeModeOf(field, draftFilters)) &&
+                    !hasDraftValue(field)
+                ) {
+                    return total + 1;
+                }
                 if (field.control === "datePresets") {
                     const [startKey, endKey] = rangeKeysOf(field);
                     return (
@@ -232,6 +273,9 @@ export default function EntityFilterModal({
     const clearDraft = useCallback(() => {
         for (const field of config.fields) {
             setFilter(field.key, null);
+            if (field.exclusions?.length) {
+                setFilter(modeKeyOf(field.key), null);
+            }
             if (field.control === "datePresets") {
                 rangeKeysOf(field).forEach((key) => setFilter(key, null));
             }
@@ -253,7 +297,10 @@ export default function EntityFilterModal({
 
     const applyView = (view: LeadSavedView) => {
         clearDraft();
-        for (const [key, value] of Object.entries(view.filters ?? {})) {
+        // A view saved before idle modes were dropped may still carry one.
+        for (const [key, value] of Object.entries(
+            withoutIdleModes(config, view.filters ?? {}),
+        )) {
             setFilter(key, value);
         }
         setActiveViewId(view.id);
@@ -264,19 +311,19 @@ export default function EntityFilterModal({
         visibility: "private" | "team";
         pinned: boolean;
     }) => {
-        // Persist exactly what the backend will read back as query params.
-        const filters = Object.fromEntries(
-            Object.entries(draftFilters).filter(
-                ([, value]) =>
-                    value != null &&
-                    value !== "" &&
-                    !(Array.isArray(value) && value.length === 0),
-            ),
-        );
-
+        // Renaming changes the name, pin and sharing only. A view's filters are
+        // replaced on purpose, from the drawer ("Update with current filters"),
+        // never as a side effect of a rename: for an admin on a team view that
+        // would silently overwrite what the whole team has saved.
         const result = renameTarget
-            ? await updateView(renameTarget.id, { ...payload, filters })
-            : await createView({ ...payload, filters });
+            ? await updateView(renameTarget.id, payload)
+            : // Persist exactly what the backend will read back as query params.
+              await createView({
+                  ...payload,
+                  filters: storableFilters(
+                      withoutIdleModes(config, draftFilters),
+                  ),
+              });
 
         if (result) {
             message.success(
@@ -290,7 +337,10 @@ export default function EntityFilterModal({
         }
     };
 
-    const renderField = (field: FilterFieldConfig) => {
+    const renderFieldControl = (
+        field: FilterFieldConfig,
+        modeSwitch?: React.ReactNode,
+    ) => {
         const value = draftFilters[field.key];
         const counts = (field.facetKey ? facets[field.facetKey] : undefined) as
             FacetCounts | undefined;
@@ -304,6 +354,7 @@ export default function EntityFilterModal({
                     <FieldShell
                         key={field.key}
                         label={field.label}
+                        action={modeSwitch}
                         hint={
                             value?.length
                                 ? t("pages.filters.selected_n", { n: value.length })
@@ -338,6 +389,7 @@ export default function EntityFilterModal({
                     <FieldShell
                         key={field.key}
                         label={field.label}
+                        action={modeSwitch}
                         hint={
                             value?.length
                                 ? t("pages.filters.selected_n", { n: value.length })
@@ -360,7 +412,11 @@ export default function EntityFilterModal({
 
             case "tokens":
                 return (
-                    <FieldShell key={field.key} label={field.label}>
+                    <FieldShell
+                        key={field.key}
+                        label={field.label}
+                        action={modeSwitch}
+                    >
                         <TokenSelect
                             options={options}
                             value={value ?? []}
@@ -376,7 +432,11 @@ export default function EntityFilterModal({
 
             case "select":
                 return (
-                    <FieldShell key={field.key} label={field.label}>
+                    <FieldShell
+                        key={field.key}
+                        label={field.label}
+                        action={modeSwitch}
+                    >
                         <SingleSelect
                             options={options}
                             value={value ?? null}
@@ -393,7 +453,11 @@ export default function EntityFilterModal({
             case "datePresets": {
                 const [startKey, endKey] = rangeKeysOf(field);
                 return (
-                    <FieldShell key={field.key} label={field.label}>
+                    <FieldShell
+                        key={field.key}
+                        label={field.label}
+                        action={modeSwitch}
+                    >
                         <DatePresets
                             start={draftFilters[startKey]}
                             end={draftFilters[endKey]}
@@ -412,7 +476,11 @@ export default function EntityFilterModal({
 
             case "scoreRange":
                 return (
-                    <FieldShell key={field.key} label={field.label}>
+                    <FieldShell
+                        key={field.key}
+                        label={field.label}
+                        action={modeSwitch}
+                    >
                         <ScoreRange
                             min={draftFilters[`min_${field.key}`]}
                             max={draftFilters[`max_${field.key}`]}
@@ -437,6 +505,7 @@ export default function EntityFilterModal({
                     <FieldShell
                         key={field.key}
                         label={field.label}
+                        action={modeSwitch}
                         hint={
                             value?.length
                                 ? t("pages.filters.selected_n", { n: value.length })
@@ -454,7 +523,11 @@ export default function EntityFilterModal({
 
             default:
                 return (
-                    <FieldShell key={field.key} label={field.label}>
+                    <FieldShell
+                        key={field.key}
+                        label={field.label}
+                        action={modeSwitch}
+                    >
                         <input
                             className="lfm-text"
                             value={value ?? ""}
@@ -470,6 +543,64 @@ export default function EntityFilterModal({
                     </FieldShell>
                 );
         }
+    };
+
+    /**
+     * One field: its control, plus the "is one of / is not / is empty / has
+     * any" switch when the field offers exclusions. Empty and Has any need no
+     * values, so the control gives way to a one-line explanation.
+     */
+    const renderField = (field: FilterFieldConfig) => {
+        if (!field.exclusions?.length) return renderFieldControl(field);
+
+        const mode = activeModeOf(field, draftFilters);
+        const subject = td(field.sentence ?? field.label, { source: "en" }).toLowerCase();
+
+        const setMode = (next: ExclusionMode | null) => {
+            setFilter(modeKeyOf(field.key), next);
+            if (isValuelessMode(next)) {
+                // These modes ignore values: don't leave a hidden selection behind.
+                setFilter(field.key, null);
+                valueKeysOf(field).forEach((key) => setFilter(key, null));
+            }
+        };
+
+        const modeSwitch = (
+            <ModeSwitch
+                modes={field.exclusions}
+                value={mode}
+                labels={field.exclusionLabels}
+                onChange={setMode}
+                label={t("pages.filters.mode_aria", {
+                    field: td(field.label, { source: "en" }),
+                })}
+            />
+        );
+
+        if (isValuelessMode(mode)) {
+            return (
+                <FieldShell
+                    key={field.key}
+                    label={field.label}
+                    action={modeSwitch}
+                >
+                    <p className="lfm-modenote">
+                        {t(`pages.filters.mode_note_${mode}`, { entity, field: subject })}
+                    </p>
+                </FieldShell>
+            );
+        }
+
+        return (
+            <div className="lfm-fieldwrap" key={field.key}>
+                {renderFieldControl(field, modeSwitch)}
+                {mode === "not_in" && (
+                    <p className="lfm-modenote lfm-modenote--tight">
+                        {t("pages.filters.mode_note_not_in", { entity, field: subject })}
+                    </p>
+                )}
+            </div>
+        );
     };
 
     const utmFields = useMemo(
@@ -589,6 +720,7 @@ export default function EntityFilterModal({
                             void deleteView(view.id);
                             if (activeViewId === view.id) setActiveViewId(null);
                         }}
+                        onManage={() => setViewsDrawerOpen(true)}
                     />
                 )}
 
@@ -739,6 +871,28 @@ export default function EntityFilterModal({
                             {t("pages.filters.apply_filters")}
                         </button>
                     </div>
+
+                    <SavedViewsDrawer
+                        open={viewsDrawerOpen}
+                        views={savedViews}
+                        config={config}
+                        activeViewId={activeViewId}
+                        saving={saving}
+                        currentFilters={storableFilters(
+                            withoutIdleModes(config, draftFilters),
+                        )}
+                        onClose={() => setViewsDrawerOpen(false)}
+                        onApply={(view) => {
+                            applyView(view);
+                            setViewsDrawerOpen(false);
+                        }}
+                        onUpdate={updateView}
+                        onDelete={async (id) => {
+                            const ok = await deleteView(id);
+                            if (ok && activeViewId === id) setActiveViewId(null);
+                            return ok;
+                        }}
+                    />
 
                     <SaveViewPopover
                         open={savePopoverOpen}

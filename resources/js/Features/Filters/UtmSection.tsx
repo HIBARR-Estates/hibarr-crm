@@ -1,13 +1,19 @@
 import React, { useMemo, useState } from "react";
-import type { FilterFieldConfig, FilterOption } from "@/contexts/FilterContext";
-import { fmt } from "./controls";
+import {
+    activeModeOf,
+    modeKeyOf,
+    type ExclusionMode,
+    type FilterFieldConfig,
+    type FilterOption,
+} from "@/contexts/FilterContext";
+import { fmt, ModeSwitch } from "./controls";
 import { useTranslation } from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface UtmSectionProps {
     fields: FilterFieldConfig[];
     filters: Record<string, any>;
-    onChange: (key: string, next: any[]) => void;
+    onChange: (key: string, next: any) => void;
 }
 
 function optionsOf(field: FilterFieldConfig): FilterOption[] {
@@ -34,12 +40,16 @@ function highlight(label: string, query: string): React.ReactNode {
 function UtmFieldCard({
     field,
     value,
+    mode,
     onChange,
+    onModeChange,
     onRemove,
 }: {
     field: FilterFieldConfig;
     value: any[];
+    mode: ExclusionMode | null;
     onChange: (next: any[]) => void;
+    onModeChange: (next: ExclusionMode | null) => void;
     onRemove: () => void;
 }) {
     const { td } = useTd();
@@ -79,6 +89,15 @@ function UtmFieldCard({
                               total: options.length,
                           })}
                 </span>
+                {field.exclusions?.length ? (
+                    <ModeSwitch
+                        modes={field.exclusions}
+                        value={mode}
+                        labels={field.exclusionLabels}
+                        onChange={onModeChange}
+                        label={t("pages.filters.mode_aria", { field: field.key })}
+                    />
+                ) : null}
                 <button
                     type="button"
                     className="lfm-utm__remove"
@@ -88,6 +107,13 @@ function UtmFieldCard({
                 </button>
             </div>
 
+            {mode === "empty" || mode === "any" ? (
+                <div className="lfm-utm__body">
+                    <p className="lfm-modenote">
+                        {t(`pages.filters.utm_mode_note_${mode}`, { field: field.key })}
+                    </p>
+                </div>
+            ) : (
             <div className="lfm-utm__body">
                 <input
                     className="lfm-utm__search"
@@ -180,7 +206,13 @@ function UtmFieldCard({
                         })}
                     </div>
                 )}
+                {mode === "not_in" && (
+                    <p className="lfm-modenote lfm-modenote--tight">
+                        {t("pages.filters.utm_mode_note_not_in", { field: field.key })}
+                    </p>
+                )}
             </div>
+            )}
         </div>
     );
 }
@@ -202,6 +234,7 @@ export default function UtmSection({
         const value = filters[field.key];
         return (
             (Array.isArray(value) && value.length > 0) ||
+            activeModeOf(field, filters) !== null ||
             opened.includes(field.key)
         );
     });
@@ -212,10 +245,18 @@ export default function UtmSection({
     const reading = activeFields
         .map((field) => {
             const value = filters[field.key];
+            const mode = activeModeOf(field, filters);
+            if (mode === "empty" || mode === "any") {
+                return { key: field.key, mode, values: [] as string[] };
+            }
             if (!Array.isArray(value) || value.length === 0) return null;
-            return { key: field.key, values: value.map(String) };
+            return { key: field.key, mode, values: value.map(String) };
         })
-        .filter(Boolean) as Array<{ key: string; values: string[] }>;
+        .filter(Boolean) as Array<{
+        key: string;
+        mode: ExclusionMode | null;
+        values: string[];
+    }>;
 
     return (
         <div className="lfm-utm">
@@ -230,9 +271,17 @@ export default function UtmSection({
                             key={field.key}
                             field={field}
                             value={filters[field.key] ?? []}
+                            mode={activeModeOf(field, filters)}
                             onChange={(next) => onChange(field.key, next)}
+                            onModeChange={(next) => {
+                                onChange(modeKeyOf(field.key), next);
+                                if (next === "empty" || next === "any") {
+                                    onChange(field.key, []);
+                                }
+                            }}
                             onRemove={() => {
                                 onChange(field.key, []);
+                                onChange(modeKeyOf(field.key), null);
                                 setOpened((prev) =>
                                     prev.filter((k) => k !== field.key),
                                 );
@@ -279,12 +328,20 @@ export default function UtmSection({
                                 <span className="lfm-reading__key">
                                     {entry.key}
                                 </span>{" "}
-                                ={" "}
-                                <b>
-                                    {entry.values.length > 3
-                                        ? t("pages.filters.utm_values_n", { n: entry.values.length })
-                                        : entry.values.join(` ${t("pages.filters.or_word")} `)}
-                                </b>
+                                {entry.mode === "empty" ? (
+                                    <b>{t("pages.filters.utm_reading_empty")}</b>
+                                ) : entry.mode === "any" ? (
+                                    <b>{t("pages.filters.utm_reading_any")}</b>
+                                ) : (
+                                    <>
+                                        {entry.mode === "not_in" ? "≠" : "="}{" "}
+                                        <b>
+                                            {entry.values.length > 3
+                                                ? t("pages.filters.utm_values_n", { n: entry.values.length })
+                                                : entry.values.join(` ${t("pages.filters.or_word")} `)}
+                                        </b>
+                                    </>
+                                )}
                             </React.Fragment>
                         ))}
                         .

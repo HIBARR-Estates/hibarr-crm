@@ -21,6 +21,103 @@ export interface FilterOption {
     label: string;
 }
 
+/**
+ * How a filter reads its values, beyond the default "is one of":
+ * `not_in` everything except the values, `empty` the record has no value,
+ * `any` the record has some value; `active` / `inactive` are for a person
+ * filter that can also be asked about their status (deal agents). Sent as the
+ * companion param `<key>_mode`.
+ */
+export type ExclusionMode = "not_in" | "empty" | "any" | "active" | "inactive";
+
+/** Modes that need no values: the control gives way to a one-line explanation. */
+export const isValuelessMode = (
+    mode: ExclusionMode | null | undefined,
+): boolean =>
+    mode === "empty" ||
+    mode === "any" ||
+    mode === "active" ||
+    mode === "inactive";
+
+/** The URL / draft key that carries a field's exclusion mode. */
+export const modeKeyOf = (fieldKey: string): string => `${fieldKey}_mode`;
+
+/**
+ * The URL / draft keys that hold a field's own value: two for a date range
+ * (its rangeKeys) or a min/max range, one for everything else. A valueless
+ * mode clears all of them.
+ */
+export function valueKeysOf(field: FilterFieldConfig): string[] {
+    if (field.control === "scoreRange") {
+        return [`min_${field.key}`, `max_${field.key}`];
+    }
+    if (field.control === "datePresets") {
+        return field.rangeKeys ?? ["start_date", "end_date"];
+    }
+    return [field.key];
+}
+
+/**
+ * "Is not" with nothing to exclude filters nothing, and shows no chip, so it
+ * must not outlive the moment: left in the URL, a saved view or the next draft
+ * it would reopen as "Is not" and turn the next pick into an exclusion nobody
+ * asked for. Drops those modes; every other value passes through untouched.
+ */
+export function withoutIdleModes(
+    config: FilterConfig,
+    values: Record<string, any>,
+): Record<string, any> {
+    const next = { ...values };
+
+    for (const field of config.fields) {
+        if (!field.exclusions?.length) continue;
+
+        const modeKey = modeKeyOf(field.key);
+        const hasValue = valueKeysOf(field).some(
+            (key) => !isEmptyFilterValue(next[key]),
+        );
+
+        if (next[modeKey] === "not_in" && !hasValue) {
+            delete next[modeKey];
+        }
+    }
+
+    return next;
+}
+
+/**
+ * Metadata (label and display value, read by the legacy active-filter chips and
+ * counts) for exactly the filters that are in force: nothing for a key that was
+ * dropped, and none for a mode key, which belongs to its field's own entry. The
+ * same rule setConfig follows when it restores state from the URL.
+ */
+function metadataFor(
+    config: FilterConfig,
+    filters: Record<string, any>,
+    metadata: Record<string, FilterValue>,
+): Record<string, FilterValue> {
+    const modeKeys = new Set(
+        config.fields
+            .filter((field) => field.exclusions?.length)
+            .map((field) => modeKeyOf(field.key)),
+    );
+
+    return Object.fromEntries(
+        Object.entries(metadata).filter(
+            ([key]) => key in filters && !modeKeys.has(key),
+        ),
+    );
+}
+
+/** Valid mode for a field out of raw state, or null for the default ("is one of"). */
+export function activeModeOf(
+    field: FilterFieldConfig,
+    values: Record<string, any>,
+): ExclusionMode | null {
+    const mode = values[modeKeyOf(field.key)];
+    return field.exclusions?.includes(mode) ? (mode as ExclusionMode) : null;
+}
+
 export interface FilterFieldConfig {
     key: string;
     label: string;
@@ -64,6 +161,17 @@ export interface FilterFieldConfig {
     hidden?: boolean;
     /** Short noun used when describing this filter in a sentence ("status is one of 4"). */
     sentence?: string;
+    /**
+     * Exclusion modes this filter offers besides "is one of". The backend must
+     * read `<key>_mode` for the field, otherwise leave this unset.
+     */
+    exclusions?: ExclusionMode[];
+    /**
+     * Per-field wording for the mode switch, for fields where the generic
+     * "Is not" / "Is empty" would read wrong ("No score", "No qualification yet").
+     * `in` names the default mode.
+     */
+    exclusionLabels?: Partial<Record<"in" | ExclusionMode, string>>;
     options?: FilterOption[] | (() => FilterOption[]);
     dependsOn?: string; // Key of another filter this depends on
     filterOptions?: (dependentValue: any) => FilterOption[];
@@ -143,6 +251,9 @@ function addManagedFilterKeys(
     field: FilterFieldConfig,
 ): void {
     managedKeys.add(field.key);
+    if (field.exclusions?.length) {
+        managedKeys.add(modeKeyOf(field.key));
+    }
     if (field.type === "daterange") {
         const [startKey, endKey] = dateRangeParamKeys(field);
         managedKeys.add(startKey);
@@ -191,7 +302,7 @@ function buildFilterVisitParams(
         delete params[key];
     });
 
-    Object.entries(values).forEach(([key, value]) => {
+    Object.entries(withoutIdleModes(config, values)).forEach(([key, value]) => {
         if (excluded.has(key) || isEmptyFilterValue(value)) return;
         // Multiselect values are comma-joined on the wire so setConfig's URL
         // parser (which splits on ",") can read them back.
@@ -434,9 +545,11 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
     const applyFilters = useCallback(() => {
         if (!config) return;
 
-        // Copy draft state to applied state
-        setFilters({ ...draftFilters });
-        setFilterMetadata({ ...draftFilterMetadata });
+        // Copy draft state to applied state (without an "Is not" that excludes
+        // nothing, and with metadata that matches what is left)
+        const applied = withoutIdleModes(config, draftFilters);
+        setFilters(applied);
+        setFilterMetadata(metadataFor(config, applied, draftFilterMetadata));
 
         // Use draftFilters since applied state hasn't updated yet
         const finalParams = buildFilterVisitParams(config, draftFilters);
@@ -477,6 +590,17 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
         const initialMetadata: Record<string, FilterValue> = {};
 
         newConfig.fields.forEach((field) => {
+            // A field's exclusion mode rides in its own URL param. It is state
+            // only: the field's sentence and count come from describeFilters,
+            // so it gets no metadata entry of its own (that would count twice).
+            if (field.exclusions?.length) {
+                const rawMode = urlParams[modeKeyOf(field.key)];
+                const mode = Array.isArray(rawMode) ? rawMode[0] : rawMode;
+                if (field.exclusions.includes(mode as ExclusionMode)) {
+                    initialFilters[modeKeyOf(field.key)] = mode;
+                }
+            }
+
             // Helper to process a single key
             const processKey = (key: string, label: string, type: string) => {
                 const raw = urlParams[key];
@@ -543,10 +667,13 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
             }
         });
 
-        // Initialize both applied and draft state from URL
-        setFilters(initialFilters);
+        // Initialize both applied and draft state from URL. An "Is not" with
+        // nothing to exclude (an older bookmark, a hand-edited link) filters
+        // nothing and would reopen the modal on "Is not", so it is dropped here too.
+        const restored = withoutIdleModes(newConfig, initialFilters);
+        setFilters(restored);
         setFilterMetadata(initialMetadata);
-        setDraftFilters(initialFilters);
+        setDraftFilters(restored);
         setDraftFilterMetadata(initialMetadata);
     }, []);
 

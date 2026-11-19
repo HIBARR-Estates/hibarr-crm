@@ -47,7 +47,7 @@ export default function SaveViewPopover({
                 aria-label={t("pages.filters.save_filters_aria")}
             >
                 <div className="lfm-savepop__title">
-                    {existing ? t("pages.filters.update_view") : t("pages.filters.save_as_view")}
+                    {existing ? t("pages.filters.rename") : t("pages.filters.save_as_view")}
                 </div>
 
                 <label className="lfm-savepop__group">
@@ -72,6 +72,9 @@ export default function SaveViewPopover({
                         type="button"
                         className={`lfm-radio${visibility === "private" ? " is-on" : ""}`}
                         onClick={() => setVisibility("private")}
+                        // An admin fixing up a team view cannot take it private:
+                        // only the owner decides who a view is shared with.
+                        disabled={!!existing && !existing.is_owner}
                     >
                         <span className="lfm-radio__dot" />
                         <span>
@@ -99,24 +102,30 @@ export default function SaveViewPopover({
                 </div>
 
                 <div className="lfm-savepop__summary">
-                    <div className="lfm-savepop__summaryhead">
-                        {t("pages.filters.saving_filters", { count: parts.length })}
-                    </div>
-                    <div className="lfm-savepop__chips">
-                        {parts.map((part) => (
-                            <span
-                                key={part.keys.join("|")}
-                                className="lfm-savepop__chip"
-                            >
-                                {part.chip}
-                            </span>
-                        ))}
-                        {parts.length === 0 && (
-                            <span className="lfm-empty">
-                                {t("pages.filters.no_filters_selected")}
-                            </span>
-                        )}
-                    </div>
+                    {/* Renaming never touches a view's filters, so the filters
+                        currently set are not what is being saved. */}
+                    {!existing && (
+                        <>
+                            <div className="lfm-savepop__summaryhead">
+                                {t("pages.filters.saving_filters", { count: parts.length })}
+                            </div>
+                            <div className="lfm-savepop__chips">
+                                {parts.map((part) => (
+                                    <span
+                                        key={part.keys.join("|")}
+                                        className="lfm-savepop__chip"
+                                    >
+                                        {part.chip}
+                                    </span>
+                                ))}
+                                {parts.length === 0 && (
+                                    <span className="lfm-empty">
+                                        {t("pages.filters.no_filters_selected")}
+                                    </span>
+                                )}
+                            </div>
+                        </>
+                    )}
                     <button
                         type="button"
                         className="lfm-toggle"
@@ -155,7 +164,7 @@ export default function SaveViewPopover({
                         {saving
                             ? t("pages.filters.saving")
                             : existing
-                              ? t("pages.filters.update_view")
+                              ? t("pages.filters.save")
                               : t("pages.filters.save_view")}
                     </button>
                 </div>
