@@ -15,24 +15,24 @@ export default function usePaymentDocumentRequest() {
     const [requesting, setRequesting] = useState(false);
 
     const requestDocuments = useCallback(
-        async (dealId: number, paymentId: number): Promise<DealPaymentRequest | null> => {
-            setRequesting(true);
+        async (dealId: number, paymentId: number, silent = false): Promise<DealPaymentRequest | null> => {
+            if (!silent) setRequesting(true);
             try {
                 const response = await axios.post<{ status?: string; data?: DealPaymentRequest }>(
                     route("deals.payment-requests.documents.request", { deal: dealId, payment: paymentId }),
                 );
                 if (response.data?.status === "success" && response.data.data) {
-                    message.success(t("pages.payment_requests.invoice_requested_toast"));
+                    if (!silent) message.success(t("pages.payment_requests.invoice_requested_toast"));
                     return response.data.data;
                 }
-                message.error(t("pages.payment_requests.invoice_request_failed"));
+                if (!silent) message.error(t("pages.payment_requests.invoice_request_failed"));
                 return null;
             } catch (error: unknown) {
                 const text = (error as { response?: { data?: { message?: string } } }).response?.data?.message;
-                message.error(text || t("pages.payment_requests.invoice_request_failed"));
+                if (!silent) message.error(text || t("pages.payment_requests.invoice_request_failed"));
                 return null;
             } finally {
-                setRequesting(false);
+                if (!silent) setRequesting(false);
             }
         },
         [message, t],

@@ -409,7 +409,17 @@ export default function PaymentRequestDetailModal({
                         <DocumentLink
                             href={invoiceUrl}
                             label={t("pages.payment_requests.action_invoice")}
-                            onOpen={() => setInvoiceOpenedId(request.id)}
+                            onOpen={() => {
+                                const id = request.id;
+                                // The invoice is made server-side by the download; only unlock the receipt once it exists.
+                                window.setTimeout(async () => {
+                                    const fresh = await requestDocuments(request.deal_id, id, true);
+                                    if (fresh?.invoice_issued) {
+                                        setInvoiceOpenedId(id);
+                                        onDocumentsRequested?.(fresh);
+                                    }
+                                }, 2500);
+                            }}
                         />
                     )}
                     {receiptUrl && (
