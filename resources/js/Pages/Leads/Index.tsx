@@ -155,10 +155,7 @@ const Index = ({
         pageProps.featureFlags?.["crm.list-product-tours"] === true;
     // Members of the departments picked in Lead settings get the marketing
     // lead flow; everyone else never sees the button.
-    const canUseMarketingIntake = Boolean(
-        (pageProps as { marketingLeadIntake?: { url: string } | null })
-            .marketingLeadIntake,
-    );
+    const canUseMarketingIntake = pageProps.marketingLeadIntake === true;
     const [marketingOpen, setMarketingOpen] = useState(false);
     const marketingSavedRef = useRef(0);
 

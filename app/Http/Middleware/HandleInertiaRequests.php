@@ -114,7 +114,7 @@ class HandleInertiaRequests extends Middleware
             'agentWorkspace' => fn () => $this->getAgentWorkspace($request),
             // Null unless the user is in a department picked for the marketing
             // lead flow (Lead settings); the leads list and sidebar offer it then.
-            'marketingLeadIntake' => fn () => $this->getMarketingLeadIntake($request),
+            'marketingLeadIntake' => fn () => $this->canUseMarketingLeadIntake($request),
             'emailPilot' => fn () => EmailFeature::enabled() && $request->user()?->hasRole('admin')
                 ? ['manageUrl' => '/account/settings/email-pilot']
                 : null,
@@ -133,18 +133,13 @@ class HandleInertiaRequests extends Middleware
         ]);
     }
 
-    /**
-     * @return array{url: string}|null
-     */
-    private function getMarketingLeadIntake(Request $request): ?array
+    private function canUseMarketingLeadIntake(Request $request): bool
     {
         try {
-            return \App\Support\MarketingLeadIntake::allows($request->user())
-                ? ['url' => '/account/marketing-leads']
-                : null;
+            return \App\Support\MarketingLeadIntake::allows($request->user());
         } catch (\Illuminate\Database\QueryException) {
             // Before the lead origins migration has run.
-            return null;
+            return false;
         }
     }
 
