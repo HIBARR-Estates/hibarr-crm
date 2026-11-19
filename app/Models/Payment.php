@@ -166,6 +166,12 @@ class Payment extends BaseModel
         return $this->hasMany(BankTransaction::class, 'payment_id');
     }
 
+    /** Issued invoices; list queries use withExists() on this so they need no query per row. */
+    public function invoiceDocuments(): HasMany
+    {
+        return $this->hasMany(PaymentDocument::class, 'payment_id')->where('kind', PaymentDocument::INVOICE);
+    }
+
     public function offlineMethod(): BelongsTo
     {
         return $this->belongsTo(OfflinePaymentMethod::class, 'offline_method_id');

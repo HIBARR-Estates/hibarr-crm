@@ -1350,6 +1350,37 @@ class DealPaymentRequestTest extends TestCase
         $this->assertSame(2500.0, (float) DB::table('payments')->where('id', $id)->value('amount'));
     }
 
+    public function test_invoice_issued_is_known_in_bulk_without_a_query_per_payment(): void
+    {
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['date' => '2026-11-06', 'rates' => ['TRY' => 50]], 200)]);
+        $documents = app(DealPaymentDocumentService::class);
+        $service = app(\App\Services\DealPaymentService::class);
+
+        $id = $this->insertPayment(['external_reference' => '871', 'ol_status' => 'pending', 'amount' => 2500]);
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+        $documents->requestDocuments($payment, 7);
+
+        // Requested, but not generated yet.
+        $this->assertFalse($service->serializeDealPayment($payment->fresh())['invoice_issued']);
+
+        $documents->viewData($payment->fresh(), 'invoice');
+        $this->assertTrue($service->serializeDealPayment($payment->fresh())['invoice_issued']);
+
+        // A list loads the flag with the rows, so serializing asks nothing per payment.
+        $listed = Payment::withoutGlobalScope(CompanyScope::class)
+            ->without(['order'])
+            ->withExists('invoiceDocuments as invoice_document_exists')
+            ->findOrFail($id);
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $serialized = $service->serializeDealPayment($listed);
+        $documentQueries = array_filter(DB::getQueryLog(), fn ($q) => str_contains($q['query'], 'payment_documents'));
+        DB::disableQueryLog();
+
+        $this->assertTrue($serialized['invoice_issued']);
+        $this->assertCount(0, $documentQueries);
+    }
+
     public function test_an_invoice_cannot_be_requested_for_an_ended_request(): void
     {
         $id = $this->insertPayment(['external_reference' => '871', 'ol_status' => 'failed', 'amount' => 100]);
