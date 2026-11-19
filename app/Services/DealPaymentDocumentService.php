@@ -58,9 +58,23 @@ class DealPaymentDocumentService
             throw new HttpException(409, 'This payment request ended, so an invoice can no longer be requested for it.');
         }
 
-        $payment->documents_requested_at = now();
-        $payment->documents_requested_by_user_id = $userId;
-        $payment->save();
+        // Only the first of two simultaneous requests records itself; the
+        // conditional update leaves the other one's user and time untouched.
+        $now = now();
+        $recorded = Payment::withoutGlobalScopes()
+            ->whereKey($payment->id)
+            ->whereNull('documents_requested_at')
+            ->update([
+                'documents_requested_at' => $now,
+                'documents_requested_by_user_id' => $userId,
+            ]);
+
+        if ($recorded > 0) {
+            $payment->documents_requested_at = $now;
+            $payment->documents_requested_by_user_id = $userId;
+        } else {
+            $payment->refresh();
+        }
     }
 
     /**
