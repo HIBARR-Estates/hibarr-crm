@@ -394,43 +394,44 @@ class PartnerInviteService
             return;
         }
 
-        $patch = [];
-        if ($user->wasChanged('status')) {
-            if ($user->status === 'deactive') {
-                $patch['enabled'] = false;
-            } elseif ($this->isActivePartner($user)) {
-                // Reactivated: let a partner who is still a partner sign in again.
-                $patch['enabled'] = true;
-            }
-        }
-        if ($user->wasChanged('email') && filled($user->email)) {
-            $patch['email'] = strtolower(trim((string) $user->email));
-        }
+        // Which fields this save touched. The values sent are decided later,
+        // under the account lock, from what is committed by then.
+        $statusChanged = $user->wasChanged('status');
+        $emailChanged = $user->wasChanged('email') && filled($user->email);
 
-        if ($patch === []) {
+        if (! $statusChanged && ! $emailChanged) {
             return;
         }
 
         $userId = $user->id;
-        DB::afterCommit(function () use ($id, $patch, $userId) {
+        DB::afterCommit(function () use ($id, $userId, $statusChanged, $emailChanged) {
             try {
-                // The user may have been deactivated, reactivated or removed since
-                // this was decided. Under the same lock removal takes, send the
-                // state that is committed now, not the one captured earlier: an
-                // identity is enabled only for an active user who is still a partner.
-                if (array_key_exists('enabled', $patch)) {
-                    $this->withAccountLock($userId, function () use ($id, $patch, $userId) {
-                        $status = User::withoutGlobalScopes()->whereKey($userId)->value('status');
-                        $patch['enabled'] = $status !== 'deactive'
+                // Every lifecycle patch takes the lock removal and re-adding take.
+                // A callback that waited for it therefore never sends what it
+                // captured earlier: status, membership and email are read here,
+                // so Keycloak ends up matching the committed CRM state whatever
+                // order the callbacks ran in. A removed partner stays disabled,
+                // and a status change made while membership was off still
+                // reconciles once the partner is added back.
+                $this->withAccountLock($userId, function () use ($id, $userId, $statusChanged, $emailChanged) {
+                    $current = User::withoutGlobalScopes()->whereKey($userId)->first(['id', 'status', 'email']);
+                    if (! $current) {
+                        return;
+                    }
+
+                    $patch = [];
+                    if ($statusChanged) {
+                        $patch['enabled'] = $current->status !== 'deactive'
                             && LeadAgent::withoutGlobalScopes()->where('user_id', $userId)->where('is_partner', true)->exists();
+                    }
+                    if ($emailChanged && filled($current->email)) {
+                        $patch['email'] = strtolower(trim((string) $current->email));
+                    }
 
+                    if ($patch !== []) {
                         $this->keycloak()->update($id, $patch);
-                    });
-
-                    return;
-                }
-
-                $this->keycloak()->update($id, $patch);
+                    }
+                });
             } catch (\Throwable $e) {
                 report($e);
                 Log::warning('Partner Keycloak lifecycle sync failed', [

@@ -244,11 +244,52 @@ class PartnerInviteServiceTest extends TestCase
         $user = $invite['agent']->user;
         $this->saveAndSync($user, ['status' => 'deactive']);
         app(PartnerInviteService::class)->destroy($invite['agent']->fresh(['user', 'user.roles']));
-        $updatesBefore = count($this->keycloak->updates);
 
         $this->saveAndSync($user, ['status' => 'active']);
 
-        $this->assertCount($updatesBefore, $this->keycloak->updates);
+        // Reconciliation still runs, but it derives "enabled" from membership, so
+        // a removed partner is held disabled and never switched back on.
+        $enabledValues = array_column(array_column($this->keycloak->updates, 'patch'), 'enabled');
+        $this->assertNotContains(true, $enabledValues);
+        $this->assertFalse(end($enabledValues));
+    }
+
+    public function test_lifecycle_sends_the_email_committed_now_not_the_one_captured_earlier(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite([
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.test',
+        ], 1, $this->admin);
+
+        $user = $invite['agent']->user;
+        $user->update(['email' => 'first@example.test']);
+        // A later save commits a newer email before this one's callback gets the lock.
+        DB::table('users')->where('id', $user->id)->update(['email' => 'Second@Example.test']);
+
+        app(PartnerInviteService::class)->syncLifecycle($user);
+
+        $this->assertSame(['email' => 'second@example.test'], $this->keycloak->updates[0]['patch']);
+    }
+
+    public function test_a_status_change_made_while_the_partner_was_removed_reconciles_once_added_back(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $service = app(PartnerInviteService::class);
+        $invite = $service->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+        $user = $invite['agent']->user;
+        $this->saveAndSync($user, ['status' => 'deactive']);
+        $service->destroy($invite['agent']->fresh(['user', 'user.roles']));
+
+        // Activated while not a partner (identity stays off), then added back.
+        $this->saveAndSync($user, ['status' => 'active']);
+        $this->assertTrue($service->add($invite['agent']->fresh()));
+        $this->assertTrue(end($this->keycloak->updates)['patch']['enabled']);
+
+        // A status callback that only runs after the add sees membership and enables.
+        $this->saveAndSync($user, ['status' => 'deactive']);
+        $this->saveAndSync($user, ['status' => 'active']);
+        $this->assertTrue(end($this->keycloak->updates)['patch']['enabled']);
     }
 
     public function test_lifecycle_pushes_email_changes_for_partners(): void
