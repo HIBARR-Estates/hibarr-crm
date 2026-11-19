@@ -1371,7 +1371,7 @@ class DealPaymentRequestTest extends TestCase
         DB::table('payment_document_settings')->delete();
 
         $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])
-            ->findOrFail($this->insertPayment(['external_reference' => '887', 'ol_status' => 'pending', 'amount' => 100]));
+            ->findOrFail($this->insertPayment(['external_reference' => '887', 'ol_status' => 'pending', 'amount' => 100, 'documents_requested_at' => now()]));
 
         try {
             app(DealPaymentDocumentService::class)->viewData($payment, 'invoice');
