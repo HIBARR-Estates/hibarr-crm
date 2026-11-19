@@ -1,6 +1,8 @@
 import {
     activeModeOf,
+    isValuelessMode,
     modeKeyOf,
+    valueKeysOf,
     type FilterConfig,
     type FilterFieldConfig,
 } from "@/contexts/FilterContext";
@@ -32,10 +34,14 @@ const EN_SUMMARY: Record<string, string> = {
     summary_not: "{{noun}} is not {{value}}",
     summary_empty: "{{noun}} is empty",
     summary_any: "{{noun}} has any value",
+    summary_active: "{{noun}} is active",
+    summary_inactive: "{{noun}} is inactive",
     chip_not: "{{label}}: not {{values}}",
     chip_not_count: "{{label}} · not {{n}}",
     chip_empty: "Empty",
     chip_any: "Has any",
+    chip_active: "Active",
+    chip_inactive: "Inactive",
     untitled_view: "Untitled view",
 };
 
@@ -121,12 +127,9 @@ export function describeFilters(
         const mode = activeModeOf(field, filters);
         if (mode) {
             const modeKey = modeKeyOf(field.key);
-            const valueKeys =
-                field.control === "scoreRange"
-                    ? [`min_${field.key}`, `max_${field.key}`]
-                    : [field.key];
+            const valueKeys = valueKeysOf(field);
 
-            if (mode === "empty" || mode === "any") {
+            if (isValuelessMode(mode)) {
                 const custom = field.exclusionLabels?.[mode];
                 const word = custom
                     ? i18n.td(custom, { source: "en" })

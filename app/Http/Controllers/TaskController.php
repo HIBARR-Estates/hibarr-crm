@@ -39,6 +39,7 @@ use App\Services\Dashboard\DashboardMetricsService;
 use App\Services\PermissionService;
 use App\Services\Reminders\TaskReminderSync;
 use App\Services\TaskFilterCountsService;
+use App\Services\TaskFilters;
 use App\Services\TaskService;
 use App\Services\TaskVisibilityService;
 use App\Support\TaskPresenter;
@@ -74,22 +75,10 @@ class TaskController extends AccountBaseController
         );
     }
 
-    /**
-     * Multi-select filters arrive as either a native array (`key[]=a&key[]=b`,
-     * legacy links) or a comma-joined string (the redesigned filter modal —
-     * FilterContext.tsx's applyFilters() joins multiselect values with "," so
-     * its own URL parser can read them back). Mirrors LeadService::toValueArray().
-     */
+    /** @see TaskFilters::asList() */
     private function taskFilterAsList($value): array
     {
-        if (! is_array($value)) {
-            $value = $value === null || $value === '' ? [] : explode(',', (string) $value);
-        }
-
-        return array_values(array_filter(
-            array_map(fn ($item) => is_string($item) ? trim($item) : $item, $value),
-            fn ($item) => $item !== null && $item !== '' && $item !== 'all'
-        ));
+        return TaskFilters::asList($value);
     }
 
     /** Date ranges arrive as a `[from, to]` array (legacy) or separate start/end params (redesigned modal). */
@@ -140,71 +129,17 @@ class TaskController extends AccountBaseController
             });
         }
 
-        $statuses = $this->taskFilterAsList(request('status'));
-        if (! empty($statuses)) {
-            $hasPending = in_array('pending', $statuses, true);
-            $slugs = array_values(array_filter(
-                $statuses,
-                static fn (string $status) => $status !== 'pending'
-            ));
+        $taskFilters = app(TaskFilters::class);
+        $taskFilters->apply($tasksQuery, request());
 
-            if ($hasPending && $slugs !== []) {
-                $tasksQuery->where(function ($query) use ($slugs) {
-                    $query->pending()
-                        ->orWhereHas('boardColumn', function ($columnQuery) use ($slugs) {
-                            $columnQuery->whereIn('slug', $slugs);
-                        });
-                });
-            } elseif ($hasPending) {
-                $tasksQuery->pending();
-            } else {
-                $tasksQuery->whereHas('boardColumn', function ($query) use ($slugs) {
-                    $query->whereIn('slug', $slugs);
-                });
+        // "No due date" / "has a due date" replace the range rather than add to it.
+        if (! $taskFilters->applyDueMode($tasksQuery, request())) {
+            $dueRange = $this->taskFilterDateRange('due_date_range', 'due_start_date', 'due_end_date');
+            if ($dueRange !== null) {
+                $tasksQuery->whereBetween('due_date', TaskWallClock::dayBounds($dueRange));
+            } elseif (request('due_date_range') === 'none') {
+                $tasksQuery->whereNull('due_date');
             }
-        }
-
-        $priorities = $this->taskFilterAsList(request('priority'));
-        if (! empty($priorities)) {
-            $tasksQuery->whereIn('priority', $priorities);
-        }
-
-        if (request()->filled('project_id') && request('project_id') !== 'all') {
-            $tasksQuery->where('project_id', request('project_id'));
-        }
-
-        $categoryIds = $this->taskFilterAsList(request('category_id'));
-        if (! empty($categoryIds)) {
-            $tasksQuery->whereIn('task_category_id', $categoryIds);
-        }
-
-        $assignedTo = $this->taskFilterAsList(request('assigned_to'));
-        if (! empty($assignedTo)) {
-            $tasksQuery->whereHas('users', function ($query) use ($assignedTo) {
-                $query->whereIn('users.id', $assignedTo);
-            });
-        }
-
-        $assignedBy = $this->taskFilterAsList(request('assigned_by'));
-        if (! empty($assignedBy)) {
-            $tasksQuery->where(function ($query) use ($assignedBy) {
-                $query->whereIn('tasks.added_by', $assignedBy)
-                    ->orWhereIn('tasks.created_by', $assignedBy);
-            });
-        }
-
-        $labelIds = $this->taskFilterAsList(request('labels'));
-        if (! empty($labelIds)) {
-            $tasksQuery->whereHas('labels', function ($query) use ($labelIds) {
-                $query->whereIn('id', $labelIds);
-            });
-        }
-
-        $dueRange = $this->taskFilterDateRange('due_date_range', 'due_start_date', 'due_end_date');
-        if ($dueRange !== null) {
-            $tasksQuery->whereBetween('due_date', TaskWallClock::dayBounds($dueRange));
-        } elseif (request('due_date_range') === 'none') {
-            $tasksQuery->whereNull('due_date');
         }
 
         $createdRange = $this->taskFilterDateRange('created_date_range', 'created_start_date', 'created_end_date');
@@ -386,6 +321,7 @@ class TaskController extends AccountBaseController
             'created_end_date' => request('created_end_date'),
             'search' => request('search'),
             'quick_filter' => request('quick_filter', 'all'),
+            ...request()->only(TaskFilters::modeKeys()),
         ];
 
         $props = [
@@ -504,8 +440,11 @@ class TaskController extends AccountBaseController
             $scope = 'mine';
         }
 
-        $filterKeys = ['search', 'priority', 'category_id', 'assigned_to', 'assigned_by', 'project_id', 'labels',
-            'due_date_range', 'due_start_date', 'due_end_date', 'created_date_range', 'created_start_date', 'created_end_date'];
+        $filterKeys = [
+            'search', 'priority', 'category_id', 'assigned_to', 'assigned_by', 'project_id', 'labels',
+            'due_date_range', 'due_start_date', 'due_end_date', 'created_date_range', 'created_start_date', 'created_end_date',
+            ...TaskFilters::modeKeys(),
+        ];
 
         $query = fn () => $this->filteredTasksQuery(applyQuickFilter: false)
             ->pending()

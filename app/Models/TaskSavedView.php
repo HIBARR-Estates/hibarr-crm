@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ExclusionFilter;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -28,6 +29,14 @@ class TaskSavedView extends BaseModel
         'category_id',
         'labels',
         'due_date_range',
+        'status_mode',
+        'priority_mode',
+        'category_id_mode',
+        'project_id_mode',
+        'assigned_to_mode',
+        'assigned_by_mode',
+        'labels_mode',
+        'due_date_range_mode',
         'due_start_date',
         'due_end_date',
         'created_date_range',
@@ -86,6 +95,12 @@ class TaskSavedView extends BaseModel
     {
         $allowed = array_intersect_key($filters, array_flip(self::ALLOWED_FILTER_KEYS));
 
-        return array_filter($allowed, fn ($value) => $value !== null && $value !== '' && $value !== []);
+        return array_filter(
+            $allowed,
+            fn ($value, $key) => $value !== null && $value !== '' && $value !== []
+                // A mode is one of a fixed few words; anything else is not a mode.
+                && (! str_ends_with((string) $key, '_mode') || in_array($value, ExclusionFilter::MODES, true)),
+            ARRAY_FILTER_USE_BOTH
+        );
     }
 }

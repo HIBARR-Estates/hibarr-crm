@@ -11,6 +11,7 @@ use App\Models\PipelineStage;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
 use App\Models\User;
+use App\Support\ExclusionFilter;
 use App\Support\LeadSearchQuery;
 use App\Support\TaskWallClock;
 use Illuminate\Database\Eloquent\Builder;
@@ -700,23 +701,16 @@ class LeadService
      */
     private function listFilter(Request $request, string $key): ?array
     {
-        $mode = $this->exclusionMode($request, $key);
-
-        if ($mode === 'empty' || $mode === 'any') {
-            return [$mode, []];
-        }
-
-        $values = $this->toValueArray($request->get($key));
-
-        return $values === [] ? null : [$mode, $values];
+        return ExclusionFilter::resolve(
+            $this->exclusionMode($request, $key),
+            $this->toValueArray($request->get($key))
+        );
     }
 
     /** `in` (the default), or one of FILTER_MODES from the `<key>_mode` param. */
     private function exclusionMode(Request $request, string $key): string
     {
-        $mode = $request->get($key.'_mode');
-
-        return is_string($mode) && in_array($mode, self::FILTER_MODES, true) ? $mode : 'in';
+        return ExclusionFilter::modeOf($request, $key, self::FILTER_MODES);
     }
 
     /**
@@ -727,26 +721,7 @@ class LeadService
      */
     private function applyColumnFilter(Builder $query, ?array $filter, string $column, bool $isText = false): void
     {
-        if ($filter === null) {
-            return;
-        }
-
-        [$mode, $values] = $filter;
-
-        match ($mode) {
-            'not_in' => $query->where(function ($q) use ($column, $values) {
-                $q->whereNull($column)->orWhereNotIn($column, $values);
-            }),
-            'empty' => $query->where(function ($q) use ($column, $isText) {
-                $q->whereNull($column);
-                if ($isText) {
-                    $q->orWhere($column, '');
-                }
-            }),
-            'any' => $query->whereNotNull($column)
-                ->when($isText, fn ($q) => $q->where($column, '<>', '')),
-            default => $query->whereIn($column, $values),
-        };
+        ExclusionFilter::column($query, $filter, $column, $isText);
     }
 
     /**

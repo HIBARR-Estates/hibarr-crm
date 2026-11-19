@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\ExclusionFilter;
 use App\Support\LeadSearchQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -38,28 +39,10 @@ class DealFilters
             });
         }
 
-        if ($values = $this->values($request, 'category_id')) {
-            $query->whereIn('deals.category_id', $values);
-        }
-
-        if ($values = $this->values($request, 'source_id')) {
-            $query->whereHas('contact', fn ($q) => $q->whereIn('source_id', $values));
-        }
-
-        if ($values = $this->values($request, 'package_id')) {
-            $query->whereHas('packages', fn ($q) => $q->whereIn('packages.id', $values));
-        }
-
-        // agent_id carries the *user* id, matching the agent picker everywhere else.
-        if ($request->get('agent_status') === 'unassigned') {
-            $query->whereNull('deals.agent_id');
-        } elseif ($values = $this->values($request, 'agent_id')) {
-            $query->whereHas('leadAgent', fn ($q) => $q->whereIn('user_id', $values));
-        } elseif ($request->get('agent_status') === 'active') {
-            $query->whereHas('leadAgent.user', fn ($q) => $q->where('status', 'active'));
-        } elseif ($request->get('agent_status') === 'inactive') {
-            $query->whereHas('leadAgent.user', fn ($q) => $q->where('status', '!=', 'active'));
-        }
+        $this->applyColumn($query, $request, 'category_id', 'deals.category_id');
+        $this->applySource($query, $request);
+        ExclusionFilter::relation($query, $this->listFilter($request, 'package_id'), 'packages', 'packages.id');
+        $this->applyAgent($query, $request);
 
         // "open" means no outcome recorded yet, so it cannot be a plain whereIn.
         if ($values = $this->values($request, 'outcome_status')) {
@@ -88,7 +71,23 @@ class DealFilters
         }
 
         $this->applyDateRange($query, $request, 'deals.created_at', 'start_date', 'end_date');
-        $this->applyDateRange($query, $request, 'deals.close_date', 'close_start', 'close_end');
+
+        // "Not closed" / "has a close date" replace the range, they don't add to it.
+        match (ExclusionFilter::modeOf($request, 'close_start', ['empty', 'any'])) {
+            'empty' => $query->whereNull('deals.close_date'),
+            'any' => $query->whereNotNull('deals.close_date'),
+            default => $this->applyDateRange($query, $request, 'deals.close_date', 'close_start', 'close_end'),
+        };
+
+        // A deal's value starts at 0, so "no value" is NULL or 0: a deal nobody
+        // has priced yet is not a deal worth nothing.
+        if (ExclusionFilter::modeOf($request, 'value_range', ['empty']) === 'empty') {
+            $query->where(function ($q) {
+                $q->whereNull('deals.value')->orWhere('deals.value', 0);
+            });
+
+            return;
+        }
 
         if ($request->filled('min_value_range')) {
             $query->where('deals.value', '>=', (float) $request->get('min_value_range'));
@@ -96,6 +95,106 @@ class DealFilters
 
         if ($request->filled('max_value_range')) {
             $query->where('deals.value', '<=', (float) $request->get('max_value_range'));
+        }
+    }
+
+    /**
+     * One scalar column with the exclusion modes (category, and the pipeline
+     * and stage the controllers scope themselves).
+     */
+    public function applyColumn(Builder $query, Request $request, string $key, string $column): void
+    {
+        ExclusionFilter::column($query, $this->listFilter($request, $key), $column);
+    }
+
+    /**
+     * The values a filter was asked to *include*, and nothing under an
+     * exclusion mode. For choosing the one pipeline a board shows: "every
+     * pipeline except 2" is not a pipeline to open.
+     *
+     * @return array<int, string>
+     */
+    public function includedValues(Request $request, string $key): array
+    {
+        return ExclusionFilter::modeOf($request, $key) === 'in' ? $this->values($request, $key) : [];
+    }
+
+    /**
+     * @return array{0: string, 1: array<int, string>}|null [mode, values]
+     */
+    private function listFilter(Request $request, string $key): ?array
+    {
+        return ExclusionFilter::resolve(
+            ExclusionFilter::modeOf($request, $key),
+            $this->values($request, $key)
+        );
+    }
+
+    /** The source lives on the deal's contact, so "empty" means the contact has none. */
+    private function applySource(Builder $query, Request $request): void
+    {
+        $filter = $this->listFilter($request, 'source_id');
+        if ($filter === null) {
+            return;
+        }
+
+        [$mode, $values] = $filter;
+
+        match ($mode) {
+            'not_in' => $query->whereDoesntHave('contact', fn ($q) => $q->whereIn('source_id', $values)),
+            'empty' => $query->whereDoesntHave('contact', fn ($q) => $q->whereNotNull('source_id')),
+            'any' => $query->whereHas('contact', fn ($q) => $q->whereNotNull('source_id')),
+            default => $query->whereHas('contact', fn ($q) => $q->whereIn('source_id', $values)),
+        };
+    }
+
+    /**
+     * agent_id carries the *user* id, matching the agent picker everywhere
+     * else. Besides the shared modes, an agent can be asked for by status
+     * (`active` / `inactive`); the older `agent_status` param still works.
+     */
+    private function applyAgent(Builder $query, Request $request): void
+    {
+        $mode = ExclusionFilter::modeOf($request, 'agent_id', [...ExclusionFilter::MODES, 'active', 'inactive']);
+        $values = $this->values($request, 'agent_id');
+
+        switch ($mode) {
+            case 'empty':
+                $query->whereNull('deals.agent_id');
+
+                return;
+            case 'any':
+                $query->whereNotNull('deals.agent_id');
+
+                return;
+            case 'active':
+                $query->whereHas('leadAgent.user', fn ($q) => $q->where('status', 'active'));
+
+                return;
+            case 'inactive':
+                $query->whereHas('leadAgent.user', fn ($q) => $q->where('status', '!=', 'active'));
+
+                return;
+            case 'not_in':
+                // No agent at all is also "not one of these".
+                if ($values !== []) {
+                    $query->where(function ($q) use ($values) {
+                        $q->whereNull('deals.agent_id')
+                            ->orWhereDoesntHave('leadAgent', fn ($agent) => $agent->whereIn('user_id', $values));
+                    });
+                }
+
+                return;
+        }
+
+        if ($request->get('agent_status') === 'unassigned') {
+            $query->whereNull('deals.agent_id');
+        } elseif ($values !== []) {
+            $query->whereHas('leadAgent', fn ($q) => $q->whereIn('user_id', $values));
+        } elseif ($request->get('agent_status') === 'active') {
+            $query->whereHas('leadAgent.user', fn ($q) => $q->where('status', 'active'));
+        } elseif ($request->get('agent_status') === 'inactive') {
+            $query->whereHas('leadAgent.user', fn ($q) => $q->where('status', '!=', 'active'));
         }
     }
 

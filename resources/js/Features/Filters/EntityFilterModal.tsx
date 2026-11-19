@@ -3,8 +3,10 @@ import { Modal, message } from "antd";
 import { router, usePage } from "@inertiajs/react";
 import {
     activeModeOf,
+    isValuelessMode,
     modeKeyOf,
     useFilter,
+    valueKeysOf,
     type ExclusionMode,
     type FilterConfig,
     type FilterFieldConfig,
@@ -214,11 +216,7 @@ export default function EntityFilterModal({
 
     /** Whether a field has a value of its own, apart from its mode. */
     const hasDraftValue = (field: FilterFieldConfig) => {
-        const keys =
-            field.control === "scoreRange"
-                ? [`min_${field.key}`, `max_${field.key}`]
-                : [field.key];
-        return keys.some((key) => {
+        return valueKeysOf(field).some((key) => {
             const value = draftFilters[key];
             return (
                 value != null &&
@@ -545,13 +543,10 @@ export default function EntityFilterModal({
 
         const setMode = (next: ExclusionMode | null) => {
             setFilter(modeKeyOf(field.key), next);
-            if (next === "empty" || next === "any") {
+            if (isValuelessMode(next)) {
                 // These modes ignore values: don't leave a hidden selection behind.
                 setFilter(field.key, null);
-                if (field.control === "scoreRange") {
-                    setFilter(`min_${field.key}`, null);
-                    setFilter(`max_${field.key}`, null);
-                }
+                valueKeysOf(field).forEach((key) => setFilter(key, null));
             }
         };
 
@@ -567,7 +562,7 @@ export default function EntityFilterModal({
             />
         );
 
-        if (mode === "empty" || mode === "any") {
+        if (isValuelessMode(mode)) {
             return (
                 <FieldShell
                     key={field.key}

@@ -176,7 +176,7 @@ class DealController extends AccountBaseController
 
         // A board always renders one pipeline's columns, so a multi-pipeline
         // filter ("1,2") or "all" falls back to the first/default pipeline.
-        $requestedPipelines = app(DealFilters::class)->values($request, 'lead_pipeline_id');
+        $requestedPipelines = app(DealFilters::class)->includedValues($request, 'lead_pipeline_id');
         $pipelineId = count($requestedPipelines) === 1
             ? $requestedPipelines[0]
             : optional($this->defaultPipeline)->id;
@@ -203,11 +203,19 @@ class DealController extends AccountBaseController
             'stats' => $stats,
             'filters' => $request->only([
                 'lead_pipeline_id',
+                'lead_pipeline_id_mode',
                 'pipeline_stage_id',
+                'pipeline_stage_id_mode',
                 'category_id',
+                'category_id_mode',
                 'source_id',
+                'source_id_mode',
                 'package_id',
+                'package_id_mode',
                 'agent_id',
+                'agent_id_mode',
+                'close_start_mode',
+                'value_range_mode',
                 'outcome_status',
                 'is_locked',
                 'search',
@@ -276,12 +284,10 @@ class DealController extends AccountBaseController
         // other filter is shared with the kanban columns (DealFilters).
         $dealFilters = app(DealFilters::class);
 
-        if ($pipelines = $dealFilters->values($request, 'lead_pipeline_id')) {
-            $dealsQuery->whereIn('deals.lead_pipeline_id', $pipelines);
-        }
+        $dealFilters->applyColumn($dealsQuery, $request, 'lead_pipeline_id', 'deals.lead_pipeline_id');
 
-        if (! $pipelineStageId && $stages = $dealFilters->values($request, 'pipeline_stage_id')) {
-            $dealsQuery->whereIn('deals.pipeline_stage_id', $stages);
+        if (! $pipelineStageId) {
+            $dealFilters->applyColumn($dealsQuery, $request, 'pipeline_stage_id', 'deals.pipeline_stage_id');
         }
 
         $dealFilters->apply($dealsQuery, $request);
@@ -642,14 +648,14 @@ class DealController extends AccountBaseController
         $this->loadDataForInertiaIndex();
         $filters = app(DealFilters::class);
 
-        $requested = $filters->values($request, 'lead_pipeline_id');
+        $requested = $filters->includedValues($request, 'lead_pipeline_id');
         $pipelineId = count($requested) === 1
             ? (int) $requested[0]
             : (int) (optional($this->defaultPipeline)->id ?? optional($this->pipelines->first())->id);
 
         // The page is one pipeline's open deals; the outcome filter, the page
         // and the in-list search (done in the browser) are not part of it.
-        $query = $request->except(['outcome_status', 'lead_pipeline_id', 'page', 'view', 'search']);
+        $query = $request->except(['outcome_status', 'lead_pipeline_id', 'lead_pipeline_id_mode', 'page', 'view', 'search']);
         $filterRequest = Request::create('/', 'GET', array_merge($query, ['lead_pipeline_id' => $pipelineId]));
 
         $stages = PipelineStage::query()
@@ -754,9 +760,7 @@ class DealController extends AccountBaseController
         $filters = app(DealFilters::class);
         $query = Deal::query()->where('deals.lead_pipeline_id', $pipelineId);
 
-        if ($stages = $filters->values($filterRequest, 'pipeline_stage_id')) {
-            $query->whereIn('deals.pipeline_stage_id', $stages);
-        }
+        $filters->applyColumn($query, $filterRequest, 'pipeline_stage_id', 'deals.pipeline_stage_id');
 
         $filters->apply($query, $filterRequest);
 

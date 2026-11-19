@@ -24,12 +24,38 @@ export interface FilterOption {
 /**
  * How a filter reads its values, beyond the default "is one of":
  * `not_in` everything except the values, `empty` the record has no value,
- * `any` the record has some value. Sent as the companion param `<key>_mode`.
+ * `any` the record has some value; `active` / `inactive` are for a person
+ * filter that can also be asked about their status (deal agents). Sent as the
+ * companion param `<key>_mode`.
  */
-export type ExclusionMode = "not_in" | "empty" | "any";
+export type ExclusionMode = "not_in" | "empty" | "any" | "active" | "inactive";
+
+/** Modes that need no values: the control gives way to a one-line explanation. */
+export const isValuelessMode = (
+    mode: ExclusionMode | null | undefined,
+): boolean =>
+    mode === "empty" ||
+    mode === "any" ||
+    mode === "active" ||
+    mode === "inactive";
 
 /** The URL / draft key that carries a field's exclusion mode. */
 export const modeKeyOf = (fieldKey: string): string => `${fieldKey}_mode`;
+
+/**
+ * The URL / draft keys that hold a field's own value: two for a date range
+ * (its rangeKeys) or a min/max range, one for everything else. A valueless
+ * mode clears all of them.
+ */
+export function valueKeysOf(field: FilterFieldConfig): string[] {
+    if (field.control === "scoreRange") {
+        return [`min_${field.key}`, `max_${field.key}`];
+    }
+    if (field.control === "datePresets") {
+        return field.rangeKeys ?? ["start_date", "end_date"];
+    }
+    return [field.key];
+}
 
 /** Valid mode for a field out of raw state, or null for the default ("is one of"). */
 export function activeModeOf(
