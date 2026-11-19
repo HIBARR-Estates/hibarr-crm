@@ -65,14 +65,16 @@ export default function CalendlyBookingPanel({
                                 ? t("pages.meetings.calendly.panel_body_deal")
                                 : t("pages.meetings.calendly.panel_body_lead")}
                         </p>
-                        <p
-                            className="mt-2"
-                            style={{ fontSize: 12, color: T.TEXT_HINT }}
-                        >
-                            {t("pages.meetings.calendly.prefilled_note", {
-                                page: td(link.name, { source: "en" }),
-                            })}
-                        </p>
+                        {link.prefilled && (
+                            <p
+                                className="mt-2"
+                                style={{ fontSize: 12, color: T.TEXT_HINT }}
+                            >
+                                {t("pages.meetings.calendly.prefilled_note", {
+                                    page: td(link.name, { source: "en" }),
+                                })}
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>

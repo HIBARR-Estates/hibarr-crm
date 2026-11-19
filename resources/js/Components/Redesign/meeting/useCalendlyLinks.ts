@@ -9,6 +9,8 @@ export interface CalendlyLinkOption {
     name: string;
     description: string | null;
     url: string;
+    /** The contact's name/email are already on the link (false for a deal with no lead). */
+    prefilled: boolean;
 }
 
 interface CalendlyLinksResponse {

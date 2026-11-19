@@ -38,6 +38,10 @@ class CalendlyMeetingLinkOptionsController extends AccountBaseController
 
         $guestEmails = $this->guestEmails($request->has('guest_ids') ? (string) ($validated['guest_ids'] ?? '') : null);
 
+        // A deal with no lead has no contact to fill in; the panel only claims
+        // the page is prefilled when it really is.
+        $prefilled = $lead !== null && (trim((string) $lead->client_name) !== '' || trim((string) $lead->client_email) !== '');
+
         $roleIds = DB::table('role_user')->where('user_id', user()->id)->pluck('role_id')->map(fn ($id) => (int) $id)->all();
 
         $links = CalendlyMeetingLink::visibleToRoles($roleIds)
@@ -47,6 +51,7 @@ class CalendlyMeetingLinkOptionsController extends AccountBaseController
                 'name' => $link->name,
                 'description' => $link->description,
                 'url' => CalendlyLinkBuilder::build($link, $lead, $guestEmails),
+                'prefilled' => $prefilled,
             ])->values()->all();
 
         return response()->json(['status' => 'success', 'data' => ['links' => $links]]);
