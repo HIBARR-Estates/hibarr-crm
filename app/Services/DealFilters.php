@@ -163,12 +163,17 @@ class DealFilters
     /** Whether the pipeline filter is an "is not" that rules this pipeline out. */
     public function pipelineExcluded(Request $request, int|string|null $pipelineId): bool
     {
-        if ($pipelineId === null) {
+        if (ExclusionFilter::modeOf($request, 'lead_pipeline_id', $this->modesFor('lead_pipeline_id')) !== 'not_in') {
             return false;
         }
 
-        return ExclusionFilter::modeOf($request, 'lead_pipeline_id', $this->modesFor('lead_pipeline_id')) === 'not_in'
-            && in_array((string) $pipelineId, $this->values($request, 'lead_pipeline_id'), true);
+        $excluded = $this->values($request, 'lead_pipeline_id');
+
+        // No pipeline resolved (none is default, every other one excluded): an
+        // active exclusion leaves nothing to show, not an unscoped board.
+        return $pipelineId === null
+            ? $excluded !== []
+            : in_array((string) $pipelineId, $excluded, true);
     }
 
     /**

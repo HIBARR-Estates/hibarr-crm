@@ -114,7 +114,9 @@ class DealFilterExclusionTest extends TestCase
         $this->assertTrue($filters->pipelineExcluded($request, 1));
         $this->assertTrue($filters->pipelineExcluded($request, '3'));
         $this->assertFalse($filters->pipelineExcluded($request, 2));
-        $this->assertFalse($filters->pipelineExcluded($request, null));
+        // No pipeline resolved while pipelines are excluded: nothing to show.
+        $this->assertTrue($filters->pipelineExcluded($request, null));
+        $this->assertFalse($filters->pipelineExcluded(Request::create('/', 'GET'), null));
         $this->assertFalse($filters->pipelineExcluded(Request::create('/', 'GET', ['lead_pipeline_id' => '1']), 1));
     }
 
