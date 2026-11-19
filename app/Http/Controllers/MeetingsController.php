@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\CalendarSyncDispatcher;
 use App\Services\CalendarSyncService;
 use App\Services\MeetingFilterFacetsService;
+use App\Services\MeetingFilters;
 use App\Services\MeetingVisibilityService;
 use App\Services\Reminders\MeetingReminderSync;
 use App\Support\FeatureFlags;
@@ -136,15 +137,7 @@ class MeetingsController extends AccountBaseController
         // identically. Everything is applied to the tab tallies as well —
         // a tab whose count disagreed with the list it opens is worse than
         // no count at all.
-        $csv = function ($value): array {
-            if (is_array($value)) {
-                return array_values(array_filter($value, 'strlen'));
-            }
-
-            return is_string($value) && $value !== ''
-                ? array_values(array_filter(explode(',', $value), 'strlen'))
-                : [];
-        };
+        $meetingFilters = app(MeetingFilters::class);
 
         // Scalar Y-m-d only — Carbon::parse() on an array or garbage string
         // throws, and a malformed link shouldn't 500 the page.
@@ -159,17 +152,8 @@ class MeetingsController extends AccountBaseController
         };
 
         $search = is_string($request->get('search')) ? trim($request->get('search')) : '';
-        $meetingTypeIds = $csv($request->get('meeting_type_id'));
-        $statuses = array_values(array_intersect(
-            $csv($request->get('status')),
-            ['scheduled', 'completed', 'cancelled']
-        ));
-        $locations = $csv($request->get('location'));
-        $hostIds = $csv($request->get('host_id'));
-        $attendanceValues = array_values(array_intersect(
-            $csv($request->get('attendance')),
-            ['attended', 'no_show']
-        ));
+        $attendanceValues = $meetingFilters->includedAttendance($request);
+        $wantsUnrecordedAttendance = $meetingFilters->wantsUnrecordedAttendance($request);
         $recordType = in_array($request->get('record_type'), ['deal', 'lead'], true)
             ? $request->get('record_type')
             : null;
@@ -191,27 +175,16 @@ class MeetingsController extends AccountBaseController
         // or a month view could quietly come back missing meetings the list
         // beside it still shows.
         $applyNonDateFilters = function ($query) use (
+            $request,
+            $meetingFilters,
             $search,
-            $meetingTypeIds,
-            $statuses,
-            $locations,
-            $hostIds,
-            $attendanceValues,
             $recordType
         ) {
+            // Type, status, platform, host and attendance, with their
+            // "is not" / "not recorded yet" readings.
+            $meetingFilters->apply($query, $request);
+
             return $query
-                ->when($meetingTypeIds, fn ($q) => $q->whereIn('meeting_type_id', $meetingTypeIds))
-                ->when($statuses, fn ($q) => $q->whereIn('status', $statuses))
-                ->when($locations, fn ($q) => $q->whereIn('location', $locations))
-                ->when($attendanceValues, fn ($q) => $q->whereIn('attendance_outcome', $attendanceValues))
-                // "Host" reads as whoever owns the meeting: the named host
-                // where one is set, otherwise the person who booked it.
-                ->when($hostIds, fn ($q) => $q->where(function ($inner) use ($hostIds) {
-                    $inner->whereIn('host_id', $hostIds)
-                        ->orWhere(function ($fallback) use ($hostIds) {
-                            $fallback->whereNull('host_id')->whereIn('added_by', $hostIds);
-                        });
-                }))
                 ->when($recordType === 'deal', fn ($q) => $q->whereNotNull('deal_id'))
                 ->when($recordType === 'lead', fn ($q) => $q->whereNull('deal_id')->whereNotNull('lead_id'))
                 ->when($search !== '', fn ($q) => $q->where(function ($inner) use ($search) {
@@ -314,7 +287,7 @@ class MeetingsController extends AccountBaseController
             $requestedTab = $request->get('tab');
             $activeTab = in_array($requestedTab, self::TABS, true)
                 ? $requestedTab
-                : ($attendanceFilter ? 'past' : 'upcoming');
+                : ($attendanceFilter || $wantsUnrecordedAttendance ? 'past' : 'upcoming');
 
             // The page sizes itself to the browser window, and leaves the
             // size it settled on in a cookie. Reading it here means a cold

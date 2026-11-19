@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ExclusionFilter;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -31,6 +32,11 @@ class MeetingSavedView extends BaseModel
         'meeting_date_range',
         'date_from',
         'date_to',
+        'meeting_type_id_mode',
+        'status_mode',
+        'location_mode',
+        'host_id_mode',
+        'attendance_mode',
     ];
 
     protected $table = 'meeting_saved_views';
@@ -81,6 +87,12 @@ class MeetingSavedView extends BaseModel
     {
         $allowed = array_intersect_key($filters, array_flip(self::ALLOWED_FILTER_KEYS));
 
-        return array_filter($allowed, fn ($value) => $value !== null && $value !== '' && $value !== []);
+        return array_filter(
+            $allowed,
+            fn ($value, $key) => $value !== null && $value !== '' && $value !== []
+                // A mode is one of a fixed few words; anything else is not a mode.
+                && (! str_ends_with((string) $key, '_mode') || in_array($value, ExclusionFilter::MODES, true)),
+            ARRAY_FILTER_USE_BOTH
+        );
     }
 }
