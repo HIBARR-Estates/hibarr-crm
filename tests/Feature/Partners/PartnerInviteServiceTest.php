@@ -735,6 +735,28 @@ class PartnerInviteServiceTest extends TestCase
         $this->assertSame($versionBefore, (int) DB::table('users')->where('id', $staleRow->user_id)->value('partner_invite_version'));
     }
 
+    public function test_resend_reports_busy_instead_of_throwing_when_the_partner_is_locked(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $service = app(PartnerInviteService::class);
+        $invite = $service->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+        $this->keycloak->actionsEmails = [];
+        config()->set('services.ol.keycloak.lock_wait_seconds', 1);
+        $held = \Illuminate\Support\Facades\Cache::lock('partner-invite:'.$invite['agent']->user_id, 60);
+        $this->assertTrue($held->get());
+
+        try {
+            // Through the controller: the HTTP layer gets a payload, not an exception.
+            $response = $this->partnerController()->resendInvite($invite['agent']->id);
+        } finally {
+            $held->release();
+        }
+
+        $this->assertSame('fail', $response['status']);
+        $this->assertSame(__('pages.partners.msg_busy'), $response['message']);
+        $this->assertSame([], $this->keycloak->actionsEmails);
+    }
+
     public function test_a_busy_lock_returns_a_retryable_message_and_keeps_the_saved_partner(): void
     {
         $this->setFeatureFlag(PartnerInviteService::FLAG, true);
