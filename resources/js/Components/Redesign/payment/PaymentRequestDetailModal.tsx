@@ -275,7 +275,7 @@ export default function PaymentRequestDetailModal({
 }: PaymentRequestDetailModalProps) {
     const { t } = useTranslation();
     const { td } = useTd();
-    const { requestDocuments, requesting } = usePaymentDocumentRequest();
+    const { requestDocuments, fetchStatus, requesting } = usePaymentDocumentRequest();
     const [requestedId, setRequestedId] = useState<number | null>(null);
     const [confirmRequestOpen, setConfirmRequestOpen] = useState(false);
     const [invoiceOpenedId, setInvoiceOpenedId] = useState<number | null>(null);
@@ -415,7 +415,7 @@ export default function PaymentRequestDetailModal({
                                 let attempts = 0;
                                 const poll = async () => {
                                     attempts += 1;
-                                    const fresh = await requestDocuments(request.deal_id, id, true);
+                                    const fresh = await fetchStatus(request.deal_id, id);
                                     if (fresh?.invoice_issued) {
                                         setInvoiceOpenedId(id);
                                         onDocumentsRequested?.(fresh);

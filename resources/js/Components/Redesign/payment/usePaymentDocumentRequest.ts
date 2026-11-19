@@ -15,28 +15,40 @@ export default function usePaymentDocumentRequest() {
     const [requesting, setRequesting] = useState(false);
 
     const requestDocuments = useCallback(
-        async (dealId: number, paymentId: number, silent = false): Promise<DealPaymentRequest | null> => {
-            if (!silent) setRequesting(true);
+        async (dealId: number, paymentId: number): Promise<DealPaymentRequest | null> => {
+            setRequesting(true);
             try {
                 const response = await axios.post<{ status?: string; data?: DealPaymentRequest }>(
                     route("deals.payment-requests.documents.request", { deal: dealId, payment: paymentId }),
                 );
                 if (response.data?.status === "success" && response.data.data) {
-                    if (!silent) message.success(t("pages.payment_requests.invoice_requested_toast"));
+                    message.success(t("pages.payment_requests.invoice_requested_toast"));
                     return response.data.data;
                 }
-                if (!silent) message.error(t("pages.payment_requests.invoice_request_failed"));
+                message.error(t("pages.payment_requests.invoice_request_failed"));
                 return null;
             } catch (error: unknown) {
                 const text = (error as { response?: { data?: { message?: string } } }).response?.data?.message;
-                if (!silent) message.error(text || t("pages.payment_requests.invoice_request_failed"));
+                message.error(text || t("pages.payment_requests.invoice_request_failed"));
                 return null;
             } finally {
-                if (!silent) setRequesting(false);
+                setRequesting(false);
             }
         },
         [message, t],
     );
 
-    return { requestDocuments, requesting };
+    /** Read-only check of a request's state; works for viewers who cannot request. */
+    const fetchStatus = useCallback(async (dealId: number, paymentId: number): Promise<DealPaymentRequest | null> => {
+        try {
+            const response = await axios.get<{ status?: string; data?: DealPaymentRequest }>(
+                route("deals.payment-requests.documents.status", { deal: dealId, payment: paymentId }),
+            );
+            return response.data?.status === "success" ? (response.data.data ?? null) : null;
+        } catch {
+            return null;
+        }
+    }, []);
+
+    return { requestDocuments, fetchStatus, requesting };
 }
