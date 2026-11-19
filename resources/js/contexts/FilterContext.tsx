@@ -57,6 +57,34 @@ export function valueKeysOf(field: FilterFieldConfig): string[] {
     return [field.key];
 }
 
+/**
+ * "Is not" with nothing to exclude filters nothing, and shows no chip, so it
+ * must not outlive the moment: left in the URL, a saved view or the next draft
+ * it would reopen as "Is not" and turn the next pick into an exclusion nobody
+ * asked for. Drops those modes; every other value passes through untouched.
+ */
+export function withoutIdleModes(
+    config: FilterConfig,
+    values: Record<string, any>,
+): Record<string, any> {
+    const next = { ...values };
+
+    for (const field of config.fields) {
+        if (!field.exclusions?.length) continue;
+
+        const modeKey = modeKeyOf(field.key);
+        const hasValue = valueKeysOf(field).some(
+            (key) => !isEmptyFilterValue(next[key]),
+        );
+
+        if (next[modeKey] === "not_in" && !hasValue) {
+            delete next[modeKey];
+        }
+    }
+
+    return next;
+}
+
 /** Valid mode for a field out of raw state, or null for the default ("is one of"). */
 export function activeModeOf(
     field: FilterFieldConfig,
@@ -250,7 +278,7 @@ function buildFilterVisitParams(
         delete params[key];
     });
 
-    Object.entries(values).forEach(([key, value]) => {
+    Object.entries(withoutIdleModes(config, values)).forEach(([key, value]) => {
         if (excluded.has(key) || isEmptyFilterValue(value)) return;
         // Multiselect values are comma-joined on the wire so setConfig's URL
         // parser (which splits on ",") can read them back.
@@ -493,8 +521,8 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
     const applyFilters = useCallback(() => {
         if (!config) return;
 
-        // Copy draft state to applied state
-        setFilters({ ...draftFilters });
+        // Copy draft state to applied state (without an "Is not" that excludes nothing)
+        setFilters(withoutIdleModes(config, draftFilters));
         setFilterMetadata({ ...draftFilterMetadata });
 
         // Use draftFilters since applied state hasn't updated yet

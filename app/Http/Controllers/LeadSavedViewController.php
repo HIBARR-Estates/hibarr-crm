@@ -49,11 +49,13 @@ class LeadSavedViewController extends AccountBaseController
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $view = LeadSavedView::findOrFail($id);
         $userId = (int) user()->id;
 
         // A private view of someone else's is not a view this user can see, so
-        // it answers like one that does not exist.
+        // it answers like one that does not exist (404), not 403, which would
+        // confirm the id is real. 403 is for a view the user can see (shared
+        // with the team) but may not change.
+        $view = LeadSavedView::query()->visibleTo($userId)->findOrFail($id);
         abort_unless($view->isManageableBy($userId, LeadSavedView::viewerIsAdmin()), 403);
 
         $data = $this->validated($request, partial: true);
@@ -86,9 +88,12 @@ class LeadSavedViewController extends AccountBaseController
 
     public function destroy(int $id): JsonResponse
     {
-        $view = LeadSavedView::findOrFail($id);
+        $userId = (int) user()->id;
 
-        abort_unless($view->isManageableBy((int) user()->id, LeadSavedView::viewerIsAdmin()), 403);
+        // Same lookup as update(): someone else's private view is not found.
+        $view = LeadSavedView::query()->visibleTo($userId)->findOrFail($id);
+
+        abort_unless($view->isManageableBy($userId, LeadSavedView::viewerIsAdmin()), 403);
 
         $view->delete();
 

@@ -7,6 +7,7 @@ import {
     modeKeyOf,
     useFilter,
     valueKeysOf,
+    withoutIdleModes,
     type ExclusionMode,
     type FilterConfig,
     type FilterFieldConfig,
@@ -231,8 +232,12 @@ export default function EntityFilterModal({
         const counts: Record<string, number> = {};
         for (const section of sections) {
             counts[section.name] = section.fields.reduce((total, field) => {
-                // "Is empty" / "Has any" filter with no value of their own.
-                if (activeModeOf(field, draftFilters) && !hasDraftValue(field)) {
+                // "Is empty" / "Has any" filter with no value of their own. "Is not"
+                // with nothing picked filters nothing, so it does not count.
+                if (
+                    isValuelessMode(activeModeOf(field, draftFilters)) &&
+                    !hasDraftValue(field)
+                ) {
                     return total + 1;
                 }
                 if (field.control === "datePresets") {
@@ -303,12 +308,19 @@ export default function EntityFilterModal({
         visibility: "private" | "team";
         pinned: boolean;
     }) => {
-        // Persist exactly what the backend will read back as query params.
-        const filters = storableFilters(draftFilters);
-
+        // Renaming changes the name, pin and sharing only. A view's filters are
+        // replaced on purpose, from the drawer ("Update with current filters"),
+        // never as a side effect of a rename: for an admin on a team view that
+        // would silently overwrite what the whole team has saved.
         const result = renameTarget
-            ? await updateView(renameTarget.id, { ...payload, filters })
-            : await createView({ ...payload, filters });
+            ? await updateView(renameTarget.id, payload)
+            : // Persist exactly what the backend will read back as query params.
+              await createView({
+                  ...payload,
+                  filters: storableFilters(
+                      withoutIdleModes(config, draftFilters),
+                  ),
+              });
 
         if (result) {
             message.success(
@@ -863,7 +875,9 @@ export default function EntityFilterModal({
                         config={config}
                         activeViewId={activeViewId}
                         saving={saving}
-                        currentFilters={storableFilters(draftFilters)}
+                        currentFilters={storableFilters(
+                            withoutIdleModes(config, draftFilters),
+                        )}
                         onClose={() => setViewsDrawerOpen(false)}
                         onApply={(view) => {
                             applyView(view);
