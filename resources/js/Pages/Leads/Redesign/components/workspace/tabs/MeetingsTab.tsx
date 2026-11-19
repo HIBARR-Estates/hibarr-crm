@@ -504,6 +504,7 @@ export default function MeetingsTab({
                     )
                 }
                 mustIncludeOwner={mustIncludeOwner}
+                calendlyTarget={{ type: "lead", id: lead.id }}
                 labels={{
                     title: td("Schedule meeting", { source: "en" }),
                     cancel: td("Cancel", { source: "en" }),

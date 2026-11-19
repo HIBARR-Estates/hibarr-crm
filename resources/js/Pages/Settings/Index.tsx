@@ -123,6 +123,19 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
                               ),
                           ),
                   },
+                  {
+                      key: "calendly-links",
+                      icon: <CalendarIcon />,
+                      iconBg: "bg-sky-50",
+                      iconColor: "text-sky-500",
+                      title: t("pages.meetings.calendly_settings.hub_title"),
+                      description: t(
+                          "pages.meetings.calendly_settings.hub_description",
+                      ),
+                      connected: true,
+                      onOpen: () =>
+                          router.visit(route("calendly-meeting-links.index")),
+                  },
               ]
             : []),
         {

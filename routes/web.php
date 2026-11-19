@@ -821,6 +821,9 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     // Meeting Summary Routes
     Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');
 
+    // Calendly links the schedule-meeting modal offers for one lead/deal
+    Route::get('meetings/calendly-links', \App\Http\Controllers\CalendlyMeetingLinkOptionsController::class)->name('meetings.calendly_links');
+
     // Meeting Types
     Route::resource('meeting-types', MeetingTypeController::class);
 

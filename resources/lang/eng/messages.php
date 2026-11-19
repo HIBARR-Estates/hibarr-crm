@@ -542,6 +542,7 @@ return [
     'requestSubmitSuccess' => 'Request submitted successfully.',
     'existingShiftOverride' => 'The existing shift will be overridden.',
     'leadFollowUpRestricted' => 'Follow-up is disabled for this user.',
+    'calendlyLinkMustBeCalendly' => 'Enter a secure link from calendly.com, for example https://calendly.com/your-team/intro-call.',
     'invalidDealForLead' => 'The selected deal does not belong to this lead.',
     'crmWriteTargetRequired' => 'At least one of lead_id or deal_id is required.',
     'sallyInsightUpdated' => 'Summary updated.',

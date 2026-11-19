@@ -1,9 +1,17 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import MeetingFormFields from "@/Components/Redesign/meeting/MeetingFormFields";
+import CalendlyBookingPanel from "@/Components/Redesign/meeting/CalendlyBookingPanel";
+import SchedulingOptionPicker, {
+    type SchedulingChoice,
+} from "@/Components/Redesign/meeting/SchedulingOptionPicker";
+import useCalendlyLinks, {
+    type CalendlyTarget,
+} from "@/Components/Redesign/meeting/useCalendlyLinks";
 import AgentDialog from "@/Components/Redesign/agent/AgentDialog";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import {
@@ -77,6 +85,13 @@ interface ScheduleMeetingModalProps {
     relatedField?: ReactNode;
     /** Agent variant: label for the close button. */
     closeLabel?: string;
+    /**
+     * The lead or deal this meeting is for. When it is known and the company
+     * has Calendly booking pages this user may use, the dialog offers them as
+     * an alternative to picking the time here. Left out (or null until a
+     * record is chosen) the dialog behaves exactly as it always has.
+     */
+    calendlyTarget?: CalendlyTarget | null;
 }
 
 export default function ScheduleMeetingModal({
@@ -97,11 +112,35 @@ export default function ScheduleMeetingModal({
     variant = "default",
     relatedField,
     closeLabel,
+    calendlyTarget = null,
 }: ScheduleMeetingModalProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const [form, setForm] = useState<MeetingFormState>(initialForm);
     const [step, setStep] = useState(0);
     const seededForOpenRef = useRef(false);
+
+    // How the time gets decided: here, or on one of the Calendly booking pages.
+    const { links: calendlyLinks } = useCalendlyLinks(calendlyTarget, open);
+    const [choice, setChoice] = useState<SchedulingChoice>("manual");
+    // A link that has since been removed or hidden falls back to the form.
+    const selectedLink =
+        typeof choice === "number"
+            ? (calendlyLinks.find((link) => link.id === choice) ?? null)
+            : null;
+    const calendlyType = calendlyTarget?.type ?? "lead";
+    const showChoice = calendlyLinks.length > 0;
+
+    // A fresh choice per visit and per record — "use the booking page" carried
+    // over to another lead would open a link filled in for the wrong person.
+    useEffect(() => {
+        setChoice("manual");
+    }, [open, calendlyTarget?.type, calendlyTarget?.id]);
+
+    const openBookingPage = () => {
+        if (!selectedLink) return;
+        window.open(selectedLink.url, "_blank", "noopener,noreferrer");
+    };
 
     // Seed once per open session — not when parent re-renders with a fresh
     // initialForm object (e.g. after validation sets errors). Date/time are
@@ -151,14 +190,24 @@ export default function ScheduleMeetingModal({
                         <Button variant="ghost" onClick={handleClose} disabled={saving}>
                             {labels.cancel}
                         </Button>
-                        <Button
-                            variant="primary"
-                            onClick={() => onSubmit(form)}
-                            loading={saving}
-                            disabled={saving || !form.date || !form.startTime}
-                        >
-                            {labels.submit}
-                        </Button>
+                        {selectedLink ? (
+                            <Button
+                                variant="primary"
+                                onClick={openBookingPage}
+                                icon={<Icon name="calendar" size={14} />}
+                            >
+                                {t("pages.meetings.calendly.open")}
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="primary"
+                                onClick={() => onSubmit(form)}
+                                loading={saving}
+                                disabled={saving || !form.date || !form.startTime}
+                            >
+                                {labels.submit}
+                            </Button>
+                        )}
                     </>
                 }
             >
@@ -169,17 +218,32 @@ export default function ScheduleMeetingModal({
                         ))}
                     </ul>
                 )}
-                <MeetingFormFields
-                    form={form}
-                    onChange={(patch) =>
-                        setForm((current) => ({ ...current, ...patch }))
-                    }
-                    meetingTypes={meetingTypes}
-                    disabled={saving}
-                    mustIncludeOwner={mustIncludeOwner}
-                    layout="columns"
-                    relatedField={relatedField}
-                />
+                {showChoice && (
+                    <SchedulingOptionPicker
+                        value={choice}
+                        onChange={setChoice}
+                        links={calendlyLinks}
+                        disabled={saving}
+                    />
+                )}
+                {selectedLink ? (
+                    <CalendlyBookingPanel
+                        link={selectedLink}
+                        recordType={calendlyType}
+                    />
+                ) : (
+                    <MeetingFormFields
+                        form={form}
+                        onChange={(patch) =>
+                            setForm((current) => ({ ...current, ...patch }))
+                        }
+                        meetingTypes={meetingTypes}
+                        disabled={saving}
+                        mustIncludeOwner={mustIncludeOwner}
+                        layout="columns"
+                        relatedField={relatedField}
+                    />
+                )}
             </AgentDialog>
         );
     }
@@ -205,7 +269,17 @@ export default function ScheduleMeetingModal({
                             ? (stepLabels?.back ?? td("Back"))
                             : labels.cancel}
                     </Button>
-                    {stepped && step === 0 ? (
+                    {selectedLink ? (
+                        // The time is picked on the booking page, so there is
+                        // nothing here to continue or submit.
+                        <Button
+                            variant="primary"
+                            onClick={openBookingPage}
+                            icon={<Icon name="calendar" size={14} />}
+                        >
+                            {t("pages.meetings.calendly.open")}
+                        </Button>
+                    ) : stepped && step === 0 ? (
                         <Button
                             variant="primary"
                             onClick={() => setStep(1)}
@@ -241,7 +315,7 @@ export default function ScheduleMeetingModal({
                 </div>
             )}
 
-            {stepped && (
+            {stepped && !selectedLink && (
                 <p
                     className="mb-3 font-semibold uppercase"
                     style={{
@@ -259,22 +333,40 @@ export default function ScheduleMeetingModal({
                 it is about a meeting for that record. */}
             {(!stepped || step === 0) && extraFields}
 
-            <MeetingFormFields
-                form={form}
-                onChange={(patch) =>
-                    setForm((current) => ({ ...current, ...patch }))
-                }
-                meetingTypes={meetingTypes}
-                disabled={saving}
-                mustIncludeOwner={mustIncludeOwner}
-                section={
-                    stepped
-                        ? step === 0
-                            ? "essentials"
-                            : "details"
-                        : undefined
-                }
-            />
+            {showChoice && (!stepped || step === 0) && (
+                <SchedulingOptionPicker
+                    value={choice}
+                    onChange={setChoice}
+                    links={calendlyLinks}
+                    disabled={saving}
+                />
+            )}
+
+            {selectedLink ? (
+                // Everything else on the dialog is replaced: the booking page
+                // decides the date and time, so there is nothing left to ask.
+                <CalendlyBookingPanel
+                    link={selectedLink}
+                    recordType={calendlyType}
+                />
+            ) : (
+                <MeetingFormFields
+                    form={form}
+                    onChange={(patch) =>
+                        setForm((current) => ({ ...current, ...patch }))
+                    }
+                    meetingTypes={meetingTypes}
+                    disabled={saving}
+                    mustIncludeOwner={mustIncludeOwner}
+                    section={
+                        stepped
+                            ? step === 0
+                                ? "essentials"
+                                : "details"
+                            : undefined
+                    }
+                />
+            )}
         </Modal>
     );
 }
