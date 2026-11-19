@@ -85,6 +85,30 @@ export function withoutIdleModes(
     return next;
 }
 
+/**
+ * Metadata (label and display value, read by the legacy active-filter chips and
+ * counts) for exactly the filters that are in force: nothing for a key that was
+ * dropped, and none for a mode key, which belongs to its field's own entry. The
+ * same rule setConfig follows when it restores state from the URL.
+ */
+function metadataFor(
+    config: FilterConfig,
+    filters: Record<string, any>,
+    metadata: Record<string, FilterValue>,
+): Record<string, FilterValue> {
+    const modeKeys = new Set(
+        config.fields
+            .filter((field) => field.exclusions?.length)
+            .map((field) => modeKeyOf(field.key)),
+    );
+
+    return Object.fromEntries(
+        Object.entries(metadata).filter(
+            ([key]) => key in filters && !modeKeys.has(key),
+        ),
+    );
+}
+
 /** Valid mode for a field out of raw state, or null for the default ("is one of"). */
 export function activeModeOf(
     field: FilterFieldConfig,
@@ -521,9 +545,11 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
     const applyFilters = useCallback(() => {
         if (!config) return;
 
-        // Copy draft state to applied state (without an "Is not" that excludes nothing)
-        setFilters(withoutIdleModes(config, draftFilters));
-        setFilterMetadata({ ...draftFilterMetadata });
+        // Copy draft state to applied state (without an "Is not" that excludes
+        // nothing, and with metadata that matches what is left)
+        const applied = withoutIdleModes(config, draftFilters);
+        setFilters(applied);
+        setFilterMetadata(metadataFor(config, applied, draftFilterMetadata));
 
         // Use draftFilters since applied state hasn't updated yet
         const finalParams = buildFilterVisitParams(config, draftFilters);
