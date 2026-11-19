@@ -27,8 +27,10 @@ class CalendlyMeetingLinkOptionsController extends AccountBaseController
             'record_type' => 'required|in:lead,deal',
             'record_id' => 'required|integer',
             // Comma-separated user ids. Absent = just the signed-in user (the
-            // default); present but empty = nobody.
-            'guest_ids' => 'nullable|string|max:200',
+            // default); present but empty = nobody. Generous on purpose: only
+            // the first few become guests, and a long list must not fail the
+            // whole request and make the booking option vanish.
+            'guest_ids' => 'nullable|string|max:2000',
         ]);
 
         $recordId = (int) $validated['record_id'];
@@ -67,7 +69,7 @@ class CalendlyMeetingLinkOptionsController extends AccountBaseController
     {
         $ids = $guestIds === null
             ? [(int) user()->id]
-            : array_values(array_unique(array_filter(array_map('intval', explode(',', $guestIds)))));
+            : array_slice(array_values(array_unique(array_filter(array_map('intval', explode(',', $guestIds))))), 0, CalendlyLinkBuilder::MAX_GUESTS * 2);
 
         if ($ids === []) {
             return [];

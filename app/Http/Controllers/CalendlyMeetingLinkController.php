@@ -152,9 +152,29 @@ class CalendlyMeetingLinkController extends AccountBaseController
      */
     public static function isCalendlyUrl(string $url): bool
     {
-        $parts = parse_url(trim($url));
+        $url = trim($url);
+
+        // The browser decides where the link goes, and it reads the address
+        // differently from PHP: `https://evil.example\@calendly.com/` has host
+        // calendly.com to parse_url, but a browser treats the backslash as a
+        // slash and connects to evil.example. So the address itself must have
+        // the plain shape https://<calendly host>/..., the same rule the
+        // settings dialog applies, before it is parsed at all.
+        if (preg_match('~^https://([a-z0-9-]+\.)*calendly\.com(/|\?|#|$)~i', $url) !== 1) {
+            return false;
+        }
+
+        $parts = parse_url($url);
 
         if (! is_array($parts) || ($parts['scheme'] ?? '') !== 'https' || empty($parts['host'])) {
+            return false;
+        }
+
+        // No credentials or custom port, and nothing that could be read as a
+        // separator (backslash, whitespace, control characters).
+        if (isset($parts['user']) || isset($parts['pass']) || isset($parts['port'])
+            || str_contains($url, '\\')
+            || preg_match('/[\s\x00-\x1f\x7f]/', $url) === 1) {
             return false;
         }
 

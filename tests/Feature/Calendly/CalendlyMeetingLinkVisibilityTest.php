@@ -63,6 +63,13 @@ class CalendlyMeetingLinkVisibilityTest extends CalendlyTestCase
             'https://notcalendly.com/team',
             'https://evil.example.com/?next=https://calendly.com/team',
             'javascript:alert(1)',
+            // parse_url reads the host as calendly.com; a browser goes to evil.example.
+            'https://evil.example\\@calendly.com/team',
+            'https://evil.example\\@calendly.com',
+            'https://user:pass@calendly.com/team',
+            'https://calendly.com:8443/team',
+            "https://calendly.com/team\n.evil.example",
+            'https://calendly.com/te am',
             'calendly.com/team/intro',
             '',
         ] as $refused) {
