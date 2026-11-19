@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -279,10 +279,17 @@ export default function PaymentRequestDetailModal({
     const [requestedId, setRequestedId] = useState<number | null>(null);
     const [confirmRequestOpen, setConfirmRequestOpen] = useState(false);
     const [invoiceOpenedId, setInvoiceOpenedId] = useState<number | null>(null);
+    const pollTimer = useRef<number | null>(null);
+    const stopPolling = () => {
+        if (pollTimer.current != null) window.clearTimeout(pollTimer.current);
+        pollTimer.current = null;
+    };
     useEffect(() => {
         setRequestedId(null);
         setInvoiceOpenedId(null);
         setConfirmRequestOpen(false);
+        stopPolling();
+        return stopPolling;
     }, [request?.id]);
 
     if (!request) return null;
@@ -420,10 +427,11 @@ export default function PaymentRequestDetailModal({
                                         setInvoiceOpenedId(id);
                                         onDocumentsRequested?.(fresh);
                                     } else if (attempts < 6) {
-                                        window.setTimeout(poll, 3000);
+                                        pollTimer.current = window.setTimeout(poll, 3000);
                                     }
                                 };
-                                window.setTimeout(poll, 2500);
+                                stopPolling();
+                                pollTimer.current = window.setTimeout(poll, 2500);
                             }}
                         />
                     )}
