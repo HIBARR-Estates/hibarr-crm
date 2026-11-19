@@ -412,13 +412,18 @@ export default function PaymentRequestDetailModal({
                             onOpen={() => {
                                 const id = request.id;
                                 // The invoice is made server-side by the download; only unlock the receipt once it exists.
-                                window.setTimeout(async () => {
+                                let attempts = 0;
+                                const poll = async () => {
+                                    attempts += 1;
                                     const fresh = await requestDocuments(request.deal_id, id, true);
                                     if (fresh?.invoice_issued) {
                                         setInvoiceOpenedId(id);
                                         onDocumentsRequested?.(fresh);
+                                    } else if (attempts < 6) {
+                                        window.setTimeout(poll, 3000);
                                     }
-                                }, 2500);
+                                };
+                                window.setTimeout(poll, 2500);
                             }}
                         />
                     )}
