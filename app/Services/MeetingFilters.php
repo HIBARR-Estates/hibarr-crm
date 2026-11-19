@@ -23,6 +23,24 @@ class MeetingFilters
 
     public const ATTENDANCE = ['attended', 'no_show'];
 
+    /**
+     * Modes each filter offers (the filter modal's field config is the
+     * contract; a mode it does not offer is ignored and dropped from saved views).
+     */
+    private const KEY_MODES = [
+        'meeting_type_id' => ['not_in', 'empty'],
+        'status' => ['not_in'],
+        'location' => ['not_in', 'empty'],
+        'host_id' => ['not_in'],
+        'attendance' => ['empty'],
+    ];
+
+    /** @return list<string> */
+    public static function modesFor(string $key): array
+    {
+        return self::KEY_MODES[$key] ?? [];
+    }
+
     /** @return list<string> */
     public static function modeKeys(): array
     {
@@ -49,26 +67,26 @@ class MeetingFilters
     {
         ExclusionFilter::column(
             $query,
-            $this->listFilter($request, 'meeting_type_id', ['not_in', 'empty']),
+            $this->listFilter($request, 'meeting_type_id'),
             'meeting_type_id'
         );
 
         ExclusionFilter::column(
             $query,
-            $this->listFilter($request, 'status', ['not_in'], self::STATUSES),
+            $this->listFilter($request, 'status', self::STATUSES),
             'status'
         );
 
         ExclusionFilter::column(
             $query,
-            $this->listFilter($request, 'location', ['not_in', 'empty']),
+            $this->listFilter($request, 'location'),
             'location',
             isText: true
         );
 
         ExclusionFilter::column(
             $query,
-            $this->listFilter($request, 'attendance', ['empty'], self::ATTENDANCE),
+            $this->listFilter($request, 'attendance', self::ATTENDANCE),
             'attendance_outcome',
             isText: true
         );
@@ -85,7 +103,7 @@ class MeetingFilters
      */
     public function includedAttendance(Request $request): array
     {
-        if (ExclusionFilter::modeOf($request, 'attendance', ['empty']) !== 'in') {
+        if (ExclusionFilter::modeOf($request, 'attendance', self::modesFor('attendance')) !== 'in') {
             return [];
         }
 
@@ -95,15 +113,14 @@ class MeetingFilters
     /** "Not recorded yet": the meetings still waiting on an attendance outcome. */
     public function wantsUnrecordedAttendance(Request $request): bool
     {
-        return ExclusionFilter::modeOf($request, 'attendance', ['empty']) === 'empty';
+        return ExclusionFilter::modeOf($request, 'attendance', self::modesFor('attendance')) === 'empty';
     }
 
     /**
-     * @param  list<string>  $allowed  modes this filter takes
      * @param  list<string>|null  $only  values to keep, for filters with a fixed set
      * @return array{0: string, 1: array<int, string>}|null [mode, values]
      */
-    private function listFilter(Request $request, string $key, array $allowed, ?array $only = null): ?array
+    private function listFilter(Request $request, string $key, ?array $only = null): ?array
     {
         $values = self::csv($request->get($key));
 
@@ -111,7 +128,7 @@ class MeetingFilters
             $values = array_values(array_intersect($values, $only));
         }
 
-        return ExclusionFilter::resolve(ExclusionFilter::modeOf($request, $key, $allowed), $values);
+        return ExclusionFilter::resolve(ExclusionFilter::modeOf($request, $key, self::modesFor($key)), $values);
     }
 
     /**
@@ -121,7 +138,7 @@ class MeetingFilters
      */
     private function applyHost(Builder $query, Request $request): void
     {
-        $filter = $this->listFilter($request, 'host_id', ['not_in']);
+        $filter = $this->listFilter($request, 'host_id');
         if ($filter === null) {
             return;
         }

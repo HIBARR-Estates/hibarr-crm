@@ -115,7 +115,6 @@ class TaskFilterExclusionTest extends TestCase
 
         $this->assertSame([$low, $blank, $null], $this->ids(['priority' => 'high', 'priority_mode' => 'not_in']));
         $this->assertSame([$blank, $null], $this->ids(['priority_mode' => 'empty']));
-        $this->assertSame([$high, $low], $this->ids(['priority_mode' => 'any']));
         $this->assertSame([$high], $this->ids(['priority' => 'high']));
     }
 
@@ -129,7 +128,6 @@ class TaskFilterExclusionTest extends TestCase
 
         $this->assertSame([$b, $none], $this->ids(['category_id' => '1', 'category_id_mode' => 'not_in']));
         $this->assertSame([$none], $this->ids(['category_id_mode' => 'empty']));
-        $this->assertSame([$a, $b], $this->ids(['category_id_mode' => 'any']));
     }
 
     public function test_project_is_a_single_pick_and_its_exclusions_keep_standalone_tasks(): void
@@ -142,7 +140,6 @@ class TaskFilterExclusionTest extends TestCase
         $this->assertSame([$inFive, $inSix, $standalone], $this->ids(['project_id' => 'all']));
         $this->assertSame([$inSix, $standalone], $this->ids(['project_id' => '5', 'project_id_mode' => 'not_in']));
         $this->assertSame([$standalone], $this->ids(['project_id_mode' => 'empty']));
-        $this->assertSame([$inFive, $inSix], $this->ids(['project_id_mode' => 'any']));
     }
 
     // ── labels (pivot) ───────────────────────────────────────────────────
@@ -179,8 +176,6 @@ class TaskFilterExclusionTest extends TestCase
         $this->assertSame([$byBen, $nobody], $this->ids(['assigned_by' => '11', 'assigned_by_mode' => 'not_in']));
         // Unchanged: "is one of" matches either column.
         $this->assertSame([$addedByAnna, $createdByAnna], $this->ids(['assigned_by' => '11']));
-        $this->assertSame([$nobody], $this->ids(['assigned_by_mode' => 'empty']));
-        $this->assertSame([$addedByAnna, $createdByAnna, $byBen], $this->ids(['assigned_by_mode' => 'any']));
     }
 
     // ── due date ─────────────────────────────────────────────────────────
@@ -207,6 +202,17 @@ class TaskFilterExclusionTest extends TestCase
         $this->assertFalse($filters->applyDueMode(Task::query(), Request::create('/', 'GET', ['due_date_range_mode' => 'not_in'])));
     }
 
+    public function test_a_mode_a_filter_does_not_offer_is_ignored(): void
+    {
+        $a = $this->insertTask(['priority' => 'high', 'task_category_id' => 1, 'project_id' => 5, 'added_by' => 11, 'board_column_id' => $this->todoColumn]);
+        $b = $this->insertTask(['priority' => null, 'task_category_id' => null, 'project_id' => null, 'added_by' => null, 'board_column_id' => null]);
+
+        // The modal offers these "is not" / "is empty" (assigned by and status: "is not" only), never the rest.
+        foreach (['priority_mode' => 'any', 'category_id_mode' => 'any', 'project_id_mode' => 'any', 'assigned_by_mode' => 'empty', 'assigned_by_mode ' => 'any', 'status_mode' => 'empty'] as $key => $mode) {
+            $this->assertSame([$a, $b], $this->ids([trim($key) => $mode]), trim($key)." takes no '{$mode}'");
+        }
+    }
+
     // ── whitelist ────────────────────────────────────────────────────────
 
     public function test_saved_views_keep_modes_and_drop_anything_that_is_not_one(): void
@@ -219,6 +225,9 @@ class TaskFilterExclusionTest extends TestCase
             'due_date_range_mode' => 'any',
             'per_page' => 5000,
             'unknown_mode' => 'empty',
+            // Modes the filter does not offer are not modes.
+            'priority_mode' => 'any',
+            'assigned_by_mode' => 'empty',
         ]);
 
         $this->assertSame(

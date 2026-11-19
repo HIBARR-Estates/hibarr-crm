@@ -163,6 +163,9 @@ class MeetingFilterExclusionTest extends TestCase
             'status_mode' => 'not_in',
             'location_mode' => 'sideways',
             'attendance_mode' => 'empty',
+            // Modes the filter does not offer are not modes.
+            'host_id_mode' => 'empty',
+            'status_mode_extra' => 'empty',
             'per_page' => 5000,
         ]);
 

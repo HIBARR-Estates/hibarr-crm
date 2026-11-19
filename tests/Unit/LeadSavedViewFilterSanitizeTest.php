@@ -82,6 +82,23 @@ class LeadSavedViewFilterSanitizeTest extends TestCase
         $this->assertSame(['lead_source' => '1', 'gender_mode' => 'empty'], $result);
     }
 
+    public function test_drops_a_mode_the_filter_does_not_offer(): void
+    {
+        // Owner and referrer offer "has any"; nothing else does, and a few offer less.
+        $result = LeadSavedView::sanitizeFilters([
+            'lead_owner_id_mode' => 'any',
+            'referred_by_agent_id_mode' => 'any',
+            'gender_mode' => 'any',
+            'lead_source_mode' => 'any',
+            'cf_12_mode' => 'any',
+            'added_by_id_mode' => 'empty',
+            'contact_score_mode' => 'not_in',
+            'qualification_answer_values_mode' => 'any',
+        ]);
+
+        $this->assertSame(['lead_owner_id_mode' => 'any', 'referred_by_agent_id_mode' => 'any'], $result);
+    }
+
     public function test_drops_a_mode_for_a_filter_that_has_none(): void
     {
         // `search` and `lead_type` take no mode; a stray one is not a request param.

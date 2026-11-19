@@ -20,6 +20,26 @@ use Illuminate\Http\Request;
 class DealFilters
 {
     /**
+     * Modes a filter takes, where that is fewer than all of them. The filter
+     * modal's field config is the contract: a mode it does not offer would
+     * filter with no chip or switch to show it, so it is ignored. (Pipeline and
+     * stage are required columns that the board and the table both scope by,
+     * so only "is not" means anything there.)
+     */
+    private const KEY_MODES = [
+        'lead_pipeline_id' => ['not_in'],
+        'pipeline_stage_id' => ['not_in'],
+        'category_id' => ['not_in', 'empty'],
+        'source_id' => ['not_in', 'empty'],
+    ];
+
+    /** @return list<string> */
+    private function modesFor(string $key): array
+    {
+        return self::KEY_MODES[$key] ?? ExclusionFilter::MODES;
+    }
+
+    /**
      * Everything except pipeline/stage, which callers scope themselves
      * (a kanban column *is* a stage).
      */
@@ -116,7 +136,9 @@ class DealFilters
      */
     public function includedValues(Request $request, string $key): array
     {
-        return ExclusionFilter::modeOf($request, $key) === 'in' ? $this->values($request, $key) : [];
+        return ExclusionFilter::modeOf($request, $key, $this->modesFor($key)) === 'in'
+            ? $this->values($request, $key)
+            : [];
     }
 
     /**
@@ -129,17 +151,24 @@ class DealFilters
      */
     public function firstPipelineNotExcluded(Request $request, array $candidateIds): ?int
     {
-        $excluded = ExclusionFilter::modeOf($request, 'lead_pipeline_id') === 'not_in'
-            ? $this->values($request, 'lead_pipeline_id')
-            : [];
-
         foreach ($candidateIds as $id) {
-            if ($id !== null && ! in_array((string) $id, $excluded, true)) {
+            if ($id !== null && ! $this->pipelineExcluded($request, $id)) {
                 return (int) $id;
             }
         }
 
         return null;
+    }
+
+    /** Whether the pipeline filter is an "is not" that rules this pipeline out. */
+    public function pipelineExcluded(Request $request, int|string|null $pipelineId): bool
+    {
+        if ($pipelineId === null) {
+            return false;
+        }
+
+        return ExclusionFilter::modeOf($request, 'lead_pipeline_id', $this->modesFor('lead_pipeline_id')) === 'not_in'
+            && in_array((string) $pipelineId, $this->values($request, 'lead_pipeline_id'), true);
     }
 
     /**
@@ -148,7 +177,7 @@ class DealFilters
     private function listFilter(Request $request, string $key): ?array
     {
         return ExclusionFilter::resolve(
-            ExclusionFilter::modeOf($request, $key),
+            ExclusionFilter::modeOf($request, $key, $this->modesFor($key)),
             $this->values($request, $key)
         );
     }

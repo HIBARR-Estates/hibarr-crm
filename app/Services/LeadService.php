@@ -79,6 +79,30 @@ class LeadService
      */
     public const FILTER_MODES = ['not_in', 'empty', 'any'];
 
+    /**
+     * Modes a filter offers where that is fewer than "not in" and "empty" (the
+     * default) or more. The filter modal's field config is the contract: a mode
+     * it does not offer would filter with no chip, badge or switch to show it,
+     * so it is ignored here and dropped from saved views.
+     */
+    private const MODE_FILTER_MODES = [
+        'lead_owner_id' => ['not_in', 'empty', 'any'],
+        'referred_by_agent_id' => ['not_in', 'empty', 'any'],
+        'added_by_id' => ['not_in'],
+        'contact_score' => ['empty'],
+    ];
+
+    /**
+     * The modes a `<key>_mode` may carry. Custom fields (`cf_12`) and every
+     * other multi-value filter take "not in" and "empty".
+     *
+     * @return list<string>
+     */
+    public static function modesFor(string $key): array
+    {
+        return self::MODE_FILTER_MODES[$key] ?? ['not_in', 'empty'];
+    }
+
     /** Filters that accept the `<key>_mode` companion param. */
     public const MODE_FILTER_KEYS = [
         'lead_source',
@@ -707,10 +731,10 @@ class LeadService
         );
     }
 
-    /** `in` (the default), or one of FILTER_MODES from the `<key>_mode` param. */
+    /** `in` (the default), or one of the modes this filter offers from `<key>_mode`. */
     private function exclusionMode(Request $request, string $key): string
     {
-        return ExclusionFilter::modeOf($request, $key, self::FILTER_MODES);
+        return ExclusionFilter::modeOf($request, $key, self::modesFor($key));
     }
 
     /**
@@ -959,8 +983,12 @@ class LeadService
             if (! isset($allowed[$key]) && ! (is_string($key) && self::isCustomFieldFilterKey($key))) {
                 continue;
             }
-            // A mode is one of a fixed few words; anything else is not a mode.
-            if (is_string($key) && str_ends_with($key, '_mode') && ! in_array($value, self::FILTER_MODES, true)) {
+            // A mode is one of the few words its filter offers; anything else is not a mode.
+            if (
+                is_string($key)
+                && str_ends_with($key, '_mode')
+                && ! in_array($value, self::modesFor(substr($key, 0, -strlen('_mode'))), true)
+            ) {
                 continue;
             }
 

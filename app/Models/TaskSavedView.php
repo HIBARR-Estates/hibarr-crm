@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Support\ExclusionFilter;
+use App\Services\TaskFilters;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -99,7 +99,8 @@ class TaskSavedView extends BaseModel
             $allowed,
             fn ($value, $key) => $value !== null && $value !== '' && $value !== []
                 // A mode is one of a fixed few words; anything else is not a mode.
-                && (! str_ends_with((string) $key, '_mode') || in_array($value, ExclusionFilter::MODES, true)),
+                && (! str_ends_with((string) $key, '_mode')
+                    || in_array($value, TaskFilters::modesFor(substr((string) $key, 0, -strlen('_mode'))), true)),
             ARRAY_FILTER_USE_BOTH
         );
     }

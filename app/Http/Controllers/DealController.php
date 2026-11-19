@@ -182,7 +182,9 @@ class DealController extends AccountBaseController
             ? $requestedPipelines[0]
             : $this->pipelineOutsideExclusion($request);
 
-        $boardColumns = $isKanbanView
+        // With every pipeline excluded there is no pipeline left to show: the
+        // board stays empty, like the table, instead of showing the default one.
+        $boardColumns = $isKanbanView && ! app(DealFilters::class)->pipelineExcluded($request, $pipelineId)
             ? $this->getBoardColumns($request, $pipelineId)
             : [];
 
@@ -338,7 +340,8 @@ class DealController extends AccountBaseController
     /**
      * The pipeline a board opens on when the filter does not name exactly one:
      * the default pipeline, unless the filter excludes it, then the first that
-     * it does not. Every pipeline excluded leaves the default (an empty board).
+     * it does not. With every pipeline excluded it keeps the default, and the
+     * callers then show nothing for it (see pipelineExcluded()).
      */
     private function pipelineOutsideExclusion(Request $request): ?int
     {
@@ -671,13 +674,15 @@ class DealController extends AccountBaseController
         // and the in-list search (done in the browser) are not part of it.
         $query = $request->except(['outcome_status', 'lead_pipeline_id', 'lead_pipeline_id_mode', 'page', 'view', 'search']);
         $filterRequest = Request::create('/', 'GET', array_merge($query, ['lead_pipeline_id' => $pipelineId]));
+        // Every pipeline excluded: the one kept for the page is itself ruled out.
+        $nothingToShow = $filters->pipelineExcluded($request, $pipelineId);
 
         $stages = PipelineStage::query()
             ->where('lead_pipeline_id', $pipelineId)
             ->orderBy('priority')
             ->get(['id', 'name', 'label_color', 'priority']);
 
-        $totals = $this->agentDealsBase($filterRequest, $pipelineId)
+        $totals = $this->agentDealsBase($filterRequest, $pipelineId, $nothingToShow)
             ->whereNull('deals.outcome_status')
             ->toBase()
             ->selectRaw('deals.pipeline_stage_id as stage_id, COUNT(*) as deals_count, COALESCE(SUM(deals.value), 0) as total_value')
@@ -686,7 +691,7 @@ class DealController extends AccountBaseController
             ->keyBy('stage_id');
 
         $monthStart = now()->startOfMonth();
-        $outcome = fn (OutcomeStatus $status, string $dateExpression) => (array) $this->agentDealsBase($filterRequest, $pipelineId)
+        $outcome = fn (OutcomeStatus $status, string $dateExpression) => (array) $this->agentDealsBase($filterRequest, $pipelineId, $nothingToShow)
             ->where('deals.outcome_status', $status->value)
             ->whereRaw($dateExpression.' >= ?', [$monthStart])
             ->toBase()
@@ -696,7 +701,7 @@ class DealController extends AccountBaseController
         $won = $outcome(OutcomeStatus::Won, 'COALESCE(deals.won_at, deals.updated_at)');
         $lost = $outcome(OutcomeStatus::Lost, 'deals.updated_at');
 
-        $mapDeals = fn () => $this->agentDealsBase($filterRequest, $pipelineId)
+        $mapDeals = fn () => $this->agentDealsBase($filterRequest, $pipelineId, $nothingToShow)
             ->whereNull('deals.outcome_status')
             ->with(['leadAgent.user:id,name', 'contact:id,client_name', 'currency:id,currency_symbol,currency_code'])
             ->select('deals.id', 'deals.name', 'deals.lead_id', 'deals.lead_pipeline_id', 'deals.pipeline_stage_id', 'deals.agent_id', 'deals.added_by', 'deals.value', 'deals.currency_id', 'deals.is_locked', 'deals.created_at')
@@ -769,10 +774,14 @@ class DealController extends AccountBaseController
      * filters (the same ones as the Deals index), before any deal columns
      * are chosen.
      */
-    private function agentDealsBase(Request $filterRequest, int $pipelineId)
+    private function agentDealsBase(Request $filterRequest, int $pipelineId, bool $nothingToShow = false)
     {
         $filters = app(DealFilters::class);
         $query = Deal::query()->where('deals.lead_pipeline_id', $pipelineId);
+
+        if ($nothingToShow) {
+            $query->whereRaw('1 = 0');
+        }
 
         $filters->applyColumn($query, $filterRequest, 'pipeline_stage_id', 'deals.pipeline_stage_id');
 

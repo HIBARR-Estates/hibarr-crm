@@ -50,7 +50,6 @@ class DealFilterExclusionTest extends TestCase
 
         $this->assertSame([$b, $none], $this->ids(['category_id' => '1', 'category_id_mode' => 'not_in']));
         $this->assertSame([$none], $this->ids(['category_id_mode' => 'empty']));
-        $this->assertSame([$a, $b], $this->ids(['category_id_mode' => 'any']));
     }
 
     public function test_stage_and_pipeline_not_in_use_the_same_null_safe_column_filter(): void
@@ -75,6 +74,48 @@ class DealFilterExclusionTest extends TestCase
 
         $this->assertSame(['2'], $filters->includedValues(Request::create('/', 'GET', ['lead_pipeline_id' => '2']), 'lead_pipeline_id'));
         $this->assertSame([], $filters->includedValues(Request::create('/', 'GET', ['lead_pipeline_id' => '2', 'lead_pipeline_id_mode' => 'not_in']), 'lead_pipeline_id'));
+    }
+
+    public function test_a_mode_a_filter_does_not_offer_is_ignored(): void
+    {
+        $a = $this->insertDeal(['category_id' => 1, 'lead_pipeline_id' => 1, 'pipeline_stage_id' => 1, 'lead_id' => $this->insertContact(1)]);
+        $b = $this->insertDeal(['category_id' => null, 'lead_pipeline_id' => null, 'pipeline_stage_id' => null, 'lead_id' => null]);
+
+        // The modal offers category and source "is not" / "is empty", never "has any".
+        $this->assertSame([$a, $b], $this->ids(['category_id_mode' => 'any']));
+        $this->assertSame([$a, $b], $this->ids(['source_id_mode' => 'any']));
+
+        // Pipeline and stage take "is not" only: "is empty" / "has any" change nothing,
+        // so the value reads as "is one of", exactly as without the mode, in the table
+        // and in the choice of the board's pipeline.
+        $filters = new DealFilters;
+        foreach (['empty', 'any'] as $mode) {
+            foreach (['lead_pipeline_id' => 'deals.lead_pipeline_id', 'pipeline_stage_id' => 'deals.pipeline_stage_id'] as $key => $column) {
+                $withMode = Deal::query();
+                $filters->applyColumn($withMode, Request::create('/', 'GET', [$key => '1', "{$key}_mode" => $mode]), $key, $column);
+                $without = Deal::query();
+                $filters->applyColumn($without, Request::create('/', 'GET', [$key => '1']), $key, $column);
+
+                $ids = fn ($q) => $q->orderBy('deals.id')->pluck('id')->map(fn ($id) => (int) $id)->all();
+                $this->assertSame($ids($without), $ids($withMode), "{$key} takes no '{$mode}'");
+            }
+
+            $request = Request::create('/', 'GET', ['lead_pipeline_id' => '2', 'lead_pipeline_id_mode' => $mode]);
+            $this->assertSame(['2'], $filters->includedValues($request, 'lead_pipeline_id'));
+            $this->assertFalse($filters->pipelineExcluded($request, 2));
+        }
+    }
+
+    public function test_a_pipeline_that_is_excluded_is_reported_as_such(): void
+    {
+        $filters = new DealFilters;
+        $request = Request::create('/', 'GET', ['lead_pipeline_id' => '1,3', 'lead_pipeline_id_mode' => 'not_in']);
+
+        $this->assertTrue($filters->pipelineExcluded($request, 1));
+        $this->assertTrue($filters->pipelineExcluded($request, '3'));
+        $this->assertFalse($filters->pipelineExcluded($request, 2));
+        $this->assertFalse($filters->pipelineExcluded($request, null));
+        $this->assertFalse($filters->pipelineExcluded(Request::create('/', 'GET', ['lead_pipeline_id' => '1']), 1));
     }
 
     public function test_a_board_falls_back_to_a_pipeline_the_exclusion_has_not_ruled_out(): void
@@ -120,7 +161,6 @@ class DealFilterExclusionTest extends TestCase
             $this->ids(['source_id' => '1', 'source_id_mode' => 'not_in'])
         );
         $this->assertSame([$unsourced, $noContact], $this->ids(['source_id_mode' => 'empty']));
-        $this->assertSame([$facebook, $google], $this->ids(['source_id_mode' => 'any']));
     }
 
     // ── packages (many-to-many) ──────────────────────────────────────────

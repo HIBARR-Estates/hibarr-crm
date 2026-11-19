@@ -106,7 +106,6 @@ class LeadFilterExclusionTest extends TestCase
         $female = $this->insertLead(['gender' => 'female']);
 
         $this->assertSame($this->sorted([$blank, $null]), $this->sorted($this->ids(['gender_mode' => 'empty'])));
-        $this->assertSame([$female], $this->ids(['gender_mode' => 'any']));
     }
 
     public function test_not_in_on_a_text_column_keeps_blank_and_null(): void
@@ -140,7 +139,6 @@ class LeadFilterExclusionTest extends TestCase
         $bare = $this->insertLead();
 
         $this->assertSame([$bare], $this->ids(['category_id_mode' => 'empty']));
-        $this->assertSame($this->sorted([$scalar, $pivot]), $this->sorted($this->ids(['category_id_mode' => 'any'])));
     }
 
     public function test_category_not_in_excludes_a_match_through_either_place_and_keeps_uncategorised(): void
@@ -181,7 +179,7 @@ class LeadFilterExclusionTest extends TestCase
         $this->assertNotContains($returning, $ids);
     }
 
-    public function test_utm_empty_and_any(): void
+    public function test_utm_empty(): void
     {
         $tracked = $this->insertLead();
         $this->insertMarketing($tracked, ['utm_campaign' => 'spring']);
@@ -198,10 +196,6 @@ class LeadFilterExclusionTest extends TestCase
         $this->assertSame(
             $this->sorted([$blank, $noRow]),
             $this->sorted($this->ids(['utm_campaign_mode' => 'empty']))
-        );
-        $this->assertSame(
-            $this->sorted([$tracked, $laterOnly]),
-            $this->sorted($this->ids(['utm_campaign_mode' => 'any']))
         );
     }
 
@@ -296,7 +290,7 @@ class LeadFilterExclusionTest extends TestCase
 
     // ── languages (JSON list) ────────────────────────────────────────────
 
-    public function test_language_empty_any_and_not_in(): void
+    public function test_language_empty_and_not_in(): void
     {
         $english = $this->insertLead(['languages' => json_encode(['en'])]);
         $both = $this->insertLead(['languages' => json_encode(['en', 'de'])]);
@@ -304,7 +298,6 @@ class LeadFilterExclusionTest extends TestCase
         $none = $this->insertLead(['languages' => null]);
 
         $this->assertSame($this->sorted([$emptyList, $none]), $this->sorted($this->ids(['language_mode' => 'empty'])));
-        $this->assertSame($this->sorted([$english, $both]), $this->sorted($this->ids(['language_mode' => 'any'])));
 
         $ids = $this->ids(['language' => 'de', 'language_mode' => 'not_in']);
         $this->assertSame($this->sorted([$english, $emptyList, $none]), $this->sorted($ids));
@@ -313,7 +306,7 @@ class LeadFilterExclusionTest extends TestCase
 
     // ── custom fields ────────────────────────────────────────────────────
 
-    public function test_custom_field_not_in_empty_and_any(): void
+    public function test_custom_field_not_in_and_empty(): void
     {
         $fieldId = $this->insertCustomField('select', ['Low', 'High']);
 
@@ -333,7 +326,6 @@ class LeadFilterExclusionTest extends TestCase
             $this->sorted($this->ids([$key => 'High', "{$key}_mode" => 'not_in']))
         );
         $this->assertSame($this->sorted([$blank, $unset]), $this->sorted($this->ids(["{$key}_mode" => 'empty'])));
-        $this->assertSame($this->sorted([$high, $low]), $this->sorted($this->ids(["{$key}_mode" => 'any'])));
     }
 
     public function test_a_cleared_multiselect_custom_field_counts_as_empty(): void
@@ -346,7 +338,6 @@ class LeadFilterExclusionTest extends TestCase
         $this->setCustomFieldValue($fieldId, $cleared, '[]');
 
         $this->assertSame([$cleared], $this->ids(["cf_{$fieldId}_mode" => 'empty']));
-        $this->assertSame([$chosen], $this->ids(["cf_{$fieldId}_mode" => 'any']));
     }
 
     // ── next action: everything except overdue ───────────────────────────
@@ -385,6 +376,30 @@ class LeadFilterExclusionTest extends TestCase
             $this->sorted([$upcoming, $viaMeeting, $nothing]),
             $this->sorted($this->ids(['next_action' => 'not_overdue']))
         );
+    }
+
+    public function test_a_mode_a_filter_does_not_offer_is_ignored(): void
+    {
+        $a = $this->insertLead([
+            'gender' => 'female', 'source_id' => 1, 'category_id' => 1, 'nationality' => 'DE',
+            'languages' => json_encode(['en']), 'lead_owner' => 7, 'added_by' => 9,
+        ]);
+        $b = $this->insertLead();
+        $this->insertMarketing($a, ['utm_source' => 'google', 'contact_score' => 40]);
+
+        $everyone = $this->sorted([$a, $b]);
+
+        // The modal offers these "is not" / "is empty" (owner and referrer also "has any"),
+        // so "has any" would filter with no chip or switch to show it: it is ignored.
+        foreach (['gender', 'lead_source', 'category_id', 'nationality', 'language', 'utm_source'] as $key) {
+            $this->assertSame($everyone, $this->sorted($this->ids(["{$key}_mode" => 'any'])), "{$key} takes no 'any'");
+        }
+        // Added by takes "is not" only; contact score "no score" only.
+        $this->assertSame($everyone, $this->sorted($this->ids(['added_by_id_mode' => 'empty'])));
+        $this->assertSame($everyone, $this->sorted($this->ids(['added_by_id_mode' => 'any'])));
+        $this->assertSame($everyone, $this->sorted($this->ids(['contact_score_mode' => 'not_in'])));
+        // ...while the modes a filter does offer still apply.
+        $this->assertSame([$a], $this->ids(['lead_owner_id_mode' => 'any']));
     }
 
     // ── whitelist ────────────────────────────────────────────────────────

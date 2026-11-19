@@ -30,6 +30,28 @@ class TaskFilters
         'due_date_range',
     ];
 
+    /**
+     * Modes each filter offers (the filter modal's field config is the
+     * contract; a mode it does not offer would filter with no chip or switch to
+     * show it, so it is ignored and dropped from saved views).
+     */
+    private const KEY_MODES = [
+        'status' => ['not_in'],
+        'priority' => ['not_in', 'empty'],
+        'category_id' => ['not_in', 'empty'],
+        'project_id' => ['not_in', 'empty'],
+        'assigned_to' => ['not_in', 'empty', 'any'],
+        'assigned_by' => ['not_in'],
+        'labels' => ['not_in', 'empty', 'any'],
+        'due_date_range' => ['empty', 'any'],
+    ];
+
+    /** @return list<string> */
+    public static function modesFor(string $key): array
+    {
+        return self::KEY_MODES[$key] ?? [];
+    }
+
     /** @return list<string> */
     public static function modeKeys(): array
     {
@@ -79,7 +101,7 @@ class TaskFilters
      */
     public function applyDueMode(Builder $query, Request $request): bool
     {
-        $mode = ExclusionFilter::modeOf($request, 'due_date_range', ['empty', 'any']);
+        $mode = ExclusionFilter::modeOf($request, 'due_date_range', self::modesFor('due_date_range'));
 
         if ($mode === 'empty') {
             $query->whereNull('tasks.due_date');
@@ -102,7 +124,7 @@ class TaskFilters
     private function listFilter(Request $request, string $key): ?array
     {
         return ExclusionFilter::resolve(
-            ExclusionFilter::modeOf($request, $key),
+            ExclusionFilter::modeOf($request, $key, self::modesFor($key)),
             array_map('strval', self::asList($request->get($key)))
         );
     }
@@ -124,7 +146,7 @@ class TaskFilters
             static fn ($status) => $status !== 'pending'
         ));
 
-        if (ExclusionFilter::modeOf($request, 'status', ['not_in']) === 'not_in') {
+        if (ExclusionFilter::modeOf($request, 'status', self::modesFor('status')) === 'not_in') {
             $this->applyStatusNotIn($query, $hasPending, $slugs);
 
             return;
@@ -183,7 +205,7 @@ class TaskFilters
      */
     private function applyProject(Builder $query, Request $request): void
     {
-        $mode = ExclusionFilter::modeOf($request, 'project_id');
+        $mode = ExclusionFilter::modeOf($request, 'project_id', self::modesFor('project_id'));
 
         if ($mode === 'in') {
             if ($request->filled('project_id') && $request->get('project_id') !== 'all') {
