@@ -302,6 +302,16 @@ function isMeetingStartingNow(notification: Notification): boolean {
     return false;
 }
 
+/**
+ * Time-critical: a meeting that can be joined right now. These jump the alert
+ * queue and are never folded into a "N new notifications" summary.
+ */
+export function isUrgentNotification(notification: Notification): boolean {
+    return (
+        isMeetingNotification(notification) && isMeetingStartingNow(notification)
+    );
+}
+
 function meetingJoinHref(notification: Notification): string | null {
     const data = notification.data ?? {};
     for (const key of ["meeting_link", "event_link"] as const) {

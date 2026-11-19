@@ -355,7 +355,12 @@ const DESKTOP_NOTIFICATION_ICON = "/notification-icon.svg";
 export function showDesktopNotification(
     title: string,
     body: string,
-    link?: string | null
+    link?: string | null,
+    /**
+     * OS-level dedupe key. Use the notification id: keying on the link made two
+     * different notifications about the same deal replace each other in the tray.
+     */
+    tag?: string,
 ): void {
     if (isAlertsMuted()) return;
     if (!isDesktopNotificationSupported()) return;
@@ -368,7 +373,7 @@ export function showDesktopNotification(
         const popup = new Notification(title, {
             body,
             icon: DESKTOP_NOTIFICATION_ICON,
-            tag: link ?? undefined,
+            tag: tag ?? link ?? undefined,
         });
 
         popup.onclick = () => {

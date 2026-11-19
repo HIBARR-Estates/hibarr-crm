@@ -9,7 +9,9 @@ import { CompanyDateTimeProvider } from "@/Components/CompanyDateTimeProvider";
 import { UserDateTimeProvider } from "@/Components/UserDateTimeProvider";
 import NotificationAlertProvider from "@/Components/NotificationAlertProvider";
 import { NotificationAlertBridgeMount } from "@/Hooks/useNotificationAlertBridge";
+import { NotificationStreamMount } from "@/Hooks/useNotificationStream";
 import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
+import useRealtimeNotificationsEnabled from "@/Hooks/useRealtimeNotificationsEnabled";
 import { MeetingAttendanceConfirmationMount } from "@/Components/MeetingAttendanceConfirmation/MeetingAttendanceConfirmationMount";
 import { NotificationAlertSettingsProvider } from "@/contexts/NotificationAlertSettingsContext";
 import StaleBuildBanner from "@/Components/StaleBuildBanner";
@@ -21,6 +23,7 @@ function NotificationAlertsGate({
     children: React.ReactNode;
 }) {
     const islandAlertsEnabled = useNotificationIslandAlertsFlag();
+    const realtimeEnabled = useRealtimeNotificationsEnabled();
 
     if (!islandAlertsEnabled) {
         return <>{children}</>;
@@ -28,7 +31,12 @@ function NotificationAlertsGate({
 
     return (
         <NotificationAlertProvider>
-            <NotificationAlertBridgeMount />
+            {/* Pushed over the WebSocket, or — flag off / not configured — polled. Never both. */}
+            {realtimeEnabled ? (
+                <NotificationStreamMount />
+            ) : (
+                <NotificationAlertBridgeMount />
+            )}
             {children}
         </NotificationAlertProvider>
     );

@@ -19,6 +19,7 @@ import {
     markIslandAlreadyShown,
     type NotchPosition,
 } from "@/lib/notificationAlerts";
+import { decideNextAlert } from "@/lib/notificationAlertQueue";
 import { useNotificationMutations } from "@/Hooks/useNotifications";
 import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
 import {
@@ -61,12 +62,31 @@ export interface NotificationAlertPayload {
     severity?: NotchSeverity;
     timeAgo?: string;
     actions?: NotificationAlertAction[];
+    /**
+     * Time-critical (e.g. a meeting that can be joined now): jumps the waiting
+     * queue and is never folded into the "N new notifications" summary.
+     */
+    urgent?: boolean;
 }
 
 interface NotificationAlertContextValue {
+    /** Shows immediately, replacing whatever is on screen (local, instant feedback such as "Undo"). */
     push: (notification: NotificationAlertPayload) => void;
+    /**
+     * Queues a pushed notification: one card at a time, first in first out, urgent
+     * ones first, and a backlog beyond COLLAPSE_AFTER is folded into one summary card.
+     */
+    enqueue: (
+        notification: NotificationAlertPayload,
+        options?: { urgent?: boolean },
+    ) => void;
+    /** A notification was read/deleted elsewhere: drop it from the screen and the queue. */
+    dismissById: (ids: string[] | "all") => void;
     dismiss: () => void;
 }
+
+/** More than this many waiting alerts are shown as a single "N new notifications" card. */
+const COLLAPSE_AFTER = 3;
 
 const NotificationAlertContext =
     createContext<NotificationAlertContextValue | null>(null);
@@ -214,6 +234,11 @@ export default function NotificationAlertProvider({
     const enterTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Alerts waiting for the one on screen to finish. The callbacks below reach
+    // push/drain through refs because the timers are created before they exist.
+    const queueRef = useRef<NotificationAlertPayload[]>([]);
+    const pushRef = useRef<(n: NotificationAlertPayload) => void>(() => {});
+    const drainQueueRef = useRef<() => void>(() => {});
     const hoverRef = useRef(false);
     const pointerHoverRef = useRef(false);
     const currentRef = useRef<NotificationAlertPayload | null>(null);
@@ -301,6 +326,7 @@ export default function NotificationAlertProvider({
             exitTimer.current = setTimeout(() => {
                 currentRef.current = null;
                 setCurrent(null);
+                drainQueueRef.current();
             }, 440);
         }, getNotchDurationMs());
     }, []);
@@ -348,8 +374,96 @@ export default function NotificationAlertProvider({
         exitTimer.current = setTimeout(() => {
             currentRef.current = null;
             setCurrent(null);
+            drainQueueRef.current();
         }, 440);
     }, []);
+
+    /** Shows the next waiting alert, or one summary card when too many piled up. */
+    const drainQueue = useCallback(() => {
+        const decision = decideNextAlert(queueRef.current, COLLAPSE_AFTER);
+
+        if (decision.kind === "empty") return;
+
+        if (decision.kind === "show") {
+            queueRef.current = decision.rest;
+            pushRef.current(decision.alert);
+            return;
+        }
+
+        // Too many waiting: one summary card stands in for all of them.
+        queueRef.current = [];
+
+        let inbox: string | null = null;
+        try {
+            inbox = route("notifications.index");
+        } catch {
+            inbox = null;
+        }
+
+        // No id on purpose: it stands for several notifications, and an id would
+        // make Open/Dismiss try to mark a notification that does not exist as read.
+        pushRef.current({
+            title: `${decision.count} ${td("new notifications", { source: "en" })}`,
+            meta: td("Open your inbox to catch up", { source: "en" }),
+            severity: "blue",
+            link: inbox,
+            actions: inbox
+                ? [
+                      {
+                          label: td("View inbox", { source: "en" }),
+                          primary: true,
+                          href: inbox,
+                      },
+                  ]
+                : [],
+        });
+    }, [td]);
+
+    const enqueue = useCallback(
+        (
+            notification: NotificationAlertPayload,
+            options?: { urgent?: boolean },
+        ) => {
+            const payload = options?.urgent
+                ? { ...notification, urgent: true }
+                : notification;
+
+            // The same notification can arrive twice (socket event + catch-up).
+            if (
+                payload.id &&
+                (currentRef.current?.id === payload.id ||
+                    queueRef.current.some((queued) => queued.id === payload.id))
+            ) {
+                return;
+            }
+
+            if (!currentRef.current) {
+                pushRef.current(payload);
+                return;
+            }
+
+            queueRef.current.push(payload);
+        },
+        [],
+    );
+
+    const dismissById = useCallback(
+        (ids: string[] | "all") => {
+            const matches = (id?: string) =>
+                ids === "all" ? true : !!id && ids.includes(id);
+
+            queueRef.current = queueRef.current.filter(
+                (queued) => !matches(queued.id),
+            );
+
+            // Only notification-backed alerts are affected; local toasts have no
+            // matching id unless everything is cleared.
+            if (currentRef.current && matches(currentRef.current.id)) {
+                dismiss();
+            }
+        },
+        [dismiss],
+    );
 
     const onEnter = useCallback(() => {
         if (!current) return;
@@ -533,22 +647,24 @@ export default function NotificationAlertProvider({
         ? { duration: 0.12, ease: "easeInOut" as const }
         : { type: "spring" as const, stiffness: 380, damping: 30 };
 
+    useEffect(() => {
+        pushRef.current = push;
+        drainQueueRef.current = drainQueue;
+    }, [push, drainQueue]);
+
     const contextValue = useMemo(
-        () => ({ push, dismiss }),
-        [push, dismiss],
+        () => ({ push, enqueue, dismissById, dismiss }),
+        [push, enqueue, dismissById, dismiss],
     );
 
-    if (!current) {
-        return (
-            <NotificationAlertContext.Provider value={contextValue}>
-                {children}
-            </NotificationAlertContext.Provider>
-        );
-    }
-
+    // The tree shape must not change between "a popup is showing" and "none is": returning
+    // `{children}` alone when idle but `[children, overlay]` while showing made React treat the
+    // nested array as a Fragment and unmount + remount everything under this provider (the whole
+    // page) every time a popup appeared or went away.
     return (
         <NotificationAlertContext.Provider value={contextValue}>
             {children}
+            {current ? (
             <div style={wrapperStyle(position)}>
                 <div style={{ position: "relative", pointerEvents: "auto" }}>
                     <motion.div
@@ -847,6 +963,7 @@ export default function NotificationAlertProvider({
                     </motion.div>
                 </div>
             </div>
+            ) : null}
         </NotificationAlertContext.Provider>
     );
 }
