@@ -23,6 +23,13 @@ class FakeOlKeycloakIdentityClient implements KeycloakIdentityClient
 
     private ?\Throwable $nextProvisionFailure = null;
 
+    private ?\Throwable $nextUpdateFailure = null;
+
+    public function failNextUpdate(\Throwable $e): void
+    {
+        $this->nextUpdateFailure = $e;
+    }
+
     public function failNextProvision(\Throwable $e): void
     {
         $this->nextProvisionFailure = $e;
@@ -73,6 +80,12 @@ class FakeOlKeycloakIdentityClient implements KeycloakIdentityClient
 
     public function update(string $keycloakUserId, array $patch): void
     {
+        if ($this->nextUpdateFailure) {
+            $e = $this->nextUpdateFailure;
+            $this->nextUpdateFailure = null;
+            throw $e;
+        }
+
         $this->updates[] = [
             'keycloakUserId' => $keycloakUserId,
             'patch' => $patch,

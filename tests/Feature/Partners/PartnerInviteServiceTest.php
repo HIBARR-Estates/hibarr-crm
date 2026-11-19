@@ -623,15 +623,13 @@ class PartnerInviteServiceTest extends TestCase
         $this->assertFalse($this->keycloak->updates[0]['patch']['enabled']);
     }
 
-    public function test_a_delayed_enable_is_dropped_if_the_partner_was_removed_meanwhile(): void
+    public function test_a_delayed_enable_is_not_sent_if_the_partner_was_removed_meanwhile(): void
     {
         $this->setFeatureFlag(PartnerInviteService::FLAG, true);
         $invite = app(PartnerInviteService::class)->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
         $user = $invite['agent']->user;
-        $user->update(['status' => 'deactive']);
         $service = app(PartnerInviteService::class);
-        $service->syncLifecycle($user); // deactivate pushed
-        $before = count($this->keycloak->updates);
+        $this->saveAndSync($user, ['status' => 'deactive']);
 
         // Reactivate inside a transaction (the enable is deferred to commit),
         // and remove the partner before it commits.
@@ -641,7 +639,79 @@ class PartnerInviteServiceTest extends TestCase
             DB::table('lead_agents')->where('id', $invite['agent']->id)->update(['is_partner' => false]);
         });
 
-        $this->assertCount($before, $this->keycloak->updates);
+        $this->assertSame([], array_filter($this->keycloak->updates, fn ($u) => ($u['patch']['enabled'] ?? null) === true));
+    }
+
+    public function test_a_delayed_enable_sends_the_committed_status_not_the_captured_one(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+        $user = $invite['agent']->user;
+        $service = app(PartnerInviteService::class);
+        $this->saveAndSync($user, ['status' => 'deactive']);
+
+        // Reactivated (enable queued for commit), then deactivated again before it runs.
+        DB::transaction(function () use ($user, $service) {
+            $user->update(['status' => 'active']);
+            $service->syncLifecycle($user);
+            DB::table('users')->where('id', $user->id)->update(['status' => 'deactive']);
+        });
+
+        $this->assertSame([], array_filter($this->keycloak->updates, fn ($u) => ($u['patch']['enabled'] ?? null) === true));
+        $this->assertFalse($this->keycloak->updates[array_key_last($this->keycloak->updates)]['patch']['enabled']);
+    }
+
+    public function test_adding_a_removed_partner_fails_visibly_when_the_identity_cannot_be_switched_on(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+        $service = app(PartnerInviteService::class);
+        $service->destroy($invite['agent']->fresh(['user', 'user.roles']));
+
+        $this->keycloak->failNextUpdate(new OlKeycloakException('Keycloak down'));
+        $added = $service->add($invite['agent']->fresh());
+
+        $this->assertFalse($added);
+        $this->assertFalse((bool) $invite['agent']->fresh()->is_partner);
+
+        // A retry once OL is back works.
+        $this->assertTrue($service->add($invite['agent']->fresh()));
+        $this->assertTrue((bool) $invite['agent']->fresh()->is_partner);
+    }
+
+    public function test_the_add_endpoint_reports_a_failed_activation(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $invite = app(PartnerInviteService::class)->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+        app(PartnerInviteService::class)->destroy($invite['agent']->fresh(['user', 'user.roles']));
+        $this->keycloak->failNextUpdate(new OlKeycloakException('Keycloak down'));
+
+        $response = $this->partnerController()->store(\Illuminate\Http\Request::create('/', 'POST', ['agent_id' => $invite['agent']->id]));
+
+        $this->assertSame('fail', $response['status']);
+        $this->assertSame(__('pages.partners.msg_enable_failed'), $response['message']);
+        $this->assertFalse((bool) $invite['agent']->fresh()->is_partner);
+    }
+
+    public function test_membership_changes_are_not_skipped_by_a_stale_copy_of_the_agent(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, false);
+        $invite = app(PartnerInviteService::class)->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+        $service = app(PartnerInviteService::class);
+
+        // Removal loaded the agent as not-a-partner, but another request set it back on.
+        $stale = $invite['agent']->fresh(['user']);
+        DB::table('lead_agents')->where('id', $stale->id)->update(['is_partner' => false]);
+        $stale->refresh();
+        DB::table('lead_agents')->where('id', $stale->id)->update(['is_partner' => true]);
+        $service->destroy($stale);
+        $this->assertFalse((bool) $stale->fresh()->is_partner);
+
+        // And the same for add(): a copy that still says "partner" must not skip the write.
+        $staleOn = $invite['agent']->fresh(['user']);
+        DB::table('lead_agents')->where('id', $staleOn->id)->update(['is_partner' => false]);
+        $service->add($staleOn);
+        $this->assertTrue((bool) $staleOn->fresh()->is_partner);
     }
 
     public function test_a_busy_lock_returns_a_retryable_message_and_keeps_the_saved_partner(): void

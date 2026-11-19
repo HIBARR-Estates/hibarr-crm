@@ -5116,6 +5116,7 @@ return [
         'msg_resend_accepted' => 'This partner has already accepted their invitation.',
         'msg_resend_unavailable' => 'This partner cannot be re-invited from here.',
         'msg_busy' => 'Another change to this partner is still in progress. Please try again in a moment.',
+        'msg_enable_failed' => 'The partner\'s sign-in could not be switched back on, so they were not added. Please try again.',
         'msg_busy_created' => 'The partner was created, but another change to this partner is still in progress. Use Resend invite in a moment.',
         'msg_enrolment_failed_retry' => 'Keycloak enrolment could not be completed. Please try again.',
         'msg_email_failed_retry' => 'The invitation email could not be sent. Please try again.',

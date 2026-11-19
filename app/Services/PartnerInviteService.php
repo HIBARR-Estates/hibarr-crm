@@ -219,6 +219,10 @@ class PartnerInviteService
             // Provisioning may have finished while this waited for the lock, so
             // decide from the user as it is now (invite status and roles), not
             // as it was when the roster row was loaded.
+            // Same for membership: another request may have changed is_partner
+            // while this waited, and saving a value equal to the stale copy would
+            // be skipped as "unchanged".
+            $agent->refresh();
             $user = $agent->user?->fresh('roles');
 
             // Only invitation-owned accounts have an identity this flow may
@@ -379,17 +383,17 @@ class PartnerInviteService
         $userId = $user->id;
         DB::afterCommit(function () use ($id, $patch, $userId) {
             try {
-                // Removal may have disabled the identity since this was decided:
-                // an enable is sent only if the user is still a partner, checked
-                // under the same lock removal takes.
-                if (($patch['enabled'] ?? false) === true) {
+                // The user may have been deactivated, reactivated or removed since
+                // this was decided. Under the same lock removal takes, send the
+                // state that is committed now, not the one captured earlier: an
+                // identity is enabled only for an active user who is still a partner.
+                if (array_key_exists('enabled', $patch)) {
                     $this->withAccountLock($userId, function () use ($id, $patch, $userId) {
-                        if (! LeadAgent::withoutGlobalScopes()->where('user_id', $userId)->where('is_partner', true)->exists()) {
-                            unset($patch['enabled']);
-                        }
-                        if ($patch !== []) {
-                            $this->keycloak()->update($id, $patch);
-                        }
+                        $status = User::withoutGlobalScopes()->whereKey($userId)->value('status');
+                        $patch['enabled'] = $status !== 'deactive'
+                            && LeadAgent::withoutGlobalScopes()->where('user_id', $userId)->where('is_partner', true)->exists();
+
+                        $this->keycloak()->update($id, $patch);
                     });
 
                     return;
@@ -413,14 +417,27 @@ class PartnerInviteService
      * person back must switch it on again, or the roster would show them as
      * invited while they still cannot sign in.
      */
-    public function add(LeadAgent $agent): void
+    /**
+     * @return bool false when the identity could not be switched back on: the
+     *              agent is then NOT flagged, so the admin sees the failure and can retry
+     *              instead of getting a partner who cannot sign in.
+     */
+    public function add(LeadAgent $agent): bool
     {
-        $this->withAccountLock($agent->user_id, function () use ($agent) {
+        return $this->withAccountLock($agent->user_id, function () use ($agent) {
+            // Re-read under the lock (membership and user), as destroy() does.
+            $agent->refresh();
+            $user = $agent->user?->fresh('roles');
+
+            if (self::enabled() && $this->managesIdentity($user) && $user->status !== 'deactive') {
+                if (! $this->setIdentityEnabled($user, true)) {
+                    return false;
+                }
+            }
+
             $agent->update(['is_partner' => true]);
 
-            if (self::enabled() && $this->managesIdentity($agent->user) && $agent->user->status !== 'deactive') {
-                $this->setIdentityEnabled($agent->user, true);
-            }
+            return true;
         });
     }
 
@@ -429,25 +446,30 @@ class PartnerInviteService
         $this->setIdentityEnabled($user, false);
     }
 
-    private function setIdentityEnabled(?User $user, bool $enabled): void
+    /** @return bool true when done or when there is no identity to change; false when OL refused */
+    private function setIdentityEnabled(?User $user, bool $enabled): bool
     {
         if (! $user) {
-            return;
+            return true;
         }
 
         $id = $this->keycloakId($user);
         if (! $id) {
-            return;
+            return true;
         }
 
         try {
             $this->keycloak()->update($id, ['enabled' => $enabled]);
+
+            return true;
         } catch (\Throwable $e) {
             report($e);
             Log::warning($enabled ? 'Partner Keycloak enable failed' : 'Partner Keycloak disable failed', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);
+
+            return false;
         }
     }
 

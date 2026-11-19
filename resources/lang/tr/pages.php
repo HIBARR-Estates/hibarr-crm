@@ -4937,6 +4937,7 @@ return [
         'msg_resend_accepted' => 'Bu partner daveti zaten kabul etti.',
         'msg_resend_unavailable' => 'Bu partner buradan yeniden davet edilemez.',
         'msg_busy' => 'Bu partnerde başka bir değişiklik hâlâ sürüyor. Lütfen birazdan tekrar deneyin.',
+        'msg_enable_failed' => 'Partnerin girişi yeniden etkinleştirilemedi, bu yüzden eklenmedi. Lütfen tekrar deneyin.',
         'msg_busy_created' => 'Partner oluşturuldu ancak bu partnerde başka bir değişiklik hâlâ sürüyor. Birazdan “Daveti tekrar gönder” seçeneğini kullanın.',
         'msg_enrolment_failed_retry' => 'Keycloak kaydı tamamlanamadı. Lütfen tekrar deneyin.',
         'msg_email_failed_retry' => 'Davet e-postası gönderilemedi. Lütfen tekrar deneyin.',

@@ -4959,6 +4959,7 @@ return [
         'msg_resend_accepted' => 'Dieser Partner hat die Einladung bereits angenommen.',
         'msg_resend_unavailable' => 'Dieser Partner kann von hier aus nicht erneut eingeladen werden.',
         'msg_busy' => 'Eine andere Änderung an diesem Partner läuft noch. Bitte versuchen Sie es gleich noch einmal.',
+        'msg_enable_failed' => 'Der Zugang des Partners konnte nicht wieder aktiviert werden, daher wurde er nicht hinzugefügt. Bitte versuchen Sie es erneut.',
         'msg_busy_created' => 'Der Partner wurde angelegt, aber eine andere Änderung an diesem Partner läuft noch. Verwenden Sie in Kürze „Einladung erneut senden“.',
         'msg_enrolment_failed_retry' => 'Die Keycloak-Registrierung konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.',
         'msg_email_failed_retry' => 'Die Einladungs-E-Mail konnte nicht gesendet werden. Bitte versuchen Sie es erneut.',

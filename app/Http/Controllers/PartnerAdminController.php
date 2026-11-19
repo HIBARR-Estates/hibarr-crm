@@ -95,7 +95,9 @@ class PartnerAdminController extends AccountBaseController
             ->firstOrFail();
 
         try {
-            $this->invites->add($agent);
+            if (! $this->invites->add($agent)) {
+                return Reply::error(__('pages.partners.msg_enable_failed'));
+            }
         } catch (LockTimeoutException) {
             return Reply::error(__('pages.partners.msg_busy'));
         }
