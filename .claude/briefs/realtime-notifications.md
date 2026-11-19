@@ -1,6 +1,7 @@
 # Realtime notifications (push over WebSockets, replacing poll-and-diff)
 
-Status: plan, revised after audit (2026-11-19). Nothing implemented yet.
+Status: **implemented** (2026-11-19), behind `crm.realtime-notifications` + `NOTIFICATIONS_REALTIME_ENABLED`, off by default.
+Operations: `docs/realtime-notifications-ops.md`. The plan below is kept as written; "What was built" lists where the build differs from it.
 Prompt against this file per phase, e.g. "Implement Phase 2 of `.claude/briefs/realtime-notifications.md`".
 
 ## Goal
@@ -9,6 +10,47 @@ A notification popup appears because the server pushed "this notification was ju
 not because the browser polled the top 6 unread rows and diffed them against a seen-ID set.
 The `notifications` table row stays the source of truth; the socket is the delivery path; a cursor-based
 catch-up covers whatever the socket missed.
+
+## What was built (and where it differs from the plan)
+
+All phases 0–3 are in. Phase 4 (deleting the poll-and-diff code) is deliberately **not** done: it is still the
+path when the flag is off or Reverb is not provisioned. Delete it after the flag has been on in production.
+
+**Verified.** 42 PHP tests and 14 JS tests pass. A real-browser run against a real Reverb server, the real
+`->notify()` pipeline and the real frontend code passed 21/21 checks: push latency ~260–360 ms including the HTTP
+request that creates the notification; zero polling requests over 35 s idle; burst of 6 → one card + one
+"5 new notifications" summary; joinable meeting jumps the queue; one push reaches two tabs and read state syncs;
+a notification created between two page loads pops after the reload; a notification created while Reverb was
+down is recovered after it returned (~13 s, pusher-js reconnect backoff).
+
+### Differences from the plan
+1. **No Laravel Echo.** `pusher-js` is used directly (`lib/realtime/connection.ts`): fewer layers, and Echo was never
+   loaded on the Vite pipeline anyway. Event names are bound without Echo's leading dot.
+2. **Broadcast auth is its own endpoint** (`POST /account/realtime/auth`, `RealtimeAuthController`). The plan missed that
+   the stock `/broadcasting/auth` signs with the *default* (legacy Pusher) broadcaster and `routes/channels.php`
+   registers callbacks only there, so a Reverb subscription would be rejected. The controller signs with the
+   realtime connection's own secret and authorizes exactly one channel: the caller's own `private-notifications.{id}`.
+3. **`time_ago` is kept in the payload** (the plan said drop it): the bell renders it and it is localized server-side.
+4. **Reverb config is published** (`config/reverb.php`) with `allowed_origins` restricted to hostnames (default: the host
+   of `APP_URL`, fails closed) and `accept_client_events_from = none`. Origins are *hostnames*, not URLs.
+5. **Catch-up route** is `GET /account/api/notifications/since` (named `notifications.api.since`).
+6. **`laravel/reverb` was added to `composer.json`/`composer.lock`** (12 packages, nothing existing updated). Publishing needs
+   only `pusher-php-server`; the package is just the socket server.
+7. **Backlog rules live in a pure module** (`lib/notificationAlertQueue.ts`), tested without React.
+8. **A provider bug was fixed on the way** (also affects the legacy polling path): `NotificationAlertProvider` returned a
+   different tree shape while a popup was showing, so React unmounted and remounted everything under it (the whole
+   page) each time a popup appeared or went away. The provider now renders a constant shape.
+9. **Desktop-popup decision (open decision 1):** unchanged behaviour. They need an explicit browser permission grant
+   (requested by a click in the bell) and only fire when the tab is hidden. OS popups are capped at 3 per batch and
+   are keyed by notification id (they were keyed by link, so two notifications about one deal replaced each other).
+10. **Collapse threshold (open decision 2):** more than 3 waiting collapse into one summary card (`COLLAPSE_AFTER`).
+11. **Reverb vs hosted Pusher (open decision 3):** self-hosted Reverb, as recommended.
+
+### Known limits
+- Reconnect after a Reverb restart takes up to ~13 s (pusher-js backoff); notifications are not lost, they appear when it reconnects.
+- `time_ago` in the bell is as of arrival and refreshes on the next fetch.
+- The sound/OS-popup "leader" tab may be a background tab; with several tabs the OS popup can come from a hidden one while another is visible.
+- Production still needs the host-side steps in the ops doc (secrets, nginx `location /app`, `minfds`) and rotating the legacy Pusher secret.
 
 ## Facts this plan relies on (checked in code / framework source)
 
