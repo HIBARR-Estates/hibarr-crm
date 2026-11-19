@@ -177,6 +177,17 @@ class DealFilters
     }
 
     /**
+     * Whether a stage is ruled out by a stage "is not" filter. The board has a
+     * column per stage and ignores the stage filter for its cards (a column is
+     * one stage), so it uses this to leave an excluded stage's column out.
+     */
+    public function stageExcluded(Request $request, int|string $stageId): bool
+    {
+        return ExclusionFilter::modeOf($request, 'pipeline_stage_id', $this->modesFor('pipeline_stage_id')) === 'not_in'
+            && in_array((string) $stageId, $this->values($request, 'pipeline_stage_id'), true);
+    }
+
+    /**
      * @return array{0: string, 1: array<int, string>}|null [mode, values]
      */
     private function listFilter(Request $request, string $key): ?array

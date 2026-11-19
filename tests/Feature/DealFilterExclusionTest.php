@@ -120,6 +120,18 @@ class DealFilterExclusionTest extends TestCase
         $this->assertFalse($filters->pipelineExcluded(Request::create('/', 'GET', ['lead_pipeline_id' => '1']), 1));
     }
 
+    public function test_a_stage_that_is_excluded_is_reported_as_such(): void
+    {
+        $filters = new DealFilters;
+        $request = Request::create('/', 'GET', ['pipeline_stage_id' => '4,5', 'pipeline_stage_id_mode' => 'not_in']);
+
+        $this->assertTrue($filters->stageExcluded($request, 4));
+        $this->assertTrue($filters->stageExcluded($request, '5'));
+        $this->assertFalse($filters->stageExcluded($request, 6));
+        // "Is one of" does not hide the other columns, as before.
+        $this->assertFalse($filters->stageExcluded(Request::create('/', 'GET', ['pipeline_stage_id' => '4']), 5));
+    }
+
     public function test_a_board_falls_back_to_a_pipeline_the_exclusion_has_not_ruled_out(): void
     {
         $filters = new DealFilters;

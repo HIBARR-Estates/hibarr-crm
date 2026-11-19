@@ -384,7 +384,10 @@ class DealController extends AccountBaseController
             ->where('lead_pipeline_id', $pipelineId)
             ->with('userSetting')
             ->orderBy('priority', 'asc')
-            ->get();
+            ->get()
+            // A stage the filter excludes is not a column of the board.
+            ->reject(fn (PipelineStage $stage) => app(DealFilters::class)->stageExcluded($request, $stage->id))
+            ->values();
 
         // Calculate total value per column
         foreach ($boardColumns as $column) {
