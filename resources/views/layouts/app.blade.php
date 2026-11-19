@@ -200,7 +200,7 @@
     const RIGHT_MODAL_CONTENT = '#right-modal-content';
     const RIGHT_MODAL_TITLE = '#right-modal-title';
     const company = @json(companyOrGlobalSetting());
-    const pusher_setting = @json(pusher_settings());
+    const pusher_setting = @json(pusher_client_settings());
     const message_setting = @json(message_setting());
     const SEARCH_KEYWORD = "{{ request('search_keyword') }}";
     const MOMENTJS_TIME_FORMAT = "{{ (companyOrGlobalSetting()->time_format == 'h:i A') ? 'hh:mm A' : ( (companyOrGlobalSetting()->time_format == 'h:i a') ? 'hh:mm a' : 'H:mm') }}";
