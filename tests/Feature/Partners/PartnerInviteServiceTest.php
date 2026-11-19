@@ -164,7 +164,7 @@ class PartnerInviteServiceTest extends TestCase
         // The exact interleaving: add() reads "deactive" (so it skips the enable
         // and only flags membership), then the activation commits. Its Keycloak
         // callback runs after the transaction, once membership is restored.
-        DB::transaction(function () use ($service, $invite, $user) {
+        DB::transaction(function () use ($service, $invite, $user, $updatesBefore) {
             $this->assertTrue($service->add($invite['agent']->fresh()));
             $this->assertSame($updatesBefore, count($this->keycloak->updates), 'add() must not enable a deactivated user');
 
@@ -173,6 +173,31 @@ class PartnerInviteServiceTest extends TestCase
         });
 
         $this->assertCount($updatesBefore + 1, $this->keycloak->updates);
+        $this->assertTrue(end($this->keycloak->updates)['patch']['enabled']);
+        $this->assertTrue((bool) LeadAgent::withoutGlobalScopes()->whereKey($invite['agent']->id)->value('is_partner'));
+    }
+
+    public function test_an_activation_saved_while_membership_is_off_is_still_reconciled_once_it_is_back(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $service = app(PartnerInviteService::class);
+        $invite = $service->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+        $user = $invite['agent']->user;
+        $this->saveAndSync($user, ['status' => 'deactive']);
+        $service->destroy($invite['agent']->fresh(['user', 'user.roles']));
+        $updatesBefore = count($this->keycloak->updates);
+
+        // The activation is saved while is_partner is still false: its callback is
+        // registered then (the old code scheduled nothing here), and runs only
+        // after membership is restored in the same transaction.
+        DB::transaction(function () use ($service, $invite, $user, $updatesBefore) {
+            $this->saveAndSync($user, ['status' => 'active']);
+            $this->assertSame($updatesBefore, count($this->keycloak->updates), 'the callback is deferred until commit');
+
+            $this->assertTrue($service->add($invite['agent']->fresh()));
+        });
+
+        $this->assertGreaterThan($updatesBefore, count($this->keycloak->updates));
         $this->assertTrue(end($this->keycloak->updates)['patch']['enabled']);
         $this->assertTrue((bool) LeadAgent::withoutGlobalScopes()->whereKey($invite['agent']->id)->value('is_partner'));
     }
