@@ -160,6 +160,7 @@ use App\Listeners\RemovalRequestApprovedRejectUserListener;
 use App\Listeners\ShiftRotationListener;
 use App\Listeners\SubmitWeeklyTimesheetListener;
 use App\Listeners\SubTaskCompletedListener;
+use App\Listeners\BroadcastDatabaseNotification;
 use App\Listeners\SuppressBypassedNotification;
 use App\Listeners\TaskCommentListener;
 use App\Listeners\TaskCommentMentionListener;
@@ -502,6 +503,7 @@ use Illuminate\Auth\Events\Logout;
 use App\Listeners\CaptureKeycloakLogoutUrl;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Illuminate\Notifications\Events\NotificationSending;
+use Illuminate\Notifications\Events\NotificationSent;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -512,6 +514,7 @@ class EventServiceProvider extends ServiceProvider
      */
     protected $listen = [
         NotificationSending::class => [SuppressBypassedNotification::class],
+        NotificationSent::class => [BroadcastDatabaseNotification::class],
         Login::class => [LogSuccessfulLogin::class],
         Logout::class => [CaptureKeycloakLogoutUrl::class],
         SubTaskCompletedEvent::class => [SubTaskCompletedListener::class],

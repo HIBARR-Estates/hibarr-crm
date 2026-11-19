@@ -52,6 +52,31 @@ return [
             ],
         ],
 
+        /*
+        | Self-hosted Reverb (Pusher protocol). Used only by events that pin it via
+        | broadcastVia() — see config/realtime.php. The default driver above is still
+        | chosen by BroadcastServiceProvider from the pusher_settings row (legacy chat
+        | and taskboard), so this connection never changes what they use.
+        |
+        | Short timeouts: a hung socket server must never hold up a queue worker or a request.
+        */
+        'reverb' => [
+            'driver' => 'reverb',
+            'key' => env('REVERB_APP_KEY'),
+            'secret' => env('REVERB_APP_SECRET'),
+            'app_id' => env('REVERB_APP_ID'),
+            'options' => [
+                'host' => env('REVERB_HOST'),
+                'port' => env('REVERB_PORT', 443),
+                'scheme' => env('REVERB_SCHEME', 'https'),
+                'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
+            ],
+            'client_options' => [
+                'connect_timeout' => 1,
+                'timeout' => 2,
+            ],
+        ],
+
         'ably' => [
             'driver' => 'ably',
             'key' => env('ABLY_KEY'),

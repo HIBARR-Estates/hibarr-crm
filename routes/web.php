@@ -92,6 +92,7 @@ use App\Http\Controllers\MyCalendarController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\NoticeFileController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\RealtimeAuthController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PassportController;
 use App\Http\Controllers\PaymentController;
@@ -1144,6 +1145,7 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::prefix('api/notifications')->name('notifications.api.')->group(function () {
         Route::get('/', [NotificationController::class, 'apiIndex'])->name('index');
         Route::get('/unread-summary', [NotificationController::class, 'apiUnreadSummary'])->name('unread_summary');
+        Route::get('/since', [NotificationController::class, 'apiSince'])->name('since');
         Route::get('/types', [NotificationController::class, 'apiTypes'])->name('types');
         Route::post('/mark-read', [NotificationController::class, 'apiMarkRead'])->name('mark_read');
         Route::post('/mark-multiple-read', [NotificationController::class, 'apiMarkMultipleRead'])->name('mark_multiple_read');
@@ -1153,6 +1155,10 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
         Route::post('/delete-all-read', [NotificationController::class, 'apiDeleteAllRead'])->name('delete_all_read');
         Route::put('/alert-settings', [NotificationController::class, 'apiUpdateAlertSettings'])->name('alert_settings.update');
     });
+
+    // Realtime (WebSocket) channel authorization — see RealtimeAuthController for why the stock
+    // /broadcasting/auth cannot be used.
+    Route::post('realtime/auth', [RealtimeAuthController::class, 'authorizeChannel'])->name('realtime.auth');
 
     // Notification Page Route (Inertia)
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');

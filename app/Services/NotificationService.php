@@ -5,8 +5,11 @@ namespace App\Services;
 use App\Models\Task;
 use App\Models\User;
 use App\Support\EntityActivityNotificationUrl;
+use App\Support\RealtimeNotifications;
+use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -108,6 +111,98 @@ class NotificationService
     }
 
     /**
+     * The `data` keys the browser's popup/bell actually reads (mapNotificationToAlert.ts).
+     * Everything else stays server-side: it keeps the realtime message small and
+     * keeps incidental personal data off the socket server.
+     */
+    public const REALTIME_DATA_KEYS = [
+        'deal_name', 'event_name', 'item_name', 'heading', 'subject', 'title', 'name',
+        'from_name', 'source', 'entity_type',
+        'deal_id', 'lead_id', 'task_id', 'project_id', 'ticket_number', 'invoice_number',
+        'reminder_id', 'follow_up_id', 'id',
+        'meeting_link', 'event_link', 'remind_at', 'starts_now',
+    ];
+
+    /**
+     * formatNotification() reduced to what a realtime message / catch-up response needs.
+     *
+     * @return array<string, mixed>
+     */
+    public function formatForRealtime(DatabaseNotification $notification): array
+    {
+        $formatted = $this->formatNotification($notification);
+
+        $data = array_filter(
+            Arr::only($formatted['data'], self::REALTIME_DATA_KEYS),
+            fn ($value) => $value === null || is_scalar($value),
+        );
+
+        $formatted['data'] = array_map(
+            fn ($value) => is_string($value) ? Str::limit($value, 300, '…') : $value,
+            $data,
+        );
+        $formatted['title'] = Str::limit((string) $formatted['title'], 200, '…');
+        $formatted['text'] = Str::limit((string) $formatted['text'], 500, '…');
+
+        return $formatted;
+    }
+
+    /**
+     * Unread notifications created at/after a cursor, oldest first — the gap-fill
+     * for what the socket could not deliver (reconnects, page loads, outages).
+     *
+     * Without a cursor nothing is returned: the caller only gets `server_time` to
+     * start from, so a first-ever page load never replays history as popups.
+     * The window starts a few seconds before the cursor (created_at has second
+     * precision and ids are random UUIDs); callers apply results idempotently by id.
+     *
+     * @return array{notifications: array<int, array<string, mixed>>, has_more: bool, next_cursor: string, server_time: string}
+     */
+    public function getUnreadSince(User $user, ?string $cursor, ?int $limit = null): array
+    {
+        $now = Carbon::now();
+        $serverTime = $now->toIso8601String();
+
+        if ($cursor === null || trim($cursor) === '') {
+            return [
+                'notifications' => [],
+                'has_more' => false,
+                'next_cursor' => $serverTime,
+                'server_time' => $serverTime,
+            ];
+        }
+
+        $limit ??= (int) config('realtime.notifications.catch_up_limit', 50);
+        $overlap = (int) config('realtime.notifications.catch_up_overlap_seconds', 5);
+
+        // Compare in the application's timezone, which is what created_at is stored in.
+        $from = Carbon::parse($cursor)->setTimezone(config('app.timezone'))->subSeconds($overlap);
+
+        // The relation is already ->latest() (newest first); a second orderBy would only
+        // be a tiebreaker after it. Clear it: catch-up needs oldest first, and paging
+        // with newest first would cut off the wrong end.
+        $rows = $user->unreadNotifications()
+            ->where('created_at', '>=', $from)
+            ->reorder()
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->limit($limit + 1)
+            ->get();
+
+        $hasMore = $rows->count() > $limit;
+        $rows = $rows->take($limit);
+
+        return [
+            'notifications' => $rows->map(fn ($row) => $this->formatForRealtime($row))->values()->all(),
+            'has_more' => $hasMore,
+            'next_cursor' => $rows->isNotEmpty()
+                ? $rows->last()->created_at->toIso8601String()
+                : $serverTime,
+            'server_time' => $serverTime,
+        ];
+    }
+
+    /**
      * Mark a single notification as read.
      */
     public function markAsRead(User $user, string $notificationId): bool
@@ -119,6 +214,8 @@ class NotificationService
         }
 
         $notification->markAsRead();
+
+        $this->publishRead($user, [$notificationId]);
 
         return true;
     }
@@ -132,6 +229,8 @@ class NotificationService
     {
         $count = $user->unreadNotifications()->count();
         $user->unreadNotifications->markAsRead();
+
+        $this->publishRead($user, [], all: true);
 
         return $count;
     }
@@ -150,6 +249,8 @@ class NotificationService
 
         $notifications->markAsRead();
 
+        $this->publishRead($user, $notifications->pluck('id')->all());
+
         return $notifications->count();
     }
 
@@ -162,6 +263,11 @@ class NotificationService
             ->where('id', $notificationId)
             ->delete();
 
+        if ($deleted > 0) {
+            // A deleted notification is no longer unread either.
+            $this->publishRead($user, [$notificationId]);
+        }
+
         return $deleted > 0;
     }
 
@@ -172,9 +278,30 @@ class NotificationService
      */
     public function deleteMultiple(User $user, array $notificationIds): int
     {
-        return $user->notifications()
+        $deleted = $user->notifications()
             ->whereIn('id', $notificationIds)
             ->delete();
+
+        if ($deleted > 0) {
+            $this->publishRead($user, array_values($notificationIds));
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * Tell the user's other tabs that notifications are no longer unread.
+     * A no-op unless realtime delivery is configured; never throws.
+     *
+     * @param  array<int, string>  $ids
+     */
+    protected function publishRead(User $user, array $ids, bool $all = false): void
+    {
+        if (! RealtimeNotifications::enabled()) {
+            return;
+        }
+
+        app(NotificationRealtimePublisher::class)->read($user, $ids, $all);
     }
 
     /**

@@ -18,6 +18,10 @@ return [
         'crm.lead-automation-engine',
         'crm.notification-service-routing',
         'crm.notification-island-alerts',
+        // Notification popups/bell are pushed over WebSockets instead of polled. Needs the server side
+        // (NOTIFICATIONS_REALTIME_ENABLED + REVERB_* env) and the Reverb process running; without them the
+        // browser quietly keeps polling. The flag is global, so rollout is all-or-nothing.
+        'crm.realtime-notifications',
         'crm.entity-reminders',
         'crm.task-lifecycle-notifications',
         'crm.projects-filters-modal',
