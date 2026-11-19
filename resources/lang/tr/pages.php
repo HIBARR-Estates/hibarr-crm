@@ -5061,7 +5061,7 @@ return [
             'title' => 'Vergi ve onay',
             'description' => 'KDV ve vergi dairesi onay işaretleri.',
             'vat_rate' => 'KDV oranı',
-            'vat_rate_hint' => 'KDV, talep tutarının üzerine eklenir. Fatura KDV'yi ve genel toplamı gösterir.',
+            'vat_rate_hint' => 'KDV, talep tutarının üzerine eklenir. Fatura KDV tutarını ve genel toplamı gösterir.',
             'approval_number' => 'Belge onay numarası',
             'approval_number_hint' => 'Gelir ve Vergi Dairesinden alınan onay numarası',
             'stamp_duty' => '"Damga Vergisi Ödenmiştir" kutusunu göster',
