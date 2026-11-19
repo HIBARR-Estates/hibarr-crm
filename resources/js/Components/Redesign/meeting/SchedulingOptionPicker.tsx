@@ -1,3 +1,4 @@
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { REDESIGN_RADIUS as R, REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
@@ -25,6 +26,7 @@ export default function SchedulingOptionPicker({
     disabled = false,
 }: SchedulingOptionPickerProps) {
     const { t } = useTranslation();
+    const { td } = useTd();
 
     const options: Array<{
         value: SchedulingChoice;
@@ -40,10 +42,11 @@ export default function SchedulingOptionPicker({
         },
         ...links.map((link) => ({
             value: link.id as SchedulingChoice,
-            title: link.name,
-            hint:
-                link.description ||
-                t("pages.meetings.calendly.option_link_hint"),
+            // Written by an admin, so it goes through dynamic translation.
+            title: td(link.name, { source: "en" }),
+            hint: link.description
+                ? td(link.description, { source: "en" })
+                : t("pages.meetings.calendly.option_link_hint"),
             icon: "share" as const,
         })),
     ];

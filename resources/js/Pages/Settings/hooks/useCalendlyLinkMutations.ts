@@ -77,13 +77,9 @@ export default function useCalendlyLinkMutations() {
             try {
                 const { data } = await axios.put<{ data: CalendlyLinkSetting }>(
                     route("calendly-meeting-links.update", link.id),
-                    {
-                        name: link.name,
-                        description: link.description,
-                        url: link.url,
-                        role_ids: link.role_ids,
-                        is_active: isActive,
-                    },
+                    // Only the switch: sending the row's other fields would write
+                    // back whatever this page last saw, over another admin's edit.
+                    { is_active: isActive },
                 );
                 return data.data;
             } finally {

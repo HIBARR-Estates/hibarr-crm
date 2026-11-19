@@ -53,7 +53,9 @@ class CalendlyMeetingLinkController extends AccountBaseController
     public function update(Request $request, int $link): JsonResponse
     {
         $model = CalendlyMeetingLink::findOrFail($link);
-        $model->fill($this->normalized($request->validate($this->rules())));
+        // `sometimes`: the row switch sends only is_active, and must not write
+        // back name/url/roles from a page that may have gone stale.
+        $model->fill($this->normalized($request->validate($this->rules(partial: true))));
         $model->save();
 
         return response()->json(['status' => 'success', 'data' => $this->serialize($model)]);
@@ -104,10 +106,16 @@ class CalendlyMeetingLinkController extends AccountBaseController
      */
     private function normalized(array $data): array
     {
-        $data['url'] = trim($data['url']);
-        $roleIds = array_values(array_unique(array_map('intval', $data['role_ids'] ?? [])));
-        // No roles chosen means everyone: stored as null rather than `[]`.
-        $data['role_ids'] = $roleIds === [] ? null : $roleIds;
+        if (isset($data['url'])) {
+            $data['url'] = trim($data['url']);
+        }
+
+        // Only when sent: a request that leaves roles out leaves them alone.
+        if (array_key_exists('role_ids', $data)) {
+            $roleIds = array_values(array_unique(array_map('intval', $data['role_ids'] ?? [])));
+            // No roles chosen means everyone: stored as null rather than `[]`.
+            $data['role_ids'] = $roleIds === [] ? null : $roleIds;
+        }
 
         return $data;
     }
@@ -115,14 +123,15 @@ class CalendlyMeetingLinkController extends AccountBaseController
     /**
      * @return array<string, mixed>
      */
-    private function rules(): array
+    private function rules(bool $partial = false): array
     {
         $companyId = company()->id;
+        $required = $partial ? ['sometimes', 'required'] : ['required'];
 
         return [
-            'name' => 'required|string|max:120',
+            'name' => [...$required, 'string', 'max:120'],
             'description' => 'nullable|string|max:255',
-            'url' => ['required', 'string', 'max:500', function (string $attribute, mixed $value, \Closure $fail) {
+            'url' => [...$required, 'string', 'max:500', function (string $attribute, mixed $value, \Closure $fail) {
                 if (! self::isCalendlyUrl((string) $value)) {
                     $fail(__('messages.calendlyLinkMustBeCalendly'));
                 }

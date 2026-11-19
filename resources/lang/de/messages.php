@@ -153,4 +153,6 @@ return [
     'deleteTaskCategory' => 'Die gelöschte Aufgabenkategorie kann nicht wiederhergestellt werden!',
     'noLeadSourceAdded' => 'Keine Lead-Quelle hinzugefügt.',
     'somethingWentWrong' => 'Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.',
+    'calendlyLinkMustBeCalendly' => 'Geben Sie einen sicheren Link von calendly.com ein, zum Beispiel https://calendly.com/your-team/intro-call.',
+
 ];

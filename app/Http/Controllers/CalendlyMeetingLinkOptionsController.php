@@ -6,6 +6,7 @@ use App\Models\CalendlyMeetingLink;
 use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\User;
+use App\Services\MeetingVisibilityService;
 use App\Support\CalendlyLinkBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,8 +33,8 @@ class CalendlyMeetingLinkOptionsController extends AccountBaseController
 
         $recordId = (int) $validated['record_id'];
         $lead = $validated['record_type'] === 'deal'
-            ? $this->leadOfDeal(Deal::findOrFail($recordId))
-            : Lead::findOrFail($recordId);
+            ? $this->leadOfDeal($this->schedulableDeal($recordId))
+            : $this->schedulableLead($recordId);
 
         $guestEmails = $this->guestEmails($request->has('guest_ids') ? (string) ($validated['guest_ids'] ?? '') : null);
 
@@ -70,6 +71,32 @@ class CalendlyMeetingLinkOptionsController extends AccountBaseController
         $emails = User::whereIn('id', $ids)->where('company_id', company()->id)->pluck('email', 'id');
 
         return collect($ids)->map(fn (int $id) => (string) ($emails[$id] ?? ''))->filter()->values()->all();
+    }
+
+    /**
+     * The record's contact details end up in the link, so the user must be
+     * allowed to schedule on this very record — the same check the Meetings
+     * page applies — not merely to schedule meetings in general.
+     */
+    private function schedulableLead(int $id): Lead
+    {
+        $lead = Lead::findOrFail($id);
+
+        abort_403(! MeetingVisibilityService::schedulableLeadsQuery()->where('id', $lead->id)->exists());
+
+        return $lead;
+    }
+
+    private function schedulableDeal(int $id): Deal
+    {
+        $deal = Deal::findOrFail($id);
+
+        abort_403(
+            $deal->next_follow_up !== 'yes'
+            || ! MeetingVisibilityService::schedulableDealsQuery()->where('id', $deal->id)->exists()
+        );
+
+        return $deal;
     }
 
     private function leadOfDeal(Deal $deal): ?Lead

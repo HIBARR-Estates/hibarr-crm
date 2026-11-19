@@ -153,4 +153,6 @@ return [
     'deleteTaskCategory' => 'Silinen görev kategorisini geri alamayacaksınız!',
     'noLeadSourceAdded' => 'Potansiyel müşteri kaynağı eklenmedi.',
     'somethingWentWrong' => 'Bir şeyler ters gitti. Lütfen tekrar deneyin.',
+    'calendlyLinkMustBeCalendly' => 'calendly.com adresinden güvenli bir bağlantı girin, örneğin https://calendly.com/your-team/intro-call.',
+
 ];

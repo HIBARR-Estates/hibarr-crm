@@ -1,3 +1,4 @@
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import useCopyToClipboard from "@/Hooks/useCopyToClipboard";
 import AssigneeField from "@/Components/Redesign/fields/AssigneeField";
@@ -32,6 +33,7 @@ export default function CalendlyBookingPanel({
     refreshing,
 }: CalendlyBookingPanelProps) {
     const { t } = useTranslation();
+    const { td } = useTd();
     const { copy, copied, copyFailed } = useCopyToClipboard();
 
     return (
@@ -68,7 +70,7 @@ export default function CalendlyBookingPanel({
                             style={{ fontSize: 12, color: T.TEXT_HINT }}
                         >
                             {t("pages.meetings.calendly.prefilled_note", {
-                                page: link.name,
+                                page: td(link.name, { source: "en" }),
                             })}
                         </p>
                     </div>
