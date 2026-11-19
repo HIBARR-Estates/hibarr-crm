@@ -72,6 +72,9 @@ export default function SaveViewPopover({
                         type="button"
                         className={`lfm-radio${visibility === "private" ? " is-on" : ""}`}
                         onClick={() => setVisibility("private")}
+                        // An admin fixing up a team view cannot take it private:
+                        // only the owner decides who a view is shared with.
+                        disabled={!!existing && !existing.is_owner}
                     >
                         <span className="lfm-radio__dot" />
                         <span>

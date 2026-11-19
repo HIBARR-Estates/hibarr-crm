@@ -1,4 +1,9 @@
-import type { FilterConfig, FilterFieldConfig } from "@/contexts/FilterContext";
+import {
+    activeModeOf,
+    modeKeyOf,
+    type FilterConfig,
+    type FilterFieldConfig,
+} from "@/contexts/FilterContext";
 
 export interface FilterSummaryPart {
     /** The filter key(s) this part describes — removing it clears all of them. */
@@ -24,6 +29,13 @@ const EN_SUMMARY: Record<string, string> = {
     summary_contains: "{{noun}} contains “{{value}}”",
     summary_or: "{{a}} or {{b}}",
     summary_one_of: "one of {{n}}",
+    summary_not: "{{noun}} is not {{value}}",
+    summary_empty: "{{noun}} is empty",
+    summary_any: "{{noun}} has any value",
+    chip_not: "{{label}}: not {{values}}",
+    chip_not_count: "{{label}} · not {{n}}",
+    chip_empty: "Empty",
+    chip_any: "Has any",
     untitled_view: "Untitled view",
 };
 
@@ -103,6 +115,67 @@ export function describeFilters(
                 ? i18n.td(field.sentence, { source: "en" })
                 : fieldLabel,
         );
+
+        // "Is not", "Is empty", "Has any": the mode is its own URL param and
+        // removing the clause has to clear it along with the values.
+        const mode = activeModeOf(field, filters);
+        if (mode) {
+            const modeKey = modeKeyOf(field.key);
+            const valueKeys =
+                field.control === "scoreRange"
+                    ? [`min_${field.key}`, `max_${field.key}`]
+                    : [field.key];
+
+            if (mode === "empty" || mode === "any") {
+                const custom = field.exclusionLabels?.[mode];
+                const word = custom
+                    ? i18n.td(custom, { source: "en" })
+                    : i18n.t(`pages.filters.chip_${mode}`);
+                valueKeys.forEach((key) => consumed.add(key));
+                parts.push({
+                    keys: [...valueKeys, modeKey],
+                    label: fieldLabel,
+                    // A bespoke label ("No score") already is the whole clause.
+                    text: custom
+                        ? word
+                        : i18n.t(`pages.filters.summary_${mode}`, { noun }),
+                    chip: custom ? word : `${fieldLabel}: ${word}`,
+                });
+                continue;
+            }
+
+            // not_in: only describable once there is something to exclude.
+            const picked = filters[field.key];
+            if (!isEmpty(picked)) {
+                const list = Array.isArray(picked)
+                    ? picked
+                    : String(picked)
+                          .split(",")
+                          .map((entry) => entry.trim())
+                          .filter(Boolean);
+                const labels = list.map((entry) => labelFor(field, entry, i18n));
+                consumed.add(field.key);
+                parts.push({
+                    keys: [field.key, modeKey],
+                    label: fieldLabel,
+                    text: i18n.t("pages.filters.summary_not", {
+                        noun,
+                        value: joinValues(labels, i18n),
+                    }),
+                    chip:
+                        labels.length > 2
+                            ? i18n.t("pages.filters.chip_not_count", {
+                                  label: fieldLabel,
+                                  n: labels.length,
+                              })
+                            : i18n.t("pages.filters.chip_not", {
+                                  label: fieldLabel,
+                                  values: labels.join(", "),
+                              }),
+                });
+                continue;
+            }
+        }
 
         // Date range spans two keys.
         if (field.control === "datePresets") {

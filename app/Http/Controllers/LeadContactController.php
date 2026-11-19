@@ -277,22 +277,14 @@ class LeadContactController extends AccountBaseController
     private function savedViewsForUser(): array
     {
         $userId = (int) user()->id;
+        $isAdmin = LeadSavedView::viewerIsAdmin();
 
         return LeadSavedView::query()
             ->visibleTo($userId)
             ->with('owner:id,name')
             ->orderByDesc('updated_at')
             ->get()
-            ->map(fn (LeadSavedView $view) => [
-                'id' => $view->id,
-                'name' => $view->name,
-                'filters' => $view->filters,
-                'visibility' => $view->visibility,
-                'pinned' => $view->pinned,
-                'is_owner' => (int) $view->user_id === $userId,
-                'owner_name' => $view->owner?->name,
-                'updated_at' => $view->updated_at?->toIso8601String(),
-            ])
+            ->map(fn (LeadSavedView $view) => $view->presentFor($userId, $isAdmin))
             ->all();
     }
 

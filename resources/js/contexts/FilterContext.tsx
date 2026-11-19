@@ -21,6 +21,25 @@ export interface FilterOption {
     label: string;
 }
 
+/**
+ * How a filter reads its values, beyond the default "is one of":
+ * `not_in` everything except the values, `empty` the record has no value,
+ * `any` the record has some value. Sent as the companion param `<key>_mode`.
+ */
+export type ExclusionMode = "not_in" | "empty" | "any";
+
+/** The URL / draft key that carries a field's exclusion mode. */
+export const modeKeyOf = (fieldKey: string): string => `${fieldKey}_mode`;
+
+/** Valid mode for a field out of raw state, or null for the default ("is one of"). */
+export function activeModeOf(
+    field: FilterFieldConfig,
+    values: Record<string, any>,
+): ExclusionMode | null {
+    const mode = values[modeKeyOf(field.key)];
+    return field.exclusions?.includes(mode) ? (mode as ExclusionMode) : null;
+}
+
 export interface FilterFieldConfig {
     key: string;
     label: string;
@@ -64,6 +83,17 @@ export interface FilterFieldConfig {
     hidden?: boolean;
     /** Short noun used when describing this filter in a sentence ("status is one of 4"). */
     sentence?: string;
+    /**
+     * Exclusion modes this filter offers besides "is one of". The backend must
+     * read `<key>_mode` for the field, otherwise leave this unset.
+     */
+    exclusions?: ExclusionMode[];
+    /**
+     * Per-field wording for the mode switch, for fields where the generic
+     * "Is not" / "Is empty" would read wrong ("No score", "No qualification yet").
+     * `in` names the default mode.
+     */
+    exclusionLabels?: Partial<Record<"in" | ExclusionMode, string>>;
     options?: FilterOption[] | (() => FilterOption[]);
     dependsOn?: string; // Key of another filter this depends on
     filterOptions?: (dependentValue: any) => FilterOption[];
@@ -143,6 +173,9 @@ function addManagedFilterKeys(
     field: FilterFieldConfig,
 ): void {
     managedKeys.add(field.key);
+    if (field.exclusions?.length) {
+        managedKeys.add(modeKeyOf(field.key));
+    }
     if (field.type === "daterange") {
         const [startKey, endKey] = dateRangeParamKeys(field);
         managedKeys.add(startKey);
@@ -477,6 +510,17 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
         const initialMetadata: Record<string, FilterValue> = {};
 
         newConfig.fields.forEach((field) => {
+            // A field's exclusion mode rides in its own URL param. It is state
+            // only: the field's sentence and count come from describeFilters,
+            // so it gets no metadata entry of its own (that would count twice).
+            if (field.exclusions?.length) {
+                const rawMode = urlParams[modeKeyOf(field.key)];
+                const mode = Array.isArray(rawMode) ? rawMode[0] : rawMode;
+                if (field.exclusions.includes(mode as ExclusionMode)) {
+                    initialFilters[modeKeyOf(field.key)] = mode;
+                }
+            }
+
             // Helper to process a single key
             const processKey = (key: string, label: string, type: string) => {
                 const raw = urlParams[key];

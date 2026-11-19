@@ -50,12 +50,18 @@ class LeadSavedViewController extends AccountBaseController
     public function update(Request $request, int $id): JsonResponse
     {
         $view = LeadSavedView::findOrFail($id);
+        $userId = (int) user()->id;
 
-        if (! $view->isEditableBy((int) user()->id)) {
-            abort(403);
-        }
+        // A private view of someone else's is not a view this user can see, so
+        // it answers like one that does not exist.
+        abort_unless($view->isManageableBy($userId, LeadSavedView::viewerIsAdmin()), 403);
 
         $data = $this->validated($request, partial: true);
+
+        abort_if(
+            array_key_exists('visibility', $data) && ! $view->canSetVisibility($userId, $data['visibility']),
+            403
+        );
 
         if (array_key_exists('name', $data)) {
             $view->name = $data['name'];
@@ -82,9 +88,7 @@ class LeadSavedViewController extends AccountBaseController
     {
         $view = LeadSavedView::findOrFail($id);
 
-        if (! $view->isEditableBy((int) user()->id)) {
-            abort(403);
-        }
+        abort_unless($view->isManageableBy((int) user()->id, LeadSavedView::viewerIsAdmin()), 403);
 
         $view->delete();
 
@@ -114,17 +118,6 @@ class LeadSavedViewController extends AccountBaseController
      */
     private function present(LeadSavedView $view): array
     {
-        $view->loadMissing('owner:id,name');
-
-        return [
-            'id' => $view->id,
-            'name' => $view->name,
-            'filters' => $view->filters,
-            'visibility' => $view->visibility,
-            'pinned' => $view->pinned,
-            'is_owner' => (int) $view->user_id === (int) user()->id,
-            'owner_name' => $view->owner?->name,
-            'updated_at' => $view->updated_at?->toIso8601String(),
-        ];
+        return $view->presentFor((int) user()->id, LeadSavedView::viewerIsAdmin());
     }
 }
