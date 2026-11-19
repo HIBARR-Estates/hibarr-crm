@@ -220,8 +220,16 @@ export default function PaymentRequestRow({
                         {t("pages.payment_requests.action_invoice")}
                     </a>
                 ) : (
-                    <Button variant="ghost" size="sm" disabled icon={<Icon name="download" size={14} />}>
-                        {t("pages.payment_requests.action_invoice")}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={row.documents_requested ? undefined : onOpen}
+                        disabled={row.documents_requested}
+                        icon={<Icon name="file-text" size={14} />}
+                    >
+                        {row.documents_requested
+                            ? t("pages.payment_requests.action_invoice")
+                            : t("pages.payment_requests.action_request_invoice")}
                     </Button>
                 )}
                 {activeLink && row.checkout_url && (

@@ -672,6 +672,10 @@ class DealPaymentService
             'invalidated_at' => $payment->invalidated_at?->toIso8601String(),
             'invalidated_by' => $people['invalidated_by'],
             'invalidation_reason' => $payment->invalidation_reason,
+            'documents_requested' => $payment->documents_requested_at !== null,
+            'invoice_issued' => $payment->documents_requested_at !== null
+                && \App\Models\PaymentDocument::query()->where('payment_id', $payment->id)->where('kind', \App\Models\PaymentDocument::INVOICE)->exists(),
+            'documents_requested_at' => $payment->documents_requested_at?->toIso8601String(),
             'added_by' => $people['added_by'],
             'last_updated_by' => $people['last_updated_by'],
             'remarks' => $payment->remarks,

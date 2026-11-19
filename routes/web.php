@@ -1464,6 +1464,8 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::post('deals/{deal}/payment-request/cancel', [DealPaymentController::class, 'cancel'])->name('deals.payment-request.cancel');
     Route::delete('deals/{deal}/payment-requests/{payment}', [DealPaymentController::class, 'destroy'])->name('deals.payment-requests.destroy');
     Route::post('deals/{deal}/payment-requests/{payment}/retry', [DealPaymentController::class, 'retry'])->name('deals.payment-requests.retry');
+    Route::post('deals/{deal}/payment-requests/{payment}/documents/request', [DealPaymentController::class, 'requestDocuments'])
+        ->name('deals.payment-requests.documents.request');
     Route::get('deals/{deal}/payment-requests/{payment}/documents/{kind}', [DealPaymentController::class, 'document'])
         ->whereIn('kind', ['invoice', 'receipt'])
         ->name('deals.payment-requests.document');

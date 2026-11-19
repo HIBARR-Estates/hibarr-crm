@@ -22,8 +22,10 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  * KKTC invoices (Fatura) and collection receipts (Tahsilat Makbuzu) for a deal
  * payment request.
  *
- * An invoice can be issued for any live request. A receipt exists only once
- * the payment has been collected, and always refers to the request's invoice.
+ * Documents exist only after someone records that the customer asked for an
+ * invoice (requestDocuments); checkout itself collects the net amount and KDV
+ * comes on top in the documents. A receipt exists only once the payment has
+ * been collected and the invoice has been generated, and refers to that invoice.
  *
  * A document is issued the first time it is generated: it takes the next
  * number from the company's configured range and stores a snapshot of what
@@ -42,6 +44,26 @@ class DealPaymentDocumentService
     ) {}
 
     /**
+     * Records that the customer asked for an invoice and receipt. Until then
+     * no document is made, and checkout collects only the net amount. Asking
+     * again changes nothing.
+     */
+    public function requestDocuments(Payment $payment, ?int $userId): void
+    {
+        if ($payment->documents_requested_at !== null) {
+            return;
+        }
+
+        if (in_array(DealPaymentService::uiStateOf($payment), ['invalidated', 'failed'], true)) {
+            throw new HttpException(409, 'This payment request ended, so an invoice can no longer be requested for it.');
+        }
+
+        $payment->documents_requested_at = now();
+        $payment->documents_requested_by_user_id = $userId;
+        $payment->save();
+    }
+
+    /**
      * Issues the document if needed and returns the data the PDF view renders.
      *
      * @return array<string, mixed>
@@ -55,7 +77,14 @@ class DealPaymentDocumentService
             throw new HttpException(409, 'A receipt is available once the payment has been collected.');
         }
 
-        $document = $this->issue($payment, $kind);
+        $document = $this->issued($payment, $kind);
+        if ($document === null) {
+            if ($payment->documents_requested_at === null) {
+                throw new HttpException(409, 'An invoice has to be requested before it is made.');
+            }
+
+            $document = $this->issue($payment, $kind);
+        }
         $settings = PaymentDocumentSetting::forCompany((int) $payment->company_id);
 
         return $this->present($document->snapshot, $settings, $copy, $this->stampFor($uiState));
@@ -156,12 +185,15 @@ class DealPaymentDocumentService
             throw new HttpException(409, 'This payment request ended before an invoice was issued.');
         }
 
-        // A receipt is always "karşılığı" an invoice, so the invoice is issued
-        // first and its number printed on the receipt.
+        // A receipt is always "karşılığı" an invoice, so it needs the invoice
+        // to exist already and prints its number. It never makes the invoice.
         $invoiceNumber = null;
         $invoiceSnapshot = null;
         if ($kind === PaymentDocument::RECEIPT) {
-            $invoice = $this->issued($payment, PaymentDocument::INVOICE) ?? $this->issue($payment, PaymentDocument::INVOICE);
+            $invoice = $this->issued($payment, PaymentDocument::INVOICE);
+            if ($invoice === null) {
+                throw new HttpException(409, 'A receipt can only be generated once the invoice has been generated.');
+            }
             $invoiceSnapshot = $invoice->snapshot;
             $invoiceNumber = $invoiceSnapshot['number'] ?? null;
         }

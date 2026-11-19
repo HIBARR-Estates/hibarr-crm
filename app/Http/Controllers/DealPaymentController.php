@@ -183,6 +183,31 @@ class DealPaymentController extends AccountBaseController
         ]);
     }
 
+    public function requestDocuments(Deal $deal, Payment $payment): JsonResponse
+    {
+        $this->assertFeatureEnabled();
+        if ($deal->isLocked()) {
+            abort_403(true);
+        }
+        $this->assertCanReadPaymentDocuments($deal);
+        abort_unless((int) $payment->deal_id === (int) $deal->id, 404);
+        abort_unless(filled($payment->external_reference), 404);
+
+        try {
+            $this->documents->requestDocuments($payment, user()?->id);
+        } catch (HttpException $e) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => $e->getMessage(),
+            ], $e->getStatusCode());
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->dealPaymentService->serializeDealPayment($payment->fresh(['currency'])),
+        ]);
+    }
+
     public function document(Deal $deal, Payment $payment, string $kind)
     {
         $this->assertFeatureEnabled();

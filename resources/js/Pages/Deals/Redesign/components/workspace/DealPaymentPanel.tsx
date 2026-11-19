@@ -3,6 +3,7 @@ import type { Deal } from "@/Types/api/deals";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import useDealPayment from "../../hooks/useDealPayment";
+import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import {
     canCancelPaymentRequest,
     coveredBaseAmount,
@@ -98,6 +99,7 @@ export default function DealPaymentPanel({
         deleting,
         refreshing,
     } = useDealPayment(deal.id);
+    const { upsertPaymentRequest } = useDealWorkspace();
 
     const [createOpen, setCreateOpen] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
@@ -357,6 +359,7 @@ export default function DealPaymentPanel({
                         : undefined
                 }
                 onRetry={selected && canRetry(selected) ? () => setRetryTarget(selected) : undefined}
+                onDocumentsRequested={upsertPaymentRequest}
                 onDelete={
                     selected && selected.ui_state === "invalidated" && canConfirmPaymentTransfer
                         ? () => setDeleteOpen(true)
