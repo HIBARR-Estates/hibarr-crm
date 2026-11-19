@@ -175,11 +175,12 @@ class DealController extends AccountBaseController
         $isKanbanView = $view === 'kanban';
 
         // A board always renders one pipeline's columns, so a multi-pipeline
-        // filter ("1,2") or "all" falls back to the first/default pipeline.
+        // filter ("1,2") or "all" falls back to the first/default pipeline, and
+        // an exclusion ("not 2") to the first one it has not ruled out.
         $requestedPipelines = app(DealFilters::class)->includedValues($request, 'lead_pipeline_id');
         $pipelineId = count($requestedPipelines) === 1
             ? $requestedPipelines[0]
-            : optional($this->defaultPipeline)->id;
+            : $this->pipelineOutsideExclusion($request);
 
         $boardColumns = $isKanbanView
             ? $this->getBoardColumns($request, $pipelineId)
@@ -332,6 +333,19 @@ class DealController extends AccountBaseController
             'active_deals' => $activeDeals,
             'won_this_week' => $wonThisWeek,
         ];
+    }
+
+    /**
+     * The pipeline a board opens on when the filter does not name exactly one:
+     * the default pipeline, unless the filter excludes it, then the first that
+     * it does not. Every pipeline excluded leaves the default (an empty board).
+     */
+    private function pipelineOutsideExclusion(Request $request): ?int
+    {
+        $candidates = [optional($this->defaultPipeline)->id, ...collect($this->pipelines)->pluck('id')->all()];
+
+        return app(DealFilters::class)->firstPipelineNotExcluded($request, $candidates)
+            ?? optional($this->defaultPipeline)->id;
     }
 
     /**
@@ -651,7 +665,7 @@ class DealController extends AccountBaseController
         $requested = $filters->includedValues($request, 'lead_pipeline_id');
         $pipelineId = count($requested) === 1
             ? (int) $requested[0]
-            : (int) (optional($this->defaultPipeline)->id ?? optional($this->pipelines->first())->id);
+            : (int) $this->pipelineOutsideExclusion($request);
 
         // The page is one pipeline's open deals; the outcome filter, the page
         // and the in-list search (done in the browser) are not part of it.

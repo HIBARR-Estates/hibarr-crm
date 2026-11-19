@@ -77,6 +77,34 @@ class DealFilterExclusionTest extends TestCase
         $this->assertSame([], $filters->includedValues(Request::create('/', 'GET', ['lead_pipeline_id' => '2', 'lead_pipeline_id_mode' => 'not_in']), 'lead_pipeline_id'));
     }
 
+    public function test_a_board_falls_back_to_a_pipeline_the_exclusion_has_not_ruled_out(): void
+    {
+        $filters = new DealFilters;
+        // Default pipeline first, then the rest, as the controller offers them.
+        $candidates = [2, 1, 2, 3];
+
+        $none = Request::create('/', 'GET');
+        $this->assertSame(2, $filters->firstPipelineNotExcluded($none, $candidates));
+
+        // Excluding the default must not leave the board on it.
+        $notDefault = Request::create('/', 'GET', ['lead_pipeline_id' => '2', 'lead_pipeline_id_mode' => 'not_in']);
+        $this->assertSame(1, $filters->firstPipelineNotExcluded($notDefault, $candidates));
+
+        $notTwo = Request::create('/', 'GET', ['lead_pipeline_id' => '2,1', 'lead_pipeline_id_mode' => 'not_in']);
+        $this->assertSame(3, $filters->firstPipelineNotExcluded($notTwo, $candidates));
+
+        // Everything excluded: nothing to open, so the caller keeps the default.
+        $all = Request::create('/', 'GET', ['lead_pipeline_id' => '1,2,3', 'lead_pipeline_id_mode' => 'not_in']);
+        $this->assertNull($filters->firstPipelineNotExcluded($all, $candidates));
+
+        // No default pipeline configured: the first real one.
+        $this->assertSame(1, $filters->firstPipelineNotExcluded($none, [null, 1, 2]));
+
+        // "Is one of" is not an exclusion.
+        $in = Request::create('/', 'GET', ['lead_pipeline_id' => '2']);
+        $this->assertSame(2, $filters->firstPipelineNotExcluded($in, $candidates));
+    }
+
     // ── source (on the contact) ──────────────────────────────────────────
 
     public function test_source_is_read_from_the_contact(): void

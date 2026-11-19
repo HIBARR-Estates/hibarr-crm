@@ -120,6 +120,29 @@ class DealFilters
     }
 
     /**
+     * The first pipeline, in the order given, that "is not" has not ruled out;
+     * null when every candidate is excluded. A board shows one pipeline, and
+     * falling back to the default one would open it on the very pipeline the
+     * filter excludes whenever the default is the excluded one.
+     *
+     * @param  array<int, int|string|null>  $candidateIds  in order of preference
+     */
+    public function firstPipelineNotExcluded(Request $request, array $candidateIds): ?int
+    {
+        $excluded = ExclusionFilter::modeOf($request, 'lead_pipeline_id') === 'not_in'
+            ? $this->values($request, 'lead_pipeline_id')
+            : [];
+
+        foreach ($candidateIds as $id) {
+            if ($id !== null && ! in_array((string) $id, $excluded, true)) {
+                return (int) $id;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * @return array{0: string, 1: array<int, string>}|null [mode, values]
      */
     private function listFilter(Request $request, string $key): ?array
