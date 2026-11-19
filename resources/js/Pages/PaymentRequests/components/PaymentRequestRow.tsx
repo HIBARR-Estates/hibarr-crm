@@ -220,7 +220,7 @@ export default function PaymentRequestRow({
                         <Icon name="download" size={14} />
                         {t("pages.payment_requests.action_invoice")}
                     </a>
-                ) : row.documents_requested ? null : (
+                ) : row.documents_requested || inactive ? null : (
                     <Button
                         variant="ghost"
                         size="sm"
