@@ -1,6 +1,6 @@
 <?php
 
-return array(
+return [
     'importStarted' => 'Импорт начат. Вы получите уведомление после завершения.',
     'availabilityRequestSent' => 'Запрос о доступности успешно отправлен.',
     'availabilityRequestApproved' => 'Запрос о доступности успешно одобрен.',
@@ -22,6 +22,8 @@ return array(
     'updateSuccess' => 'Успешно обновлено.',
     'dealUpdateSuccess' => 'Сделка успешно обновлена.',
     'dealLocked' => 'Эта сделка заблокирована и не может быть изменена.',
+    'dealReferralLockedByCommission' => 'Комиссия по этой сделке уже рассчитана, поэтому долю реферала больше нельзя изменить.',
+    'dealReferralAmountTooHigh' => 'Согласованная сумма реферала не может превышать комиссию, доступную по этой сделке (:max).',
     'leadUpdateSuccess' => 'Контакт успешно обновлён.',
     'leadReferrerImmutable' => 'Реферер уже указан и не может быть изменён.',
     'propertyUpdateSuccess' => 'Недвижимость успешно обновлена.',
@@ -151,4 +153,4 @@ return array(
     'deleteTaskCategory' => 'Удалённую категорию задач нельзя будет восстановить!',
     'noLeadSourceAdded' => 'Источники лидов не добавлены.',
     'somethingWentWrong' => 'Что-то пошло не так. Повторите попытку.',
-);
+];

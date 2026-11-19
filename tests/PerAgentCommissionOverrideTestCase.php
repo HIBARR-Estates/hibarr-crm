@@ -88,6 +88,8 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
             $table->unsignedBigInteger('parent_agent_id')->nullable();
             $table->decimal('custom_direct_rate', 5, 2)->nullable();
             $table->decimal('custom_override_rate', 5, 2)->nullable();
+            $table->decimal('referral_pool_rate', 5, 2)->nullable();
+            $table->boolean('is_partner')->default(false);
             $table->string('status')->default('enabled');
             $table->timestamps();
         });
@@ -150,11 +152,22 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('leads', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id')->nullable();
+            $table->unsignedBigInteger('referred_by_agent_id')->nullable();
+            $table->softDeletes();
+            $table->timestamps();
+        });
+
         Schema::create('deals', function (Blueprint $table) {
             $table->id();
             $table->unsignedInteger('company_id')->nullable();
             $table->unsignedBigInteger('agent_id')->nullable();
+            $table->unsignedBigInteger('lead_id')->nullable();
             $table->decimal('value', 15, 2)->nullable();
+            $table->decimal('referral_pool_rate', 5, 2)->nullable();
+            $table->decimal('referral_fixed_amount', 15, 2)->nullable();
             $table->unsignedBigInteger('currency_id')->nullable();
             // Rate to convert deals.value (in the deal's own currency) into
             // the company's currency — null/1 for a same-currency deal.
@@ -194,6 +207,8 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
             $table->decimal('new_direct_rate', 5, 2)->nullable();
             $table->decimal('previous_override_rate', 5, 2)->nullable();
             $table->decimal('new_override_rate', 5, 2)->nullable();
+            $table->decimal('previous_referral_pool_rate', 5, 2)->nullable();
+            $table->decimal('new_referral_pool_rate', 5, 2)->nullable();
             $table->timestamp('changed_at');
             $table->text('reason')->nullable();
             $table->timestamps();
@@ -353,7 +368,7 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
         return DB::table('users')->insertGetId([
             'company_id' => $companyId,
             'name' => $name,
-            'email' => strtolower(str_replace(' ', '.', $name)) . '@test.com',
+            'email' => strtolower(str_replace(' ', '.', $name)).'@test.com',
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),

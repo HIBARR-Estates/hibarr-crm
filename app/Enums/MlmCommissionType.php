@@ -7,6 +7,7 @@ enum MlmCommissionType: string
     case Agent = 'agent';
     case Upline = 'upline';
     case System = 'system';
+    case Referral = 'referral';
 
     public function label(): string
     {
@@ -14,6 +15,7 @@ enum MlmCommissionType: string
             self::Agent => __('app.mlmCommissionType.agent'),
             self::Upline => __('app.mlmCommissionType.upline'),
             self::System => __('app.mlmCommissionType.system'),
+            self::Referral => __('app.mlmCommissionType.referral'),
         };
     }
 

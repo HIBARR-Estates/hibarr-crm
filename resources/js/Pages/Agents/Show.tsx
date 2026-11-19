@@ -19,6 +19,8 @@ import {
     PhoneOutlined,
 } from "@ant-design/icons";
 import { Link, router } from "@inertiajs/react";
+import useTranslation from "@/Hooks/useTranslation";
+import usePartnerReferralCommissionFlag from "@/Hooks/usePartnerReferralCommissionFlag";
 import dayjs from "dayjs";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
@@ -34,7 +36,9 @@ const Show = ({
     deals,
     permissions,
 }: AgentShowProps) => {
+    const { t } = useTranslation();
     const { td } = useTd();
+    const referralCommissionEnabled = usePartnerReferralCommissionFlag();
     const { handleAction, handleClose, action, selected } =
         useGenericEntityAction<Agent>();
 
@@ -113,6 +117,32 @@ const Show = ({
                             <Descriptions.Item label={td("Agent ID", { source: "en" })}>
                                 {agent.id}
                             </Descriptions.Item>
+                            {referralCommissionEnabled && agent.is_partner && (
+                                <Descriptions.Item label={t("pages.agents.referral_share")}>
+                                    {permissions.manage_partner_network ? (
+                                        <Link
+                                            href={route(
+                                                "mlm.agent_dashboard",
+                                                agent.id,
+                                            )}
+                                        >
+                                            {agent.referral_pool_rate != null
+                                                ? t("pages.agents.referral_share_of_pool", {
+                                                      rate: agent.referral_pool_rate,
+                                                  })
+                                                : t("pages.agents.referral_share_none")}
+                                        </Link>
+                                    ) : (
+                                        <span>
+                                            {agent.referral_pool_rate != null
+                                                ? t("pages.agents.referral_share_of_pool", {
+                                                      rate: agent.referral_pool_rate,
+                                                  })
+                                                : t("pages.agents.referral_share_none")}
+                                        </span>
+                                    )}
+                                </Descriptions.Item>
+                            )}
                             <Descriptions.Item label={td("Total Deals", { source: "en" })}>
                                 {agent.deals_count ?? deals.length}
                             </Descriptions.Item>

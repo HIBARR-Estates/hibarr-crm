@@ -9,6 +9,7 @@ use App\Models\AgentPackageCommissionRate;
 use App\Models\Currency;
 use App\Models\Deal;
 use App\Models\DeveloperProject;
+use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Models\MlmCommission;
 use App\Models\MlmCycleLevelSnapshot;
@@ -119,7 +120,7 @@ class MlmCommissionService
         $cycle = $enrollment?->cycle;
         $useSnapshots = $cycle && $cycle->hasSnapshots();
 
-        $maxCommission = $this->getMaxCommissionPercentage($deal, $cycle);
+        $maxCommission = $this->ceilingFor($deal, $agent, $cycle);
 
         if ($dealValue <= 0 || $maxCommission <= 0) {
             Log::info("MlmCommissionService: Skipping deal {$deal->id} - zero value or max commission");
@@ -216,19 +217,54 @@ class MlmCommissionService
             }
         }
 
-        // 3. System commission (remaining %)
-        $remainingPct = $maxCommission - $cumulativePct;
+        // Referral share of the pool, taken from what the company would keep.
+        // The closer and upline amounts above are left as they are.
+        //
+        // Room is measured in the already-rounded amounts: each leg rounds on its
+        // own, so subtracting percentages could let the legs sum a cent over the
+        // ceiling. The closer's and uplines' amounts are never reduced.
+        $ceilingAmount = round($this->calculateAmount($dealValue, $maxCommission), 2);
+        $referralLeg = $this->buildReferralLeg(
+            $deal,
+            $agent,
+            $dealValue,
+            $ceilingAmount,
+            max(0.0, round($ceilingAmount - (float) collect($records)->sum('amount'), 2)),
+        );
 
-        if ($remainingPct > 0.001) {
-            $records[] = $this->leg(
-                deal: $deal,
-                agent: $agent,
-                sourceAgent: $agent,
-                level: null,
-                percentage: round($remainingPct, 2),
-                amount: $this->calculateAmount($dealValue, $remainingPct),
-                type: MlmCommissionType::System
-            );
+        if ($referralLeg !== null) {
+            $records[] = $referralLeg;
+
+            // A fixed referral does not land on a clean percentage, so the
+            // remainder is whatever currency is still under the ceiling.
+            $remainingAmount = round($ceilingAmount - (float) collect($records)->sum('amount'), 2);
+
+            if ($remainingAmount > 0) {
+                $records[] = $this->leg(
+                    deal: $deal,
+                    agent: $agent,
+                    sourceAgent: $agent,
+                    level: null,
+                    percentage: $dealValue > 0 ? round($remainingAmount / $dealValue * 100, 2) : null,
+                    amount: $remainingAmount,
+                    type: MlmCommissionType::System
+                );
+            }
+        } else {
+            // 3. System commission (remaining %)
+            $remainingPct = $maxCommission - $cumulativePct;
+
+            if ($remainingPct > 0.001) {
+                $records[] = $this->leg(
+                    deal: $deal,
+                    agent: $agent,
+                    sourceAgent: $agent,
+                    level: null,
+                    percentage: round($remainingPct, 2),
+                    amount: $this->calculateAmount($dealValue, $remainingPct),
+                    type: MlmCommissionType::System
+                );
+            }
         }
 
         Log::info('MlmCommissionService: Resolved '.count($records)." commission legs for deal {$deal->id} (total {$cumulativePct}% of {$maxCommission}% max)".($useSnapshots ? ' [snapshot]' : ''));
@@ -372,6 +408,7 @@ class MlmCommissionService
             'paid_total' => round($paidTotal, 2),
             'revenue_to_company' => round($revenueToCompany, 2),
             'is_projected' => $isProjected,
+            'referral' => $this->referralDisplay($deal, $isPackageDeal, $dealValueInCompanyCurrency, $legs, ! $isProjected),
             // Every leg that paid a person, in engine order (agent first, then
             // uplines outward). Excludes the system leg, so these always sum to
             // paid_total rather than to something the reader has to unpick.
@@ -513,6 +550,7 @@ class MlmCommissionService
             'own_percentage' => $seesEverything ? null : $summary['own_percentage'],
             'deal_type' => $summary['is_package_deal'] ? 'package' : 'property',
             'is_projected' => $summary['is_projected'],
+            'referral' => $seesEverything ? $summary['referral'] : null,
         ];
 
         return $breakdown;
@@ -590,6 +628,14 @@ class MlmCommissionService
                 type: MlmCommissionType::Agent,
                 packageId: $package->id,
             );
+        }
+
+        $pool = round((float) array_sum(array_column($legs, 'amount')), 2);
+        $dealValue = (float) ($deal->value ?? 0) * (float) ($deal->exchange_rate ?? 1);
+        $referralLeg = $this->buildReferralLeg($deal, $agent, $dealValue, $pool, null);
+
+        if ($referralLeg !== null) {
+            $legs[] = $referralLeg;
         }
 
         Log::info('MlmCommissionService: Resolved '.count($legs)." package commission legs for deal {$deal->id}");
@@ -684,6 +730,11 @@ class MlmCommissionService
         return round($dealValue * ($percentage / 100), 2);
     }
 
+    protected function isReferralCommissionEnabled(): bool
+    {
+        return FeatureFlags::enabled('crm.partner-referral-commission');
+    }
+
     protected function isPerAgentOverrideEnabled(): bool
     {
         return FeatureFlags::enabled('sales.per-agent-commission-override');
@@ -727,6 +778,237 @@ class MlmCommissionService
         }
 
         return 0;
+    }
+
+    /**
+     * The ceiling preview() already resolved, including the closer's cycle
+     * snapshot when one is active.
+     */
+    protected function ceilingFor(Deal $deal, ?LeadAgent $agent, ?\App\Models\MlmCycle $cycle = null): float
+    {
+        if ($cycle === null && $agent) {
+            $cycle = $this->cycleService->getActiveEnrollment($agent)?->cycle;
+        }
+
+        return $this->getMaxCommissionPercentage($deal, $cycle);
+    }
+
+    /**
+     * The most commission this deal can ever carry: its ceiling percentage of
+     * the deal value, in company currency. A referral share, whether a
+     * percentage or an agreed amount, never exceeds this.
+     */
+    public function maxReferralAmount(Deal $deal, ?LeadAgent $closer = null, ?float $dealValue = null): float
+    {
+        $closer ??= $deal->agent_id
+            ? LeadAgent::withoutGlobalScopes()->find($deal->agent_id)
+            : null;
+        $dealValue ??= (float) ($deal->value ?? 0) * (float) ($deal->exchange_rate ?? 1);
+
+        if ($dealValue <= 0) {
+            return 0.0;
+        }
+
+        return max(0.0, $this->calculateAmount($dealValue, $this->ceilingFor($deal, $closer)));
+    }
+
+    /**
+     * Who referred this deal's lead, and the percentage and agreed amount that
+     * decide their leg. Null when the lead has no referrer.
+     *
+     * @return array{agent: LeadAgent, partner_percentage: float|null, deal_percentage: float|null, fixed_amount: float|null}|null
+     */
+    protected function referralSettings(Deal $deal): ?array
+    {
+        if (! $this->isReferralCommissionEnabled() || ! $deal->lead_id) {
+            return null;
+        }
+
+        $lead = Lead::withoutGlobalScopes()
+            ->where('id', $deal->lead_id)
+            ->first(['id', 'company_id', 'referred_by_agent_id']);
+
+        if (! $lead || ! $lead->referred_by_agent_id) {
+            return null;
+        }
+
+        // preview() runs without a logged-in company, so the lead is loaded
+        // without scopes. A deal must not pay, or display, another company's referrer.
+        if ($deal->company_id && (int) $lead->company_id !== (int) $deal->company_id) {
+            return null;
+        }
+
+        $referrerId = $lead->referred_by_agent_id;
+
+        $referrer = LeadAgent::withoutGlobalScopes()
+            ->with('user:id,name')
+            ->find($referrerId);
+
+        // The referrer must belong to the lead's own company: the lead was
+        // matched to the deal's company above, but the agent id it carries is
+        // not scoped by anything.
+        if (! $referrer || (int) $referrer->company_id !== (int) $lead->company_id) {
+            return null;
+        }
+
+        return [
+            'agent' => $referrer,
+            'partner_percentage' => $referrer->referral_pool_rate !== null
+                ? (float) $referrer->referral_pool_rate
+                : null,
+            'deal_percentage' => $deal->referral_pool_rate !== null
+                ? (float) $deal->referral_pool_rate
+                : null,
+            'fixed_amount' => $deal->referral_fixed_amount !== null
+                ? (float) $deal->referral_fixed_amount
+                : null,
+        ];
+    }
+
+    /**
+     * Settings and figures for the deal commission block. The percentage is
+     * always described, including when an agreed amount is what gets paid.
+     *
+     * @param  \Illuminate\Support\Collection<int, array{type: string, amount: float}>  $legs
+     * @return array<string, mixed>|null
+     */
+    protected function referralDisplay(
+        Deal $deal,
+        bool $isPackageDeal,
+        float $dealValue,
+        \Illuminate\Support\Collection $legs,
+        bool $settled = false,
+    ): ?array {
+        $settings = $this->referralSettings($deal);
+
+        if ($settings === null) {
+            return null;
+        }
+
+        $percentage = $settings['deal_percentage'] ?? $settings['partner_percentage'];
+        $fixed = $settings['fixed_amount'];
+        $inherited = $settings['deal_percentage'] === null;
+        $closer = $deal->agent_id
+            ? LeadAgent::withoutGlobalScopes()->find($deal->agent_id)
+            : null;
+        $pool = $isPackageDeal
+            ? round((float) $legs->where('type', MlmCommissionType::Agent->value)->sum('amount'), 2)
+            : $this->calculateAmount($dealValue, $this->ceilingFor($deal, $closer));
+        // A settled inherited share was frozen on the ledger. The partner
+        // default may have changed since, so it cannot reconstruct that figure.
+        $rateForAmount = $inherited && $settled ? null : $percentage;
+        $percentageAmount = ($rateForAmount !== null && $rateForAmount > 0 && $pool > 0)
+            ? round($pool * ($rateForAmount / 100), 2)
+            : null;
+        $referralLeg = $legs->first(
+            fn (array $leg) => $leg['type'] === MlmCommissionType::Referral->value
+        );
+        $paid = $referralLeg ? (float) $referralLeg['amount'] : 0.0;
+        $raw = $fixed !== null ? $fixed : ($percentageAmount ?? 0.0);
+        $capped = $percentageAmount !== null || $fixed !== null
+            ? $raw > 0 && ($paid + 0.009) < $raw
+            : false;
+
+        return [
+            'referrer_name' => $settings['agent']->user?->name ?: 'Unknown',
+            'partner_percentage' => $settings['partner_percentage'],
+            'deal_percentage' => $settings['deal_percentage'],
+            'percentage' => $percentage,
+            'fixed_amount' => $fixed,
+            'applied' => $fixed !== null ? 'fixed' : 'percentage',
+            'percentage_amount' => $percentageAmount,
+            'capped' => $capped,
+            'settled' => $settled,
+            'max_amount' => $isPackageDeal
+                ? $this->maxReferralAmount($deal, $closer, $dealValue)
+                : $pool,
+            'base' => $isPackageDeal ? 'package' : 'pool',
+        ];
+    }
+
+    /**
+     * The referral leg, or null when nothing is payable.
+     *
+     * An agreed amount replaces the percentage. On a level deal $roomAmount is
+     * what the company still holds, and the leg is capped there. On a package
+     * deal $roomAmount is null: the amount is paid in full and the closer's
+     * package fee is not reduced. $percentageBase is the pool the percentage
+     * is taken from (the ceiling amount, or the closer's package commission).
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function buildReferralLeg(
+        Deal $deal,
+        LeadAgent $closer,
+        float $dealValue,
+        ?float $percentageBase,
+        ?float $roomAmount,
+    ): ?array {
+        $settings = $this->referralSettings($deal);
+
+        if ($settings === null) {
+            return null;
+        }
+
+        $percentage = $settings['deal_percentage'] ?? $settings['partner_percentage'];
+        $fixed = $settings['fixed_amount'];
+
+        // On a level deal the company's remainder is already the tighter bound.
+        // A package deal has no remainder, so the deal's own commission ceiling
+        // is what stops a share from out-paying the deal.
+        $limit = $roomAmount !== null
+            ? max(0.0, round($roomAmount, 2))
+            : $this->maxReferralAmount($deal, $closer, $dealValue);
+
+        if ($fixed !== null) {
+            $raw = round($fixed, 2);
+
+            if ($raw <= 0) {
+                return null;
+            }
+
+            $amount = min($raw, $limit);
+
+            if ($amount <= 0) {
+                return null;
+            }
+
+            return $this->leg(
+                deal: $deal,
+                agent: $settings['agent'],
+                sourceAgent: $closer,
+                level: null,
+                percentage: null,
+                amount: round($amount, 2),
+                type: MlmCommissionType::Referral,
+            );
+        }
+
+        if ($percentage === null || $percentage <= 0 || $percentageBase === null || $percentageBase <= 0) {
+            return null;
+        }
+
+        $raw = round($percentageBase * ($percentage / 100), 2);
+
+        if ($raw <= 0) {
+            return null;
+        }
+
+        $amount = min($raw, $limit);
+
+        if ($amount <= 0) {
+            return null;
+        }
+
+        return $this->leg(
+            deal: $deal,
+            agent: $settings['agent'],
+            sourceAgent: $closer,
+            level: null,
+            percentage: $dealValue > 0 ? round($amount / $dealValue * 100, 2) : null,
+            amount: round($amount, 2),
+            type: MlmCommissionType::Referral,
+        );
     }
 
     /**

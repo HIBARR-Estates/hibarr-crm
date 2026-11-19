@@ -3,6 +3,13 @@
 return [
     'support' => 'Support',
 
+    'mlmCommissionType' => [
+        'agent' => 'Agent',
+        'upline' => 'Upline',
+        'system' => 'System',
+        'referral' => 'Referral',
+    ],
+
     // resolution status
     'unresolved' => 'Unresolved',
     // resolution status

@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'mlmCommissionType' => [
+        'agent' => 'Temsilci',
+        'upline' => 'Üst hat',
+        'system' => 'Sistem',
+        'referral' => 'Yönlendirme',
+    ],
+
     // Common buttons
     'save' => 'Kaydet',
     'update' => 'Güncelle',

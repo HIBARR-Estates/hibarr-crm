@@ -1,6 +1,6 @@
 <?php
 
-return array(
+return [
     'importStarted' => 'İçe aktarma başladı. Tamamlandığında bildirim alacaksınız.',
     'availabilityRequestSent' => 'Uygunluk isteği başarıyla gönderildi.',
     'availabilityRequestApproved' => 'Uygunluk isteği başarıyla onaylandı.',
@@ -22,6 +22,8 @@ return array(
     'updateSuccess' => 'Başarıyla güncellendi.',
     'dealUpdateSuccess' => 'Anlaşma başarıyla güncellendi.',
     'dealLocked' => 'Bu anlaşma kilitli ve değiştirilemez.',
+    'dealReferralLockedByCommission' => 'Bu anlaşmanın komisyonu zaten hesaplandı, bu yüzden yönlendirme payı artık değiştirilemez.',
+    'dealReferralAmountTooHigh' => 'Kararlaştırılan yönlendirme tutarı bu anlaşmanın taşıyabileceği komisyonu (:max) aşamaz.',
     'leadUpdateSuccess' => 'İletişim başarıyla güncellendi.',
     'leadReferrerImmutable' => 'Yönlendiren zaten belirlenmiş ve değiştirilemez.',
     'propertyUpdateSuccess' => 'Mülk başarıyla güncellendi.',
@@ -151,4 +153,4 @@ return array(
     'deleteTaskCategory' => 'Silinen görev kategorisini geri alamayacaksınız!',
     'noLeadSourceAdded' => 'Potansiyel müşteri kaynağı eklenmedi.',
     'somethingWentWrong' => 'Bir şeyler ters gitti. Lütfen tekrar deneyin.',
-);
+];

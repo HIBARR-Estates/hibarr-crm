@@ -2,15 +2,19 @@
 
 namespace App\Services\Partner;
 
+use App\Enums\MlmCommissionStatus;
+use App\Enums\MlmCommissionType;
 use App\Enums\OutcomeStatus;
 use App\Enums\PackageCommissionType;
 use App\Models\AgentPackageCommissionRate;
 use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\LeadAgent;
+use App\Models\MlmCommission;
 use App\Services\MlmCommissionService;
 use App\Support\PartnerRole;
 use Illuminate\Pagination\LengthAwarePaginator;
+use App\Support\FeatureFlags;
 use Illuminate\Support\Collection;
 
 /**
@@ -23,15 +27,13 @@ use Illuminate\Support\Collection;
  *
  * Deals that pay this partner nothing are left out of every figure here: a deal
  * whose attached packages all resolve to no commission for them (a configured
- * "none", or a payout of zero). A deal with no commission package pays through
- * the level-based split, so it stays in. The rule is MlmCommissionService's own
- * (resolvePackageCommission), not a copy of it.
+ * "none", or a payout of zero), and that also would not write them a referral
+ * leg. A deal with no commission package pays through the level-based split,
+ * so it stays in. The rule is MlmCommissionService's own, not a copy of it.
  */
 class PartnerLeadService
 {
-    public function __construct(private MlmCommissionService $commissions)
-    {
-    }
+    public function __construct(private MlmCommissionService $commissions) {}
 
     public function agentFor(int $userId): ?LeadAgent
     {
@@ -197,26 +199,50 @@ class PartnerLeadService
             ->get()
             ->keyBy('package_id');
 
-        return Deal::query()
+        $deals = Deal::query()
             ->whereIn('lead_id', $leadIds)
             ->with([
                 'currency:id,currency_code,currency_symbol',
                 'packages:id,value,currency,commission_type,commission_value',
             ])
             ->orderByDesc('created_at')
-            ->get(['id', 'name', 'lead_id', 'value', 'currency_id', 'outcome_status', 'won_at', 'close_date', 'created_at'])
-            ->reject(fn (Deal $deal) => $this->paysNothing($deal, $agent, $overrides))
+            ->get([
+                'id', 'name', 'lead_id', 'agent_id', 'company_id', 'value', 'currency_id',
+                'exchange_rate', 'max_commission_percentage', 'referral_pool_rate',
+                'referral_fixed_amount', 'commission_locked', 'outcome_status', 'won_at', 'close_date',
+                'created_at',
+            ]);
+
+        $ledger = $this->recordedReferralDeals($deals, $agent);
+
+        return $deals
+            ->reject(fn (Deal $deal) => $this->paysNothing($deal, $agent, $overrides, $ledger))
             ->groupBy('lead_id');
     }
 
     /**
-     * Mirrors MlmCommissionService::packageLegs(): package pricing applies when
-     * any attached package carries a commission_type, and then it owns the whole
+     * A referral leg keeps the deal. Otherwise package pricing applies when any
+     * attached package carries a commission_type, and then it owns the closer's
      * payout — so the deal pays nothing only if every such package does.
      *
      * @param  Collection<int, AgentPackageCommissionRate>  $overrides  keyed by package_id
+     * @param  Collection<int, int>|null  $ledger  ids of settled deals that recorded a referral leg for this partner
      */
-    private function paysNothing(Deal $deal, LeadAgent $agent, Collection $overrides): bool
+    private function paysNothing(Deal $deal, LeadAgent $agent, Collection $overrides, ?Collection $ledger = null): bool
+    {
+        // The package rule is cheap; the referral check (a preview) runs only
+        // for a deal that rule would drop.
+        if (! $this->packageRulePaysNothing($deal, $agent, $overrides)) {
+            return false;
+        }
+
+        return ! $this->referralPays($deal, $agent, $ledger ?? collect());
+    }
+
+    /**
+     * @param  Collection<int, AgentPackageCommissionRate>  $overrides  keyed by package_id
+     */
+    private function packageRulePaysNothing(Deal $deal, LeadAgent $agent, Collection $overrides): bool
     {
         $configured = $deal->packages->filter(fn ($package) => $package->commission_type !== null);
 
@@ -235,6 +261,57 @@ class PartnerLeadService
 
             return $this->commissions->resolvePackageCommission($package, $agent, $override) === null;
         });
+    }
+
+    /**
+     * Settled deals that recorded a positive, non-reverted referral leg for this
+     * partner. Their payout is on the ledger, so it is read from there: a
+     * preview would answer for today's settings, not what was paid.
+     *
+     * @param  Collection<int, Deal>  $deals
+     * @return Collection<int, int>
+     */
+    private function recordedReferralDeals(Collection $deals, LeadAgent $agent): Collection
+    {
+        $settled = $deals->filter(fn (Deal $deal) => (bool) $deal->commission_locked)->pluck('id');
+
+        if ($settled->isEmpty() || ! FeatureFlags::enabled('crm.partner-referral-commission')) {
+            return collect();
+        }
+
+        return MlmCommission::query()
+            ->whereIn('deal_id', $settled)
+            ->where('agent_id', $agent->id)
+            ->where('type', MlmCommissionType::Referral->value)
+            ->where('status', '!=', MlmCommissionStatus::Reverted->value)
+            ->where('amount', '>', 0)
+            ->pluck('deal_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * True when this partner has, or would be written, a referral leg. Keeps a
+     * referred deal on their list even when the package would have paid them
+     * nothing as the closer.
+     *
+     * @param  Collection<int, int>  $ledger
+     */
+    private function referralPays(Deal $deal, LeadAgent $agent, Collection $ledger): bool
+    {
+        if (! FeatureFlags::enabled('crm.partner-referral-commission')) {
+            return false;
+        }
+
+        if ($deal->commission_locked) {
+            return $ledger->contains((int) $deal->id);
+        }
+
+        return collect($this->commissions->preview($deal))
+            ->contains(fn (array $leg) => ($leg['type'] ?? null) === MlmCommissionType::Referral->value
+                && (int) ($leg['agent_id'] ?? 0) === (int) $agent->id
+                && (float) ($leg['amount'] ?? 0) > 0);
     }
 
     /** @return array{id: int, label: string, color: string|null}|null */

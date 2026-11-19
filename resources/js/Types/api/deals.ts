@@ -156,7 +156,7 @@ export interface Deal {
              */
             legs: Array<{
                 agent_name: string;
-                type: "agent" | "upline";
+                type: "agent" | "upline" | "referral";
                 percentage: number | null;
                 amount: number;
                 is_you: boolean;
@@ -189,6 +189,25 @@ export interface Deal {
             // distributed for any other reason) — figures are a live
             // projection from current settings, not a persisted ledger.
             is_projected: boolean;
+            /**
+             * Referrer share. Null when the lead has no referrer. The percentage
+             * stays visible when an agreed amount replaces it.
+             */
+            referral: {
+                referrer_name: string;
+                partner_percentage: number | null;
+                deal_percentage: number | null;
+                percentage: number | null;
+                fixed_amount: number | null;
+                applied: "fixed" | "percentage";
+                percentage_amount: number | null;
+                capped: boolean;
+                /** True once commission is on the ledger; the partner default may have changed since. */
+                settled: boolean;
+                /** Most commission this deal can carry; an agreed amount can't exceed it. */
+                max_amount: number;
+                base: "package" | "pool";
+            } | null;
         } | null;
     };
 }

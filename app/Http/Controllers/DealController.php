@@ -2463,6 +2463,111 @@ class DealController extends AccountBaseController
     }
 
     /**
+     * Set this deal's referral percentage and agreed amount.
+     *
+     * The percentage, left empty, uses the partner's default. An agreed amount
+     * replaces that percentage. Both are frozen once commission has been calculated,
+     * and the agreed amount can never exceed the commission the deal can carry.
+     */
+    public function updateReferralCommission(Request $request, $id)
+    {
+        abort_if(! FeatureFlags::enabled('crm.partner-referral-commission'), 404);
+
+        $deal = Deal::findOrFail($id);
+
+        if ($deal->isLocked()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealLocked'),
+            ], 403);
+        }
+
+        $hasTeamAccess = $deal->hasTeamMemberAccess(user()->id);
+        $editPermission = user()->permission('edit_deals');
+
+        abort_403(! (
+            $editPermission == 'all'
+            || ($editPermission == 'added' && $deal->added_by == user()->id)
+            || ($editPermission == 'owned' && $hasTeamAccess)
+            || ($editPermission == 'both' && ($deal->added_by == user()->id || $hasTeamAccess))
+        ));
+
+        $validated = $request->validate([
+            'referral_pool_rate' => 'nullable|numeric|min:0|max:100',
+            'referral_fixed_amount' => 'nullable|numeric|min:0|max:9999999999999.99',
+        ]);
+
+        $maxAmount = null;
+
+        $blocked = DB::transaction(function () use ($request, $deal, $validated, &$maxAmount) {
+            $locked = Deal::query()->whereKey($deal->id)->lockForUpdate()->first();
+
+            if (! $locked) {
+                return 'locked';
+            }
+
+            // The deal may have been locked since the check above.
+            if ($locked->isLocked()) {
+                return 'deal_locked';
+            }
+
+            if ($locked->isCommissionLocked()) {
+                return 'locked';
+            }
+
+            if ($request->exists('referral_fixed_amount') && $validated['referral_fixed_amount'] !== null) {
+                // Checked against the locked row so a concurrent value or
+                // ceiling change cannot slip a larger amount through.
+                $maxAmount = app(\App\Services\MlmCommissionService::class)->maxReferralAmount($locked);
+
+                if (round((float) $validated['referral_fixed_amount'], 2) > $maxAmount) {
+                    return 'exceeds';
+                }
+            }
+
+            if ($request->exists('referral_pool_rate')) {
+                $locked->referral_pool_rate = $validated['referral_pool_rate'];
+            }
+
+            if ($request->exists('referral_fixed_amount')) {
+                $locked->referral_fixed_amount = $validated['referral_fixed_amount'];
+            }
+
+            $locked->save();
+
+            return null;
+        });
+
+        if ($blocked === 'exceeds') {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealReferralAmountTooHigh', [
+                    'max' => number_format((float) $maxAmount, 2),
+                ]),
+            ], 422);
+        }
+
+        if ($blocked === 'deal_locked') {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealLocked'),
+            ], 403);
+        }
+
+        if ($blocked === 'locked') {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealReferralLockedByCommission'),
+            ], 403);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->loadFullDeal($deal->id),
+        ]);
+    }
+
+    /**
      * Patch (partial update) a deal record.
      * Allows updating any subset of deal fields.
      */

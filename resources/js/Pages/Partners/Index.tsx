@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { router } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
 import { message } from "antd";
 import axios from "axios";
 import DashboardLayout from "@/Components/DashboardLayout";
+import usePartnerReferralCommissionFlag from "@/Hooks/usePartnerReferralCommissionFlag";
+import useTranslation from "@/Hooks/useTranslation";
 import PageLayout from "@/Components/PageLayout";
 import {
     Button,
@@ -24,6 +26,8 @@ interface PartnerAgent {
     id: number;
     status: "enabled" | "disabled";
     is_partner: boolean;
+    /** Decimal string from the `decimal:2` cast, e.g. "12.50". */
+    referral_pool_rate?: string | null;
     referred_leads_count: number;
     /** True for an account made through Invite Partner, which can be re-invited. */
     can_resend?: boolean;
@@ -38,6 +42,7 @@ interface Stats {
 
 interface Props {
     pageTitle: string;
+    canManageCommissionProfile?: boolean;
     agents: {
         data: PartnerAgent[];
         current_page: number;
@@ -79,8 +84,10 @@ const StatTile = ({ label, value }: { label: string; value: number }) => (
     </div>
 );
 
-const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Props) => {
+const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canManageCommissionProfile = false }: Props) => {
     const { td } = useTd();
+    const { t } = useTranslation();
+    const referralCommissionEnabled = usePartnerReferralCommissionFlag();
 
     const [rows, setRows] = useState<PartnerAgent[]>(agents.data);
     const [stats, setStats] = useState<Stats>(initialStats);
@@ -279,6 +286,26 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
                                         ? td("Enabled", { source: "en" })
                                         : td("Disabled", { source: "en" })}
                                 </Badge>
+                                {referralCommissionEnabled && (canManageCommissionProfile ? (
+                                <Link
+                                    href={route("mlm.agent_dashboard", agent.id)}
+                                    style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}
+                                >
+                                    {agent.referral_pool_rate != null
+                                        ? t("pages.agents.referral_share_of_pool", {
+                                              rate: agent.referral_pool_rate,
+                                          })
+                                        : t("pages.agents.referral_share_none")}
+                                </Link>
+                                ) : (
+                                <span style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}>
+                                    {agent.referral_pool_rate != null
+                                        ? t("pages.agents.referral_share_of_pool", {
+                                              rate: agent.referral_pool_rate,
+                                          })
+                                        : t("pages.agents.referral_share_none")}
+                                </span>
+                                ))}
                                 <Badge variant="blue">
                                     {td(":count leads referred", { source: "en" }).replace(
                                         ":count",
