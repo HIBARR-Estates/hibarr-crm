@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -17,6 +18,14 @@ return new class extends Migration
             $table->timestamp('documents_requested_at')->nullable();
             $table->unsignedInteger('documents_requested_by_user_id')->nullable();
         });
+
+        // Payments whose documents were already issued count as requested, so
+        // their frozen invoice and receipt stay reachable.
+        if (Schema::hasTable('payment_documents')) {
+            DB::table('payments')
+                ->whereIn('id', DB::table('payment_documents')->select('payment_id'))
+                ->update(['documents_requested_at' => DB::raw('CURRENT_TIMESTAMP')]);
+        }
     }
 
     public function down(): void
