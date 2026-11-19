@@ -189,7 +189,9 @@ class DealPaymentController extends AccountBaseController
         if ($deal->isLocked()) {
             abort_403(true);
         }
-        $this->assertCanReadPaymentDocuments($deal);
+        // Requesting an invoice lets a legal invoice number be taken, so it
+        // needs the same write access as cancelling or retrying a request.
+        $this->assertCanCancelPaymentRequest($deal);
         abort_unless((int) $payment->deal_id === (int) $deal->id, 404);
         abort_unless(filled($payment->external_reference), 404);
 

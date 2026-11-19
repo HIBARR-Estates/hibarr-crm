@@ -56,6 +56,8 @@ interface PaymentRequestDetailModalProps {
     /** Present when the viewer may permanently delete this cancelled request. */
     onDelete?: () => void;
     companyCurrency?: CurrencyDisplay | null;
+    /** Whether the viewer may record an invoice request (the same write access as cancelling). */
+    canRequestInvoice?: boolean;
     /** Called with the updated request once an invoice has been requested. */
     onDocumentsRequested?: (request: DealPaymentRequest) => void;
 }
@@ -268,6 +270,7 @@ export default function PaymentRequestDetailModal({
     onRetry,
     onDelete,
     companyCurrency,
+    canRequestInvoice = false,
     onDocumentsRequested,
 }: PaymentRequestDetailModalProps) {
     const { t } = useTranslation();
@@ -304,7 +307,8 @@ export default function PaymentRequestDetailModal({
     const leadName = [request.lead_name, request.lead_company].filter(Boolean).join(" · ");
     const leadHref = request.lead_id ? safeRoute("lead-contact.show", request.lead_id) : null;
     const documentsRequested = Boolean(request.documents_requested) || requestedId === request.id;
-    const canRequestDocuments = !documentsRequested
+    const canRequestDocuments = canRequestInvoice
+        && !documentsRequested
         && request.deal_id != null
         && request.ui_state !== "invalidated"
         && request.ui_state !== "failed";

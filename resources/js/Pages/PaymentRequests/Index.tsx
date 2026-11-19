@@ -657,6 +657,7 @@ const Index = ({ paymentRequests, filters, counts, stats, filterOptions }: Index
                 open={selected != null && !cancelOpen && !deleteOpen}
                 onClose={() => setSelectedId(null)}
                 companyCurrency={companyCurrency}
+                canRequestInvoice
                 onCancel={
                     selected && canCancelPaymentRequest(selected.ui_state)
                         ? () => setCancelOpen(true)
