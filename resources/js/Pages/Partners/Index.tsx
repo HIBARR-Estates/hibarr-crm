@@ -91,6 +91,23 @@ const isOlder = (incoming: PartnerAgent, current: PartnerAgent): boolean => {
     return a < b;
 };
 
+/**
+ * `base` with only the invite fields taken from `from`. A newer invite state is
+ * carried over without dragging along the rest of `from`, which may be older
+ * (the partner's enabled/disabled status, referral count, ...).
+ */
+const withInviteState = (base: PartnerAgent, from: PartnerAgent): PartnerAgent => ({
+    ...base,
+    can_resend: from.can_resend,
+    partner_invite_status: from.partner_invite_status,
+    user: base.user
+        ? {
+              ...base.user,
+              partner_invite_version: from.user?.partner_invite_version,
+          }
+        : base.user,
+});
+
 const inviteBadgeVariant = (status: InviteStatus): "amber" | "green" | "red" => {
     if (status === "accepted") return "green";
     if (status === "failed") return "red";
@@ -109,7 +126,7 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
         setRows((prev) =>
             agents.data.map((incoming) => {
                 const current = prev.find((row) => row.id === incoming.id);
-                return current && isOlder(incoming, current) ? current : incoming;
+                return current && isOlder(incoming, current) ? withInviteState(incoming, current) : incoming;
             }),
         );
     }, [agents.data]);
@@ -203,7 +220,12 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
             if (data?.agent) {
                 const updated = data.agent as PartnerAgent;
                 setRows((prev) =>
-                    prev.map((row) => (row.id === updated.id && !isOlder(updated, row) ? updated : row)),
+                    prev.map((row) => {
+                        if (row.id !== updated.id) return row;
+                        // The response carries the freshest invite state, but the rest
+                        // of the row (status, referrals) may be older than what is shown.
+                        return isOlder(updated, row) ? row : withInviteState(row, updated);
+                    }),
                 );
             }
             if (data?.status !== "success") {

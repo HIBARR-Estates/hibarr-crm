@@ -187,6 +187,9 @@ return [
         'keycloak' => [
             // fake = in-memory (tests / local). http = OL Admin API wrapper.
             'driver' => env('OL_KEYCLOAK_DRIVER', 'http'),
+            // How long a Partners action waits for another change to the same partner
+            // (an OL call can hold the lock for its whole timeout) before answering "busy".
+            'lock_wait_seconds' => (int) env('OL_KEYCLOAK_LOCK_WAIT_SECONDS', 20),
             'paths' => [
                 'provision' => env('OL_KEYCLOAK_PROVISION_PATH', '/internal/keycloak/users'),
                 'actions_email' => env(
