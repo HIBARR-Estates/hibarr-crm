@@ -358,9 +358,10 @@ class DealPaymentDocumentService
             $vat = (float) $invoiceTotals['vat'];
         } else {
             $vatRate = (float) $settings->vat_rate;
-            // Request amounts are what the client pays, so KDV is included in them.
-            $net = round($amount / (1 + $vatRate / 100), 2);
-            $vat = round($amount - $net, 2);
+            // The request amount is the value of the service; KDV is added on top.
+            $net = round($amount, 2);
+            $vat = round($net * $vatRate / 100, 2);
+            $amount = round($net + $vat, 2);
         }
         $code = $data['currency_code'] ? strtoupper((string) $data['currency_code']) : null;
 

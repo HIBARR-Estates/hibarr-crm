@@ -278,7 +278,6 @@ export default function PaymentRequestDetailModal({
             : undefined;
     const leadName = [request.lead_name, request.lead_company].filter(Boolean).join(" · ");
     const leadHref = request.lead_id ? safeRoute("lead-contact.show", request.lead_id) : null;
-    const agentHref = request.agent_user_id ? safeRoute("employees.show", request.agent_user_id) : null;
     const invoiceUrl = documentHref(request, "invoice");
     const receiptUrl = collected ? documentHref(request, "receipt") : null;
     const linkExpired = isCheckoutLinkExpired(request);
@@ -322,17 +321,10 @@ export default function PaymentRequestDetailModal({
 
     const person = (entry: DealPaymentVerifiedBy | null | undefined) => {
         if (!entry) return DASH;
-        const href = safeRoute("employees.show", entry.id);
         const name = entry.name?.trim() || `#${entry.id}`;
         return (
             <span>
-                {href ? (
-                    <Link href={href} style={{ color: T.NAVY, fontWeight: 600, textDecoration: "underline" }}>
-                        {name}
-                    </Link>
-                ) : (
-                    name
-                )}
+                {name}
                 {entry.email ? (
                     <span style={{ display: "block", color: T.TEXT_MUTED }}>{entry.email}</span>
                 ) : null}
@@ -460,7 +452,7 @@ export default function PaymentRequestDetailModal({
                     icon="users"
                     role={t("pages.payment_requests.detail_agent")}
                     name={request.agent_name ?? null}
-                    href={agentHref}
+                    href={null}
                 />
             </div>
 

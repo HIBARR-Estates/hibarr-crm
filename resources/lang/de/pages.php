@@ -5083,7 +5083,7 @@ return [
             'title' => 'Steuer und Genehmigung',
             'description' => 'KDV und die Genehmigungsvermerke des Finanzamts.',
             'vat_rate' => 'KDV-Satz',
-            'vat_rate_hint' => 'Anforderungsbeträge enthalten KDV. Die Rechnung weist den KDV-Anteil aus.',
+            'vat_rate_hint' => 'KDV wird auf den Anforderungsbetrag aufgeschlagen. Die Rechnung weist KDV und Gesamtbetrag aus.',
             'approval_number' => 'Belge-onay-Nummer',
             'approval_number_hint' => 'Genehmigungsnummer der Gelir ve Vergi Dairesi',
             'stamp_duty' => 'Feld „Damga Vergisi Ödenmiştir“ anzeigen',

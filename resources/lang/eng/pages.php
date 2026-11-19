@@ -5182,7 +5182,7 @@ return [
             'title' => 'Tax and approval',
             'description' => 'KDV and the tax office approval marks.',
             'vat_rate' => 'KDV rate',
-            'vat_rate_hint' => 'Request amounts include KDV. The invoice splits out the KDV part.',
+            'vat_rate_hint' => 'KDV is added on top of the request amount. The invoice shows the KDV and the total.',
             'approval_number' => 'Belge onay number',
             'approval_number_hint' => 'Approval number from the Gelir ve Vergi Dairesi',
             'stamp_duty' => 'Show the "Damga Vergisi Ödenmiştir" box',

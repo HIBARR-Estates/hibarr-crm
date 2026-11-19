@@ -1252,11 +1252,12 @@ class DealPaymentRequestTest extends TestCase
         $this->assertStringContainsString('Test Deal', $html);
         $this->assertStringContainsString('2.500,00', $html);
         $this->assertStringContainsString('FATURA', $html);
-        // 16% KDV is inside the amount: 2500 / 1.16 = 2155.17, KDV 344.83.
-        $this->assertSame('2.155,17', $data['subtotal_display']);
-        $this->assertSame('344,83', $data['vat_display']);
-        $this->assertSame('Yalnız: İkibinbeşyüz Avro', $data['amount_in_words']);
-        $this->assertSame('125.000,00', $data['try_display']['amount']);
+        // 16% KDV is added on top of the amount: 2500 + 400 = 2900.
+        $this->assertSame('2.500,00', $data['subtotal_display']);
+        $this->assertSame('400,00', $data['vat_display']);
+        $this->assertSame('2.900,00', $data['total_display']);
+        $this->assertSame('Yalnız: İkibindokuzyüz Avro', $data['amount_in_words']);
+        $this->assertSame('145.000,00', $data['try_display']['amount']);
     }
 
     public function test_invoice_and_receipt_pdfs_render(): void
@@ -1290,7 +1291,7 @@ class DealPaymentRequestTest extends TestCase
 
         $this->assertSame('06.11.2026', $data['try_display']['date']);
         $this->assertSame('50,0000', $data['try_display']['rate']);
-        $this->assertSame('217.500,00', $data['try_display']['amount']);
+        $this->assertSame('252.300,00', $data['try_display']['amount']);
     }
 
     public function test_receipt_repeats_the_invoice_kdv_after_the_rate_setting_changes(): void
@@ -1304,7 +1305,7 @@ class DealPaymentRequestTest extends TestCase
         ]);
         $service = app(DealPaymentDocumentService::class);
         $invoice = $service->viewData(Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id), 'invoice');
-        $this->assertSame('344,83', $invoice['vat_display']);
+        $this->assertSame('400,00', $invoice['vat_display']);
 
         DB::table('payment_document_settings')->where('company_id', $this->companyId)->update(['vat_rate' => 20]);
         DB::table('payments')->where('id', $id)->update(['ol_status' => 'completed', 'status' => 'complete', 'paid_on' => now()->subDays(3)]);
@@ -1312,7 +1313,8 @@ class DealPaymentRequestTest extends TestCase
         $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
         $receipt = $service->viewData($payment, 'receipt');
 
-        $this->assertSame('344,83', $receipt['vat_display']);
+        $this->assertSame('400,00', $receipt['vat_display']);
+        $this->assertSame('2.900,00', $receipt['total_display']);
         $this->assertSame('16', $receipt['vat_rate_display']);
         // Printed with the collection date; the row records when it was issued.
         $this->assertSame(now()->subDays(3)->format('d.m.Y'), $receipt['issued_on']);
@@ -1346,7 +1348,7 @@ class DealPaymentRequestTest extends TestCase
         $data = app(DealPaymentDocumentService::class)->viewData($payment, 'invoice');
 
         $this->assertNull($data['try_display']['date']);
-        $this->assertSame('5.000,00', $data['try_display']['amount']);
+        $this->assertSame('5.800,00', $data['try_display']['amount']);
     }
 
     public function test_write_back_cannot_change_the_amount_once_a_document_is_issued(): void
@@ -1424,7 +1426,7 @@ class DealPaymentRequestTest extends TestCase
         $html = view('payment-requests.document', $data)->render();
 
         $this->assertSame('A 000001', $data['number']);
-        $this->assertSame('Yalnız: Dörtbinüçyüzelli İngiliz Sterlini', $data['amount_in_words']);
+        $this->assertSame('Yalnız: Beşbinkırkaltı İngiliz Sterlini', $data['amount_in_words']);
         $this->assertStringContainsString('ÖRNEK', $html);
         $this->assertSame(0, DB::table('payment_documents')->count());
 

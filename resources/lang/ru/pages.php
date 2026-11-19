@@ -5126,7 +5126,7 @@ return [
             'title' => 'Налог и утверждение',
             'description' => 'KDV и отметки налоговой инспекции.',
             'vat_rate' => 'Ставка KDV',
-            'vat_rate_hint' => 'Суммы запросов включают KDV. В счёте KDV выделяется отдельно.',
+            'vat_rate_hint' => 'KDV добавляется сверху к сумме запроса. В счёте указаны KDV и итоговая сумма.',
             'approval_number' => 'Номер belge onay',
             'approval_number_hint' => 'Номер утверждения от Gelir ve Vergi Dairesi',
             'stamp_duty' => 'Показывать поле «Damga Vergisi Ödenmiştir»',
