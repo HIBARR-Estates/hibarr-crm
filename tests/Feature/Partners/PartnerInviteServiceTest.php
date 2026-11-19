@@ -714,6 +714,27 @@ class PartnerInviteServiceTest extends TestCase
         $this->assertTrue((bool) $staleOn->fresh()->is_partner);
     }
 
+    public function test_resend_from_a_stale_row_sends_nothing_to_a_removed_partner_with_an_identity(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $service = app(PartnerInviteService::class);
+        $invite = $service->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+        // Admin B's page still shows the row; admin A removes the partner.
+        $staleRow = $invite['agent']->fresh(['user', 'user.roles']);
+        $service->destroy($invite['agent']->fresh(['user', 'user.roles']));
+        $this->keycloak->actionsEmails = [];
+        $versionBefore = (int) DB::table('users')->where('id', $staleRow->user_id)->value('partner_invite_version');
+        Notification::fake();
+
+        $result = $service->resend($staleRow, $this->admin);
+
+        $this->assertFalse($result['ok']);
+        $this->assertSame(__('pages.partners.msg_removed_while_inviting'), $result['message']);
+        $this->assertSame([], $this->keycloak->actionsEmails);
+        Notification::assertNothingSent();
+        $this->assertSame($versionBefore, (int) DB::table('users')->where('id', $staleRow->user_id)->value('partner_invite_version'));
+    }
+
     public function test_a_busy_lock_returns_a_retryable_message_and_keeps_the_saved_partner(): void
     {
         $this->setFeatureFlag(PartnerInviteService::FLAG, true);

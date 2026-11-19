@@ -164,12 +164,38 @@ class PartnerInviteService
             ];
         }
 
+        // The page may show a row an admin has since removed: nobody should get
+        // an invitation of any kind for a partner who is no longer one.
+        if (! $this->isActivePartner($agent->user)) {
+            return [
+                'ok' => false,
+                'message' => __('pages.partners.msg_removed_while_inviting'),
+            ];
+        }
+
         if (self::enabled()) {
             $keycloakId = $this->keycloakId($agent->user);
             try {
                 if ($keycloakId) {
-                    $this->keycloak()->sendActionsEmail($keycloakId);
-                    $this->setInviteStatus($agent->user, self::STATUS_INVITED);
+                    // Same lock as removal: either the partner is removed first
+                    // (nothing is sent) or the email goes out and removal then
+                    // disables the identity.
+                    $outcome = $this->withAccountLock($agent->user_id, function () use ($agent, $keycloakId) {
+                        if (! $this->isActivePartner($agent->user)) {
+                            return self::REMOVED;
+                        }
+
+                        $this->keycloak()->sendActionsEmail($keycloakId);
+                        $this->setInviteStatus($agent->user, self::STATUS_INVITED);
+
+                        return self::PROVISIONED;
+                    });
+                    if ($outcome === self::REMOVED) {
+                        return [
+                            'ok' => false,
+                            'message' => __('pages.partners.msg_removed_while_inviting'),
+                        ];
+                    }
                 } else {
                     $outcome = $this->provisionFor($agent->user);
                     if ($outcome === self::REMOVED) {
@@ -191,6 +217,11 @@ class PartnerInviteService
                         ];
                     }
                 }
+            } catch (LockTimeoutException) {
+                return [
+                    'ok' => false,
+                    'message' => __('pages.partners.msg_busy'),
+                ];
             } catch (OlKeycloakException $e) {
                 Log::warning('Partner invite resend: Keycloak request failed', [
                     'user_id' => $agent->user->id,
