@@ -151,6 +151,32 @@ class PartnerInviteServiceTest extends TestCase
         $this->assertCount(1, $this->keycloak->actionsEmails);
     }
 
+    public function test_an_activation_that_commits_after_add_read_deactive_still_enables_the_identity(): void
+    {
+        $this->setFeatureFlag(PartnerInviteService::FLAG, true);
+        $service = app(PartnerInviteService::class);
+        $invite = $service->invite(['name' => 'Ada Lovelace', 'email' => 'ada@example.test'], 1, $this->admin);
+        $user = $invite['agent']->user;
+        $this->saveAndSync($user, ['status' => 'deactive']);
+        $service->destroy($invite['agent']->fresh(['user', 'user.roles']));
+        $updatesBefore = count($this->keycloak->updates);
+
+        // The exact interleaving: add() reads "deactive" (so it skips the enable
+        // and only flags membership), then the activation commits. Its Keycloak
+        // callback runs after the transaction, once membership is restored.
+        DB::transaction(function () use ($service, $invite, $user) {
+            $this->assertTrue($service->add($invite['agent']->fresh()));
+            $this->assertSame($updatesBefore, count($this->keycloak->updates), 'add() must not enable a deactivated user');
+
+            $this->saveAndSync($user, ['status' => 'active']);
+            $this->assertSame($updatesBefore, count($this->keycloak->updates), 'the callback is deferred until commit');
+        });
+
+        $this->assertCount($updatesBefore + 1, $this->keycloak->updates);
+        $this->assertTrue(end($this->keycloak->updates)['patch']['enabled']);
+        $this->assertTrue((bool) LeadAgent::withoutGlobalScopes()->whereKey($invite['agent']->id)->value('is_partner'));
+    }
+
     public function test_resend_does_not_enrol_a_deactivated_partner_with_an_existing_identity(): void
     {
         $this->setFeatureFlag(PartnerInviteService::FLAG, true);
