@@ -1574,6 +1574,7 @@ class DealPaymentRequestTest extends TestCase
 
         Schema::create('payments', function (Blueprint $table) {
             $table->increments('id');
+            $table->softDeletes();
             $table->unsignedInteger('company_id')->nullable();
             $table->unsignedInteger('deal_id')->nullable();
             $table->double('amount', 30, 2)->nullable();
