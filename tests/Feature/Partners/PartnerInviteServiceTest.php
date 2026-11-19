@@ -195,9 +195,13 @@ class PartnerInviteServiceTest extends TestCase
             $this->assertSame($updatesBefore, count($this->keycloak->updates), 'the callback is deferred until commit');
 
             $this->assertTrue($service->add($invite['agent']->fresh()));
+            // add() sees the committed "active" status and enables the identity itself.
+            $this->assertSame($updatesBefore + 1, count($this->keycloak->updates), 'one update from add()');
+            $this->assertTrue(end($this->keycloak->updates)['patch']['enabled']);
         });
 
-        $this->assertGreaterThan($updatesBefore, count($this->keycloak->updates));
+        // The deferred callback then ran after commit: a second, reconciling update.
+        $this->assertCount($updatesBefore + 2, $this->keycloak->updates);
         $this->assertTrue(end($this->keycloak->updates)['patch']['enabled']);
         $this->assertTrue((bool) LeadAgent::withoutGlobalScopes()->whereKey($invite['agent']->id)->value('is_partner'));
     }
