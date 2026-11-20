@@ -7,6 +7,7 @@ import { Deal } from "@/Types/api/deals";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     deal?: Deal;
@@ -19,6 +20,7 @@ const DeleteDeal: React.FC<Props> = ({
     open,
     handleSuccessCallback,
 }) => {
+    const { td } = useTd();
     const { mutate: deleteDeal, status } = useApiMutate<
         unknown,
         unknown,
@@ -60,8 +62,8 @@ const DeleteDeal: React.FC<Props> = ({
                       : "Are you sure you want to delete this deal? This action cannot be undone."
             }
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
-            confirmText="Yes, Delete"
-            cancelText="Cancel"
+            confirmText={td("Yes, Delete", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
             confirmType="primary"
             confirmDanger={true}
         />

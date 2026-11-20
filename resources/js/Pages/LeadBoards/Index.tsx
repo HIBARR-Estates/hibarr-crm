@@ -21,6 +21,7 @@ import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { createDealFilterConfig } from "@/configs/dealFilterConfig";
 import PipelineSelector from "@/Features/Deals/PipelineSelector";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface BoardColumn extends PipelineStage {
     deals: Deal[];
@@ -89,6 +90,7 @@ const LeadBoardIndex = ({
     endDate,
     ...props
 }: LeadBoardIndexProps) => {
+    const { td } = useTd();
     // Removed local state for result to rely on props directly
     // const [result, setResult] = useState(initialResult);
 
@@ -212,7 +214,7 @@ const LeadBoardIndex = ({
                     ]}
                     searchComp={
                         <UniversalSearchBox
-                            placeholder="Search deals by title, contact name, email..."
+                            placeholder={td("Search deals by title, contact name, email...", { source: "en" })}
                             className="w-full"
                         />
                     }
@@ -244,7 +246,7 @@ const LeadBoardIndex = ({
                                             icon={<PlusOutlined />}
                                             onClick={() => handleCreateDeal()}
                                         >
-                                            Add Deal
+                                            {td("Add Deal", { source: "en" })}
                                         </Button>
                                     )}
 
@@ -261,7 +263,7 @@ const LeadBoardIndex = ({
                                         icon={<FilterOutlined />}
                                         onClick={openDrawer}
                                     >
-                                        Filters
+                                        {td("Filters", { source: "en" })}
                                     </Button>
                                     <DealsModeSwitcher />
                                 </div>

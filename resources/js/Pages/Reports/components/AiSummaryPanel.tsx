@@ -5,6 +5,7 @@ import axios from "axios";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { router } from "@inertiajs/react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Filters {
     start_date: string;
@@ -22,6 +23,7 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
     filters,
     contextLabel,
 }) => {
+    const { td } = useTd();
     const [summary, setSummary] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -105,11 +107,11 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
                 { timeout: 15000 },
             );
 
-            message.success("Summary saved successfully.");
+            message.success(td("Summary saved successfully.", { source: "en" }));
             setIsSaveModalOpen(false);
             setSaveDescription("");
         } catch {
-            message.error("Failed to save summary. Please try again.");
+            message.error(td("Failed to save summary. Please try again.", { source: "en" }));
         } finally {
             setSaving(false);
         }
@@ -129,7 +131,7 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
             title={
                 <span className="flex items-center gap-2">
                     <RobotOutlined className="text-purple-500" />
-                    AI Insight Engine
+                    {td("AI Insight Engine", { source: "en" })}
                 </span>
             }
             className="border border-gray-200"
@@ -137,7 +139,7 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
                 <div className="flex items-center gap-2">
                     {summary && (
                         <Button icon={<SaveOutlined />} onClick={openSaveModal}>
-                            Save as Note
+                            {td("Save as Note", { source: "en" })}
                         </Button>
                     )}
                     <Button
@@ -158,7 +160,7 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
                             router.get("/account/agent-reports/saved-summaries")
                         }
                     >
-                        View Saved AI Summaries
+                        {td("View Saved AI Summaries", { source: "en" })}
                     </Button>
                 </div>
             }
@@ -191,34 +193,34 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
             )}
 
             <Modal
-                title="Save AI Summary as Note"
+                title={td("Save AI Summary as Note", { source: "en" })}
                 open={isSaveModalOpen}
                 onCancel={() => setIsSaveModalOpen(false)}
                 onOk={handleSaveSummary}
-                okText="Save"
+                okText={td("Save", { source: "en" })}
                 okButtonProps={{ loading: saving }}
             >
                 <div className="space-y-3">
                     <div>
                         <div className="text-xs text-gray-500 mb-1">
-                            Title (optional)
+                            {td("Title (optional)", { source: "en" })}
                         </div>
                         <Input
                             value={saveTitle}
                             onChange={(e) => setSaveTitle(e.target.value)}
-                            placeholder="Summary title"
+                            placeholder={td("Summary title", { source: "en" })}
                             maxLength={255}
                         />
                     </div>
 
                     <div>
                         <div className="text-xs text-gray-500 mb-1">
-                            Description (optional)
+                            {td("Description (optional)", { source: "en" })}
                         </div>
                         <Input.TextArea
                             value={saveDescription}
                             onChange={(e) => setSaveDescription(e.target.value)}
-                            placeholder="Short context for this note"
+                            placeholder={td("Short context for this note", { source: "en" })}
                             autoSize={{ minRows: 3, maxRows: 6 }}
                             maxLength={2000}
                         />
@@ -226,7 +228,7 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
 
                     <div>
                         <div className="text-xs text-gray-500 mb-1">
-                            Summary preview
+                            {td("Summary preview", { source: "en" })}
                         </div>
                         <div className="max-h-48 overflow-auto rounded border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700">
                             {summary ? (

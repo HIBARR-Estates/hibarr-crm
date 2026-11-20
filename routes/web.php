@@ -66,7 +66,6 @@ use App\Http\Controllers\KnowledgeBaseFileController;
 use App\Http\Controllers\LeadBoardController;
 use App\Http\Controllers\LeadCategoryController;
 use App\Http\Controllers\LeadContactController;
-use App\Http\Controllers\MarketingLeadController;
 use App\Http\Controllers\LeadContactFileController;
 use App\Http\Controllers\LeadContactMethodController;
 use App\Http\Controllers\LeadCustomFormController;
@@ -82,6 +81,7 @@ use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\LeaveFileController;
 use App\Http\Controllers\LeaveReportController;
 use App\Http\Controllers\LeavesQuotaController;
+use App\Http\Controllers\MarketingLeadController;
 use App\Http\Controllers\MeetingSavedViewController;
 use App\Http\Controllers\MeetingSummaryController;
 use App\Http\Controllers\MeetingTypeController;
@@ -665,7 +665,6 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     // deals route
 
     // Marketing lead flow — members of the departments picked in Lead settings only
-    Route::get('marketing-leads', [MarketingLeadController::class, 'page'])->name('marketing-leads.index');
     Route::get('marketing-leads/options', [MarketingLeadController::class, 'options'])->name('marketing-leads.options');
     Route::get('marketing-leads/utm-configs', [MarketingLeadController::class, 'utmConfigs'])->name('marketing-leads.utm-configs');
     Route::post('marketing-leads', [MarketingLeadController::class, 'store'])->name('marketing-leads.store');
@@ -771,6 +770,7 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('deals/{deal}/edit', [DealController::class, 'edit'])->name('deals.edit');
     Route::put('deals/{deal}', [DealController::class, 'update'])->name('deals.update');
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
+    Route::patch('deals/{deal}/referral-commission', [DealController::class, 'updateReferralCommission'])->name('deals.referral_commission.update');
     Route::patch('deals/{deal}/outcome', [DealController::class, 'updateOutcome'])->name('deals.outcome.update');
     Route::get('deals/{deal}/outcome/preview', [DealController::class, 'previewOutcomeChange'])->name('deals.outcome.preview');
     Route::delete('deals/{deal}', [DealController::class, 'destroy'])->name('deals.destroy');
@@ -1462,6 +1462,7 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::post('deals/{deal}/payment-requests', [DealPaymentController::class, 'store'])->name('deals.payment-requests.store');
     Route::post('deals/{deal}/payment-request/confirm', [DealPaymentController::class, 'confirm'])->name('deals.payment-request.confirm');
     Route::post('deals/{deal}/payment-request/cancel', [DealPaymentController::class, 'cancel'])->name('deals.payment-request.cancel');
+    Route::delete('deals/{deal}/payment-requests/{payment}', [DealPaymentController::class, 'destroy'])->name('deals.payment-requests.destroy');
     Route::post('deals/{deal}/payment-requests/{payment}/retry', [DealPaymentController::class, 'retry'])->name('deals.payment-requests.retry');
     Route::get('deals/{deal}/payment-requests/{payment}/documents/{kind}', [DealPaymentController::class, 'document'])
         ->whereIn('kind', ['invoice', 'receipt'])

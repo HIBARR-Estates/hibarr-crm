@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { App } from "antd";
 import { router } from "@inertiajs/react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface UsePageRefreshOptions {
     /**
@@ -34,6 +35,7 @@ export default function usePageRefresh({
     canRefresh,
     debounceMs = 2000,
 }: UsePageRefreshOptions = {}) {
+    const { td } = useTd();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const lastRefreshRef = useRef<number>(0);
     const { message } = App.useApp();
@@ -46,7 +48,7 @@ export default function usePageRefresh({
         // ── Collision guard (inline-edit check) ─────────────────────
         if (canRefresh && !canRefresh()) {
             message.warning(
-                "Unsaved changes detected. Please save or discard before refreshing.",
+                td("Unsaved changes detected. Please save or discard before refreshing.", { source: "en" }),
             );
             return;
         }
@@ -69,7 +71,7 @@ export default function usePageRefresh({
                 });
             }
         } catch {
-            message.error("Failed to refresh data. Please try again.");
+            message.error(td("Failed to refresh data. Please try again.", { source: "en" }));
         } finally {
             setIsRefreshing(false);
         }

@@ -12,6 +12,7 @@ import {
     pipelineHasFieldScopes,
     useDealFieldViewMode,
 } from "@/Features/Deals/useDealFieldViewMode";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface DealFormProps {
     data?: CreateDealFormData;
@@ -44,6 +45,7 @@ const DealForm: React.FC<DealFormProps> = ({
     disableFields = [],
     formReferenceData = {},
 }) => {
+    const { td } = useTd();
     const [activeTab, setActiveTab] = useState("deal");
     const { props } = usePage<any>();
     const [selectedPipelineId, setSelectedPipelineId] = useState<
@@ -151,7 +153,7 @@ const DealForm: React.FC<DealFormProps> = ({
     const tabItems: TabsProps["items"] = [
         {
             key: "deal",
-            label: "Deal Details",
+            label: td("Deal Details", { source: "en" }),
             children: (
                 <DealDetailsTab
                     disableFields={disableFields}
@@ -209,7 +211,7 @@ const DealForm: React.FC<DealFormProps> = ({
             {errors.length > 0 && (
                 <div className="mb-4">
                     <Alert
-                        message="Validation Error"
+                        message={td("Validation Error", { source: "en" })}
                         description={
                             <ul className="mb-0">
                                 {errors.map((error, index) => (

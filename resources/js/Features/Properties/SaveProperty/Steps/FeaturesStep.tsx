@@ -8,6 +8,7 @@ import {
     EnvironmentOutlined,
     GiftOutlined,
 } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -130,6 +131,7 @@ export default function FeaturesStep({
     enumValues,
     data,
 }: FeaturesStepProps) {
+    const { td } = useTd();
     const [selectedCategory, setSelectedCategory] =
         useState<PrimaryCategory | null>(
             (data?.primary_category as PrimaryCategory) ?? null,
@@ -155,7 +157,7 @@ export default function FeaturesStep({
     return (
         <Card size="small" className="border-0 shadow-none">
             <Text type="secondary" className="block mb-4">
-                Select all features and amenities that apply to this property.
+                {td("Select all features and amenities that apply to this property.", { source: "en" })}
             </Text>
 
             <Row gutter={[16, 0]}>
@@ -168,7 +170,7 @@ export default function FeaturesStep({
                                 label={
                                     <span>
                                         <HomeOutlined className="mr-2" />
-                                        Interior Features
+                                        {td("Interior Features", { source: "en" })}
                                     </span>
                                 }
                             >

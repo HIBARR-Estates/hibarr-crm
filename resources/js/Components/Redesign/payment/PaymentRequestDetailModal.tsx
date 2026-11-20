@@ -51,6 +51,8 @@ interface PaymentRequestDetailModalProps {
     onConfirm?: () => void;
     /** Present when this request's checkout link has expired and can be replaced. */
     onRetry?: () => void;
+    /** Present when the viewer may permanently delete this cancelled request. */
+    onDelete?: () => void;
     companyCurrency?: CurrencyDisplay | null;
 }
 
@@ -249,6 +251,7 @@ export default function PaymentRequestDetailModal({
     onCancel,
     onConfirm,
     onRetry,
+    onDelete,
     companyCurrency,
 }: PaymentRequestDetailModalProps) {
     const { t } = useTranslation();
@@ -361,11 +364,16 @@ export default function PaymentRequestDetailModal({
                             external
                         />
                     )}
-                    {(onCancel || onConfirm || (onRetry && linkExpired)) && (
+                    {(onCancel || onDelete || onConfirm || (onRetry && linkExpired)) && (
                         <div className="ml-auto flex items-center gap-2">
                             {onCancel && (
                                 <Button variant="ghost" style={{ color: T.RED }} onClick={onCancel}>
                                     {t("pages.deals.payment_request.cancel_action")}
+                                </Button>
+                            )}
+                            {onDelete && (
+                                <Button variant="ghost" style={{ color: T.RED }} onClick={onDelete}>
+                                    {t("pages.deals.payment_request.delete_action")}
                                 </Button>
                             )}
                             {onConfirm && (

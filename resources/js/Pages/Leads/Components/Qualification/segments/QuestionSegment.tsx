@@ -5,6 +5,7 @@ import { Segment, SegmentAnswerState } from "@/Types/qualification";
 import QualificationScriptHtml from "../QualificationScriptHtml";
 import { stripHtmlTags } from "../qualificationUtils";
 import { useTranslatedScriptLabel } from "../useTranslatedScriptLabel";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface QuestionSegmentProps {
     segment: Segment;
@@ -21,6 +22,7 @@ const QuestionSegment: React.FC<QuestionSegmentProps> = ({
     onChange,
     disabled = false,
 }) => {
+    const { td } = useTd();
     const translated = translateScript(
         useTranslatedScriptLabel(segment.label),
     );
@@ -33,7 +35,7 @@ const QuestionSegment: React.FC<QuestionSegmentProps> = ({
                 icon={<QuestionCircleOutlined />}
                 className="text-xs uppercase tracking-wide"
             >
-                Ask
+                {td("Ask", { source: "en" })}
             </Tag>
             <div className="flex items-start gap-1">
                 <QualificationScriptHtml
@@ -86,7 +88,7 @@ const QuestionSegment: React.FC<QuestionSegmentProps> = ({
                     onChange={(e) => onChange([], e.target.value)}
                     disabled={disabled}
                     rows={3}
-                    placeholder="Enter answer..."
+                    placeholder={td("Enter answer...", { source: "en" })}
                 />
             )}
 

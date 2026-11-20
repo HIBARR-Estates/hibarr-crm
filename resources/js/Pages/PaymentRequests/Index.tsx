@@ -195,6 +195,8 @@ const Index = ({ paymentRequests, filters, counts, stats, filterOptions }: Index
     const [cancelling, setCancelling] = useState(false);
     const [retryingRow, setRetryingRow] = useState<PaymentRequestListRow | null>(null);
     const [retrying, setRetrying] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState(filters.search ?? "");
@@ -355,6 +357,33 @@ const Index = ({ paymentRequests, filters, counts, stats, filterOptions }: Index
             message.error(apiErrorMessage(error, t("pages.deals.payment_request.retry_failed")));
         } finally {
             setRetrying(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!selected) return;
+        setDeleting(true);
+        try {
+            const response = await axios.delete(
+                route("deals.payment-requests.destroy", {
+                    deal: selected.deal_id,
+                    payment: selected.id,
+                }),
+            );
+            if (response.data?.status === "success") {
+                message.success(t("pages.deals.payment_request.deleted_toast"));
+                setDeleteOpen(false);
+                setSelectedId(null);
+                // Re-fetch the page props: the list, the status counts and every
+                // total all change when a request disappears.
+                visit({});
+            } else {
+                message.error(response.data?.message ?? t("pages.deals.payment_request.delete_failed"));
+            }
+        } catch (error) {
+            message.error(apiErrorMessage(error, t("pages.deals.payment_request.delete_failed")));
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -625,7 +654,7 @@ const Index = ({ paymentRequests, filters, counts, stats, filterOptions }: Index
 
             <PaymentRequestDetailModal
                 request={selected}
-                open={selected != null && !cancelOpen}
+                open={selected != null && !cancelOpen && !deleteOpen}
                 onClose={() => setSelectedId(null)}
                 companyCurrency={companyCurrency}
                 onCancel={
@@ -640,6 +669,9 @@ const Index = ({ paymentRequests, filters, counts, stats, filterOptions }: Index
                     selected && isCheckoutLinkExpired(selected)
                         ? () => setRetryingRow(selected)
                         : undefined
+                }
+                onDelete={
+                    selected?.ui_state === "invalidated" ? () => setDeleteOpen(true) : undefined
                 }
             />
 
@@ -689,6 +721,19 @@ const Index = ({ paymentRequests, filters, counts, stats, filterOptions }: Index
                 confirmLoading={retrying}
                 onConfirm={() => void handleRetry()}
                 onCancel={() => setRetryingRow(null)}
+            />
+
+            <ConfirmDialog
+                open={deleteOpen}
+                zIndex={1400}
+                danger
+                title={t("pages.deals.payment_request.delete_title")}
+                message={t("pages.deals.payment_request.delete_message")}
+                confirmLabel={t("pages.deals.payment_request.delete_confirm")}
+                cancelLabel={t("pages.deals.payment_request.cancel")}
+                confirmLoading={deleting}
+                onConfirm={() => void handleDelete()}
+                onCancel={() => setDeleteOpen(false)}
             />
 
             <ConfirmDialog

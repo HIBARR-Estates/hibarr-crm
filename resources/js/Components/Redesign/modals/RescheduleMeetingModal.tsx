@@ -204,7 +204,7 @@ export default function RescheduleMeetingModal({
                                             : T.TEXT_MUTED,
                                     }}
                                 >
-                                    {option.label}
+                                    {td(option.label, { source: "en" })}
                                 </button>
                             );
                         })}

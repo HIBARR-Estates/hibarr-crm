@@ -59,6 +59,7 @@ import { usePermission } from "@/lib/permissionUtils";
 import dayjs from "dayjs";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 import { HtmlRenderer } from "@/Components/ContentRenderer";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Paragraph } = Typography;
 
@@ -197,6 +198,7 @@ const FeatureTags: React.FC<{
 );
 
 const UnitTypeDescription: React.FC<{ html: string }> = ({ html }) => {
+    const { td } = useTd();
     const [expanded, setExpanded] = useState(false);
     const plainLength = stripHtml(html).length;
     const needsTruncate = plainLength > DESCRIPTION_PREVIEW_LENGTH;
@@ -204,7 +206,7 @@ const UnitTypeDescription: React.FC<{ html: string }> = ({ html }) => {
     return (
         <div className="mt-4 border-t border-gray-100 pt-4">
             <div className="mb-2 text-[10px] uppercase tracking-wide text-gray-400">
-                Summary
+                {td("Summary", { source: "en" })}
             </div>
             <HtmlRenderer
                 content={html}
@@ -257,6 +259,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
     insideFeatureOptions,
     outsideFeatureOptions,
 }) => {
+    const { td } = useTd();
     const viewLabels = labelsFor(ut.view_types, VIEW_TYPE_OPTIONS);
     const styleLabels = labelsFor(ut.unit_style, UNIT_STYLE_OPTIONS);
     const outsideLabels = labelsForFeatures(
@@ -326,7 +329,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                         navigator.clipboard.writeText(
                                             ut.reference_code!,
                                         );
-                                        message.success("Code copied");
+                                        message.success(td("Code copied", { source: "en" }));
                                     }}
                                 >
                                     <span className="truncate">
@@ -344,7 +347,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                     navigator.clipboard.writeText(
                                         ut.reference_code!,
                                     );
-                                    message.success("Code copied");
+                                    message.success(td("Code copied", { source: "en" }));
                                 }}
                             >
                                 <span>{ut.reference_code}</span>
@@ -409,7 +412,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                             <div className="text-right shrink-0">
                                 <div className="flex items-center justify-end gap-1 text-[11px] text-gray-500 uppercase tracking-wide">
                                     <DollarOutlined />
-                                    <span>Starting from</span>
+                                    <span>{td("Starting from", { source: "en" })}</span>
                                 </div>
                                 <div className="text-lg font-semibold text-gray-900">
                                     {formatPrice(
@@ -425,7 +428,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                         {ut.bedrooms != null && (
                             <div className="rounded-lg bg-gray-50 px-3 py-2">
                                 <div className="text-[10px] uppercase tracking-wide text-gray-400">
-                                    Bedrooms
+                                    {td("Bedrooms", { source: "en" })}
                                 </div>
                                 <div className="font-semibold text-gray-800">
                                     {ut.bedrooms === 0 ? "Studio" : ut.bedrooms}
@@ -435,7 +438,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                         {ut.bathrooms != null && (
                             <div className="rounded-lg bg-gray-50 px-3 py-2">
                                 <div className="text-[10px] uppercase tracking-wide text-gray-400">
-                                    Bathrooms
+                                    {td("Bathrooms", { source: "en" })}
                                 </div>
                                 <div className="font-semibold text-gray-800">
                                     {ut.bathrooms}
@@ -445,7 +448,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                         {ut.total_area_sqm != null && (
                             <div className="rounded-lg bg-gray-50 px-3 py-2">
                                 <div className="text-[10px] uppercase tracking-wide text-gray-400">
-                                    Total Area
+                                    {td("Total Area", { source: "en" })}
                                 </div>
                                 <div className="font-semibold text-gray-800">
                                     {Number(ut.total_area_sqm).toLocaleString()}{" "}
@@ -456,7 +459,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                         {ut.plot_size_sqm != null && (
                             <div className="rounded-lg bg-gray-50 px-3 py-2">
                                 <div className="text-[10px] uppercase tracking-wide text-gray-400">
-                                    Plot Size
+                                    {td("Plot Size", { source: "en" })}
                                 </div>
                                 <div className="font-semibold text-gray-800">
                                     {Number(ut.plot_size_sqm).toLocaleString()}{" "}
@@ -479,7 +482,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                 <div className="border-t border-gray-200 px-4 py-3 flex flex-wrap items-center justify-between gap-2 bg-gray-50/70">
                     <div className="flex flex-wrap items-center gap-2">
                         <Button icon={<EyeOutlined />} onClick={onToggle}>
-                            View details
+                            {td("View details", { source: "en" })}
                         </Button>
                         <Button icon={<GiftOutlined />} onClick={onToggle}>
                             Offers{offerCount > 0 ? ` (${offerCount})` : ""}
@@ -499,13 +502,13 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                 size="small"
                                 icon={<CopyOutlined />}
                                 onClick={() => onDuplicate(ut)}
-                                title="Duplicate"
+                                title={td("Duplicate", { source: "en" })}
                             />
                             <Popconfirm
-                                title="Delete this unit type?"
-                                description="This action cannot be undone."
+                                title={td("Delete this unit type?", { source: "en" })}
+                                description={td("This action cannot be undone.", { source: "en" })}
                                 onConfirm={() => onDelete(ut)}
-                                okText="Delete"
+                                okText={td("Delete", { source: "en" })}
                                 okType="danger"
                             >
                                 <Button
@@ -586,7 +589,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
                                             <div className="text-xs uppercase tracking-wide text-gray-400">
-                                                Starting price
+                                                {td("Starting price", { source: "en" })}
                                             </div>
                                             <div className="mt-1 text-2xl font-semibold text-gray-900">
                                                 {ut.starting_price != null
@@ -620,11 +623,11 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
 
                                     <div className="mt-4 grid grid-cols-2 gap-3 border-t border-gray-100 pt-3">
                                         <SpecRow
-                                            label="Reference"
+                                            label={td("Reference", { source: "en" })}
                                             value={ut.reference_code || "-"}
                                         />
                                         <SpecRow
-                                            label="Offers"
+                                            label={td("Offers", { source: "en" })}
                                             value={String(offerCount)}
                                         />
                                     </div>
@@ -660,17 +663,17 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                         <div className="flex flex-col gap-y-4">
                             <Card
                                 size="small"
-                                title="Overview"
+                                title={td("Overview", { source: "en" })}
                                 className="!rounded-2xl"
                             >
                                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                                    <SpecRow label="Floor" value={floorLabel} />
+                                    <SpecRow label={td("Floor", { source: "en" })} value={floorLabel} />
                                     <SpecRow
-                                        label="Furniture"
+                                        label={td("Furniture", { source: "en" })}
                                         value={furnitureLabel}
                                     />
                                     <SpecRow
-                                        label="Completion"
+                                        label={td("Completion", { source: "en" })}
                                         value={
                                             ut.completion_date
                                                 ? formatCompanyDate(
@@ -693,34 +696,34 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                             {hasFeatures && (
                                 <Card
                                     size="small"
-                                    title="Features"
+                                    title={td("Features", { source: "en" })}
                                     className="!rounded-2xl"
                                 >
                                     <div className="flex flex-col gap-3">
                                         {viewLabels.length > 0 && (
                                             <FeatureTags
-                                                label="Views"
+                                                label={td("Views", { source: "en" })}
                                                 items={viewLabels}
                                                 color="geekblue"
                                             />
                                         )}
                                         {styleLabels.length > 0 && (
                                             <FeatureTags
-                                                label="Styles"
+                                                label={td("Styles", { source: "en" })}
                                                 items={styleLabels}
                                                 color="purple"
                                             />
                                         )}
                                         {outsideLabels.length > 0 && (
                                             <FeatureTags
-                                                label="Outside"
+                                                label={td("Outside", { source: "en" })}
                                                 items={outsideLabels}
                                                 color="green"
                                             />
                                         )}
                                         {insideLabels.length > 0 && (
                                             <FeatureTags
-                                                label="Inside"
+                                                label={td("Inside", { source: "en" })}
                                                 items={insideLabels}
                                                 color="cyan"
                                             />
@@ -731,12 +734,12 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
 
                             <Card
                                 size="small"
-                                title="Rooms & dimensions"
+                                title={td("Rooms & dimensions", { source: "en" })}
                                 className="!rounded-2xl"
                             >
                                 <div className="flex flex-col gap-y-2">
                                     <SpecFact
-                                        label="Bedrooms"
+                                        label={td("Bedrooms", { source: "en" })}
                                         value={
                                             ut.bedrooms != null
                                                 ? ut.bedrooms === 0
@@ -746,7 +749,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                         }
                                     />
                                     <SpecFact
-                                        label="Bathrooms"
+                                        label={td("Bathrooms", { source: "en" })}
                                         value={
                                             ut.bathrooms != null
                                                 ? String(ut.bathrooms)
@@ -754,22 +757,22 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                         }
                                     />
                                     <SpecFact
-                                        label="Total Area"
+                                        label={td("Total Area", { source: "en" })}
                                         value={formatArea(ut.total_area_sqm)}
                                     />
                                     <SpecFact
-                                        label="Living Area"
+                                        label={td("Living Area", { source: "en" })}
                                         value={formatArea(ut.living_area_sqm)}
                                     />
                                     <SpecFact
-                                        label="Terrace / Balcony"
+                                        label={td("Terrace / Balcony", { source: "en" })}
                                         value={formatArea(
                                             ut.terrace_balcony_sqm,
                                         )}
                                     />
                                     {ut.plot_size_sqm != null && (
                                         <SpecFact
-                                            label="Plot Size"
+                                            label={td("Plot Size", { source: "en" })}
                                             value={formatArea(ut.plot_size_sqm)}
                                         />
                                     )}
@@ -778,12 +781,12 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
 
                             <Card
                                 size="small"
-                                title="Legal & restrictions"
+                                title={td("Legal & restrictions", { source: "en" })}
                                 className="!rounded-2xl"
                             >
                                 <div className="flex flex-col gap-y-2">
                                     <SpecFact
-                                        label="Military Distance"
+                                        label={td("Military Distance", { source: "en" })}
                                         value={
                                             ut.military_base_distance_km != null
                                                 ? `${ut.military_base_distance_km} km`
@@ -791,7 +794,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                         }
                                     />
                                     <SpecFact
-                                        label="Restrictions"
+                                        label={td("Restrictions", { source: "en" })}
                                         value={
                                             ut.has_restrictions
                                                 ? ut.restriction_notes || "Yes"
@@ -856,6 +859,7 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
     onRefresh,
     enumValues: enumValuesProp,
 }) => {
+    const { td } = useTd();
     const { hasPermission } = usePermission();
     const canEdit = hasPermission("edit_developer_projects");
     const { data: fetchedEnumValues } = useApiQuery<PropertyEnumValues>({
@@ -983,7 +987,7 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
             <Card
                 title={
                     <Space>
-                        <span>Unit Types</span>
+                        <span>{td("Unit Types", { source: "en" })}</span>
                         <Badge
                             count={unitTypes.length}
                             style={{ backgroundColor: "#1677ff" }}
@@ -997,19 +1001,19 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
                             icon={<PlusOutlined />}
                             onClick={handleAdd}
                         >
-                            Add Unit Type
+                            {td("Add Unit Type", { source: "en" })}
                         </Button>
                     ) : null
                 }
             >
                 {unitTypes.length === 0 ? (
                     <Empty
-                        description="No unit types added yet"
+                        description={td("No unit types added yet", { source: "en" })}
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
                     >
                         {canEdit && (
                             <Button type="primary" onClick={handleAdd}>
-                                Add First Unit Type
+                                {td("Add First Unit Type", { source: "en" })}
                             </Button>
                         )}
                     </Empty>

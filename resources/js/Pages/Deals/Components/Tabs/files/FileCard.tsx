@@ -39,6 +39,7 @@ import { useState } from "react";
 import FileDetails from "./FileDetails";
 import DeleteFile from "./DeleteFile";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 dayjs.extend(relativeTime);
 
@@ -67,6 +68,7 @@ const FileCard: React.FC<Props> = ({
     onFileDeleted,
     onFileUpdated,
 }) => {
+    const { td } = useTd();
     const { action, handleClose, handleAction } =
         useGenericEntityAction<DealFile>();
 
@@ -237,7 +239,7 @@ const FileCard: React.FC<Props> = ({
             label: (
                 <Space>
                     <DownloadOutlined />
-                    <Text>Download</Text>
+                    <Text>{td("Download", { source: "en" })}</Text>
                 </Space>
             ),
             onClick: handleDownload,
@@ -247,7 +249,7 @@ const FileCard: React.FC<Props> = ({
             label: (
                 <Space>
                     <InfoCircleOutlined />
-                    <Text>Details</Text>
+                    <Text>{td("Details", { source: "en" })}</Text>
                 </Space>
             ),
             onClick: handleShowDetails,
@@ -259,7 +261,7 @@ const FileCard: React.FC<Props> = ({
                       label: (
                           <Space>
                               <EditOutlined />
-                              <Text>Edit Description</Text>
+                              <Text>{td("Edit Description", { source: "en" })}</Text>
                           </Space>
                       ),
                       onClick: handleShowDetails,
@@ -276,7 +278,7 @@ const FileCard: React.FC<Props> = ({
             label: (
                 <Space>
                     <DeleteOutlined />
-                    <Text>Delete</Text>
+                    <Text>{td("Delete", { source: "en" })}</Text>
                 </Space>
             ),
             danger: true,
@@ -376,7 +378,7 @@ const FileCard: React.FC<Props> = ({
 
             {/* Timestamp and Actions */}
             <div className="flex items-center justify-between mt-auto pt-1">
-                <Tooltip title="Details">
+                <Tooltip title={td("Details", { source: "en" })}>
                     <button
                         className="p-1 hover:bg-gray-100 rounded transition-colors cursor-pointer"
                         onClick={(e) => {
@@ -403,7 +405,7 @@ const FileCard: React.FC<Props> = ({
                             </button>
                         </Tooltip>
                     )} */}
-                    <Tooltip title="Download">
+                    <Tooltip title={td("Download", { source: "en" })}>
                         <button
                             className="p-1 hover:bg-gray-100 rounded transition-colors cursor-pointer"
                             onClick={(e) => {

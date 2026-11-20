@@ -19,12 +19,15 @@ import {
     PhoneOutlined,
 } from "@ant-design/icons";
 import { Link, router } from "@inertiajs/react";
+import useTranslation from "@/Hooks/useTranslation";
+import usePartnerReferralCommissionFlag from "@/Hooks/usePartnerReferralCommissionFlag";
 import dayjs from "dayjs";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import UserIndicator from "@/Components/UserIndicator";
 import SaveAgentModal from "@/Features/Agents/SaveAgentModal";
 import DeleteAgent from "@/Features/Agents/DeleteAgent";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const Show = ({
     pageTitle,
@@ -33,6 +36,9 @@ const Show = ({
     deals,
     permissions,
 }: AgentShowProps) => {
+    const { t } = useTranslation();
+    const { td } = useTd();
+    const referralCommissionEnabled = usePartnerReferralCommissionFlag();
     const { handleAction, handleClose, action, selected } =
         useGenericEntityAction<Agent>();
 
@@ -44,7 +50,7 @@ const Show = ({
     const tabItems = [
         {
             key: "profile",
-            label: "Profile",
+            label: td("Profile", { source: "en" }),
             children: (
                 <Card>
                     <div className="space-y-6">
@@ -75,7 +81,7 @@ const Show = ({
                         </div>
 
                         <Descriptions bordered column={2} size="small">
-                            <Descriptions.Item label="Email">
+                            <Descriptions.Item label={td("Email", { source: "en" })}>
                                 {agent.user?.email ? (
                                     <a href={`mailto:${agent.user.email}`}>
                                         <MailOutlined className="mr-1" />
@@ -85,7 +91,7 @@ const Show = ({
                                     "--"
                                 )}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Phone">
+                            <Descriptions.Item label={td("Phone", { source: "en" })}>
                                 {agent.user?.mobile_with_phone_code ? (
                                     <span>
                                         <PhoneOutlined className="mr-1" />
@@ -95,12 +101,12 @@ const Show = ({
                                     "--"
                                 )}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Categories" span={2}>
+                            <Descriptions.Item label={td("Categories", { source: "en" })} span={2}>
                                 {agentCategories.length > 0 ? (
                                     <div className="flex flex-wrap gap-1">
                                         {agentCategories.map((cat) => (
                                             <Tag key={cat.id}>
-                                                {cat.category_name}
+                                                {td(cat.category_name, { source: "en" })}
                                             </Tag>
                                         ))}
                                     </div>
@@ -108,18 +114,44 @@ const Show = ({
                                     "--"
                                 )}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Agent ID">
+                            <Descriptions.Item label={td("Agent ID", { source: "en" })}>
                                 {agent.id}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Total Deals">
+                            {referralCommissionEnabled && agent.is_partner && (
+                                <Descriptions.Item label={t("pages.agents.referral_share")}>
+                                    {permissions.manage_partner_network ? (
+                                        <Link
+                                            href={route(
+                                                "mlm.agent_dashboard",
+                                                agent.id,
+                                            )}
+                                        >
+                                            {agent.referral_pool_rate != null
+                                                ? t("pages.agents.referral_share_of_pool", {
+                                                      rate: agent.referral_pool_rate,
+                                                  })
+                                                : t("pages.agents.referral_share_none")}
+                                        </Link>
+                                    ) : (
+                                        <span>
+                                            {agent.referral_pool_rate != null
+                                                ? t("pages.agents.referral_share_of_pool", {
+                                                      rate: agent.referral_pool_rate,
+                                                  })
+                                                : t("pages.agents.referral_share_none")}
+                                        </span>
+                                    )}
+                                </Descriptions.Item>
+                            )}
+                            <Descriptions.Item label={td("Total Deals", { source: "en" })}>
                                 {agent.deals_count ?? deals.length}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Created">
+                            <Descriptions.Item label={td("Created", { source: "en" })}>
                                 {agent.created_at
                                     ? formatCompanyDate(agent.created_at)
                                     : "--"}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Last Updated">
+                            <Descriptions.Item label={td("Last Updated", { source: "en" })}>
                                 {agent.updated_at
                                     ? formatCompanyDate(agent.updated_at)
                                     : "--"}
@@ -142,7 +174,7 @@ const Show = ({
                             scroll={{ x: "max-content" }}
                             columns={[
                                 {
-                                    title: "Deal Name",
+                                    title: td("Deal Name", { source: "en" }),
                                     dataIndex: "name",
                                     key: "name",
                                     render: (name: string, record: any) => (
@@ -158,19 +190,19 @@ const Show = ({
                                     ),
                                 },
                                 {
-                                    title: "Stage",
+                                    title: td("Stage", { source: "en" }),
                                     key: "stage",
                                     render: (_: any, record: any) =>
                                         record.lead_stage?.name ?? "--",
                                 },
                                 {
-                                    title: "Pipeline",
+                                    title: td("Pipeline", { source: "en" }),
                                     key: "pipeline",
                                     render: (_: any, record: any) =>
                                         record.pipeline?.name ?? "--",
                                 },
                                 {
-                                    title: "Value",
+                                    title: td("Value", { source: "en" }),
                                     dataIndex: "value",
                                     key: "value",
                                     render: (val: number) =>
@@ -179,7 +211,7 @@ const Show = ({
                                             : "--",
                                 },
                                 {
-                                    title: "Created",
+                                    title: td("Created", { source: "en" }),
                                     dataIndex: "created_at",
                                     key: "created_at",
                                     render: (date: string) =>
@@ -190,7 +222,7 @@ const Show = ({
                             ]}
                         />
                     ) : (
-                        <Empty description="No deals assigned to this agent" />
+                        <Empty description={td("No deals assigned to this agent", { source: "en" })} />
                     )}
                 </Card>
             ),
@@ -210,7 +242,7 @@ const Show = ({
                                 icon={<EditOutlined />}
                                 onClick={() => handleAction("edit", agent)}
                             >
-                                Edit Agent
+                                {td("Edit Agent", { source: "en" })}
                             </Button>
                         )}
                         {permissions.delete_lead_agent !== "none" && (
@@ -219,7 +251,7 @@ const Show = ({
                                 icon={<DeleteOutlined />}
                                 onClick={() => handleAction("delete", agent)}
                             >
-                                Delete
+                                {td("Delete", { source: "en" })}
                             </Button>
                         )}
                     </div>

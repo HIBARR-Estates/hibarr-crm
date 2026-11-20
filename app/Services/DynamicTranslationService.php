@@ -176,6 +176,31 @@ class DynamicTranslationService
     }
 
     /**
+     * Synchronous lookup for server-rendered English copy (Reply messages,
+     * Blade labels, admin-defined names). Returns the stored translation for
+     * the current locale when one exists; otherwise returns the English text
+     * and queues the translation so a later request gets the translated copy.
+     */
+    public function translate(string $text, ?string $locale = null): string
+    {
+        $locale = $locale ?? app()->getLocale();
+
+        if (! in_array($locale, self::TARGET_LOCALES, true) || trim($text) === '') {
+            return $text;
+        }
+
+        try {
+            $translation = $this->ensureExists($text);
+        } catch (\Throwable $exception) {
+            return $text;
+        }
+
+        $value = $translation->{$locale};
+
+        return is_string($value) && trim($value) !== '' ? $value : $text;
+    }
+
+    /**
      * @param  array<int, string>  $texts
      */
     public function bulkEnsure(array $texts): void

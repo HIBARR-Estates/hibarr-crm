@@ -10,6 +10,7 @@ import {
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -37,6 +38,7 @@ const AssetTableView: React.FC<AssetTableViewProps> = ({
     onAssetSelect,
     onSelectAll,
 }) => {
+    const { td } = useTd();
     const getAssetIcon = (assetType: PropertyAsset["asset_type"]) => {
         switch (assetType) {
             case "image":
@@ -78,7 +80,7 @@ const AssetTableView: React.FC<AssetTableViewProps> = ({
             ),
         },
         {
-            title: "Preview",
+            title: td("Preview", { source: "en" }),
             key: "preview",
             width: 100,
             render: (_, record) => (
@@ -111,7 +113,7 @@ const AssetTableView: React.FC<AssetTableViewProps> = ({
             ),
         },
         {
-            title: "Name",
+            title: td("Name", { source: "en" }),
             dataIndex: "name",
             key: "name",
             render: (name: string, record) => (
@@ -138,7 +140,7 @@ const AssetTableView: React.FC<AssetTableViewProps> = ({
             ),
         },
         {
-            title: "Type",
+            title: td("Type", { source: "en" }),
             dataIndex: "asset_type",
             key: "asset_type",
             width: 120,
@@ -152,14 +154,14 @@ const AssetTableView: React.FC<AssetTableViewProps> = ({
             ),
         },
         {
-            title: "Size",
+            title: td("Size", { source: "en" }),
             dataIndex: "formatted_size",
             key: "size",
             width: 100,
             render: (size: string) => <Text>{size || "N/A"}</Text>,
         },
         {
-            title: "Date Added",
+            title: td("Date Added", { source: "en" }),
             dataIndex: "created_at",
             key: "created_at",
             width: 150,

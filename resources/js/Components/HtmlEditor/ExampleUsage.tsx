@@ -3,8 +3,10 @@
 import React from 'react';
 import { Form, Button, Input } from 'antd';
 import HtmlEditor from '@/Components/HtmlEditor';
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const ExampleForm = () => {
+  const { td } = useTd();
   const [form] = Form.useForm();
 
   const handleSubmit = (values: any) => {
@@ -33,20 +35,20 @@ const ExampleForm = () => {
       layout="vertical"
       onFinish={handleSubmit}
       initialValues={{
-        title: 'Sample Title',
+        title: td("Sample Title", { source: "en" }),
         details: '<p>Sample HTML content</p>',
       }}
     >
       <Form.Item
-        label="Title"
+        label={td("Title", { source: "en" })}
         name="title"
         rules={[{ required: true, message: 'Please enter title' }]}
       >
-        <Input placeholder="Enter title" />
+        <Input placeholder={td("Enter title", { source: "en" })} />
       </Form.Item>
 
       <Form.Item
-        label="Details"
+        label={td("Details", { source: "en" })}
         name="details"
         rules={[
           {
@@ -66,17 +68,17 @@ const ExampleForm = () => {
         ]}
       >
         <HtmlEditor
-          placeholder="Enter details..."
+          placeholder={td("Enter details...", { source: "en" })}
           height={250}
         />
       </Form.Item>
 
       <div className="flex gap-2">
         <Button type="primary" htmlType="submit">
-          Submit
+          {td("Submit", { source: "en" })}
         </Button>
         <Button onClick={handleGetValues}>
-          Get Values
+          {td("Get Values", { source: "en" })}
         </Button>
       </div>
     </Form>

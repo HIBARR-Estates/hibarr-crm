@@ -20,6 +20,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import useClickToCall from "@/Hooks/useClickToCall";
 import useSoftphone, { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     deal: Deal;
@@ -27,6 +28,7 @@ interface Props {
 }
 
 export default function QuickActions2({ deal, permissions }: Props) {
+    const { td } = useTd();
     const { message: messageApi } = App.useApp();
     const { t } = useTranslation();
     const { props } = usePage();
@@ -189,13 +191,13 @@ export default function QuickActions2({ deal, permissions }: Props) {
         {
             key: "email",
             icon: <MailOutlined />,
-            title: "Email",
+            title: td("Email", { source: "en" }),
             color: "#1890ff",
         },
         {
             key: "whatsapp",
             icon: <WhatsAppOutlined />,
-            title: "WhatsApp",
+            title: td("WhatsApp", { source: "en" }),
             color: "#25D366",
         },
         ...(canUseLine
@@ -203,20 +205,20 @@ export default function QuickActions2({ deal, permissions }: Props) {
                   {
                       key: "phone",
                       icon: <PhoneOutlined />,
-                      title: "Call",
+                      title: td("Call", { source: "en" }),
                       color: "#52c41a",
                   },
               ]
             : []),
         {
             key: "telegram",
-            label: "Telegram",
+            label: td("Telegram", { source: "en" }),
             icon: <MessageOutlined />,
             color: "#0088cc",
         },
         {
             key: "instagram",
-            label: "Instagram",
+            label: td("Instagram", { source: "en" }),
             icon: <InstagramOutlined />,
             color: "#E4405F",
             disabled: false,
@@ -227,13 +229,13 @@ export default function QuickActions2({ deal, permissions }: Props) {
     const secondaryActions: MenuProps["items"] = [
         {
             key: "conversation",
-            label: "New Conversation",
+            label: td("New Conversation", { source: "en" }),
             icon: <PlusOutlined />,
             onClick: () => handleQuickAction("conversation"),
         },
         {
             key: "meeting",
-            label: "Schedule Meeting",
+            label: td("Schedule Meeting", { source: "en" }),
             icon: <CalendarOutlined />,
             onClick: () => handleQuickAction("meeting"),
             disabled: false,
@@ -243,7 +245,7 @@ export default function QuickActions2({ deal, permissions }: Props) {
     return (
         <>
             <Card
-                title="Quick Actions"
+                title={td("Quick Actions", { source: "en" })}
                 size="small"
                 className="shadow-sm border-0 rounded-lg overflow-hidden"
                 bodyStyle={{ padding: "12px" }}

@@ -13,6 +13,7 @@ import {
 import { PropertyFormProps } from "./PropertyForm";
 import { Property } from "@/Types";
 import { useEffect } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type Props = Pick<
     PropertyFormProps,
@@ -35,6 +36,7 @@ export default function LocationInfoTab({
     onErrorsClear,
     setErrors,
 }: Props) {
+    const { td } = useTd();
     const [form] = Form.useForm<Omit<Property, "id">>();
 
     // Populate form when data changes
@@ -85,19 +87,19 @@ export default function LocationInfoTab({
             }}
             size="middle"
         >
-            <Card title="Location Details" size="small">
+            <Card title={td("Location Details", { source: "en" })} size="small">
                 <Row gutter={[16, 16]}>
                     <Col span={24}>
-                        <Form.Item name="map" label="Map URL">
-                            <Input placeholder="Google Maps URL or coordinates" />
+                        <Form.Item name="map" label={td("Map URL", { source: "en" })}>
+                            <Input placeholder={td("Google Maps URL or coordinates", { source: "en" })} />
                         </Form.Item>
                     </Col>
 
                     <Col span={12}>
-                        <Form.Item name="land_size" label="Land Size (m²)">
+                        <Form.Item name="land_size" label={td("Land Size (m²)", { source: "en" })}>
                             <InputNumber
                                 style={{ width: "100%" }}
-                                placeholder="Enter land size"
+                                placeholder={td("Enter land size", { source: "en" })}
                                 min={0}
                             />
                         </Form.Item>
@@ -106,7 +108,7 @@ export default function LocationInfoTab({
                     <Col span={12}>
                         <Form.Item
                             name="within_site"
-                            label="Within Site/Complex"
+                            label={td("Within Site/Complex", { source: "en" })}
                             valuePropName="checked"
                         >
                             <Switch />

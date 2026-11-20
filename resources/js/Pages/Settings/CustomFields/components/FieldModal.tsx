@@ -400,7 +400,7 @@ export default function FieldModal({
                                             active={pipelineIds.includes(pipeline.id)}
                                             onClick={() => togglePipeline(pipeline.id)}
                                         >
-                                            {pipeline.name}
+                                            {td(pipeline.name, { source: "en" })}
                                         </ChipToggle>
                                     ))
                                 )}

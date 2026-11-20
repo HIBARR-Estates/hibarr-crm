@@ -38,6 +38,7 @@ import { router } from "@inertiajs/react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import DealInformationGatheringForm from "@/Features/Deals/DealInformationGathering/DealInformationGatheringForm";
 import { Deal } from "@/Types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface PipelineStage {
     id: number;
@@ -70,6 +71,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
     loading = false,
     canEdit = true,
 }) => {
+    const { td } = useTd();
     const [quickEditDeal, setQuickEditDeal] = useState<Deal | null>(null);
     const [form] = Form.useForm<QuickEditFormData>();
     const [processingDeals, setProcessingDeals] = useState<Set<number>>(
@@ -109,7 +111,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                 const newStage = stages.find((s) => s.id === newStageId);
                 message.success(`${deal?.name} moved to ${newStage?.name}`);
             } catch (error) {
-                message.error("Failed to update deal stage");
+                message.error(td("Failed to update deal stage", { source: "en" }));
             } finally {
                 setProcessingDeals((prev) => {
                     const newSet = new Set(prev);
@@ -228,12 +230,12 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                                 </span>
                                                 {isOverdue && (
                                                     <Tag color="error">
-                                                        Overdue
+                                                        {td("Overdue", { source: "en" })}
                                                     </Tag>
                                                 )}
                                                 {isDueSoon && !isOverdue && (
                                                     <Tag color="warning">
-                                                        Due Soon
+                                                        {td("Due Soon", { source: "en" })}
                                                     </Tag>
                                                 )}
                                             </div>
@@ -297,7 +299,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                                     }}
                                                     className="text-xs"
                                                 >
-                                                    Quick Edit
+                                                    {td("Quick Edit", { source: "en" })}
                                                 </Button>
                                             )}
                                             <Button
@@ -315,7 +317,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                                 }}
                                                 className="text-xs"
                                             >
-                                                View
+                                                {td("View", { source: "en" })}
                                             </Button>
                                         </div>
                                     </div>
@@ -349,7 +351,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                     }}
                                 />
                                 <span className="font-medium">
-                                    {stage.name}
+                                    {td(stage.name, { source: "en" })}
                                 </span>
                             </div>
                             <div className="flex items-center space-x-2 text-sm font-normal">
@@ -374,7 +376,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                 icon={<PlusOutlined />}
                                 onClick={() => handleAction("add", deal)}
                             >
-                                Add
+                                {td("Add", { source: "en" })}
                             </Button>
                         )
                     }
@@ -401,7 +403,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                     <div className="flex items-center justify-center h-48 text-gray-400">
                                         <Empty
                                             image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                            description="No deals in this stage"
+                                            description={td("No deals in this stage", { source: "en" })}
                                         />
                                     </div>
                                 )}
@@ -437,11 +439,11 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                 variant="outlined"
                 title={
                     <div className="flex items-center justify-between">
-                        <span>Deals Pipeline</span>
+                        <span>{td("Deals Pipeline", { source: "en" })}</span>
                         <Space>
                             <div className="text-sm font-normal">
                                 <span className="text-gray-600">
-                                    Total Pipeline:{" "}
+                                    {td("Total Pipeline:", { source: "en" })}{" "}
                                 </span>
                                 <span className="font-bold text-green-600">
                                     ${totalDealsValue.toLocaleString()}
@@ -449,7 +451,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                             </div>
                             <div className="text-sm font-normal">
                                 <span className="text-gray-600">
-                                    Avg Deal:{" "}
+                                    {td("Avg Deal:", { source: "en" })}{" "}
                                 </span>
                                 <span className="font-medium">
                                     $

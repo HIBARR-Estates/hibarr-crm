@@ -3,6 +3,7 @@ import { Form, Switch, Input, Row, Col, Typography } from "antd";
 import type { FormInstance } from "antd/lib/form";
 import type { PrimaryCategory } from "@/Types";
 import CurrencyInput from "@/Components/CurrencyInput";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -28,6 +29,7 @@ const PricingSection: React.FC<PricingSectionProps> = ({
     primaryCategory,
     selectedCurrency,
 }) => {
+    const { td } = useTd();
     const openToSwap = Form.useWatch("open_to_swap", form);
     const isLand = primaryCategory === "land";
 
@@ -37,14 +39,14 @@ const PricingSection: React.FC<PricingSectionProps> = ({
             <Col xs={24} md={12}>
                 <Form.Item
                     name="price"
-                    label="Price"
+                    label={td("Price", { source: "en" })}
                     rules={[
                         { required: true, message: "Please enter the price" },
                     ]}
                 >
                     <CurrencyInput
                         noFormItem
-                        placeholder="Enter price"
+                        placeholder={td("Enter price", { source: "en" })}
                         defaultCurrency={selectedCurrency}
                     />
                 </Form.Item>
@@ -159,7 +161,7 @@ const PricingSection: React.FC<PricingSectionProps> = ({
                                             type="secondary"
                                             className="text-xs italic"
                                         >
-                                            Enter price and area to calculate
+                                            {td("Enter price and area to calculate", { source: "en" })}
                                         </Text>
                                     )}
                                 </div>
@@ -173,9 +175,9 @@ const PricingSection: React.FC<PricingSectionProps> = ({
             <Col xs={24} md={12}>
                 <Form.Item
                     name="open_to_swap"
-                    label="Open to Swap"
+                    label={td("Open to Swap", { source: "en" })}
                     valuePropName="checked"
-                    tooltip="Is the owner open to swapping/exchanging this property?"
+                    tooltip={td("Is the owner open to swapping/exchanging this property?", { source: "en" })}
                 >
                     <Switch checkedChildren="Yes" unCheckedChildren="No" />
                 </Form.Item>
@@ -186,12 +188,12 @@ const PricingSection: React.FC<PricingSectionProps> = ({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="swap_notes"
-                        label="Swap Notes"
-                        tooltip="What type of swap/exchange is the owner interested in?"
+                        label={td("Swap Notes", { source: "en" })}
+                        tooltip={td("What type of swap/exchange is the owner interested in?", { source: "en" })}
                     >
                         <TextArea
                             rows={2}
-                            placeholder="e.g., Would swap for apartment in Kyrenia..."
+                            placeholder={td("e.g., Would swap for apartment in Kyrenia...", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>

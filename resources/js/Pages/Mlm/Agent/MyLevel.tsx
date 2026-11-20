@@ -35,12 +35,14 @@ import type {
     LevelData,
 } from "@/Features/Mlm/types";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends PageProps {
     levelData: LevelData;
 }
 
 const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
@@ -49,13 +51,13 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
 
     const historyColumns = [
         {
-            title: "Level",
+            title: td("Level", { source: "en" }),
             key: "level",
             render: (_: any, r: AgentLevelHistory) =>
                 r.level ? <LevelBadge level={r.level} /> : "—",
         },
         {
-            title: "Method",
+            title: td("Method", { source: "en" }),
             key: "method",
             render: (_: any, r: AgentLevelHistory) => (
                 <Tag color={r.system_assigned ? "blue" : "gold"}>
@@ -64,7 +66,7 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
             ),
         },
         {
-            title: "Trigger Deal",
+            title: td("Trigger Deal", { source: "en" }),
             key: "deal",
             render: (_: any, r: AgentLevelHistory) =>
                 r.trigger_deal ? (
@@ -77,7 +79,7 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
                 ),
         },
         {
-            title: "Date",
+            title: td("Date", { source: "en" }),
             dataIndex: "assigned_at",
             key: "assigned_at",
             render: (d: string) => formatCompanyDate(d, "—"),
@@ -130,7 +132,7 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
                                                 <Award size={36} />
                                             </div>
                                             <div className="text-sm text-gray-500 mb-2">
-                                                Current Level
+                                                {td("Current Level", { source: "en" })}
                                             </div>
                                             {levelData?.current_level ? (
                                                 <LevelBadge
@@ -141,7 +143,7 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
                                                 />
                                             ) : (
                                                 <Tag className="text-lg">
-                                                    Unranked
+                                                    {td("Unranked", { source: "en" })}
                                                 </Tag>
                                             )}
                                         </div>
@@ -178,14 +180,14 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
                                                     className="text-green-500"
                                                 />
                                                 <span className="font-semibold">
-                                                    Progress to Next Level
+                                                    {td("Progress to Next Level", { source: "en" })}
                                                 </span>
                                                 {levelData?.cycle_metrics && (
                                                     <Tag
                                                         color="blue"
                                                         className="ml-2 text-xs"
                                                     >
-                                                        Current Cycle
+                                                        {td("Current Cycle", { source: "en" })}
                                                     </Tag>
                                                 )}
                                             </div>
@@ -197,12 +199,12 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
                                             <div>
                                                 <div className="mb-4 flex items-center justify-between">
                                                     <span className="text-sm text-gray-500">
-                                                        Next:{" "}
+                                                        {td("Next:", { source: "en" })}{" "}
                                                         <strong>
                                                             {
-                                                                levelData
+                                                                td(levelData
                                                                     .next_level
-                                                                    .name
+                                                                    .name, { source: "en" })
                                                             }
                                                         </strong>
                                                     </span>
@@ -267,7 +269,7 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
                                             className="text-indigo-500"
                                         />
                                         <span className="font-semibold">
-                                            My Level History
+                                            {td("My Level History", { source: "en" })}
                                         </span>
                                     </div>
                                 }

@@ -651,7 +651,7 @@ export default function CreateDealModal({
                                 className="mt-0.5 text-[14px] font-semibold"
                                 style={{ color: T.TEXT }}
                             >
-                                {solePackage.name}
+                                {td(solePackage.name, { source: "en" })}
                             </div>
                         </div>
                     )}

@@ -23,7 +23,7 @@
                                             Update Available for {{ $universalBundle->getName() }}
                                         </h5>
                                         <p>
-                                            Current version: <span class="badge badge-danger">v{{ $currentVersion }}</span>
+                                            {{ td('Current version:') }} <span class="badge badge-danger">v{{ $currentVersion }}</span>
                                             &nbsp;|&nbsp;
                                             Latest version: <span class="badge badge-success">v{{ $latestVersion }}</span>
                                         </p>
@@ -135,7 +135,7 @@
                                     <span class="badge badge-secondary">{{ $fetchSetting->license_type }}</span>
                                     @if (str_contains($fetchSetting->license_type, 'Regular'))
                                         <a href="{{ \Froiden\Envato\Helpers\FroidenApp::buyExtendedUrl(config(strtolower($universalBundle) . '.envato_item_id')) }}"
-                                            target="_blank">Upgrade now</a>
+                                            target="_blank">{{ td('Upgrade now') }}</a>
                                     @endif
                                 @endif
 
@@ -143,7 +143,7 @@
                                     $fetchSetting?->purchase_code &&
                                         $fetchSetting?->supported_until &&
                                         \Carbon\Carbon::parse($fetchSetting->supported_until)->isPast())
-                                    <span class="badge badge-danger">Support Expired</span>
+                                    <span class="badge badge-danger">{{ td('Support Expired') }}</span>
                                 @endif
 
                             </div>

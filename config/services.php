@@ -96,6 +96,12 @@ return [
         'base_url' => env('DYNAMIC_TRANSLATION_API_URL', env('AI_BASE_URL', '')),
         'timeout' => (int) env('DYNAMIC_TRANSLATION_API_TIMEOUT', env('AI_TIMEOUT', 30)),
         'api_key' => env('DYNAMIC_TRANSLATION_API_KEY', env('AI_API_KEY')),
+        // When true, legacy lang keys (app/modules/messages/email/permissions) that have
+        // no de/tr/ru value are machine-translated from English instead of shown in English.
+        // Opt-in: translate inline English in Reply messages. Off by default because some call sites
+        // interpolate record names, which would be stored and sent to the translation API.
+        'reply_fallback' => (bool) env('DYNAMIC_TRANSLATION_REPLY_FALLBACK', false),
+        'legacy_lang_fallback' => (bool) env('DYNAMIC_TRANSLATION_LEGACY_LANG_FALLBACK', false),
     ],
 
     'notification_service' => [

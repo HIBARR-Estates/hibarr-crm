@@ -502,7 +502,7 @@ export default function MeetingAttendanceConfirmationModal({
                                             color: "#1a1f2e",
                                         }}
                                     >
-                                        {outcome.label}
+                                        {td(outcome.label, { source: "en" })}
                                     </span>
                                     <span
                                         style={{
@@ -562,7 +562,7 @@ export default function MeetingAttendanceConfirmationModal({
                                             color: "#1a1f2e",
                                         }}
                                     >
-                                        {selectedOutcome.label}
+                                        {td(selectedOutcome.label, { source: "en" })}
                                     </span>
                                     <span
                                         style={{

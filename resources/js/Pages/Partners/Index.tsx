@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { router } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
 import { message } from "antd";
 import axios from "axios";
 import DashboardLayout from "@/Components/DashboardLayout";
+import usePartnerReferralCommissionFlag from "@/Hooks/usePartnerReferralCommissionFlag";
+import useTranslation from "@/Hooks/useTranslation";
 import PageLayout from "@/Components/PageLayout";
 import {
     Button,
@@ -18,7 +20,6 @@ import {
     REDESIGN_TYPE as TYPE,
 } from "@/Components/Redesign";
 import "@/Components/Redesign/redesign.css";
-import useTranslation from "@/Hooks/useTranslation";
 import { useDebounce } from "@/Hooks/useDebounce";
 import usePartnerKeycloakProvisionFlag from "@/Hooks/usePartnerKeycloakProvisionFlag";
 
@@ -28,6 +29,8 @@ interface PartnerAgent {
     id: number;
     status: "enabled" | "disabled";
     is_partner: boolean;
+    /** Decimal string from the `decimal:2` cast, e.g. "12.50". */
+    referral_pool_rate?: string | null;
     referred_leads_count: number;
     /** True for an account made through Invite Partner, which can be re-invited. */
     can_resend?: boolean;
@@ -43,6 +46,7 @@ interface Stats {
 
 interface Props {
     pageTitle: string;
+    canManageCommissionProfile?: boolean;
     agents: {
         data: PartnerAgent[];
         current_page: number;
@@ -83,6 +87,9 @@ const StatTile = ({ label, value }: { label: string; value: number }) => (
  */
 const ROW_GRID = "xl:grid xl:grid-cols-[32px_minmax(0,1fr)_88px_92px_120px_220px] xl:gap-3";
 
+/** Same grid with a column for the referral share, shown when that flag is on. */
+const ROW_GRID_WITH_SHARE = "xl:grid xl:grid-cols-[32px_minmax(0,1fr)_88px_92px_132px_120px_220px] xl:gap-3";
+
 /** True when `incoming` carries an older version of the user than `current`. */
 const isOlder = (incoming: PartnerAgent, current: PartnerAgent): boolean => {
     const a = incoming.user?.partner_invite_version;
@@ -114,9 +121,15 @@ const inviteBadgeVariant = (status: InviteStatus): "amber" | "green" | "red" => 
     return "amber";
 };
 
-const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Props) => {
+const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canManageCommissionProfile = false }: Props) => {
     const { t } = useTranslation();
     const provisioning = usePartnerKeycloakProvisionFlag();
+    const referralCommissionEnabled = usePartnerReferralCommissionFlag();
+    const rowGrid = referralCommissionEnabled ? ROW_GRID_WITH_SHARE : ROW_GRID;
+    const referralShareLabel = (agent: PartnerAgent): string =>
+        agent.referral_pool_rate != null
+            ? t("pages.agents.referral_share_of_pool", { rate: agent.referral_pool_rate })
+            : t("pages.agents.referral_share_none");
 
     const [rows, setRows] = useState<PartnerAgent[]>(agents.data);
     const [stats, setStats] = useState<Stats>(initialStats);
@@ -325,20 +338,21 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
                 ) : (
                     <div>
                         <div
-                            className={`mb-2 hidden items-center px-4 ${ROW_GRID}`}
+                            className={`mb-2 hidden items-center px-4 ${rowGrid}`}
                             style={{ fontSize: TYPE.CAPTION, fontWeight: 600, color: T.TEXT_MUTED, letterSpacing: 0.3 }}
                         >
                             <div />
                             <div>{t("pages.partners.col_partner")}</div>
                             <div>{t("pages.partners.col_account")}</div>
                             <div>{t("pages.partners.col_invite")}</div>
+                            {referralCommissionEnabled && <div>{t("pages.partners.col_referral_share")}</div>}
                             <div>{t("pages.partners.col_referrals")}</div>
                             <div className="text-right">{t("pages.partners.col_actions")}</div>
                         </div>
                         {rows.map((agent) => (
                             <div
                                 key={agent.id}
-                                className={`dr-card flex flex-wrap items-center gap-3 ${ROW_GRID}`}
+                                className={`dr-card flex flex-wrap items-center gap-3 ${rowGrid}`}
                             >
                                 <Avatar
                                     type="agent"
@@ -374,6 +388,22 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
                                         </Badge>
                                     )}
                                 </div>
+                                {referralCommissionEnabled && (
+                                    <div>
+                                        {canManageCommissionProfile ? (
+                                            <Link
+                                                href={route("mlm.agent_dashboard", agent.id)}
+                                                style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}
+                                            >
+                                                {referralShareLabel(agent)}
+                                            </Link>
+                                        ) : (
+                                            <span style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}>
+                                                {referralShareLabel(agent)}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
                                 <div>
                                     <Badge variant="blue">
                                         {t("pages.partners.leads_referred", {

@@ -19,25 +19,25 @@
                             <li class="nav-item">
                                 <a class="nav-link f-14 rounded-0 border-bottom-0 active" id="categories-tab"
                                    data-toggle="pill" href="#categories-panel" role="tab">
-                                    <i class="fa fa-th-large mr-1"></i> Categories
+                                    <i class="fa fa-th-large mr-1"></i> {{ td('Categories') }}
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link f-14 rounded-0 border-bottom-0" id="types-tab"
                                    data-toggle="pill" href="#types-panel" role="tab">
-                                    <i class="fa fa-tags mr-1"></i> Event Types
+                                    <i class="fa fa-tags mr-1"></i> {{ td('Event Types') }}
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link f-14 rounded-0 border-bottom-0" id="rules-tab"
                                    data-toggle="pill" href="#rules-panel" role="tab">
-                                    <i class="fa fa-cogs mr-1"></i> Business Rules
+                                    <i class="fa fa-cogs mr-1"></i> {{ td('Business Rules') }}
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link f-14 rounded-0 border-bottom-0" id="retention-tab"
                                    data-toggle="pill" href="#retention-panel" role="tab">
-                                    <i class="fa fa-archive mr-1"></i> Retention
+                                    <i class="fa fa-archive mr-1"></i> {{ td('Retention') }}
                                 </a>
                             </li>
                         </ul>

@@ -30,6 +30,7 @@ import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
 import { withMobileResponsiveColumns } from "@/Components/DataTable";
 import useMobileResponsiveLayoutFlag from "@/Hooks/useMobileResponsiveLayoutFlag";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 /** Lower-priority columns hidden below 1024px so the primary fields stay visible. */
 const HIDDEN_ON_MOBILE = ["assigner", "created_at"];
@@ -69,6 +70,7 @@ export const useTasksTableColumns = ({
     onStatusChange,
     exclude = [],
 }: TasksTableColumnsProps): TableColumnsType<Task> => {
+    const { td } = useTd();
     const { props } = usePage();
     const userId = props.auth.user.id;
     const isMobileResponsive = useMobileResponsiveLayoutFlag();
@@ -78,7 +80,7 @@ export const useTasksTableColumns = ({
         {
             title: (
                 <span className="flex items-center">
-                    Title
+                    {td("Title", { source: "en" })}
                     <PageDataSorter field="heading" routeName="tasks.index" />
                 </span>
             ),
@@ -110,7 +112,7 @@ export const useTasksTableColumns = ({
                                     <span className="text-gray-300">·</span>
                                     {record.labels.slice(0, 2).map((label) => (
                                         <Tag key={label.id} color={label.label_color} style={{ margin: 0 }}>
-                                            {label.label_name}
+                                            {td(label.label_name, { source: "en" })}
                                         </Tag>
                                     ))}
                                     {record.labels.length > 2 && (
@@ -149,9 +151,9 @@ export const useTasksTableColumns = ({
         {
             title: (
                 <span className="flex items-center">
-                    Status
+                    {td("Status", { source: "en" })}
                     <PageDataSorter
-                        label="Status"
+                        label={td("Status", { source: "en" })}
                         field="board_column_id"
                         routeName="tasks.index"
                     />
@@ -164,7 +166,7 @@ export const useTasksTableColumns = ({
                 if (!onStatusChange) {
                     return (
                         <Tag color={getStatusColor(status)}>
-                            {boardColumn?.column_name || status}
+                            {td(boardColumn?.column_name || status, { source: "en" })}
                         </Tag>
                     );
                 }
@@ -180,9 +182,9 @@ export const useTasksTableColumns = ({
         {
             title: (
                 <span className="flex items-center">
-                    Due Date
+                    {td("Due Date", { source: "en" })}
                     <PageDataSorter
-                        label="Due Date"
+                        label={td("Due Date", { source: "en" })}
                         field="due_date"
                         routeName="tasks.index"
                     />
@@ -208,10 +210,10 @@ export const useTasksTableColumns = ({
                         <div className="text-xs tabular-nums text-gray-400">
                             {formatTaskCompanyTime(dueDate)}
                             {isOverdue && (
-                                <span className="ml-1.5 font-semibold text-red-500">· Overdue</span>
+                                <span className="ml-1.5 font-semibold text-red-500">{td("· Overdue", { source: "en" })}</span>
                             )}
                             {isDueToday && !isOverdue && (
-                                <span className="ml-1.5 font-semibold text-amber-500">· Today</span>
+                                <span className="ml-1.5 font-semibold text-amber-500">{td("· Today", { source: "en" })}</span>
                             )}
                         </div>
                     </div>
@@ -254,9 +256,9 @@ export const useTasksTableColumns = ({
         {
             title: (
                 <span className="flex items-center">
-                    Created
+                    {td("Created", { source: "en" })}
                     <PageDataSorter
-                        label="Created"
+                        label={td("Created", { source: "en" })}
                         field="created_at"
                         routeName="tasks.index"
                     />
@@ -303,20 +305,20 @@ export const useTasksTableColumns = ({
                     {
                         key: "view",
                         icon: <EyeOutlined />,
-                        label: "View Details",
+                        label: td("View Details", { source: "en" }),
                         onClick: () => onView(record),
                     },
                     {
                         key: "edit",
                         icon: <EditOutlined />,
-                        label: "Edit Task",
+                        label: td("Edit Task", { source: "en" }),
                         onClick: () => onEdit(record),
                         disabled: !canEdit,
                     },
                     {
                         key: "duplicate",
                         icon: <CheckSquareOutlined />,
-                        label: "Duplicate",
+                        label: td("Duplicate", { source: "en" }),
                         onClick: () => onDuplicate(record),
                     },
 
@@ -326,7 +328,7 @@ export const useTasksTableColumns = ({
                     {
                         key: "delete",
                         icon: <DeleteOutlined />,
-                        label: "Delete",
+                        label: td("Delete", { source: "en" }),
                         danger: true,
                         onClick: () => onDelete(record),
                         disabled: !canDelete,

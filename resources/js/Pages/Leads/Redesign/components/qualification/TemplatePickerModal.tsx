@@ -101,7 +101,7 @@ export default function TemplatePickerModal({
                                             color: "var(--dr-text)",
                                         }}
                                     >
-                                        {template.name}
+                                        {td(template.name, { source: "en" })}
                                     </span>
                                     <span className="v2-pill v2-pill-gray">
                                         v{template.version}

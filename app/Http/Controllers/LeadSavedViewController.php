@@ -49,13 +49,21 @@ class LeadSavedViewController extends AccountBaseController
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $view = LeadSavedView::findOrFail($id);
+        $userId = (int) user()->id;
 
-        if (! $view->isEditableBy((int) user()->id)) {
-            abort(403);
-        }
+        // A private view of someone else's is not a view this user can see, so
+        // it answers like one that does not exist (404), not 403, which would
+        // confirm the id is real. 403 is for a view the user can see (shared
+        // with the team) but may not change.
+        $view = LeadSavedView::query()->visibleTo($userId)->findOrFail($id);
+        abort_unless($view->isManageableBy($userId, LeadSavedView::viewerIsAdmin()), 403);
 
         $data = $this->validated($request, partial: true);
+
+        abort_if(
+            array_key_exists('visibility', $data) && ! $view->canSetVisibility($userId, $data['visibility']),
+            403
+        );
 
         if (array_key_exists('name', $data)) {
             $view->name = $data['name'];
@@ -80,11 +88,12 @@ class LeadSavedViewController extends AccountBaseController
 
     public function destroy(int $id): JsonResponse
     {
-        $view = LeadSavedView::findOrFail($id);
+        $userId = (int) user()->id;
 
-        if (! $view->isEditableBy((int) user()->id)) {
-            abort(403);
-        }
+        // Same lookup as update(): someone else's private view is not found.
+        $view = LeadSavedView::query()->visibleTo($userId)->findOrFail($id);
+
+        abort_unless($view->isManageableBy($userId, LeadSavedView::viewerIsAdmin()), 403);
 
         $view->delete();
 
@@ -114,17 +123,6 @@ class LeadSavedViewController extends AccountBaseController
      */
     private function present(LeadSavedView $view): array
     {
-        $view->loadMissing('owner:id,name');
-
-        return [
-            'id' => $view->id,
-            'name' => $view->name,
-            'filters' => $view->filters,
-            'visibility' => $view->visibility,
-            'pinned' => $view->pinned,
-            'is_owner' => (int) $view->user_id === (int) user()->id,
-            'owner_name' => $view->owner?->name,
-            'updated_at' => $view->updated_at?->toIso8601String(),
-        ];
+        return $view->presentFor((int) user()->id, LeadSavedView::viewerIsAdmin());
     }
 }

@@ -1,4 +1,10 @@
+import { useRef } from "react";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
+import {
+    parsePastedAmount,
+    regroupTypedComma,
+    sanitizeAmount,
+} from "../../adapters/moneyInput";
 
 interface DealMoneyInputProps {
     /** Raw digits, no separators — "1500", not "1,500". */
@@ -9,6 +15,11 @@ interface DealMoneyInputProps {
     disabled?: boolean;
     ariaLabel?: string;
     onChange: (value: string) => void;
+    /**
+     * A pasted amount that cannot be read without guessing (e.g. "1,2,3") is
+     * ignored and the field keeps its value; this tells the caller so it can say so.
+     */
+    onInvalidPaste?: () => void;
 }
 
 /** Thousand separators for display only; the caller keeps raw digits. */
@@ -35,7 +46,11 @@ export default function DealMoneyInput({
     disabled,
     ariaLabel,
     onChange,
+    onInvalidPaste,
 }: DealMoneyInputProps) {
+    // True while the decimal point in the value was typed as a comma.
+    const commaTyped = useRef(false);
+
     return (
         <div className="relative w-full">
             <span
@@ -51,10 +66,47 @@ export default function DealMoneyInput({
                 disabled={disabled}
                 value={format(value)}
                 placeholder={placeholder}
-                onChange={(e) =>
-                    // One optional decimal point, digits either side.
-                    onChange(e.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1"))
-                }
+                onChange={(e) => {
+                    let text = e.target.value;
+                    const native = e.nativeEvent as InputEvent;
+
+                    // Grouping commas are only ever drawn by format(), never typed, so a
+                    // typed comma is a decimal separator ("12,50"), not something to drop.
+                    if (native.inputType === "insertText" && native.data === ",") {
+                        const at = (e.target.selectionStart ?? text.length) - 1;
+                        if (text[at] === ",") {
+                            text = `${text.slice(0, at)}.${text.slice(at + 1)}`;
+                            commaTyped.current = true;
+                        }
+                    }
+
+                    // One optional decimal point, digits either side. "1,500" typed reads
+                    // as 1500, the same as pasted; "12,50" stays 12.50.
+                    const next = regroupTypedComma(sanitizeAmount(text), commaTyped.current);
+                    if (!next.includes(".")) {
+                        commaTyped.current = false;
+                    }
+                    onChange(next);
+                }}
+                onPaste={(e) => {
+                    e.preventDefault();
+                    commaTyped.current = false;
+                    const pasted = parsePastedAmount(e.clipboardData.getData("text"));
+
+                    if (pasted === null) {
+                        onInvalidPaste?.();
+                        return;
+                    }
+
+                    // The selection is in the grouped text; map it back to raw characters.
+                    const shown = format(value);
+                    const rawIndex = (position: number | null) =>
+                        shown.slice(0, position ?? shown.length).replace(/,/g, "").length;
+                    const start = rawIndex(e.currentTarget.selectionStart);
+                    const end = rawIndex(e.currentTarget.selectionEnd);
+
+                    onChange(sanitizeAmount(value.slice(0, start) + pasted + value.slice(end)));
+                }}
                 className="h-10 w-full rounded-xl border border-dr-border bg-white pl-8 pr-3 text-sm transition-colors placeholder-dr-text-hint focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100 disabled:opacity-40"
                 style={{ color: T.TEXT }}
             />

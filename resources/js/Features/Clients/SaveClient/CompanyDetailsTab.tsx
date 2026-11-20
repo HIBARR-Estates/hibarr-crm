@@ -4,6 +4,7 @@ import { PlusOutlined } from "@ant-design/icons";
 import { Lead, Country } from "@/Types";
 import PhoneInput from "antd-phone-input";
 import { useCountries } from "@/Hooks/useFormData";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -26,6 +27,7 @@ const CompanyDetailsTab: React.FC<Props> = ({
     employees,
     permissions,
 }) => {
+    const { td } = useTd();
     const { countries } = useCountries();
 
     const [selectedCountry, setSelectedCountry] = useState<Country | null>(
@@ -45,70 +47,70 @@ const CompanyDetailsTab: React.FC<Props> = ({
     return (
         <div>
             <Title level={4} className="mb-6">
-                Company Details
+                {td("Company Details", { source: "en" })}
             </Title>
 
             <Row gutter={[16, 16]}>
                 <Col span={8}>
-                    <Form.Item name="company_name" label="Company Name">
-                        <Input placeholder="Enter company name" />
+                    <Form.Item name="company_name" label={td("Company Name", { source: "en" })}>
+                        <Input placeholder={td("Enter company name", { source: "en" })} />
                     </Form.Item>
                 </Col>
 
                 <Col span={8}>
-                    <Form.Item name="website" label="Website">
-                        <Input placeholder="Enter website URL" />
+                    <Form.Item name="website" label={td("Website", { source: "en" })}>
+                        <Input placeholder={td("Enter website URL", { source: "en" })} />
                     </Form.Item>
                 </Col>
 
                 <Col span={8}>
-                    <Form.Item name="tax_name" label="Tax Name">
-                        <Input placeholder="Enter tax name (GST/VAT)" />
+                    <Form.Item name="tax_name" label={td("Tax Name", { source: "en" })}>
+                        <Input placeholder={td("Enter tax name (GST/VAT)", { source: "en" })} />
                     </Form.Item>
                 </Col>
             </Row>
 
             <Row gutter={[16, 16]}>
                 <Col span={8}>
-                    <Form.Item name="gst_number" label="GST Number">
-                        <Input placeholder="Enter GST number" />
+                    <Form.Item name="gst_number" label={td("GST Number", { source: "en" })}>
+                        <Input placeholder={td("Enter GST number", { source: "en" })} />
                     </Form.Item>
                 </Col>
 
                 <Col span={12}>
-                    <Form.Item name="office" label="Office Phone Number">
+                    <Form.Item name="office" label={td("Office Phone Number", { source: "en" })}>
                         <PhoneInput 
                             enableSearch 
-                            placeholder="Enter office phone number"
+                            placeholder={td("Enter office phone number", { source: "en" })}
                             country=""
                         />
                     </Form.Item>
                 </Col>
 
                 <Col span={8}>
-                    <Form.Item name="city" label="City">
-                        <Input placeholder="Enter city" />
+                    <Form.Item name="city" label={td("City", { source: "en" })}>
+                        <Input placeholder={td("Enter city", { source: "en" })} />
                     </Form.Item>
                 </Col>
             </Row>
 
             <Row gutter={[16, 16]}>
                 <Col span={8}>
-                    <Form.Item name="state" label="State">
-                        <Input placeholder="Enter state" />
+                    <Form.Item name="state" label={td("State", { source: "en" })}>
+                        <Input placeholder={td("Enter state", { source: "en" })} />
                     </Form.Item>
                 </Col>
 
                 <Col span={8}>
-                    <Form.Item name="postal_code" label="Postal Code">
-                        <Input placeholder="Enter postal code" />
+                    <Form.Item name="postal_code" label={td("Postal Code", { source: "en" })}>
+                        <Input placeholder={td("Enter postal code", { source: "en" })} />
                     </Form.Item>
                 </Col>
 
                 <Col span={8}>
-                    <Form.Item name="country_company" label="Country">
+                    <Form.Item name="country_company" label={td("Country", { source: "en" })}>
                         <Select
-                            placeholder="Select country"
+                            placeholder={td("Select country", { source: "en" })}
                             showSearch
                             filterOption={(input, option) =>
                                 (option?.label ?? "")
@@ -126,19 +128,19 @@ const CompanyDetailsTab: React.FC<Props> = ({
 
             <Row gutter={[16, 16]}>
                 <Col span={12}>
-                    <Form.Item name="address" label="Company Address">
+                    <Form.Item name="address" label={td("Company Address", { source: "en" })}>
                         <TextArea
                             rows={4}
-                            placeholder="Enter company address"
+                            placeholder={td("Enter company address", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>
 
                 <Col span={12}>
-                    <Form.Item name="shipping_address" label="Shipping Address">
+                    <Form.Item name="shipping_address" label={td("Shipping Address", { source: "en" })}>
                         <TextArea
                             rows={4}
-                            placeholder="Enter shipping address"
+                            placeholder={td("Enter shipping address", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>
@@ -146,7 +148,7 @@ const CompanyDetailsTab: React.FC<Props> = ({
 
             <Row>
                 <Col span={24}>
-                    <Form.Item name="company_logo" label="Company Logo">
+                    <Form.Item name="company_logo" label={td("Company Logo", { source: "en" })}>
                         <Upload
                             listType="picture-card"
                             maxCount={1}
@@ -155,7 +157,7 @@ const CompanyDetailsTab: React.FC<Props> = ({
                         >
                             <div>
                                 <PlusOutlined />
-                                <div className="mt-2">Upload Logo</div>
+                                <div className="mt-2">{td("Upload Logo", { source: "en" })}</div>
                             </div>
                         </Upload>
                     </Form.Item>

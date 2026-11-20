@@ -4,6 +4,7 @@ import type { FormInstance } from "antd/lib/form";
 import type { CityLookupValue, PropertyEnumValues } from "@/Types";
 import { DISTANCE_FIELDS } from "../constructionProjectConfig";
 import type { DeveloperProject } from "@/Types/developerProject";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { TextArea } = Input;
 
@@ -69,6 +70,7 @@ interface ConstructionProjectLocationSectionProps {
 const ConstructionProjectLocationSection: React.FC<
     ConstructionProjectLocationSectionProps
 > = ({ form, enumValues }) => {
+    const { td } = useTd();
     const selectedCity = Form.useWatch("city", form);
     const previousCityRef = useRef<string | undefined | null>(undefined);
     const hydratedRef = useRef(false);
@@ -143,10 +145,10 @@ const ConstructionProjectLocationSection: React.FC<
     return (
         <Row gutter={[16, 0]}>
             <Col xs={24} md={12}>
-                <Form.Item name="city" label="City">
+                <Form.Item name="city" label={td("City", { source: "en" })}>
                     <Select
                         options={cityOptions}
-                        placeholder="Select city"
+                        placeholder={td("Select city", { source: "en" })}
                         allowClear
                         showSearch
                         filterOption={filterLocationOption}
@@ -155,7 +157,7 @@ const ConstructionProjectLocationSection: React.FC<
             </Col>
 
             <Col xs={24} md={12}>
-                <Form.Item name="area" label="Area / District">
+                <Form.Item name="area" label={td("Area / District", { source: "en" })}>
                     <Select
                         options={areaOptions}
                         placeholder={
@@ -172,10 +174,10 @@ const ConstructionProjectLocationSection: React.FC<
             </Col>
 
             <Col span={24}>
-                <Form.Item name="address" label="Full Address">
+                <Form.Item name="address" label={td("Full Address", { source: "en" })}>
                     <TextArea
                         rows={2}
-                        placeholder="Street address or description"
+                        placeholder={td("Street address or description", { source: "en" })}
                     />
                 </Form.Item>
             </Col>
@@ -183,7 +185,7 @@ const ConstructionProjectLocationSection: React.FC<
             <Col xs={12} md={6}>
                 <Form.Item
                     name="latitude"
-                    label="Latitude"
+                    label={td("Latitude", { source: "en" })}
                     rules={[
                         {
                             type: "number",
@@ -203,7 +205,7 @@ const ConstructionProjectLocationSection: React.FC<
             <Col xs={12} md={6}>
                 <Form.Item
                     name="longitude"
-                    label="Longitude"
+                    label={td("Longitude", { source: "en" })}
                     rules={[
                         {
                             type: "number",
@@ -221,18 +223,18 @@ const ConstructionProjectLocationSection: React.FC<
             </Col>
 
             <Col xs={24} md={12}>
-                <Form.Item name="map_url" label="Map URL">
-                    <Input placeholder="Google Maps link" />
+                <Form.Item name="map_url" label={td("Map URL", { source: "en" })}>
+                    <Input placeholder={td("Google Maps link", { source: "en" })} />
                 </Form.Item>
             </Col>
 
             <Col span={24}>
                 <div className="mt-2 mb-2 border-t pt-3">
                     <span className="text-sm font-medium text-gray-700">
-                        Distances (km)
+                        {td("Distances (km)", { source: "en" })}
                     </span>
                     <span className="text-xs text-gray-400 ml-2">
-                        Approximate driving distance
+                        {td("Approximate driving distance", { source: "en" })}
                     </span>
                 </div>
             </Col>

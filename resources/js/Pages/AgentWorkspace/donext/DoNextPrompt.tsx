@@ -525,7 +525,7 @@ function MeetingFields({ form, onChange, meetingTypes, person, host, canZoho }: 
                     <select className="agent-dn__input" value={form.platform} onChange={(event) => onChange({ platform: event.target.value as MeetingPlatform, meetingLink: "" })}>
                         {platforms.map((option) => (
                             <option key={option.value} value={option.value}>
-                                {option.label}
+                                {td(option.label, { source: "en" })}
                             </option>
                         ))}
                     </select>

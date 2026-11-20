@@ -21,6 +21,7 @@ import {
     OwnerInfoStep,
 } from "./Steps";
 import ModernSteps from "@/Features/Deals/DealInformationGathering/ModernSteps";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface PropertyWizardFormProps {
     data?: Partial<Property>;
@@ -91,6 +92,7 @@ export default function PropertyWizardForm({
     setProperty,
     visible,
 }: PropertyWizardFormProps) {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const [currentStep, setCurrentStep] = useState(0);
     const [formValues, setFormValues] = useState<Partial<Property>>({});
@@ -235,7 +237,7 @@ export default function PropertyWizardForm({
     const handleNext = async () => {
         const isValid = await validateCurrentStep();
         if (!isValid) {
-            message.warning("Please fix the errors before continuing");
+            message.warning(td("Please fix the errors before continuing", { source: "en" }));
             return;
         }
 
@@ -284,7 +286,7 @@ export default function PropertyWizardForm({
         // Only property_type and sale_type are required by the backend
         if (!finalValues.property_type || !finalValues.sale_type) {
             message.error(
-                "Please fill in at least Property Type and Sale Type before saving",
+                td("Please fill in at least Property Type and Sale Type before saving", { source: "en" }),
             );
             setCurrentStep(0);
             return;
@@ -300,7 +302,7 @@ export default function PropertyWizardForm({
         // Validate current step first
         const isValid = await validateCurrentStep();
         if (!isValid) {
-            message.warning("Please fix the errors before submitting");
+            message.warning(td("Please fix the errors before submitting", { source: "en" }));
             return;
         }
 
@@ -376,7 +378,7 @@ export default function PropertyWizardForm({
             {/* Global errors */}
             {errors.length > 0 && (
                 <Alert
-                    message="Error"
+                    message={td("Error", { source: "en" })}
                     description={
                         <ul className="mb-0 pl-4">
                             {errors.map((error, index) => (
@@ -421,11 +423,11 @@ export default function PropertyWizardForm({
                         </div>
                         <div className="flex items-center gap-2">
                             {currentStepInfo.required ? (
-                                <Tag color="red">Required</Tag>
+                                <Tag color="red">{td("Required", { source: "en" })}</Tag>
                             ) : (
-                                <Tag color="blue">Optional</Tag>
+                                <Tag color="blue">{td("Optional", { source: "en" })}</Tag>
                             )}
-                            <Tooltip title="You can save and continue later">
+                            <Tooltip title={td("You can save and continue later", { source: "en" })}>
                                 <InfoCircleOutlined className="text-gray-400" />
                             </Tooltip>
                         </div>
@@ -435,7 +437,7 @@ export default function PropertyWizardForm({
                 {/* Step Errors */}
                 {currentStepErrors.length > 0 && (
                     <Alert
-                        message="Please fix the following errors:"
+                        message={td("Please fix the following errors:", { source: "en" })}
                         description={
                             <ul className="mb-0 pl-4">
                                 {currentStepErrors.map((error, index) => (
@@ -463,7 +465,7 @@ export default function PropertyWizardForm({
             {/* Navigation Buttons */}
             <div className="flex justify-between items-center pt-4 border-t border-gray-200 mt-4">
                 <Button onClick={handleCancel} disabled={loading}>
-                    Cancel
+                    {td("Cancel", { source: "en" })}
                 </Button>
 
                 <Space>
@@ -480,7 +482,7 @@ export default function PropertyWizardForm({
                             onClick={handlePrev}
                             disabled={loading}
                         >
-                            Previous
+                            {td("Previous", { source: "en" })}
                         </Button>
                     )}
 
@@ -509,7 +511,7 @@ export default function PropertyWizardForm({
                             onClick={handleNext}
                             loading={loading}
                         >
-                            Next
+                            {td("Next", { source: "en" })}
                         </Button>
                     )}
                 </Space>

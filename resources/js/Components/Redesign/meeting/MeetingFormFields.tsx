@@ -461,7 +461,7 @@ export default function MeetingFormFields({
                                                             : T.TEXT_MUTED,
                                                     }}
                                                 >
-                                                    {option.label}
+                                                    {td(option.label, { source: "en" })}
                                                 </button>
                                             );
                                         })}
@@ -1326,7 +1326,7 @@ export default function MeetingFormFields({
                                             handleDurationSelect(option.value)
                                         }
                                     >
-                                        {option.label}
+                                        {td(option.label, { source: "en" })}
                                     </button>
                                 ))}
                             </div>

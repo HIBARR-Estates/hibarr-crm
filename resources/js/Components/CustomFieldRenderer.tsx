@@ -23,6 +23,7 @@ import CurrencyRangeInput from "@/Components/CurrencyRangeInput";
 import RepeatableFieldRenderer from "@/Components/RepeatableFieldRenderer";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import { useCountries } from "@/Hooks/useFormData";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     fields: CustomField[];
@@ -35,6 +36,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
     form,
     namePrefix = "custom_fields_data",
 }) => {
+    const { td } = useTd();
     const { countries } = useCountries();
 
     // Get visibility map
@@ -225,7 +227,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
                     ))
                 ) : (
                     <Select.Option disabled value="">
-                        No countries available
+                        {td("No countries available", { source: "en" })}
                     </Select.Option>
                 )}
             </Select>
@@ -284,7 +286,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
                     ))
                 ) : (
                     <Select.Option disabled value="">
-                        No countries available
+                        {td("No countries available", { source: "en" })}
                     </Select.Option>
                 )}
             </Select>
@@ -330,6 +332,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
 
     // File upload field using external FileUploadService
     const FileUploadField: React.FC<{ field: CustomField }> = ({ field }) => {
+        const { td } = useTd();
         const [uploading, setUploading] = useState(false);
         const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -348,10 +351,10 @@ const CustomFieldRenderer: React.FC<Props> = ({
                     [namePrefix, `field_${field.id}`],
                     result.downloadUrl,
                 );
-                message.success("File uploaded successfully");
+                message.success(td("File uploaded successfully", { source: "en" }));
             } catch (error) {
                 console.error("File upload failed:", error);
-                message.error("Failed to upload file");
+                message.error(td("Failed to upload file", { source: "en" }));
             } finally {
                 setUploading(false);
                 setUploadProgress(0);

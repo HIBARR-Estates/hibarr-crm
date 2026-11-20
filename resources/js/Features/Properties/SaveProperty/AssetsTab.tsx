@@ -21,6 +21,7 @@ import {
 } from "@ant-design/icons";
 import { Property } from "@/Types";
 import { router } from "@inertiajs/react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Title } = Typography;
 
@@ -33,10 +34,11 @@ export default function AssetsTab({
     property,
     canEdit = false,
 }: AssetsTabProps) {
+    const { td } = useTd();
     if (!property || !property.id) {
         return (
-            <Card title="Property Assets">
-                <Empty description="Property must be saved before managing assets" />
+            <Card title={td("Property Assets", { source: "en" })}>
+                <Empty description={td("Property must be saved before managing assets", { source: "en" })} />
             </Card>
         );
     }
@@ -62,7 +64,7 @@ export default function AssetsTab({
             title={
                 <Space>
                     <FolderOpenOutlined />
-                    <span>Property Assets</span>
+                    <span>{td("Property Assets", { source: "en" })}</span>
                     {totalAssets > 0 && (
                         <Tag color="blue">{totalAssets} {totalAssets === 1 ? 'Asset' : 'Assets'}</Tag>
                     )}
@@ -85,9 +87,9 @@ export default function AssetsTab({
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                     description={
                         <Space direction="vertical">
-                            <Text>No assets uploaded yet</Text>
+                            <Text>{td("No assets uploaded yet", { source: "en" })}</Text>
                             <Text type="secondary" className="text-sm">
-                                Upload images, videos, and 360° tours to showcase this property
+                                {td("Upload images, videos, and 360° tours to showcase this property", { source: "en" })}
                             </Text>
                         </Space>
                     }
@@ -98,7 +100,7 @@ export default function AssetsTab({
                             icon={<PlusOutlined />}
                             onClick={handleManageAssets}
                         >
-                            Upload Assets
+                            {td("Upload Assets", { source: "en" })}
                         </Button>
                     )}
                 </Empty>
@@ -109,7 +111,7 @@ export default function AssetsTab({
                         <Row gutter={16}>
                             <Col xs={8}>
                                 <Statistic
-                                    title="Images"
+                                    title={td("Images", { source: "en" })}
                                     value={imageAssets.length}
                                     prefix={<FileImageOutlined />}
                                     valueStyle={{ color: '#3f8600' }}
@@ -117,7 +119,7 @@ export default function AssetsTab({
                             </Col>
                             <Col xs={8}>
                                 <Statistic
-                                    title="Videos"
+                                    title={td("Videos", { source: "en" })}
                                     value={videoAssets.length}
                                     prefix={<VideoCameraOutlined />}
                                     valueStyle={{ color: '#cf1322' }}
@@ -125,7 +127,7 @@ export default function AssetsTab({
                             </Col>
                             <Col xs={8}>
                                 <Statistic
-                                    title="360° Tours"
+                                    title={td("360° Tours", { source: "en" })}
                                     value={tourAssets.length}
                                     prefix={<CameraOutlined />}
                                     valueStyle={{ color: '#1890ff' }}
@@ -139,7 +141,7 @@ export default function AssetsTab({
                         <Col span={24}>
                             <Title level={5}>
                                 <FileImageOutlined className="mr-2" />
-                                Recent Images
+                                {td("Recent Images", { source: "en" })}
                             </Title>
                             <Image.PreviewGroup>
                                 <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
@@ -179,7 +181,7 @@ export default function AssetsTab({
                     {/* Video & Tour Links */}
                     {(videoAssets.length > 0 || tourAssets.length > 0) && (
                         <Col span={24}>
-                            <Title level={5}>Media Links</Title>
+                            <Title level={5}>{td("Media Links", { source: "en" })}</Title>
                             <Row gutter={[16, 16]}>
                                 {videoAssets.map((asset) => (
                                     <Col xs={24} sm={12} key={asset.id}>
@@ -203,7 +205,7 @@ export default function AssetsTab({
                                                     rel="noopener noreferrer"
                                                     className="p-0"
                                                 >
-                                                    Watch Video
+                                                    {td("Watch Video", { source: "en" })}
                                                 </Button>
                                             </Space>
                                         </Card>
@@ -232,7 +234,7 @@ export default function AssetsTab({
                                                     rel="noopener noreferrer"
                                                     className="p-0"
                                                 >
-                                                    Take Virtual Tour
+                                                    {td("Take Virtual Tour", { source: "en" })}
                                                 </Button>
                                             </Space>
                                         </Card>

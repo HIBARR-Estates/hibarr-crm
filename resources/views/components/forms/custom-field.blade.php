@@ -108,7 +108,7 @@
                                 <div id="other_text_{{ $field->id }}" class="mt-2" style="display: {{ (strtolower($selectedValue) == 'other' || strpos(strtolower($selectedValue), 'other: ') === 0) ? 'block' : 'none' }};">
                                     <input type="text" 
                                            class="form-control height-35 f-14" 
-                                           placeholder="Please specify..."
+                                           placeholder="{{ td('Please specify...') }}"
                                            id="other_input_{{ $field->id }}"
                                            value="{{ $otherValue }}"
                                            onchange="CustomFieldHandlers.updateOtherValue('{{$field->field_name.'_'.$field->id}}', '{{$field->id}}')">
@@ -155,7 +155,7 @@
                                 <div id="other_text_select_{{ $field->id }}" class="mt-2" style="display: {{ (strtolower($selectedValue) == 'other' || strpos(strtolower($selectedValue), 'other: ') === 0) ? 'block' : 'none' }};">
                                     <input type="text" 
                                            class="form-control height-35 f-14" 
-                                           placeholder="Please specify..."
+                                           placeholder="{{ td('Please specify...') }}"
                                            id="other_input_select_{{ $field->id }}"
                                            value="{{ $otherValue }}"
                                            onchange="CustomFieldHandlers.updateOtherSelectValue('{{$field->name.'_'.$field->id}}', '{{$field->id}}')">
@@ -244,7 +244,7 @@
                             <div id="other_text_checkbox_{{ $field->id }}" class="mt-2" style="display: {{ (in_array('other', array_map('strtolower', $otherSelectedValues))) ? 'block' : 'none' }};">
                                 <input type="text" 
                                        class="form-control height-35 f-14" 
-                                       placeholder="Please specify..."
+                                       placeholder="{{ td('Please specify...') }}"
                                        id="other_input_checkbox_{{ $field->id }}"
                                        value="{{ $otherValue }}"
                                        onchange="CustomFieldHandlers.updateOtherCheckboxValue('{{$field->field_name.'_'.$field->id}}', '{{$field->id}}')">

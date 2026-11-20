@@ -336,7 +336,7 @@ function TalkingPoints({ dealId, meetingId, context }: { dealId: number; meeting
             title={t("pages.agent_workspace.deal.brief.talking")}
             tag={
                 <>
-                    <span className="agent-brief2__ai">AI</span>
+                    <span className="agent-brief2__ai">{td("AI", { source: "en" })}</span>
                     {points.length > 0 || error ? (
                         <Button
                             size="sm"

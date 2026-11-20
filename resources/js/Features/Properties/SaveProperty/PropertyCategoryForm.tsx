@@ -63,6 +63,7 @@ import {
 } from "./sections";
 import UnitTypesSection from "@/Features/DeveloperProjects/UnitTypesSection";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface PropertyCategoryFormProps {
     data?: Partial<Property>;
@@ -87,6 +88,7 @@ export default function PropertyCategoryForm({
     setProperty,
     visible,
 }: PropertyCategoryFormProps) {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const contentRef = useRef<HTMLDivElement>(null);
     const saveForUploadRef = useRef(false);
@@ -165,12 +167,12 @@ export default function PropertyCategoryForm({
         const values = form.getFieldsValue(true);
         if (!values.name || !values.developer_id) {
             message.error(
-                "Please fill in at least Construction Company and Project Name before saving.",
+                td("Please fill in at least Construction Company and Project Name before saving.", { source: "en" }),
             );
             return;
         }
         modal.confirm({
-            title: "Save project to continue?",
+            title: td("Save project to continue?", { source: "en" }),
             content:
                 "Your project will be saved so you can upload photos and manage unit types.",
             okText: "Save & Continue",
@@ -358,10 +360,10 @@ export default function PropertyCategoryForm({
 
     // ─── Single currency picker state ───
     const CURRENCY_OPTIONS = [
-        { value: "GBP", label: "£ GBP" },
-        { value: "TRY", label: "₺ TRY" },
-        { value: "USD", label: "$ USD" },
-        { value: "EUR", label: "€ EUR" },
+        { value: "GBP", label: td("£ GBP", { source: "en" }) },
+        { value: "TRY", label: td("₺ TRY", { source: "en" }) },
+        { value: "USD", label: td("$ USD", { source: "en" }) },
+        { value: "EUR", label: td("€ EUR", { source: "en" }) },
     ];
     const [selectedCurrency, setSelectedCurrency] = useState<string>(
         (props as any).default_currency_code || "GBP",
@@ -380,7 +382,7 @@ export default function PropertyCategoryForm({
         if (isConstructionProject) {
             if (!values.name || !values.developer_id) {
                 message.error(
-                    "Please fill in at least Construction Company and Project Name before saving",
+                    td("Please fill in at least Construction Company and Project Name before saving", { source: "en" }),
                 );
                 return;
             }
@@ -395,7 +397,7 @@ export default function PropertyCategoryForm({
 
         if (!values.property_type || !values.sale_type) {
             message.error(
-                "Please fill in at least Property Type and Sale Type before saving",
+                td("Please fill in at least Property Type and Sale Type before saving", { source: "en" }),
             );
             return;
         }
@@ -410,13 +412,13 @@ export default function PropertyCategoryForm({
 
         if (!values.property_type || !values.sale_type) {
             message.error(
-                "Please fill in at least Property Type and Sale Type before saving",
+                td("Please fill in at least Property Type and Sale Type before saving", { source: "en" }),
             );
             return;
         }
 
         modal.confirm({
-            title: "Save property to upload photos?",
+            title: td("Save property to upload photos?", { source: "en" }),
             content:
                 "Your current form data will be saved as a draft so you can start uploading photos.",
             okText: "Save & Continue",
@@ -507,7 +509,7 @@ export default function PropertyCategoryForm({
             {/* Global errors */}
             {errors.length > 0 && (
                 <Alert
-                    message="Error"
+                    message={td("Error", { source: "en" })}
                     description={
                         <ul className="mb-0 pl-4">
                             {errors.map((error, index) => (
@@ -525,8 +527,8 @@ export default function PropertyCategoryForm({
 
             {isCollaboratorOnly && (
                 <Alert
-                    message="Collaborator access"
-                    description="You can edit public listing fields only. Owner information, internal details, and status changes are read-only."
+                    message={td("Collaborator access", { source: "en" })}
+                    description={td("You can edit public listing fields only. Owner information, internal details, and status changes are read-only.", { source: "en" })}
                     type="info"
                     showIcon
                     className="mb-4"
@@ -548,10 +550,10 @@ export default function PropertyCategoryForm({
                     {/* Category Selector — always visible */}
                     {/* ======================== */}
                     <FormSection
-                        title="Property Category"
+                        title={td("Property Category", { source: "en" })}
                         icon={<HomeOutlined />}
                         defaultOpen={true}
-                        description="Select the category — this determines which fields are shown"
+                        description={td("Select the category — this determines which fields are shown", { source: "en" })}
                     >
                         <Form.Item
                             name="primary_category"
@@ -582,9 +584,9 @@ export default function PropertyCategoryForm({
                                 <>
                                     {/* Project Info — company & project name */}
                                     <FormSection
-                                        title="Project Info"
+                                        title={td("Project Info", { source: "en" })}
                                         icon={<BuildOutlined />}
-                                        description="Construction company and project name"
+                                        description={td("Construction company and project name", { source: "en" })}
                                     >
                                         <ConstructionProjectInfoSection
                                             form={form}
@@ -593,9 +595,9 @@ export default function PropertyCategoryForm({
 
                                     {/* Project Details — classification & specs */}
                                     <FormSection
-                                        title="Project Details"
+                                        title={td("Project Details", { source: "en" })}
                                         icon={<AppstoreOutlined />}
-                                        description="Construction status, unit types, and specifications"
+                                        description={td("Construction status, unit types, and specifications", { source: "en" })}
                                     >
                                         <ConstructionProjectDetailsSection
                                             form={form}
@@ -604,9 +606,9 @@ export default function PropertyCategoryForm({
 
                                     {/* Pricing & Payment Plan */}
                                     <FormSection
-                                        title="Pricing & Payment"
+                                        title={td("Pricing & Payment", { source: "en" })}
                                         icon={<DollarOutlined />}
-                                        description="Starting price, payment plan, and availability"
+                                        description={td("Starting price, payment plan, and availability", { source: "en" })}
                                         keepMounted
                                     >
                                         <ConstructionProjectPricingSection
@@ -616,9 +618,9 @@ export default function PropertyCategoryForm({
 
                                     {/* Location */}
                                     <FormSection
-                                        title="Location"
+                                        title={td("Location", { source: "en" })}
                                         icon={<EnvironmentOutlined />}
-                                        description="Project location and distances to amenities"
+                                        description={td("Project location and distances to amenities", { source: "en" })}
                                         defaultOpen={false}
                                     >
                                         <ConstructionProjectLocationSection
@@ -634,9 +636,9 @@ export default function PropertyCategoryForm({
 
                                     {/* Facilities */}
                                     <FormSection
-                                        title="Project Facilities"
+                                        title={td("Project Facilities", { source: "en" })}
                                         icon={<CheckSquareOutlined />}
-                                        description="Amenities and facilities available in the project"
+                                        description={td("Amenities and facilities available in the project", { source: "en" })}
                                         defaultOpen={false}
                                     >
                                         <ConstructionProjectFacilitiesSection
@@ -646,9 +648,9 @@ export default function PropertyCategoryForm({
 
                                     {/* Photos */}
                                     <FormSection
-                                        title="Project Photos"
+                                        title={td("Project Photos", { source: "en" })}
                                         icon={<PictureOutlined />}
-                                        description="Site plans and exterior photos"
+                                        description={td("Site plans and exterior photos", { source: "en" })}
                                         defaultOpen={false}
                                     >
                                         <ConstructionProjectPhotosSection
@@ -664,14 +666,14 @@ export default function PropertyCategoryForm({
 
                                     {/* Description */}
                                     <FormSection
-                                        title="Description"
+                                        title={td("Description", { source: "en" })}
                                         icon={<FileTextOutlined />}
-                                        description="Project description and notes"
+                                        description={td("Project description and notes", { source: "en" })}
                                         defaultOpen={false}
                                     >
                                         <div className="flex items-center justify-between mb-1">
                                             <label className="ant-form-item-label">
-                                                <span>Project Description</span>
+                                                <span>{td("Project Description", { source: "en" })}</span>
                                             </label>
                                             {aiEnabled && (
                                                 <Button
@@ -703,7 +705,7 @@ export default function PropertyCategoryForm({
 
                                                         if (existing?.trim()) {
                                                             modal.confirm({
-                                                                title: "Replace existing description?",
+                                                                title: td("Replace existing description?", { source: "en" }),
                                                                 content:
                                                                     "This will replace your current description with an AI-generated one.",
                                                                 okText: "Replace",
@@ -727,7 +729,7 @@ export default function PropertyCategoryForm({
                                         <Form.Item name="description" noStyle>
                                             <Input.TextArea
                                                 rows={4}
-                                                placeholder="Describe the construction project..."
+                                                placeholder={td("Describe the construction project...", { source: "en" })}
                                                 showCount
                                                 maxLength={5000}
                                                 disabled={isGenerating}
@@ -760,9 +762,9 @@ export default function PropertyCategoryForm({
                                     {/* Unit Types */}
                                     <Divider />
                                     <FormSection
-                                        title="Unit Types"
+                                        title={td("Unit Types", { source: "en" })}
                                         icon={<BlockOutlined />}
-                                        description="Manage unit types and their specifications"
+                                        description={td("Manage unit types and their specifications", { source: "en" })}
                                         defaultOpen={true}
                                     >
                                         {data?.id ? (
@@ -787,15 +789,13 @@ export default function PropertyCategoryForm({
                                                     level={5}
                                                     type="secondary"
                                                 >
-                                                    Save the project to manage
-                                                    unit types
+                                                    {td("Save the project to manage unit types", { source: "en" })}
                                                 </Typography.Title>
                                                 <Typography.Text
                                                     type="secondary"
                                                     className="block mb-4"
                                                 >
-                                                    Unit types can be added once
-                                                    the project has been saved.
+                                                    {td("Unit types can be added once the project has been saved.", { source: "en" })}
                                                 </Typography.Text>
                                                 <Button
                                                     type="primary"
@@ -820,9 +820,9 @@ export default function PropertyCategoryForm({
                                     {/* Core Details */}
                                     {canSeeCoreDetails && sections.coreDetails && (
                                         <FormSection
-                                            title="Core Details"
+                                            title={td("Core Details", { source: "en" })}
                                             icon={<AppstoreOutlined />}
-                                            description="Property type, status, and sale type"
+                                            description={td("Property type, status, and sale type", { source: "en" })}
                                         >
                                             <CoreDetailsSection
                                                 form={form}
@@ -843,9 +843,9 @@ export default function PropertyCategoryForm({
                                     {primaryCategory === "land" &&
                                         sections.specifications && (
                                             <FormSection
-                                                title="Land Area"
+                                                title={td("Land Area", { source: "en" })}
                                                 icon={<AppstoreOutlined />}
-                                                description="Plot size in m² and dönüm"
+                                                description={td("Plot size in m² and dönüm", { source: "en" })}
                                             >
                                                 <SpecificationsSection
                                                     form={form}
@@ -861,9 +861,9 @@ export default function PropertyCategoryForm({
                                     {/* Pricing */}
                                     {sections.pricing && (
                                         <FormSection
-                                            title="Pricing"
+                                            title={td("Pricing", { source: "en" })}
                                             icon={<DollarOutlined />}
-                                            description="Price, price per m², and swap options"
+                                            description={td("Price, price per m², and swap options", { source: "en" })}
                                         >
                                             {/* Currency selector — applies to all price fields */}
                                             <div className="mb-4">
@@ -871,8 +871,7 @@ export default function PropertyCategoryForm({
                                                     type="secondary"
                                                     className="text-xs block mb-1"
                                                 >
-                                                    Default currency for all
-                                                    price fields
+                                                    {td("Default currency for all price fields", { source: "en" })}
                                                 </Typography.Text>
                                                 <Select
                                                     value={selectedCurrency}
@@ -899,9 +898,9 @@ export default function PropertyCategoryForm({
                                     {primaryCategory !== "land" &&
                                         sections.specifications && (
                                             <FormSection
-                                                title="Specifications"
+                                                title={td("Specifications", { source: "en" })}
                                                 icon={<AppstoreOutlined />}
-                                                description="Rooms, areas, and building details"
+                                                description={td("Rooms, areas, and building details", { source: "en" })}
                                                 defaultOpen={false}
                                             >
                                                 <SpecificationsSection
@@ -918,9 +917,9 @@ export default function PropertyCategoryForm({
                                     {/* Location */}
                                     {sections.location && (
                                         <FormSection
-                                            title="Location"
+                                            title={td("Location", { source: "en" })}
                                             icon={<EnvironmentOutlined />}
-                                            description="City, area, address, and coordinates"
+                                            description={td("City, area, address, and coordinates", { source: "en" })}
                                             defaultOpen={false}
                                         >
                                             <LocationSection
@@ -936,9 +935,9 @@ export default function PropertyCategoryForm({
                                     {/* Classification */}
                                     {sections.classification && (
                                         <FormSection
-                                            title="Classification"
+                                            title={td("Classification", { source: "en" })}
                                             icon={<TagsOutlined />}
-                                            description="Construction status, views, and occupancy"
+                                            description={td("Construction status, views, and occupancy", { source: "en" })}
                                             defaultOpen={false}
                                         >
                                             <ClassificationSection
@@ -955,9 +954,9 @@ export default function PropertyCategoryForm({
                                     {/* Features — hidden for land */}
                                     {sections.features && (
                                         <FormSection
-                                            title="Features"
+                                            title={td("Features", { source: "en" })}
                                             icon={<StarOutlined />}
-                                            description="Interior, exterior, location features and add-ons"
+                                            description={td("Interior, exterior, location features and add-ons", { source: "en" })}
                                             defaultOpen={false}
                                         >
                                             <FeaturesSection
@@ -974,9 +973,9 @@ export default function PropertyCategoryForm({
                                     {/* Legal & Financial */}
                                     {canSeeLegalFinancial && sections.legalFinancial && (
                                         <FormSection
-                                            title="Legal & Financial"
+                                            title={td("Legal & Financial", { source: "en" })}
                                             icon={<SafetyCertificateOutlined />}
-                                            description="Title deed, rental terms, and financial details"
+                                            description={td("Title deed, rental terms, and financial details", { source: "en" })}
                                             defaultOpen={false}
                                         >
                                             <LegalFinancialSection
@@ -996,9 +995,9 @@ export default function PropertyCategoryForm({
                                     {/* Documents (land only) */}
                                     {canSeeDocuments && sections.documents && (
                                         <FormSection
-                                            title="Documents Checklist"
+                                            title={td("Documents Checklist", { source: "en" })}
                                             icon={<FolderOpenOutlined />}
-                                            description="Upload required documents for this land listing"
+                                            description={td("Upload required documents for this land listing", { source: "en" })}
                                             defaultOpen={false}
                                         >
                                             <DocumentsSection
@@ -1013,9 +1012,9 @@ export default function PropertyCategoryForm({
                                     {/* Photos */}
                                     {sections.photos && (
                                         <FormSection
-                                            title="Photos"
+                                            title={td("Photos", { source: "en" })}
                                             icon={<PictureOutlined />}
-                                            description="Upload and tag property photos"
+                                            description={td("Upload and tag property photos", { source: "en" })}
                                             defaultOpen={false}
                                         >
                                             <PhotosSection
@@ -1037,9 +1036,9 @@ export default function PropertyCategoryForm({
                                     {/* Description & Media */}
                                     {sections.descriptionMedia && (
                                         <FormSection
-                                            title="Description & Media"
+                                            title={td("Description & Media", { source: "en" })}
                                             icon={<FileTextOutlined />}
-                                            description="Property description, video, and virtual tour links"
+                                            description={td("Property description, video, and virtual tour links", { source: "en" })}
                                             defaultOpen={false}
                                         >
                                             <DescriptionMediaSection
@@ -1055,9 +1054,9 @@ export default function PropertyCategoryForm({
                                     {/* Owner Info */}
                                     {canSeeOwnerInfo && sections.ownerInfo && (
                                         <FormSection
-                                            title="Owner Information"
+                                            title={td("Owner Information", { source: "en" })}
                                             icon={<UserOutlined />}
-                                            description="Owner contact and personal details"
+                                            description={td("Owner contact and personal details", { source: "en" })}
                                             defaultOpen={false}
                                         >
                                             <OwnerInfoSection
@@ -1074,9 +1073,9 @@ export default function PropertyCategoryForm({
                                     {canSeeInternalInfo &&
                                         sections.internalInfo && (
                                             <FormSection
-                                                title="Internal Info"
+                                                title={td("Internal Info", { source: "en" })}
                                                 icon={<LockOutlined />}
-                                                description="Internal pricing, commission, and private notes"
+                                                description={td("Internal pricing, commission, and private notes", { source: "en" })}
                                                 defaultOpen={false}
                                             >
                                                 <InternalInfoSection
@@ -1099,7 +1098,7 @@ export default function PropertyCategoryForm({
                 {/* Sticky bottom actions */}
                 <div className="flex justify-between items-center pt-4 border-t border-gray-200 mt-4">
                     <Button onClick={handleCancel} disabled={loading}>
-                        Cancel
+                        {td("Cancel", { source: "en" })}
                     </Button>
 
                     <Space>

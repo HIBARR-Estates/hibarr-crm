@@ -18,6 +18,7 @@ import { errorFormatter } from "@/lib/api/utils/common";
 import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
 import LeadForm from "./LeadForm";
 import "./save-lead-modal.css";
+import { useTranslation } from "@/Hooks/useTranslation";
 
 /**
  * M4/S3: edit-from-Index loads custom field *values* on open. Index rows no
@@ -71,6 +72,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
     setLead,
     reloadKeys,
 }) => {
+    const { t } = useTranslation();
     const [errors, setErrors] = useState<string[]>([]);
     const [formData, setFormData] = useState<CreateLeadFormData | null>(null);
     const getIsDirtyRef = useRef<(() => boolean) | null>(null);
@@ -310,19 +312,18 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
 
         if (isDirty) {
             modal.confirm({
-                title: "Discard changes?",
-                content:
-                    "You have unsaved changes. Are you sure you want to close without saving?",
-                okText: "Discard",
+                title: t("pages.leads.save_form.discard_title"),
+                content: t("pages.leads.save_form.discard_content"),
+                okText: t("pages.leads.save_form.discard"),
                 okType: "danger",
-                cancelText: "Keep editing",
+                cancelText: t("pages.leads.save_form.keep_editing"),
                 onOk: handleCancel,
             });
             return;
         }
 
         handleCancel();
-    }, [handleCancel, isLoading, modal]);
+    }, [handleCancel, isLoading, modal, t]);
 
     const handleSubmit = (data: CreateLeadFormData) => {
         setErrors([]);
@@ -373,10 +374,10 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         >
             <div className="px-6 pt-6 pb-5 pr-14 border-b border-gray-100">
                 <h2 className="text-xl font-semibold text-gray-900 leading-tight">
-                    {isEditing ? "Edit lead" : "Add lead"}
+                    {isEditing ? t("pages.leads.save_form.edit_lead") : t("pages.leads.save_form.add_lead")}
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
-                    Fill in the details below. Only name is required.
+                    {t("pages.leads.save_form.modal_subtitle")}
                 </p>
             </div>
 

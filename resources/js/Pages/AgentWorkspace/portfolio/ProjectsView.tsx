@@ -9,6 +9,7 @@ import { formatFrom, intlLocale } from "./format";
 import { visitList } from "./portfolioVisit";
 import type { ExposeTarget } from "./PortfolioExposeModal";
 import type { PortfolioProject, ProjectFilters, ProjectsPayload } from "./types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const PortfolioExposeModal = lazy(() => import("./PortfolioExposeModal"));
 
@@ -64,6 +65,7 @@ interface ProjectsViewProps {
  * requests are per listing), so that button is held and marked New.
  */
 export default function ProjectsView({ filters, projects }: ProjectsViewProps) {
+    const { td } = useTd();
     const { t, locale } = useTranslation();
     const [expose, setExpose] = useState<ExposeTarget | null>(null);
 

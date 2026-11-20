@@ -5,6 +5,7 @@ import Icon from "@/Components/Redesign/primitives/Icon";
 import useTranslation from "@/Hooks/useTranslation";
 import type { SaveState } from "./useReportSummary";
 import type { ReportRange } from "./types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface AiSummaryCardProps {
     range: ReportRange;
@@ -27,6 +28,7 @@ interface AiSummaryCardProps {
  * with the other saved summaries.
  */
 export default function AiSummaryCard({ periodName, summary, loading, busy, error, save, onGenerate, onSave }: AiSummaryCardProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const html = useMemo(() => (summary ? DOMPurify.sanitize(marked.parse(summary, { breaks: true, gfm: true }) as string) : ""), [summary]);
 
@@ -35,7 +37,7 @@ export default function AiSummaryCard({ periodName, summary, loading, busy, erro
             <div className="agent-ea__ai-head">
                 <span className="agent-ea__ai-title">
                     <span className="agent-ea__ai-badge" aria-hidden="true">
-                        AI
+                        {td("AI", { source: "en" })}
                     </span>
                     <b>{t("pages.agent_workspace.earnings.report.ai.title", { period: periodName })}</b>
                 </span>

@@ -13,6 +13,7 @@ import FallbackTierPool from "./SoftphoneCallPool/components/FallbackTierPool";
 
 import "@/Components/Redesign/redesign.css";
 import "./CallBridgeSettings.css";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 // Re-export types for backward compatibility
 export type { PoolAgent, EligibleUser, PoolResponse, EligibleResponse, TierScope } from "./SoftphoneCallPool/types";
@@ -33,6 +34,7 @@ interface SoftphoneCallPoolManagerProps {
 export default function SoftphoneCallPoolManager({
     devices,
 }: SoftphoneCallPoolManagerProps) {
+    const { td } = useTd();
     const sortedDevices = useMemo(() => {
         return [...devices].sort((a, b) => {
             if (a.is_default !== b.is_default) {
@@ -61,9 +63,9 @@ export default function SoftphoneCallPoolManager({
             >
                 <InfoCircleOutlined style={{ color: "var(--dr-blue, #1677ff)", fontSize: "16px", marginTop: "3px" }} />
                 <div>
-                    <strong style={{ fontSize: "14px" }}>Incoming Call Routing Sequence (Tiers 1 – 4):</strong>
+                    <strong style={{ fontSize: "14px" }}>{td("Incoming Call Routing Sequence (Tiers 1 – 4):", { source: "en" })}</strong>
                     <div style={{ marginTop: "4px", color: "var(--dr-text-muted)" }}>
-                        When an incoming call matches a lead in the CRM and the assigned Lead Owner has the <strong>Make Calls</strong> permission, the call routes to <strong>Tier 1: Lead Owner</strong> first. If the caller is not matched to a lead, or if the lead owner lacks the Make Calls permission, is unavailable, has paused calls, or does not answer within the ring window, calls advance to <strong>Tier 2: Line Routing</strong>, then <strong>Tier 3: Default Fallback Tier</strong>, and finally <strong>Tier 4: Admin Fallback Tier</strong> before automated voicemail. Configure rotation timings and voicemail greeting under the <strong>Call Rotation & Timing</strong> tab.
+                        When an incoming call matches a lead in the CRM and the assigned Lead Owner has the <strong>{td("Make Calls", { source: "en" })}</strong> permission, the call routes to <strong>{td("Tier 1: Lead Owner", { source: "en" })}</strong> first. If the caller is not matched to a lead, or if the lead owner lacks the Make Calls permission, is unavailable, has paused calls, or does not answer within the ring window, calls advance to <strong>{td("Tier 2: Line Routing", { source: "en" })}</strong>, then <strong>{td("Tier 3: Default Fallback Tier", { source: "en" })}</strong>, and finally <strong>{td("Tier 4: Admin Fallback Tier", { source: "en" })}</strong> before automated voicemail. Configure rotation timings and voicemail greeting under the <strong>Call Rotation & Timing</strong> tab.
                     </div>
                 </div>
             </div>
@@ -74,14 +76,14 @@ export default function SoftphoneCallPoolManager({
                     <div>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                             <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "var(--dr-text)" }}>
-                                Tier 1: Lead Owner Routing
+                                {td("Tier 1: Lead Owner Routing", { source: "en" })}
                             </h3>
                             <span className="cb-chip" style={{ background: "rgba(16, 185, 129, 0.12)", color: "var(--dr-green, #10b981)", fontWeight: 600 }}>
-                                Priority Match · Active
+                                {td("Priority Match · Active", { source: "en" })}
                             </span>
                         </div>
                         <p style={{ margin: "6px 0 0", fontSize: "13px", color: "var(--dr-text-muted)", maxWidth: "820px" }}>
-                            Whenever an incoming caller's phone number matches an existing lead or contact in the CRM, the call routes <strong>directly to the assigned Lead Owner first</strong> — provided they hold the <strong>Make Calls</strong> permission and are ready for calls. If the lead has no owner, the owner lacks permission, has paused calls, or does not answer within the ring window, the call automatically advances to <strong>Tier 2: Line Routing</strong> (available agents ring one at a time, in priority order).
+                            Whenever an incoming caller's phone number matches an existing lead or contact in the CRM, the call routes <strong>{td("directly to the assigned Lead Owner first", { source: "en" })}</strong> — provided they hold the <strong>{td("Make Calls", { source: "en" })}</strong> permission and are ready for calls. If the lead has no owner, the owner lacks permission, has paused calls, or does not answer within the ring window, the call automatically advances to <strong>{td("Tier 2: Line Routing", { source: "en" })}</strong> (available agents ring one at a time, in priority order).
                         </p>
                     </div>
                 </div>
@@ -114,8 +116,8 @@ export default function SoftphoneCallPoolManager({
                             <PhoneOutlined />
                         </div>
                         <div>
-                            <div style={{ fontWeight: 600, color: "var(--dr-text)" }}>Caller Phone Match</div>
-                            <div style={{ fontSize: "12px", color: "var(--dr-text-muted)" }}>Automatic lookup in CRM leads</div>
+                            <div style={{ fontWeight: 600, color: "var(--dr-text)" }}>{td("Caller Phone Match", { source: "en" })}</div>
+                            <div style={{ fontSize: "12px", color: "var(--dr-text-muted)" }}>{td("Automatic lookup in CRM leads", { source: "en" })}</div>
                         </div>
                     </div>
 
@@ -136,8 +138,8 @@ export default function SoftphoneCallPoolManager({
                             <UserOutlined />
                         </div>
                         <div>
-                            <div style={{ fontWeight: 600, color: "var(--dr-text)" }}>Lead Owner Rings First</div>
-                            <div style={{ fontSize: "12px", color: "var(--dr-text-muted)" }}>Direct to owner's softphone (requires Make Calls permission)</div>
+                            <div style={{ fontWeight: 600, color: "var(--dr-text)" }}>{td("Lead Owner Rings First", { source: "en" })}</div>
+                            <div style={{ fontSize: "12px", color: "var(--dr-text-muted)" }}>{td("Direct to owner's softphone (requires Make Calls permission)", { source: "en" })}</div>
                         </div>
                     </div>
 
@@ -158,8 +160,8 @@ export default function SoftphoneCallPoolManager({
                             <SwapRightOutlined />
                         </div>
                         <div>
-                            <div style={{ fontWeight: 600, color: "var(--dr-text)" }}>Automatic Escalation</div>
-                            <div style={{ fontSize: "12px", color: "var(--dr-text-muted)" }}>Advances to Tier 2 if no permission, missed, or paused</div>
+                            <div style={{ fontWeight: 600, color: "var(--dr-text)" }}>{td("Automatic Escalation", { source: "en" })}</div>
+                            <div style={{ fontSize: "12px", color: "var(--dr-text-muted)" }}>{td("Advances to Tier 2 if no permission, missed, or paused", { source: "en" })}</div>
                         </div>
                     </div>
                 </div>
@@ -170,19 +172,19 @@ export default function SoftphoneCallPoolManager({
                 <div style={{ marginBottom: "12px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "var(--dr-text)" }}>
-                            Tier 2: Line Routing
+                            {td("Tier 2: Line Routing", { source: "en" })}
                         </h3>
                         <span className="cb-chip" style={{ background: "var(--dr-surface-2)", color: "var(--dr-text)" }}>
-                            Line Agent Pools
+                            {td("Line Agent Pools", { source: "en" })}
                         </span>
                     </div>
                     <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--dr-text-muted)" }}>
-                        Configure the primary agent pool for each phone line. Unmatched calls or calls unanswered by the lead owner ring these line agents in priority order.
+                        {td("Configure the primary agent pool for each phone line. Unmatched calls or calls unanswered by the lead owner ring these line agents in priority order.", { source: "en" })}
                     </p>
                 </div>
 
                 {sortedDevices.length === 0 ? (
-                    <EmptyState title="No phone lines" description="Add a line under the Lines tab first." />
+                    <EmptyState title={td("No phone lines", { source: "en" })} description={td("Add a line under the Lines tab first.", { source: "en" })} />
                 ) : (
                     sortedDevices.map((device) => <LinePool key={device.id} device={device} />)
                 )}
@@ -191,23 +193,23 @@ export default function SoftphoneCallPoolManager({
             {/* Section 3: Tier 3 - Default Fallback Tier */}
             <FallbackTierPool
                 tierScope="default_fallback"
-                title="Default Fallback Tier"
+                title={td("Default Fallback Tier", { source: "en" })}
                 tierBadge="Tier 3: Global Fallback"
-                description="Company-wide default fallback tier for all incoming calls across every line. If the lead owner and line agents are unavailable or pass, calls route here before escalating to admins."
+                description={td("Company-wide default fallback tier for all incoming calls across every line. If the lead owner and line agents are unavailable or pass, calls route here before escalating to admins.", { source: "en" })}
                 emptyStateMessage="No default fallback users assigned. Unanswered calls will advance directly to the Admin Fallback Tier."
                 addLabel="Add user to default fallback tier"
-                placeholder="Search active users and managers"
+                placeholder={td("Search active users and managers", { source: "en" })}
             />
 
             {/* Section 4: Tier 4 - Admin Fallback Tier */}
             <FallbackTierPool
                 tierScope="admin_fallback"
-                title="Admin Fallback Tier"
+                title={td("Admin Fallback Tier", { source: "en" })}
                 tierBadge="Tier 4: Admin Escalation"
-                description="Users on this list receive calls if neither the lead owner, line agents, nor the default fallback tier answer. Only users with the admin role can be added to this list."
+                description={td("Users on this list receive calls if neither the lead owner, line agents, nor the default fallback tier answer. Only users with the admin role can be added to this list.", { source: "en" })}
                 emptyStateMessage="No administrators assigned. Calls will not escalate to admins unless they are added to this list."
                 addLabel="Add admin to fallback tier"
-                placeholder="Search active administrators"
+                placeholder={td("Search active administrators", { source: "en" })}
             />
         </div>
     );

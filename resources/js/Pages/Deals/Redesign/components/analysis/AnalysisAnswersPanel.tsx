@@ -1,5 +1,6 @@
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { RailSectionGroup, RailStep } from "./analysisRailItems";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     groups: RailSectionGroup[];
@@ -11,6 +12,7 @@ interface Props {
 
 /** White "Captured answers" tab — only steps that actually hold a value. */
 export default function AnalysisAnswersPanel({ groups, activeSection, activeStepKey, onJump }: Props) {
+    const { td } = useTd();
     // Section name belongs on the group heading, not repeated on every card.
     const answeredGroups = groups
         .map((g) => ({ ...g, steps: g.steps.filter((s) => s.filled && s.value) }))
@@ -21,7 +23,7 @@ export default function AnalysisAnswersPanel({ groups, activeSection, activeStep
             <div className="flex-1 overflow-y-auto min-h-0">
                 {answeredGroups.length === 0 ? (
                     <p className="px-4 py-3 text-sm" style={{ color: T.TEXT_MUTED }}>
-                        Answers will appear here as you capture them.
+                        {td("Answers will appear here as you capture them.", { source: "en" })}
                     </p>
                 ) : (
                     answeredGroups.map((group) => (

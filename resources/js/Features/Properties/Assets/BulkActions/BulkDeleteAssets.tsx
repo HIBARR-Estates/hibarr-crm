@@ -5,6 +5,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { router } from "@inertiajs/react";
 import { DeleteOutlined } from "@ant-design/icons";
 import { pluralOrSingular } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     ids: number[];
@@ -12,6 +13,7 @@ interface Props extends IModalProps {
 }
 
 const BulkDeleteAssets: React.FC<Props> = ({ open, onClose, ids, propertyId }) => {
+    const { td } = useTd();
     interface BulkDeletePayload {
         asset_ids: number[];
         action_type: string;
@@ -45,15 +47,15 @@ const BulkDeleteAssets: React.FC<Props> = ({ open, onClose, ids, propertyId }) =
                 fn: handleBulkDelete,
                 loading: isDeleting,
             }}
-            title="Delete Selected Assets"
+            title={td("Delete Selected Assets", { source: "en" })}
             description={`Are you sure you want to delete ${pluralOrSingular(
                 ids.length,
                 "this asset",
                 "assets"
             )}? This action cannot be undone.`}
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
-            confirmText="Yes, Delete All"
-            cancelText="Cancel"
+            confirmText={td("Yes, Delete All", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
             confirmType="primary"
             confirmDanger={true}
         />

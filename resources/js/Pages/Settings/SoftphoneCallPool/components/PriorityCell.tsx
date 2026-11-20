@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { App, Tooltip } from "antd";
 import { CheckOutlined, CloseOutlined, EditOutlined } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface PriorityCellProps {
     agentId: number;
@@ -19,6 +20,7 @@ export default function PriorityCell({
     otherPriorities,
     onUpdated,
 }: PriorityCellProps) {
+    const { td } = useTd();
     const { message } = App.useApp();
     const [isEditing, setIsEditing] = useState(false);
     const [priorityValue, setPriorityValue] = useState<string>(String(initialPriority));
@@ -39,7 +41,7 @@ export default function PriorityCell({
     const handleSave = async () => {
         const parsedPriority = Number.parseInt(priorityValue, 10);
         if (!Number.isFinite(parsedPriority) || parsedPriority < 1 || parsedPriority > 100) {
-            void message.error("Priority must be a number between 1 and 100.");
+            void message.error(td("Priority must be a number between 1 and 100.", { source: "en" }));
             setPriorityValue(String(initialPriority));
             setIsEditing(false);
             return;
@@ -64,7 +66,7 @@ export default function PriorityCell({
                 { priority: parsedPriority },
                 { headers: { Accept: "application/json" } },
             );
-            void message.success("Priority updated.");
+            void message.success(td("Priority updated.", { source: "en" }));
             setIsEditing(false);
             await onUpdated();
         } catch (error: any) {
@@ -102,7 +104,7 @@ export default function PriorityCell({
                         }
                     }}
                     disabled={isSaving}
-                    aria-label="Edit routing priority"
+                    aria-label={td("Edit routing priority", { source: "en" })}
                 />
                 <button
                     type="button"
@@ -110,8 +112,8 @@ export default function PriorityCell({
                     style={{ padding: "3px 6px", minWidth: "unset", height: "26px" }}
                     onClick={() => void handleSave()}
                     disabled={isSaving}
-                    title="Save (Enter)"
-                    aria-label="Save priority"
+                    title={td("Save (Enter)", { source: "en" })}
+                    aria-label={td("Save priority", { source: "en" })}
                 >
                     <CheckOutlined style={{ color: "var(--dr-green, #10b981)", fontSize: "11px" }} />
                 </button>
@@ -124,8 +126,8 @@ export default function PriorityCell({
                         setIsEditing(false);
                     }}
                     disabled={isSaving}
-                    title="Cancel (Esc)"
-                    aria-label="Cancel priority edit"
+                    title={td("Cancel (Esc)", { source: "en" })}
+                    aria-label={td("Cancel priority edit", { source: "en" })}
                 >
                     <CloseOutlined style={{ color: "var(--dr-text-muted)", fontSize: "11px" }} />
                 </button>
@@ -134,7 +136,7 @@ export default function PriorityCell({
     }
 
     return (
-        <Tooltip title="Click to edit routing order (1–100)">
+        <Tooltip title={td("Click to edit routing order (1–100)", { source: "en" })}>
             <button
                 type="button"
                 className="cb-prio cb-num"

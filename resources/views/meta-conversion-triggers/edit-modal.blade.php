@@ -1,7 +1,7 @@
 <x-form id="edit-trigger" method="PUT" class="ajax-form">
     <div class="modal-header">
         <h5 class="modal-title" id="modelHeading">@lang('app.edit') @lang('app.menu.metaConversionTriggers')</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <button type="button" class="close" data-dismiss="modal" aria-label="{{ td('Close') }}">
             <span aria-hidden="true">×</span>
         </button>
     </div>
@@ -45,7 +45,7 @@
                         <x-forms.text fieldId="event_name" :fieldLabel="__('app.eventName')"
                             fieldName="event_name" fieldRequired="true" 
                             :fieldValue="$trigger->event_name"
-                            fieldPlaceholder="e.g., Purchase, Lead, InitiateCheckout">
+                            :fieldPlaceholder="td('e.g., Purchase, Lead, InitiateCheckout')">
                         </x-forms.text>
                     </div>
                 </div>

@@ -5,6 +5,7 @@ import {
 } from "@ant-design/icons";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import useCalendarSync, { canManageCalendarSync } from "@/Hooks/useCalendarSync";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type Props = {
     followup: DealFollowup;
@@ -21,6 +22,7 @@ export default function CalendarSyncStatus({
     isCreator,
     currentUserId,
 }: Props) {
+    const { td } = useTd();
     const show =
         featureEnabled &&
         (isCreator || canManageCalendarSync(followup, currentUserId)) &&
@@ -39,7 +41,7 @@ export default function CalendarSyncStatus({
         return (
             <span className="inline-flex items-center gap-2 text-[12px] font-medium rounded-full px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100">
                 <CheckCircleOutlined />
-                Synced
+                {td("Synced", { source: "en" })}
             </span>
         );
     }
@@ -60,7 +62,7 @@ export default function CalendarSyncStatus({
                     loading={retrying}
                     disabled={retrying}
                 >
-                    Retry sync
+                    {td("Retry sync", { source: "en" })}
                 </Button>
             </span>
         );
@@ -77,7 +79,7 @@ export default function CalendarSyncStatus({
                     className="!px-0"
                     onClick={() => refresh()}
                 >
-                    Refresh
+                    {td("Refresh", { source: "en" })}
                 </Button>
             )}
         </span>

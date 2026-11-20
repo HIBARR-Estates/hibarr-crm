@@ -2,6 +2,8 @@ import React from "react";
 import { Tag, Space, Typography, Button } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
 import { useFilter } from "@/contexts/FilterContext";
+import { useTranslation } from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -27,6 +29,8 @@ const ContextualActiveFilters: React.FC<ContextualActiveFiltersProps> = ({
     showClearAll = true,
     compact = false,
 }) => {
+    const { t } = useTranslation();
+    const { td } = useTd();
     const {
         filterMetadata,
         removeFilter,
@@ -101,7 +105,7 @@ const ContextualActiveFilters: React.FC<ContextualActiveFiltersProps> = ({
                     }
                 >
                     <span className="text-gray-400">
-                        Active Filters ({visibleFilters.length})
+                        {t("pages.filters.active_filters", { n: visibleFilters.length })}
                     </span>
                 </Text>
                 {showClearAll && visibleFilters.length > 1 && (
@@ -109,7 +113,7 @@ const ContextualActiveFilters: React.FC<ContextualActiveFiltersProps> = ({
                         onClick={clearAllFilters}
                         className="text-xs text-blue-600 hover:text-blue-800 underline cursor-pointer"
                     >
-                        Clear All
+                        {t("pages.filters.clear_all_caps")}
                     </button>
                 )}
             </div>
@@ -126,7 +130,9 @@ const ContextualActiveFilters: React.FC<ContextualActiveFiltersProps> = ({
                         } border-blue-200 bg-blue-50 text-blue-700`}
                         color="blue"
                     >
-                        <span className="font-medium">{filter.label}:</span>{" "}
+                        <span className="font-medium">
+                            {td(filter.label, { source: "en" })}:
+                        </span>{" "}
                         <span>{filter.displayValue}</span>
                     </Tag>
                 ))}

@@ -7,6 +7,7 @@ import {
     NumberOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -15,12 +16,13 @@ interface PropertyLocationProps {
 }
 
 export default function PropertyLocation({ property }: PropertyLocationProps) {
+    const { td } = useTd();
     // Use effective_location which derives from project location or falls back to direct values
     const city = property.effective_location?.city ?? property.city;
     const area = property.effective_location?.area ?? property.area;
 
     return (
-        <Card title="Location" className="mb-6">
+        <Card title={td("Location", { source: "en" })} className="mb-6">
             <div className="mb-4">
                 {/* Show project badge if location is derived from project */}
                 {property.has_project_location && property.developerProject && (
@@ -72,7 +74,7 @@ export default function PropertyLocation({ property }: PropertyLocationProps) {
                             href={property.map}
                             target="_blank"
                         >
-                            View on Map
+                            {td("View on Map", { source: "en" })}
                         </Button>
                     </div>
                 )}

@@ -5,6 +5,7 @@ import { router } from "@inertiajs/react";
 import { message } from "antd";
 import React, { useState } from "react";
 import { DeleteOutlined } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     property?: Property;
@@ -17,6 +18,7 @@ const DeleteProperty: React.FC<Props> = ({
     open,
     handleSuccessCallback,
 }) => {
+    const { td } = useTd();
     const [deleteLoading, setDeleteLoading] = useState(false);
 
     // Handle single property deletion
@@ -26,7 +28,7 @@ const DeleteProperty: React.FC<Props> = ({
         setDeleteLoading(true);
         router.delete(route("properties.destroy", property.id), {
             onSuccess: () => {
-                message.success("Property deleted successfully");
+                message.success(td("Property deleted successfully", { source: "en" }));
                 onClose();
                 setDeleteLoading(false);
                 if (handleSuccessCallback) {
@@ -36,7 +38,7 @@ const DeleteProperty: React.FC<Props> = ({
                 }
             },
             onError: () => {
-                message.error("Failed to delete property");
+                message.error(td("Failed to delete property", { source: "en" }));
                 setDeleteLoading(false);
             },
         });
@@ -49,15 +51,15 @@ const DeleteProperty: React.FC<Props> = ({
                 fn: handleDeleteProperty,
                 loading: deleteLoading,
             }}
-            title="Delete Property"
+            title={td("Delete Property", { source: "en" })}
             description={
                 property
                     ? `Are you sure you want to delete "${property?.title}"? This action cannot be undone.`
                     : "Are you sure you want to delete this property? This action cannot be undone."
             }
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
-            confirmText="Yes, Delete"
-            cancelText="Cancel"
+            confirmText={td("Yes, Delete", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
             confirmType="primary"
             confirmDanger={true}
         />

@@ -10,6 +10,7 @@ import VoicemailAudioUploader from "./SoftphoneCallPool/components/VoicemailAudi
 
 import "@/Components/Redesign/redesign.css";
 import "./CallBridgeSettings.css";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface SoftphoneTimingManagerProps {
     initialFallbackSeconds?: number;
@@ -24,6 +25,7 @@ interface SoftphoneTimingManagerProps {
 export default function SoftphoneTimingManager({
     initialFallbackSeconds = 20,
 }: SoftphoneTimingManagerProps) {
+    const { td } = useTd();
     const { message } = App.useApp();
     const [savedFallbackSeconds, setSavedFallbackSeconds] = useState<number>(initialFallbackSeconds);
     const [secondsInput, setSecondsInput] = useState<string>(String(initialFallbackSeconds));
@@ -144,7 +146,7 @@ export default function SoftphoneTimingManager({
             if (updated?.fallback_voice_message_repeat_count !== undefined) {
                 setVoiceMessageRepeatCount(updated.fallback_voice_message_repeat_count);
             }
-            void message.success("Telephony timing and fallback settings saved.");
+            void message.success(td("Telephony timing and fallback settings saved.", { source: "en" }));
             await settingsQuery.refetch();
         } catch (error: any) {
             const serverMessage =
@@ -175,13 +177,13 @@ export default function SoftphoneTimingManager({
                             Call Rotation & Timing
                         </h3>
                         <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--dr-text-muted)" }}>
-                            Configure ring duration before advancing across tiers: Lead Owner → Line Pool → Default Fallback → Admin Fallback.
+                            {td("Configure ring duration before advancing across tiers: Lead Owner → Line Pool → Default Fallback → Admin Fallback.", { source: "en" })}
                         </p>
                     </div>
 
                     <div style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}>
                         <label htmlFor="cb-fallback-seconds" style={{ fontSize: "13px", fontWeight: 500, color: "var(--dr-text)" }}>
-                            Time between calls:
+                            {td("Time between calls:", { source: "en" })}
                         </label>
                         <input
                             id="cb-fallback-seconds"
@@ -235,10 +237,10 @@ export default function SoftphoneTimingManager({
                                 <SoundOutlined style={{ fontSize: "18px", color: "var(--dr-blue, #1677ff)" }} />
                                 <div>
                                     <div style={{ fontWeight: 600, fontSize: "14px", color: "var(--dr-text)" }}>
-                                        Automated Voice Message Fallback
+                                        {td("Automated Voice Message Fallback", { source: "en" })}
                                     </div>
                                     <div style={{ fontSize: "12px", color: "var(--dr-text-muted)" }}>
-                                        When no one is available or all fallback tiers pass or time out, play an automated message for the caller and terminate the call.
+                                        {td("When no one is available or all fallback tiers pass or time out, play an automated message for the caller and terminate the call.", { source: "en" })}
                                     </div>
                                 </div>
                             </div>
@@ -247,7 +249,7 @@ export default function SoftphoneTimingManager({
                                     checked={voiceMessageEnabled}
                                     loading={isTogglingVoicemail}
                                     onChange={() => void handleToggleVoicemail(!voiceMessageEnabled)}
-                                    aria-label="Toggle automated voice message fallback"
+                                    aria-label={td("Toggle automated voice message fallback", { source: "en" })}
                                 />
                                 <span style={{ fontSize: "13px", fontWeight: 500, color: voiceMessageEnabled ? "var(--dr-green, #10b981)" : "var(--dr-text-muted)" }}>
                                     {voiceMessageEnabled ? "Enabled" : "Disabled"}
@@ -259,14 +261,14 @@ export default function SoftphoneTimingManager({
                             <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "4px" }}>
                                 <div>
                                     <label htmlFor="cb-voice-message-text" style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>
-                                        Voice Message Content (Spoken to caller)
+                                        {td("Voice Message Content (Spoken to caller)", { source: "en" })}
                                     </label>
                                     <Input.TextArea
                                         id="cb-voice-message-text"
                                         rows={2}
                                         value={voiceMessageText}
                                         onChange={(e) => setVoiceMessageText(e.target.value)}
-                                        placeholder="e.g. We are unable to take your call at this time. Please try again later."
+                                        placeholder={td("e.g. We are unable to take your call at this time. Please try again later.", { source: "en" })}
                                         maxLength={500}
                                     />
                                 </div>
@@ -274,7 +276,7 @@ export default function SoftphoneTimingManager({
                                 <div style={{ display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
                                     <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
                                         <label htmlFor="cb-voice-repeat-count" style={{ fontSize: "12px", fontWeight: 600 }}>
-                                            Repeat count before ending call:
+                                            {td("Repeat count before ending call:", { source: "en" })}
                                         </label>
                                         <InputNumber
                                             id="cb-voice-repeat-count"
@@ -289,7 +291,7 @@ export default function SoftphoneTimingManager({
 
                                     <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", flex: 1, minWidth: "240px" }}>
                                         <label htmlFor="cb-voice-url" style={{ fontSize: "12px", fontWeight: 600, whiteSpace: "nowrap" }}>
-                                            Custom Audio URL (Optional):
+                                            {td("Custom Audio URL (Optional):", { source: "en" })}
                                         </label>
                                         <Input
                                             id="cb-voice-url"

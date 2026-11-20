@@ -1,6 +1,6 @@
 <div class="modal-header">
     <h5 class="modal-title" id="modelHeading">@lang('modules.moduleSettings.verifyPurchase')</h5>
-    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+    <button type="button" class="close" data-dismiss="modal" aria-label="{{ td('Close') }}"><span
             aria-hidden="true">×</span></button>
 </div>
 <div class="modal-body">
@@ -8,7 +8,7 @@
         <p class="bg-secondary p-2 rounded text-white">For Domain:- {{ request()->getHost() }}</p>
 
         <p>
-            <span class="">Module: <b>{{ucwords($module)}}</b></span>
+            <span class="">{{ td('Module:') }} <b>{{ucwords($module)}}</b></span>
         </p>
         <p>
             <span class="badge badge-info">@lang('app.note')</span>
@@ -19,7 +19,7 @@
 
         <div class="row">
             <div class="col-sm-12">
-                <x-forms.text fieldId="purchase_code" fieldLabel="Enter your purchase code"
+                <x-forms.text fieldId="purchase_code" :fieldLabel="td('Enter your purchase code')"
                               fieldName="purchase_code" fieldRequired="true"
                               :fieldPlaceholder="__('placeholders.purchaseCode')">
                 </x-forms.text>
@@ -31,7 +31,7 @@
 </div>
 <div class="modal-footer">
     <x-forms.button-cancel data-dismiss="modal" class="border-0 mr-3">@lang('app.cancel')</x-forms.button-cancel>
-    <x-forms.button-primary id="save-module-verify" icon="check">Verify</x-forms.button-primary>
+    <x-forms.button-primary id="save-module-verify" icon="check">{{ td('Verify') }}</x-forms.button-primary>
 </div>
 
 <script>

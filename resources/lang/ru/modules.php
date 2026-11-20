@@ -57,6 +57,9 @@ return [
         'editLead' => 'Редактировать лид',
         'noLeadFound' => 'Лид не найден',
         'followUp' => 'Встречи',
+        'addLeadSource' => 'Добавить источник лидов',
+        'editLeadSource' => 'Редактировать источник лидов',
+        'leadSource' => 'Источник лида',
     ],
     'deal' => [
         'title' => 'Сделка',
@@ -65,6 +68,15 @@ return [
         'noDealFound' => 'Сделка не найдена',
         'dealPipeline' => 'Воронка сделок',
         'dealSource' => 'Источник сделки',
+        'addRoutingTrigger' => 'Добавить триггер поля',
+        'packageRoutingTriggers' => 'Триггеры маршрутизации по полям',
+        'packageRoutingTriggersHint' => 'Если поле сделки соответствует вашему правилу, сделке назначается этот пакет, и она переносится в связанную воронку.',
+        'packageRoutingTriggersNoFields' => 'Прежде чем добавлять триггеры пакета, выберите в настройках сделок, какие поля могут запускать маршрутизацию.',
+        'routingTriggerField' => 'Поле сделки',
+        'routingTriggerFieldDisabledRow' => 'Этот триггер использует поле, которое больше не включено для маршрутизации. Удалите его или снова включите поле в настройках сделок.',
+        'routingTriggerMatchMode' => 'Когда направлять',
+        'routingTriggerMatchModeExact' => 'Значение равно',
+        'routingTriggerMatchValue' => 'Значение для сравнения',
     ],
     'property' => [
         'addProperty' => 'Добавить недвижимость',
@@ -104,5 +116,17 @@ return [
         'leadMeetingCadenceDeleteHint' => 'Удаление этого переопределения возвращает корпоративный стандарт встреч для получателей-лидов.',
         'leadMeetingCadenceDeleteConfirm' => 'Удалить переопределение каденции напоминаний для лидов и вернуться к корпоративному стандарту встреч?',
         'clearLeadMeetingCadence' => 'Сбросить переопределение',
+    ],
+    'emailSettings' => [
+        'notificationTitle' => 'Настройки email-уведомлений',
+    ],
+    'projectCategory' => [
+        'categoryName' => 'Название категории',
+    ],
+    'taskCategory' => [
+        'editTaskCategory' => 'Редактировать категорию задач',
+    ],
+    'tasks' => [
+        'taskCategory' => 'Категория задачи',
     ],
 ];

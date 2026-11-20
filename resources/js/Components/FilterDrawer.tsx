@@ -2,6 +2,7 @@ import React from "react";
 import { Drawer, Button, Space, Divider, Typography } from "antd";
 import { FilterOutlined, ReloadOutlined } from "@ant-design/icons";
 import { TFilter } from "@/Types/common";
+import { useTranslation } from "@/Hooks/useTranslation";
 
 const { Title } = Typography;
 
@@ -69,6 +70,7 @@ const FilterDrawer: React.FC<FilterDrawerProps> = ({
     canReset = true,
     loading = false,
 }) => {
+    const { t } = useTranslation();
     const hasActiveFilters = Object.keys(filters).length > 0;
 
     const handleApply = () => {
@@ -106,11 +108,9 @@ const FilterDrawer: React.FC<FilterDrawerProps> = ({
                     <div>
                         {hasActiveFilters && (
                             <span className="text-sm text-gray-500">
-                                {Object.keys(filters).length} filter
-                                {Object.keys(filters).length !== 1
-                                    ? "s"
-                                    : ""}{" "}
-                                active
+                                {t("pages.filters.filters_active", {
+                                    count: Object.keys(filters).length,
+                                })}
                             </span>
                         )}
                     </div>
@@ -121,7 +121,7 @@ const FilterDrawer: React.FC<FilterDrawerProps> = ({
                                 onClick={handleReset}
                                 disabled={loading}
                             >
-                                Reset All
+                                {t("pages.filters.reset_all")}
                             </Button>
                         )}
                         <Button
@@ -130,7 +130,7 @@ const FilterDrawer: React.FC<FilterDrawerProps> = ({
                             onClick={handleApply}
                             loading={loading}
                         >
-                            Apply Filters
+                            {t("pages.filters.apply_filters_btn")}
                         </Button>
                     </Space>
                 </div>

@@ -11,6 +11,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { router } from "@inertiajs/react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface SaveFollowupFormData {
     lead_id?: number;
@@ -35,6 +36,7 @@ interface Props extends IModalProps {
 }
 
 const EditFollowup: React.FC<Props> = ({ deal, lead, followup, onClose, open }) => {
+    const { td } = useTd();
     const [errors, setErrors] = useState<string[]>([]);
 
     const handleCancel = () => {
@@ -87,10 +89,10 @@ const EditFollowup: React.FC<Props> = ({ deal, lead, followup, onClose, open }) 
             {/* Header */}
             <div className="px-6 pt-6 pb-5 pr-14 border-b border-gray-100 shrink-0">
                 <h2 className="text-xl font-semibold text-gray-900 leading-tight">
-                    Edit Meeting
+                    {td("Edit Meeting", { source: "en" })}
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
-                    Update the meeting details below.
+                    {td("Update the meeting details below.", { source: "en" })}
                 </p>
             </div>
 

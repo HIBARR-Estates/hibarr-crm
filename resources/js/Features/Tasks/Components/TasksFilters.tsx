@@ -16,6 +16,7 @@ import {
     FilterOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 const { Search } = Input;
@@ -78,6 +79,7 @@ export const TasksFilters: React.FC<TasksFiltersProps> = ({
     onClearFilters,
     onSearch,
 }) => {
+    const { td } = useTd();
     // Count active filters
     const activeFilterCount =
         Object.values(filters).filter(
@@ -109,7 +111,7 @@ export const TasksFilters: React.FC<TasksFiltersProps> = ({
                         onClick={onClearFilters}
                         size="small"
                     >
-                        Clear All
+                        {td("Clear All", { source: "en" })}
                     </Button>
                 )
             }
@@ -121,7 +123,7 @@ export const TasksFilters: React.FC<TasksFiltersProps> = ({
                 {/* Search */}
                 <Col xs={24} sm={12} md={8} lg={6}>
                     <Search
-                        placeholder="Search tasks..."
+                        placeholder={td("Search tasks...", { source: "en" })}
                         allowClear
                         value={filters.search}
                         onChange={(e) =>
@@ -136,7 +138,7 @@ export const TasksFilters: React.FC<TasksFiltersProps> = ({
                 {/* Status Filter */}
                 <Col xs={24} sm={12} md={8} lg={6}>
                     <Select
-                        placeholder="Filter by status"
+                        placeholder={td("Filter by status", { source: "en" })}
                         allowClear
                         style={{ width: "100%" }}
                         value={filters.status || undefined}
@@ -155,7 +157,7 @@ export const TasksFilters: React.FC<TasksFiltersProps> = ({
                                             display: "inline-block",
                                         }}
                                     />
-                                    {column.column_name}
+                                    {td(column.column_name, { source: "en" })}
                                 </Space>
                             </Option>
                         ))}
@@ -165,7 +167,7 @@ export const TasksFilters: React.FC<TasksFiltersProps> = ({
                 {/* Priority Filter */}
                 <Col xs={24} sm={12} md={8} lg={6}>
                     <Select
-                        placeholder="Filter by priority"
+                        placeholder={td("Filter by priority", { source: "en" })}
                         allowClear
                         style={{ width: "100%" }}
                         value={filters.priority || undefined}
@@ -173,19 +175,19 @@ export const TasksFilters: React.FC<TasksFiltersProps> = ({
                         size="small"
                     >
                         <Option value="low">
-                            <Space>🟢 Low</Space>
+                            <Space>{td("🟢 Low", { source: "en" })}</Space>
                         </Option>
                         <Option value="medium">
-                            <Space>🟡 Medium</Space>
+                            <Space>{td("🟡 Medium", { source: "en" })}</Space>
                         </Option>
                         <Option value="high">
-                            <Space>🔴 High</Space>
+                            <Space>{td("🔴 High", { source: "en" })}</Space>
                         </Option>
                         <Option value="highest">
-                            <Space>🔴 Highest</Space>
+                            <Space>{td("🔴 Highest", { source: "en" })}</Space>
                         </Option>
                         <Option value="urgent">
-                            <Space>🔴 Urgent</Space>
+                            <Space>{td("🔴 Urgent", { source: "en" })}</Space>
                         </Option>
                     </Select>
                 </Col>
@@ -193,7 +195,7 @@ export const TasksFilters: React.FC<TasksFiltersProps> = ({
                 {/* Assigned To Filter */}
                 <Col xs={24} sm={12} md={8} lg={6}>
                     <Select
-                        placeholder="Filter by assignee"
+                        placeholder={td("Filter by assignee", { source: "en" })}
                         allowClear
                         showSearch
                         style={{ width: "100%" }}
@@ -231,7 +233,7 @@ export const TasksFilters: React.FC<TasksFiltersProps> = ({
                 {/* Project Filter */}
                 <Col xs={24} sm={12} md={8} lg={6}>
                     <Select
-                        placeholder="Filter by project"
+                        placeholder={td("Filter by project", { source: "en" })}
                         allowClear
                         showSearch
                         style={{ width: "100%" }}
@@ -269,7 +271,7 @@ export const TasksFilters: React.FC<TasksFiltersProps> = ({
                 {/* Category Filter */}
                 <Col xs={24} sm={12} md={8} lg={6}>
                     <Select
-                        placeholder="Filter by category"
+                        placeholder={td("Filter by category", { source: "en" })}
                         allowClear
                         style={{ width: "100%" }}
                         value={filters.category_id}
@@ -280,7 +282,7 @@ export const TasksFilters: React.FC<TasksFiltersProps> = ({
                     >
                         {categories.map((category) => (
                             <Option key={category.id} value={category.id}>
-                                {category.category_name}
+                                {td(category.category_name, { source: "en" })}
                             </Option>
                         ))}
                     </Select>
