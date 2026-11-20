@@ -114,8 +114,8 @@ All tables follow the repo's conventions: integer `id` + UUIDv7 `uuid`, models r
 | Column | Notes |
 |---|---|
 | `id`, `uuid`, `channelId` FK | |
-| `entityType` | varchar(32), validated against the type registry's allowed list: `webinar`, `webinar_session`, `event_type`, `lead_magnet`, `form`, `landing_page`, `package`, `masterclass`, `website_form` (formKey). Later: `mailbox`, `whatsapp_number`, `instagram_account`, `instagram_media`, `phone_line` (§11) |
-| `entityId` int null / `entityKey` varchar(191) null | CHECK exactly one. Ids for our own rows. Keys for externally owned identifiers (package slug, formKey; later inbox addresses, phone numbers, Instagram ids). Keys are normalized before storing and lookup |
+| `entityType` | varchar(32), validated against the type registry's allowed list: `webinar`, `webinar_session`, `event_type`, `lead_magnet`, `form`, `landing_page`, `package`, `masterclass`, `website_form` (formKey), `crm_meeting_type` (CRM meeting type id), `crm_package` (CRM package id). Later: `mailbox`, `whatsapp_number`, `instagram_account`, `instagram_media`, `phone_line` (§11) |
+| `entityId` int null / `entityKey` varchar(191) null | CHECK exactly one. Ids for our own rows. Keys for externally owned identifiers (formKey; later inbox addresses, phone numbers, Instagram ids). Keys are normalized before storing and lookup |
 | unique | partial unique `(entityType, entityId)` and `(entityType, entityKey)`: **one channel per object** |
 
 ### `lead_entries` (the per-submission log, the source of truth for "how did this lead come in, every time")
@@ -169,11 +169,11 @@ ctx = { type, candidates: [{entityType, entityId|entityKey}, ... most specific f
 |---|---|---|---|
 | `POST /v1/internal/registration/webinar/session/:sessionId`, `POST /v1/webinars/sessions/:sessionId/registrations` (both end in `createWebinarRegistration`) | `webinar_registration` | `webinar_session`, `webinar` | none |
 | `POST /v1/register/webinar` (deprecated, no session, CODEBASE_BRIEF §12.21) | `webinar_registration` | none → declared / default | accept `entryChannelKey` |
-| `POST /v1/registration/consultation` (+ `/calendly`, `/calendly/:id`) | `consultation_booking` | `website_form(formKey)` | `packageKey` is recorded as an **attribute/tag**, not the type |
+| `POST /v1/registration/consultation` (+ `/calendly`, `/calendly/:id`) | `consultation_booking` | `crm_meeting_type(meetingDetails.meetingTypeId)`, `website_form(formKey)` | `packageKey` is recorded as an **attribute** (`attributes.packageKey`), not the type. A `dealOwnerId` in the body already sets the owner, so routing with `when_owned = skip` leaves it alone |
 | Public booking `POST /v1/booking/:user/:eventTypeSlug/bookings`, `/company-wide/:slug/bookings` | `consultation_booking` | `event_type` | none |
 | `POST /v1/forms/submissions/form/:identifier` | `lead_magnet` if the form has an active `form_lead_magnet_links` row, else `ad_form` if a landing-page context is sent, else `ad_form` | `landing_page`, `lead_magnet`, `form` | add optional `entryContext: { landingPageId \| slug+language }` |
 | `POST /v1/leads/capture` | `ad_form` | `landing_page`, `website_form(formKey)` | add the same optional `entryContext` (today it only has `formKey`) |
-| `POST /v1/internal/registration/package` | `package_interest` | `package(packageKey)` | none |
+| `POST /v1/internal/registration/package` | `package_interest` | `crm_package(packageId)` (the CRM package id the body already carries, synced in `crm_packages`) | none. The entry is recorded at registration, before any payment |
 | `POST /v1/internal/registration/masterclass/:id` | `masterclass_registration` | `masterclass` | none |
 | `/v1/registration/ebook`, `/facebook-group`, `/signup`, `/property-enquiry` | `lead_magnet`, `community_join`, `signup`, `property_enquiry` | `website_form(formKey)` if sent | none |
 | Partner ingestion (`leadGenerationService.ingestContact/ingestDeal`) | `partner_referral` | partner application | later |
