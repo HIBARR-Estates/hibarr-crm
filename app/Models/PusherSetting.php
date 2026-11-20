@@ -35,5 +35,10 @@ namespace App\Models;
  */
 class PusherSetting extends BaseModel
 {
-
+    /**
+     * The secret must never be serialized (JSON, Inertia props, @json in Blade):
+     * with it anyone can sign private-channel subscriptions and publish events.
+     * It stays readable as $setting->pusher_app_secret for server-side use.
+     */
+    protected $hidden = ['pusher_app_secret'];
 }

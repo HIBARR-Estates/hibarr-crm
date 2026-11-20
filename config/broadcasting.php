@@ -52,6 +52,35 @@ return [
             ],
         ],
 
+        /*
+        | Self-hosted Reverb (Pusher protocol). Used only by events that pin it via
+        | broadcastVia() — see config/realtime.php. The default driver above is still
+        | chosen by BroadcastServiceProvider from the pusher_settings row (legacy chat
+        | and taskboard), so this connection never changes what they use.
+        |
+        | Short timeouts: a hung socket server must never hold up a queue worker or a request.
+        */
+        'reverb' => [
+            'driver' => 'reverb',
+            'key' => env('REVERB_APP_KEY'),
+            'secret' => env('REVERB_APP_SECRET'),
+            'app_id' => env('REVERB_APP_ID'),
+            // Where the APP publishes events (server to server). Defaults to the public address browsers
+            // use (REVERB_HOST/PORT/SCHEME); set REVERB_PUBLISH_* to the internal address of the Reverb
+            // container (e.g. reverb:8080 over http) so publishing never leaves the private network or
+            // depends on the public hostname resolving from inside the cluster.
+            'options' => [
+                'host' => env('REVERB_PUBLISH_HOST', env('REVERB_HOST')),
+                'port' => env('REVERB_PUBLISH_PORT', env('REVERB_PORT', 443)),
+                'scheme' => env('REVERB_PUBLISH_SCHEME', env('REVERB_SCHEME', 'https')),
+                'useTLS' => env('REVERB_PUBLISH_SCHEME', env('REVERB_SCHEME', 'https')) === 'https',
+            ],
+            'client_options' => [
+                'connect_timeout' => 1,
+                'timeout' => 2,
+            ],
+        ],
+
         'ably' => [
             'driver' => 'ably',
             'key' => env('ABLY_KEY'),

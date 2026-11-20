@@ -396,11 +396,48 @@ if (!function_exists('pusher_settings')) {
     // @codingStandardsIgnoreLine
     function pusher_settings()
     {
-        if (!session()->has('pusher_settings')) {
-            session(['pusher_settings' => \App\Models\PusherSetting::first()]);
+        $request = app()->bound('request') ? request() : null;
+
+        // This row holds pusher_app_secret. It used to be cached in the session
+        // (and then serialized into every Blade page), so scrub any copy that is
+        // still sitting in an existing session.
+        if ($request && $request->hasSession() && $request->session()->has('pusher_settings')) {
+            $request->session()->forget('pusher_settings');
         }
 
-        return session('pusher_settings');
+        // Per-request cache only: a session copy goes stale after a settings
+        // change or a secret rotation until the session expires.
+        if ($request && $request->attributes->has('pusher_settings')) {
+            return $request->attributes->get('pusher_settings');
+        }
+
+        $settings = \App\Models\PusherSetting::first();
+
+        $request?->attributes->set('pusher_settings', $settings);
+
+        return $settings;
+    }
+
+}
+
+if (!function_exists('pusher_client_settings')) {
+
+    /**
+     * The only part of the Pusher settings that is safe to hand to the browser:
+     * which realtime features are switched on. Never add the app secret (or id) here.
+     *
+     * @return array{status: int, taskboard: int, messages: int}
+     */
+    // @codingStandardsIgnoreLine
+    function pusher_client_settings(): array
+    {
+        $settings = pusher_settings();
+
+        return [
+            'status' => (int) ($settings->status ?? 0),
+            'taskboard' => (int) ($settings->taskboard ?? 0),
+            'messages' => (int) ($settings->messages ?? 0),
+        ];
     }
 
 }
