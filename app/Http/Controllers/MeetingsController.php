@@ -11,6 +11,7 @@ use App\Models\MeetingType;
 use App\Models\User;
 use App\Services\CalendarSyncDispatcher;
 use App\Services\CalendarSyncService;
+use App\Services\MeetingContactability;
 use App\Services\MeetingFilterFacetsService;
 use App\Services\MeetingFilters;
 use App\Services\MeetingVisibilityService;
@@ -105,7 +106,7 @@ class MeetingsController extends AccountBaseController
             'deal.leadStage:id,name,slug,label_color',
             'deal.contact:id,client_name,mobile,cell,office',
             'deal.currency:id,currency_symbol',
-            'lead:id,client_name,salutation,company_name,mobile,cell,office',
+            'lead:id,client_name,client_email,salutation,company_name,mobile,cell,office',
             'addedBy:id,name,image',
             // Never previously loaded — every "Meeting host" chip fell back
             // to "User #<id>" because `host_id` came through as a bare id
@@ -1235,7 +1236,7 @@ class MeetingsController extends AccountBaseController
             'deal.leadStage:id,name,slug,label_color',
             'deal.contact:id,client_name,mobile,cell,office',
             'deal.currency:id,currency_symbol',
-            'lead:id,client_name,salutation,company_name,mobile,cell,office',
+            'lead:id,client_name,client_email,salutation,company_name,mobile,cell,office',
             'addedBy:id,name,image',
             'host:id,name,image',
             'outcomeLoggedBy:id,name,image',
@@ -1277,9 +1278,16 @@ class MeetingsController extends AccountBaseController
             'leadAgent.user:id,name',
         ]);
 
+        $dealLead = $deal->lead_id
+            ? Lead::with('contactMethods:id,lead_id,type,identifier')->find($deal->lead_id)
+            : null;
+
         return response()->json([
             'success' => true,
             'data' => $deal,
+            // Null when the deal has no lead: there is no one to check, and a
+            // meeting on such a deal is not held back.
+            'contact' => $dealLead ? MeetingContactability::forLead($dealLead) : null,
         ]);
     }
 
@@ -1299,7 +1307,8 @@ class MeetingsController extends AccountBaseController
 
         $term = trim((string) $request->query('q', ''));
 
-        $query = MeetingVisibilityService::bookableLeadsQuery()->with('leadOwner:id,name');
+        $query = MeetingVisibilityService::bookableLeadsQuery()
+            ->with(['leadOwner:id,name', 'contactMethods:id,lead_id,type,identifier']);
 
         if ($term !== '') {
             // `%` and `_` typed by the user are text, not wildcards.
@@ -1315,14 +1324,24 @@ class MeetingsController extends AccountBaseController
             $query->reorder()->orderByDesc('id');
         }
 
-        $leads = $query->limit(20)->get()->map(fn (Lead $lead) => [
-            'id' => $lead->id,
-            'name' => $lead->client_name,
-            'company' => $lead->company_name,
-            'email' => $lead->client_email,
-            'phone' => $lead->mobile ?: $lead->cell,
-            'owner' => $lead->leadOwner?->name,
-        ])->values();
+        $leads = $query->limit(20)->get()->map(function (Lead $lead) {
+            $contact = MeetingContactability::forLead($lead);
+
+            return [
+                'id' => $lead->id,
+                'name' => $lead->client_name,
+                'company' => $lead->company_name,
+                // What to show on the row: the lead's own email and number,
+                // else the first one found among their other contact methods.
+                'email' => $lead->client_email ?: ($contact['emails'][0] ?? null),
+                'phone' => $lead->mobile ?: ($lead->cell ?: ($contact['phones'][0] ?? null)),
+                // Whether they can be reached at all, so the picker can say
+                // so before a meeting is set up for someone nobody can call or email.
+                'has_email' => $contact['emails'] !== [],
+                'has_phone' => $contact['phones'] !== [],
+                'owner' => $lead->leadOwner?->name,
+            ];
+        })->values();
 
         return response()->json([
             'success' => true,
@@ -1350,14 +1369,18 @@ class MeetingsController extends AccountBaseController
 
         $lead->load([
             'leadOwner:id,name,image,email',
+            'contactMethods:id,lead_id,type,identifier',
         ]);
 
-        // With the improvements: only deals the viewer may schedule on, with
-        // their stage, so two deals of the same client can be told apart.
+        // With the improvements: only deals the viewer may schedule on that
+        // are still open (no outcome recorded yet — a won or lost deal is not
+        // something a new meeting is about), with their stage, so two deals of
+        // the same client can be told apart.
         // Before: every next-follow-up deal on the lead.
         $dealsForLead = $improved
             ? MeetingVisibilityService::schedulableDealsQuery()
                 ->where('lead_id', $lead->id)
+                ->whereNull('deals.outcome_status')
                 ->addSelect('pipeline_stage_id')
                 ->with('leadStage:id,name,label_color')
                 ->get()
@@ -1371,6 +1394,10 @@ class MeetingsController extends AccountBaseController
             'success' => true,
             'data' => $lead,
             'deals_for_lead' => $dealsForLead,
+            // How to reach them: the schedule dialog shows it with the lead
+            // and holds the meeting back when the chosen method has no way
+            // to reach them.
+            'contact' => MeetingContactability::forLead($lead),
         ]);
     }
 

@@ -13,6 +13,15 @@ import SchedulingOptionPicker, {
 import useCalendlyLinks, {
     type CalendlyTarget,
 } from "@/Components/Redesign/meeting/useCalendlyLinks";
+import MeetingContactPanel from "@/Components/Redesign/meeting/MeetingContactPanel";
+import {
+    contactShortfall,
+    type MeetingContact,
+} from "@/Components/Redesign/meeting/meetingContact";
+import useScheduleRecordSource, {
+    recordKey as scheduleRecordKey,
+} from "@/Components/Redesign/meeting/useScheduleRecordSource";
+import useMeetingsImprovementsFlag from "@/Hooks/useMeetingsImprovementsFlag";
 import AgentDialog from "@/Components/Redesign/agent/AgentDialog";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import {
@@ -110,6 +119,17 @@ interface ScheduleMeetingModalProps {
      * record is chosen) the dialog behaves exactly as it always has.
      */
     calendlyTarget?: CalendlyTarget | null;
+    /**
+     * How the person the meeting is with can be reached. Shown with them, and
+     * the meeting cannot be saved while the chosen method has no way to reach
+     * them (an online meeting with no email, a phone meeting with no number).
+     * A caller that has it already passes it; left out, it is fetched for
+     * `calendlyTarget`. `null` = not known yet / nobody to check. Only with the
+     * Meetings page improvements on.
+     */
+    contact?: MeetingContact | null;
+    /** The lead's name, for the notice when something is missing. */
+    contactName?: string | null;
 }
 
 export default function ScheduleMeetingModal({
@@ -133,6 +153,8 @@ export default function ScheduleMeetingModal({
     relatedField,
     closeLabel,
     calendlyTarget = null,
+    contact: contactProp,
+    contactName = null,
 }: ScheduleMeetingModalProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -140,6 +162,33 @@ export default function ScheduleMeetingModal({
     const [step, setStep] = useState(0);
     const seededForOpenRef = useRef(false);
     const seededRecordKeyRef = useRef<string | null | undefined>(undefined);
+
+    // How to reach the person: from the caller, or fetched for the record the
+    // modal is bound to (the Deal and Lead pages already pass it as the
+    // Calendly target). With the improvements off none of it applies.
+    const improved = useMeetingsImprovementsFlag();
+    const ownContactState = useScheduleRecordSource(
+        improved &&
+            open &&
+            contactProp === undefined &&
+            calendlyTarget !== null &&
+            variant !== "agent"
+            ? scheduleRecordKey(calendlyTarget.type, calendlyTarget.id)
+            : null,
+    );
+    const contact: MeetingContact | null = !improved
+        ? null
+        : contactProp !== undefined
+          ? contactProp
+          : ownContactState.contact
+            ? {
+                  ...ownContactState.contact,
+                  leadId:
+                      calendlyTarget?.type === "lead"
+                          ? calendlyTarget.id
+                          : (ownContactState.source?.lead_id ?? null),
+              }
+            : null;
 
     // How the time gets decided: here, or on one of the Calendly booking pages.
     const { props } = usePage();
@@ -159,6 +208,12 @@ export default function ScheduleMeetingModal({
             : null;
     const calendlyType = calendlyTarget?.type ?? "lead";
     const showChoice = calendlyLinks.length > 0;
+    // The way this meeting runs has no way to reach them: it cannot be saved.
+    // A booking page is the person's own to fill in, so it is not held back.
+    const contactShort =
+        contact && !selectedLink
+            ? contactShortfall(form.platform, contact)
+            : null;
 
     // A fresh choice per visit and per record — "use the booking page" carried
     // over to another lead would open a link filled in for the wrong person.
@@ -248,7 +303,12 @@ export default function ScheduleMeetingModal({
                                 variant="primary"
                                 onClick={() => onSubmit(form)}
                                 loading={saving}
-                                disabled={saving || !form.date || !form.startTime}
+                                disabled={
+                                    saving ||
+                                    !form.date ||
+                                    !form.startTime ||
+                                    contactShort !== null
+                                }
                             >
                                 {labels.submit}
                             </Button>
@@ -262,6 +322,14 @@ export default function ScheduleMeetingModal({
                             <li key={index}>{td(error)}</li>
                         ))}
                     </ul>
+                )}
+                {contact && (
+                    <MeetingContactPanel
+                        contact={contact}
+                        showCard
+                        shortfall={contactShort}
+                        name={contactName}
+                    />
                 )}
                 {showChoice && (
                     <SchedulingOptionPicker
@@ -347,7 +415,9 @@ export default function ScheduleMeetingModal({
                             // submit without them when the form is stepped.
                             // Single-page callers keep their old behavior.
                             disabled={
-                                saving || (stepped && !detailsComplete)
+                                saving ||
+                                (stepped && !detailsComplete) ||
+                                contactShort !== null
                             }
                         >
                             {labels.submit}
@@ -383,6 +453,17 @@ export default function ScheduleMeetingModal({
             {/* The record picker belongs to the first step: everything after
                 it is about a meeting for that record. */}
             {(!stepped || step === 0) && extraFields}
+
+            {/* With the lead on the first step; on the second only the notice,
+                because that is where the method is chosen. */}
+            {contact && (
+                <MeetingContactPanel
+                    contact={contact}
+                    showCard={!stepped || step === 0}
+                    shortfall={contactShort}
+                    name={contactName}
+                />
+            )}
 
             {showChoice && (!stepped || step === 0) && (
                 <SchedulingOptionPicker

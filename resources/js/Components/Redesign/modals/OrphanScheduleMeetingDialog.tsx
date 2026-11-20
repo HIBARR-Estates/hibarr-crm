@@ -48,7 +48,11 @@ interface SelectedLead {
     name: string;
 }
 
-type LeadOption = SearchableSelectOption & { meta: string };
+type LeadOption = SearchableSelectOption & {
+    meta: string;
+    /** What the lead cannot be reached by, so the row can say so. */
+    missing: string[];
+};
 
 function leadLabel(name: string, company?: string | null): string {
     return company ? `${name} (${company})` : name;
@@ -180,12 +184,23 @@ export default function OrphanScheduleMeetingDialog({
             ]
                 .filter(Boolean)
                 .join(" · "),
+            // Said on the row, before the lead is picked: a meeting cannot be
+            // set up for someone nobody can email or call.
+            missing: [
+                row.has_email === false
+                    ? t("pages.meetings.contact.badge_no_email")
+                    : null,
+                row.has_phone === false
+                    ? t("pages.meetings.contact.badge_no_phone")
+                    : null,
+            ].filter((label): label is string => Boolean(label)),
         }));
         if (lead && !options.some((option) => option.value === lead.id)) {
             options.unshift({
                 value: lead.id,
                 label: selectedLeadName,
                 meta: "",
+                missing: [],
             });
         }
         return options;
@@ -237,6 +252,18 @@ export default function OrphanScheduleMeetingDialog({
             // Booking pages need a record to fill in, so none are offered
             // until one is picked.
             calendlyTarget={parsed}
+            // How to reach the lead, shown with them; the meeting is held back
+            // when the method chosen has no way to reach them. Not shown until
+            // the lead has loaded.
+            contact={
+                recordLoaded && (leadState.contact ?? dealState.contact)
+                    ? {
+                          ...(leadState.contact ?? dealState.contact)!,
+                          leadId: lead?.id ?? null,
+                      }
+                    : null
+            }
+            contactName={selectedLeadName}
             labels={{
                 title: t("app.meetings.actions.schedule"),
                 subtitle: t("pages.meetings.ui.pick_the_lead_then_set_up_the_meeting"),
@@ -305,6 +332,17 @@ export default function OrphanScheduleMeetingDialog({
                                                 }}
                                             >
                                                 {data.meta}
+                                            </div>
+                                        )}
+                                        {data.missing.length > 0 && (
+                                            <div
+                                                style={{
+                                                    fontSize: 12,
+                                                    fontWeight: 600,
+                                                    color: T.AMBER_TEXT,
+                                                }}
+                                            >
+                                                {data.missing.join(" · ")}
                                             </div>
                                         )}
                                     </div>

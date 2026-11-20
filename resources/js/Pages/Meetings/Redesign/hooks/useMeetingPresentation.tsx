@@ -1,4 +1,5 @@
 import useMeetingsImprovementsFlag from "@/Hooks/useMeetingsImprovementsFlag";
+import { meetingAttendees } from "@/Components/Redesign/meeting/meetingAttendees";
 import dayjs from "dayjs";
 import {
     DeleteOutlined,
@@ -133,10 +134,10 @@ export default function useMeetingPresentation({
     const timeRange = formatMeetingTimeRange(meeting.next_follow_up_date, end, "--", meeting.timezone);
     const minutesRemaining = Math.max(0, end.diff(dayjs(), "minute"));
 
-    const hostId = meeting.host_id ?? meeting.added_by?.id;
-    const participants: AvatarStackPerson[] = (
-        meeting.participant_users ?? []
-    ).map((person) => ({
+    // The host first, then the participants — the host is not among the
+    // participants, so the participants alone left out whoever runs the meeting.
+    const attendees = meetingAttendees(meeting);
+    const participants: AvatarStackPerson[] = attendees.map((person) => ({
         id: person.id,
         name: person.name,
         // image_url is always set (gravatar placeholder), so key off the raw
@@ -147,7 +148,7 @@ export default function useMeetingPresentation({
         // modal), and a second color palette just for this page would read as
         // its own thing. The ring (isHost) is enough to single them out.
         type: "participant" as const,
-        isHost: person.id === hostId,
+        isHost: person.isHost,
     }));
 
     const actions: RowAction[] = [];
@@ -263,7 +264,7 @@ export default function useMeetingPresentation({
         stateSubtext = startsInLabel(meeting.next_follow_up_date, timezone);
     }
 
-    const firstNames = (meeting.participant_users ?? []).map(
+    const firstNames = meetingAttendees(meeting).map(
         (person) => (person.name || "").split(" ")[0],
     );
 

@@ -53,6 +53,7 @@ use App\Models\SallyMeetingInsight;
 use App\Models\User;
 use App\Notifications\MeetingLinkGenerationFailed;
 use App\Scopes\ActiveScope;
+use App\Services\MeetingContactability;
 use App\Services\AgentWorkspace\ContactDeals;
 use App\Services\AgentWorkspace\DealPulse;
 use App\Services\AgentWorkspace\LeadVisibility;
@@ -3445,6 +3446,23 @@ class DealController extends AccountBaseController
 
             if ($deal->lead_id) {
                 $lead = Lead::find($deal->lead_id);
+            }
+        }
+
+        // With the Meetings page improvements, a meeting is not created for a
+        // person who cannot be reached the way it is set up to run: an online
+        // meeting needs an email, a phone meeting a number, an in-person one
+        // either. Checked here as well as in the dialog, which only explains it.
+        if ($lead && FeatureFlags::enabled('crm.meetings-page-redesign') && FeatureFlags::enabled('crm.meetings-page-improvements')) {
+            $lead->loadMissing('contactMethods:id,lead_id,type,identifier');
+            $missing = MeetingContactability::shortfall($request->input('location'), MeetingContactability::forLead($lead));
+
+            if ($missing !== null) {
+                return Reply::error(__(match ($missing) {
+                    MeetingContactability::NEEDS_EMAIL => 'messages.meetingContactNoEmail',
+                    MeetingContactability::NEEDS_PHONE => 'messages.meetingContactNoPhone',
+                    default => 'messages.meetingContactNoWay',
+                }, ['name' => $lead->client_name]));
             }
         }
 

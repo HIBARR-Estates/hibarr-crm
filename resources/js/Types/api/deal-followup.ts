@@ -97,6 +97,7 @@ export interface DealFollowup {
         | "id"
         | "client_name"
         | "client_name_salutation"
+        | "client_email"
         | "company_name"
         | "mobile"
         | "cell"

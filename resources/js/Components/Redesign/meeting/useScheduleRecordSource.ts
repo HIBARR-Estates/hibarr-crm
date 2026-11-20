@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { MeetingParticipantSource } from "@/Components/Redesign/meeting/meetingFormUtils";
+import type { MeetingContact } from "@/Components/Redesign/meeting/meetingContact";
 
 export type ScheduleRecordType = "deal" | "lead";
 
@@ -43,6 +44,8 @@ export default function useScheduleRecordSource(key: ScheduleRecordKey | null) {
     const [source, setSource] = useState<MeetingParticipantSource | null>(null);
     // Only a lead's answer carries these; empty for a deal.
     const [dealsForLead, setDealsForLead] = useState<ScheduleDealOption[]>([]);
+    /** How the lead (or the deal's lead) can be reached; null until fetched. */
+    const [contact, setContact] = useState<MeetingContact | null>(null);
     /**
      * The key `source` / `error` belong to, once that fetch has finished.
      * `loading` alone cannot say: on the first render after the key changes it
@@ -58,6 +61,7 @@ export default function useScheduleRecordSource(key: ScheduleRecordKey | null) {
         if (!parsed) {
             setSource(null);
             setDealsForLead([]);
+            setContact(null);
             setLoadedKey(null);
             setError(null);
             setLoading(false);
@@ -83,9 +87,18 @@ export default function useScheduleRecordSource(key: ScheduleRecordKey | null) {
                     setDealsForLead(
                         (json.deals_for_lead as ScheduleDealOption[]) ?? [],
                     );
+                    setContact(
+                        json.contact
+                            ? {
+                                  emails: json.contact.emails ?? [],
+                                  phones: json.contact.phones ?? [],
+                              }
+                            : null,
+                    );
                 } else {
                     setSource(null);
                     setDealsForLead([]);
+                    setContact(null);
                     setError(
                         parsed.type === "deal"
                             ? "pages.meetings.schedule.failed_to_load"
@@ -97,6 +110,7 @@ export default function useScheduleRecordSource(key: ScheduleRecordKey | null) {
                 if (cancelled) return;
                 setSource(null);
                 setDealsForLead([]);
+                setContact(null);
                 setError(
                     parsed.type === "deal"
                         ? "pages.meetings.schedule.failed_to_load"
@@ -114,5 +128,5 @@ export default function useScheduleRecordSource(key: ScheduleRecordKey | null) {
         };
     }, [key]);
 
-    return { source, dealsForLead, loading, error, loadedKey };
+    return { source, dealsForLead, contact, loading, error, loadedKey };
 }

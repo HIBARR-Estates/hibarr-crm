@@ -2613,6 +2613,21 @@ return [
         // Fixed copy of the Meetings screens (rows, cards, calendar, dialogs,
         // summary tab). Keyed by what it says; `useMeetingUiLabel` maps the
         // config vocabulary (durations, tab and status names) onto these.
+        'contact' => [
+            'more' => '+{{count}} more',
+            'this_lead' => 'This lead',
+            'no_email' => 'No email address on file',
+            'no_phone' => 'No phone number on file',
+            'badge_no_email' => 'No email',
+            'badge_no_phone' => 'No phone',
+            'blocked_email' => '{{name}} has no email address, and an online meeting is sent by email.',
+            'blocked_phone' => '{{name}} has no phone number, and a phone meeting needs one to call.',
+            'blocked_any' => '{{name}} has no email address or phone number, so there is no way to reach them.',
+            'blocked_help' => 'Add one to the lead to schedule this meeting, or choose another way to meet.',
+            'open_lead' => 'Open the lead',
+            'detail_no_way' => 'There is no way to reach this lead. Add an email address or phone number.',
+            'about_deal' => 'About deal',
+        ],
         'ui' => [
             'synced' => 'Synced',
             'sync_failed' => 'Sync failed',
