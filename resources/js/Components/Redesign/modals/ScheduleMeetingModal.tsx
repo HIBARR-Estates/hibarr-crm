@@ -85,6 +85,16 @@ interface ScheduleMeetingModalProps {
      */
     readyToSeed?: boolean;
     /**
+     * Identity of the record `initialForm` was built from. When it changes
+     * while the modal stays open, only the fields that come from the record —
+     * who is on the meeting and who hosts it — are re-seeded, in place.
+     *
+     * The alternative was remounting the modal per record, which also threw
+     * away everything typed on the second step: going Back to pick a
+     * different lead lost the date, time, platform and notes.
+     */
+    recordKey?: string | null;
+    /**
      * "agent" is the agent workspace's wide two-column dialog (canvas L7-32):
      * what and when on the left, how on the right. `stepped` doesn't apply.
      */
@@ -118,6 +128,7 @@ export default function ScheduleMeetingModal({
     canAdvance = true,
     stepLabels,
     readyToSeed = true,
+    recordKey,
     variant = "default",
     relatedField,
     closeLabel,
@@ -128,6 +139,7 @@ export default function ScheduleMeetingModal({
     const [form, setForm] = useState<MeetingFormState>(initialForm);
     const [step, setStep] = useState(0);
     const seededForOpenRef = useRef(false);
+    const seededRecordKeyRef = useRef<string | null | undefined>(undefined);
 
     // How the time gets decided: here, or on one of the Calendly booking pages.
     const { props } = usePage();
@@ -177,8 +189,22 @@ export default function ScheduleMeetingModal({
                 ...(initialStart ?? {}),
             });
             seededForOpenRef.current = true;
+            seededRecordKeyRef.current = recordKey;
         }
-    }, [open, initialForm, initialStart, readyToSeed]);
+    }, [open, initialForm, initialStart, readyToSeed, recordKey]);
+
+    // A different record once the form is already in use: take its people,
+    // leave everything the user has entered since.
+    useEffect(() => {
+        if (!open || !seededForOpenRef.current || !readyToSeed) return;
+        if (seededRecordKeyRef.current === recordKey) return;
+        seededRecordKeyRef.current = recordKey;
+        setForm((current) => ({
+            ...current,
+            participants: initialForm.participants,
+            hostId: initialForm.hostId,
+        }));
+    }, [open, recordKey, readyToSeed, initialForm]);
 
     const handleClose = () => {
         if (saving) return;

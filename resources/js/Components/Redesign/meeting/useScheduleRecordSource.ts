@@ -43,6 +43,13 @@ export default function useScheduleRecordSource(key: ScheduleRecordKey | null) {
     const [source, setSource] = useState<MeetingParticipantSource | null>(null);
     // Only a lead's answer carries these; empty for a deal.
     const [dealsForLead, setDealsForLead] = useState<ScheduleDealOption[]>([]);
+    /**
+     * The key `source` / `error` belong to, once that fetch has finished.
+     * `loading` alone cannot say: on the first render after the key changes it
+     * is still false and `source` is still the previous record's, so a caller
+     * seeding a form from them would seed from the wrong person.
+     */
+    const [loadedKey, setLoadedKey] = useState<ScheduleRecordKey | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -51,6 +58,7 @@ export default function useScheduleRecordSource(key: ScheduleRecordKey | null) {
         if (!parsed) {
             setSource(null);
             setDealsForLead([]);
+            setLoadedKey(null);
             setError(null);
             setLoading(false);
             return undefined;
@@ -96,7 +104,9 @@ export default function useScheduleRecordSource(key: ScheduleRecordKey | null) {
                 );
             })
             .finally(() => {
-                if (!cancelled) setLoading(false);
+                if (cancelled) return;
+                setLoading(false);
+                setLoadedKey(key);
             });
 
         return () => {
@@ -104,5 +114,5 @@ export default function useScheduleRecordSource(key: ScheduleRecordKey | null) {
         };
     }, [key]);
 
-    return { source, dealsForLead, loading, error };
+    return { source, dealsForLead, loading, error, loadedKey };
 }

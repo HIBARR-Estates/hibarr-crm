@@ -103,6 +103,10 @@ export default function OrphanScheduleMeetingDialog({
     const recordState = dealKey ? dealState : leadState;
     const selectedKey = dealKey ?? leadKey;
     const { source, loading, error } = recordState;
+    // The record's data has actually arrived — not merely "nothing is in
+    // flight", which is also true on the first render after picking one.
+    const recordLoaded =
+        !selectedKey || (recordState.loadedKey === selectedKey && !loading);
 
     const { leads, loading: searching, failed: searchFailed } = useBookableLeads(
         leadQuery,
@@ -214,25 +218,20 @@ export default function OrphanScheduleMeetingDialog({
 
     return (
         <ScheduleMeetingModal
-            // Remount on a record change so the form re-seeds with that
-            // record's host/participants — the modal seeds `initialForm` once
-            // per open and would otherwise keep the previous record's people.
-            key={selectedKey ?? "no-record"}
+            // Not remounted per record: the modal re-seeds just the people from
+            // `recordKey` when it changes, so what was typed on step two
+            // survives going Back to pick a different lead.
+            recordKey={selectedKey}
             open={open}
             onClose={handleClose}
             saving={isCreating}
             errors={dialogErrors}
             meetingTypes={meetingTypes}
             initialForm={initialForm}
-            // A record is being fetched — seeding now would lock in a form
-            // built from `source` before it arrived, and this modal only
-            // seeds once per mount. `loading` is still false on the first
-            // render with a record (the fetch starts in an effect), so wait
-            // until the fetch has actually produced a result or an error.
-            readyToSeed={
-                !selectedKey ||
-                (!loading && (source !== null || error !== null))
-            }
+            // Hold seeding until this record's own fetch has produced a result
+            // or an error; before that `source` is nothing, or the previous
+            // record's.
+            readyToSeed={recordLoaded && (!selectedKey || source !== null || error !== null)}
             onSubmit={handleSubmit}
             mustIncludeOwner={mustIncludeOwner}
             // Booking pages need a record to fill in, so none are offered
@@ -248,7 +247,7 @@ export default function OrphanScheduleMeetingDialog({
             stepped
             // Nothing to book without someone to book it with, and nothing
             // to seed the next step from until that person has loaded.
-            canAdvance={target !== null && !loading}
+            canAdvance={target !== null && recordLoaded}
             stepLabels={{
                 back: td("Back"),
                 next: td("Next: meeting details"),
