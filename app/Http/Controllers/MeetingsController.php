@@ -22,6 +22,8 @@ use Carbon\Carbon;
 use DateTimeZone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -96,7 +98,7 @@ class MeetingsController extends AccountBaseController
             'host:id,name,image',
             'outcomeLoggedBy:id,name,image',
             'meetingType',
-            'meetingSummary',
+            'meetingSummary.editor',
         ];
 
         $defaultDuration = DealFollowUp::DEFAULT_DURATION_MINUTES;
@@ -441,6 +443,12 @@ class MeetingsController extends AccountBaseController
             );
             $props['initialView'] = $view;
 
+            // Whether "Ask for it again" can do anything: the retry webhook
+            // is only configured once the meeting automation exposes a
+            // trigger for it. Without it the summary tab offers writing the
+            // summary by hand and no Retry button that could only fail.
+            $props['summaryRetryAvailable'] = (bool) config('app.automations.followups.summary_retry_webhook_url');
+
             if ($view === 'calendar') {
                 $calendarMonth = $this->resolveCalendarMonth($request->get('cal_month'));
                 $props['calendarRequestedMonth'] = $calendarMonth->format('Y-m');
@@ -615,16 +623,7 @@ class MeetingsController extends AccountBaseController
      */
     public function report(Request $request, DealFollowUp $followUp)
     {
-        abort_403(! (
-            $this->editFollowUpPermission == 'all'
-            || ($this->editFollowUpPermission == 'added' && $followUp->added_by == user()->id)
-        ));
-
-        // Visible on the list is the bar for writing to it, same as show().
-        abort_403(! MeetingVisibilityService::scopeVisibleToUser(
-            DealFollowUp::query()->whereKey($followUp->getKey()),
-            user()->id
-        )->exists());
+        $this->authorizeSummaryWrite($followUp);
 
         $validated = $request->validate([
             'discussed' => 'required|string|max:5000',
@@ -654,14 +653,28 @@ class MeetingsController extends AccountBaseController
             $summary = $followUp->meetingSummary;
 
             if ($summary) {
+                // Merged into what is there, not put in its place: filing a
+                // report used to replace an automatic summary wholesale. The
+                // report's three prompts overwrite their own keys and every
+                // other section survives. It is now a person's summary, so a
+                // later automatic push is kept beside it, not over it.
                 $summary->update([
-                    'summary_object' => $summaryObject,
-                    'meeting_type_id' => $followUp->meeting_type_id,
+                    'summary_object' => array_merge($summary->summary_object ?? [], $summaryObject),
+                    'meeting_type_id' => $summary->meeting_type_id ?? $followUp->meeting_type_id,
+                    'ai_summary_object' => $summary->source === MeetingSummary::SOURCE_MANUAL
+                        ? $summary->ai_summary_object
+                        : ($summary->summary_object ?: $summary->ai_summary_object),
+                    'source' => MeetingSummary::SOURCE_MANUAL,
+                    'edited_by' => user()->id,
+                    'edited_at' => now(),
                 ]);
             } else {
                 $summary = MeetingSummary::create([
                     'summary_object' => $summaryObject,
                     'meeting_type_id' => $followUp->meeting_type_id,
+                    'source' => MeetingSummary::SOURCE_MANUAL,
+                    'edited_by' => user()->id,
+                    'edited_at' => now(),
                     // Nullable: a meeting booked against a lead alone has no
                     // deal to hang the summary off, and still gets a report.
                     'deal_id' => $followUp->deal_id,
@@ -683,6 +696,266 @@ class MeetingsController extends AccountBaseController
         return response()->json([
             'success' => true,
             'message' => __('messages.updateSuccess'),
+        ]);
+    }
+
+    /**
+     * Same bar `report()` has always used for writing to a meeting: edit
+     * permission, and the meeting visible to the viewer.
+     */
+    private function authorizeSummaryWrite(DealFollowUp $followUp): void
+    {
+        abort_403(! (
+            $this->editFollowUpPermission == 'all'
+            || ($this->editFollowUpPermission == 'added' && $followUp->added_by == user()->id)
+        ));
+
+        // Visible on the list is the bar for writing to it, same as show().
+        abort_403(! MeetingVisibilityService::scopeVisibleToUser(
+            DealFollowUp::query()->whereKey($followUp->getKey()),
+            user()->id
+        )->exists());
+    }
+
+    /**
+     * A summary section the page can show and edit as text: a string, a
+     * number, or a list of those. Anything else (a nested object) has no
+     * plain-text form, so the editor leaves it exactly as it is.
+     */
+    private function isEditableSummaryValue(mixed $value): bool
+    {
+        if (is_string($value) || is_numeric($value)) {
+            return true;
+        }
+
+        return is_array($value)
+            && array_is_list($value)
+            && collect($value)->every(fn ($item) => is_string($item) || is_numeric($item));
+    }
+
+    /**
+     * The summary as the detail dialog reads it, with who last wrote it.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function summaryPayload(DealFollowUp $followUp): ?array
+    {
+        $followUp->unsetRelation('meetingSummary');
+        $summary = $followUp->meetingSummary()->with('editor')->first();
+
+        return $summary?->toArray();
+    }
+
+    /**
+     * Write or correct a meeting's summary by hand.
+     *
+     * For when the automatic one never came, keeps failing, or is simply
+     * wrong. The page sends the sections it shows; sections the editor cannot
+     * show (a nested object) are carried over untouched. The automatic
+     * version it replaces is kept in `ai_summary_object`, so it can be
+     * brought back, and a later automatic push will not overwrite this one.
+     */
+    public function saveSummary(Request $request, DealFollowUp $followUp)
+    {
+        $this->authorizeSummaryWrite($followUp);
+
+        $validated = $request->validate([
+            'sections' => 'required|array|min:1|max:20',
+            'sections.*.key' => 'required|string|max:60',
+            'sections.*.value' => 'nullable|string|max:20000',
+        ]);
+
+        if ($followUp->next_follow_up_date && $followUp->next_follow_up_date->isFuture()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A meeting can only be summarised once it has started.',
+            ], 422);
+        }
+
+        $edited = [];
+        foreach ($validated['sections'] as $section) {
+            $key = trim((string) preg_replace('/[^A-Za-z0-9 _-]/', '', $section['key']));
+            $value = trim((string) ($section['value'] ?? ''));
+            if ($key !== '' && $value !== '') {
+                $edited[$key] = $value;
+            }
+        }
+
+        if ($edited === []) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A summary needs at least one section with some text in it.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($followUp, $edited) {
+            $summary = $followUp->meetingSummary;
+            $existing = $summary?->summary_object ?? [];
+
+            // What the editor does not own stays: sections that cannot be
+            // shown as text.
+            $carried = array_filter(
+                $existing,
+                fn ($value) => ! $this->isEditableSummaryValue($value)
+            );
+
+            $attributes = [
+                'summary_object' => array_merge($edited, $carried),
+                'source' => MeetingSummary::SOURCE_MANUAL,
+                'edited_by' => user()->id,
+                'edited_at' => now(),
+            ];
+
+            if ($summary) {
+                // First edit of an automatic summary: keep it so it can be
+                // taken back. Later edits leave that copy alone.
+                if ($summary->source !== MeetingSummary::SOURCE_MANUAL && $existing !== []) {
+                    $attributes['ai_summary_object'] = $existing;
+                }
+                $summary->update($attributes);
+            } else {
+                $summary = MeetingSummary::create($attributes + [
+                    'meeting_type_id' => $followUp->meeting_type_id,
+                    // Nullable: a meeting booked against a lead alone has no deal.
+                    'deal_id' => $followUp->deal_id,
+                ]);
+                $followUp->summary_id = $summary->id;
+            }
+
+            $followUp->last_updated_by = user()->id;
+            $followUp->save();
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => __('messages.updateSuccess'),
+            'meeting_summary' => $this->summaryPayload($followUp),
+        ]);
+    }
+
+    /**
+     * Take the automatic summary that arrived after a person had written
+     * their own. Replaces their version, so the page asks first.
+     */
+    public function useAutomaticSummary(Request $request, DealFollowUp $followUp)
+    {
+        $this->authorizeSummaryWrite($followUp);
+
+        $summary = $followUp->meetingSummary;
+
+        if (! $summary || empty($summary->ai_summary_object)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'There is no automatic summary to switch to.',
+            ], 422);
+        }
+
+        $summary->update([
+            'summary_object' => $summary->ai_summary_object,
+            'ai_summary_object' => null,
+            'source' => MeetingSummary::SOURCE_AI,
+            'edited_by' => null,
+            'edited_at' => null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('messages.updateSuccess'),
+            'meeting_summary' => $this->summaryPayload($followUp),
+        ]);
+    }
+
+    /**
+     * Ask the meeting automation to send a meeting's summary again.
+     *
+     * Only does what it says: it posts to the retry webhook when one is
+     * configured, and answers honestly when none is — the page then offers
+     * writing the summary instead. The wait restarts only when the automation
+     * accepted the request, never on a request that went nowhere.
+     */
+    public function retrySummary(Request $request, DealFollowUp $followUp)
+    {
+        $this->authorizeSummaryWrite($followUp);
+
+        $url = config('app.automations.followups.summary_retry_webhook_url');
+
+        if (! $url) {
+            return response()->json([
+                'success' => false,
+                'code' => 'not_configured',
+                'message' => 'Asking for the summary again is not set up yet. You can write it yourself.',
+            ], 503);
+        }
+
+        if ($followUp->meetingSummary) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This meeting already has a summary.',
+            ], 422);
+        }
+
+        if ($followUp->next_follow_up_date && $followUp->next_follow_up_date->isFuture()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A meeting can only be summarised once it has started.',
+            ], 422);
+        }
+
+        // A button that can be pressed in a loop is a way to flood the
+        // automation, and past a few tries another one will not help.
+        if ($followUp->summary_retry_requested_at?->gt(now()->subMinutes(5))) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Already asked a moment ago. Give it a few minutes.',
+            ], 429);
+        }
+
+        if ((int) $followUp->summary_retry_count >= 5) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Asked several times already. You can write the summary yourself.',
+            ], 422);
+        }
+
+        try {
+            $response = Http::timeout(15)->acceptJson()->post($url, [
+                'type' => 'summary-retry',
+                'followUpInformation' => [
+                    'id' => $followUp->id,
+                    'deal_id' => $followUp->deal_id,
+                    'lead_id' => $followUp->lead_id,
+                    'meeting_id' => $followUp->meeting_id,
+                    'platform' => $followUp->location,
+                    'meeting_link' => $followUp->meeting_link,
+                    'meeting_type_id' => $followUp->meeting_type_id,
+                    'next_follow_up_date' => $followUp->next_follow_up_date,
+                    'duration' => $followUp->duration,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Meeting summary retry request failed', [
+                'follow_up_id' => $followUp->id,
+                'error' => $e->getMessage(),
+            ]);
+            $response = null;
+        }
+
+        if (! $response || ! $response->successful()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The summary service did not accept the request. Try again later, or write it yourself.',
+            ], 502);
+        }
+
+        $followUp->summary_retry_requested_at = now();
+        $followUp->summary_retry_count = (int) $followUp->summary_retry_count + 1;
+        $followUp->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Asked for the summary again. It should arrive shortly.',
+            'summary_retry_requested_at' => $followUp->summary_retry_requested_at,
+            'summary_retry_count' => $followUp->summary_retry_count,
         ]);
     }
 
@@ -904,7 +1177,7 @@ class MeetingsController extends AccountBaseController
             'host:id,name,image',
             'outcomeLoggedBy:id,name,image',
             'meetingType',
-            'meetingSummary',
+            'meetingSummary.editor',
         ]);
 
         DealFollowUp::attachParticipantUsers(collect([$followUp]));

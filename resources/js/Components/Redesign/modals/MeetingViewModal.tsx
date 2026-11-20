@@ -52,6 +52,8 @@ export interface MeetingViewModalProps {
      * false/omitted, the Summary tab is hidden.
      */
     includeSummary?: boolean;
+    /** Called after the summary is written, corrected or asked for again. */
+    onSummaryChanged?: () => void;
     /** Open on the Summary tab (e.g. list "View summary" pills). */
     initialPanel?: "info" | "summary";
     /**
@@ -93,6 +95,7 @@ export default function MeetingViewModal({
     onEditRequested,
     renderNestedModals,
     includeSummary = true,
+    onSummaryChanged,
     initialPanel = "info",
     loading = false,
     error = null,
@@ -150,6 +153,8 @@ export default function MeetingViewModal({
     const summaryPanel = includeSummary ? (
         <MeetingSummaryPanel
             meeting={meeting}
+            canEdit={canEdit}
+            onChanged={onSummaryChanged}
             state={meetingSummaryState(
                 meeting,
                 meetingBucket(meeting, timezone),

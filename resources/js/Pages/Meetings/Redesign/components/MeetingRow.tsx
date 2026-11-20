@@ -250,6 +250,22 @@ export default function MeetingRow({
                         {td("Generating…")}
                     </span>
                 )}
+                {/* It should have arrived by now: say so, and open the
+                    dialog where it can be asked for again or written. */}
+                {summaryState === "stalled" && (
+                    <button
+                        type="button"
+                        className="dr-meeting-link inline-flex items-center gap-1 font-semibold"
+                        style={{ fontSize: 11.5, color: T.AMBER }}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onView();
+                        }}
+                    >
+                        <Icon name="file-text" size={11} />
+                        {td("Summary missing")}
+                    </button>
+                )}
             </div>
 
             {/* Scheduled / live / cancelled / held / no-show. */}

@@ -72,7 +72,19 @@ export default function MeetingsReportDialog({
     // (e.g. "Report" clicked for a second meeting while it's still open for
     // the first).
     useEffect(() => {
-        setForm(EMPTY);
+        // Start from what the meeting's summary already says for the three
+        // prompts, so filing a report edits it instead of looking like a
+        // blank form that will replace it.
+        const existing = (meeting?.meeting_summary?.summary_object ??
+            {}) as Record<string, unknown>;
+        const text = (key: string) =>
+            typeof existing[key] === "string" ? (existing[key] as string) : "";
+        setForm({
+            ...EMPTY,
+            discussed: text("discussed"),
+            outcome: text("outcome"),
+            next_steps: text("next_steps"),
+        });
         setAttendance("unknown");
         clearErrors();
         // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on id, not the meeting object

@@ -249,6 +249,17 @@ export default function MeetingCard({
                             {t("pages.meetings.card.view_summary")}
                         </button>
                     )}
+                    {summaryState === "stalled" && (
+                        <button
+                            type="button"
+                            className="dr-meeting-link inline-flex items-center gap-1.5 font-semibold"
+                            style={{ fontSize: 12, color: T.AMBER }}
+                            onClick={onView}
+                        >
+                            <Icon name="file-text" size={13} />
+                            {td("Summary missing")}
+                        </button>
+                    )}
                     {summaryState === "generating" && (
                         <span
                             className="font-semibold"

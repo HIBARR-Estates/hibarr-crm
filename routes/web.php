@@ -809,6 +809,11 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('meetings/{followUp}/detail', [\App\Http\Controllers\MeetingsController::class, 'show'])->name('meetings.detail')->whereNumber('followUp');
     Route::post('meetings/{followUp}/reschedule', [\App\Http\Controllers\MeetingsController::class, 'reschedule'])->name('meetings.reschedule');
     Route::post('meetings/{followUp}/report', [\App\Http\Controllers\MeetingsController::class, 'report'])->name('meetings.report');
+    // A summary written by hand, taken back from the automatic one, or asked
+    // for again. Same authorization as the report above.
+    Route::put('meetings/{followUp}/summary', [\App\Http\Controllers\MeetingsController::class, 'saveSummary'])->name('meetings.summary.save');
+    Route::post('meetings/{followUp}/summary/use-automatic', [\App\Http\Controllers\MeetingsController::class, 'useAutomaticSummary'])->name('meetings.summary.use_automatic');
+    Route::post('meetings/{followUp}/summary/retry', [\App\Http\Controllers\MeetingsController::class, 'retrySummary'])->name('meetings.summary.retry');
     Route::post('meetings/{followUp}/confirm-attendance', [\App\Http\Controllers\MeetingsController::class, 'confirmAttendance'])->name('meetings.confirm_attendance');
 
     // Meeting attendance confirmation (5-minutes-after-meeting-ends popup)
