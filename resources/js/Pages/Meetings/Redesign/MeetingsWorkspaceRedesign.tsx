@@ -35,6 +35,7 @@ import useAutoGridPageSize, {
 } from "./hooks/useAutoGridPageSize";
 import useMeetingsServerPagination from "./hooks/useMeetingsServerPagination";
 import useMeetingRecord from "./hooks/useMeetingRecord";
+import { type MeetingBulkChange } from "./hooks/useMeetingsBulkActions";
 import { type MeetingsTab } from "./adapters/meetingViewModel";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { MeetingsRedesignPageProps } from "../Index";
@@ -235,6 +236,7 @@ export default function MeetingsWorkspaceRedesign() {
         selected,
         selectedIds,
         clearSelection,
+        retainOnly,
         toggleSelect,
         toggleGroupSelection,
     } = useRowSelection();
@@ -247,14 +249,34 @@ export default function MeetingsWorkspaceRedesign() {
     // Partial visits: only the list props come back, so the page never
     // re-renders from scratch and the scroll position holds.
     const visitList = useCallback(
-        (overrides: Record<string, string | number | null>) => {
+        (
+            overrides: Record<string, string | number | null>,
+            callbacks?: { onFinish?: () => void },
+        ) => {
             router.get(route("meetings.index"), mergeQueryParams(overrides), {
                 only: LIST_PROPS,
                 preserveState: true,
                 preserveScroll: true,
+                onFinish: callbacks?.onFinish,
             });
         },
         [],
+    );
+
+    /**
+     * The tab the reader just picked, until its list arrives. The tab bar
+     * follows the click straight away and the old list dims, instead of the
+     * whole page sitting unchanged for the length of a request and then
+     * jumping — which read as the click not having registered.
+     */
+    const [pendingTab, setPendingTab] = useState<MeetingsTab | null>(null);
+    const switchTab = useCallback(
+        (tab: MeetingsTab) => {
+            if (tab === activeTab && pendingTab === null) return;
+            setPendingTab(tab);
+            visitList({ tab, page: null }, { onFinish: () => setPendingTab(null) });
+        },
+        [activeTab, pendingTab, visitList],
     );
 
     // ── Paging ─────────────────────────────────────────────────────────
@@ -272,6 +294,51 @@ export default function MeetingsWorkspaceRedesign() {
         meetings: meetingsProp,
         only: LIST_PROPS,
     });
+
+    // The selection follows what is on screen. It used to survive a change of
+    // tab, page or filter, so the bar could count — and a bulk delete could
+    // remove — meetings the reader was no longer looking at.
+    useEffect(() => {
+        retainOnly(meetings.data.map((meeting) => meeting.id));
+    }, [meetings.data, retainOnly]);
+
+    // A bulk delete / status change the server has just confirmed, painted
+    // into the list at once. The reload that follows reconciles everything
+    // this cannot know (which tab a re-statused meeting now belongs on, the
+    // counts, the cards); until it lands the rows already show what happened.
+    // `applyOptimistic` drops the patch the moment a real page arrives.
+    const applyBulkChange = useCallback(
+        (change: MeetingBulkChange) => {
+            const ids = new Set(change.ids);
+            applyOptimistic((current) => {
+                if (change.type === "status") {
+                    return {
+                        ...current,
+                        data: current.data.map((meeting) =>
+                            ids.has(meeting.id)
+                                ? { ...meeting, status: change.status }
+                                : meeting,
+                        ),
+                    };
+                }
+
+                const data = current.data.filter(
+                    (meeting) => !ids.has(meeting.id),
+                );
+                const total = Math.max(
+                    0,
+                    current.total - (current.data.length - data.length),
+                );
+                return {
+                    ...current,
+                    data,
+                    total,
+                    last_page: Math.max(1, Math.ceil(total / current.per_page)),
+                };
+            });
+        },
+        [applyOptimistic],
+    );
 
     // Hiding the strip has to give its meetings back to the list, and showing
     // it has to take them away again — both are server-side, so the toggle
@@ -541,10 +608,8 @@ export default function MeetingsWorkspaceRedesign() {
                 view={view}
                 onViewChange={setView}
                 showTabs={view === "list"}
-                tab={activeTab}
-                onTabChange={(tab: MeetingsTab) =>
-                    visitList({ tab, page: null })
-                }
+                tab={pendingTab ?? activeTab}
+                onTabChange={switchTab}
                 counts={tabCounts}
                 onRefresh={refresh}
                 refreshing={isRefreshing}
@@ -592,6 +657,7 @@ export default function MeetingsWorkspaceRedesign() {
                     <MeetingsBulkBar
                         selectedIds={selectedIds}
                         clearSelection={clearSelection}
+                        onApplied={applyBulkChange}
                         onChanged={reloadList}
                         canEdit={permissions.edit_lead_follow_up !== "none"}
                         canDelete={permissions.delete_lead_follow_up !== "none"}
@@ -616,7 +682,9 @@ export default function MeetingsWorkspaceRedesign() {
                         selected={selected}
                         onToggleSelect={toggleSelect}
                         onToggleAll={toggleGroupSelection}
-                        isPaging={isPaging || isTogglingStrip}
+                        isPaging={
+                            isPaging || isTogglingStrip || pendingTab !== null
+                        }
                         onSchedule={() => openSchedule()}
                         canSchedule={canSchedule}
                         hasAnyMeetings={hasAnyMeetings}

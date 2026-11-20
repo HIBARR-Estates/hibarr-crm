@@ -4,12 +4,15 @@ import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import useMeetingsBulkActions, {
+    type MeetingBulkChange,
     type MeetingBulkStatus,
 } from "../hooks/useMeetingsBulkActions";
 
 interface MeetingsBulkBarProps {
     selectedIds: number[];
     clearSelection: () => void;
+    /** Paints a confirmed change into the list ahead of the reload. */
+    onApplied: (change: MeetingBulkChange) => void;
     onChanged: () => void;
     canEdit: boolean;
     canDelete: boolean;
@@ -28,6 +31,7 @@ const STATUS_OPTIONS: Array<{ value: MeetingBulkStatus; label: string }> = [
 export default function MeetingsBulkBar({
     selectedIds,
     clearSelection,
+    onApplied,
     onChanged,
     canEdit,
     canDelete,
@@ -40,7 +44,12 @@ export default function MeetingsBulkBar({
         closeConfirmDelete,
         deleteSelected,
         setStatus,
-    } = useMeetingsBulkActions({ selectedIds, clearSelection, onChanged });
+    } = useMeetingsBulkActions({
+        selectedIds,
+        clearSelection,
+        onApplied,
+        onChanged,
+    });
 
     if (selectedIds.length === 0) return null;
 

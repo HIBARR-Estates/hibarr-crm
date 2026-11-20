@@ -1,16 +1,40 @@
 import { useCallback, useState } from "react";
+import axios from "axios";
 import { message } from "antd";
-import { router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
 /** Statuses the bulk status action can set — the column's own enum. */
 export type MeetingBulkStatus = "scheduled" | "completed" | "cancelled";
 
+/** What a bulk action did, for the caller to patch its list with. */
+export type MeetingBulkChange =
+    | { type: "delete"; ids: number[] }
+    | { type: "status"; ids: number[]; status: MeetingBulkStatus };
+
 interface UseMeetingsBulkActionsOptions {
     selectedIds: number[];
     clearSelection: () => void;
-    /** Re-reads the list once the action lands. */
+    /**
+     * Paints the change into the list the moment the server confirms it, so
+     * the rows react without waiting on the reload that follows.
+     */
+    onApplied: (change: MeetingBulkChange) => void;
+    /** Re-reads the list (and the cards, counts and pager) once it lands. */
     onChanged: () => void;
+}
+
+interface BulkResponse {
+    success: boolean;
+    message?: string;
+    ids?: number[];
+}
+
+/** The server's own reason when it gave one (a permission refusal, say). */
+function serverMessage(error: unknown): string | null {
+    if (!axios.isAxiosError(error)) return null;
+    const text = (error.response?.data as { message?: unknown } | undefined)
+        ?.message;
+    return typeof text === "string" && text.trim() !== "" ? text : null;
 }
 
 /**
@@ -20,10 +44,15 @@ interface UseMeetingsBulkActionsOptions {
  * already uses for bulk follow-up actions — it re-checks the delete/edit
  * permission per record server-side, so the buttons here are an affordance,
  * not the guard.
+ *
+ * Asked for as JSON, so the answer is a few ids rather than a redirect that
+ * makes Inertia send the whole page's props back. The list is patched from
+ * that answer straight away and reconciled by one partial reload after it.
  */
 export default function useMeetingsBulkActions({
     selectedIds,
     clearSelection,
+    onApplied,
     onChanged,
 }: UseMeetingsBulkActionsOptions) {
     const { td } = useTd();
@@ -31,25 +60,45 @@ export default function useMeetingsBulkActions({
     const [confirmDelete, setConfirmDelete] = useState(false);
 
     const apply = useCallback(
-        (data: Record<string, string>) => {
-            if (selectedIds.length === 0) return;
+        async (
+            data: Record<string, string>,
+            toChange: (ids: number[]) => MeetingBulkChange,
+        ) => {
+            // A second click while the first is in flight would send the same
+            // ids twice — the second delete would find nothing to delete.
+            if (selectedIds.length === 0 || isApplying) return;
 
             setIsApplying(true);
-            router.post(
-                route("deals.follow_up_apply_quick_action"),
-                { ...data, row_ids: selectedIds.join(",") },
-                {
-                    preserveScroll: true,
-                    onSuccess: () => {
-                        clearSelection();
-                        onChanged();
-                    },
-                    onError: () => message.error(td("Bulk action failed", { source: "en" })),
-                    onFinish: () => setIsApplying(false),
-                },
-            );
+            try {
+                const { data: result } = await axios.post<BulkResponse>(
+                    route("deals.follow_up_apply_quick_action"),
+                    { ...data, row_ids: selectedIds.join(",") },
+                    { headers: { Accept: "application/json" } },
+                );
+
+                if (!result.success) {
+                    message.error(
+                        result.message ?? td("Bulk action failed", { source: "en" }),
+                    );
+                    return;
+                }
+
+                message.success(
+                    result.message ?? td("Done", { source: "en" }),
+                );
+                onApplied(toChange(result.ids ?? selectedIds));
+                clearSelection();
+                onChanged();
+            } catch (error) {
+                message.error(
+                    serverMessage(error) ??
+                        td("Bulk action failed", { source: "en" }),
+                );
+            } finally {
+                setIsApplying(false);
+            }
         },
-        [selectedIds, clearSelection, onChanged],
+        [selectedIds, isApplying, clearSelection, onApplied, onChanged, td],
     );
 
     return {
@@ -59,9 +108,16 @@ export default function useMeetingsBulkActions({
         closeConfirmDelete: () => setConfirmDelete(false),
         deleteSelected: () => {
             setConfirmDelete(false);
-            apply({ action_type: "delete" });
+            void apply({ action_type: "delete" }, (ids) => ({
+                type: "delete",
+                ids,
+            }));
         },
         setStatus: (status: MeetingBulkStatus) =>
-            apply({ action_type: "change-status", status }),
+            void apply({ action_type: "change-status", status }, (ids) => ({
+                type: "status",
+                ids,
+                status,
+            })),
     };
 }
