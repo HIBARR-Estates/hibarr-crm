@@ -15,12 +15,15 @@ import {
     ConfirmDialog,
     EmptyState,
     AgentPicker,
+    initialsFromName,
     REDESIGN_TOKENS as T,
     REDESIGN_TYPE as TYPE,
 } from "@/Components/Redesign";
 import "@/Components/Redesign/redesign.css";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useDebounce } from "@/Hooks/useDebounce";
+import usePartnerKeycloakProvisionFlag from "@/Hooks/usePartnerKeycloakProvisionFlag";
+
+type InviteStatus = "invited" | "accepted" | "failed";
 
 interface PartnerAgent {
     id: number;
@@ -31,7 +34,8 @@ interface PartnerAgent {
     referred_leads_count: number;
     /** True for an account made through Invite Partner, which can be re-invited. */
     can_resend?: boolean;
-    user: { id: number; name: string; email: string; image?: string | null } | null;
+    partner_invite_status?: InviteStatus | null;
+    user: { id: number; name: string; email: string; image?: string | null; partner_invite_version?: number | null } | null;
 }
 
 interface Stats {
@@ -55,15 +59,6 @@ interface Props {
     stats: Stats;
 }
 
-function initials(name: string) {
-    return name
-        .split(" ")
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase())
-        .join("");
-}
-
 const StatTile = ({ label, value }: { label: string; value: number }) => (
     <div className="dr-card" style={{ marginBottom: 0, flex: 1 }}>
         <div
@@ -84,14 +79,70 @@ const StatTile = ({ label, value }: { label: string; value: number }) => (
     </div>
 );
 
+/**
+ * One column template for the header and every row, so labels sit over the
+ * cells they describe whatever a row contains. The fixed columns need ~612px
+ * plus a usable name column, so the grid starts at xl (with the sidebar open);
+ * below that the row wraps.
+ */
+const ROW_GRID = "xl:grid xl:grid-cols-[32px_minmax(0,1fr)_88px_92px_120px_220px] xl:gap-3";
+
+/** Same grid with a column for the referral share, shown when that flag is on. */
+const ROW_GRID_WITH_SHARE = "xl:grid xl:grid-cols-[32px_minmax(0,1fr)_88px_92px_132px_120px_220px] xl:gap-3";
+
+/** True when `incoming` carries an older version of the user than `current`. */
+const isOlder = (incoming: PartnerAgent, current: PartnerAgent): boolean => {
+    const a = incoming.user?.partner_invite_version;
+    const b = current.user?.partner_invite_version;
+    if (a == null || b == null) return false;
+    return a < b;
+};
+
+/**
+ * `base` with only the invite fields taken from `from`. A newer invite state is
+ * carried over without dragging along the rest of `from`, which may be older
+ * (the partner's enabled/disabled status, referral count, ...).
+ */
+const withInviteState = (base: PartnerAgent, from: PartnerAgent): PartnerAgent => ({
+    ...base,
+    can_resend: from.can_resend,
+    partner_invite_status: from.partner_invite_status,
+    user: base.user
+        ? {
+              ...base.user,
+              partner_invite_version: from.user?.partner_invite_version,
+          }
+        : base.user,
+});
+
+const inviteBadgeVariant = (status: InviteStatus): "amber" | "green" | "red" => {
+    if (status === "accepted") return "green";
+    if (status === "failed") return "red";
+    return "amber";
+};
+
 const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canManageCommissionProfile = false }: Props) => {
-    const { td } = useTd();
     const { t } = useTranslation();
+    const provisioning = usePartnerKeycloakProvisionFlag();
     const referralCommissionEnabled = usePartnerReferralCommissionFlag();
+    const rowGrid = referralCommissionEnabled ? ROW_GRID_WITH_SHARE : ROW_GRID;
+    const referralShareLabel = (agent: PartnerAgent): string =>
+        agent.referral_pool_rate != null
+            ? t("pages.agents.referral_share_of_pool", { rate: agent.referral_pool_rate })
+            : t("pages.agents.referral_share_none");
 
     const [rows, setRows] = useState<PartnerAgent[]>(agents.data);
     const [stats, setStats] = useState<Stats>(initialStats);
-    useEffect(() => setRows(agents.data), [agents.data]);
+    // A roster from the server replaces the rows, but a row already on screen
+    // keeps its newer invite state if this (slower) roster read it earlier.
+    useEffect(() => {
+        setRows((prev) =>
+            agents.data.map((incoming) => {
+                const current = prev.find((row) => row.id === incoming.id);
+                return current && isOlder(incoming, current) ? withInviteState(incoming, current) : incoming;
+            }),
+        );
+    }, [agents.data]);
     useEffect(() => setStats(initialStats), [initialStats]);
 
     const [search, setSearch] = useState(filters.search ?? "");
@@ -116,12 +167,18 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
             const response = await axios.post(route("partners.store"), {
                 agent_id: agent.id,
             });
+            // A refused change (e.g. another change in progress) comes back as
+            // HTTP 200 with status "fail": show it, don't touch the roster.
+            if (response.data?.status !== "success") {
+                message.error(response.data?.message || t("pages.partners.error_generic"));
+                return;
+            }
             const newAgent = response.data.agent as PartnerAgent;
             setRows((prev) => [newAgent, ...prev]);
             setStats((prev) => ({ ...prev, total_partners: prev.total_partners + 1 }));
             setAddOpen(false);
         } catch {
-            message.error(td("Something went wrong. Please try again.", { source: "en" }));
+            message.error(t("pages.partners.error_generic"));
         } finally {
             setAddingId(null);
         }
@@ -150,13 +207,13 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
             if (response.data.invite_sent === false) {
                 message.warning(response.data.message);
             } else {
-                message.success(td("Invitation sent.", { source: "en" }));
+                message.success(t("pages.partners.invite_sent"));
             }
         } catch (error: any) {
             const errors = error?.response?.data?.errors;
             setInviteError(
                 (errors && (Object.values(errors).flat()[0] as string)) ||
-                    td("Something went wrong. Please try again.", { source: "en" }),
+                    t("pages.partners.error_generic"),
             );
         } finally {
             setInviting(false);
@@ -168,13 +225,29 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
     const handleResend = async (agent: PartnerAgent) => {
         setResendingId(agent.id);
         try {
-            await axios.post(route("partners.resend_invite", agent.id));
-            message.success(td("Invitation sent.", { source: "en" }));
+            const { data } = await axios.post(route("partners.resend_invite", agent.id));
+            // The server reports a failed resend in the body (HTTP 200), and the
+            // invite status may have changed either way: patch the row from it,
+            // unless the row on screen is already newer (compared by the user's
+            // partner_invite_version, which every status change increments).
+            if (data?.agent) {
+                const updated = data.agent as PartnerAgent;
+                setRows((prev) =>
+                    prev.map((row) => {
+                        if (row.id !== updated.id) return row;
+                        // The response carries the freshest invite state, but the rest
+                        // of the row (status, referrals) may be older than what is shown.
+                        return isOlder(updated, row) ? row : withInviteState(row, updated);
+                    }),
+                );
+            }
+            if (data?.status !== "success") {
+                message.error(data?.message || t("pages.partners.error_generic"));
+                return;
+            }
+            message.success(t("pages.partners.invite_sent"));
         } catch (error: any) {
-            message.error(
-                error?.response?.data?.message ||
-                    td("Something went wrong. Please try again.", { source: "en" }),
-            );
+            message.error(error?.response?.data?.message || t("pages.partners.error_generic"));
         } finally {
             setResendingId(null);
         }
@@ -187,7 +260,12 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
         if (!removeTarget) return;
         setRemoving(true);
         try {
-            await axios.delete(route("partners.destroy", removeTarget.id));
+            const { data } = await axios.delete(route("partners.destroy", removeTarget.id));
+            // Same as above: a "fail" body means nothing was removed.
+            if (data?.status !== "success") {
+                message.error(data?.message || t("pages.partners.error_generic"));
+                return;
+            }
             setRows((prev) => prev.filter((row) => row.id !== removeTarget.id));
             setStats((prev) => ({
                 ...prev,
@@ -195,26 +273,32 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
             }));
             setRemoveTarget(null);
         } catch {
-            message.error(td("Something went wrong. Please try again.", { source: "en" }));
+            message.error(t("pages.partners.error_generic"));
         } finally {
             setRemoving(false);
         }
     };
 
+    const inviteStatusLabel = (status: InviteStatus) => {
+        if (status === "accepted") return t("pages.partners.invite_accepted");
+        if (status === "failed") return t("pages.partners.invite_failed");
+        return t("pages.partners.invite_pending");
+    };
+
     return (
-        <PageLayout title={pageTitle} breadcrumbs={[{ name: td("Partners", { source: "en" }) }]}>
+        <PageLayout title={pageTitle} breadcrumbs={[{ name: t("pages.partners.title") }]}>
             <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-4">
                 <div className="flex flex-col gap-3 sm:flex-row">
                     <StatTile
-                        label={td("Total Partners", { source: "en" })}
+                        label={t("pages.partners.stat_total")}
                         value={stats.total_partners}
                     />
                     <StatTile
-                        label={td("Leads Referred", { source: "en" })}
+                        label={t("pages.partners.stat_referred")}
                         value={stats.total_referred_leads}
                     />
                     <StatTile
-                        label={td("Converted (Won) Referrals", { source: "en" })}
+                        label={t("pages.partners.stat_converted")}
                         value={stats.converted_referred_leads}
                     />
                 </div>
@@ -225,8 +309,8 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                         type="search"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder={td("Search partners…", { source: "en" })}
-                        aria-label={td("Search partners", { source: "en" })}
+                        placeholder={t("pages.partners.search_placeholder")}
+                        aria-label={t("pages.partners.search_label")}
                     />
                     <div className="flex gap-2">
                         <Button
@@ -234,38 +318,47 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                             icon={<Icon name="plus" size={12} />}
                             onClick={() => setInviteOpen(true)}
                         >
-                            {td("Invite Partner", { source: "en" })}
+                            {t("pages.partners.invite")}
                         </Button>
                         <Button
                             variant="primary"
                             icon={<Icon name="plus" size={12} />}
                             onClick={() => setAddOpen(true)}
                         >
-                            {td("Add Partner", { source: "en" })}
+                            {t("pages.partners.add")}
                         </Button>
                     </div>
                 </div>
 
                 {rows.length === 0 ? (
                     <EmptyState
-                        title={td("No partners yet", { source: "en" })}
-                        description={td(
-                            "Add an existing agent as a partner to start routing referrals to them.",
-                            { source: "en" },
-                        )}
+                        title={t("pages.partners.empty_title")}
+                        description={t("pages.partners.empty_description")}
                     />
                 ) : (
                     <div>
+                        <div
+                            className={`mb-2 hidden items-center px-4 ${rowGrid}`}
+                            style={{ fontSize: TYPE.CAPTION, fontWeight: 600, color: T.TEXT_MUTED, letterSpacing: 0.3 }}
+                        >
+                            <div />
+                            <div>{t("pages.partners.col_partner")}</div>
+                            <div>{t("pages.partners.col_account")}</div>
+                            <div>{t("pages.partners.col_invite")}</div>
+                            {referralCommissionEnabled && <div>{t("pages.partners.col_referral_share")}</div>}
+                            <div>{t("pages.partners.col_referrals")}</div>
+                            <div className="text-right">{t("pages.partners.col_actions")}</div>
+                        </div>
                         {rows.map((agent) => (
                             <div
                                 key={agent.id}
-                                className="dr-card flex items-center gap-3"
+                                className={`dr-card flex flex-wrap items-center gap-3 ${rowGrid}`}
                             >
                                 <Avatar
                                     type="agent"
                                     size={32}
                                     src={agent.user?.image}
-                                    initials={initials(agent.user?.name ?? "?")}
+                                    initials={initialsFromName(agent.user?.name)}
                                 />
                                 <div style={{ minWidth: 0, flex: 1 }}>
                                     <div
@@ -281,56 +374,64 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                                         {agent.user?.email}
                                     </div>
                                 </div>
-                                <Badge variant={agent.status === "enabled" ? "green" : "gray"}>
-                                    {agent.status === "enabled"
-                                        ? td("Enabled", { source: "en" })
-                                        : td("Disabled", { source: "en" })}
-                                </Badge>
-                                {referralCommissionEnabled && (canManageCommissionProfile ? (
-                                <Link
-                                    href={route("mlm.agent_dashboard", agent.id)}
-                                    style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}
-                                >
-                                    {agent.referral_pool_rate != null
-                                        ? t("pages.agents.referral_share_of_pool", {
-                                              rate: agent.referral_pool_rate,
-                                          })
-                                        : t("pages.agents.referral_share_none")}
-                                </Link>
-                                ) : (
-                                <span style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}>
-                                    {agent.referral_pool_rate != null
-                                        ? t("pages.agents.referral_share_of_pool", {
-                                              rate: agent.referral_pool_rate,
-                                          })
-                                        : t("pages.agents.referral_share_none")}
-                                </span>
-                                ))}
-                                <Badge variant="blue">
-                                    {td(":count leads referred", { source: "en" }).replace(
-                                        ":count",
-                                        String(agent.referred_leads_count),
+                                <div>
+                                    <Badge variant={agent.status === "enabled" ? "green" : "gray"}>
+                                        {agent.status === "enabled"
+                                            ? t("pages.partners.enabled")
+                                            : t("pages.partners.disabled")}
+                                    </Badge>
+                                </div>
+                                <div>
+                                    {agent.partner_invite_status && (
+                                        <Badge variant={inviteBadgeVariant(agent.partner_invite_status)}>
+                                            {inviteStatusLabel(agent.partner_invite_status)}
+                                        </Badge>
                                     )}
-                                </Badge>
-                                {agent.can_resend && (
+                                </div>
+                                {referralCommissionEnabled && (
+                                    <div>
+                                        {canManageCommissionProfile ? (
+                                            <Link
+                                                href={route("mlm.agent_dashboard", agent.id)}
+                                                style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}
+                                            >
+                                                {referralShareLabel(agent)}
+                                            </Link>
+                                        ) : (
+                                            <span style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}>
+                                                {referralShareLabel(agent)}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                                <div>
+                                    <Badge variant="blue">
+                                        {t("pages.partners.leads_referred", {
+                                            count: agent.referred_leads_count,
+                                        })}
+                                    </Badge>
+                                </div>
+                                <div className="ml-auto flex shrink-0 gap-2 xl:ml-0 xl:justify-end">
+                                    {agent.can_resend && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            icon={<Icon name="mail" size={12} />}
+                                            loading={resendingId === agent.id}
+                                            onClick={() => handleResend(agent)}
+                                        >
+                                            {t("pages.partners.resend")}
+                                        </Button>
+                                    )}
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        icon={<Icon name="mail" size={12} />}
-                                        loading={resendingId === agent.id}
-                                        onClick={() => handleResend(agent)}
+                                        icon={<Icon name="trash" size={12} />}
+                                        onClick={() => setRemoveTarget(agent)}
                                     >
-                                        {td("Resend invite", { source: "en" })}
+                                        {t("pages.partners.remove")}
                                     </Button>
-                                )}
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    icon={<Icon name="trash" size={12} />}
-                                    onClick={() => setRemoveTarget(agent)}
-                                >
-                                    {td("Remove", { source: "en" })}
-                                </Button>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -339,7 +440,7 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                 {agents.last_page > 1 && (
                     <div className="flex items-center justify-between">
                         <span style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED }}>
-                            {agents.from}–{agents.to} {td("of", { source: "en" })} {agents.total}
+                            {agents.from}–{agents.to} {t("pages.partners.of")} {agents.total}
                         </span>
                         <div className="flex gap-2">
                             <Button
@@ -354,7 +455,7 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                                     )
                                 }
                             >
-                                {td("Previous", { source: "en" })}
+                                {t("pages.partners.previous")}
                             </Button>
                             <Button
                                 variant="ghost"
@@ -368,7 +469,7 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                                     )
                                 }
                             >
-                                {td("Next", { source: "en" })}
+                                {t("pages.partners.next")}
                             </Button>
                         </div>
                     </div>
@@ -377,10 +478,8 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
 
             <Modal
                 open={addOpen}
-                title={td("Add partner", { source: "en" })}
-                subtitle={td("Search for an existing agent to flag as a partner.", {
-                    source: "en",
-                })}
+                title={t("pages.partners.add_title")}
+                subtitle={t("pages.partners.add_subtitle")}
                 onClose={() => setAddOpen(false)}
             >
                 <AgentPicker
@@ -389,17 +488,18 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                     onPick={handleAddPartner}
                     pendingId={addingId}
                     autoFocus
-                    searchPlaceholder={td("Search agents…", { source: "en" })}
-                    emptyLabel={td("No agents match", { source: "en" })}
+                    searchPlaceholder={t("pages.partners.search_agents")}
+                    emptyLabel={t("pages.partners.no_agents")}
                 />
             </Modal>
 
             <Modal
                 open={inviteOpen}
-                title={td("Invite partner", { source: "en" })}
-                subtitle={td(
-                    "Creates a partner account that sees only the leads they refer. They sign in with single sign-on using this email.",
-                    { source: "en" },
+                title={t("pages.partners.invite_title")}
+                subtitle={t(
+                    provisioning
+                        ? "pages.partners.invite_subtitle_provisioned"
+                        : "pages.partners.invite_subtitle",
                 )}
                 onClose={closeInvite}
             >
@@ -408,8 +508,8 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                         className="dr-input"
                         value={inviteForm.name}
                         onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
-                        placeholder={td("Full name", { source: "en" })}
-                        aria-label={td("Full name", { source: "en" })}
+                        placeholder={t("pages.partners.full_name")}
+                        aria-label={t("pages.partners.full_name")}
                         autoFocus
                     />
                     <input
@@ -417,15 +517,15 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                         type="email"
                         value={inviteForm.email}
                         onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
-                        placeholder={td("Email", { source: "en" })}
-                        aria-label={td("Email", { source: "en" })}
+                        placeholder={t("pages.partners.email")}
+                        aria-label={t("pages.partners.email")}
                     />
                     <input
                         className="dr-input"
                         value={inviteForm.mobile}
                         onChange={(e) => setInviteForm({ ...inviteForm, mobile: e.target.value })}
-                        placeholder={td("Mobile (optional)", { source: "en" })}
-                        aria-label={td("Mobile", { source: "en" })}
+                        placeholder={t("pages.partners.mobile")}
+                        aria-label={t("pages.partners.mobile")}
                     />
                     {inviteError && (
                         <div role="alert" style={{ fontSize: TYPE.CAPTION, color: T.RED }}>
@@ -434,7 +534,7 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                     )}
                     <div className="flex justify-end gap-2">
                         <Button variant="ghost" onClick={closeInvite}>
-                            {td("Cancel", { source: "en" })}
+                            {t("pages.partners.cancel")}
                         </Button>
                         <Button
                             variant="primary"
@@ -442,7 +542,7 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                             disabled={!inviteForm.name.trim() || !inviteForm.email.trim()}
                             onClick={handleInvite}
                         >
-                            {td("Send invite", { source: "en" })}
+                            {t("pages.partners.send_invite")}
                         </Button>
                     </div>
                 </div>
@@ -450,12 +550,11 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
 
             <ConfirmDialog
                 open={removeTarget !== null}
-                title={td("Remove partner?", { source: "en" })}
-                message={td(
-                    `${removeTarget?.user?.name ?? ""} will no longer be selectable as a lead referrer. Existing referred leads keep their attribution.`,
-                    { source: "en" },
-                )}
-                confirmLabel={td("Remove", { source: "en" })}
+                title={t("pages.partners.remove_title")}
+                message={t("pages.partners.remove_message", {
+                    name: removeTarget?.user?.name ?? "",
+                })}
+                confirmLabel={t("pages.partners.remove")}
                 danger
                 confirmLoading={removing}
                 onConfirm={handleRemove}

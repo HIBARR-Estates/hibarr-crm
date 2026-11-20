@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Events\NewUserEvent;
 use App\Models\TicketAgentGroups;
 use App\Models\User;
+use App\Services\PartnerInviteService;
 use App\Traits\StoreHeaders;
 
 class UserObserver
@@ -22,6 +23,15 @@ class UserObserver
         }
 
         session()->forget('user');
+    }
+
+    public function updated(User $user)
+    {
+        // After the UPDATE (not on create), so a failed save never leaves
+        // Keycloak changed. syncLifecycle() only acts on partner-only accounts.
+        if ($user->wasChanged(['status', 'email'])) {
+            app(PartnerInviteService::class)->syncLifecycle($user);
+        }
     }
 
     public function created(User $user)
