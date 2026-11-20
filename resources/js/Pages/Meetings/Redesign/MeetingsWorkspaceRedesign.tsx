@@ -224,7 +224,7 @@ export default function MeetingsWorkspaceRedesign() {
     );
 
     const { filter } = usePageSearchAndFilter({ filterConfig });
-    const { openDrawer } = filter;
+    const { openDrawer, clearAllFilters } = filter;
 
     // Count clauses, not raw keys, so the badge matches the filter sentence
     // (a date range is two keys but reads as one filter).
@@ -651,6 +651,8 @@ export default function MeetingsWorkspaceRedesign() {
                         onReport={(m) => setReporting(m)}
                         onSchedule={() => openSchedule()}
                         canSchedule={canSchedule}
+                        hasAnyMeetings={hasAnyMeetings}
+                        listIsEmpty={meetings.data.length === 0}
                     />
                 )}
 
@@ -692,6 +694,8 @@ export default function MeetingsWorkspaceRedesign() {
                         allInCards={
                             meetings.total === 0 && tabCounts[activeTab] > 0
                         }
+                        filtered={activeFilterCount > 0}
+                        onClearFilters={clearAllFilters}
                     />
                 ) : calendarMeetings ? (
                     // Any month already in hand keeps the calendar on screen:

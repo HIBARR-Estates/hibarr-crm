@@ -46,6 +46,10 @@ interface MeetingsResultsViewProps {
     hasAnyMeetings: boolean;
     /** True when the tab has meetings but every one is up in the cards. */
     allInCards: boolean;
+    /** True while filters narrow the list — an empty page may be their doing. */
+    filtered: boolean;
+    /** Drops every filter at once. */
+    onClearFilters: () => void;
 }
 
 /**
@@ -60,6 +64,7 @@ function emptyCopy(
     tab: MeetingsTab,
     hasAnyMeetings: boolean,
     allInCards: boolean,
+    filtered: boolean,
 ): { title: string; body: string } {
     // The tab still counts them, because they are still yours — they have
     // just been lifted into the cards above rather than repeated down here.
@@ -69,6 +74,15 @@ function emptyCopy(
         return {
             title: "That is everything",
             body: "Your remaining meetings are in the cards above.",
+        };
+    }
+
+    // Empty because of the filters, not because there is nothing: saying
+    // "no meetings scheduled" would send someone off to book one that exists.
+    if (filtered) {
+        return {
+            title: "No meetings match these filters",
+            body: "Try removing a filter or widening the date range.",
         };
     }
 
@@ -129,6 +143,8 @@ const MeetingsResultsView = forwardRef<
         canSchedule,
         hasAnyMeetings,
         allInCards,
+        filtered,
+        onClearFilters,
     },
     ref,
 ) {
@@ -150,7 +166,7 @@ const MeetingsResultsView = forwardRef<
         });
 
     if (meetings.data.length === 0) {
-        const copy = emptyCopy(tab, hasAnyMeetings, allInCards);
+        const copy = emptyCopy(tab, hasAnyMeetings, allInCards, filtered);
         return (
             <div ref={ref}>
                 <EmptyState
@@ -158,12 +174,19 @@ const MeetingsResultsView = forwardRef<
                     title={td(copy.title)}
                     description={td(copy.body)}
                     action={
-                        canSchedule && !allInCards
-                            ? {
-                                  label: td("Schedule a meeting"),
-                                  onClick: onSchedule,
-                              }
-                            : undefined
+                        allInCards
+                            ? undefined
+                            : filtered
+                              ? {
+                                    label: td("Clear filters"),
+                                    onClick: onClearFilters,
+                                }
+                              : canSchedule
+                                ? {
+                                      label: td("Schedule a meeting"),
+                                      onClick: onSchedule,
+                                  }
+                                : undefined
                     }
                 />
                 {/* This page came back empty but earlier ones aren't — e.g.
