@@ -84,8 +84,10 @@ export default function SavedViewsDrawer({
             onClose={onClose}
             placement="right"
             width={460}
-            // Above the filter modal it is opened from.
-            zIndex={1100}
+            // Above the filter modal it is opened from: antd popups sit at
+            // zIndexPopupBase (1300, providers/antd/utils.ts), so anything
+            // lower renders behind that modal.
+            zIndex={1400}
             destroyOnClose
             title={t("pages.filters.views_drawer_title")}
         >
@@ -336,7 +338,7 @@ function ViewRow({
                     <Popconfirm
                         title={t("pages.filters.view_overwrite_q")}
                         okText={t("pages.filters.view_update_filters")}
-                        zIndex={1200}
+                        zIndex={1500}
                         disabled={!hasCurrentFilters}
                         onConfirm={() => void onOverwrite(view)}
                     >
@@ -357,7 +359,7 @@ function ViewRow({
                         title={t("pages.filters.delete_view_q")}
                         okText={t("pages.filters.delete")}
                         okButtonProps={{ danger: true }}
-                        zIndex={1200}
+                        zIndex={1500}
                         onConfirm={() => void onDelete(view)}
                     >
                         <button
