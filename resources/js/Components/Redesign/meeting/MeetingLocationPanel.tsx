@@ -1,8 +1,6 @@
 import { message } from "antd";
-import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import useClickToCall from "@/Hooks/useClickToCall";
-import useSoftphone, { canPlaceCrmCall } from "@/Hooks/useSoftphone";
+import ClickToCallButton from "@/Components/ClickToCallButton";
 import useTranslation from "@/Hooks/useTranslation";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import {
@@ -17,7 +15,7 @@ import {
 import { copyToClipboard } from "@/lib/utils";
 import {
     meetingContactPhone,
-    phoneTelHref,
+    meetingCallTarget,
 } from "./meetingContactPhone";
 
 interface MeetingLocationPanelProps {
@@ -190,20 +188,8 @@ function PhoneLocation({
 }) {
     const { t } = useTranslation();
     const { td } = useTd();
-    const { props } = usePage();
-    const { isEnabled: clickToCallEnabled } = useClickToCall();
-    const { isEnabled: softphoneFeatureEnabled, devices } = useSoftphone();
-    const canDial = canPlaceCrmCall({
-        softphoneEnabled:
-            softphoneFeatureEnabled &&
-            props.featureFlags?.["crm.softphone"] === true,
-        user: props.auth?.user,
-        permissions: props.auth?.permissions,
-        deviceCount: devices.length,
-        clickToCallEnabled,
-    });
     const phone = meetingContactPhone(meeting);
-    const tel = phoneTelHref(phone);
+    const callTarget = meetingCallTarget(meeting);
 
     const copyNumber = async () => {
         if (!phone) return;
@@ -271,14 +257,29 @@ function PhoneLocation({
                         <Icon name="copy" size={14} />
                         {t("pages.deals.workspace.meetings.copy_number")}
                     </button>
-                    {actionable && canDial && tel && (
-                        <a
-                            href={tel}
-                            className="dr-btn dr-btn-primary dr-btn-sm no-underline"
+                    {/* The softphone (or the click-to-call bridge), not the
+                        device's own dialer: a `tel:` link opened some other
+                        app and left the call unlogged against the lead or
+                        deal. The button renders nothing for anyone who
+                        cannot place a CRM call. */}
+                    {actionable && callTarget && (
+                        <ClickToCallButton
+                            phone={callTarget.phones[0].phone}
+                            phones={callTarget.phones}
+                            entity={callTarget.entity}
+                            variant="link"
+                            className="dr-btn dr-btn-primary dr-btn-sm"
+                            title={t(
+                                "pages.deals.workspace.meetings.call_contact",
+                            )}
+                            ariaLabel={t(
+                                "pages.deals.workspace.meetings.call_contact",
+                            )}
+                            dataAction="call"
                         >
                             <Icon name="phone" size={14} />
                             {t("pages.deals.workspace.meetings.call_contact")}
-                        </a>
+                        </ClickToCallButton>
                     )}
                 </div>
             )}        </div>

@@ -3,6 +3,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import AvatarStack from "@/Components/Redesign/primitives/AvatarStack";
 import DateBlock from "@/Components/Redesign/primitives/DateBlock";
 import Icon from "@/Components/Redesign/primitives/Icon";
+import MeetingCallButton from "@/Components/Redesign/meeting/MeetingCallButton";
 import RowActionMenu from "@/Components/Redesign/primitives/RowActionMenu";
 import SelectCheckbox from "@/Components/Redesign/primitives/SelectCheckbox";
 import {
@@ -226,6 +227,12 @@ export default function MeetingCard({
                                 : td("Open deal")}
                         </a>
                     )}
+                    {/* A phone meeting's counterpart to Join: ring them. */}
+                    <MeetingCallButton
+                        meeting={meeting}
+                        bucket={bucket}
+                        className="dr-btn dr-btn-primary dr-btn-sm"
+                    />
                     {showJoin && (
                         <a
                             href={meeting.meeting_link}

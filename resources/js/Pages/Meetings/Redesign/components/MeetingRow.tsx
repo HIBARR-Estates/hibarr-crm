@@ -4,6 +4,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import AvatarStack from "@/Components/Redesign/primitives/AvatarStack";
 import SelectCheckbox from "@/Components/Redesign/primitives/SelectCheckbox";
 import Icon from "@/Components/Redesign/primitives/Icon";
+import MeetingCallButton from "@/Components/Redesign/meeting/MeetingCallButton";
 import RowActionMenu from "@/Components/Redesign/primitives/RowActionMenu";
 import {
     REDESIGN_RADIUS as R,
@@ -342,6 +343,11 @@ export default function MeetingRow({
                 style={{ width: MEETING_COLUMNS.actions.width }}
                 onClick={(event) => event.stopPropagation()}
             >
+                <MeetingCallButton
+                    meeting={meeting}
+                    bucket={bucket}
+                    className="dr-btn dr-btn-ghost dr-btn-sm"
+                />
                 {showJoin && summaryState !== "ready" && (
                     <a
                         href={meeting.meeting_link}
