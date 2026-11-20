@@ -59,6 +59,23 @@ Rules:
 - **A channel is never derived from UTMs.** The same Meta ad can lead to a webinar or to a consultation, and the same webinar is reached from many ads. Automations combine the two when needed (`channel under Consultation` **and** `utm_source = meta`).
 - Use the full name **"entry channel"** in code, tables, routes and UI copy (`entry_channels`, `lead_entries`, `entry_channel_uuid`). A bare `channel` already means attribution in this codebase.
 
+### Entry context: campaign, partner, referral agent
+Routing often depends on *who or what brought the lead*, not only on what they filled in: "leads from the spring Meta campaign go to the DE team", "leads from partner X go to that partner's manager". These are recorded as **entry context**, a second dimension next to the channel. They are **not** channels or bindings:
+
+- One campaign or partner drives many forms of different types (a webinar *and* a consultation). A channel tree is per type, and a binding maps one object to one channel, so a campaign can't be a binding without forcing a choice between "the webinar's channel" and "the campaign's channel" for the same entry. As context, both are kept.
+- Context reuses catalogs that already exist. No new tables to manage.
+
+| Dimension | Where it comes from in the request | Resolved against (existing) | Stored on the entry |
+|---|---|---|---|
+| `campaign` | `utmInfo.utmCampaign` (normalized to snake_case, like `UtmLeadSourceResolverService`) | `utm_configs` rows with `type = campaign` (Backoffice → UTM Configuration) | `contextCampaignUtmConfigId` (null when the value isn't configured) + the raw value in `utm` |
+| `partner` | the API application that called a partner endpoint (`applications`: name, slug), for partner ingestion | `applications` | `contextPartnerApplicationId` |
+| `referral_agent` | `utmInfo.agt` (agent link) | backend agents, via the same `resolveEligibleAgentFromAgt` the CRM sync already uses | `contextReferralAgentId` |
+| `ad` (later) | Meta ad / ad set / campaign ids, once Meta lead-ads ingestion exists (`meta_lead_form`). `facebookClickID` alone doesn't identify an ad | none yet | `context` jsonb |
+
+- Dimensions live in a small code registry (`ENTRY_CONTEXT_DIMENSIONS`: key, how to read it from a request, catalog to resolve against, CRM picker source), so adding one later (e.g. `attribution_link`, `ad`) is a registry entry plus a nullable column or a `context` jsonb key.
+- Resolution never fails a request. An unknown campaign value is kept raw with no id, and shows in an "unconfigured campaigns" list so marketing can add it in UTM Configuration.
+- **The partner as a channel vs. the partner as context.** When a partner *pushes* a lead through the partner API, that is the entry itself: type `partner_referral`, bound per partner with the `partner_application` binding kind, so each partner can get its own channel. When a lead fills in *our* form through a partner agent's link, the channel is the form and the partner shows up as `referral_agent` context. Which of these "partner" means for HIBARR is open question 7.
+
 ### Taxonomy: type → tree → bindings
 
 ```
@@ -125,6 +142,7 @@ All tables follow the repo's conventions: integer `id` + UUIDv7 `uuid`, models r
 | `webinar`, `webinar_session`, `event_type`, `lead_magnet`, `form`, `landing_page`, `masterclass` | backend tables of the same name | `entityId` | backend | backend `GET …/entry-channels/bindable`; FK-checked on save |
 | `crm_package` | a CRM package. The backend keeps a synced copy in `crm_packages` (`crm-package.model.ts`, `crmPackageId`) | `entityId` = CRM package id (the `packageId` the package registration already sends) | CRM | listed and checked against `crm_packages` |
 | `crm_meeting_type` | a CRM `MeetingType` (`app/Models/MeetingType.php`). The consultation request sends it as `meetingDetails.meetingTypeId` | `entityId` = CRM meeting type id | CRM | the CRM settings UI lists its own meeting types; the backend has no copy, so it can't check the id exists |
+| `partner_application` | the API application a partner uses to push leads (`applications`, `application.model.ts`). Only for type `partner_referral` | `entityId` = application id | backend | listed from `applications`; FK-checked |
 | `website_form` | a website form's `formKey`. **There is no table of forms**: it's a free string the website sends (`lookupKeyField`: lower-case, `^[a-z0-9][a-z0-9_-]*$`, max 100). Today it only appears as a key in `crm_lookup_entries` (`kind = lead_source`) | `entityKey` | the website | typed by the admin, validated with the same pattern; the picker suggests keys already in `crm_lookup_entries` and keys seen on recent entries |
 
 ### `lead_entries` (the per-submission log, the source of truth for "how did this lead come in, every time")
@@ -139,6 +157,8 @@ All tables follow the repo's conventions: integer `id` + UUIDv7 `uuid`, models r
 | `resolvedBy` | `binding` \| `declared` \| `rule` \| `type_default` (debugging and the unbound report) |
 | `isNewLead` | Whether this entry created the lead |
 | `occurredAt`, `utm` jsonb, `formKey`, `language` | |
+| `contextCampaignUtmConfigId`, `contextPartnerApplicationId`, `contextReferralAgentId` | Entry context (§1), each nullable and indexed for reporting |
+| `context` jsonb | Snapshot of the resolved context (labels included) + future dimensions |
 | `idempotencyKey` | unique, nullable. Same key as the registration `Event` where one exists, so a double submit makes one entry |
 | `crmDeliveryStatus`, `crmDeliveredAt`, `crmAttempts`, `crmLastError` | `pending` \| `delivered` \| `failed` \| `skipped` |
 | indexes | `(leadId, occurredAt)`, `(channelId, occurredAt)`, `(crmDeliveryStatus)` partial on not-delivered |
@@ -185,7 +205,7 @@ ctx = { type, candidates: [{entityType, entityId|entityKey}, ... most specific f
 | `POST /v1/internal/registration/package` | `package_interest` | `crm_package(packageId)` (the CRM package id the body already carries, synced in `crm_packages`) | none. The entry is recorded at registration, before any payment |
 | `POST /v1/internal/registration/masterclass/:id` | `masterclass_registration` | `masterclass` | none |
 | `/v1/registration/ebook`, `/facebook-group`, `/signup`, `/property-enquiry` | `lead_magnet`, `community_join`, `signup`, `property_enquiry` | `website_form(formKey)` if sent | none |
-| Partner ingestion (`leadGenerationService.ingestContact/ingestDeal`) | `partner_referral` | partner application | later |
+| Partner ingestion (`leadGenerationService.ingestContact/ingestDeal`) | `partner_referral` | `partner_application` (the calling application) | the application is also recorded as `partner` context |
 | `PATCH /v1/leads/capture/:leadUuid` | **not an entry** (follow-up on the same submission) | none | none |
 
 ### Optional hardening for landing pages (Phase 5, only if spoofing turns out to matter)
@@ -215,7 +235,13 @@ The entry rides **inside the same request** that creates/updates the contact (`c
     "ancestor_uuids": ["<root>", "<webinar_de>"],
     "tags": ["market:de", "language:de"]
   },
-  "source": { "entity_type": "webinar_session", "entity_id": 812, "label": "Investing 101 — 21 Nov" }
+  "source": { "entity_type": "webinar_session", "entity_id": 812, "label": "Investing 101 — 21 Nov" },
+  "context": {
+    "campaign": { "uuid": "0193…", "value": "spring_villa_de", "label": "Spring villa DE" },
+    "partner": null,
+    "referral_agent": { "ol_agent_id": 57, "crm_user_id": 214 },
+    "utm": { "source": "meta", "medium": "paid_social", "campaign": "spring_villa_de" }
+  }
 }
 ```
 The payload is **self-contained**: the CRM evaluates "is this entry under channel X?" from `ancestor_uuids` without calling the backend. A backend outage or slow catalog API cannot change routing.
@@ -250,6 +276,10 @@ The payload is **self-contained**: the CRM evaluates "is this entry under channe
 | `entry_channel_type` | same |
 | `entry_channel_family` | same (`form` / `referral` in v1) |
 | `entry_channel_tag` | tags (operator `contains`) |
+| `entry_campaign` | `context.campaign.uuid`; picker reads the campaign configs the CRM already loads through `OlUtmConfigService` (`/v1/internal/utm-configs?type=campaign`) |
+| `entry_partner` | `context.partner`; picker from a new `GET /v1/internal/partner-applications` (id, name) |
+| `entry_referral_agent` | `context.referral_agent.crm_user_id`; picker of CRM users/agents |
+| `entry_utm_source` / `entry_utm_medium` | raw UTMs of this entry (unlike the lead's stored UTMs, which keep the first touch) |
 | `entry_is_new_lead` | `is_new_lead` |
 | `first_entry_channel` / `first_entry_channel_type` | the earliest entry |
 | `entry_count_30d` | count of entries in the last 30 days (for "came back" rules) |
@@ -272,6 +302,8 @@ New action type for lead-subject automations (v2 only), in `DealAutomationServic
 - **Don't reuse** the category round-robin in `DealObserver::creating`. It reads `request()` and assigns deal agents, not lead owners.
 
 Precedence is configured as data, not code, via `priority` + `when_owned`: an agent-referred lead already has an owner, so `skip` leaves it alone by default.
+
+When a campaign or partner rule and a channel rule both match one entry, both automations run in `priority` order. The first assigns an owner and the second skips (`when_owned = skip`). So "campaign beats channel" is simply giving campaign/partner routing automations a higher priority.
 
 ### 5.5 Channel management UI (in the CRM, data on the backend)
 - **Settings → Lead entry channels** (Redesign token set): a tree with drag to re-parent within a type, a create/edit modal (name, key, parent, tags), archive, a bindings tab per channel with an entity picker, and per-channel entry counts.
@@ -316,12 +348,13 @@ Rollout: backend flag on first (entries recorded, not yet routed; check catch-al
 - `EntryChannelService` (CRUD, move with subtree path rebuild, archive, depth/type invariants), `EntryChannelBindingService`, `EntryChannelResolverService` + cache.
 - Internal + backoffice routes, permissions seeder, route-key registration.
 - Registry fields `family`, `entryPolicy`, `origin` (only `every_submission` / `backend` implemented).
+- Context dimension registry + resolvers for `campaign`, `partner`, `referral_agent`; context columns on `lead_entries`.
 - Tests: resolver precedence, type-mismatch declared key ignored, archived → ancestor fallback, one-binding-per-object, move rebuilds paths, never-throws.
 
 **Phase 2 — Backend emission**
 - `leadEntryService.recordEntry` + every handler in the §3 table, including returning leads, with idempotency shared with registration `Event`s.
 - `entryContext` on `/leads/capture` and form submissions.
-- `entry` in contact/deal CRM payloads, `crmDeliveryStatus` handling, BullMQ retry job.
+- `entry` (with `context`) in contact/deal CRM payloads, `crmDeliveryStatus` handling, BullMQ retry job.
 - Owner-default omission behind `sales.lead-entry-owner-handoff`.
 - Update `docs/CODEBASE_BRIEF.md` (§6 data model, §8 conventions, §12 gotcha: "a channel is not a lead source").
 
@@ -368,6 +401,8 @@ Rollout: backend flag on first (entries recorded, not yet routed; check catch-al
 4. **Consultation vs package**: a consultation about a specific package is typed `consultation_booking` with a package tag. Confirm, or should it be `package_interest`?
 5. **Who manages channels**: CRM admins only, or marketing in the Backoffice too (both APIs are planned; pick one UI to build first).
 6. **CRM lead source overwrite**: CODEBASE_BRIEF says the CRM overwrites an existing contact's `source_id` when a different `lead_source_id` arrives, but `DealContactApiController::fillExistingContactBasics` currently only fills it when empty. Verify which is true and fix the brief. It doesn't block this work, since channels don't touch `source_id`.
+7. **What "partner" means for routing**: partner companies pushing leads through the partner API (`applications`), partner agents bringing leads to our forms through their `agt` link, or both? The design supports both (§1, "Entry context"); confirm which needs routing rules first.
+8. **Campaign identity**: is `utm_campaign` (as configured in UTM Configuration) the campaign identity marketing wants to route on, or do they need ad-platform campaign ids too? The latter only becomes available with Meta lead-ads ingestion.
 
 ---
 
