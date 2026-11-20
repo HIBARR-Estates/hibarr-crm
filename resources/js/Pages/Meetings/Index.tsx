@@ -85,8 +85,13 @@ interface MeetingsPageProps extends MeetingsSharedProps {
  * absent until the calendar view asks for it.
  */
 export interface MeetingsRedesignPageProps extends MeetingsSharedProps {
-    meetings: PaginatedFollowupResponse;
-    tabCounts: MeetingsTabCounts;
+    /**
+     * Null on the calendar view: the list, its tallies and the "has any
+     * meetings" probe are only computed for the list, which the page asks for
+     * when it is switched to.
+     */
+    meetings: PaginatedFollowupResponse | null;
+    tabCounts: MeetingsTabCounts | null;
     activeTab: MeetingsTab;
     /**
      * The view the server opened the page on (calendar unless this browser
@@ -102,7 +107,7 @@ export interface MeetingsRedesignPageProps extends MeetingsSharedProps {
     /** The next few meetings for the cards above the list; deferred. */
     upcomingSoon?: DealFollowup[];
     /** False only for someone who has never had a meeting at all. */
-    hasAnyMeetings: boolean;
+    hasAnyMeetings: boolean | null;
     /**
      * Filter-modal chrome, both deferred. `EntityFilterModal` reads them off
      * the page itself rather than through props, so these are declared for

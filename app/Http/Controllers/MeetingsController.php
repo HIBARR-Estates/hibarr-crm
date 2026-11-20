@@ -198,6 +198,32 @@ class MeetingsController extends AccountBaseController
             return $applyNonDateFilters($query);
         };
 
+        // Which view this request is for, decided before any list work so the
+        // calendar does not pay for a list nobody is looking at.
+        //
+        // A link is about the list when it names a tab, an attendance outcome
+        // or a date window: the calendar shows a whole month and deliberately
+        // ignores a date range, so "meetings between X and Y" or "N missed"
+        // would otherwise open on a grid that cannot show what the link
+        // points at.
+        $view = $redesign
+            ? $this->resolveView(
+                $request,
+                $request->filled('tab')
+                    || ($attendanceValues[0] ?? null) !== null
+                    || $wantsUnrecordedAttendance
+                    || $dateFrom !== null
+                    || $dateTo !== null
+            )
+            : 'list';
+
+        // The list, its tab tallies, the cards and the "has any meetings"
+        // probe are only for the list view. On the calendar they were four
+        // queries (and a paginated one with eight relations) whose results
+        // the page never drew — and every month change re-ran them. The page
+        // asks for them with `view=list` when it switches over.
+        $loadList = $view === 'list';
+
         // Ids the "next up" cards will claim, so the list below can leave
         // them out — a meeting belongs on the page once.
         //
@@ -209,7 +235,7 @@ class MeetingsController extends AccountBaseController
         // The strip can be hidden, and that is a browser-side preference the
         // list query depends on, so it rides along in a cookie the same way
         // the page size does. Hidden means no exclusions at all.
-        $nextUpIds = $redesign && $request->cookie('hibarr_meetings_next_up', '1') !== '0'
+        $nextUpIds = $redesign && $loadList && $request->cookie('hibarr_meetings_next_up', '1') !== '0'
             ? $this->upcomingSoonIds($userId, $buckets, $now)
             : [];
 
@@ -229,7 +255,7 @@ class MeetingsController extends AccountBaseController
         [$upcomingSql, $upcomingBindings] = $buckets->upcoming();
         [$pastSql, $pastBindings] = $buckets->past();
 
-        $counts = $applyFilters(
+        $counts = ! $loadList ? null : $applyFilters(
             MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
         )
             ->selectRaw(
@@ -279,7 +305,9 @@ class MeetingsController extends AccountBaseController
             $activeTab = in_array($requestedTab, self::TABS, true)
                 ? $requestedTab
                 : ($attendanceFilter || $wantsUnrecordedAttendance ? 'past' : 'upcoming');
+        }
 
+        if ($redesign && $loadList) {
             // The page sizes itself to the browser window, and leaves the
             // size it settled on in a cookie. Reading it here means a cold
             // load already arrives at the right length instead of always
@@ -309,7 +337,7 @@ class MeetingsController extends AccountBaseController
                 ->orderBy('next_follow_up_date', $ascending ? 'asc' : 'desc')
                 ->paginate($perPage, ['*'], 'page')
                 ->withQueryString();
-        } else {
+        } elseif (! $redesign) {
             // ── Legacy paginated sections ──────────────────────────────
             $upcomingPerPage = (int) $request->get('upcoming_per_page', 6);
             $pastPerPage = (int) $request->get('past_per_page', 6);
@@ -382,19 +410,23 @@ class MeetingsController extends AccountBaseController
         ];
 
         if ($redesign) {
+            // Null on the calendar (see `$loadList`): the page treats a null
+            // list as "not loaded yet" and asks for it on switching over.
             $props['meetings'] = $meetings;
-            $props['tabCounts'] = $tabCounts;
+            $props['tabCounts'] = $loadList ? $tabCounts : null;
             $props['activeTab'] = $activeTab;
 
             // Separates "you have never booked a meeting" from "you have no
             // meetings *left*", which read very differently on an empty list.
             // Only costs a query when the list came back empty; a non-empty
             // page has already answered the question.
-            $props['hasAnyMeetings'] = $meetings->total() > 0
-                || MeetingVisibilityService::scopeVisibleToUser(
-                    DealFollowUp::query(),
-                    $userId
-                )->exists();
+            $props['hasAnyMeetings'] = $loadList
+                ? $meetings->total() > 0
+                    || MeetingVisibilityService::scopeVisibleToUser(
+                        DealFollowUp::query(),
+                        $userId
+                    )->exists()
+                : null;
 
             // Filter-modal chrome. All three are deferred: the modal is closed
             // on first paint, the facet counts are several GROUP BY queries,
@@ -410,9 +442,15 @@ class MeetingsController extends AccountBaseController
             // which is a constant. Scoping it to the list's filters would
             // empty it the moment someone looked at Past meetings, which is
             // exactly when knowing what is next is most useful.
-            $props['upcomingSoon'] = Inertia::defer(
-                fn () => $this->upcomingSoon($nextUpIds, $eagerLoads)
-            );
+            //
+            // Only registered for the list, which is the only place they are
+            // drawn: a deferred prop is fetched in a follow-up request
+            // whether or not anything renders it.
+            if ($loadList) {
+                $props['upcomingSoon'] = Inertia::defer(
+                    fn () => $this->upcomingSoon($nextUpIds, $eagerLoads)
+                );
+            }
 
             // The month grid is a different query over a different window, and
             // only the calendar view can show it — register it as a deferred
@@ -426,21 +464,7 @@ class MeetingsController extends AccountBaseController
 
             // The server decides the opening view and tells the page, so the
             // two cannot disagree about it (the month grid is only prepared
-            // for the calendar).
-            //
-            // A link is about the list when it names a tab, an attendance
-            // outcome or a date window: the calendar shows a whole month and
-            // deliberately ignores a date range, so "meetings between X and
-            // Y" or "N missed" would otherwise open on a grid that cannot
-            // show what the link points at.
-            $view = $this->resolveView(
-                $request,
-                $request->filled('tab')
-                    || $attendanceFilter !== null
-                    || $wantsUnrecordedAttendance
-                    || $dateFrom !== null
-                    || $dateTo !== null
-            );
+            // for the calendar, the list only for the list).
             $props['initialView'] = $view;
 
             // Whether "Ask for it again" can do anything: the retry webhook
