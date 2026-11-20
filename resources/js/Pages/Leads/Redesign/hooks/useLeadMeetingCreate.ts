@@ -24,6 +24,7 @@ import {
     usesAutoMeetingLink,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import { useLeadWorkspace } from "../context/LeadWorkspaceContext";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface LeadMeetingCreateInput {
     meetingTypeId: number | null;
@@ -197,6 +198,7 @@ export function validateMeetingForm(
 }
 
 export default function useLeadMeetingCreate(lead: Lead) {
+    const { td } = useTd();
     const [errors, setErrors] = useState<string[]>([]);
     const { props } = usePage();
     const { leadFollowUps, addLeadFollowUp } = useLeadWorkspace();
@@ -315,7 +317,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
 
                 if (duplicate) {
                     Modal.confirm({
-                        title: "Possible duplicate meeting",
+                        title: td("Possible duplicate meeting", { source: "en" }),
                         content:
                             "A meeting already exists at this date and time with overlapping participants. Create another anyway?",
                         okText: "Create anyway",

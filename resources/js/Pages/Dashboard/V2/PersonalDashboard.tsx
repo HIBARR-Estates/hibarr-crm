@@ -52,6 +52,7 @@ import {
 } from "./config/personalDashboardTourSteps";
 import "@/Components/Redesign/redesign.css";
 import "./dashboard-v2.css";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 
 
@@ -117,6 +118,7 @@ export default function PersonalDashboard({
     userDeals,
     userLeads,
 }: PersonalDashboardProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { props: pageProps } = usePage<PageProps>();
     const showProductTour =
@@ -211,7 +213,7 @@ export default function PersonalDashboard({
         },
         (taskId) => {
             clearOverride(taskId);
-            message.error("Could not complete the task");
+            message.error(td("Could not complete the task", { source: "en" }));
         },
     );
     const { reschedule, isPending: isSnoozing } = useTaskReschedule(

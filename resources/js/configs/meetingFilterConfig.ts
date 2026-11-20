@@ -34,6 +34,7 @@ const createMeetingFilterConfig = ({
         },
         {
             key: "meeting_type_id",
+            exclusions: ["not_in", "empty"],
             facetKey: "meeting_type_id",
             label: "Meeting type",
             type: "multiselect",
@@ -48,6 +49,7 @@ const createMeetingFilterConfig = ({
         },
         {
             key: "status",
+            exclusions: ["not_in"],
             facetKey: "status",
             label: "Status",
             type: "multiselect",
@@ -63,6 +65,7 @@ const createMeetingFilterConfig = ({
         },
         {
             key: "location",
+            exclusions: ["not_in", "empty"],
             facetKey: "location",
             label: "Where",
             type: "multiselect",
@@ -96,6 +99,7 @@ const createMeetingFilterConfig = ({
         },
         {
             key: "host_id",
+            exclusions: ["not_in"],
             facetKey: "host_id",
             label: "Host or creator",
             type: "multiselect",
@@ -110,6 +114,8 @@ const createMeetingFilterConfig = ({
         },
         {
             key: "attendance",
+            exclusions: ["empty"],
+            exclusionLabels: { in: "Is one of", empty: "Not recorded yet" },
             facetKey: "attendance",
             label: "Client attendance",
             type: "multiselect",

@@ -47,6 +47,7 @@ import ConstructionProjectLocationSection from "@/Features/Properties/SaveProper
 import ConstructionProjectFacilitiesSection from "@/Features/Properties/SaveProperty/sections/ConstructionProjectFacilitiesSection";
 import ConstructionProjectPhotosSection from "@/Features/Properties/SaveProperty/sections/ConstructionProjectPhotosSection";
 import UnitTypesSection from "./UnitTypesSection";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 // ============================================
 // Types
@@ -125,6 +126,7 @@ const ConstructionProjectFormModal: React.FC<
     onSuccess,
     canToggleHidden = false,
 }) => {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const isEditing = !!project?.id;
     const queryClient = useQueryClient();
@@ -201,12 +203,12 @@ const ConstructionProjectFormModal: React.FC<
                     setLocalProject(createdProject);
                 }
                 message.success(
-                    "Project saved! You can now upload photos and manage unit types.",
+                    td("Project saved! You can now upload photos and manage unit types.", { source: "en" }),
                 );
                 return;
             }
 
-            message.success("Construction project created!");
+            message.success(td("Construction project created!", { source: "en" }));
             handleClose();
             onSuccess?.();
         }
@@ -223,7 +225,7 @@ const ConstructionProjectFormModal: React.FC<
         "PUT",
         (res) => {
             if (res?.status === "success") {
-                message.success("Construction project updated!");
+                message.success(td("Construction project updated!", { source: "en" }));
                 handleClose();
                 onSuccess?.();
             }
@@ -397,12 +399,12 @@ const ConstructionProjectFormModal: React.FC<
         const values = form.getFieldsValue(true);
         if (!values.name || !values.developer_id) {
             message.error(
-                "Please fill in at least Construction Company and Project Name before saving.",
+                td("Please fill in at least Construction Company and Project Name before saving.", { source: "en" }),
             );
             return;
         }
         modal.confirm({
-            title: "Save project to continue?",
+            title: td("Save project to continue?", { source: "en" }),
             content:
                 "Your project will be saved so you can upload photos and manage unit types.",
             okText: "Save & Continue",
@@ -444,9 +446,9 @@ const ConstructionProjectFormModal: React.FC<
                     <div className="overflow-y-auto max-h-[65vh] space-y-4 pb-4 pr-1">
                         {/* Project Info — company & project name */}
                         <FormSection
-                            title="Project Info"
+                            title={td("Project Info", { source: "en" })}
                             icon={<BuildOutlined />}
-                            description="Construction company and project name"
+                            description={td("Construction company and project name", { source: "en" })}
                         >
                             <ConstructionProjectInfoSection
                                 form={form}
@@ -456,13 +458,13 @@ const ConstructionProjectFormModal: React.FC<
 
                         {canToggleHidden && (
                             <FormSection
-                                title="Visibility"
+                                title={td("Visibility", { source: "en" })}
                                 icon={<EyeInvisibleOutlined />}
-                                description="Control whether view-only users can see this project"
+                                description={td("Control whether view-only users can see this project", { source: "en" })}
                             >
                                 <Form.Item
                                     name="is_hidden"
-                                    label="Hide from view-only users"
+                                    label={td("Hide from view-only users", { source: "en" })}
                                     valuePropName="checked"
                                     extra="When enabled, users without edit access will not see this project. A hidden parent developer also hides all projects."
                                 >
@@ -473,18 +475,18 @@ const ConstructionProjectFormModal: React.FC<
 
                         {/* Project Details — classification & specs */}
                         <FormSection
-                            title="Project Details"
+                            title={td("Project Details", { source: "en" })}
                             icon={<AppstoreOutlined />}
-                            description="Construction status, unit types, and specifications"
+                            description={td("Construction status, unit types, and specifications", { source: "en" })}
                         >
                             <ConstructionProjectDetailsSection form={form} />
                         </FormSection>
 
                         {/* Pricing & Payment Plan */}
                         <FormSection
-                            title="Pricing & Payment"
+                            title={td("Pricing & Payment", { source: "en" })}
                             icon={<DollarOutlined />}
-                            description="Starting price, payment plan, and availability"
+                            description={td("Starting price, payment plan, and availability", { source: "en" })}
                             keepMounted
                         >
                             <ConstructionProjectPricingSection form={form} />
@@ -492,9 +494,9 @@ const ConstructionProjectFormModal: React.FC<
 
                         {/* Location */}
                         <FormSection
-                            title="Location"
+                            title={td("Location", { source: "en" })}
                             icon={<EnvironmentOutlined />}
-                            description="Project location and distances to amenities"
+                            description={td("Project location and distances to amenities", { source: "en" })}
                             defaultOpen={false}
                             keepMounted
                         >
@@ -507,9 +509,9 @@ const ConstructionProjectFormModal: React.FC<
 
                         {/* Facilities */}
                         <FormSection
-                            title="Project Facilities"
+                            title={td("Project Facilities", { source: "en" })}
                             icon={<CheckSquareOutlined />}
-                            description="Amenities and facilities available in the project"
+                            description={td("Amenities and facilities available in the project", { source: "en" })}
                             defaultOpen={false}
                         >
                             <ConstructionProjectFacilitiesSection
@@ -521,9 +523,9 @@ const ConstructionProjectFormModal: React.FC<
 
                         {/* Photos */}
                         <FormSection
-                            title="Project Photos"
+                            title={td("Project Photos", { source: "en" })}
                             icon={<PictureOutlined />}
-                            description="Site plans and exterior photos"
+                            description={td("Site plans and exterior photos", { source: "en" })}
                             defaultOpen={false}
                         >
                             <ConstructionProjectPhotosSection
@@ -539,14 +541,14 @@ const ConstructionProjectFormModal: React.FC<
 
                         {/* Description */}
                         <FormSection
-                            title="Description"
+                            title={td("Description", { source: "en" })}
                             icon={<FileTextOutlined />}
-                            description="Project description and notes"
+                            description={td("Project description and notes", { source: "en" })}
                             defaultOpen={false}
                         >
                             <div className="flex items-center justify-between mb-1">
                                 <label className="ant-form-item-label">
-                                    <span>Project Description</span>
+                                    <span>{td("Project Description", { source: "en" })}</span>
                                 </label>
                                 {aiEnabled && (
                                     <Button
@@ -574,7 +576,7 @@ const ConstructionProjectFormModal: React.FC<
 
                                             if (existing?.trim()) {
                                                 modal.confirm({
-                                                    title: "Replace existing description?",
+                                                    title: td("Replace existing description?", { source: "en" }),
                                                     content:
                                                         "This will replace your current description with an AI-generated one.",
                                                     okText: "Replace",
@@ -597,7 +599,7 @@ const ConstructionProjectFormModal: React.FC<
                             <Form.Item name="description" noStyle>
                                 <Input.TextArea
                                     rows={4}
-                                    placeholder="Describe the construction project..."
+                                    placeholder={td("Describe the construction project...", { source: "en" })}
                                     showCount
                                     maxLength={5000}
                                     disabled={isGenerating}
@@ -628,9 +630,9 @@ const ConstructionProjectFormModal: React.FC<
                         {/* Unit Types — always visible, shows placeholder in create mode */}
                         <Divider />
                         <FormSection
-                            title="Unit Types"
+                            title={td("Unit Types", { source: "en" })}
                             icon={<BlockOutlined />}
-                            description="Manage unit types and their specifications"
+                            description={td("Manage unit types and their specifications", { source: "en" })}
                             defaultOpen={true}
                         >
                             {effectiveProjectId ? (
@@ -655,14 +657,13 @@ const ConstructionProjectFormModal: React.FC<
                                         level={5}
                                         type="secondary"
                                     >
-                                        Save the project to manage unit types
+                                        {td("Save the project to manage unit types", { source: "en" })}
                                     </Typography.Title>
                                     <Typography.Text
                                         type="secondary"
                                         className="block mb-4"
                                     >
-                                        Unit types can be added once the project
-                                        has been saved.
+                                        {td("Unit types can be added once the project has been saved.", { source: "en" })}
                                     </Typography.Text>
                                     <Button
                                         type="primary"

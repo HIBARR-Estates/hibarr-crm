@@ -18,7 +18,7 @@
         <i class="fa fa-copy "></i>
     </button>
 
-    <div class="mt-3"><strong>Note:</strong>
+    <div class="mt-3"><strong>{{ td('Note:') }}</strong>
 
         <ins>{{$phpPath}}</ins>
         in the above command is the path of PHP on your server. To ensure it works correctly, please enter the correct PHP path for your server and provide the path to your script. If you're unsure how to set up a cron job, you may want to consult with your server administrator or hosting provider.

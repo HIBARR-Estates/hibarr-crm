@@ -7,6 +7,7 @@ import {
     FileOutlined,
 } from "@ant-design/icons";
 import { Property, DocumentsChecklist } from "@/Types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -26,6 +27,7 @@ const DOCUMENT_LABELS: { key: keyof DocumentsChecklist; label: string }[] = [
 export default function DocumentsViewCard({
     property,
 }: DocumentsViewCardProps) {
+    const { td } = useTd();
     const docs = property.documents_checklist;
     if (!docs) return null;
 
@@ -38,7 +40,7 @@ export default function DocumentsViewCard({
             title={
                 <span>
                     <FolderOpenOutlined className="mr-2" />
-                    Documents Checklist
+                    {td("Documents Checklist", { source: "en" })}
                 </span>
             }
             variant="outlined"
@@ -74,7 +76,7 @@ export default function DocumentsViewCard({
                                         className="ml-auto text-xs text-blue-500 hover:text-blue-700"
                                     >
                                         <FileOutlined className="mr-0.5" />
-                                        View
+                                        {td("View", { source: "en" })}
                                     </a>
                                 )}
                             </div>

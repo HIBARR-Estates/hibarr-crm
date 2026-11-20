@@ -3,15 +3,18 @@ import { usePage } from "@inertiajs/react";
 import { Icon } from "@/Components/Redesign";
 import ClickToCallButton from "@/Components/ClickToCallButton";
 import useClickToCall from "@/Hooks/useClickToCall";
-import useSoftphone, { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
+import useSoftphone, { canPlaceCrmCall } from "@/Hooks/useSoftphone";
 import useTranslation from "@/Hooks/useTranslation";
 import type { EmailQuickAction } from "@/Email/types";
 import useEmailUnreadCount from "@/Email/hooks/useEmailUnreadCount";
 import { isMeaningfulDossierValue } from "../../adapters/dossierAdapter";
+import type { LeadCallPhone } from "@/lib/leadCallPhones";
 
 interface DossierQuickActionsProps {
     leadId?: number;
     phone?: string | null;
+    /** Every number on the lead. More than one opens a picker on Call. */
+    phones?: LeadCallPhone[];
     onLogAction: () => void;
     onAddNote: () => void;
     onScheduleMeeting: () => void;
@@ -33,6 +36,7 @@ type ActionDef = {
 export default function DossierQuickActions({
     leadId,
     phone,
+    phones,
     onLogAction,
     onAddNote,
     onScheduleMeeting,
@@ -52,19 +56,21 @@ export default function DossierQuickActions({
 
     const trimmedPhone =
         phone && isMeaningfulDossierValue(phone) ? phone.trim() : "";
-    const { isEnabled: softphoneFeatureEnabled } = useSoftphone();
-    const hasSoftphonePermission = canMakeSoftphoneCalls(
-        props.auth?.user,
-        props.auth?.permissions,
-    );
-    const softphoneEnabled =
-        softphoneFeatureEnabled &&
-        props.featureFlags?.["crm.softphone"] === true;
-    const canUseLine =
-        (softphoneEnabled && hasSoftphonePermission) || olEnabled;
+    const callPhones = (phones ?? []).filter((item) => item.phone.trim());
+    const primaryPhone = callPhones[0]?.phone || trimmedPhone;
+    const { isEnabled: softphoneFeatureEnabled, devices } = useSoftphone();
+    const canUseLine = canPlaceCrmCall({
+        softphoneEnabled:
+            softphoneFeatureEnabled &&
+            props.featureFlags?.["crm.softphone"] === true,
+        user: props.auth?.user,
+        permissions: props.auth?.permissions,
+        deviceCount: devices.length,
+        clickToCallEnabled: olEnabled,
+    });
     const useTelephonyButton =
         canUseLine &&
-        Boolean(trimmedPhone) &&
+        Boolean(primaryPhone) &&
         typeof leadId === "number";
 
     const actions: ActionDef[] = [
@@ -112,7 +118,7 @@ export default function DossierQuickActions({
         </>
     );
 
-    const callTitle = trimmedPhone
+    const callTitle = primaryPhone
         ? t("pages.leads.quick_actions.call_title")
         : t("pages.leads.quick_actions.no_phone");
 
@@ -129,7 +135,8 @@ export default function DossierQuickActions({
                 {canUseLine && (
                     useTelephonyButton ? (
                         <ClickToCallButton
-                            phone={trimmedPhone}
+                            phone={primaryPhone}
+                            phones={callPhones}
                             entity={{ type: "lead", id: leadId! }}
                             variant="link"
                             className="v2-quick-actions__btn"

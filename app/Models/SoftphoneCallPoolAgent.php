@@ -153,39 +153,19 @@ class SoftphoneCallPoolAgent extends Model
             ->get(['id', 'name', 'email']);
     }
 
-    /** Active company users (admins and staff) who can be added to the fallback list. */
+    /** Active company users who can be added to the default fallback list. */
     public static function eligibleFallbackUsersForCompany(int $companyId)
     {
         return User::query()
             ->where('company_id', $companyId)
             ->where('status', 'active')
             ->where('login', '!=', 'disable')
-            ->where(function ($query): void {
-                $query->whereExists(function ($adminQuery): void {
-                    $adminQuery->select(DB::raw(1))
-                        ->from('role_user')
-                        ->join('roles', 'roles.id', '=', 'role_user.role_id')
-                        ->whereColumn('role_user.user_id', 'users.id')
-                        ->where('roles.name', 'admin');
-                })->orWhere(function ($staffQuery): void {
-                    $staffQuery->whereNotExists(function ($clientQuery): void {
-                        $clientQuery->select(DB::raw(1))
-                            ->from('role_user')
-                            ->join('roles', 'roles.id', '=', 'role_user.role_id')
-                            ->whereColumn('role_user.user_id', 'users.id')
-                            ->where('roles.name', 'client');
-                    })->whereExists(function ($permQuery): void {
-                        $permQuery->select(DB::raw(1))
-                            ->from('user_permissions')
-                            ->join('permissions', 'permissions.id', '=', 'user_permissions.permission_id')
-                            ->whereColumn('user_permissions.user_id', 'users.id')
-                            ->where('permissions.name', 'make_softphone_calls')
-                            ->whereIn('user_permissions.permission_type_id', [
-                                PermissionType::ALL,
-                                PermissionType::ADDED,
-                            ]);
-                    });
-                });
+            ->whereNotExists(function ($clientQuery): void {
+                $clientQuery->select(DB::raw(1))
+                    ->from('role_user')
+                    ->join('roles', 'roles.id', '=', 'role_user.role_id')
+                    ->whereColumn('role_user.user_id', 'users.id')
+                    ->where('roles.name', 'client');
             })
             ->orderBy('name')
             ->get(['id', 'name', 'email']);

@@ -13,6 +13,7 @@ import { useFormData } from "@/Hooks/useFormData";
 import { Language } from "@/Types";
 import BasicInfoTab from "./BasicInfoTab";
 import CustomFieldTab from "./CustomFieldTab";
+import { useTranslation } from "@/Hooks/useTranslation";
 export const SAVE_LEAD_BASIC_FORM_ID = "save-lead-basic-form";
 
 export const getSaveLeadCustomFormId = (categoryId: number) =>
@@ -51,6 +52,7 @@ const LeadForm: React.FC<LeadFormProps> = ({
     customFields: customFieldsOverride,
     customFieldCategories: customFieldCategoriesOverride,
 }) => {
+    const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState("basic");
     const userEditedRef = useRef(false);
     const { props } = usePage<any>();
@@ -122,12 +124,12 @@ const LeadForm: React.FC<LeadFormProps> = ({
         return SAVE_LEAD_BASIC_FORM_ID;
     }, [activeTab]);
 
-    const submitLabel = isEditing ? "Update lead" : "Save lead";
+    const submitLabel = isEditing ? t("pages.leads.save_form.update_lead") : t("pages.leads.save_form.save_lead");
 
     const tabItems = [
         {
             key: "basic",
-            label: "Contact Details",
+            label: t("pages.leads.save_form.contact_details"),
             children: (
                 <BasicInfoTab
                     data={data}
@@ -171,7 +173,7 @@ const LeadForm: React.FC<LeadFormProps> = ({
             {errors.length > 0 && (
                 <div className="save-lead-form__errors">
                     <Alert
-                        message="Validation Error"
+                        message={t("pages.leads.save_form.validation_error")}
                         description={
                             <ul className="mb-0">
                                 {errors.map((error, index) => (
@@ -201,7 +203,7 @@ const LeadForm: React.FC<LeadFormProps> = ({
                     onClick={onCancel}
                     disabled={loading}
                 >
-                    Cancel
+                    {t("pages.leads.save_form.cancel")}
                 </Button>
 
                 <div className="save-lead-form__footer-actions">

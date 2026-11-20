@@ -33,6 +33,7 @@ import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
 import { capitalizeFirstLetter, formatLocationNameForDisplay } from "@/lib/utils";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 import type { PropertyCompleteness } from "@/lib/propertyCompletenessFlag";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 // import UnitTypePropertyHeader from "./UnitTypePropertyHeader";
 
 const { Text, Paragraph } = Typography;
@@ -61,6 +62,7 @@ interface UnitTypePropertyViewProps {
 
 // ─── Gallery Section ───
 function UnitTypeGallery({ assets }: { assets: MergedAsset[] }) {
+    const { td } = useTd();
     const imageAssets = assets.filter((a) => a.asset_type === "image");
     const images = imageAssets.map((a) => a.url).filter(Boolean);
 
@@ -69,7 +71,7 @@ function UnitTypeGallery({ assets }: { assets: MergedAsset[] }) {
             <div className="relative rounded-xl bg-gray-50 border border-gray-200 h-80 flex items-center justify-center mb-6">
                 <div className="text-center text-gray-400">
                     <CameraOutlined className="text-5xl mb-3" />
-                    <p className="text-base">No photos available</p>
+                    <p className="text-base">{td("No photos available", { source: "en" })}</p>
                 </div>
             </div>
         );
@@ -95,14 +97,14 @@ function UnitTypeGallery({ assets }: { assets: MergedAsset[] }) {
                     <div className="col-span-2 row-span-2 relative group cursor-pointer">
                         <Image
                             src={heroImage}
-                            alt="Unit type photo"
+                            alt={td("Unit type photo", { source: "en" })}
                             className="object-cover w-full h-full"
                             style={{ height: "100%", width: "100%" }}
                             preview={{
                                 mask: (
                                     <div className="flex items-center gap-2">
                                         <ExpandOutlined />
-                                        <span>View</span>
+                                        <span>{td("View", { source: "en" })}</span>
                                     </div>
                                 ),
                             }}
@@ -219,6 +221,7 @@ export default function UnitTypePropertyView({
     onGenerateExpose,
     completeness = null,
 }: UnitTypePropertyViewProps) {
+    const { td } = useTd();
     const location = developerProject.location;
     const effectiveAddress =
         developerProject.address ??
@@ -254,7 +257,7 @@ export default function UnitTypePropertyView({
                             title={
                                 <span>
                                     <AppstoreOutlined className="mr-2" />
-                                    Core Details
+                                    {td("Core Details", { source: "en" })}
                                 </span>
                             }
                             variant="outlined"
@@ -264,13 +267,13 @@ export default function UnitTypePropertyView({
                                 column={{ xs: 1, sm: 2, md: 3 }}
                                 size="small"
                             >
-                                <Descriptions.Item label="Category">
+                                <Descriptions.Item label={td("Category", { source: "en" })}>
                                     <Tag color="blue" className="capitalize">
                                         {unitType.primary_category}
                                     </Tag>
                                 </Descriptions.Item>
                                 {unitType.property_type && (
-                                    <Descriptions.Item label="Property Type">
+                                    <Descriptions.Item label={td("Property Type", { source: "en" })}>
                                         <span className="capitalize">
                                             {unitType.property_type.replace(
                                                 /_/g,
@@ -281,7 +284,7 @@ export default function UnitTypePropertyView({
                                 )}
                                 {unitType.unit_style &&
                                     unitType.unit_style.length > 0 && (
-                                        <Descriptions.Item label="Unit Style">
+                                        <Descriptions.Item label={td("Unit Style", { source: "en" })}>
                                             <div className="flex flex-wrap gap-1">
                                                 {unitType.unit_style.map(
                                                     (s) => (
@@ -300,7 +303,7 @@ export default function UnitTypePropertyView({
                                         </Descriptions.Item>
                                     )}
                                 {unitType.furniture_status && (
-                                    <Descriptions.Item label="Furniture Status">
+                                    <Descriptions.Item label={td("Furniture Status", { source: "en" })}>
                                         <span className="capitalize">
                                             {unitType.furniture_status.replace(
                                                 /_/g,
@@ -311,7 +314,7 @@ export default function UnitTypePropertyView({
                                 )}
                                 {unitType.view_types &&
                                     unitType.view_types.length > 0 && (
-                                        <Descriptions.Item label="View Types">
+                                        <Descriptions.Item label={td("View Types", { source: "en" })}>
                                             <div className="flex flex-wrap gap-1">
                                                 {unitType.view_types.map(
                                                     (v) => (
@@ -331,18 +334,18 @@ export default function UnitTypePropertyView({
                                         </Descriptions.Item>
                                     )}
                                 {unitType.completion_date && (
-                                    <Descriptions.Item label="Completion Date">
+                                    <Descriptions.Item label={td("Completion Date", { source: "en" })}>
                                         {formatCompanyDate(unitType.completion_date)}
                                     </Descriptions.Item>
                                 )}
                                 {unitType.military_base_distance_km != null && (
-                                    <Descriptions.Item label="Military Base Distance">
+                                    <Descriptions.Item label={td("Military Base Distance", { source: "en" })}>
                                         {unitType.military_base_distance_km} km
                                     </Descriptions.Item>
                                 )}
                                 {unitType.has_restrictions && (
-                                    <Descriptions.Item label="Restrictions">
-                                        <Tag color="red">Has Restrictions</Tag>
+                                    <Descriptions.Item label={td("Restrictions", { source: "en" })}>
+                                        <Tag color="red">{td("Has Restrictions", { source: "en" })}</Tag>
                                         {unitType.restriction_notes && (
                                             <span className="ml-1 text-xs text-gray-500">
                                                 {unitType.restriction_notes}
@@ -351,7 +354,7 @@ export default function UnitTypePropertyView({
                                     </Descriptions.Item>
                                 )}
                                 {unitType.is_sold_out && (
-                                    <Descriptions.Item label="Availability">
+                                    <Descriptions.Item label={td("Availability", { source: "en" })}>
                                         <UnitSoldOutBadge soldOut />
                                     </Descriptions.Item>
                                 )}
@@ -363,7 +366,7 @@ export default function UnitTypePropertyView({
                             title={
                                 <span>
                                     <ColumnHeightOutlined className="mr-2" />
-                                    Specifications
+                                    {td("Specifications", { source: "en" })}
                                 </span>
                             }
                             variant="outlined"
@@ -374,7 +377,7 @@ export default function UnitTypePropertyView({
                                     unitType.bedrooms !== undefined && (
                                         <Col xs={12} sm={8} md={6}>
                                             <StatBlock
-                                                label="Bedrooms"
+                                                label={td("Bedrooms", { source: "en" })}
                                                 value={
                                                     unitType.bedrooms === 0
                                                         ? "Studio"
@@ -388,7 +391,7 @@ export default function UnitTypePropertyView({
                                     unitType.bathrooms !== undefined && (
                                         <Col xs={12} sm={8} md={6}>
                                             <StatBlock
-                                                label="Bathrooms"
+                                                label={td("Bathrooms", { source: "en" })}
                                                 value={unitType.bathrooms}
                                                 icon={<HomeOutlined />}
                                             />
@@ -397,7 +400,7 @@ export default function UnitTypePropertyView({
                                 {unitType.floor && (
                                     <Col xs={12} sm={8} md={6}>
                                         <StatBlock
-                                            label="Floor"
+                                            label={td("Floor", { source: "en" })}
                                             value={unitType.floor}
                                             icon={<ColumnHeightOutlined />}
                                         />
@@ -406,7 +409,7 @@ export default function UnitTypePropertyView({
                                 {unitType.floors_in_building != null && (
                                     <Col xs={12} sm={8} md={6}>
                                         <StatBlock
-                                            label="Floors in Building"
+                                            label={td("Floors in Building", { source: "en" })}
                                             value={unitType.floors_in_building}
                                             icon={<ColumnHeightOutlined />}
                                         />
@@ -415,7 +418,7 @@ export default function UnitTypePropertyView({
                                 {unitType.total_area_sqm != null && (
                                     <Col xs={12} sm={8} md={6}>
                                         <StatBlock
-                                            label="Total Area"
+                                            label={td("Total Area", { source: "en" })}
                                             value={`${unitType.total_area_sqm} m²`}
                                             icon={<ExpandOutlined />}
                                         />
@@ -424,7 +427,7 @@ export default function UnitTypePropertyView({
                                 {unitType.living_area_sqm != null && (
                                     <Col xs={12} sm={8} md={6}>
                                         <StatBlock
-                                            label="Living Area"
+                                            label={td("Living Area", { source: "en" })}
                                             value={`${unitType.living_area_sqm} m²`}
                                             icon={<ExpandOutlined />}
                                         />
@@ -433,7 +436,7 @@ export default function UnitTypePropertyView({
                                 {unitType.terrace_balcony_sqm != null && (
                                     <Col xs={12} sm={8} md={6}>
                                         <StatBlock
-                                            label="Terrace/Balcony"
+                                            label={td("Terrace/Balcony", { source: "en" })}
                                             value={`${unitType.terrace_balcony_sqm} m²`}
                                             icon={<ExpandOutlined />}
                                         />
@@ -442,7 +445,7 @@ export default function UnitTypePropertyView({
                                 {unitType.plot_size_sqm != null && (
                                     <Col xs={12} sm={8} md={6}>
                                         <StatBlock
-                                            label="Plot Size"
+                                            label={td("Plot Size", { source: "en" })}
                                             value={`${unitType.plot_size_sqm} m²`}
                                             icon={<ExpandOutlined />}
                                         />
@@ -460,7 +463,7 @@ export default function UnitTypePropertyView({
                                 title={
                                     <span>
                                         <ToolOutlined className="mr-2" />
-                                        Features
+                                        {td("Features", { source: "en" })}
                                     </span>
                                 }
                                 variant="outlined"
@@ -473,7 +476,7 @@ export default function UnitTypePropertyView({
                                                 strong
                                                 className="text-xs text-gray-500 uppercase tracking-wide"
                                             >
-                                                Exterior Features
+                                                {td("Exterior Features", { source: "en" })}
                                             </Text>
                                             <div className="mt-1">
                                                 <FeatureTags
@@ -491,7 +494,7 @@ export default function UnitTypePropertyView({
                                                 strong
                                                 className="text-xs text-gray-500 uppercase tracking-wide"
                                             >
-                                                Interior Features
+                                                {td("Interior Features", { source: "en" })}
                                             </Text>
                                             <div className="mt-1">
                                                 <FeatureTags
@@ -511,7 +514,7 @@ export default function UnitTypePropertyView({
                                 title={
                                     <span>
                                         <FileTextOutlined className="mr-2" />
-                                        Description
+                                        {td("Description", { source: "en" })}
                                     </span>
                                 }
                                 variant="outlined"
@@ -528,7 +531,7 @@ export default function UnitTypePropertyView({
                             title={
                                 <span>
                                     <BankOutlined className="mr-2" />
-                                    Developer Project
+                                    {td("Developer Project", { source: "en" })}
                                 </span>
                             }
                             variant="outlined"
@@ -538,16 +541,16 @@ export default function UnitTypePropertyView({
                                 column={{ xs: 1, sm: 2 }}
                                 size="small"
                             >
-                                <Descriptions.Item label="Project Name">
+                                <Descriptions.Item label={td("Project Name", { source: "en" })}>
                                     {developerProject.name}
                                 </Descriptions.Item>
                                 {developerProject.developer && (
-                                    <Descriptions.Item label="Developer">
+                                    <Descriptions.Item label={td("Developer", { source: "en" })}>
                                         {developerProject.developer.name}
                                     </Descriptions.Item>
                                 )}
                                 {developerProject.construction_status && (
-                                    <Descriptions.Item label="Construction Status">
+                                    <Descriptions.Item label={td("Construction Status", { source: "en" })}>
                                         <Tag
                                             color="orange"
                                             className="capitalize"
@@ -560,24 +563,24 @@ export default function UnitTypePropertyView({
                                     </Descriptions.Item>
                                 )}
                                 {developerProject.number_of_units != null && (
-                                    <Descriptions.Item label="Total Units">
+                                    <Descriptions.Item label={td("Total Units", { source: "en" })}>
                                         {developerProject.number_of_units}
                                     </Descriptions.Item>
                                 )}
                                 {developerProject.number_of_blocks != null && (
-                                    <Descriptions.Item label="Blocks">
+                                    <Descriptions.Item label={td("Blocks", { source: "en" })}>
                                         {developerProject.number_of_blocks}
                                     </Descriptions.Item>
                                 )}
                                 {developerProject.completion_date && (
-                                    <Descriptions.Item label="Project Completion">
+                                    <Descriptions.Item label={td("Project Completion", { source: "en" })}>
                                         {formatCompanyDate(
                                             developerProject.completion_date,
                                         )}
                                     </Descriptions.Item>
                                 )}
                                 {developerProject.title_deed_type && (
-                                    <Descriptions.Item label="Title Deed Type">
+                                    <Descriptions.Item label={td("Title Deed Type", { source: "en" })}>
                                         <span className="capitalize">
                                             {developerProject.title_deed_type.replace(
                                                 /_/g,
@@ -587,7 +590,7 @@ export default function UnitTypePropertyView({
                                     </Descriptions.Item>
                                 )}
                                 {developerProject.furniture_package && (
-                                    <Descriptions.Item label="Furniture Package">
+                                    <Descriptions.Item label={td("Furniture Package", { source: "en" })}>
                                         <span className="capitalize">
                                             {developerProject.furniture_package.replace(
                                                 /_/g,
@@ -606,7 +609,7 @@ export default function UnitTypePropertyView({
                                             strong
                                             className="text-xs text-gray-500 uppercase tracking-wide"
                                         >
-                                            Facilities
+                                            {td("Facilities", { source: "en" })}
                                         </Text>
                                         <div className="mt-1 flex flex-wrap gap-1">
                                             {developerProject.facilities.map(
@@ -632,7 +635,7 @@ export default function UnitTypePropertyView({
                                         className="text-xs text-gray-500 uppercase tracking-wide"
                                     >
                                         <DollarOutlined className="mr-1" />
-                                        Payment Plan
+                                        {td("Payment Plan", { source: "en" })}
                                     </Text>
                                     <Descriptions
                                         column={2}
@@ -641,7 +644,7 @@ export default function UnitTypePropertyView({
                                     >
                                         {developerProject.payment_plan
                                             .downpayment_value != null && (
-                                            <Descriptions.Item label="Down Payment">
+                                            <Descriptions.Item label={td("Down Payment", { source: "en" })}>
                                                 {
                                                     developerProject
                                                         .payment_plan
@@ -656,7 +659,7 @@ export default function UnitTypePropertyView({
                                         )}
                                         {developerProject.payment_plan
                                             .period_months != null && (
-                                            <Descriptions.Item label="Period">
+                                            <Descriptions.Item label={td("Period", { source: "en" })}>
                                                 {
                                                     developerProject
                                                         .payment_plan
@@ -667,7 +670,7 @@ export default function UnitTypePropertyView({
                                         )}
                                         {developerProject.payment_plan
                                             .interest_rate != null && (
-                                            <Descriptions.Item label="Interest Rate">
+                                            <Descriptions.Item label={td("Interest Rate", { source: "en" })}>
                                                 {
                                                     developerProject
                                                         .payment_plan
@@ -690,14 +693,14 @@ export default function UnitTypePropertyView({
                                             strong
                                             className="text-xs text-gray-500 uppercase tracking-wide"
                                         >
-                                            Distances
+                                            {td("Distances", { source: "en" })}
                                         </Text>
                                         <Row gutter={[8, 8]} className="mt-1">
                                             {developerProject.distances
                                                 .sea_km != null && (
                                                 <Col xs={12} sm={8}>
                                                     <StatBlock
-                                                        label="Sea"
+                                                        label={td("Sea", { source: "en" })}
                                                         value={`${developerProject.distances.sea_km} km`}
                                                         icon={
                                                             <EnvironmentOutlined />
@@ -709,7 +712,7 @@ export default function UnitTypePropertyView({
                                                 .beach_km != null && (
                                                 <Col xs={12} sm={8}>
                                                     <StatBlock
-                                                        label="Beach"
+                                                        label={td("Beach", { source: "en" })}
                                                         value={`${developerProject.distances.beach_km} km`}
                                                         icon={
                                                             <EnvironmentOutlined />
@@ -721,7 +724,7 @@ export default function UnitTypePropertyView({
                                                 .hospital_km != null && (
                                                 <Col xs={12} sm={8}>
                                                     <StatBlock
-                                                        label="Hospital"
+                                                        label={td("Hospital", { source: "en" })}
                                                         value={`${developerProject.distances.hospital_km} km`}
                                                         icon={
                                                             <EnvironmentOutlined />
@@ -733,7 +736,7 @@ export default function UnitTypePropertyView({
                                                 .market_km != null && (
                                                 <Col xs={12} sm={8}>
                                                     <StatBlock
-                                                        label="Market"
+                                                        label={td("Market", { source: "en" })}
                                                         value={`${developerProject.distances.market_km} km`}
                                                         icon={
                                                             <EnvironmentOutlined />
@@ -745,7 +748,7 @@ export default function UnitTypePropertyView({
                                                 .school_km != null && (
                                                 <Col xs={12} sm={8}>
                                                     <StatBlock
-                                                        label="School"
+                                                        label={td("School", { source: "en" })}
                                                         value={`${developerProject.distances.school_km} km`}
                                                         icon={
                                                             <EnvironmentOutlined />
@@ -757,7 +760,7 @@ export default function UnitTypePropertyView({
                                                 .airport_km != null && (
                                                 <Col xs={12} sm={8}>
                                                     <StatBlock
-                                                        label="Airport"
+                                                        label={td("Airport", { source: "en" })}
                                                         value={`${developerProject.distances.airport_km} km`}
                                                         icon={
                                                             <EnvironmentOutlined />
@@ -780,7 +783,7 @@ export default function UnitTypePropertyView({
                             title={
                                 <span>
                                     <EnvironmentOutlined className="mr-2" />
-                                    Location
+                                    {td("Location", { source: "en" })}
                                 </span>
                             }
                             variant="outlined"
@@ -811,13 +814,13 @@ export default function UnitTypePropertyView({
                                             className="mt-2 p-0"
                                             icon={<EnvironmentOutlined />}
                                         >
-                                            View on Map
+                                            {td("View on Map", { source: "en" })}
                                         </Button>
                                     )}
                                 </div>
                             ) : (
                                 <Empty
-                                    description="No location set"
+                                    description={td("No location set", { source: "en" })}
                                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                                 />
                             )}
@@ -829,7 +832,7 @@ export default function UnitTypePropertyView({
                                 title={
                                     <span>
                                         <BankOutlined className="mr-2" />
-                                        Developer
+                                        {td("Developer", { source: "en" })}
                                     </span>
                                 }
                                 variant="outlined"
@@ -847,7 +850,7 @@ export default function UnitTypePropertyView({
                                         target="_blank"
                                         className="mt-1 p-0"
                                     >
-                                        Google Drive Folder
+                                        {td("Google Drive Folder", { source: "en" })}
                                     </Button>
                                 )}
                             </Card>
@@ -858,22 +861,22 @@ export default function UnitTypePropertyView({
                             title={
                                 <span>
                                     <InfoCircleOutlined className="mr-2" />
-                                    Quick Info
+                                    {td("Quick Info", { source: "en" })}
                                 </span>
                             }
                             variant="outlined"
                             size="small"
                         >
                             <Descriptions column={1} size="small">
-                                <Descriptions.Item label="Reference Code">
+                                <Descriptions.Item label={td("Reference Code", { source: "en" })}>
                                     <Tag>{unitType.reference_code || "—"}</Tag>
                                 </Descriptions.Item>
-                                <Descriptions.Item label="Created">
+                                <Descriptions.Item label={td("Created", { source: "en" })}>
                                     {formatCompanyDate(unitType.created_at)}
                                 </Descriptions.Item>
                                 {developerProject.rental_guarantee && (
-                                    <Descriptions.Item label="Rental Guarantee">
-                                        <Tag color="green">Yes</Tag>
+                                    <Descriptions.Item label={td("Rental Guarantee", { source: "en" })}>
+                                        <Tag color="green">{td("Yes", { source: "en" })}</Tag>
                                     </Descriptions.Item>
                                 )}
                             </Descriptions>

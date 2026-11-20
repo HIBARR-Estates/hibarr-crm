@@ -19,7 +19,7 @@
 </style>
 <div class="modal-header">
     <h5 class="modal-title" id="modelHeading">@lang('app.moveFilesToCloud')</h5>
-    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+    <button type="button" class="close" data-dismiss="modal" aria-label="{{ td('Close') }}"><span
             aria-hidden="true">×</span></button>
 </div>
 
@@ -38,10 +38,10 @@
                                 <thead>
                                 <thead>
                                 <tr>
-                                    <th scope="col">Name</th>
-                                    <th scope="col">Size</th>
-                                    <th scope="col">Location</th>
-                                    <th scope="col">Moved</th>
+                                    <th scope="col">{{ td('Name') }}</th>
+                                    <th scope="col">{{ td('Size') }}</th>
+                                    <th scope="col">{{ td('Location') }}</th>
+                                    <th scope="col">{{ td('Moved') }}</th>
                                 </tr>
                                 </thead>
 
@@ -92,7 +92,7 @@
 
     <x-forms.button-cancel data-dismiss="modal" class="border-0 mr-3">@lang('app.close')</x-forms.button-cancel>
     @if($localFilesCount>0)
-        <x-forms.button-primary id="test-aws-submit" icon="check">Move All</x-forms.button-primary>
+        <x-forms.button-primary id="test-aws-submit" icon="check">{{ td('Move All') }}</x-forms.button-primary>
     @endif
 </div>
 

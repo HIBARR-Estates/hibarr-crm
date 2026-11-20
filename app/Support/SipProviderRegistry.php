@@ -19,14 +19,18 @@ class SipProviderRegistry
      * `sipUriFormat` keeps the API contract (camelCase) because it is consumed
      * by the browser form and by external services.
      *
-     * @var array<string, array{wss: string, sipUriFormat: string}>
+     * @var array<string, array{wss: string, sipUriFormat: string, defaultMaxConcurrentCalls: int, stun?: string}>
      */
     public const PLATFORMS = [
         'sipgate' => [
             'wss' => 'wss://sip.sipgate.de',
             'sipUriFormat' => 'sip:{username}@sipgate.de',
+            'defaultMaxConcurrentCalls' => 2,
+            'stun' => 'stun:stun.sipgate.de:3478',
         ],
     ];
+
+    public const DEFAULT_MAX_CONCURRENT_CALLS = 2;
 
     /** @return list<string> */
     public static function names(): array
@@ -41,7 +45,7 @@ class SipProviderRegistry
             && array_key_exists($platform, self::PLATFORMS);
     }
 
-    /** @return array{wss: string, sipUriFormat: string}|null */
+    /** @return array{wss: string, sipUriFormat: string, defaultMaxConcurrentCalls?: int, stun?: string}|null */
     public static function defaults(?string $platform): ?array
     {
         return self::supports($platform) ? self::PLATFORMS[$platform] : null;
@@ -51,6 +55,18 @@ class SipProviderRegistry
     public static function wssUrl(?string $platform): ?string
     {
         return self::defaults($platform)['wss'] ?? null;
+    }
+
+    /** Default max concurrent calls for a platform line (default 2). */
+    public static function defaultMaxConcurrentCalls(?string $platform): int
+    {
+        return self::defaults($platform)['defaultMaxConcurrentCalls'] ?? self::DEFAULT_MAX_CONCURRENT_CALLS;
+    }
+
+    /** STUN server for WebRTC ICE negotiation. */
+    public static function stunUrl(?string $platform): ?string
+    {
+        return self::defaults($platform)['stun'] ?? null;
     }
 
     /**

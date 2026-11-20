@@ -1,5 +1,6 @@
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { fmt } from "@/Features/Filters/controls";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 /** What a finished bulk action reports back to the list view. */
 export interface BulkActionSummaryData {
@@ -54,6 +55,7 @@ export function ChangeChips({
  * happened (including what was skipped) before moving on.
  */
 export default function BulkActionSummary({ summary, onDismiss }: Props) {
+    const { td } = useTd();
     const skipped = (summary.skipped ?? []).filter((item) => item.count > 0);
 
     return (
@@ -88,7 +90,7 @@ export default function BulkActionSummary({ summary, onDismiss }: Props) {
                 className="ml-auto cursor-pointer border-none bg-transparent p-0 text-xs font-semibold"
                 style={{ color: T.TEXT_MUTED }}
             >
-                Dismiss
+                {td("Dismiss", { source: "en" })}
             </button>
         </div>
     );

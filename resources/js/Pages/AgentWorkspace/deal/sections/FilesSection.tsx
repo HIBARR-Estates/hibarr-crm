@@ -1,4 +1,5 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
+import { AgentCardControls, AgentCardFilters, AgentCardSearch, matchesCardSearch } from "@/Components/Redesign/agent";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -8,7 +9,9 @@ import useDealFileUpload from "@/Pages/Deals/Redesign/hooks/useDealFileUpload";
 import type { DealDocumentItem } from "@/Pages/Deals/Redesign/hooks/useDealDocuments";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFile } from "@/Types/api/file";
-import SectionCard, { SectionEmpty, SectionSkeleton } from "./SectionCard";
+import SectionCard, { SectionEmpty, SectionNoMatch, SectionSkeleton } from "./SectionCard";
+
+type FileFilter = "all" | "pdf" | "image" | "doc";
 
 interface FilesSectionProps {
     deal: Deal;
@@ -23,7 +26,7 @@ interface FilesSectionProps {
 }
 
 /** Type badge colours of the board: PDF red, images blue, documents navy. */
-function badgeFor(name: string): { label: string; tone: "pdf" | "image" | "doc" } {
+export function badgeFor(name: string): { label: string; tone: "pdf" | "image" | "doc" } {
     const extension = (name.split(".").pop() ?? "").toLowerCase();
     if (extension === "pdf") return { label: "PDF", tone: "pdf" };
     if (["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"].includes(extension)) {
@@ -44,6 +47,20 @@ export default function FilesSection({ deal, documents, files, loading, canUploa
     const { uploadFiles, isUploading } = useDealFileUpload(deal.id);
     const uploaded = useMemo(() => documents.filter((doc) => doc.uploaded), [documents]);
     const byId = useMemo(() => new Map(files.map((file) => [`file-${file.id}`, file])), [files]);
+    const [query, setQuery] = useState("");
+    const [filter, setFilter] = useState<FileFilter>("all");
+
+    const rows = useMemo(
+        () =>
+            uploaded.map((doc) => {
+                const file = byId.get(doc.id);
+                const label = doc.source === "attachment" ? doc.label : td(doc.label, { source: "en" });
+                return { doc, file, label, badge: badgeFor(file?.filename ?? doc.fileUrl ?? doc.label) };
+            }),
+        [uploaded, byId, td],
+    );
+    const tones = new Set(rows.map((row) => row.badge.tone));
+    const shown = rows.filter((row) => (filter === "all" || row.badge.tone === filter) && matchesCardSearch(query, row.label, row.file?.filename));
 
     return (
         <SectionCard
@@ -75,17 +92,37 @@ export default function FilesSection({ deal, documents, files, loading, canUploa
                     </>
                 ) : null
             }
+            controls={
+                rows.length > 0 ? (
+                    <AgentCardControls>
+                        <AgentCardSearch value={query} onChange={setQuery} placeholder={t("pages.agent_workspace.deal.files.search")} />
+                        {tones.size > 1 ? (
+                            <AgentCardFilters<FileFilter>
+                                value={filter}
+                                onChange={setFilter}
+                                label={t("pages.agent_workspace.contact.cards.filter_aria")}
+                                options={[
+                                    { value: "all" as FileFilter, label: t("pages.agent_workspace.contact.cards.all") },
+                                    ...(["pdf", "image", "doc"] as const)
+                                        .filter((tone) => tones.has(tone))
+                                        .map((tone) => ({ value: tone as FileFilter, label: t(`pages.agent_workspace.deal.files.kind_${tone}`) })),
+                                ]}
+                            />
+                        ) : null}
+                    </AgentCardControls>
+                ) : null
+            }
         >
             {loading && files.length === 0 ? (
                 <SectionSkeleton />
             ) : uploaded.length === 0 ? (
                 <SectionEmpty>{t("pages.agent_workspace.deal.files.empty")}</SectionEmpty>
+            ) : shown.length === 0 ? (
+                <SectionNoMatch />
             ) : (
                 <ul className="agent-deal__rows">
-                    {uploaded.map((doc) => {
-                        const file = byId.get(doc.id);
+                    {shown.map(({ doc, file, label, badge }) => {
                         const preview = file ? toWorkspaceFilePreview(file) : null;
-                        const badge = badgeFor(file?.filename ?? doc.fileUrl ?? doc.label);
                         const sub = preview
                             ? [preview.sizeLabel, preview.uploadedLabel].join(" · ")
                             : doc.source === "lead"
@@ -107,7 +144,7 @@ export default function FilesSection({ deal, documents, files, loading, canUploa
                                         {badge.label}
                                     </span>
                                     <span className="agent-deal__row-body">
-                                        <span className="agent-deal__row-title">{doc.source === "attachment" ? doc.label : td(doc.label, { source: "en" })}</span>
+                                        <span className="agent-deal__row-title">{label}</span>
                                         <span className="agent-deal__row-sub">{sub}</span>
                                     </span>
                                 </button>

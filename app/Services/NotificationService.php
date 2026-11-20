@@ -389,7 +389,7 @@ class NotificationService
      */
     protected function buildRoutedNotificationUrl(string $typeSlug, array $data, mixed $id): string
     {
-        if (in_array($typeSlug, ['lead_follow_up_overdue', 'auto_follow_up_reminder'], true)) {
+        if (in_array($typeSlug, ['lead_follow_up_overdue', 'auto_follow_up_reminder', 'meeting_link_generation_failed'], true)) {
             return $this->resolveFollowUpNotificationShowUrl($data, $id);
         }
 
@@ -517,6 +517,7 @@ class NotificationService
             'lead_deleted' => 'lead-contact.index',
             'lead_activity_notification' => 'lead-contact.show',
             'lead_follow_up_overdue' => 'deals.show',
+            'meeting_link_generation_failed' => 'deals.show',
             'deal_deleted' => 'deals.index',
             'deal_close_date_approaching' => 'deals.show',
             'property_activity_notification' => 'properties.show',

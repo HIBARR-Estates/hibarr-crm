@@ -37,6 +37,8 @@ interface EditMeetingModalProps {
      * already in hand (the Meetings index' edit dialog).
      */
     confirmationPanel?: ReactNode;
+    /** Forwarded to the form: retries a failed automatic meeting link. */
+    onGenerateLink?: () => Promise<string | null>;
 }
 
 export default function EditMeetingModal({
@@ -53,6 +55,7 @@ export default function EditMeetingModal({
     hostLocked = true,
     participantDirectory = [],
     confirmationPanel,
+    onGenerateLink,
 }: EditMeetingModalProps) {
     const { td } = useTd();
     const [form, setForm] = useState<MeetingFormState | null>(null);
@@ -153,6 +156,7 @@ export default function EditMeetingModal({
                     hostLocked={hostLocked}
                     participantDirectory={participantDirectory}
                     showTimezone={false}
+                    onGenerateLink={onGenerateLink}
                 />
             </div>
         </Modal>

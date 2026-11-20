@@ -1,8 +1,12 @@
+import { useState } from "react";
+import { AgentCardControls, AgentCardFilters } from "@/Components/Redesign/agent";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type { AnalysisProgress } from "@/Pages/Deals/Redesign/components/analysis/analysisProgress";
 import SectionCard, { SectionEmpty } from "./SectionCard";
+
+type AnalysisFilter = "all" | "open" | "done";
 
 interface AnalysisSectionProps {
     pipelineName: string | null;
@@ -28,12 +32,29 @@ export default function AnalysisSection({ pipelineName, progress, onContinue, co
     };
     const done = counted.filter((section) => isDone(section.id));
     const open = counted.filter((section) => !isDone(section.id));
+    const [filter, setFilter] = useState<AnalysisFilter>("all");
     const percent = totalFields > 0 ? Math.min(100, Math.round((totalFilled / totalFields) * 100)) : 0;
 
     return (
         <SectionCard
             id="deal-analysis"
             title={[t("pages.agent_workspace.deal.analysis.title"), pipelineName ? td(pipelineName, { source: "en" }) : ""].filter(Boolean).join(" · ")}
+            controls={
+                done.length > 0 && open.length > 0 ? (
+                    <AgentCardControls>
+                        <AgentCardFilters<AnalysisFilter>
+                            value={filter}
+                            onChange={setFilter}
+                            label={t("pages.agent_workspace.contact.cards.filter_aria")}
+                            options={[
+                                { value: "all", label: t("pages.agent_workspace.contact.cards.all") },
+                                { value: "open", label: t("pages.agent_workspace.deal.analysis.filter_open") },
+                                { value: "done", label: t("pages.agent_workspace.deal.analysis.filter_done") },
+                            ]}
+                        />
+                    </AgentCardControls>
+                ) : null
+            }
         >
             {totalFields === 0 ? (
                 <SectionEmpty>{t("pages.agent_workspace.deal.analysis.empty")}</SectionEmpty>
@@ -54,13 +75,13 @@ export default function AnalysisSection({ pipelineName, progress, onContinue, co
                         <span style={{ width: `${percent}%` }} />
                     </div>
                     <ul className="agent-deal__checks">
-                        {done.length > 0 ? (
+                        {done.length > 0 && filter !== "open" ? (
                             <li className="agent-deal__check agent-deal__check--done">
                                 <Icon name="check" size={13} />
                                 <span>{done.map((section) => td(section.title, { source: "en" })).join(", ")}</span>
                             </li>
                         ) : null}
-                        {open.map((section) => (
+                        {(filter === "done" ? [] : open).map((section) => (
                             <li key={section.id} className="agent-deal__check">
                                 <span className="agent-deal__circle" aria-hidden="true" />
                                 <span>{td(section.title, { source: "en" })}</span>

@@ -8,6 +8,7 @@
  */
 import { useMemo } from "react";
 import type { PropertyEnumValues, LookupValue, PrimaryCategory } from "@/Types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface SelectOption {
     value: string;
@@ -92,6 +93,7 @@ export function useFormOptions(
     enumValues: PropertyEnumValues | undefined,
     primaryCategory: PrimaryCategory | null,
 ): FormOptions {
+    const { td } = useTd();
     return useMemo(() => {
         if (!enumValues) {
             return {
@@ -155,7 +157,7 @@ export function useFormOptions(
             floorTypeOptions: toSelectOptions(enumValues.floor_types),
             interiorFeatureOptions: [
                 ...toLabelOptions(enumValues.inside_features),
-                { value: "Elevator", label: "Elevator" },
+                { value: "Elevator", label: td("Elevator", { source: "en" }) },
             ],
             exteriorFeatureOptions: toLabelOptions(enumValues.outside_features),
             locationFeatureOptions: toLabelOptions(

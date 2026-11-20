@@ -8,7 +8,9 @@ import {
     REDESIGN_TOKENS as T,
 } from "@/Components/Redesign/tokens";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
-import MeetingAttendanceConfirmationModal from "@/Components/MeetingAttendanceConfirmation/MeetingAttendanceConfirmationModal";
+import MeetingAttendanceConfirmationModal, {
+    type MeetingOutcomeSaveResult,
+} from "@/Components/MeetingAttendanceConfirmation/MeetingAttendanceConfirmationModal";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type {
     MeetingAttendanceOutcome,
@@ -23,17 +25,7 @@ interface OutcomeDef {
 
 interface MeetingConfirmationPanelProps {
     meeting: DealFollowup;
-    /** Whether this viewer may act — the host/organizer, server-enforced too. */
-    canConfirm: boolean;
     onSaved: (patch: Partial<DealFollowup>) => void;
-    /**
-     * Lets an already-logged outcome be changed, not just set once — both the
-     * show and edit views pass this. The confirmation prompt's `confirm`
-     * action stays one-shot server-side (claimed with a single `whereNull`
-     * update), but "Change" here goes through the `update` action instead,
-     * authorized on ordinary edit permission rather than that guard.
-     */
-    allowEditLogged?: boolean;
 }
 
 const OUTCOMES: OutcomeDef[] = [
@@ -77,20 +69,16 @@ function toPendingShape(
  * outcome picker across the whole app instead of a second one embedded in
  * this tab, which used to render its own Cancel/Save footer stacked directly
  * above the dialog's own footer. Before anything is logged this renders a
- * "Set outcome" prompt; with `allowEditLogged` it additionally offers
- * "Change" once one already is.
+ * "Set outcome" prompt, and "Change" once one is — for anyone who can see
+ * the meeting, with "Added by <name>" showing who recorded it.
  */
 export default function MeetingConfirmationPanel({
     meeting,
-    canConfirm,
     onSaved,
-    allowEditLogged = false,
 }: MeetingConfirmationPanelProps) {
     const { td } = useTd();
     const { formatDateTime } = useUserDateTime();
-    const [modalMode, setModalMode] = useState<"confirm" | "update" | null>(
-        null,
-    );
+    const [modalOpen, setModalOpen] = useState(false);
 
     const logged = Boolean(meeting.attendance_outcome_logged_at);
     const loggedOutcome = OUTCOMES.find(
@@ -108,22 +96,28 @@ export default function MeetingConfirmationPanel({
     const hasConcluded = dayjs().isAfter(
         dayjs(meeting.next_follow_up_date).add(minutes, "minute"),
     );
-    const dateAllows = hasConcluded || isCancelled;
-    const canAct = canConfirm && dateAllows;
-    // Changing an outcome that's already logged is authorized on ordinary
-    // edit permission server-side (MeetingAttendanceConfirmationController's
-    // update()), not the host-only rule `confirm()` uses — `canConfirm` here
-    // only reflects that stricter, first-time-confirmation rule, so gating
-    // "Change" on it too would hide the button from someone who edits this
-    // meeting's other fields but isn't its host. The date rule still applies:
-    // the backend rejects a future meeting the same way.
-    const canChangeLogged = allowEditLogged && dateAllows;
+    // Anyone who can see this meeting may set or change its outcome —
+    // MeetingAttendanceConfirmationController::update() authorizes on
+    // visibility and stamps who logged it. (The Check-ins dock is separate
+    // and stays host/assignee-only.)
+    // A logged outcome stays changeable even on a future meeting (e.g. one
+    // cancelled ahead of time, whose status the save then moved on) — the
+    // server applies the same exception.
+    const canAct = hasConcluded || isCancelled || logged;
+    const loggedByName = meeting.outcome_logged_by?.name ?? null;
 
-    const handleConfirmed = (outcome: MeetingAttendanceOutcome) => {
-        setModalMode(null);
+    const handleConfirmed = (
+        outcome: MeetingAttendanceOutcome,
+        saved?: MeetingOutcomeSaveResult,
+    ) => {
+        setModalOpen(false);
         onSaved({
             attendance_outcome: outcome,
-            attendance_outcome_logged_at: new Date().toISOString(),
+            attendance_outcome_logged_at:
+                saved?.attendance_outcome_logged_at ?? new Date().toISOString(),
+            attendance_outcome_logged_by:
+                saved?.attendance_outcome_logged_by ?? null,
+            outcome_logged_by: saved?.outcome_logged_by ?? null,
         });
     };
 
@@ -169,6 +163,12 @@ export default function MeetingConfirmationPanel({
                                 marginTop: 3,
                             }}
                         >
+                            {loggedByName && (
+                                <>
+                                    {td("Added by")} {loggedByName}
+                                    {" · "}
+                                </>
+                            )}
                             {formatDateTime(
                                 meeting.attendance_outcome_logged_at!,
                             )}
@@ -176,11 +176,11 @@ export default function MeetingConfirmationPanel({
                             {td("Any note was saved to the record's notes")}
                         </div>
                     </div>
-                    {canChangeLogged && (
+                    {canAct && (
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setModalMode("update")}
+                            onClick={() => setModalOpen(true)}
                         >
                             {td("Change")}
                         </Button>
@@ -202,7 +202,7 @@ export default function MeetingConfirmationPanel({
                     <Button
                         variant="primary"
                         size="sm"
-                        onClick={() => setModalMode("confirm")}
+                        onClick={() => setModalOpen(true)}
                     >
                         {td("Set outcome")}
                     </Button>
@@ -218,26 +218,20 @@ export default function MeetingConfirmationPanel({
                         padding: "14px 16px",
                     }}
                 >
-                    {!canConfirm
-                        ? td(
-                              "Only the meeting's host can record what happened here.",
-                          )
-                        : td(
-                              "You can record what happened once the meeting has passed.",
-                          )}
+                    {td(
+                        "You can record what happened once the meeting has passed.",
+                    )}
                 </div>
             )}
 
-            {modalMode && (
+            {modalOpen && (
                 <MeetingAttendanceConfirmationModal
                     meeting={toPendingShape(meeting)}
-                    mode={modalMode}
-                    initialOutcome={
-                        modalMode === "update"
-                            ? (meeting.attendance_outcome ?? null)
-                            : null
-                    }
-                    onDismiss={() => setModalMode(null)}
+                    // Always "update": it both sets a first outcome and
+                    // changes a logged one, for anyone who can see the meeting.
+                    mode="update"
+                    initialOutcome={meeting.attendance_outcome ?? null}
+                    onDismiss={() => setModalOpen(false)}
                     onConfirmed={handleConfirmed}
                     // Opened from inside the show/edit dialog (a redesign
                     // `Modal`, z-index 1300) — sit just above it, below antd

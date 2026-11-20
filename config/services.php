@@ -96,6 +96,12 @@ return [
         'base_url' => env('DYNAMIC_TRANSLATION_API_URL', env('AI_BASE_URL', '')),
         'timeout' => (int) env('DYNAMIC_TRANSLATION_API_TIMEOUT', env('AI_TIMEOUT', 30)),
         'api_key' => env('DYNAMIC_TRANSLATION_API_KEY', env('AI_API_KEY')),
+        // When true, legacy lang keys (app/modules/messages/email/permissions) that have
+        // no de/tr/ru value are machine-translated from English instead of shown in English.
+        // Opt-in: translate inline English in Reply messages. Off by default because some call sites
+        // interpolate record names, which would be stored and sent to the translation API.
+        'reply_fallback' => (bool) env('DYNAMIC_TRANSLATION_REPLY_FALLBACK', false),
+        'legacy_lang_fallback' => (bool) env('DYNAMIC_TRANSLATION_LEGACY_LANG_FALLBACK', false),
     ],
 
     'notification_service' => [
@@ -193,12 +199,11 @@ return [
         'poll_interval' => (int) env('OL_CALL_BRIDGE_POLL_INTERVAL', 30),
         'paths' => [
             'start_call' => env('OL_CALL_BRIDGE_START_CALL_PATH', '/call-bridge/calls/start'),
-            'end_call' => env('OL_CALL_BRIDGE_END_CALL_PATH', '/call-bridge/calls/end'),
-            'status' => env('OL_CALL_BRIDGE_STATUS_PATH', '/call-bridge/calls/status'),
             'events' => env('OL_CALL_BRIDGE_EVENTS_PATH', '/call-bridge/events'),
-            'active_calls' => env('OL_CALL_BRIDGE_ACTIVE_CALLS_PATH', '/call-bridge/calls/active'),
             'emit' => env('OL_CALL_BRIDGE_EMIT_PATH', env('OL_CALL_BRIDGE_EMIT_EVENT_PATH', '/call-bridge/emit')),
             'emit_event' => env('OL_CALL_BRIDGE_EMIT_PATH', env('OL_CALL_BRIDGE_EMIT_EVENT_PATH', '/call-bridge/emit')),
+            // Registers a CRM-stored softphone recording against its OL call log.
+            'emit_recording' => env('OL_CALL_BRIDGE_EMIT_RECORDING_PATH', '/call-bridge/emit/recording'),
             // SIP provider integrations: which platforms OL supports and the
             // connection defaults for one of them. `platform` keeps a
             // `{platform}` placeholder the client substitutes.

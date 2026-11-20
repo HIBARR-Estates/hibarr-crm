@@ -2,6 +2,7 @@ import { Deal } from "@/Types/api/deals";
 import { Tag, Empty } from "antd";
 import { DataTable } from "@/Components/DataTable";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     deal: Deal;
@@ -10,9 +11,10 @@ interface Props {
 }
 
 export default function GdprTab({ deal, consents, gdprSetting }: Props) {
+    const { td } = useTd();
     const columns = [
         {
-            title: "Purpose",
+            title: td("Purpose", { source: "en" }),
             dataIndex: "name",
             key: "name",
             width: "30%",
@@ -21,7 +23,7 @@ export default function GdprTab({ deal, consents, gdprSetting }: Props) {
             ),
         },
         {
-            title: "Description",
+            title: td("Description", { source: "en" }),
             dataIndex: "description",
             key: "description",
             width: "40%",
@@ -30,7 +32,7 @@ export default function GdprTab({ deal, consents, gdprSetting }: Props) {
             ),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             width: "15%",
@@ -44,7 +46,7 @@ export default function GdprTab({ deal, consents, gdprSetting }: Props) {
             },
         },
         {
-            title: "Date",
+            title: td("Date", { source: "en" }),
             dataIndex: "updated_at",
             key: "updated_at",
             width: "15%",
@@ -64,7 +66,7 @@ export default function GdprTab({ deal, consents, gdprSetting }: Props) {
     if (!gdprSetting?.enable_gdpr) {
         return (
             <div className="p-8">
-                <Empty description="GDPR is not enabled" />
+                <Empty description={td("GDPR is not enabled", { source: "en" })} />
             </div>
         );
     }
@@ -72,7 +74,7 @@ export default function GdprTab({ deal, consents, gdprSetting }: Props) {
     if (consents.length === 0) {
         return (
             <div className="p-8">
-                <Empty description="No GDPR consents found" />
+                <Empty description={td("No GDPR consents found", { source: "en" })} />
             </div>
         );
     }
@@ -81,10 +83,10 @@ export default function GdprTab({ deal, consents, gdprSetting }: Props) {
         <div className="p-6">
             <div className="mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    GDPR Consent Status
+                    {td("GDPR Consent Status", { source: "en" })}
                 </h3>
                 <p className="text-sm text-gray-600">
-                    Track consent status for data processing purposes.
+                    {td("Track consent status for data processing purposes.", { source: "en" })}
                 </p>
             </div>
 

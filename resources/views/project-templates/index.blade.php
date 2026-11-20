@@ -40,7 +40,7 @@
             <p class="mb-0 pr-2 f-14 text-dark-grey d-flex align-items-center">@lang('modules.client.projectSubCategory')</p>
             <div class="select-status">
                 <select class="form-control select-picker" name="project_template_sub_category_id" id="project_template_sub_category_id" data-live-search="true" data-size="8">
-                    <option value="all" >Select Project Category</option>
+                    <option value="all" >{{ td('Select Project Category') }}</option>
                 </select>
             </div>
         </div>

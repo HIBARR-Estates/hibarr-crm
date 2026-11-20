@@ -17,7 +17,7 @@ class AgentCommissionProfileInternalController extends Controller
 
     public function show(Request $request, int $agentId): JsonResponse
     {
-        if (!$this->featureEnabled()) {
+        if (! $this->featureEnabled()) {
             abort(404);
         }
 
@@ -32,14 +32,13 @@ class AgentCommissionProfileInternalController extends Controller
 
     public function update(Request $request, int $agentId): JsonResponse
     {
-        if (!$this->featureEnabled()) {
+        if (! $this->featureEnabled()) {
             abort(404);
         }
 
         $companyId = (int) $request->header('X-COMPANY-ID');
 
-        $validated = $request->validate([
-            'custom_commission_rate' => 'nullable|numeric|min:0|max:100',
+        $rules = [
             'reason' => 'nullable|string|max:1000',
             'changed_by_user_id' => [
                 'nullable',
@@ -48,7 +47,19 @@ class AgentCommissionProfileInternalController extends Controller
                     fn ($query) => $query->where('company_id', $companyId)
                 ),
             ],
-        ]);
+        ];
+
+        // Each field is validated only while its own flag is on, so a request
+        // for one feature is never rejected over the other's field.
+        if ($this->overrideEnabled()) {
+            $rules['custom_commission_rate'] = 'nullable|numeric|min:0|max:100';
+        }
+
+        if ($this->referralEnabled()) {
+            $rules['referral_pool_rate'] = 'nullable|numeric|min:0|max:100';
+        }
+
+        $validated = $request->validate($rules);
 
         $result = $this->profileService->updateProfile(
             $agentId,
@@ -57,7 +68,7 @@ class AgentCommissionProfileInternalController extends Controller
             $validated
         );
 
-        if (!empty($result['errors'])) {
+        if (! empty($result['errors'])) {
             return response()->json([
                 'status' => 'fail',
                 'message' => 'Commission rate validation failed.',
@@ -72,8 +83,19 @@ class AgentCommissionProfileInternalController extends Controller
         ]);
     }
 
+    /** The profile API serves whichever of its two features is switched on. */
     protected function featureEnabled(): bool
     {
+        return $this->overrideEnabled() || $this->referralEnabled();
+    }
+
+    protected function overrideEnabled(): bool
+    {
         return FeatureFlags::enabled('sales.per-agent-commission-override');
+    }
+
+    protected function referralEnabled(): bool
+    {
+        return FeatureFlags::enabled('crm.partner-referral-commission');
     }
 }

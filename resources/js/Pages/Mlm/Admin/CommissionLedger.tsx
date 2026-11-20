@@ -51,6 +51,7 @@ import {
 } from "@/Features/Mlm/types";
 import { formatNumber } from "@/lib/utils";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { RangePicker } = DatePicker;
 
@@ -67,6 +68,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
     commissions: initialCommissions,
     summaryStats,
 }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     // Commissions are denominated in the app's currency (deal, falling back to
     // company) — never a hardcoded symbol, never the package's price currency.
@@ -97,7 +99,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
     });
 
     const revertCommission = useRevertCommission(revertId, () => {
-        message.success("Commission reverted");
+        message.success(td("Commission reverted", { source: "en" }));
         setRevertModalOpen(false);
         setRevertReason("");
         setRevertId(0);
@@ -122,7 +124,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
 
     const columns = [
         {
-            title: "Deal",
+            title: td("Deal", { source: "en" }),
             key: "deal",
             render: (_: any, record: MlmCommission) => (
                 <div>
@@ -139,7 +141,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Recipient",
+            title: td("Recipient", { source: "en" }),
             key: "agent",
             render: (_: any, record: MlmCommission) => (
                 <span className="font-medium">
@@ -150,7 +152,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Source",
+            title: td("Source", { source: "en" }),
             key: "source",
             render: (_: any, record: MlmCommission) => (
                 <span className="text-sm text-gray-600">
@@ -159,7 +161,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Type",
+            title: td("Type", { source: "en" }),
             dataIndex: "type",
             key: "type",
             render: (t: MlmCommissionType) => (
@@ -177,13 +179,13 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Level",
+            title: td("Level", { source: "en" }),
             key: "level",
             render: (_: any, record: MlmCommission) =>
                 record.level ? <LevelBadge level={record.level} /> : "—",
         },
         {
-            title: "Amount",
+            title: td("Amount", { source: "en" }),
             key: "amount",
             align: "right" as const,
             sorter: true,
@@ -209,7 +211,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             render: (s: MlmCommissionStatus) => (
@@ -217,13 +219,13 @@ const MlmCommissionLedger: React.FC<Props> = ({
             ),
         },
         {
-            title: "Paid At",
+            title: td("Paid At", { source: "en" }),
             dataIndex: "paid_at",
             key: "paid_at",
             render: (d: string) => formatCompanyDate(d, "—"),
         },
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             width: 120,
             render: (_: any, record: MlmCommission) => (
@@ -273,7 +275,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                         <Col xs={12} sm={8}>
                             <Card size="small" className="shadow-sm">
                                 <Statistic
-                                    title="Total"
+                                    title={td("Total", { source: "en" })}
                                     value={summaryStats.total_amount}
                                     prefix={currencySymbol}
                                     precision={2}
@@ -284,7 +286,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                         <Col xs={12} sm={8}>
                             <Card size="small" className="shadow-sm">
                                 <Statistic
-                                    title="Pending"
+                                    title={td("Pending", { source: "en" })}
                                     value={summaryStats.pending_amount}
                                     prefix={currencySymbol}
                                     precision={2}
@@ -295,7 +297,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                         <Col xs={12} sm={8}>
                             <Card size="small" className="shadow-sm">
                                 <Statistic
-                                    title="Paid"
+                                    title={td("Paid", { source: "en" })}
                                     value={summaryStats.paid_amount}
                                     prefix={currencySymbol}
                                     precision={2}
@@ -316,7 +318,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                             <div className="flex flex-wrap gap-3 items-center">
                                 <Filter size={16} className="text-gray-400" />
                                 <Select
-                                    placeholder="Status"
+                                    placeholder={td("Status", { source: "en" })}
                                     allowClear
                                     className="w-36"
                                     options={Object.entries(
@@ -330,7 +332,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                                     }
                                 />
                                 <Select
-                                    placeholder="Type"
+                                    placeholder={td("Type", { source: "en" })}
                                     allowClear
                                     className="w-36"
                                     options={Object.entries(
@@ -415,7 +417,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                                     icon={<Download size={14} />}
                                     onClick={handleExport}
                                 >
-                                    Export CSV
+                                    {td("Export CSV", { source: "en" })}
                                 </Button>
                             </div>
                         </Card>
@@ -462,14 +464,14 @@ const MlmCommissionLedger: React.FC<Props> = ({
                         onClose={() => setMarkPaidCommission(null)}
                         commission={markPaidCommission}
                         handleSuccessCallback={() => {
-                            message.success("Commission marked as paid");
+                            message.success(td("Commission marked as paid", { source: "en" }));
                             refetch();
                         }}
                     />
 
                     {/* Revert Modal */}
                     <Modal
-                        title="Revert Commission"
+                        title={td("Revert Commission", { source: "en" })}
                         open={revertModalOpen}
                         onOk={() =>
                             revertCommission.mutate({ reason: revertReason })
@@ -480,12 +482,12 @@ const MlmCommissionLedger: React.FC<Props> = ({
                             setRevertId(0);
                         }}
                         confirmLoading={revertCommission.isPending}
-                        okText="Revert"
+                        okText={td("Revert", { source: "en" })}
                         okType="danger"
                     >
                         <div className="mt-4">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Reason for reversal
+                                {td("Reason for reversal", { source: "en" })}
                             </label>
                             <Input.TextArea
                                 rows={3}
@@ -493,7 +495,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                                 onChange={(e) =>
                                     setRevertReason(e.target.value)
                                 }
-                                placeholder="e.g. Deal was cancelled, duplicate commission..."
+                                placeholder={td("e.g. Deal was cancelled, duplicate commission...", { source: "en" })}
                             />
                         </div>
                     </Modal>

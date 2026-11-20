@@ -11,6 +11,7 @@ use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\AttendanceSettingController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\CacheRefreshController;
 use App\Http\Controllers\CompanyDashboardAccessController;
 use App\Http\Controllers\AutomationSettingController;
 use App\Http\Controllers\BusinessAddressController;
@@ -42,6 +43,7 @@ use App\Http\Controllers\LeadStageSettingController;
 use App\Http\Controllers\LeaveSettingController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\MeetingAttendanceConfirmationSettingsApiController;
+use App\Http\Controllers\CalendlyMeetingLinkController;
 use App\Http\Controllers\MessageSettingController;
 use App\Http\Controllers\MetaEventController;
 use App\Http\Controllers\ModuleSettingController;
@@ -131,6 +133,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('company-dashboard-access', [CompanyDashboardAccessController::class, 'index'])->name('company-dashboard-access.index');
     Route::post('company-dashboard-access', [CompanyDashboardAccessController::class, 'store'])->name('company-dashboard-access.store');
     Route::delete('company-dashboard-access/{userId}', [CompanyDashboardAccessController::class, 'destroy'])->whereNumber('userId')->name('company-dashboard-access.destroy');
+
+    /* Cache refresh — clear the expiring data caches on demand (admin-only) */
+    Route::get('cache-refresh', [CacheRefreshController::class, 'index'])->name('cache-refresh.index');
+    Route::post('cache-refresh', [CacheRefreshController::class, 'clear'])->name('cache-refresh.clear');
 
     /* Agent workspace access list (crm.agent-workspace + admin; 404 while the flag is off) */
     Route::get('agent-workspace-access', [AgentWorkspaceAccessController::class, 'index'])->name('agent-workspace-access.index');
@@ -223,6 +229,13 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('meeting-attendance-confirmation-settings', [MeetingAttendanceConfirmationSettingsApiController::class, 'page'])->name('meeting-attendance-confirmation-settings.index');
     Route::get('meeting-attendance-confirmation-settings/data', [MeetingAttendanceConfirmationSettingsApiController::class, 'index'])->name('meeting-attendance-confirmation-settings.data');
     Route::put('meeting-attendance-confirmation-settings/data', [MeetingAttendanceConfirmationSettingsApiController::class, 'update'])->name('meeting-attendance-confirmation-settings.update');
+
+    // Calendly booking links offered in the schedule-meeting modal, and which
+    // roles see them.
+    Route::get('calendly-meeting-links', [CalendlyMeetingLinkController::class, 'page'])->name('calendly-meeting-links.index');
+    Route::post('calendly-meeting-links/data', [CalendlyMeetingLinkController::class, 'store'])->name('calendly-meeting-links.store');
+    Route::put('calendly-meeting-links/data/{link}', [CalendlyMeetingLinkController::class, 'update'])->whereNumber('link')->name('calendly-meeting-links.update');
+    Route::delete('calendly-meeting-links/data/{link}', [CalendlyMeetingLinkController::class, 'destroy'])->whereNumber('link')->name('calendly-meeting-links.destroy');
 
     // Call Bridge — channels, per-line call pool and call recordings.
     Route::get('call-bridge', [\App\Http\Controllers\CallBridgeSettingsController::class, 'page'])->name('call-bridge.index');

@@ -38,7 +38,7 @@ type MatchedLead = {
 type RotationUser = {
     id: number;
     name: string;
-    role: "owner" | "pool";
+    role: "owner" | "pool" | "default_fallback" | "admin_fallback";
     priority?: number;
 };
 
@@ -54,6 +54,12 @@ type CallRouting = {
     can_ring: boolean;
     pool_user_ids: number[];
     rotation_users?: RotationUser[];
+    /** Server-held position in `rotation_users`; equal to its length once the rotation is exhausted. */
+    rotation_index?: number;
+    /** Seconds left in the current rotation step, by the server clock. */
+    slot_remaining_seconds?: number;
+    /** The line is at its concurrent-call limit, so this call rings nobody. */
+    capacity_reached?: boolean;
     passed_user_ids?: number[];
     fallback_seconds: number;
     fallback_voice_message?: {
@@ -73,8 +79,10 @@ import { STATUS_DOT, STAGE_LABEL } from "./dock/types";
 import { formatDuration, initialsOf, useElapsed } from "./dock/utils";
 import CallIdentity from "./dock/components/CallIdentity";
 import CallStateBadge from "./dock/components/CallStateBadge";
+import CallWaitingBanner from "./dock/components/CallWaitingBanner";
 import CallFailedNotice from "./dock/components/CallFailedNotice";
 import { publishIncomingCall } from "./dock/incomingCallBridge";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 /**
  * Call-control widget for the in-browser softphone (sipgate Neo via SIP.js).
@@ -93,6 +101,7 @@ export default function SoftphoneDock({
     liveCallInDock = true,
     incomingInDock = false,
 }: { liveCallInDock?: boolean; incomingInDock?: boolean } = {}) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { props } = usePage();
     const isAdmin = (props.auth?.user?.roles ?? []).some(
@@ -132,6 +141,8 @@ export default function SoftphoneDock({
         answer,
         reject,
         hangup,
+        answerWaiting,
+        dismissWaiting,
         setMuted,
         setHold,
         isActiveTab,
@@ -175,9 +186,20 @@ export default function SoftphoneDock({
     const [isRetryingUpload, setIsRetryingUpload] = useState(false);
     const [lastRecordingUrl, setLastRecordingUrl] = useState<string | null>(null);
     const [recordings, setRecordings] = useState<CallRecordingItem[]>([]);
-    const [matchedLead, setMatchedLead] = useState<MatchedLead | null>(null);
-    const [matchCount, setMatchCount] = useState<number | null>(null);
-    const [inboundRoute, setInboundRoute] = useState<CallRouting | null>(null);
+    const [matchedLeadState, setMatchedLead] = useState<MatchedLead | null>(null);
+    const [matchCountState, setMatchCount] = useState<number | null>(null);
+    const [inboundRouteState, setInboundRoute] = useState<CallRouting | null>(null);
+    /** The call the lead/route lookup above belongs to. */
+    const [lookupCallId, setLookupCallId] = useState<string | null>(null);
+    // The lookup results belong to one call. A waiting call promoted straight
+    // after the last one ended can render without an empty call in between;
+    // until its own lookup lands, the previous call's lead and route must not
+    // be shown or logged against it. With no call (the ended-call notices),
+    // the last lookup stays readable.
+    const lookupIsForOtherCall = activeCall !== null && lookupCallId !== activeCall.id;
+    const matchedLead = lookupIsForOtherCall ? null : matchedLeadState;
+    const matchCount = lookupIsForOtherCall ? null : matchCountState;
+    const inboundRoute = lookupIsForOtherCall ? null : inboundRouteState;
     const [routingMode, setRoutingMode] = useState<"owner" | "pool" | "all">("all");
     const [rotationIndex, setRotationIndex] = useState(0);
     const [passedCallId, setPassedCallId] = useState<string | null>(null);
@@ -189,6 +211,27 @@ export default function SoftphoneDock({
         answeredByUserId: number | null;
     } | null>(null);
     const fallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    /**
+     * Where the server says the call is in its rotation. Every agent's browser
+     * follows this instead of counting on its own, so a browser that joins
+     * late or misses a poll still agrees with the others on who rings now.
+     */
+    const serverSlotRef = useRef<{ index: number; deadline: number } | null>(null);
+    const followServerRotation = useCallback((data: CallRouting | null) => {
+        if (typeof data?.rotation_index !== "number") {
+            return;
+        }
+        const index = data.rotation_index;
+        serverSlotRef.current = {
+            index,
+            deadline:
+                Date.now() +
+                (data.slot_remaining_seconds ?? data.fallback_seconds) * 1000,
+        };
+        // Never step back: the local timer may reach the next step a moment
+        // before the server reports it.
+        setRotationIndex((prev) => Math.max(prev, index));
+    }, []);
     const routeInitializedCallIdRef = useRef<string | null>(null);
     // Guards against double-logging when Answer is clicked in the dock while the island alert for the same call is also on screen.
     const inboundLoggedRef = useRef<string | null>(null);
@@ -326,20 +369,26 @@ export default function SoftphoneDock({
         return null;
     }, [activeCall?.context, matchedLead]);
 
-    /** Stable reference for the current call. Shared by the hang-up timeline event and the recording upload so the two can be linked afterwards. */
-    const callRefRef = useRef<string | null>(null);
+    /**
+     * Stable reference for the current call. Shared by the hang-up timeline event and the recording upload so the two can be linked afterwards.
+     * Owned by one call id: a waiting call promoted straight after the last one ended can arrive without an empty render in between, and must not inherit its reference.
+     */
+    const callRefRef = useRef<{ callId: string; ref: string } | null>(null);
     const callRef = useMemo(() => {
         if (activeCall === null) {
             callRefRef.current = null;
             return null;
         }
-        if (callRefRef.current === null) {
-            callRefRef.current =
-                typeof crypto !== "undefined" && "randomUUID" in crypto
-                    ? crypto.randomUUID()
-                    : `call-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        if (callRefRef.current?.callId !== activeCall.id) {
+            callRefRef.current = {
+                callId: activeCall.id,
+                ref:
+                    typeof crypto !== "undefined" && "randomUUID" in crypto
+                        ? crypto.randomUUID()
+                        : `call-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+            };
         }
-        return callRefRef.current;
+        return callRefRef.current.ref;
     }, [activeCall?.id]);
 
     const lastActiveCallRef = useRef<string | null>(null);
@@ -384,28 +433,19 @@ export default function SoftphoneDock({
         (activeCall !== null && passedCallId === activeCall.id) ||
         passedUserIds.includes(currentUserId);
 
-    // Owner-first / step-by-step rotation: while a specific user in rotationUsers is active, only that user rings (plus admins once the call has been forwarded). Once all individual rotation steps have timed out, all eligible pool agents and admins ring.
-    const isCurrentRotationSession =
-        inboundRoute === null ||
-        rotationUsers.length === 0 ||
-        (currentRotationTarget !== null
-            ? Number(currentRotationTarget.id) === currentUserId
-            : true);
-
-    const userCanReceiveCalls = canReceiveCalls;
-
-    const isEligibleSession =
-        userCanReceiveCalls &&
-        (inboundRoute === null ||
-            (currentRotationTarget !== null &&
-                Number(currentRotationTarget.id) === currentUserId) ||
-            inboundRoute.can_ring);
+    // Step-by-step rotation: only the one user at rotationIndex rings. Nothing
+    // rings until the route resolves, so users outside the rotation never do.
+    const isMyRotationTurn =
+        inboundRoute !== null &&
+        inboundRoute.can_ring &&
+        currentRotationTarget !== null &&
+        Number(currentRotationTarget.id) === currentUserId;
 
     const ringingInbound =
         activeCall?.phase === "inbound" &&
+        canReceiveCalls &&
         !hasPassedCurrentCall &&
-        isCurrentRotationSession &&
-        isEligibleSession;
+        isMyRotationTurn;
 
     useEffect(() => {
         try {
@@ -571,11 +611,14 @@ export default function SoftphoneDock({
     const callPhaseRef = useRef<SoftphoneCallPhase | null>(null);
     callPhaseRef.current = activeCall?.phase ?? null;
 
+    const lookupStartedForCallIdRef = useRef<string | null>(null);
     useEffect(() => {
         const call = activeCall;
         if (call === null) {
+            lookupStartedForCallIdRef.current = null;
             matchedLeadRef.current = null;
             routeInitializedCallIdRef.current = null;
+            serverSlotRef.current = null;
             setMatchedLead(null);
             setMatchCount(null);
             setInboundRoute(null);
@@ -583,6 +626,16 @@ export default function SoftphoneDock({
             setRotationIndex(0);
             setPassedCallId(null);
             return;
+        }
+
+        if (lookupStartedForCallIdRef.current !== call.id) {
+            lookupStartedForCallIdRef.current = call.id;
+            matchedLeadRef.current = null;
+            setMatchedLead(null);
+            setMatchCount(null);
+            setInboundRoute(null);
+            setRoutingMode("all");
+            setLookupCallId(call.id);
         }
 
         const phone = call.peer;
@@ -593,6 +646,7 @@ export default function SoftphoneDock({
             setLastInboundPhone(phone);
             if (routeInitializedCallIdRef.current !== call.id) {
                 routeInitializedCallIdRef.current = call.id;
+                serverSlotRef.current = null;
                 setRotationIndex(0);
                 setPassedCallId(null);
                 if (isActiveTab) {
@@ -658,6 +712,7 @@ export default function SoftphoneDock({
                 }
                 if (call.direction === "inbound") {
                     // Routing only applies to inbound calls.
+                    followServerRotation(data);
                     setInboundRoute((prev) => {
                         if (prev === null) {
                             setRoutingMode(data?.route === "owner" ? "owner" : "all");
@@ -746,6 +801,14 @@ export default function SoftphoneDock({
     useEffect(() => {
         if (!activeCall || activeCall.phase !== "inbound" || !hasInboundRoute) return;
 
+        // How long this step rings: until the server's shared deadline when it
+        // tracks the call, otherwise a full window from now.
+        const serverSlot = serverSlotRef.current;
+        const slotMs =
+            serverSlot !== null && serverSlot.index === rotationIndex
+                ? Math.max(250, serverSlot.deadline - Date.now())
+                : Math.max(1, routeFallbackSeconds ?? 20) * 1000;
+
         if (rotationIndex >= rotationUsers.length) {
             setRoutingMode("pool");
 
@@ -785,7 +848,7 @@ export default function SoftphoneDock({
                 stopRinging();
                 stopAll();
                 void reject();
-            }, Math.max(1, routeFallbackSeconds ?? 20) * 1000);
+            }, slotMs);
 
             return () => {
                 if (fallbackRef.current) {
@@ -821,7 +884,7 @@ export default function SoftphoneDock({
                 }
             }
             setRotationIndex((prev) => Math.min(rotationUsers.length, prev + 1));
-        }, Math.max(1, routeFallbackSeconds ?? 20) * 1000);
+        }, slotMs);
 
         return () => {
             if (fallbackRef.current) {
@@ -881,6 +944,7 @@ export default function SoftphoneDock({
             });
             const updated = res.data?.data as CallRouting | null;
             if (updated) {
+                followServerRotation(updated);
                 const isRecentToggle = Date.now() - lastToggledAtRef.current < 5000;
                 setInboundRoute({
                     ...updated,
@@ -892,7 +956,102 @@ export default function SoftphoneDock({
         } catch {
             // Local pass already hid the call on this browser.
         }
-    }, [activeCall, stopRinging, activeDeviceId, callRef]);
+    }, [activeCall, stopRinging, activeDeviceId, callRef, followServerRotation]);
+
+    // ─── Call waiting ────────────────────────────────────────────────────
+    // A second call that arrived while this agent is on one. It goes through
+    // the same routing as any ringing call, and is only offered here when the
+    // rotation says it is this agent's turn — which, for an agent already on
+    // a call, means nobody else is free.
+    const waitingCall = state.waitingCall;
+    const [waitingRoute, setWaitingRoute] = useState<CallRouting | null>(null);
+
+    useEffect(() => {
+        if (!waitingCall || !isActiveTab) {
+            setWaitingRoute(null);
+            return;
+        }
+        let cancelled = false;
+        const lookup = async () => {
+            try {
+                const response = await axios.get(route("telephony.softphone.lead-match"), {
+                    params: { phone: waitingCall.peer, device_id: activeDeviceId, call_id: waitingCall.id },
+                });
+                if (!cancelled) {
+                    setWaitingRoute((response.data?.data as CallRouting | null) ?? null);
+                }
+            } catch {
+                if (!cancelled) {
+                    setWaitingRoute(null);
+                }
+            }
+        };
+        void lookup();
+        const poll = window.setInterval(() => void lookup(), LEAD_MATCH_POLL_MS);
+        return () => {
+            cancelled = true;
+            window.clearInterval(poll);
+        };
+    }, [waitingCall?.id, isActiveTab, activeDeviceId]);
+
+    /** Who the waiting call is ringing right now, per the shared rotation. */
+    const waitingTarget = useMemo<RotationUser | null>(() => {
+        const users = waitingRoute?.rotation_users ?? [];
+        if (typeof waitingRoute?.rotation_index === "number") {
+            return users[waitingRoute.rotation_index] ?? null;
+        }
+        const passed = waitingRoute?.passed_user_ids ?? [];
+        return users.find((u) => !passed.includes(Number(u.id))) ?? null;
+    }, [waitingRoute]);
+
+    const showCallWaiting =
+        waitingCall !== null &&
+        activeCall !== null &&
+        canReceiveCalls &&
+        waitingRoute !== null &&
+        waitingRoute.can_ring &&
+        waitingRoute.call_status !== "answered" &&
+        !(waitingRoute.passed_user_ids ?? []).includes(currentUserId) &&
+        waitingTarget !== null &&
+        Number(waitingTarget.id) === currentUserId;
+
+    // One short chime when the waiting call is first offered — the looping
+    // ring would play over the conversation.
+    const chimedWaitingIdRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (showCallWaiting && waitingCall && chimedWaitingIdRef.current !== waitingCall.id) {
+            chimedWaitingIdRef.current = waitingCall.id;
+            playIncoming();
+        }
+    }, [showCallWaiting, waitingCall?.id, playIncoming]);
+
+    const handleAnswerWaiting = useCallback(() => {
+        void answerWaiting();
+    }, [answerWaiting]);
+
+    const handleDeclineWaiting = useCallback(() => {
+        if (!waitingCall) return;
+        dismissWaiting();
+        // Hand it to the next agent now rather than when this turn times out.
+        void axios
+            .post(
+                route("telephony.softphone.pass"),
+                { phone: waitingCall.peer, device_id: activeDeviceId, call_id: waitingCall.id },
+                { timeout: 5000 },
+            )
+            .catch(() => {
+                // The rotation moves on by itself when the turn times out.
+            });
+    }, [waitingCall, dismissWaiting, activeDeviceId]);
+
+    const callWaitingBanner = showCallWaiting && waitingCall ? (
+        <CallWaitingBanner
+            name={waitingRoute?.name ?? null}
+            peer={waitingCall.peer}
+            onAnswer={handleAnswerWaiting}
+            onDecline={handleDeclineWaiting}
+        />
+    ) : null;
 
     const handleDeclineInbound = useCallback(async () => {
         if (!activeCall) return;
@@ -970,6 +1129,30 @@ export default function SoftphoneDock({
         };
     } | null>(null);
     const endedLoggedRef = useRef<string | null>(null);
+
+    // Free this agent's slot on the line whenever their call is over, however
+    // it ended (hung up, failed, never connected). Only the tab that owns the
+    // call does it; a call that never took a slot makes this a no-op.
+    const lineSlotDeviceRef = useRef<number | null>(null);
+    useEffect(() => {
+        if (!isActiveTab) {
+            lineSlotDeviceRef.current = null;
+            return;
+        }
+        if (activeCall) {
+            lineSlotDeviceRef.current = activeDeviceId ?? null;
+            return;
+        }
+        const deviceId = lineSlotDeviceRef.current;
+        lineSlotDeviceRef.current = null;
+        if (deviceId !== null) {
+            void axios
+                .post(route("telephony.softphone.devices.capacity.release", deviceId))
+                .catch(() => {
+                    // The slot expires on its own if this never arrives.
+                });
+        }
+    }, [activeCall?.id, activeDeviceId, isActiveTab]);
     useEffect(() => {
         // Every open tab mounts the dock and passive tabs mirror the owner's
         // call; only the tab that owns the call logs it, or each extra tab
@@ -1063,7 +1246,7 @@ export default function SoftphoneDock({
                 lastCallHadLeadRef.current = true;
             }
         }
-    }, [activeCall?.id, activeCall?.context?.leadId, matchedLead?.id, matchCount, inboundRoute?.matched]);
+    }, [activeCall, matchedLead?.id, matchCount, inboundRoute?.matched]);
 
     useEffect(() => {
         if (activeCall === null && prevCallRef.current !== null) {
@@ -1079,10 +1262,16 @@ export default function SoftphoneDock({
                 inboundNoticeDetails?.isAnsweredElsewhere ||
                 state.callFailure?.code === "answered_elsewhere";
 
-            // If confirmed unmatched on an inbound call, and call wasn't answered elsewhere by someone else
+            const wasAnsweredByMe =
+                endedCall.answeredAt !== null ||
+                endedCall.connectedAt !== null ||
+                endedCall.phase === "active";
+
+            // Only show the post-call Create Lead prompt to the user who actually answered the call
             if (
                 isConfirmedUnmatched &&
                 endedCall.direction === "inbound" &&
+                wasAnsweredByMe &&
                 !hadLead &&
                 !isAnsweredElsewhere &&
                 endedCall.peer &&
@@ -1460,7 +1649,9 @@ export default function SoftphoneDock({
             .post(route("telephony.softphone.events.store"), {
                 phone: callFailure.peer,
                 device_id: activeDeviceId,
-                call_id: effectiveCallRef,
+                // The shared SIP Call-ID joins this leg to the other agents'
+                // legs of the same call, so the call log shows one row.
+                call_id: callFailure.callId || effectiveCallRef,
                 call_ref: effectiveCallRef,
                 ...(leadId ? { entity_type: "lead", entity_id: leadId } : {}),
                 direction: callFailure.direction,
@@ -1508,6 +1699,7 @@ export default function SoftphoneDock({
                 ? "fair"
                 : "good";
 
+    const connectingLine = devices.find((d) => d.id === activeDeviceId);
     const statusDotClass =
         state.registration === "registered"
             ? "sp__dot sp__dot--registered"
@@ -1644,7 +1836,7 @@ export default function SoftphoneDock({
                 <section
                     className="sp sp--notice"
                     role="dialog"
-                    aria-label="Create lead for new caller"
+                    aria-label={td("Create lead for new caller", { source: "en" })}
                 >
                     <header className="sp__head">
                         <span className="sp__dot sp__dot--notice" />
@@ -1659,7 +1851,7 @@ export default function SoftphoneDock({
                             {unmatchedPromptPhone}
                         </p>
                         <p className="sp__reason sp__reason--notice">
-                            No matching CRM lead was found for this call. Would you like to create one now?
+                            {td("No matching CRM lead was found for this call. Would you like to create one now?", { source: "en" })}
                         </p>
                         <div className="sp__actions">
                             <button
@@ -1705,7 +1897,7 @@ export default function SoftphoneDock({
 
             {/* Idle state — line picker + status (Dev only). In production, the dock stays completely off-screen until a call rings or is placed. */}
             {isDevEnv && !hasCall && !callFailure && open && (
-                <section className="sp" aria-label="Phone status">
+                <section className="sp" aria-label={td("Phone status", { source: "en" })}>
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         {headerTitle}
@@ -1725,14 +1917,18 @@ export default function SoftphoneDock({
                             </p>
                         )}
                         {state.registration === "registering" && (
-                            <p className="sp__note">Connecting to sipgate…</p>
+                            <p className="sp__note">
+                                {t("pages.softphone.connecting_to_provider", {
+                                    provider: connectingLine?.provider || connectingLine?.label || "",
+                                })}
+                            </p>
                         )}
                         {devices.length === 0 && (
-                            <p className="sp__note">No phone lines configured — add one in Settings.</p>
+                            <p className="sp__note">{td("No phone lines configured — add one in Settings.", { source: "en" })}</p>
                         )}
                         {devices.length > 0 && (
                             <div className="sp__field">
-                                <span>Active line</span>
+                                <span>{td("Active line", { source: "en" })}</span>
                                 <select
                                     value={activeDeviceId ?? ""}
                                     onChange={(e) => setActiveDevice(Number(e.target.value))}
@@ -1746,20 +1942,20 @@ export default function SoftphoneDock({
                                 </select>
                                 {state.registration === "registered" && (
                                     <p className="sp__note sp__note--ok">
-                                        Ready — calls are placed from the CRM.
+                                        {td("Ready — calls are placed from the CRM.", { source: "en" })}
                                     </p>
                                 )}
                             </div>
                         )}
                         {state.registration === "unregistered" && (
-                            <p className="sp__note">Not registered.</p>
+                            <p className="sp__note">{td("Not registered.", { source: "en" })}</p>
                         )}
                         {!isActiveTab && (
-                            <p className="sp__note">Another browser tab is handling calls.</p>
+                            <p className="sp__note">{td("Another browser tab is handling calls.", { source: "en" })}</p>
                         )}
                         {lastRecordingUrl ? (
                             <div className="sp__card">
-                                <p className="sp__note" style={{ marginBottom: 6 }}>Latest recording</p>
+                                <p className="sp__note" style={{ marginBottom: 6 }}>{td("Latest recording", { source: "en" })}</p>
                                 <audio controls preload="none" src={lastRecordingUrl} style={{ width: "100%" }} />
                             </div>
                         ) : null}
@@ -1825,7 +2021,7 @@ export default function SoftphoneDock({
                         {isDevEnv && <SoftphoneMicDiagnostics inCall={false} />}
 
                         <button type="button" className="sp__close" onClick={() => setPinnedOpen(false)}>
-                            Hide
+                            {td("Hide", { source: "en" })}
                         </button>
                     </div>
                 </section>
@@ -1833,7 +2029,7 @@ export default function SoftphoneDock({
 
             {/* Inbound ringing */}
             {ringingInbound && activeCall && !incomingInDock && (
-                <section className="sp sp--incoming" aria-label="Phone, incoming call">
+                <section className="sp sp--incoming" aria-label={td("Phone, incoming call", { source: "en" })}>
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         {headerTitle}
@@ -1914,7 +2110,7 @@ export default function SoftphoneDock({
                                 textAlign: "center",
                                 margin: "8px 0"
                             }}>
-                                <strong>Voice Fallback:</strong> {voiceMessageStatus}
+                                <strong>{td("Voice Fallback:", { source: "en" })}</strong> {voiceMessageStatus}
                             </div>
                         )}
                         <div className="sp__actions">
@@ -1924,7 +2120,7 @@ export default function SoftphoneDock({
                                         <path d="M5.5 4h2.6a1.5 1.5 0 0 1 1.5.8l1 3a1.5 1.5 0 0 1-.4 1.6l-1.6 1.4a16 16 0 0 0 5.6 5.6l1.4-1.6a1.5 1.5 0 0 1 1.6-.4l3 1.1a1.5 1.5 0 0 1 .8 1.4v2.6A1.5 1.5 0 0 1 18.4 20 17 17 0 0 1 4 5.6 1.5 1.5 0 0 1 5.5 4z" />
                                     </svg>
                                 </span>
-                                Decline
+                                {td("Decline", { source: "en" })}
                             </button>
                             <button
                                 type="button"
@@ -1948,16 +2144,23 @@ export default function SoftphoneDock({
                                         <path d="M5.5 4h2.6a1.5 1.5 0 0 1 1.5.8l1 3a1.5 1.5 0 0 1-.4 1.6l-1.6 1.4a16 16 0 0 0 5.6 5.6l1.4-1.6a1.5 1.5 0 0 1 1.6-.4l3 1.1a1.5 1.5 0 0 1 .8 1.4v2.6A1.5 1.5 0 0 1 18.4 20 17 17 0 0 1 4 5.6 1.5 1.5 0 0 1 5.5 4z" />
                                     </svg>
                                 </span>
-                                Answer
+                                {td("Answer", { source: "en" })}
                             </button>
                         </div>
                     </div>
                 </section>
             )}
 
+            {/* Call waiting, when the live call is drawn outside the dock */}
+            {!liveCallInDock && callWaitingBanner && (
+                <section className="sp sp--waiting" aria-label={td("Phone, call waiting", { source: "en" })}>
+                    <div className="sp__body">{callWaitingBanner}</div>
+                </section>
+            )}
+
             {/* Live / outbound call */}
             {liveCallInDock && inCall && activeCall && (
-                <section className="sp sp--active" aria-label="Phone, in call">
+                <section className="sp sp--active" aria-label={td("Phone, in call", { source: "en" })}>
                     <header className="sp__head">
                         <span className={statusDotClass} />
                         {headerTitle}
@@ -2002,13 +2205,14 @@ export default function SoftphoneDock({
                         </span>
                     </header>
                     <div className="sp__body">
+                        {callWaitingBanner}
                         <CallIdentity name={titleName} peer={activeCall.peer} leadUrl={displayLeadUrl}>
                             {isAdmin && isForwarded && lastForwardedUser ? (
                                 <span className="sp__lead" data-forwarded="true">
                                     Forwarded · Last user: {lastForwardedUser.name}
                                 </span>
                             ) : matchedLead ? (
-                                <span className="sp__lead">Matching lead</span>
+                                <span className="sp__lead">{td("Matching lead", { source: "en" })}</span>
                             ) : matchSummaryLabel ? (
                                 displayMultipleMatchesUrl ? (
                                     <Link
@@ -2053,7 +2257,7 @@ export default function SoftphoneDock({
                                         <path d="M5.5 4h2.6a1.5 1.5 0 0 1 1.5.8l1 3a1.5 1.5 0 0 1-.4 1.6l-1.6 1.4a16 16 0 0 0 5.6 5.6l1.4-1.6a1.5 1.5 0 0 1 1.6-.4l3 1.1a1.5 1.5 0 0 1 .8 1.4v2.6A1.5 1.5 0 0 1 18.4 20 17 17 0 0 1 4 5.6 1.5 1.5 0 0 1 5.5 4z" />
                                     </svg>
                                 </span>
-                                End
+                                {td("End", { source: "en" })}
                             </button>
                         </div>
 
@@ -2075,8 +2279,8 @@ export default function SoftphoneDock({
                     type="button"
                     className="sp__launcher"
                     onClick={() => setPinnedOpen(true)}
-                    aria-label="Phone & Mic Test"
-                    title="Open Phone & Mic Test"
+                    aria-label={td("Phone & Mic Test", { source: "en" })}
+                    title={td("Open Phone & Mic Test", { source: "en" })}
                 >
                     <span className={statusDotClass} />
                     <Phone size={14} />

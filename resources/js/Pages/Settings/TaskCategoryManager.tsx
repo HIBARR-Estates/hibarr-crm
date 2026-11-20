@@ -14,6 +14,7 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiSuccessResponse } from "@/lib/api/types";
 
 import "@/Components/Redesign/redesign.css";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 /** Ant theme uses zIndexPopupBase 1300 — nested redesign modals must sit above it. */
 const NESTED_MODAL_Z_INDEX = 1400;
@@ -51,6 +52,7 @@ function actionLabelKey(value: string): string {
  * than mounted as its own full-page route.
  */
 export default function TaskCategoryManager() {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { message } = App.useApp();
     const [modalOpen, setModalOpen] = useState(false);
@@ -209,7 +211,7 @@ export default function TaskCategoryManager() {
                                     style={{ color: T.TEXT }}
                                     title={category.category_name}
                                 >
-                                    {category.category_name}
+                                    {td(category.category_name, { source: "en" })}
                                 </span>
                                 <span
                                     className="min-w-0 truncate text-sm"

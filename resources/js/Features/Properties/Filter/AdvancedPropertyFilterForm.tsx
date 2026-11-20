@@ -16,6 +16,7 @@ import { usePage } from "@inertiajs/react";
 import { TFilter } from "@/Types/common";
 import { PropertyEnumValues } from "@/Types";
 import dayjs from "dayjs";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -36,6 +37,7 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
     filters,
     onFilterChange,
 }) => {
+    const { td } = useTd();
     const { props } = usePage<any>();
     const { projects = [], developers = [], enumValues } = props;
 
@@ -111,10 +113,10 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                 <Row gutter={[16, 16]}>
                     <Col span={24}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Search
+                            {td("Search", { source: "en" })}
                         </label>
                         <Input.Search
-                            placeholder="Search properties by title, description, location..."
+                            placeholder={td("Search properties by title, description, location...", { source: "en" })}
                             value={search}
                             onChange={(e) =>
                                 onFilterChange("search", e.target.value)
@@ -130,19 +132,19 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
             {/* Property Details */}
             <div>
                 <Title level={5} className="!mb-3">
-                    Property Details
+                    {td("Property Details", { source: "en" })}
                 </Title>
                 <Row gutter={[16, 16]}>
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Property Type
+                            {td("Property Type", { source: "en" })}
                         </label>
                         <Select
                             value={property_type || undefined}
                             onChange={(value) =>
                                 onFilterChange("property_type", value)
                             }
-                            placeholder="Select property type"
+                            placeholder={td("Select property type", { source: "en" })}
                             style={{ width: "100%" }}
                             allowClear
                             showSearch
@@ -162,14 +164,14 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
 
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Sale Type
+                            {td("Sale Type", { source: "en" })}
                         </label>
                         <Select
                             value={sale_type || undefined}
                             onChange={(value) =>
                                 onFilterChange("sale_type", value)
                             }
-                            placeholder="Select sale type"
+                            placeholder={td("Select sale type", { source: "en" })}
                             style={{ width: "100%" }}
                             allowClear
                         >
@@ -183,14 +185,14 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
 
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Status
+                            {td("Status", { source: "en" })}
                         </label>
                         <Select
                             value={status || undefined}
                             onChange={(value) =>
                                 onFilterChange("status", value)
                             }
-                            placeholder="Select status"
+                            placeholder={td("Select status", { source: "en" })}
                             style={{ width: "100%" }}
                             allowClear
                         >
@@ -204,12 +206,12 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
 
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            City
+                            {td("City", { source: "en" })}
                         </label>
                         <Select
                             value={city || undefined}
                             onChange={(value) => onFilterChange("city", value)}
-                            placeholder="Select city"
+                            placeholder={td("Select city", { source: "en" })}
                             style={{ width: "100%" }}
                             allowClear
                             showSearch
@@ -234,12 +236,12 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
             {/* Property Classification */}
             <div>
                 <Title level={5} className="!mb-3">
-                    Property Classification
+                    {td("Property Classification", { source: "en" })}
                 </Title>
                 <Row gutter={[16, 16]}>
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Primary Category
+                            {td("Primary Category", { source: "en" })}
                         </label>
                         <Select
                             value={
@@ -251,7 +253,7 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                                     value,
                                 )
                             }
-                            placeholder="Select category"
+                            placeholder={td("Select category", { source: "en" })}
                             style={{ width: "100%" }}
                             allowClear
                         >
@@ -265,7 +267,7 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
 
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Unit Style
+                            {td("Unit Style", { source: "en" })}
                         </label>
                         <Select
                             value={(filters as any).unit_style || undefined}
@@ -275,7 +277,7 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                                     value,
                                 )
                             }
-                            placeholder="Select unit style"
+                            placeholder={td("Select unit style", { source: "en" })}
                             style={{ width: "100%" }}
                             allowClear
                         >
@@ -292,7 +294,7 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
 
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Construction Status
+                            {td("Construction Status", { source: "en" })}
                         </label>
                         <Select
                             value={
@@ -305,7 +307,7 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                                     value,
                                 )
                             }
-                            placeholder="Select construction status"
+                            placeholder={td("Select construction status", { source: "en" })}
                             style={{ width: "100%" }}
                             allowClear
                         >
@@ -315,7 +317,7 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                                         key={status.name}
                                         value={status.name}
                                     >
-                                        {status.label}
+                                        {td(status.label, { source: "en" })}
                                     </Select.Option>
                                 ),
                             )}
@@ -324,7 +326,7 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
 
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            View Types
+                            {td("View Types", { source: "en" })}
                         </label>
                         <Select
                             mode="multiple"
@@ -335,7 +337,7 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                                     value,
                                 )
                             }
-                            placeholder="Select view types"
+                            placeholder={td("Select view types", { source: "en" })}
                             style={{ width: "100%" }}
                             allowClear
                             maxTagCount={2}
@@ -353,7 +355,7 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
 
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Publishing Status
+                            {td("Publishing Status", { source: "en" })}
                         </label>
                         <Select
                             value={(filters as any).is_published}
@@ -363,15 +365,15 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
                                     value,
                                 )
                             }
-                            placeholder="All properties"
+                            placeholder={td("All properties", { source: "en" })}
                             style={{ width: "100%" }}
                             allowClear
                         >
                             <Select.Option value={true}>
-                                <Tag color="green">Published</Tag>
+                                <Tag color="green">{td("Published", { source: "en" })}</Tag>
                             </Select.Option>
                             <Select.Option value={false}>
-                                <Tag color="orange">Draft</Tag>
+                                <Tag color="orange">{td("Draft", { source: "en" })}</Tag>
                             </Select.Option>
                         </Select>
                     </Col>
@@ -383,19 +385,19 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
             {/* Price Range */}
             <div>
                 <Title level={5} className="!mb-3">
-                    Price Range
+                    {td("Price Range", { source: "en" })}
                 </Title>
                 <Row gutter={[16, 16]}>
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Minimum Price
+                            {td("Minimum Price", { source: "en" })}
                         </label>
                         <InputNumber
                             value={min_price}
                             onChange={(value) =>
                                 onFilterChange("min_price", value)
                             }
-                            placeholder="Min price"
+                            placeholder={td("Min price", { source: "en" })}
                             style={{ width: "100%" }}
                             formatter={(value) =>
                                 `$ ${value}`.replace(
@@ -412,14 +414,14 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
 
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Maximum Price
+                            {td("Maximum Price", { source: "en" })}
                         </label>
                         <InputNumber
                             value={max_price}
                             onChange={(value) =>
                                 onFilterChange("max_price", value)
                             }
-                            placeholder="Max price"
+                            placeholder={td("Max price", { source: "en" })}
                             style={{ width: "100%" }}
                             formatter={(value) =>
                                 `$ ${value}`.replace(
@@ -441,12 +443,12 @@ const AdvancedPropertyFilterForm: React.FC<AdvancedPropertyFilterFormProps> = ({
             {/* Date Filters */}
             <div>
                 <Title level={5} className="!mb-3">
-                    Date Range
+                    {td("Date Range", { source: "en" })}
                 </Title>
                 <Row gutter={[16, 16]}>
                     <Col span={24}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Created Date Range
+                            {td("Created Date Range", { source: "en" })}
                         </label>
                         <RangePicker
                             value={[

@@ -9,6 +9,7 @@ import {
     LockOutlined,
     FileTextOutlined,
 } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -24,11 +25,12 @@ export default function OwnerInfoStep({
     enumValues,
     data,
 }: OwnerInfoStepProps) {
+    const { td } = useTd();
     return (
         <Card size="small" className="border-0 shadow-none">
             <Alert
-                message="Confidential Information"
-                description="Owner contact details are only visible to the property creator, responsible agent, and administrators. Other agents can request access."
+                message={td("Confidential Information", { source: "en" })}
+                description={td("Owner contact details are only visible to the property creator, responsible agent, and administrators. Other agents can request access.", { source: "en" })}
                 type="info"
                 icon={<LockOutlined />}
                 showIcon
@@ -37,8 +39,7 @@ export default function OwnerInfoStep({
 
             <Text type="secondary" className="block mb-4">
                 <UserOutlined className="mr-2" />
-                Enter the property owner's contact information for internal
-                reference.
+                {td("Enter the property owner's contact information for internal reference.", { source: "en" })}
             </Text>
 
             <Row gutter={[16, 0]}>
@@ -48,11 +49,11 @@ export default function OwnerInfoStep({
                         label={
                             <span>
                                 <UserOutlined className="mr-2" />
-                                Owner Name
+                                {td("Owner Name", { source: "en" })}
                             </span>
                         }
                     >
-                        <Input placeholder="Full name of the property owner" />
+                        <Input placeholder={td("Full name of the property owner", { source: "en" })} />
                     </Form.Item>
                 </Col>
 
@@ -62,7 +63,7 @@ export default function OwnerInfoStep({
                         label={
                             <span>
                                 <PhoneOutlined className="mr-2" />
-                                Phone Number
+                                {td("Phone Number", { source: "en" })}
                             </span>
                         }
                     >
@@ -76,7 +77,7 @@ export default function OwnerInfoStep({
                         label={
                             <span>
                                 <MailOutlined className="mr-2" />
-                                Email Address
+                                {td("Email Address", { source: "en" })}
                             </span>
                         }
                         rules={[
@@ -86,16 +87,16 @@ export default function OwnerInfoStep({
                             },
                         ]}
                     >
-                        <Input placeholder="owner@example.com" />
+                        <Input placeholder={td("owner@example.com", { source: "en" })} />
                     </Form.Item>
                 </Col>
 
                 <Col xs={24} md={12}>
                     <Form.Item
                         name={["owner_info", "preferred_contact"]}
-                        label="Preferred Contact Method"
+                        label={td("Preferred Contact Method", { source: "en" })}
                     >
-                        <Input placeholder="e.g., WhatsApp, Phone, Email" />
+                        <Input placeholder={td("e.g., WhatsApp, Phone, Email", { source: "en" })} />
                     </Form.Item>
                 </Col>
 
@@ -106,11 +107,11 @@ export default function OwnerInfoStep({
                 <Col span={24}>
                     <Form.Item
                         name={["owner_info", "address"]}
-                        label="Owner Address"
+                        label={td("Owner Address", { source: "en" })}
                     >
                         <TextArea
                             rows={2}
-                            placeholder="Property owner's address (optional)"
+                            placeholder={td("Property owner's address (optional)", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>
@@ -121,49 +122,49 @@ export default function OwnerInfoStep({
                         label={
                             <span>
                                 <FileTextOutlined className="mr-2" />
-                                Internal Notes
+                                {td("Internal Notes", { source: "en" })}
                             </span>
                         }
                     >
                         <TextArea
                             rows={3}
-                            placeholder="Any notes about the owner, communication preferences, availability, etc."
+                            placeholder={td("Any notes about the owner, communication preferences, availability, etc.", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>
             </Row>
 
-            <Divider className="my-4">Additional Owner Details</Divider>
+            <Divider className="my-4">{td("Additional Owner Details", { source: "en" })}</Divider>
 
             <Row gutter={[16, 0]}>
                 <Col xs={24} md={12}>
                     <Form.Item
                         name={["owner_info", "nationality"]}
-                        label="Nationality"
+                        label={td("Nationality", { source: "en" })}
                     >
-                        <Input placeholder="e.g., Turkish, British" />
+                        <Input placeholder={td("e.g., Turkish, British", { source: "en" })} />
                     </Form.Item>
                 </Col>
 
                 <Col xs={24} md={12}>
                     <Form.Item
                         name={["owner_info", "id_number"]}
-                        label="ID / Tax Number"
-                        tooltip="For internal records only"
+                        label={td("ID / Tax Number", { source: "en" })}
+                        tooltip={td("For internal records only", { source: "en" })}
                     >
-                        <Input placeholder="ID or Tax number" />
+                        <Input placeholder={td("ID or Tax number", { source: "en" })} />
                     </Form.Item>
                 </Col>
 
                 <Col span={24}>
                     <Form.Item
                         name={["owner_info", "bank_details"]}
-                        label="Bank Details"
-                        tooltip="For payment processing"
+                        label={td("Bank Details", { source: "en" })}
+                        tooltip={td("For payment processing", { source: "en" })}
                     >
                         <TextArea
                             rows={2}
-                            placeholder="Bank name, IBAN, account holder name..."
+                            placeholder={td("Bank name, IBAN, account holder name...", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>

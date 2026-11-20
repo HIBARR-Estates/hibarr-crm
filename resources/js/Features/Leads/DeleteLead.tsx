@@ -7,6 +7,7 @@ import { DeleteOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     lead?: Lead;
@@ -19,6 +20,7 @@ const DeleteLead: React.FC<Props> = ({
     open,
     successCallback,
 }) => {
+    const { td } = useTd();
     const { mutate: deleteLead, status } = useApiMutate<
         unknown,
         unknown,
@@ -50,15 +52,15 @@ const DeleteLead: React.FC<Props> = ({
                 fn: handleDeleteLead,
                 loading: loading,
             }}
-            title="Delete Contact"
+            title={td("Delete Contact", { source: "en" })}
             description={
                 lead
                     ? `Are you sure you want to delete "${lead?.client_name}"? This action cannot be undone.`
                     : "Are you sure you want to delete this deal? This action cannot be undone."
             }
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
-            confirmText="Yes, Delete"
-            cancelText="Cancel"
+            confirmText={td("Yes, Delete", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
             confirmType="primary"
             confirmDanger={true}
         />

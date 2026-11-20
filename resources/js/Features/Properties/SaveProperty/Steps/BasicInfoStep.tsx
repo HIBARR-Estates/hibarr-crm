@@ -14,6 +14,7 @@ import { Property, PropertyEnumValues, PrimaryCategory } from "@/Types";
 import { usePage } from "@inertiajs/react";
 import CurrencyInput from "@/Components/CurrencyInput";
 import { formatLocationNameForDisplay } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -145,6 +146,7 @@ export default function BasicInfoStep({
     enumValues,
     data,
 }: BasicInfoStepProps) {
+    const { td } = useTd();
     const { props } = usePage<any>();
     const developerProjects = (props?.developerProjects ||
         []) as DeveloperProject[];
@@ -303,8 +305,8 @@ export default function BasicInfoStep({
                 <Col span={24}>
                     <Form.Item
                         name="primary_category"
-                        label="Primary Category"
-                        tooltip="The main category determines available property types, sale types, and fields"
+                        label={td("Primary Category", { source: "en" })}
+                        tooltip={td("The main category determines available property types, sale types, and fields", { source: "en" })}
                         rules={[
                             {
                                 required: true,
@@ -313,7 +315,7 @@ export default function BasicInfoStep({
                         ]}
                     >
                         <Select
-                            placeholder="Select primary category"
+                            placeholder={td("Select primary category", { source: "en" })}
                             allowClear
                             onChange={handleCategoryChange}
                         >
@@ -322,7 +324,7 @@ export default function BasicInfoStep({
                                     key={category.name}
                                     value={category.name}
                                 >
-                                    {category.label}
+                                    {td(category.label, { source: "en" })}
                                 </Option>
                             ))}
                         </Select>
@@ -337,22 +339,22 @@ export default function BasicInfoStep({
                                 plain
                                 className="!my-2 !text-xs !text-gray-400"
                             >
-                                Residence / Project
+                                {td("Residence / Project", { source: "en" })}
                             </Divider>
                         </Col>
 
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="within_site"
-                                label="Is this property in a residence or project?"
+                                label={td("Is this property in a residence or project?", { source: "en" })}
                             >
                                 <Select
-                                    placeholder="Select"
+                                    placeholder={td("Select", { source: "en" })}
                                     allowClear
                                     onChange={handleWithinSiteChange}
                                 >
-                                    <Option value={true}>Yes</Option>
-                                    <Option value={false}>No</Option>
+                                    <Option value={true}>{td("Yes", { source: "en" })}</Option>
+                                    <Option value={false}>{td("No", { source: "en" })}</Option>
                                 </Select>
                             </Form.Item>
                         </Col>
@@ -362,11 +364,11 @@ export default function BasicInfoStep({
                                 <Col xs={24} md={12}>
                                     <Form.Item
                                         name="_selected_developer_id"
-                                        label="Construction Company"
-                                        tooltip="Select the construction company / developer"
+                                        label={td("Construction Company", { source: "en" })}
+                                        tooltip={td("Select the construction company / developer", { source: "en" })}
                                     >
                                         <Select
-                                            placeholder="Select construction company"
+                                            placeholder={td("Select construction company", { source: "en" })}
                                             allowClear
                                             showSearch
                                             optionFilterProp="children"
@@ -387,8 +389,8 @@ export default function BasicInfoStep({
                                 <Col xs={24} md={12}>
                                     <Form.Item
                                         name="developer_project_id"
-                                        label="Project Name"
-                                        tooltip="Select the project / residence name"
+                                        label={td("Project Name", { source: "en" })}
+                                        tooltip={td("Select the project / residence name", { source: "en" })}
                                     >
                                         <Select
                                             placeholder={
@@ -433,7 +435,7 @@ export default function BasicInfoStep({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="property_type"
-                        label="Property Type"
+                        label={td("Property Type", { source: "en" })}
                         rules={[
                             {
                                 required: true,
@@ -442,7 +444,7 @@ export default function BasicInfoStep({
                         ]}
                     >
                         <Select
-                            placeholder="Select property type"
+                            placeholder={td("Select property type", { source: "en" })}
                             showSearch
                             optionFilterProp="children"
                         >
@@ -476,7 +478,7 @@ export default function BasicInfoStep({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="sale_type"
-                        label="Sale Type"
+                        label={td("Sale Type", { source: "en" })}
                         rules={[
                             {
                                 required: true,
@@ -484,7 +486,7 @@ export default function BasicInfoStep({
                             },
                         ]}
                     >
-                        <Select placeholder="Select sale type">
+                        <Select placeholder={td("Select sale type", { source: "en" })}>
                             {saleTypes.map((type) => (
                                 <Option key={type} value={type}>
                                     {type}
@@ -499,12 +501,12 @@ export default function BasicInfoStep({
                     <Col xs={24} md={12}>
                         <Form.Item
                             name="unit_style"
-                            label="Unit Style"
-                            tooltip="Used in reference code (e.g., APT-LFT-11-402 for Loft)"
+                            label={td("Unit Style", { source: "en" })}
+                            tooltip={td("Used in reference code (e.g., APT-LFT-11-402 for Loft)", { source: "en" })}
                         >
                             <Select
                                 mode="multiple"
-                                placeholder="Select unit style(s)"
+                                placeholder={td("Select unit style(s)", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
@@ -526,8 +528,8 @@ export default function BasicInfoStep({
                         <Col xs={12} md={6}>
                             <Form.Item
                                 name="bedrooms"
-                                label="Bedrooms"
-                                tooltip="Used in reference code (e.g., 3+1 = 31)"
+                                label={td("Bedrooms", { source: "en" })}
+                                tooltip={td("Used in reference code (e.g., 3+1 = 31)", { source: "en" })}
                             >
                                 <InputNumber
                                     placeholder="0-8"
@@ -539,7 +541,7 @@ export default function BasicInfoStep({
                         </Col>
 
                         <Col xs={12} md={6}>
-                            <Form.Item name="bathrooms" label="Bathrooms">
+                            <Form.Item name="bathrooms" label={td("Bathrooms", { source: "en" })}>
                                 <InputNumber
                                     placeholder="0-8"
                                     min={0}
@@ -552,8 +554,8 @@ export default function BasicInfoStep({
                         <Col xs={12} md={6}>
                             <Form.Item
                                 name="living_room"
-                                label="Living Rooms"
-                                tooltip="Used in reference code (e.g., 3+1 = 31)"
+                                label={td("Living Rooms", { source: "en" })}
+                                tooltip={td("Used in reference code (e.g., 3+1 = 31)", { source: "en" })}
                                 initialValue={1}
                             >
                                 <InputNumber
@@ -568,9 +570,9 @@ export default function BasicInfoStep({
                 )}
 
                 <Col xs={24} md={12}>
-                    <Form.Item name="price" label="Price">
+                    <Form.Item name="price" label={td("Price", { source: "en" })}>
                         <CurrencyInput
-                            placeholder="Enter price"
+                            placeholder={td("Enter price", { source: "en" })}
                             showLabel={false}
                         />
                     </Form.Item>
@@ -579,10 +581,10 @@ export default function BasicInfoStep({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="status"
-                        label="Status"
+                        label={td("Status", { source: "en" })}
                         initialValue="Available"
                     >
-                        <Select placeholder="Select status">
+                        <Select placeholder={td("Select status", { source: "en" })}>
                             {STATUS_OPTIONS.map((status) => (
                                 <Option key={status} value={status}>
                                     {status}
@@ -595,12 +597,12 @@ export default function BasicInfoStep({
                 <Col span={24}>
                     <Form.Item
                         name="description"
-                        label="Description"
-                        tooltip="A detailed description of the property. This is optional."
+                        label={td("Description", { source: "en" })}
+                        tooltip={td("A detailed description of the property. This is optional.", { source: "en" })}
                     >
                         <TextArea
                             rows={4}
-                            placeholder="Describe the property features, condition, and any notable details..."
+                            placeholder={td("Describe the property features, condition, and any notable details...", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>

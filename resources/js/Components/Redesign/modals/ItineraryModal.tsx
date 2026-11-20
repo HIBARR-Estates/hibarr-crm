@@ -17,6 +17,7 @@ import {
     REDESIGN_TYPE as TY,
 } from "@/Components/Redesign/tokens";
 import ItineraryOcrScanner from "./ItineraryOcrScanner";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface ItineraryFormInput {
     direction: FlightDirection;
@@ -185,6 +186,7 @@ export default function ItineraryModal({
     labels,
     showOcrScanner = false,
 }: ItineraryModalProps) {
+    const { td } = useTd();
     const isEdit = Boolean(leg?.id);
     const [form, setForm] = useState(EMPTY_FORM);
     const [isUploadingTicket, setIsUploadingTicket] = useState(false);
@@ -453,7 +455,7 @@ export default function ItineraryModal({
                                     cursor: saving ? "default" : "pointer",
                                 }}
                             >
-                                {option.label}
+                                {td(option.label, { source: "en" })}
                             </button>
                         );
                     })}

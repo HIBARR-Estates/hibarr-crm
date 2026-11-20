@@ -13,6 +13,7 @@ use App\Services\CallRecording\CallRecordingTranscoder;
 use App\Services\FileStorageService;
 use App\Services\PermissionService;
 use App\Support\CallAccess;
+use App\Support\CallRefOwnership;
 use App\Services\CallRecording\CallRecordingLinker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -85,6 +86,9 @@ class CallRecordingController extends AccountBaseController
                     // fetch the audio without a session, without the ownership
                     // check and without the expiry.
                     'download_url' => route('call-recordings.download', $recording->id, false),
+                    // Set only for WebM recordings, which play in Bunny's own
+                    // player in a new tab (see CallRecording::opensInNewTab).
+                    'open_url' => $recording->opensInNewTab() ? route('call-recordings.open', $recording->id, false) : null,
                 ];
             });
 
@@ -288,6 +292,17 @@ class CallRecordingController extends AccountBaseController
 
         $callRef = $request->input('call_ref');
 
+        // The ref comes from the browser and links this audio to a call's
+        // timeline and OL's call log. One another company already uses is not
+        // stored, so it can never tie this recording to their call.
+        if (is_string($callRef) && $callRef !== '' && CallRefOwnership::belongsToAnotherCompany($callRef, (int) $companyId)) {
+            Log::warning('CallRecordingController: call ref used by another company; not stored', [
+                'user_id' => user()->id,
+                'company_id' => $companyId,
+            ]);
+            $callRef = null;
+        }
+
         $recording = CallRecording::create([
             'company_id' => $companyId,
             'user_id' => user()->id,
@@ -305,7 +320,7 @@ class CallRecordingController extends AccountBaseController
             'duration_seconds' => $duration,
             'object_path' => $objectPath,
             'external_url' => $externalUrl,
-            'expires_at' => now()->addDays(30),
+            'expires_at' => now()->addDays(90),
         ]);
 
         Log::info('CallRecordingController: recording created', [
@@ -330,6 +345,35 @@ class CallRecordingController extends AccountBaseController
                 $recording->company_id !== null ? (int) $recording->company_id : null,
                 (int) user()->id,
             );
+
+            // Mirror the recording onto OL's call log; a dispatch failure must
+            // never fail the upload itself. On the `sync` connection (the
+            // config fallback) the job would run inside this request and hold
+            // the upload response on OL, so it runs after the response instead.
+            // Either way, a recording OL has not confirmed (`ol_synced_at`) is
+            // re-sent by the scheduled `call-recordings:sync-to-call-bridge`.
+            try {
+                $recordingId = (int) $recording->id;
+                if (config('queue.default') === 'sync') {
+                    app()->terminating(function () use ($recordingId): void {
+                        try {
+                            \App\Jobs\SyncCallRecordingToCallBridgeJob::dispatchSync($recordingId);
+                        } catch (\Throwable $e) {
+                            Log::warning('CallRecordingController: OL recording sync failed after response', [
+                                'recording_id' => $recordingId,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    });
+                } else {
+                    \App\Jobs\SyncCallRecordingToCallBridgeJob::dispatch($recordingId);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('CallRecordingController: could not queue OL recording sync', [
+                    'recording_id' => $recording->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return Reply::successWithData('Recording uploaded', [
@@ -930,5 +974,26 @@ class CallRecordingController extends AccountBaseController
         $disposition = request()->boolean('download') ? 'attachment' : 'inline';
 
         return $this->streamRecording($callRecording, $disposition);
+    }
+
+    /**
+     * Open a recording in its own tab.
+     *
+     * A WebM recording is sent on to its Bunny link: Bunny filed it as video,
+     * so that link is a Bunny Stream player page, which is the only place it
+     * plays. The access and expiry checks still run on every click, and the
+     * link is never placed in page data. Every other recording keeps the rule
+     * above and is streamed through the app.
+     */
+    public function open(CallRecording $callRecording)
+    {
+        $this->authorizeRecordingAccess($callRecording);
+
+        $externalUrl = (string) $callRecording->external_url;
+        if ($callRecording->opensInNewTab() && str_starts_with(strtolower($externalUrl), 'https://')) {
+            return redirect()->away($externalUrl);
+        }
+
+        return $this->streamRecording($callRecording, 'inline');
     }
 }

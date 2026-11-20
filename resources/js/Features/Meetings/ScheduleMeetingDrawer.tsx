@@ -20,6 +20,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type EntityType = "deal" | "lead";
 
@@ -54,6 +55,7 @@ export default function ScheduleMeetingDrawer({
     userLeads = [],
     onSuccess,
 }: ScheduleMeetingDrawerProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const [entityType, setEntityType] = useState<EntityType>("deal");
     const [selectedDealId, setSelectedDealId] = useState<number | null>(null);
@@ -425,13 +427,13 @@ export default function ScheduleMeetingDrawer({
                             onClick={handleBookAnother}
                             className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-bold rounded-xl transition-colors shadow-sm"
                         >
-                            <PlusOutlined /> Book another meeting
+                            <PlusOutlined /> {td("Book another meeting", { source: "en" })}
                         </button>
                         <button
                             onClick={handleDone}
                             className="px-5 py-2.5 border border-gray-200 text-gray-600 text-[13px] font-semibold rounded-xl hover:bg-gray-50 transition-colors"
                         >
-                            Done
+                            {td("Done", { source: "en" })}
                         </button>
                     </>
                 ) : (
@@ -440,12 +442,12 @@ export default function ScheduleMeetingDrawer({
                             onClick={handleCancel}
                             className="px-4 py-2.5 text-sm font-semibold text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
                         >
-                            Cancel
+                            {td("Cancel", { source: "en" })}
                         </button>
                         <div className="flex items-center gap-3">
                             {isFormReady && !submitting && (
                                 <p className="text-[11px] text-gray-400 italic">
-                                    Complete all required fields to schedule
+                                    {td("Complete all required fields to schedule", { source: "en" })}
                                 </p>
                             )}
                             <button

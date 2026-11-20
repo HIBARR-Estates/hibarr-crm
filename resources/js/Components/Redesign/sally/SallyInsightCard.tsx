@@ -70,6 +70,7 @@ function TranscriptBody({
     transcriptText: string;
     label: string;
 }) {
+    const { td } = useTd();
     if (segments.length === 0) {
         return (
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-dr-text-muted">
@@ -107,7 +108,7 @@ function TranscriptBody({
                                 ) : null}
                             </div>
                         ) : null}
-                        <p className="text-dr-text-muted">{segment.text}</p>
+                        <p className="text-dr-text-muted">{td(segment.text, { source: "en" })}</p>
                     </div>
                 );
             })}

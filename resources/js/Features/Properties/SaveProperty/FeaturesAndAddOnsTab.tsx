@@ -3,6 +3,7 @@ import { Form, Select, Card, Row, Col, Button } from "antd";
 import { PropertyFormProps } from "./PropertyForm";
 import { Property } from "@/Types";
 import { useEffect } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const EXTERIOR_FEATURES = [
     { label: "Balcony", value: "Balcony" },
@@ -116,6 +117,7 @@ export default function FeaturesAndAddOnsTab({
     onErrorsClear,
     setErrors,
 }: Props) {
+    const { td } = useTd();
     const [form] = Form.useForm<Omit<Property, "id">>();
 
     // Populate form when data changes
@@ -167,16 +169,16 @@ export default function FeaturesAndAddOnsTab({
             }}
             size="middle"
         >
-            <Card title="Features & Add Ons" size="small">
+            <Card title={td("Features & Add Ons", { source: "en" })} size="small">
                 <Row gutter={[16, 16]}>
                     <Col span={24}>
                         <Form.Item
                             name="exterior_features"
-                            label="Exterior Features"
+                            label={td("Exterior Features", { source: "en" })}
                         >
                             <Select
                                 mode="multiple"
-                                placeholder="Select exterior features"
+                                placeholder={td("Select exterior features", { source: "en" })}
                                 options={EXTERIOR_FEATURES}
                             />
                         </Form.Item>
@@ -185,11 +187,11 @@ export default function FeaturesAndAddOnsTab({
                     <Col span={24}>
                         <Form.Item
                             name="interior_features"
-                            label="Interior Features"
+                            label={td("Interior Features", { source: "en" })}
                         >
                             <Select
                                 mode="multiple"
-                                placeholder="Select interior features"
+                                placeholder={td("Select interior features", { source: "en" })}
                                 options={INTERIOR_FEATURES}
                             />
                         </Form.Item>
@@ -198,21 +200,21 @@ export default function FeaturesAndAddOnsTab({
                     <Col span={24}>
                         <Form.Item
                             name="location_features"
-                            label="Location Features"
+                            label={td("Location Features", { source: "en" })}
                         >
                             <Select
                                 mode="multiple"
-                                placeholder="Select location features"
+                                placeholder={td("Select location features", { source: "en" })}
                                 options={LOCATION_FEATURES}
                             />
                         </Form.Item>
                     </Col>
 
                     <Col span={24}>
-                        <Form.Item name="add_ons" label="Add-Ons">
+                        <Form.Item name="add_ons" label={td("Add-Ons", { source: "en" })}>
                             <Select
                                 mode="multiple"
-                                placeholder="Select add-ons"
+                                placeholder={td("Select add-ons", { source: "en" })}
                                 options={ADD_ONS}
                             />
                         </Form.Item>

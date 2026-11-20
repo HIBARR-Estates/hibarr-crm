@@ -56,15 +56,15 @@ export default function PeopleHeader({ total, bucket, counts, onBucket, searchTe
                                 <li key={key}>
                                     <button
                                         type="button"
-                                        className={`agent-pp__chip${value === undefined ? " agent-pp__chip--loading" : ""}`}
+                                        className={`agent-band-chip agent-pp__chip${value === undefined ? " is-loading" : ""}`}
                                         aria-pressed={pressed}
                                         onClick={() => onBucket(key === "all" ? null : key)}
                                     >
-                                        <span className="agent-pp__chip-label">
-                                            {mark ? <span className="agent-pp__chip-mark" style={{ ["--mark" as string]: mark }} aria-hidden="true" /> : null}
+                                        <span className="agent-band-chip__label agent-pp__chip-label">
+                                            {mark ? <span className="agent-band-chip__mark agent-pp__chip-mark" style={{ ["--mark" as string]: mark }} aria-hidden="true" /> : null}
                                             {t(`pages.agent_workspace.people.chips.${key}`)}
                                         </span>
-                                        <b className="agent-pp__chip-value">{value ?? "00"}</b>
+                                        <b className="agent-band-chip__value agent-pp__chip-value">{value ?? "00"}</b>
                                     </button>
                                 </li>
                             );

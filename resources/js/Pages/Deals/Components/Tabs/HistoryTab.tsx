@@ -7,6 +7,7 @@ import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import dayjs from "dayjs";
 import { formatCompanyDate, formatCompanyTime } from "@/lib/companyDateTime";
 import UserIndicator from "@/Components/UserIndicator";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     deal: Deal;
@@ -16,6 +17,7 @@ interface Props {
 const HISTORY_PAGE_SIZE = 15;
 
 export default function HistoryTab({ deal, histories }: Props) {
+    const { td } = useTd();
     const [page, setPage] = useState(1);
 
     const pagedHistories = useMemo(
@@ -34,7 +36,7 @@ export default function HistoryTab({ deal, histories }: Props) {
 
     const columns = [
         {
-            title: "Activity",
+            title: td("Activity", { source: "en" }),
             dataIndex: "event_type",
             key: "event_type",
             width: "50%",
@@ -45,7 +47,7 @@ export default function HistoryTab({ deal, histories }: Props) {
             ),
         },
         {
-            title: "User",
+            title: td("User", { source: "en" }),
             dataIndex: "added_by",
             key: "added_by",
             width: "25%",
@@ -60,7 +62,7 @@ export default function HistoryTab({ deal, histories }: Props) {
             ),
         },
         {
-            title: "Date & Time",
+            title: td("Date & Time", { source: "en" }),
             dataIndex: "created_at",
             key: "created_at",
             width: "25%",
@@ -81,7 +83,7 @@ export default function HistoryTab({ deal, histories }: Props) {
     if (histories.length === 0) {
         return (
             <div className="p-8">
-                <Empty description="No history found" />
+                <Empty description={td("No history found", { source: "en" })} />
             </div>
         );
     }

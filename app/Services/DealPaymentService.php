@@ -68,6 +68,7 @@ class DealPaymentService
 
         $requests = $this->dealRequestsQuery($deal)
             ->with('currency')
+            ->withExists('invoiceDocuments as invoice_document_exists')
             ->orderByDesc('id')
             ->get()
             ->map(fn (Payment $payment) => $this->serializeDealPayment(
@@ -314,6 +315,32 @@ class DealPaymentService
         }
 
         return $this->markInvalidated($payment, $user, $reason);
+    }
+
+    /**
+     * Deletes a cancelled request. Payments are soft-deleted, so the row drops out of the list, the status counts, and every total on the
+     * payment-requests page, and out of the deal's request history,
+     * while the row itself stays for audit.
+     *
+     * Only a request the CRM cancelled (ol_status "cancelled") qualifies. Anything
+     * else is, or may become, a record of money, and stays.
+     */
+    public function deleteCancelled(Deal $deal, Payment $payment, ?User $user = null): void
+    {
+        if ((int) $payment->deal_id !== (int) $deal->id) {
+            throw new HttpException(404, 'Payment request not found.');
+        }
+
+        if (self::uiStateOf($payment) !== 'invalidated') {
+            throw new HttpException(409, __('messages.paymentRequestDeleteOnlyCancelled'));
+        }
+
+        // Soft delete: the row stays as a trace (who and when), and the
+        // SoftDeletes scope on Payment keeps it out of every list and total.
+        // The author is written straight to the row so the payment observers
+        // (built for invoice payments) do not run an update for it.
+        Payment::withoutGlobalScopes()->whereKey($payment->id)->update(['deleted_by_user_id' => $user?->id]);
+        $payment->delete();
     }
 
     /**
@@ -646,6 +673,13 @@ class DealPaymentService
             'invalidated_at' => $payment->invalidated_at?->toIso8601String(),
             'invalidated_by' => $people['invalidated_by'],
             'invalidation_reason' => $payment->invalidation_reason,
+            'documents_requested' => $payment->documents_requested_at !== null,
+            // List queries load invoice_document_exists in bulk; a single payment asks once.
+            'invoice_issued' => $payment->documents_requested_at !== null
+                && (($payment->getAttribute('invoice_document_exists') !== null)
+                    ? (bool) $payment->getAttribute('invoice_document_exists')
+                    : $payment->invoiceDocuments()->exists()),
+            'documents_requested_at' => $payment->documents_requested_at?->toIso8601String(),
             'added_by' => $people['added_by'],
             'last_updated_by' => $people['last_updated_by'],
             'remarks' => $payment->remarks,

@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "@inertiajs/react";
 import { ExternalLink, Phone } from "lucide-react";
 import { initialsOf } from "../utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface CallIdentityProps {
     name: string;
@@ -19,6 +20,7 @@ export default function CallIdentity({
     leadUrl,
     children,
 }: CallIdentityProps) {
+    const { td } = useTd();
     const hasLink = Boolean(leadUrl && name.trim());
 
     return (
@@ -32,7 +34,7 @@ export default function CallIdentity({
                         <Link
                             href={leadUrl}
                             className="sp__name-link"
-                            title="Open this lead — the call keeps running"
+                            title={td("Open this lead — the call keeps running", { source: "en" })}
                         >
                             {name}
                             <ExternalLink className="sp__name-open" aria-hidden="true" />

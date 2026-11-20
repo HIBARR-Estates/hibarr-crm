@@ -317,7 +317,7 @@ export const LegacyDealShow = ({
                                                     <span className="mr-1.5">
                                                         •
                                                     </span>
-                                                    {deal.lead_stage?.name}
+                                                    {td(deal.lead_stage?.name, { source: "en" })}
                                                 </div>
                                             )}
                                         </div>

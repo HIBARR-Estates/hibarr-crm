@@ -1233,7 +1233,7 @@ class DealPaymentRequestTest extends TestCase
     {
         Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
 
-        $id = $this->insertPayment([
+        $id = $this->insertPayment(['documents_requested_at' => now(),
             'external_reference' => '880',
             'ol_status' => 'pending',
             'amount' => 2500,
@@ -1252,11 +1252,12 @@ class DealPaymentRequestTest extends TestCase
         $this->assertStringContainsString('Test Deal', $html);
         $this->assertStringContainsString('2.500,00', $html);
         $this->assertStringContainsString('FATURA', $html);
-        // 16% KDV is inside the amount: 2500 / 1.16 = 2155.17, KDV 344.83.
-        $this->assertSame('2.155,17', $data['subtotal_display']);
-        $this->assertSame('344,83', $data['vat_display']);
-        $this->assertSame('Yalnız: İkibinbeşyüz Avro', $data['amount_in_words']);
-        $this->assertSame('125.000,00', $data['try_display']['amount']);
+        // 16% KDV is added on top of the amount: 2500 + 400 = 2900.
+        $this->assertSame('2.500,00', $data['subtotal_display']);
+        $this->assertSame('400,00', $data['vat_display']);
+        $this->assertSame('2.900,00', $data['total_display']);
+        $this->assertSame('Yalnız: İkibindokuzyüz Avro', $data['amount_in_words']);
+        $this->assertSame('145.000,00', $data['try_display']['amount']);
     }
 
     public function test_invoice_and_receipt_pdfs_render(): void
@@ -1266,7 +1267,7 @@ class DealPaymentRequestTest extends TestCase
             $this->seedSellerSettings(['legal_name' => 'Örnek Emlak Ltd.', 'address' => "Ecevit Cad. 12\nGirne, KKTC", 'approval_number' => 'GVD/2026/0412', 'invoice_number_end' => 5000, 'receipt_number_end' => 5000]);
         }
         $service = app(DealPaymentDocumentService::class);
-        $id = $this->insertPayment(['external_reference' => '899', 'ol_status' => 'pending', 'amount' => 4350, 'currency_id' => $this->currencyId]);
+        $id = $this->insertPayment(['documents_requested_at' => now(), 'external_reference' => '899', 'ol_status' => 'pending', 'amount' => 4350, 'currency_id' => $this->currencyId]);
 
         $invoice = $service->download(Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id), 'invoice');
         $this->assertStringStartsWith('%PDF', $invoice->getContent());
@@ -1285,26 +1286,26 @@ class DealPaymentRequestTest extends TestCase
         Http::fake(['https://api.frankfurter.app/*' => Http::response(['date' => '2026-11-06', 'rates' => ['TRY' => 50.00004]], 200)]);
 
         $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])
-            ->findOrFail($this->insertPayment(['external_reference' => '885', 'ol_status' => 'pending', 'amount' => 4350, 'currency_id' => $this->currencyId]));
+            ->findOrFail($this->insertPayment(['documents_requested_at' => now(), 'external_reference' => '885', 'ol_status' => 'pending', 'amount' => 4350, 'currency_id' => $this->currencyId]));
         $data = app(DealPaymentDocumentService::class)->viewData($payment, 'invoice');
 
         $this->assertSame('06.11.2026', $data['try_display']['date']);
         $this->assertSame('50,0000', $data['try_display']['rate']);
-        $this->assertSame('217.500,00', $data['try_display']['amount']);
+        $this->assertSame('252.300,00', $data['try_display']['amount']);
     }
 
     public function test_receipt_repeats_the_invoice_kdv_after_the_rate_setting_changes(): void
     {
         Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
 
-        $id = $this->insertPayment([
+        $id = $this->insertPayment(['documents_requested_at' => now(),
             'external_reference' => '886',
             'ol_status' => 'pending',
             'amount' => 2500,
         ]);
         $service = app(DealPaymentDocumentService::class);
         $invoice = $service->viewData(Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id), 'invoice');
-        $this->assertSame('344,83', $invoice['vat_display']);
+        $this->assertSame('400,00', $invoice['vat_display']);
 
         DB::table('payment_document_settings')->where('company_id', $this->companyId)->update(['vat_rate' => 20]);
         DB::table('payments')->where('id', $id)->update(['ol_status' => 'completed', 'status' => 'complete', 'paid_on' => now()->subDays(3)]);
@@ -1312,11 +1313,87 @@ class DealPaymentRequestTest extends TestCase
         $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
         $receipt = $service->viewData($payment, 'receipt');
 
-        $this->assertSame('344,83', $receipt['vat_display']);
+        $this->assertSame('400,00', $receipt['vat_display']);
+        $this->assertSame('2.900,00', $receipt['total_display']);
         $this->assertSame('16', $receipt['vat_rate_display']);
         // Printed with the collection date; the row records when it was issued.
         $this->assertSame(now()->subDays(3)->format('d.m.Y'), $receipt['issued_on']);
         $this->assertTrue(DB::table('payment_documents')->where('kind', 'receipt')->value('issued_at') >= now()->subMinute()->toDateTimeString());
+    }
+
+    public function test_documents_are_only_made_after_an_invoice_is_requested(): void
+    {
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['date' => '2026-11-06', 'rates' => ['TRY' => 50]], 200)]);
+        $service = app(DealPaymentDocumentService::class);
+
+        $id = $this->insertPayment(['external_reference' => '870', 'ol_status' => 'pending', 'amount' => 2500]);
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+
+        try {
+            $service->viewData($payment, 'invoice');
+            $this->fail('Expected the invoice to be refused before it is requested.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+        $this->assertSame(0, DB::table('payment_documents')->count());
+
+        $service->requestDocuments($payment, 7);
+        $service->requestDocuments($payment->fresh(), 8);
+
+        $payment = $payment->fresh();
+        $this->assertNotNull($payment->documents_requested_at);
+        $this->assertSame(7, (int) $payment->documents_requested_by_user_id);
+        // KDV is added on top of the net amount only for a requested invoice.
+        $data = $service->viewData($payment, 'invoice');
+        $this->assertSame('2.500,00', $data['subtotal_display']);
+        $this->assertSame('2.900,00', $data['total_display']);
+        $this->assertSame(2500.0, (float) DB::table('payments')->where('id', $id)->value('amount'));
+    }
+
+    public function test_invoice_issued_is_known_in_bulk_without_a_query_per_payment(): void
+    {
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['date' => '2026-11-06', 'rates' => ['TRY' => 50]], 200)]);
+        $documents = app(DealPaymentDocumentService::class);
+        $service = app(\App\Services\DealPaymentService::class);
+
+        $id = $this->insertPayment(['external_reference' => '871', 'ol_status' => 'pending', 'amount' => 2500]);
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+        $documents->requestDocuments($payment, 7);
+
+        // Requested, but not generated yet.
+        $this->assertFalse($service->serializeDealPayment($payment->fresh())['invoice_issued']);
+
+        $documents->viewData($payment->fresh(), 'invoice');
+        $this->assertTrue($service->serializeDealPayment($payment->fresh())['invoice_issued']);
+
+        // A list loads the flag with the rows, so serializing asks nothing per payment.
+        $listed = Payment::withoutGlobalScope(CompanyScope::class)
+            ->without(['order'])
+            ->withExists('invoiceDocuments as invoice_document_exists')
+            ->findOrFail($id);
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $serialized = $service->serializeDealPayment($listed);
+        $documentQueries = array_filter(DB::getQueryLog(), fn ($q) => str_contains($q['query'], 'payment_documents'));
+        DB::disableQueryLog();
+
+        $this->assertTrue($serialized['invoice_issued']);
+        $this->assertCount(0, $documentQueries);
+    }
+
+    public function test_an_invoice_cannot_be_requested_for_an_ended_request(): void
+    {
+        $id = $this->insertPayment(['external_reference' => '871', 'ol_status' => 'failed', 'amount' => 100]);
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+
+        try {
+            app(DealPaymentDocumentService::class)->requestDocuments($payment, 7);
+            $this->fail('Expected the request to be refused.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+
+        $this->assertNull($payment->fresh()->documents_requested_at);
     }
 
     public function test_documents_are_not_issued_without_the_seller_details(): void
@@ -1325,7 +1402,7 @@ class DealPaymentRequestTest extends TestCase
         DB::table('payment_document_settings')->delete();
 
         $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])
-            ->findOrFail($this->insertPayment(['external_reference' => '887', 'ol_status' => 'pending', 'amount' => 100]));
+            ->findOrFail($this->insertPayment(['external_reference' => '887', 'ol_status' => 'pending', 'amount' => 100, 'documents_requested_at' => now()]));
 
         try {
             app(DealPaymentDocumentService::class)->viewData($payment, 'invoice');
@@ -1342,18 +1419,18 @@ class DealPaymentRequestTest extends TestCase
         Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
 
         $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])
-            ->findOrFail($this->insertPayment(['external_reference' => '888', 'ol_status' => 'pending', 'amount' => 100, 'currency_id' => $this->currencyId]));
+            ->findOrFail($this->insertPayment(['documents_requested_at' => now(), 'external_reference' => '888', 'ol_status' => 'pending', 'amount' => 100, 'currency_id' => $this->currencyId]));
         $data = app(DealPaymentDocumentService::class)->viewData($payment, 'invoice');
 
         $this->assertNull($data['try_display']['date']);
-        $this->assertSame('5.000,00', $data['try_display']['amount']);
+        $this->assertSame('5.800,00', $data['try_display']['amount']);
     }
 
     public function test_write_back_cannot_change_the_amount_once_a_document_is_issued(): void
     {
         Http::fake(['https://api.frankfurter.app/*' => Http::response(['date' => '2026-11-06', 'rates' => ['TRY' => 50]], 200)]);
 
-        $id = $this->insertPayment(['external_reference' => '889', 'ol_status' => 'pending', 'amount' => 100, 'currency_id' => $this->currencyId]);
+        $id = $this->insertPayment(['documents_requested_at' => now(), 'external_reference' => '889', 'ol_status' => 'pending', 'amount' => 100, 'currency_id' => $this->currencyId]);
         app(DealPaymentDocumentService::class)->viewData(Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id), 'invoice');
 
         try {
@@ -1387,11 +1464,11 @@ class DealPaymentRequestTest extends TestCase
 
         $service = app(DealPaymentDocumentService::class);
         $first = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])
-            ->findOrFail($this->insertPayment(['external_reference' => '890', 'ol_status' => 'pending', 'amount' => 100]));
+            ->findOrFail($this->insertPayment(['documents_requested_at' => now(), 'external_reference' => '890', 'ol_status' => 'pending', 'amount' => 100]));
         $second = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])
-            ->findOrFail($this->insertPayment(['external_reference' => '891', 'ol_status' => 'pending', 'amount' => 100]));
+            ->findOrFail($this->insertPayment(['documents_requested_at' => now(), 'external_reference' => '891', 'ol_status' => 'pending', 'amount' => 100]));
         $third = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])
-            ->findOrFail($this->insertPayment(['external_reference' => '892', 'ol_status' => 'pending', 'amount' => 100]));
+            ->findOrFail($this->insertPayment(['documents_requested_at' => now(), 'external_reference' => '892', 'ol_status' => 'pending', 'amount' => 100]));
 
         $this->assertSame('B 000240', $service->viewData($first, 'invoice')['number']);
         $this->assertSame('B 000241', $service->viewData($second, 'invoice')['number']);
@@ -1424,7 +1501,7 @@ class DealPaymentRequestTest extends TestCase
         $html = view('payment-requests.document', $data)->render();
 
         $this->assertSame('A 000001', $data['number']);
-        $this->assertSame('Yalnız: Dörtbinüçyüzelli İngiliz Sterlini', $data['amount_in_words']);
+        $this->assertSame('Yalnız: Beşbinkırkaltı İngiliz Sterlini', $data['amount_in_words']);
         $this->assertStringContainsString('ÖRNEK', $html);
         $this->assertSame(0, DB::table('payment_documents')->count());
 
@@ -1434,7 +1511,7 @@ class DealPaymentRequestTest extends TestCase
 
     public function test_receipt_is_refused_until_the_payment_is_collected(): void
     {
-        $id = $this->insertPayment([
+        $id = $this->insertPayment(['documents_requested_at' => now(),
             'external_reference' => '881',
             'ol_status' => 'pending',
         ]);
@@ -1450,7 +1527,7 @@ class DealPaymentRequestTest extends TestCase
 
     public function test_receipt_document_is_available_once_paid_online(): void
     {
-        $id = $this->insertPayment([
+        $id = $this->insertPayment(['documents_requested_at' => now(),
             'external_reference' => '882',
             'ol_status' => 'completed',
             'ol_payment_type' => 'crypto',
@@ -1462,6 +1539,17 @@ class DealPaymentRequestTest extends TestCase
         Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
 
         $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+
+        // A receipt never makes the invoice: that has to be generated first.
+        try {
+            app(DealPaymentDocumentService::class)->viewData($payment, 'receipt');
+            $this->fail('Expected the receipt to be refused before the invoice exists.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+        $this->assertSame(0, DB::table('payment_documents')->count());
+
+        app(DealPaymentDocumentService::class)->viewData($payment, 'invoice');
         $data = app(DealPaymentDocumentService::class)->viewData($payment, 'receipt');
         $html = view('payment-requests.document', $data)->render();
 
@@ -1572,6 +1660,7 @@ class DealPaymentRequestTest extends TestCase
 
         Schema::create('payments', function (Blueprint $table) {
             $table->increments('id');
+            $table->softDeletes();
             $table->unsignedInteger('company_id')->nullable();
             $table->unsignedInteger('deal_id')->nullable();
             $table->double('amount', 30, 2)->nullable();
@@ -1586,6 +1675,8 @@ class DealPaymentRequestTest extends TestCase
             $table->unsignedBigInteger('verified_by_user_id')->nullable();
             $table->timestamp('verified_at')->nullable();
             $table->timestamp('invalidated_at')->nullable();
+            $table->timestamp('documents_requested_at')->nullable();
+            $table->unsignedInteger('documents_requested_by_user_id')->nullable();
             $table->unsignedBigInteger('invalidated_by_user_id')->nullable();
             $table->string('invalidation_reason')->nullable();
             $table->decimal('base_amount', 16, 2)->nullable();

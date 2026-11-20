@@ -40,6 +40,10 @@ interface LeadMissionModalsProps {
     onDealCreated?: (deal: Deal) => void;
     /** Where the qualification call opens: "under-dock" on the agent workspace. */
     qualificationPlacement?: "center" | "under-dock";
+    /** The agent workspace's create-deal dialog (canvas L7-34), with its subtitle. */
+    createDealAgent?: { subtitle?: string };
+    /** Called when the create-deal form closes without a deal. */
+    onCreateDealCancelled?: () => void;
 }
 
 /**
@@ -57,6 +61,8 @@ export default function LeadMissionModals({
     pageProps: props,
     onDealCreated,
     qualificationPlacement,
+    createDealAgent,
+    onCreateDealCancelled,
 }: LeadMissionModalsProps) {
     const { td } = useTd();
     const { lead, setLead } = useLeadWorkspace();
@@ -119,7 +125,10 @@ export default function LeadMissionModals({
                 onClose={() => {
                     flow.closeCreateDeal();
                     dealCreate.clearErrors();
+                    onCreateDealCancelled?.();
                 }}
+                variant={createDealAgent ? "agent" : "default"}
+                subtitle={createDealAgent?.subtitle}
                 saving={dealCreate.isCreating}
                 errors={dealCreate.errors}
                 defaultAgentId={defaultAgentId}

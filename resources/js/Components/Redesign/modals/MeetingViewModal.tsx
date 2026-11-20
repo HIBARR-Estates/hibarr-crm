@@ -63,6 +63,9 @@ export interface MeetingViewModalProps {
     userId?: number;
     onOpenSourceEmail?: () => void;
     openSourceEmailLabel?: string;
+    /** Retries a failed automatic meeting link; shown only when the caller passes it. */
+    onGenerateLink?: () => void;
+    generatingLink?: boolean;
     /**
      * Flag-off fallback — the deprecated MeetingDetailModal or ViewFollowup.
      * Required so surfaces keep working when crm.meetings-page-redesign is off.
@@ -96,6 +99,8 @@ export default function MeetingViewModal({
     userId,
     onOpenSourceEmail,
     openSourceEmailLabel,
+    onGenerateLink,
+    generatingLink = false,
     fallback,
 }: MeetingViewModalProps) {
     const redesignEnabled = useMeetingsPageRedesignFlag();
@@ -178,6 +183,8 @@ export default function MeetingViewModal({
                 summaryPanel={summaryPanel}
                 onOpenSourceEmail={onOpenSourceEmail}
                 openSourceEmailLabel={openSourceEmailLabel}
+                onGenerateLink={onGenerateLink}
+                generatingLink={generatingLink}
                 initialPanel={initialPanel}
             />
             {renderNestedModals?.(nestedControls)}

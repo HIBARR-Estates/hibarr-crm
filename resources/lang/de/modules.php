@@ -57,6 +57,9 @@ return [
         'editLead' => 'Lead bearbeiten',
         'noLeadFound' => 'Kein Lead gefunden',
         'followUp' => 'Meetings',
+        'addLeadSource' => 'Lead-Quelle hinzufügen',
+        'editLeadSource' => 'Lead-Quelle bearbeiten',
+        'leadSource' => 'Lead-Quelle',
     ],
     'deal' => [
         'title' => 'Angebot',
@@ -65,6 +68,15 @@ return [
         'noDealFound' => 'Kein Angebot gefunden',
         'dealPipeline' => 'Angebots-Pipeline',
         'dealSource' => 'Angebots-Quelle',
+        'addRoutingTrigger' => 'Feldauslöser hinzufügen',
+        'packageRoutingTriggers' => 'Feld-Routing-Auslöser',
+        'packageRoutingTriggersHint' => 'Wenn ein Deal-Feld Ihrer Regel entspricht, wird dem Deal dieses Paket zugewiesen und er in die verknüpfte Pipeline verschoben.',
+        'packageRoutingTriggersNoFields' => 'Legen Sie in den Deal-Einstellungen fest, welche Deal-Felder das Routing auslösen können, bevor Sie Paket-Auslöser hinzufügen.',
+        'routingTriggerField' => 'Deal-Feld',
+        'routingTriggerFieldDisabledRow' => 'Dieser Auslöser verwendet ein Feld, das für das Routing nicht mehr aktiviert ist. Entfernen Sie ihn oder aktivieren Sie das Feld in den Deal-Einstellungen erneut.',
+        'routingTriggerMatchMode' => 'Wann weiterleiten',
+        'routingTriggerMatchModeExact' => 'Wert ist gleich',
+        'routingTriggerMatchValue' => 'Vergleichswert',
     ],
     'property' => [
         'addProperty' => 'Immobilie hinzufügen',
@@ -104,5 +116,17 @@ return [
         'leadMeetingCadenceDeleteHint' => 'Das Entfernen dieser Überschreibung stellt den Firmenstandard für Besprechungen für Lead-Empfänger wieder her.',
         'leadMeetingCadenceDeleteConfirm' => 'Lead-Besprechungskadenz überschreiben entfernen und auf den Firmenstandard für Besprechungen zurückfallen?',
         'clearLeadMeetingCadence' => 'Überschreibung löschen',
+    ],
+    'emailSettings' => [
+        'notificationTitle' => 'E-Mail-Benachrichtigungseinstellungen',
+    ],
+    'projectCategory' => [
+        'categoryName' => 'Kategoriename',
+    ],
+    'taskCategory' => [
+        'editTaskCategory' => 'Aufgabenkategorie bearbeiten',
+    ],
+    'tasks' => [
+        'taskCategory' => 'Aufgabenkategorie',
     ],
 ];

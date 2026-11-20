@@ -59,6 +59,10 @@ return [
         'crm.deal-files-grouping',
         'crm.meetings-page-redesign',
         'crm.deal-value-commission',
+        // Partner referral share of the commission pool: a per-partner default %, a per-deal % or agreed amount
+        // (capped at what the deal can carry), the referral leg in the engine, and the controls that edit them.
+        // Off: deals, ledgers and partner pages behave as before the feature.
+        'crm.partner-referral-commission',
         'shared.3cx-calling',
         'crm.softphone',
         'callbridge.integrations',

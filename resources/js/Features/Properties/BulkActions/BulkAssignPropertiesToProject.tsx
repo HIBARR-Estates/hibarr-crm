@@ -5,6 +5,7 @@ import { router, usePage } from "@inertiajs/react";
 import { Button, Form, message, Modal, Select } from "antd";
 import { useState } from "react";
 import type { DeveloperProjectOption } from "@/Types/developerProject";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     ids: number[];
@@ -21,6 +22,7 @@ const BulkAssignPropertiesToProject: React.FC<Props> = ({
     open,
     onClose,
 }) => {
+    const { td } = useTd();
     const { props } = usePage<IndexProps>();
 
     // Use developerProjects from props (updated in PropertyController)
@@ -43,7 +45,7 @@ const BulkAssignPropertiesToProject: React.FC<Props> = ({
                 {
                     onSuccess: () => {
                         message.success(
-                            "Properties assigned to project successfully",
+                            td("Properties assigned to project successfully", { source: "en" }),
                         );
 
                         onClose(true);
@@ -51,7 +53,7 @@ const BulkAssignPropertiesToProject: React.FC<Props> = ({
                         router.reload();
                     },
                     onError: () => {
-                        message.error("Failed to assign properties to project");
+                        message.error(td("Failed to assign properties to project", { source: "en" }));
                     },
                     onFinish: () => {
                         setAssignProjectLoading(false);
@@ -63,7 +65,7 @@ const BulkAssignPropertiesToProject: React.FC<Props> = ({
 
     return (
         <Modal
-            title="Assign Properties to Developer Project"
+            title={td("Assign Properties to Developer Project", { source: "en" })}
             open={open}
             onCancel={() => !assignProjectLoading && onClose()}
             footer={[
@@ -72,7 +74,7 @@ const BulkAssignPropertiesToProject: React.FC<Props> = ({
                     onClick={() => onClose()}
                     disabled={assignProjectLoading}
                 >
-                    Cancel
+                    {td("Cancel", { source: "en" })}
                 </Button>,
                 <Button
                     key="submit"
@@ -80,7 +82,7 @@ const BulkAssignPropertiesToProject: React.FC<Props> = ({
                     loading={assignProjectLoading}
                     onClick={handleAssignToProject}
                 >
-                    Assign to Project
+                    {td("Assign to Project", { source: "en" })}
                 </Button>,
             ]}
         >
@@ -91,13 +93,13 @@ const BulkAssignPropertiesToProject: React.FC<Props> = ({
                     to a developer project.
                 </p>
                 <p className="text-gray-500 text-sm mt-1">
-                    Note: Properties can only belong to one project at a time.
+                    {td("Note: Properties can only belong to one project at a time.", { source: "en" })}
                 </p>
             </div>
             <Form form={projectForm} layout="vertical">
                 <Form.Item
                     name="project_id"
-                    label="Select Developer Project"
+                    label={td("Select Developer Project", { source: "en" })}
                     rules={[
                         {
                             required: true,
@@ -106,7 +108,7 @@ const BulkAssignPropertiesToProject: React.FC<Props> = ({
                     ]}
                 >
                     <Select
-                        placeholder="Choose a developer project"
+                        placeholder={td("Choose a developer project", { source: "en" })}
                         showSearch
                         filterOption={(input, option) =>
                             (option?.label as string)

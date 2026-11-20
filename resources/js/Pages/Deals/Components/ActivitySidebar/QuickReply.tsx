@@ -7,6 +7,7 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiResponse } from "@/lib/api/types";
 import { usePage, router } from "@inertiajs/react";
 import { isLoading as _isLoading } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     activity: Activity;
@@ -27,6 +28,7 @@ interface ConversationResponse {
 }
 
 export default function QuickReply({ activity, deal, onCancel }: Props) {
+    const { td } = useTd();
     const { message: messageApi } = App.useApp();
     const [form] = Form.useForm();
     const {
@@ -119,7 +121,7 @@ export default function QuickReply({ activity, deal, onCancel }: Props) {
                 {/* Show subject preview for email replies */}
                 {activity.channel_type === "email" && activity.subject && (
                     <div className="mb-3 p-2 bg-gray-100 rounded text-sm text-gray-600">
-                        <strong>Subject:</strong> Re: {activity.subject}
+                        <strong>{td("Subject:", { source: "en" })}</strong> Re: {activity.subject}
                     </div>
                 )}
 
@@ -154,7 +156,7 @@ export default function QuickReply({ activity, deal, onCancel }: Props) {
                         onClick={onCancel}
                         disabled={isLoading}
                     >
-                        Cancel
+                        {td("Cancel", { source: "en" })}
                     </Button>
                     <Button
                         type="primary"
@@ -164,7 +166,7 @@ export default function QuickReply({ activity, deal, onCancel }: Props) {
                         onClick={() => form.submit()}
                         className="bg-blue-600"
                     >
-                        Send Reply
+                        {td("Send Reply", { source: "en" })}
                     </Button>
                 </div>
             </Form>

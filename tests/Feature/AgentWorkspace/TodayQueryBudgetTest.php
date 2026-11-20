@@ -178,7 +178,10 @@ class TodayQueryBudgetTest extends TestCase
             ->mapWithKeys(fn (array $row) => [$row['id'] => $row['related']]);
 
         $this->assertSame(
-            ['type' => 'deal', 'id' => 1, 'name' => 'Jana · Kyrenia', 'status' => 'Viewing', 'status_color' => '#1a6bb5', 'person' => 'Jana Hoffmann', 'phone' => '+4915123847720'],
+            [
+                'type' => 'deal', 'id' => 1, 'name' => 'Jana · Kyrenia', 'status' => 'Viewing', 'status_color' => '#1a6bb5',
+                'person' => 'Jana Hoffmann', 'phone' => '+4915123847720', 'outcome' => null, 'lead_id' => 1,
+            ],
             $related[1]
         );
         $this->assertSame('Qualifying', $related[2]['status']);
@@ -200,6 +203,31 @@ class TodayQueryBudgetTest extends TestCase
 
         $this->assertSame('Jana Hoffmann', $meeting['person']);
         $this->assertSame('Viewing', $meeting['deal_stage']);
+    }
+
+    public function test_a_meeting_carries_its_record_for_do_next(): void
+    {
+        DB::table('lead_lifecycle_statuses')->insert(['id' => 4, 'company_id' => 1, 'key' => 'qualifying', 'label' => 'Qualifying', 'label_color' => '#5b4fa0']);
+        DB::table('pipeline_stages')->insert(['id' => 6, 'company_id' => 1, 'name' => 'Viewing', 'label_color' => '#1a6bb5']);
+        DB::table('leads')->where('id', 1)->update(['lead_lifecycle_status_id' => 4]);
+        DB::table('deals')->where('id', 1)->update(['pipeline_stage_id' => 6, 'outcome_status' => 'won']);
+        // Meeting 1 is on the deal, meeting 2 on the lead alone.
+        $this->seedMeetings(2);
+        DB::table('lead_follow_up')->where('id', 1)->update(['lead_id' => null, 'deal_id' => 1]);
+        DB::table('lead_follow_up')->where('id', 2)->update(['lead_id' => 1, 'deal_id' => null]);
+
+        $meetings = collect($this->metrics()->meetingsBetween(self::USER, now()->startOfDay(), now()->endOfDay()))->keyBy('id');
+
+        $this->assertSame(
+            [
+                'type' => 'deal', 'id' => 1, 'name' => 'Jana · Kyrenia', 'status' => 'Viewing', 'status_color' => '#1a6bb5',
+                'person' => 'Jana Hoffmann', 'outcome' => 'won', 'lead_id' => 1,
+            ],
+            $meetings[1]['related']
+        );
+        $this->assertSame('lead', $meetings[2]['related']['type']);
+        $this->assertSame('qualifying', $meetings[2]['related']['status_key']);
+        $this->assertSame('Jana Hoffmann', $meetings[2]['related']['person']);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
@@ -380,6 +408,7 @@ class TodayQueryBudgetTest extends TestCase
         Schema::create('lead_lifecycle_statuses', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('company_id')->nullable();
+            $table->string('key')->nullable();
             $table->string('label')->nullable();
             $table->string('label_color')->nullable();
         });

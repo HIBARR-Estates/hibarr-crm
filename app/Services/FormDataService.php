@@ -167,23 +167,29 @@ class FormDataService
      * UTM column, scoped to the current company — used to populate UTM filter
      * dropdowns from real data instead of a fixed/free-text list.
      */
+    /**
+     * Distinct values of one UTM column for the lead filter, with the number of
+     * leads carrying each. Covers the first touch (lead_marketing) and every
+     * later touch (lead_utm_touches), so the list matches what the filter in
+     * LeadService can find.
+     */
     private function getDistinctMarketingValues(string $column): Collection
     {
-        $cacheKey = 'lead_marketing_distinct_' . $column . '_' . company()->id;
+        return Cache::remember(self::utmValuesCacheKey($column, (int) company()->id), self::CACHE_TTL, function () use ($column) {
+            $pairs = \DB::table('lead_marketing')
+                ->select('lead_id', $column . ' as value')
+                ->union(\DB::table('lead_utm_touches')->select('lead_id', $column . ' as value'));
 
-        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($column) {
-            return \DB::table('lead_marketing')
-                ->join('leads', 'leads.id', '=', 'lead_marketing.lead_id')
+            return \DB::query()
+                ->fromSub($pairs, 'utm')
+                ->join('leads', 'leads.id', '=', 'utm.lead_id')
                 ->where('leads.company_id', company()->id)
                 ->whereNull('leads.deleted_at')
-                ->whereNotNull('lead_marketing.' . $column)
-                ->where('lead_marketing.' . $column, '!=', '')
-                ->groupBy('lead_marketing.' . $column)
-                ->orderByRaw('count(*) desc')
-                ->select(
-                    'lead_marketing.' . $column . ' as value',
-                    \DB::raw('count(distinct leads.id) as count')
-                )
+                ->whereNotNull('utm.value')
+                ->where('utm.value', '!=', '')
+                ->groupBy('utm.value')
+                ->orderByRaw('count(distinct leads.id) desc')
+                ->select('utm.value', \DB::raw('count(distinct leads.id) as count'))
                 ->get()
                 ->map(fn ($row) => [
                     'value' => $row->value,
@@ -192,6 +198,11 @@ class FormDataService
                 ])
                 ->values();
         });
+    }
+
+    public static function utmValuesCacheKey(string $column, int $companyId): string
+    {
+        return 'lead_marketing_distinct_' . $column . '_' . $companyId;
     }
 
     private function getCategories(Request $request)

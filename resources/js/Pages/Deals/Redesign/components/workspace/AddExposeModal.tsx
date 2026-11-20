@@ -276,7 +276,7 @@ export default function AddExposeModal({
                                     }}
                                 >
                                     <Icon name="chevron-left" size={15} />
-                                    {activeProject.title}
+                                    {td(activeProject.title, { source: "en" })}
                                 </button>
                             ) : (
                                 <div className="flex gap-1.5">

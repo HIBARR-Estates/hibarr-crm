@@ -157,6 +157,9 @@ class Kernel extends ConsoleKernel
         // OL call bridge → timeline projection (poll_interval config default 30s;
         // everyMinute is the finest standard schedule tick).
         $schedule->command('call-bridge:poll')->everyMinute()->withoutOverlapping();
+        // Recordings OL has not confirmed yet (the durable retry for the upload's
+        // one-off sync, which never retries on the `sync` queue connection).
+        $schedule->command('call-recordings:sync-to-call-bridge')->everyTenMinutes()->withoutOverlapping();
         // Retry queue process every 5 minutes
         // $schedule->command('activity:retry-queue process --limit=50')->everyFiveMinutes();
 

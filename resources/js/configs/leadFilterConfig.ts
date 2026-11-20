@@ -5,6 +5,12 @@ const YES_NO_OPTIONS = [
     { value: "0", label: "No" },
 ];
 
+/** Marketing flags can also be "not recorded": the lead never reached the funnel. */
+const ENGAGEMENT_FLAG_OPTIONS = [
+    ...YES_NO_OPTIONS,
+    { value: "unknown", label: "Not recorded" },
+];
+
 const OPTION_CUSTOM_FIELD_TYPES = new Set([
     "select",
     "radio",
@@ -46,6 +52,7 @@ export function buildLeadCustomFieldFilterFields(
 
             return {
                 key: `cf_${field.id}`,
+                exclusions: ["not_in", "empty"] as FilterFieldConfig["exclusions"],
                 label: field.label || field.name || `Field ${field.id}`,
                 type: "multiselect" as const,
                 control:
@@ -88,6 +95,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         // ── General ──────────────────────────────────────────────
         {
             key: "temperature",
+            exclusions: ["not_in", "empty"],
             label: "Temperature",
             type: "multiselect",
             control: "temperature",
@@ -98,6 +106,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "lifecycle_status_id",
+            exclusions: ["not_in", "empty"],
             label: "Status",
             type: "multiselect",
             control: "pills",
@@ -124,6 +133,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
                 { value: "today", label: "Today" },
                 { value: "week", label: "Next 7 days" },
                 { value: "none", label: "None" },
+                { value: "not_overdue", label: "Not overdue" },
             ],
         },
         {
@@ -172,6 +182,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         // ── Assignment & source ──────────────────────────────────
         {
             key: "lead_source",
+            exclusions: ["not_in", "empty"],
             label: "Source",
             type: "multiselect",
             control: "pills",
@@ -186,6 +197,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "lead_origin",
+            exclusions: ["not_in", "empty"],
             label: "Origin",
             type: "multiselect",
             control: "pills",
@@ -200,6 +212,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "category_id",
+            exclusions: ["not_in", "empty"],
             label: "Categories",
             type: "multiselect",
             control: "pills",
@@ -214,6 +227,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "lead_owner_id",
+            exclusions: ["not_in", "empty", "any"],
             label: "Lead owner",
             type: "multiselect",
             control: "checklist",
@@ -229,6 +243,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "referred_by_agent_id",
+            exclusions: ["not_in", "empty", "any"],
             label: "Referrer",
             type: "multiselect",
             control: "checklist",
@@ -244,6 +259,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "added_by_id",
+            exclusions: ["not_in"],
             label: "Added by",
             type: "multiselect",
             control: "checklist",
@@ -261,6 +277,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         // ── Profile ───────────────────────────────────────────────
         {
             key: "gender",
+            exclusions: ["not_in", "empty"],
             label: "Gender",
             type: "multiselect",
             control: "pills",
@@ -271,6 +288,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "preferred_contact_time",
+            exclusions: ["not_in", "empty"],
             label: "Preferred contact time",
             type: "multiselect",
             control: "pills",
@@ -281,6 +299,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "age_range",
+            exclusions: ["not_in", "empty"],
             label: "Age range",
             type: "multiselect",
             control: "pills",
@@ -291,6 +310,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "nationality",
+            exclusions: ["not_in", "empty"],
             label: "Nationality",
             type: "multiselect",
             control: "tokens",
@@ -305,6 +325,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "country",
+            exclusions: ["not_in", "empty"],
             label: "Country",
             type: "multiselect",
             control: "tokens",
@@ -319,6 +340,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "language",
+            exclusions: ["not_in", "empty"],
             label: "Languages",
             type: "multiselect",
             control: "pills",
@@ -339,7 +361,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             control: "segmented",
             sentence: "joined FB group",
             section: "Engagement",
-            options: YES_NO_OPTIONS,
+            options: ENGAGEMENT_FLAG_OPTIONS,
         },
         {
             key: "has_joined_the_whatsapp_group",
@@ -348,7 +370,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             control: "segmented",
             sentence: "joined WhatsApp group",
             section: "Engagement",
-            options: YES_NO_OPTIONS,
+            options: ENGAGEMENT_FLAG_OPTIONS,
         },
         {
             key: "has_registered_for_the_webinar",
@@ -357,7 +379,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             control: "segmented",
             sentence: "registered for webinar",
             section: "Engagement",
-            options: YES_NO_OPTIONS,
+            options: ENGAGEMENT_FLAG_OPTIONS,
         },
         {
             key: "has_attended_the_webinar",
@@ -366,10 +388,12 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             control: "segmented",
             sentence: "attended webinar",
             section: "Engagement",
-            options: YES_NO_OPTIONS,
+            options: ENGAGEMENT_FLAG_OPTIONS,
         },
         {
             key: "contact_score",
+            exclusions: ["empty"],
+            exclusionLabels: { in: "In range", empty: "No score" },
             label: "Contact score",
             type: "numberrange",
             control: "scoreRange",
@@ -378,9 +402,11 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
 
         // ── Campaign attribution (UTM) ───────────────────────────
-        // Values come from what is actually recorded in lead_marketing.
+        // Values come from what is actually recorded for leads: the first touch
+        // (lead_marketing) and every later touch (lead_utm_touches).
         {
             key: "utm_source",
+            exclusions: ["not_in", "empty"],
             label: "UTM Source",
             type: "multiselect",
             control: "utm",
@@ -390,6 +416,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "utm_medium",
+            exclusions: ["not_in", "empty"],
             label: "UTM Medium",
             type: "multiselect",
             control: "utm",
@@ -399,6 +426,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "utm_campaign",
+            exclusions: ["not_in", "empty"],
             label: "UTM Campaign",
             type: "multiselect",
             control: "utm",
@@ -408,6 +436,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "utm_content",
+            exclusions: ["not_in", "empty"],
             label: "UTM Content",
             type: "multiselect",
             control: "utm",
@@ -417,6 +446,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "utm_term",
+            exclusions: ["not_in", "empty"],
             label: "UTM Term",
             type: "multiselect",
             control: "utm",
@@ -426,6 +456,7 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "utm_audience",
+            exclusions: ["not_in", "empty"],
             label: "UTM Audience",
             type: "multiselect",
             control: "utm",
@@ -448,6 +479,12 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "qualification_answer_values",
+            exclusions: ["not_in", "empty"],
+            exclusionLabels: {
+                in: "Has answers",
+                not_in: "Lacks answers",
+                empty: "No qualification yet",
+            },
             label: "Qualification answers",
             type: "text",
             sentence: "qualification answer",

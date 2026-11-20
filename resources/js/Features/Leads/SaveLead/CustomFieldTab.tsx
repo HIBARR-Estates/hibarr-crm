@@ -3,6 +3,7 @@ import GeneralCustomFieldTab from "@/Components/Common/GeneralCustomFieldTab";
 import { LeadFormProps } from "./LeadForm";
 import { Button, Form, Space } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
+import { useTranslation } from "@/Hooks/useTranslation";
 
 interface CustomFieldTabProps
     extends Pick<
@@ -29,8 +30,8 @@ const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
     onSubmit,
     onCancel,
     loading = false,
-    submitText = "Save Contact",
-    cancelText = "Cancel",
+    submitText,
+    cancelText,
     categoryId,
     categoryName,
     customFields,
@@ -38,6 +39,7 @@ const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
     formId,
     hideFooter = false,
 }) => {
+    const { t } = useTranslation();
     const [form] = Form.useForm();
     const isPopulatingRef = useRef(false);
 
@@ -92,14 +94,14 @@ const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
                 {!hideFooter && (
                     <div style={{ marginTop: 24 }}>
                         <Space>
-                            <Button onClick={onCancel}>{cancelText}</Button>
+                            <Button onClick={onCancel}>{cancelText ?? t("pages.leads.save_form.cancel")}</Button>
                             <Button
                                 type="primary"
                                 htmlType="submit"
                                 loading={loading}
                                 icon={<SaveOutlined />}
                             >
-                                {submitText}
+                                {submitText ?? t("pages.leads.save_form.save_contact")}
                             </Button>
                         </Space>
                     </div>

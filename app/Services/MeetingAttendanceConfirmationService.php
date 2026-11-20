@@ -393,7 +393,8 @@ class MeetingAttendanceConfirmationService
                 $deal,
                 $followUp,
                 $outcome,
-                $createdNote?->id
+                $createdNote?->id,
+                $user
             );
         } elseif ($followUp->lead_id && $trimmedNote !== '') {
             // No deal linked — the remark goes on the lead instead. There's no

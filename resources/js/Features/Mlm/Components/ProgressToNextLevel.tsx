@@ -3,6 +3,7 @@ import { Progress, Typography } from "antd";
 import type { CriterionProgress, MlmLevel } from "../types";
 import { MLM_METRIC_LABELS } from "../types";
 import LevelBadge from "./LevelBadge";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Title } = Typography;
 
@@ -21,11 +22,12 @@ export default function ProgressToNextLevel({
     criteriaProgress,
     compact = false,
 }: ProgressToNextLevelProps) {
+    const { td } = useTd();
     if (!nextLevel) {
         return (
             <div className="text-center py-4">
                 <div className="text-2xl mb-2">🏆</div>
-                <Text type="secondary">Maximum level reached!</Text>
+                <Text type="secondary">{td("Maximum level reached!", { source: "en" })}</Text>
             </div>
         );
     }
@@ -48,7 +50,7 @@ export default function ProgressToNextLevel({
                         type="secondary"
                         className="text-xs uppercase tracking-wider"
                     >
-                        Progress to
+                        {td("Progress to", { source: "en" })}
                     </Text>
                     <LevelBadge level={nextLevel} />
                 </div>
@@ -74,7 +76,7 @@ export default function ProgressToNextLevel({
                         type="secondary"
                         className="text-xs uppercase tracking-wider"
                     >
-                        Requirements
+                        {td("Requirements", { source: "en" })}
                     </Text>
                     {criteriaProgress.map((cp, index) => (
                         <div key={index} className="space-y-1">

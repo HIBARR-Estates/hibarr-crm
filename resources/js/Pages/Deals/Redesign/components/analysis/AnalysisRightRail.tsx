@@ -43,6 +43,7 @@ export default function AnalysisRightRail({
     tab: controlledTab,
     onTabChange,
 }: Props) {
+    const { td } = useTd();
     const [uncontrolledTab, setUncontrolledTab] = useState<AnalysisRailTab>("steps");
     const tab = controlledTab ?? uncontrolledTab;
     const setTab = (next: AnalysisRailTab) => {
@@ -73,13 +74,13 @@ export default function AnalysisRightRail({
                     active={stepsActive}
                     dark={stepsActive}
                     onClick={() => setTab("steps")}
-                    label="Script steps"
+                    label={td("Script steps", { source: "en" })}
                 />
                 <RailTab
                     active={!stepsActive}
                     dark={stepsActive}
                     onClick={() => setTab("answers")}
-                    label="Captured answers"
+                    label={td("Captured answers", { source: "en" })}
                     badge={answeredCount > 0 ? answeredCount : undefined}
                 />
             </div>

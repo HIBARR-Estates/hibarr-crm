@@ -17,7 +17,8 @@ export interface TaskHandlers {
     nowMs: number;
     timeZone: string;
     onOpen: (task: QueueTask) => void;
-    onComplete: (task: QueueTask) => void;
+    /** `from` is the Done button pressed, for Do next to open under its row. */
+    onComplete: (task: QueueTask, from?: HTMLElement | null) => void;
     onReschedule: (task: QueueTask) => void;
     isCompleting: (taskId: number) => boolean;
     isRescheduling: (taskId: number) => boolean;
@@ -119,7 +120,7 @@ export function NextUpCard({ task, handlers }: { task: QueueTask; handlers: Task
                         emphasis={!call}
                         completing={handlers.isCompleting(task.id)}
                         rescheduling={handlers.isRescheduling(task.id)}
-                        onComplete={() => handlers.onComplete(task)}
+                        onComplete={(button) => handlers.onComplete(task, button)}
                         onReschedule={() => handlers.onReschedule(task)}
                     />
                     {related ? (

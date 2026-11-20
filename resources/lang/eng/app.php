@@ -3,6 +3,13 @@
 return [
     'support' => 'Support',
 
+    'mlmCommissionType' => [
+        'agent' => 'Agent',
+        'upline' => 'Upline',
+        'system' => 'System',
+        'referral' => 'Referral',
+    ],
+
     // resolution status
     'unresolved' => 'Unresolved',
     // resolution status
@@ -531,6 +538,9 @@ return [
         'shiftRotation' => 'Shift Rotation',
         'addAutomateShift' => 'Add Automate Shift',
         'weeklyTimesheets' => 'Weekly Timesheets',
+        'allDeals' => 'All Deals',
+        'inAppNotifications' => 'In-app notifications',
+        'pipeline' => 'Pipeline',
     ],
     'settingsHub' => [
         'packagesDesc' => 'Create and price packages, and set how each one pays commission.',
@@ -804,6 +814,7 @@ return [
         'refresh' => 'Refresh',
         'export' => 'Export',
         'last7Days' => 'Last 7 days',
+        'emailTemplate' => 'Email template',
     ],
     'parentId' => 'Parent',
     'childId' => 'Child',
@@ -2044,4 +2055,6 @@ return [
             'queue' => 'Background job',
         ],
     ],
+    'reportBugs' => 'Report bugs',
+    'requestFeatures' => 'Request features',
 ];

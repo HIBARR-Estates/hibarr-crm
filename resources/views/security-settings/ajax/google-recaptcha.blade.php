@@ -63,7 +63,7 @@
 
                             </div>
                             <div class="col-lg-2">
-                                <x-forms.button-primary class="mr-3 mt-5" id="verify-v2" icon="check">Verify
+                                <x-forms.button-primary class="mr-3 mt-5" id="verify-v2" icon="check">{{ td('Verify') }}
                                 </x-forms.button-primary>
                             </div>
                             <div class="col-lg-12" id="captcha_container"></div>

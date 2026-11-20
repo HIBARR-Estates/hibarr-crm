@@ -3,7 +3,7 @@
         <div id="captcha_container"></div>
     </div>
     <div class="col-sm-6">
-        <button>Save</button>
+        <button>{{ td('Save') }}</button>
     </div>
 </div>
 <script src='https://www.google.com/recaptcha/api.js'></script>

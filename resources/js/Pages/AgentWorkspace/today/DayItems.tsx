@@ -12,12 +12,15 @@ import TaskActions from "./TaskActions";
 import { recordHref, type TaskHandlers } from "./TaskQueue";
 import { instantTime, minutesUntil, wallTime } from "./format";
 import { isTaskDone } from "./useTodayWork";
+import type { DealAnalysisProgress } from "./types";
+import MeetingDetail from "./MeetingDetail";
 
 export type DayItem = { kind: "meeting"; at: number; meeting: ScheduleEntry } | { kind: "task"; at: number; task: QueueTask };
 
 export interface MeetingHandlers {
     onOpenMeeting: (meeting: ScheduleEntry) => void;
-    onMarkHeld: (followUpId: number) => void;
+    /** `from` is the Mark held button, for Do next to open under its row. */
+    onMarkHeld: (followUpId: number, from?: HTMLElement | null) => void;
     isMarkingHeld: (followUpId: number) => boolean;
 }
 
@@ -62,6 +65,8 @@ export function DayItems({
     layout = "timeline",
     showRecordLink = false,
     nowMarker = false,
+    analysis,
+    expandedMeetingId = null,
 }: {
     items: DayItem[];
     handlers: TaskHandlers;
@@ -70,6 +75,10 @@ export function DayItems({
     showRecordLink?: boolean;
     /** Draws the current time between the items (today's timeline). */
     nowMarker?: boolean;
+    /** Deal analysis progress by deal id: a chip on each meeting (agenda list). */
+    analysis?: Record<string, DealAnalysisProgress>;
+    /** The meeting shown opened up with its agenda, attendees and reminders (the next one). */
+    expandedMeetingId?: number | null;
 }) {
     // The line goes before the first item that starts after now.
     const nowIndex = nowMarker ? items.findIndex((item) => item.at > handlers.nowMs) : -1;
@@ -92,10 +101,12 @@ export function DayItems({
                         nowMs={handlers.nowMs}
                         timeZone={handlers.timeZone}
                         onOpen={() => meetingHandlers.onOpenMeeting(item.meeting)}
-                        onMarkHeld={() => meetingHandlers.onMarkHeld(item.meeting.id)}
+                        onMarkHeld={(button) => meetingHandlers.onMarkHeld(item.meeting.id, button)}
                         markingHeld={meetingHandlers.isMarkingHeld(item.meeting.id)}
                         showRecordLink={showRecordLink}
                         layout={layout}
+                        analysis={item.meeting.deal_id ? analysis?.[String(item.meeting.deal_id)] : undefined}
+                        expanded={item.meeting.id === expandedMeetingId}
                     />
                 ) : (
                     <TaskItem key={`t${item.task.id}`} task={item.task} handlers={handlers} showRecordLink={showRecordLink} layout={layout} />
@@ -164,15 +175,19 @@ function MeetingItem({
     markingHeld,
     showRecordLink,
     layout,
+    analysis,
+    expanded = false,
 }: {
     meeting: ScheduleEntry;
     nowMs: number;
     timeZone: string;
     onOpen: () => void;
-    onMarkHeld: () => void;
+    onMarkHeld: (button: HTMLElement) => void;
     markingHeld: boolean;
     showRecordLink: boolean;
     layout: DayItemsLayout;
+    analysis?: DealAnalysisProgress;
+    expanded?: boolean;
 }) {
     const { t } = useTranslation();
     const { state, start, end, where, stateText, heading, recordLine, barColor, canJoin, canMarkHeld, record, listItem } = useMeetingView(
@@ -183,7 +198,7 @@ function MeetingItem({
     const list = layout === "list";
 
     return (
-        <li className={`agent-sched__item agent-ts--${state}`} style={list ? ({ "--agent-bar": barColor } as CSSProperties) : undefined}>
+        <li className={`agent-sched__item agent-ts--${state}${expanded ? " agent-sched__item--open" : ""}`} style={list ? ({ "--agent-bar": barColor } as CSSProperties) : undefined}>
             <span className="agent-sched__time">{start}</span>
             <div className="agent-sched__card">
                 <div className="agent-sched__text">
@@ -195,6 +210,16 @@ function MeetingItem({
                             <span className="agent-sched__state">
                                 <span className="agent-sched__state-dot" aria-hidden="true" />
                                 {stateText}
+                            </span>
+                        ) : null}
+                        {list && analysis ? (
+                            <span className={`agent-sched__analysis${analysis.ready ? " agent-sched__analysis--ready" : ""}`}>
+                                <span className="agent-sched__state-dot" aria-hidden="true" />
+                                {analysis.ready
+                                    ? t("pages.agent_workspace.agenda.analysis_ready")
+                                    : analysis.filled > 0
+                                      ? t("pages.agent_workspace.agenda.analysis_of", { filled: analysis.filled, total: analysis.total })
+                                      : t("pages.agent_workspace.agenda.analysis_none")}
                             </span>
                         ) : null}
                     </div>
@@ -210,7 +235,7 @@ function MeetingItem({
                         </div>
                     )}
                 </div>
-                {canJoin || canMarkHeld || (showRecordLink && record) ? (
+                {!expanded && (canJoin || canMarkHeld || (showRecordLink && record)) ? (
                     <div className="agent-sched__actions">
                         {canJoin ? (
                             <a className="dr-btn dr-btn-primary dr-btn-sm" href={listItem.meetingLink ?? undefined} target="_blank" rel="noopener noreferrer">
@@ -224,7 +249,7 @@ function MeetingItem({
                                 variant={state === "none" && !canJoin ? "primary" : "ghost"}
                                 icon={<Icon name="check" size={13} />}
                                 loading={markingHeld}
-                                onClick={onMarkHeld}
+                                onClick={(event) => onMarkHeld(event.currentTarget)}
                             >
                                 {t("pages.agent_workspace.today.actions.mark_held")}
                             </Button>
@@ -238,6 +263,15 @@ function MeetingItem({
                     </div>
                 ) : null}
             </div>
+            {expanded ? (
+                <MeetingDetail
+                    meeting={meeting}
+                    joinHref={listItem.meetingLink || null}
+                    joinLabel={where}
+                    record={record}
+                    onReschedule={onOpen}
+                />
+            ) : null}
         </li>
     );
 }
@@ -315,7 +349,7 @@ function TaskItem({
                             size="sm"
                             completing={handlers.isCompleting(task.id)}
                             rescheduling={handlers.isRescheduling(task.id)}
-                            onComplete={() => handlers.onComplete(task)}
+                            onComplete={(button) => handlers.onComplete(task, button)}
                             onReschedule={() => handlers.onReschedule(task)}
                         />
                     ) : (
@@ -325,7 +359,7 @@ function TaskItem({
                             size="sm"
                             doneOnly
                             completing={handlers.isCompleting(task.id)}
-                            onComplete={() => handlers.onComplete(task)}
+                            onComplete={(button) => handlers.onComplete(task, button)}
                             onReschedule={() => handlers.onReschedule(task)}
                         />
                     )}

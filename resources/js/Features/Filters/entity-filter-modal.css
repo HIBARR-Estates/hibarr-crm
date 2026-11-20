@@ -6,7 +6,8 @@
    The modal renders in an antd portal outside `.lead-redesign`, so the tokens are
    restated here rather than inherited as --lr-* vars. Keep them in sync with
    tokens.ts — that file is the source of truth. */
-.lfm {
+.lfm,
+.lfm-svd {
     --lfm-ink: #1a1f2e; /* TEXT */
     --lfm-body: #374151; /* GRAY_DARKER */
     --lfm-dim: #5b6472; /* TEXT_MUTED */
@@ -16,7 +17,9 @@
     --lfm-accent: #1a6bb5; /* BLUE */
     --lfm-accent-soft: #e8f1fb; /* BLUE_LIGHT */
     --lfm-surface-2: #f8f9fb; /* SURFACE_2 */
+}
 
+.lfm {
     display: flex;
     flex-direction: column;
     height: 660px;
@@ -603,6 +606,46 @@
     color: #fff;
     font-weight: 600;
 }
+.lfm-seg__item:focus-visible {
+    outline: 2px solid var(--lfm-accent);
+    outline-offset: 1px;
+}
+
+/* "is one of / is not / is empty / has any" — sits in a field's header */
+.lfm-modeswitch {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.lfm-modeswitch .lfm-seg__item {
+    padding: 3px 9px;
+    font-size: 11px;
+    white-space: nowrap;
+}
+.lfm-utm__head .lfm-modeswitch {
+    background: #fff;
+}
+.lfm-fieldwrap {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+.lfm-modenote {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px dashed var(--lfm-border);
+    border-radius: 10px;
+    background: var(--lfm-surface-2);
+    font-size: 12.5px;
+    color: var(--lfm-dim);
+}
+/* the "no value is included" hint under a Not-in selection */
+.lfm-modenote--tight {
+    padding: 0 2px;
+    border: none;
+    background: none;
+    font-size: 11.5px;
+    color: var(--lfm-faint);
+}
 
 /* checklist */
 .lfm-checklist {
@@ -1152,4 +1195,193 @@
         left: 12px;
         width: auto;
     }
+}
+
+/* ── saved views drawer ── */
+.lfm-svd {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    color: var(--lfm-body);
+}
+.lfm-svd__sub {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--lfm-dim);
+}
+.lfm-svd__group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.lfm-svd__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 13px;
+    font-weight: 650;
+    color: var(--lfm-ink);
+}
+.lfm-svd__count {
+    padding: 0 7px;
+    border-radius: 999px;
+    background: var(--lfm-surface-2);
+    border: 1px solid var(--lfm-line);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--lfm-dim);
+}
+.lfm-svd__empty {
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px dashed var(--lfm-border);
+    border-radius: 10px;
+    background: var(--lfm-surface-2);
+    font-size: 12.5px;
+    color: var(--lfm-dim);
+}
+.lfm-svd__list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.lfm-svd__row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 13px;
+    border: 1px solid var(--lfm-border);
+    border-radius: 10px;
+    background: #fff;
+}
+.lfm-svd__row.is-active {
+    border-color: var(--lfm-accent);
+    background: var(--lfm-accent-soft);
+}
+.lfm-svd__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.lfm-svd__name {
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 650;
+    color: var(--lfm-ink);
+    text-align: left;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+.lfm-svd__name:hover {
+    color: var(--lfm-accent);
+}
+.lfm-svd__input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 9px;
+    border: 1px solid var(--lfm-accent);
+    border-radius: 7px;
+    font: inherit;
+    font-size: 13px;
+    color: var(--lfm-ink);
+    box-shadow: 0 0 0 3px var(--lfm-accent-soft);
+    outline: none;
+}
+.lfm-svd__editactions {
+    display: flex;
+    gap: 6px;
+    flex: none;
+}
+.lfm-svd__tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+.lfm-svd__tag {
+    padding: 1px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--lfm-line);
+    background: var(--lfm-surface-2);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--lfm-dim);
+}
+.lfm-svd__tag.is-team {
+    border-color: #b8d4f0;
+    background: var(--lfm-accent-soft);
+    color: var(--lfm-accent);
+}
+.lfm-svd__by {
+    font-size: 11.5px;
+    color: var(--lfm-faint);
+}
+.lfm-svd__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+.lfm-svd__more {
+    padding: 2px 4px;
+    font-size: 11.5px;
+    color: var(--lfm-faint);
+}
+.lfm-svd__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+    padding-top: 8px;
+    border-top: 1px solid var(--lfm-line);
+}
+.lfm-svd__link {
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    font-size: 12px;
+    color: var(--lfm-accent);
+    cursor: pointer;
+}
+.lfm-svd__link:hover:not(:disabled) {
+    text-decoration: underline;
+}
+.lfm-svd__link:disabled {
+    color: var(--lfm-faint);
+    cursor: not-allowed;
+}
+.lfm-svd__link--danger {
+    color: #b91c1c;
+}
+.lfm-svd__link:focus-visible,
+.lfm-svd__name:focus-visible {
+    outline: 2px solid var(--lfm-accent);
+    outline-offset: 2px;
+    border-radius: 3px;
+}
+.lfm-svd__admin {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--lfm-faint);
+}
+.lfm-svd__locked {
+    margin: 0;
+    padding-top: 8px;
+    border-top: 1px solid var(--lfm-line);
+    font-size: 11.5px;
+    color: var(--lfm-faint);
+}
+.lfm-viewpill--manage {
+    margin-left: auto;
+    border-style: dashed;
+    color: var(--lfm-dim);
 }

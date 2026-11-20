@@ -173,6 +173,45 @@
     cursor: not-allowed;
 }
 
+/* Stands in for the player when a recording only plays in its own tab
+   (WebM): same height as the play button, duration kept on the right. */
+.cb-open {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid var(--dr-border, #e5e7eb);
+    background: var(--dr-surface, #ffffff);
+    color: var(--dr-blue, #2563eb);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+    flex: none;
+    transition:
+        background 0.12s,
+        border-color 0.12s;
+}
+
+.cb-open:hover,
+.cb-open:focus-visible {
+    color: var(--dr-blue, #2563eb);
+    border-color: var(--dr-blue, #2563eb);
+    background: var(--dr-blue-light, #eff6ff);
+}
+
+.cb-open:focus-visible {
+    outline: 3px solid var(--dr-blue, #2563eb);
+    outline-offset: 1px;
+}
+
+.cb-player .cb-time--end {
+    margin-left: auto;
+}
+
 .cb-fail {
     width: 100%;
     box-sizing: border-box;

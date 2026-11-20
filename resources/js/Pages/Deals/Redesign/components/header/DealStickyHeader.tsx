@@ -23,7 +23,7 @@ import Avatar from "@/Components/Redesign/primitives/Avatar";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import ClickToCallButton from "@/Components/ClickToCallButton";
-import { resolveLeadPhoneDisplay } from "@/lib/utils";
+import { leadCallPhones } from "@/lib/leadCallPhones";
 import type { EmailQuickAction } from "@/Email/types";
 import useEmailUnreadCount from "@/Email/hooks/useEmailUnreadCount";
 import DealValueBlock from "../primitives/DealValueBlock";
@@ -109,13 +109,7 @@ export default function DealStickyHeader({
         deal.id,
         leavingWon,
     );
-    const contactPhone =
-        resolveLeadPhoneDisplay(
-            deal.contact?.mobile,
-            deal.contact?.mobile_with_phonecode,
-        ) ||
-        resolveLeadPhoneDisplay(deal.contact?.cell) ||
-        "";
+    const callPhones = leadCallPhones(deal.contact);
     const createdRel = deal.created_at ? dayjs(deal.created_at).fromNow() : "--";
     const updatedRel = deal.updated_at ? dayjs(deal.updated_at).fromNow() : "--";
 
@@ -222,9 +216,10 @@ export default function DealStickyHeader({
                                     {t("pages.deals.header.locked")}
                                 </span>
                             )}
-                            {!embedded && contactPhone && (
+                            {!embedded && callPhones.length > 0 && (
                                 <ClickToCallButton
-                                    phone={contactPhone}
+                                    phone={callPhones[0].phone}
+                                    phones={callPhones}
                                     entity={{ type: "deal", id: deal.id }}
                                     variant="link"
                                     className="dr-btn dr-btn-sm dr-btn-ghost"

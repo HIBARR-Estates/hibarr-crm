@@ -12,6 +12,7 @@ import {
 import { usePage } from "@inertiajs/react";
 import { TFilter } from "@/Types/common";
 import dayjs from "dayjs";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -32,6 +33,7 @@ const AdvancedDealFilterForm: React.FC<AdvancedDealFilterFormProps> = ({
     filters,
     onFilterChange,
 }) => {
+    const { td } = useTd();
     const { props } = usePage<any>();
     const {
         leadPipelines = [],
@@ -79,10 +81,10 @@ const AdvancedDealFilterForm: React.FC<AdvancedDealFilterFormProps> = ({
                 <Row gutter={[16, 16]}>
                     <Col span={24}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Search
+                            {td("Search", { source: "en" })}
                         </label>
                         <Input.Search
-                            placeholder="Search deals by contact name, company, deal name..."
+                            placeholder={td("Search deals by contact name, company, deal name...", { source: "en" })}
                             value={search}
                             onChange={(e) =>
                                 onFilterChange("search", e.target.value)
@@ -103,12 +105,12 @@ const AdvancedDealFilterForm: React.FC<AdvancedDealFilterFormProps> = ({
                 <Row gutter={[16, 16]}>
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Pipeline
+                            {td("Pipeline", { source: "en" })}
                         </label>
                         <Select
                             value={lead_pipeline_id || undefined}
                             onChange={handlePipelineChange}
-                            placeholder="Select pipeline"
+                            placeholder={td("Select pipeline", { source: "en" })}
                             style={{ width: "100%" }}
                             allowClear
                             showSearch
@@ -123,7 +125,7 @@ const AdvancedDealFilterForm: React.FC<AdvancedDealFilterFormProps> = ({
                                     key={pipeline.id}
                                     value={pipeline.id}
                                 >
-                                    {pipeline.name}
+                                    {td(pipeline.name, { source: "en" })}
                                 </Select.Option>
                             ))}
                         </Select>
@@ -131,14 +133,14 @@ const AdvancedDealFilterForm: React.FC<AdvancedDealFilterFormProps> = ({
 
                     <Col span={12}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Stage
+                            {td("Stage", { source: "en" })}
                         </label>
                         <Select
                             value={pipeline_stage_id || undefined}
                             onChange={(value) =>
                                 onFilterChange("pipeline_stage_id", value)
                             }
-                            placeholder="Select stage"
+                            placeholder={td("Select stage", { source: "en" })}
                             style={{ width: "100%" }}
                             allowClear
                             disabled={!selectedPipelineId}
@@ -159,7 +161,7 @@ const AdvancedDealFilterForm: React.FC<AdvancedDealFilterFormProps> = ({
                                                     stage.label_color,
                                             }}
                                         ></span>
-                                        {stage.name}
+                                        {td(stage.name, { source: "en" })}
                                     </span>
                                 </Select.Option>
                             ))}
@@ -173,19 +175,19 @@ const AdvancedDealFilterForm: React.FC<AdvancedDealFilterFormProps> = ({
             {/* Category */}
             <div>
                 <Title level={5} className="!mb-3">
-                    Categorization
+                    {td("Categorization", { source: "en" })}
                 </Title>
                 <Row gutter={[16, 16]}>
                     <Col span={24}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Category
+                            {td("Category", { source: "en" })}
                         </label>
                         <Select
                             value={category_id || undefined}
                             onChange={(value) =>
                                 onFilterChange("category_id", value)
                             }
-                            placeholder="Select category"
+                            placeholder={td("Select category", { source: "en" })}
                             style={{ width: "100%" }}
                             allowClear
                             showSearch
@@ -200,7 +202,7 @@ const AdvancedDealFilterForm: React.FC<AdvancedDealFilterFormProps> = ({
                                     key={category.id}
                                     value={category.id}
                                 >
-                                    {category.category_name}
+                                    {td(category.category_name, { source: "en" })}
                                 </Select.Option>
                             ))}
                         </Select>
@@ -213,12 +215,12 @@ const AdvancedDealFilterForm: React.FC<AdvancedDealFilterFormProps> = ({
             {/* Date Filters */}
             <div>
                 <Title level={5} className="!mb-3">
-                    Date Range
+                    {td("Date Range", { source: "en" })}
                 </Title>
                 <Row gutter={[16, 16]}>
                     <Col span={24}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Created Date Range
+                            {td("Created Date Range", { source: "en" })}
                         </label>
                         <RangePicker
                             value={[

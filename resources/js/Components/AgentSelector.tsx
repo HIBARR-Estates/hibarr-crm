@@ -8,6 +8,7 @@ import {
 } from "@ant-design/icons";
 import { useFormData } from "@/Hooks/useFormData";
 import { useDebounce } from "@/Hooks/useDebounce";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface LeadAgent {
     id: number;
@@ -41,6 +42,7 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
     size = "default",
     placeholder = "Assign",
 }) => {
+    const { td } = useTd();
     const [open, setOpen] = useState(false);
     const [searchValue, setSearchValue] = useState("");
     const debouncedSearch = useDebounce(searchValue, 300);
@@ -71,7 +73,7 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
             <div className="p-2 border-b border-gray-100">
                 <Input
                     prefix={<SearchOutlined className="text-gray-400" />}
-                    placeholder="Search agents..."
+                    placeholder={td("Search agents...", { source: "en" })}
                     value={searchValue}
                     onChange={(e) => setSearchValue(e.target.value)}
                     size="small"
@@ -88,7 +90,7 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
                     onClick={() => handleSelect(null)}
                 >
                     <Avatar size="small" icon={<UserOutlined />} />
-                    <span className="text-sm">Unassign</span>
+                    <span className="text-sm">{td("Unassign", { source: "en" })}</span>
                 </div>
 
                 {loading ? (
@@ -98,7 +100,7 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
                 ) : agents.length === 0 ? (
                     <Empty
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        description="No agents found"
+                        description={td("No agents found", { source: "en" })}
                         className="py-4"
                     />
                 ) : (
