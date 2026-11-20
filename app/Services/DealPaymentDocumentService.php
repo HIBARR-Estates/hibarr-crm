@@ -199,17 +199,17 @@ class DealPaymentDocumentService
             throw new HttpException(409, 'This payment request ended before an invoice was issued.');
         }
 
-        // A receipt is always "karşılığı" an invoice, so it needs the invoice
-        // to exist already and prints its number. It never makes the invoice.
+        // A receipt can be made without an invoice. When the invoice was
+        // already issued, the receipt settles it: it prints its number and
+        // repeats its amounts. It never makes the invoice itself.
         $invoiceNumber = null;
         $invoiceSnapshot = null;
         if ($kind === PaymentDocument::RECEIPT) {
             $invoice = $this->issued($payment, PaymentDocument::INVOICE);
-            if ($invoice === null) {
-                throw new HttpException(409, 'A receipt can only be generated once the invoice has been generated.');
+            if ($invoice !== null) {
+                $invoiceSnapshot = $invoice->snapshot;
+                $invoiceNumber = $invoiceSnapshot['number'] ?? null;
             }
-            $invoiceSnapshot = $invoice->snapshot;
-            $invoiceNumber = $invoiceSnapshot['number'] ?? null;
         }
 
         $companyId = (int) $payment->company_id;

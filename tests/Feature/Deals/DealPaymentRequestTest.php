@@ -1540,15 +1540,7 @@ class DealPaymentRequestTest extends TestCase
 
         $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
 
-        // A receipt never makes the invoice: that has to be generated first.
-        try {
-            app(DealPaymentDocumentService::class)->viewData($payment, 'receipt');
-            $this->fail('Expected the receipt to be refused before the invoice exists.');
-        } catch (HttpException $e) {
-            $this->assertSame(409, $e->getStatusCode());
-        }
-        $this->assertSame(0, DB::table('payment_documents')->count());
-
+        // A receipt is made after the invoice here, so it settles that invoice.
         app(DealPaymentDocumentService::class)->viewData($payment, 'invoice');
         $data = app(DealPaymentDocumentService::class)->viewData($payment, 'receipt');
         $html = view('payment-requests.document', $data)->render();
@@ -1560,6 +1552,27 @@ class DealPaymentRequestTest extends TestCase
         $this->assertStringContainsString('TAHSİLAT MAKBUZU', $html);
         $this->assertStringContainsString('A 000001 no.lu fatura', $html);
         $this->assertNull($data['stamp']);
+    }
+
+    public function test_a_receipt_can_be_generated_without_an_invoice(): void
+    {
+        $this->seedSellerSettings(['legal_name' => 'Örnek Emlak Ltd.', 'address' => 'Girne, KKTC', 'invoice_number_end' => 5000, 'receipt_number_end' => 5000]);
+        $id = $this->insertPayment(['documents_requested_at' => now(),
+            'external_reference' => '883',
+            'ol_status' => 'completed',
+            'status' => 'complete',
+            'amount' => 2500,
+            'paid_on' => now(),
+        ]);
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+
+        $data = app(DealPaymentDocumentService::class)->viewData($payment, 'receipt');
+
+        $this->assertSame('receipt', $data['kind']);
+        $this->assertNull($data['invoice_number']);
+        $this->assertSame(0, DB::table('payment_documents')->where('kind', 'invoice')->count());
+        $this->assertSame(1, DB::table('payment_documents')->where('kind', 'receipt')->count());
     }
 
     private function makeDeal(): Deal

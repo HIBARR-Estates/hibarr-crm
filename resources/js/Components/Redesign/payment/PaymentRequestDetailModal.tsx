@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -275,21 +275,12 @@ export default function PaymentRequestDetailModal({
 }: PaymentRequestDetailModalProps) {
     const { t } = useTranslation();
     const { td } = useTd();
-    const { requestDocuments, fetchStatus, requesting } = usePaymentDocumentRequest();
+    const { requestDocuments, requesting } = usePaymentDocumentRequest();
     const [requestedId, setRequestedId] = useState<number | null>(null);
     const [confirmRequestOpen, setConfirmRequestOpen] = useState(false);
-    const [invoiceOpenedId, setInvoiceOpenedId] = useState<number | null>(null);
-    const pollTimer = useRef<number | null>(null);
-    const stopPolling = () => {
-        if (pollTimer.current != null) window.clearTimeout(pollTimer.current);
-        pollTimer.current = null;
-    };
     useEffect(() => {
         setRequestedId(null);
-        setInvoiceOpenedId(null);
         setConfirmRequestOpen(false);
-        stopPolling();
-        return stopPolling;
     }, [request?.id]);
 
     if (!request) return null;
@@ -322,9 +313,7 @@ export default function PaymentRequestDetailModal({
     const invoiceUrl = documentsRequested ? documentHref(request, "invoice") : null;
     // The invoice is generated the first time it is opened, and a receipt
     // needs it, so opening the invoice here unlocks the receipt at once.
-    const invoiceGenerated = Boolean(request.invoice_issued) || invoiceOpenedId === request.id;
-    const receiptUrl = documentsRequested && collected && invoiceGenerated ? documentHref(request, "receipt") : null;
-    const receiptWaitingForInvoice = documentsRequested && collected && !invoiceGenerated;
+    const receiptUrl = documentsRequested && collected ? documentHref(request, "receipt") : null;
     const askForInvoice = async () => {
         if (request.deal_id == null) return;
         const updated = await requestDocuments(request.deal_id, request.id);
@@ -416,32 +405,10 @@ export default function PaymentRequestDetailModal({
                         <DocumentLink
                             href={invoiceUrl}
                             label={t("pages.payment_requests.action_invoice")}
-                            onOpen={() => {
-                                const id = request.id;
-                                // The invoice is made server-side by the download; only unlock the receipt once it exists.
-                                let attempts = 0;
-                                const poll = async () => {
-                                    attempts += 1;
-                                    const fresh = await fetchStatus(request.deal_id, id);
-                                    if (fresh?.invoice_issued) {
-                                        setInvoiceOpenedId(id);
-                                        onDocumentsRequested?.(fresh);
-                                    } else if (attempts < 6) {
-                                        pollTimer.current = window.setTimeout(poll, 3000);
-                                    }
-                                };
-                                stopPolling();
-                                pollTimer.current = window.setTimeout(poll, 2500);
-                            }}
                         />
                     )}
                     {receiptUrl && (
                         <DocumentLink href={receiptUrl} label={t("pages.payment_requests.action_receipt")} />
-                    )}
-                    {receiptWaitingForInvoice && (
-                        <span style={{ fontSize: REDESIGN_TYPE.CAPTION, color: T.TEXT_MUTED }}>
-                            {t("pages.payment_requests.receipt_waiting_invoice")}
-                        </span>
                     )}
                     {request.proof_url && (
                         <DocumentLink
