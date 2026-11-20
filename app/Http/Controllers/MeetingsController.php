@@ -16,6 +16,7 @@ use App\Services\MeetingFilters;
 use App\Services\MeetingVisibilityService;
 use App\Services\Reminders\MeetingReminderSync;
 use App\Support\FeatureFlags;
+use App\Support\MeetingBuckets;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 use DateTimeZone;
@@ -100,35 +101,27 @@ class MeetingsController extends AccountBaseController
 
         $defaultDuration = DealFollowUp::DEFAULT_DURATION_MINUTES;
 
-        // A meeting is "live" when it has started but not yet ended:
-        //   next_follow_up_date <= now AND next_follow_up_date + duration > now AND status = 'scheduled'
-        // The strip can still call those out; Upcoming itself does not.
-        $scopeLive = function ($query) use ($now, $defaultDuration) {
-            $query->where('status', 'scheduled')
-                ->where('next_follow_up_date', '<=', $now)
-                ->whereRaw(
-                    'DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) >= ?',
-                    [$defaultDuration, $now]
-                );
-        };
+        // Which group a meeting is in — live, upcoming or past — is decided in
+        // one place, MeetingBuckets, and everything below (the list, the tab
+        // tallies, the "next up" cards) reads it. Restating the rules per
+        // query is how a cancelled meeting dated next week came to be both
+        // Upcoming and Past, and a meeting in progress came to be neither.
+        $buckets = new MeetingBuckets($now, $defaultDuration);
 
+        // The redesign's Upcoming tab: not over yet, so a meeting in progress
+        // is still on it (it is the one you most want to find) and a
+        // cancelled or completed meeting dated in the future is not.
+        $scopeUpcomingTab = fn ($query) => $buckets->scopeUpcoming($query);
+
+        // Legacy page only: its Upcoming section is "start is still ahead",
+        // with in-progress meetings called out separately by the client.
         $scopeUpcoming = function ($query) use ($now) {
-            // Start is still ahead of the clock. A meeting that has already
-            // begun is live (strip) or past (list), not upcoming.
             $query->where('next_follow_up_date', '>', $now);
         };
 
-        // Past only after the end (start + duration), or when no longer
-        // scheduled. Live meetings (started, not yet ended) must not land here.
-        $scopePast = function ($query) use ($now, $defaultDuration) {
-            $query->where(function ($inner) use ($now, $defaultDuration) {
-                $inner->where('status', '!=', 'scheduled')
-                    ->orWhereRaw(
-                        'DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) < ?',
-                        [$defaultDuration, $now]
-                    );
-            });
-        };
+        // No longer scheduled, or already ended — the exact complement of
+        // the redesign's Upcoming tab.
+        $scopePast = fn ($query) => $buckets->scopePast($query);
 
         // ── Shared list filters ────────────────────────────────────────
         // Same contract as the lead/deal/task lists: the filter modal writes
@@ -215,7 +208,7 @@ class MeetingsController extends AccountBaseController
         // list query depends on, so it rides along in a cookie the same way
         // the page size does. Hidden means no exclusions at all.
         $nextUpIds = $redesign && $request->cookie('hibarr_meetings_next_up', '1') !== '0'
-            ? $this->upcomingSoonIds($userId, $scopeLive, $now)
+            ? $this->upcomingSoonIds($userId, $buckets, $now)
             : [];
 
         // ── Overview stats ─────────────────────────────────────────────
@@ -225,18 +218,14 @@ class MeetingsController extends AccountBaseController
         // One pass with conditional sums instead of four trips over the same
         // table. The live count used to pull every past-dated scheduled meeting
         // into memory to filter in PHP — unbounded, and growing with history.
-        // The end-time expression matches the one the Upcoming/Past queries below use.
-        // The last three sums are the redesign's tab tallies; they restate the
-        // scopes above in SQL so a tab counts exactly the meetings that tab is
-        // about — including any the "next up" cards have lifted out of the
-        // table, which are still yours and still upcoming.
-        $liveSql = "status = 'scheduled'"
-            .' AND next_follow_up_date <= ?'
-            .' AND DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) >= ?';
-        // Mirror $scopePast: ended (start+duration < now) or no longer scheduled.
-        // Live meetings must not inflate the Past tab count.
-        $pastSql = "status != 'scheduled'"
-            .' OR DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) < ?';
+        // The last two sums are the redesign's tab tallies; they come from the
+        // same MeetingBuckets conditions as the list's scopes, so a tab counts
+        // exactly the meetings that tab lists — including any the "next up"
+        // cards have lifted out of the table, which are still yours and still
+        // upcoming.
+        [$liveSql, $liveBindings] = $buckets->live();
+        [$upcomingSql, $upcomingBindings] = $buckets->upcoming();
+        [$pastSql, $pastBindings] = $buckets->past();
 
         $counts = $applyFilters(
             MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
@@ -247,13 +236,13 @@ class MeetingsController extends AccountBaseController
                 .' SUM(next_follow_up_date BETWEEN ? AND ?) as this_week,'
                 ." SUM($liveSql) as live,"
                 ." SUM(status = 'completed') as completed,"
-                .' SUM(next_follow_up_date > ?) as upcoming_tab,'
+                ." SUM($upcomingSql) as upcoming_tab,"
                 ." SUM($pastSql) as past_tab",
                 [
                     $now, $weekStart, $weekEnd,
-                    $now, $defaultDuration, $now,
-                    $now,
-                    $defaultDuration, $now,
+                    ...$liveBindings,
+                    ...$upcomingBindings,
+                    ...$pastBindings,
                 ]
             )
             ->first();
@@ -310,7 +299,7 @@ class MeetingsController extends AccountBaseController
             if ($activeTab === 'past') {
                 $listQuery->where($scopePast);
             } elseif ($activeTab === 'upcoming') {
-                $listQuery->where($scopeUpcoming);
+                $listQuery->where($scopeUpcomingTab);
             }
             // 'all' takes every bucket — no extra scope.
 
@@ -743,22 +732,26 @@ class MeetingsController extends AccountBaseController
      *
      * @return array<int, int>
      */
-    private function upcomingSoonIds(int $userId, callable $scopeLive, Carbon $now): array
+    private function upcomingSoonIds(int $userId, MeetingBuckets $buckets, Carbon $now): array
     {
         $visible = function () use ($userId) {
             return MeetingVisibilityService::scopeVisibleToUser(
                 DealFollowUp::query(),
                 $userId
-            )->where('status', '!=', 'cancelled');
+            );
         };
 
         $liveIds = $visible()
-            ->where($scopeLive)
+            ->where(fn ($query) => $buckets->scopeLive($query))
             ->orderBy('next_follow_up_date', 'asc')
             ->pluck('id')
             ->all();
 
+        // Still scheduled and not yet over, and not started: the same
+        // Upcoming condition the list uses, so every card is a meeting the
+        // Upcoming tab would have listed.
         $futureIds = $visible()
+            ->where(fn ($query) => $buckets->scopeUpcoming($query))
             ->where('next_follow_up_date', '>', $now)
             ->orderBy('next_follow_up_date', 'asc')
             ->limit(self::UPCOMING_SOON_LIMIT)

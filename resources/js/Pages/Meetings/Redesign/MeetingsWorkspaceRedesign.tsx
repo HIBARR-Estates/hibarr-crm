@@ -267,6 +267,7 @@ export default function MeetingsWorkspaceRedesign() {
         changePageSize,
         applyOptimistic,
         clearOptimistic,
+        invalidateCache,
     } = useMeetingsServerPagination({
         meetings: meetingsProp,
         only: LIST_PROPS,
@@ -417,13 +418,23 @@ export default function MeetingsWorkspaceRedesign() {
     // calendar view, so opening the view (or moving month) asks for that one
     // key rather than re-rendering the page.
     const requestedMonthRef = useRef<string | null>(null);
-    const calendarReady = calendarMeetings?.month === calendarMonth;
+    /**
+     * Set when a meeting changed while the calendar was not on screen. The
+     * month already in props was read before that change, and a list-view
+     * reload cannot refresh it (the server only registers the calendar for a
+     * `view=calendar` request) — so the next visit to the calendar has to
+     * ask again rather than trust a month that is merely the right one.
+     */
+    const [calendarStale, setCalendarStale] = useState(false);
+    const calendarReady =
+        calendarMeetings?.month === calendarMonth && !calendarStale;
 
     useEffect(() => {
         if (view !== "calendar" || calendarReady) return;
         // This render already registered the key for this month, so Inertia is
-        // fetching it — asking again here would double the query.
-        if (calendarRequestedMonth === calendarMonth) return;
+        // fetching it — asking again here would double the query. A stale
+        // month is the exception: that registration is from before the change.
+        if (!calendarStale && calendarRequestedMonth === calendarMonth) return;
         if (requestedMonthRef.current === calendarMonth) return;
 
         const requestedMonth = calendarMonth;
@@ -448,19 +459,36 @@ export default function MeetingsWorkspaceRedesign() {
                 cal_month: calendarMonth,
             }),
             onStart: () => setCalendarLoading(true),
+            onSuccess: () => setCalendarStale(false),
             onFinish: () => setCalendarLoading(false),
             onError: releaseClaim,
             onCancel: releaseClaim,
         });
-    }, [view, calendarMonth, calendarReady, calendarRequestedMonth]);
+    }, [
+        view,
+        calendarMonth,
+        calendarReady,
+        calendarStale,
+        calendarRequestedMonth,
+    ]);
 
     // ── Refresh ────────────────────────────────────────────────────────
+    //
+    // The "next up" cards ride along whenever they are on. The server leaves
+    // whatever the cards claim out of the list, so the two are one answer
+    // computed together: reloading only the list after a change would
+    // compare it against stale cards — a meeting just booked for tomorrow
+    // would be taken out of the list as "in the cards" while the cards
+    // (never re-read) did not show it, so it appeared nowhere. They are
+    // reloaded in the calendar view too, so the list view is right the
+    // moment it is switched back to.
     const refreshProps = useMemo(
-        () =>
-            view === "calendar"
-                ? [...LIST_PROPS, "calendarMeetings"]
-                : LIST_PROPS,
-        [view],
+        () => [
+            ...LIST_PROPS,
+            ...(stripVisible ? ["upcomingSoon"] : []),
+            ...(view === "calendar" ? ["calendarMeetings"] : []),
+        ],
+        [view, stripVisible],
     );
 
     /** Current query string plus the calendar's month, so filters survive. */
@@ -476,13 +504,20 @@ export default function MeetingsWorkspaceRedesign() {
 
     const reloadList = useCallback(() => {
         requestedMonthRef.current = null;
+        // Pages prefetched before this change are stale now.
+        invalidateCache();
+        // The reload below refreshes the calendar only when it is the view
+        // on screen; otherwise it has to be re-read when next opened.
+        if (view !== "calendar") setCalendarStale(true);
         router.reload({ only: refreshProps, data: reloadParams() });
-    }, [refreshProps, reloadParams]);
+    }, [view, refreshProps, reloadParams, invalidateCache]);
 
     const { refresh, isRefreshing } = usePageRefresh({
         onRefresh: () =>
             new Promise<void>((resolve) => {
                 requestedMonthRef.current = null;
+                invalidateCache();
+                if (view !== "calendar") setCalendarStale(true);
                 router.reload({
                     only: refreshProps,
                     data: reloadParams(),
