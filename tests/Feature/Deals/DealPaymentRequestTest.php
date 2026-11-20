@@ -1571,6 +1571,9 @@ class DealPaymentRequestTest extends TestCase
 
         $this->assertSame('receipt', $data['kind']);
         $this->assertNull($data['invoice_number']);
+        // Standalone, KDV is added on top of the net amount.
+        $this->assertSame('2.500,00', $data['subtotal_display']);
+        $this->assertSame('2.900,00', $data['total_display']);
         $this->assertSame(0, DB::table('payment_documents')->where('kind', 'invoice')->count());
         $this->assertSame(1, DB::table('payment_documents')->where('kind', 'receipt')->count());
     }

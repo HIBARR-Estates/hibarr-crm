@@ -311,8 +311,7 @@ export default function PaymentRequestDetailModal({
         && request.ui_state !== "invalidated"
         && request.ui_state !== "failed";
     const invoiceUrl = documentsRequested ? documentHref(request, "invoice") : null;
-    // The invoice is generated the first time it is opened, and a receipt
-    // needs it, so opening the invoice here unlocks the receipt at once.
+    // A receipt only needs the request and a collected payment, not the invoice.
     const receiptUrl = documentsRequested && collected ? documentHref(request, "receipt") : null;
     const askForInvoice = async () => {
         if (request.deal_id == null) return;
