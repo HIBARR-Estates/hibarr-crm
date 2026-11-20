@@ -153,4 +153,6 @@ return [
     'deleteTaskCategory' => 'Удалённую категорию задач нельзя будет восстановить!',
     'noLeadSourceAdded' => 'Источники лидов не добавлены.',
     'somethingWentWrong' => 'Что-то пошло не так. Повторите попытку.',
+    'calendlyLinkMustBeCalendly' => 'Введите защищённую ссылку с calendly.com, например https://calendly.com/your-team/intro-call.',
+
 ];

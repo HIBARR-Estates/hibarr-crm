@@ -254,6 +254,7 @@ export default function LeadCreateModals({
                 variant={meetingAgent ? "agent" : "default"}
                 relatedField={meetingAgent?.relatedField}
                 closeLabel={meetingAgent?.closeLabel}
+                calendlyTarget={{ type: "lead", id: lead.id }}
                 labels={{
                     title: td("Schedule meeting", { source: "en" }),
                     subtitle: meetingAgent?.subtitle,

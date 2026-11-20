@@ -150,6 +150,9 @@ export default function OrphanScheduleMeetingDialog({
             }
             onSubmit={handleSubmit}
             mustIncludeOwner={mustIncludeOwner}
+            // Booking pages need a record to fill in, so none are offered
+            // until one is picked.
+            calendlyTarget={parsed}
             labels={{
                 title: t("app.meetings.actions.schedule"),
                 subtitle: td("Book a meeting on a deal or lead"),
