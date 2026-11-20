@@ -208,28 +208,9 @@ class DealPaymentDocumentService
         // A receipt can be made without an invoice. When the invoice was
         // already issued, the receipt settles it: it prints its number and
         // repeats its amounts. It never makes the invoice itself.
-        $invoiceNumber = null;
-        $invoiceSnapshot = null;
-        if ($kind === PaymentDocument::RECEIPT) {
-            $invoice = $this->issued($payment, PaymentDocument::INVOICE);
-            if ($invoice !== null) {
-                $invoiceSnapshot = $invoice->snapshot;
-                $invoiceNumber = $invoiceSnapshot['number'] ?? null;
-            }
-        }
-
         $companyId = (int) $payment->company_id;
-        $paymentData = $this->paymentData($payment, $kind, $invoiceNumber);
-        if ($invoiceSnapshot) {
-            // The receipt settles that invoice, so it repeats the invoice's
-            // amounts and KDV even if the KDV rate setting changed since.
-            $paymentData['invoice_totals'] = [
-                'subtotal' => $invoiceSnapshot['subtotal'] ?? null,
-                'vat_rate' => $invoiceSnapshot['vat_rate'] ?? null,
-                'vat' => $invoiceSnapshot['vat'] ?? null,
-                'total' => $invoiceSnapshot['total'] ?? null,
-            ];
-        }
+        $invoice = $kind === PaymentDocument::RECEIPT ? $this->issued($payment, PaymentDocument::INVOICE) : null;
+        $paymentData = $this->settleInvoice($this->paymentData($payment, $kind, null), $invoice);
         // Look the TL rate up before taking the settings lock, so a slow rate
         // API never holds up other documents being issued for the company.
         $paymentData['try_rate'] = $this->tryRate(PaymentDocumentSetting::forCompany($companyId), $paymentData['currency_code']);
@@ -241,6 +222,12 @@ class DealPaymentDocumentService
                 // Locking the settings row serialises issuing per company, so
                 // two downloads at once can never take the same number.
                 $settings = $this->lockedSettings($companyId);
+
+                // The invoice may have been issued while this request waited
+                // for the rate or the lock, so look again under the lock.
+                if ($kind === PaymentDocument::RECEIPT && ($paymentData['invoice_number'] ?? null) === null) {
+                    $paymentData = $this->settleInvoice($paymentData, $this->issued($payment, PaymentDocument::INVOICE));
+                }
 
                 // An issued document is frozen, so it can never be issued
                 // without the seller details the law requires on it.
@@ -285,6 +272,32 @@ class DealPaymentDocumentService
 
             throw $e;
         }
+    }
+
+    /**
+     * A receipt settles an issued invoice, so it prints that invoice's number
+     * and repeats its amounts and KDV even if the KDV rate setting changed
+     * since. Without an invoice the data is returned unchanged.
+     *
+     * @param  array<string, mixed>  $paymentData
+     * @return array<string, mixed>
+     */
+    private function settleInvoice(array $paymentData, ?PaymentDocument $invoice): array
+    {
+        if ($invoice === null) {
+            return $paymentData;
+        }
+
+        $invoiceSnapshot = $invoice->snapshot;
+        $paymentData['invoice_number'] = $invoiceSnapshot['number'] ?? null;
+        $paymentData['invoice_totals'] = [
+            'subtotal' => $invoiceSnapshot['subtotal'] ?? null,
+            'vat_rate' => $invoiceSnapshot['vat_rate'] ?? null,
+            'vat' => $invoiceSnapshot['vat'] ?? null,
+            'total' => $invoiceSnapshot['total'] ?? null,
+        ];
+
+        return $paymentData;
     }
 
     private function issued(Payment $payment, string $kind): ?PaymentDocument

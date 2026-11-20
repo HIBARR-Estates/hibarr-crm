@@ -2812,7 +2812,7 @@ return [
         'request_invoice_confirm' => 'Rechnung anfordern',
         'rule_invoice_kdv' => 'Der Checkout erhebt nur den Nettobetrag. Wird eine Rechnung angefordert, wird KDV darauf aufgeschlagen.',
         'rule_invoice_on_request' => 'Die Rechnung wird erst erstellt, nachdem sie hier angefordert wurde, nicht bei der Zahlungsanforderung.',
-        'rule_receipt_needs_invoice' => 'Eine Quittung kann erstellt werden, sobald die Zahlung eingegangen ist. Die Rechnung ist dafür nicht nötig; wurde sie erstellt, bezieht sich die Quittung darauf.',
+        'rule_receipt_needs_invoice' => 'Eine Quittung kann erstellt werden, sobald die Zahlung eingegangen ist und die Rechnung angefordert wurde. Die Rechnung muss nicht erstellt sein; wurde sie erstellt, bezieht sich die Quittung darauf.',
         'detail_title' => 'Zahlungsanforderung',
         'detail_deal' => 'Deal',
         'detail_lead' => 'Lead',
