@@ -300,6 +300,27 @@ class DealPaymentDocumentService
         return $paymentData;
     }
 
+    /**
+     * The KDV the customer owes on top of the net amount: the saved invoice's
+     * KDV when it was generated, otherwise the company's current rate. The
+     * amount is in the payment's own currency. Null when there is no KDV.
+     *
+     * @return array{amount: float, rate: float}|null
+     */
+    public function vatDue(Payment $payment): ?array
+    {
+        $invoice = $this->issued($payment, PaymentDocument::INVOICE);
+        if ($invoice !== null && isset($invoice->snapshot['vat'], $invoice->snapshot['vat_rate'])) {
+            $amount = round((float) $invoice->snapshot['vat'], 2);
+            $rate = (float) $invoice->snapshot['vat_rate'];
+        } else {
+            $rate = (float) PaymentDocumentSetting::forCompany((int) $payment->company_id)->vat_rate;
+            $amount = round((float) $payment->amount * $rate / 100, 2);
+        }
+
+        return $amount > 0 ? ['amount' => $amount, 'rate' => $rate] : null;
+    }
+
     private function issued(Payment $payment, string $kind): ?PaymentDocument
     {
         return PaymentDocument::query()

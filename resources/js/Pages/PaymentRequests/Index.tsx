@@ -282,7 +282,17 @@ const Index = ({ paymentRequests, filters, counts, stats, filterOptions }: Index
     });
 
     const patchRow = (updated: DealPaymentRequest) => {
-        setRows((prev) => prev.map((row) => (row.id === updated.id ? { ...row, ...updated } : row)));
+        // A KDV request arrives with its payment; refresh that row too.
+        const parent = updated.vat_parent;
+        setRows((prev) =>
+            prev.map((row) =>
+                row.id === updated.id
+                    ? { ...row, ...updated }
+                    : parent && row.id === parent.id
+                        ? { ...row, ...parent }
+                        : row,
+            ),
+        );
     };
 
     const handleConfirm = async () => {
@@ -659,6 +669,9 @@ const Index = ({ paymentRequests, filters, counts, stats, filterOptions }: Index
                 companyCurrency={companyCurrency}
                 canRequestInvoice
                 onDocumentsRequested={patchRow}
+                canRequestVat
+                canSettleVat
+                onVatChanged={patchRow}
                 onCancel={
                     selected && canCancelPaymentRequest(selected.ui_state)
                         ? () => setCancelOpen(true)

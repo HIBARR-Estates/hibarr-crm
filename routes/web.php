@@ -1469,6 +1469,10 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::post('deals/{deal}/payment-requests/{payment}/retry', [DealPaymentController::class, 'retry'])->name('deals.payment-requests.retry');
     Route::post('deals/{deal}/payment-requests/{payment}/documents/request', [DealPaymentController::class, 'requestDocuments'])
         ->name('deals.payment-requests.documents.request');
+    Route::post('deals/{deal}/payment-requests/{payment}/vat/request', [DealPaymentController::class, 'requestVat'])
+        ->name('deals.payment-requests.vat.request');
+    Route::post('deals/{deal}/payment-requests/{payment}/vat/settle', [DealPaymentController::class, 'settleVat'])
+        ->name('deals.payment-requests.vat.settle');
     Route::get('deals/{deal}/payment-requests/{payment}/documents-status', [DealPaymentController::class, 'documentStatus'])
         ->name('deals.payment-requests.documents.status');
     Route::get('deals/{deal}/payment-requests/{payment}/documents/{kind}', [DealPaymentController::class, 'document'])
