@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import useMeetingHostFlag from "@/Hooks/useMeetingHostFlag";
 import useUserTimezoneLookup from "@/Hooks/useUserTimezoneLookup";
 import SearchableSelect from "@/Components/Redesign/primitives/SearchableSelect";
@@ -51,7 +51,7 @@ export default function MeetingTimezoneField({
     disabled = false,
     embedded = false,
 }: MeetingTimezoneFieldProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const { props } = usePage();
     const hostFeatureEnabled = useMeetingHostFlag();
     const { lookup, loading } = useUserTimezoneLookup();
@@ -117,7 +117,7 @@ export default function MeetingTimezoneField({
                             className="font-semibold"
                             style={{ fontSize: 11.5, color: T.TEXT_MUTED }}
                         >
-                            {td("Timezone", { source: "en" })}
+                            {t("pages.meetings.ui.timezone")}
                         </span>
                     )}
                     <SearchableSelect<string>
@@ -133,7 +133,7 @@ export default function MeetingTimezoneField({
                         labelRender={({ value: zone }) =>
                             String(zone).replace(/_/g, " ")
                         }
-                        aria-label={td("Timezone", { source: "en" })}
+                        aria-label={t("pages.meetings.ui.timezone")}
                         // Borderless still pads its text; pull it back in line
                         // with the label above.
                         style={{
@@ -158,8 +158,8 @@ export default function MeetingTimezoneField({
                         disabled={disabled}
                         label={
                             hostTimezone
-                                ? `${td("Use host's time", { source: "en" })} (${timezoneCity(hostTimezone)})`
-                                : td("Use host's time", { source: "en" })
+                                ? `${t("pages.meetings.ui.use_hosts_time")} (${timezoneCity(hostTimezone)})`
+                                : t("pages.meetings.ui.use_hosts_time")
                         }
                     />
                 )}
@@ -169,7 +169,7 @@ export default function MeetingTimezoneField({
                     className="text-[12px]"
                     style={{ color: T.RED, margin: "6px 0 0" }}
                 >
-                    {td("Couldn't load the host's timezone.", { source: "en" })}
+                    {t("pages.meetings.ui.couldnt_load_the_hosts_timezone")}
                 </p>
             )}
         </div>

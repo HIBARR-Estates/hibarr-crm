@@ -5,6 +5,7 @@ import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import MeetingDetailCompact from "@/Components/Redesign/modals/MeetingDetailCompact";
 import MeetingSummaryPanel from "@/Components/Redesign/meeting/MeetingSummaryPanel";
 import { meetingSummaryState } from "@/Components/Redesign/meeting/meetingSummaryState";
@@ -109,6 +110,7 @@ export default function MeetingViewModal({
     const redesignEnabled = useMeetingsPageRedesignFlag();
     const { timezone } = useUserDateTime();
     const { td } = useTd();
+    const { t } = useTranslation();
     const [editOpen, setEditOpen] = useState(false);
     const [rescheduleOpen, setRescheduleOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -120,14 +122,14 @@ export default function MeetingViewModal({
     if (!meeting) {
         if (error) {
             return (
-                <Modal open title={td("Meeting")} onClose={onClose}>
+                <Modal open title={t("pages.meetings.ui.meeting")} onClose={onClose}>
                     <p style={{ color: T.RED, fontSize: 14 }}>{td(error)}</p>
                 </Modal>
             );
         }
         if (!loading) return null;
         return (
-            <Modal open title={td("Loading meeting…")} onClose={onClose}>
+            <Modal open title={t("pages.meetings.ui.loading_meeting")} onClose={onClose}>
                 <div className="space-y-3" aria-hidden>
                     {[64, 40, 40, 96].map((height, index) => (
                         <div

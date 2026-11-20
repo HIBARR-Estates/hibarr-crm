@@ -176,7 +176,7 @@ export default function OrphanScheduleMeetingDialog({
             meta: [
                 row.phone,
                 row.email,
-                row.owner ? `${td("Owner")}: ${row.owner}` : null,
+                row.owner ? `${t("pages.meetings.ui.owner")}: ${row.owner}` : null,
             ]
                 .filter(Boolean)
                 .join(" · "),
@@ -189,7 +189,7 @@ export default function OrphanScheduleMeetingDialog({
             });
         }
         return options;
-    }, [leads, lead, selectedLeadName, td]);
+    }, [leads, lead, selectedLeadName, t]);
 
     const dealOptions = useMemo(
         () =>
@@ -239,7 +239,7 @@ export default function OrphanScheduleMeetingDialog({
             calendlyTarget={parsed}
             labels={{
                 title: t("app.meetings.actions.schedule"),
-                subtitle: td("Pick the lead, then set up the meeting"),
+                subtitle: t("pages.meetings.ui.pick_the_lead_then_set_up_the_meeting"),
                 cancel: t("pages.deals.common.cancel"),
                 submit: t("app.meetings.actions.schedule"),
             }}
@@ -249,16 +249,16 @@ export default function OrphanScheduleMeetingDialog({
             // to seed the next step from until that person has loaded.
             canAdvance={target !== null && recordLoaded}
             stepLabels={{
-                back: td("Back"),
-                next: td("Next: meeting details"),
+                back: t("pages.meetings.ui.back"),
+                next: t("pages.meetings.ui.next_meeting_details"),
                 stepOf: (n, of) =>
                     n === 1
-                        ? `${td("Step")} ${n}/${of} · ${td("Who and what")}`
-                        : `${td("Step")} ${n}/${of} · ${td("When and how it runs")}`,
+                        ? `${t("pages.meetings.ui.step")} ${n}/${of} · ${t("pages.meetings.ui.who_and_what")}`
+                        : `${t("pages.meetings.ui.step")} ${n}/${of} · ${t("pages.meetings.ui.when_and_how_it_runs")}`,
             }}
             extraFields={
                 <>
-                    <ModalField label={td("Lead")}>
+                    <ModalField label={t("pages.meetings.ui.lead")}>
                         <SearchableSelect<number>
                             className="w-full"
                             value={lead?.id}
@@ -313,15 +313,13 @@ export default function OrphanScheduleMeetingDialog({
                             disabled={isCreating}
                             loading={searching || leadState.loading}
                             allowClear
-                            placeholder={td(
-                                "Search by name, company, email or phone",
-                            )}
+                            placeholder={t("pages.meetings.ui.search_by_name_company_email_or_phone")}
                             notFoundContent={
                                 searchFailed
-                                    ? td("Could not load leads. Try again.")
+                                    ? t("pages.meetings.ui.could_not_load_leads_try_again")
                                     : searching
-                                      ? td("Searching…")
-                                      : td("No matching leads")
+                                      ? t("pages.meetings.ui.searching")
+                                      : t("pages.meetings.ui.no_matching_leads")
                             }
                         />
                     </ModalField>
@@ -330,7 +328,7 @@ export default function OrphanScheduleMeetingDialog({
                         the user can say whether this meeting is about one of
                         them — so it is offered, never required. */}
                     {lead && dealOptions.length > 0 && (
-                        <ModalField label={td("Link to a deal (optional)")}>
+                        <ModalField label={t("pages.meetings.ui.link_to_a_deal_optional")}>
                             <SearchableSelect<number>
                                 className="w-full"
                                 value={dealId ?? undefined}
@@ -342,17 +340,13 @@ export default function OrphanScheduleMeetingDialog({
                                 disabled={isCreating}
                                 loading={dealState.loading}
                                 allowClear
-                                placeholder={td(
-                                    "No deal — book against the lead",
-                                )}
+                                placeholder={t("pages.meetings.ui.no_deal_book_against_the_lead")}
                             />
                             <p
                                 className="m-0 mt-1"
                                 style={{ fontSize: 12, color: T.TEXT_HINT }}
                             >
-                                {td(
-                                    "Link a deal only if this meeting belongs to it.",
-                                )}
+                                {t("pages.meetings.ui.link_a_deal_only_if_this_meeting_belongs_to_it")}
                             </p>
                         </ModalField>
                     )}

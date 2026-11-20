@@ -24,6 +24,7 @@ import {
     type UserCalendarEvent,
     type UserCalendarEventType,
 } from "../hooks/useUserCalendarEvents";
+import useMeetingUiLabel from "@/Components/Redesign/meeting/useMeetingUiLabel";
 
 dayjs.extend(utc);
 dayjs.extend(timezonePlugin);
@@ -158,6 +159,7 @@ export default function MeetingsCalendarView({
     zohoAvailable,
 }: MeetingsCalendarViewProps) {
     const { td } = useTd();
+    const ui = useMeetingUiLabel();
     const { t } = useTranslation();
     const { timezone } = useUserDateTime();
 
@@ -299,14 +301,14 @@ export default function MeetingsCalendarView({
                         <Button
                             variant="ghost"
                             size="sm"
-                            aria-label={td("Previous month")}
+                            aria-label={t("pages.meetings.ui.previous_month")}
                             onClick={() => shiftMonth(-1)}
                             icon={<Icon name="chevron-left" size={15} />}
                         />
                         <Button
                             variant="ghost"
                             size="sm"
-                            aria-label={td("Next month")}
+                            aria-label={t("pages.meetings.ui.next_month")}
                             onClick={() => shiftMonth(1)}
                             icon={<Icon name="chevron-right" size={15} />}
                         />
@@ -363,7 +365,7 @@ export default function MeetingsCalendarView({
                         size="sm"
                         onClick={() => onMonthChange(dayjs().format("YYYY-MM"))}
                     >
-                        {td("Today")}
+                        {t("pages.meetings.ui.today")}
                     </Button>
                 </div>
 
@@ -385,7 +387,7 @@ export default function MeetingsCalendarView({
                                     border: `1px solid ${entry.border}`,
                                 }}
                             />
-                            {td(entry.label)}
+                            {ui(entry.label)}
                         </span>
                     ))}
                 </div>
@@ -404,7 +406,7 @@ export default function MeetingsCalendarView({
                             color: T.TEXT_HINT,
                         }}
                     >
-                        {td("Also show")}
+                        {t("pages.meetings.ui.also_show")}
                     </span>
                     {availableOverlayTypes.map((type) => {
                         // Zoho is announced, not shipped: the chip renders so
@@ -421,7 +423,7 @@ export default function MeetingsCalendarView({
                                 aria-pressed={active}
                                 aria-disabled={pending}
                                 disabled={pending}
-                                title={pending ? td("Coming soon") : undefined}
+                                title={pending ? t("pages.meetings.ui.coming_soon") : undefined}
                                 onClick={() =>
                                     pending
                                         ? undefined
@@ -440,7 +442,7 @@ export default function MeetingsCalendarView({
                                 }}
                             >
                                 <Icon name={type.icon} size={12} />
-                                {td(type.label)}
+                                {ui(type.label)}
                                 {pending && (
                                     <span
                                         className="font-semibold uppercase"
@@ -453,7 +455,7 @@ export default function MeetingsCalendarView({
                                             color: T.TEXT_HINT,
                                         }}
                                     >
-                                        {td("Soon")}
+                                        {t("pages.meetings.ui.soon")}
                                     </span>
                                 )}
                             </button>
@@ -563,9 +565,7 @@ export default function MeetingsCalendarView({
                                             // screen readers handle worst.
                                             <button
                                                 type="button"
-                                                aria-label={td(
-                                                    "Schedule a meeting on this day",
-                                                )}
+                                                aria-label={t("pages.meetings.ui.schedule_a_meeting_on_this_day")}
                                                 onClick={(event) => {
                                                     event.stopPropagation();
                                                     onCreateAt!(
@@ -661,7 +661,7 @@ export default function MeetingsCalendarView({
                                                     }}
                                                     title={
                                                         event.record_name
-                                                            ? `${label} ${td("with")} ${event.record_name}`
+                                                            ? `${label} ${t("pages.meetings.ui.with")} ${event.record_name}`
                                                             : label
                                                     }
                                                 >
@@ -669,7 +669,7 @@ export default function MeetingsCalendarView({
                                                     {event.record_name && (
                                                         <>
                                                             {" "}
-                                                            {td("with")}{" "}
+                                                            {t("pages.meetings.ui.with")}{" "}
                                                             {event.record_name}
                                                         </>
                                                     )}
@@ -694,7 +694,7 @@ export default function MeetingsCalendarView({
                                         );
                                         const label =
                                             event.title?.trim() ||
-                                            td(meta?.label ?? "Event");
+                                            ui(meta?.label ?? "Event");
                                         return (
                                             <div
                                                 key={`o-${event.event_type}-${event.id}`}
@@ -769,7 +769,7 @@ export default function MeetingsCalendarView({
                                                 color: T.BLUE,
                                             }}
                                         >
-                                            +{overflow} {td("more")}
+                                            +{overflow} {t("pages.meetings.ui.more")}
                                         </button>
                                     )}
                                 </>
@@ -843,6 +843,7 @@ function PreviewLine({
  */
 function PreviewCard({ event }: { event: CalendarEvent }) {
     const { td } = useTd();
+    const ui = useMeetingUiLabel();
     const { t } = useTranslation();
     const { formatDate } = useUserDateTime();
 
@@ -883,8 +884,8 @@ function PreviewCard({ event }: { event: CalendarEvent }) {
                             style={{ fontSize: 13, color: T.BLUE }}
                         >
                             {event.record_type === "lead"
-                                ? td("Lead")
-                                : td("Deal")}
+                                ? t("pages.meetings.ui.lead")
+                                : t("pages.meetings.ui.deal")}
                             {" · "}
                             {td(event.record_name)}
                         </span>
@@ -904,7 +905,7 @@ function PreviewCard({ event }: { event: CalendarEvent }) {
                 >
                     {event.bucket === "live"
                         ? t("pages.meetings.card.live")
-                        : td(event.status)}
+                        : ui(event.status)}
                 </span>
             </div>
 
@@ -914,29 +915,29 @@ function PreviewCard({ event }: { event: CalendarEvent }) {
                     {" · "}
                     {formatMeetingTime(event.start, "--", event.timezone)}
                     {" · "}
-                    {event.duration} {td("min")}
+                    {event.duration} {t("pages.meetings.ui.min")}
                 </PreviewLine>
 
                 <PreviewLine icon="map-pin">
                     {platform}
-                    {event.has_link ? ` · ${td("Link available")}` : ""}
+                    {event.has_link ? ` · ${t("pages.meetings.ui.link_available")}` : ""}
                 </PreviewLine>
 
                 {event.host_name && (
                     <PreviewLine icon="user">
-                        {td("Host")}: {event.host_name}
+                        {t("pages.meetings.ui.host")}: {event.host_name}
                     </PreviewLine>
                 )}
 
                 <PreviewLine icon="users">
                     {names.length === 0
-                        ? td("No participants")
+                        ? t("pages.meetings.ui.no_participants")
                         : `${shown.join(", ")}${hidden > 0 ? ` +${hidden}` : ""}`}
                 </PreviewLine>
 
                 {event.attendance === "attended" && (
                     <PreviewLine icon="check-square">
-                        {td("Client attended")}
+                        {t("pages.meetings.ui.client_attended")}
                     </PreviewLine>
                 )}
 
@@ -965,7 +966,7 @@ function PreviewCard({ event }: { event: CalendarEvent }) {
                     color: T.TEXT_HINT,
                 }}
             >
-                {td("Click to open the meeting")}
+                {t("pages.meetings.ui.click_to_open_the_meeting")}
             </div>
         </>
     );

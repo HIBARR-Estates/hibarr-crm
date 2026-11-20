@@ -1,6 +1,7 @@
 import { useState } from "react";
 import dayjs from "dayjs";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import {
@@ -16,6 +17,7 @@ import type {
     MeetingAttendanceOutcome,
     PendingMeetingAttendanceConfirmation,
 } from "@/Types/api/meeting-attendance-confirmation";
+import useMeetingUiLabel from "@/Components/Redesign/meeting/useMeetingUiLabel";
 
 interface OutcomeDef {
     value: MeetingAttendanceOutcome;
@@ -77,6 +79,8 @@ export default function MeetingConfirmationPanel({
     onSaved,
 }: MeetingConfirmationPanelProps) {
     const { td } = useTd();
+    const ui = useMeetingUiLabel();
+    const { t } = useTranslation();
     const { formatDateTime } = useUserDateTime();
     const [modalOpen, setModalOpen] = useState(false);
 
@@ -151,9 +155,9 @@ export default function MeetingConfirmationPanel({
                                 color: loggedOutcome?.tone.color ?? T.TEXT,
                             }}
                         >
-                            {td("Marked as")}{" "}
+                            {t("pages.meetings.ui.marked_as")}{" "}
                             {loggedOutcome
-                                ? td(loggedOutcome.label)
+                                ? ui(loggedOutcome.label)
                                 : meeting.attendance_outcome}
                         </div>
                         <div
@@ -165,7 +169,7 @@ export default function MeetingConfirmationPanel({
                         >
                             {loggedByName && (
                                 <>
-                                    {td("Added by")} {loggedByName}
+                                    {t("pages.meetings.ui.added_by")} {loggedByName}
                                     {" · "}
                                 </>
                             )}
@@ -173,7 +177,7 @@ export default function MeetingConfirmationPanel({
                                 meeting.attendance_outcome_logged_at!,
                             )}
                             {" · "}
-                            {td("Any note was saved to the record's notes")}
+                            {t("pages.meetings.ui.any_note_was_saved_to_the_records_notes")}
                         </div>
                     </div>
                     {canAct && (
@@ -182,7 +186,7 @@ export default function MeetingConfirmationPanel({
                             size="sm"
                             onClick={() => setModalOpen(true)}
                         >
-                            {td("Change")}
+                            {t("pages.meetings.ui.change")}
                         </Button>
                     )}
                 </div>
@@ -197,14 +201,14 @@ export default function MeetingConfirmationPanel({
                     }}
                 >
                     <div style={{ fontSize: 13, color: T.TEXT_MUTED }}>
-                        {td("Nothing recorded yet for this meeting.")}
+                        {t("pages.meetings.ui.nothing_recorded_yet_for_this_meeting")}
                     </div>
                     <Button
                         variant="primary"
                         size="sm"
                         onClick={() => setModalOpen(true)}
                     >
-                        {td("Set outcome")}
+                        {t("pages.meetings.ui.set_outcome")}
                     </Button>
                 </div>
             ) : (
@@ -218,9 +222,7 @@ export default function MeetingConfirmationPanel({
                         padding: "14px 16px",
                     }}
                 >
-                    {td(
-                        "You can record what happened once the meeting has passed.",
-                    )}
+                    {t("pages.meetings.ui.you_can_record_what_happened_once_the_meeting")}
                 </div>
             )}
 

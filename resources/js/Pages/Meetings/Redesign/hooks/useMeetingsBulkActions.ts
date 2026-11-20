@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import axios from "axios";
 import { message } from "antd";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 
 /** Statuses the bulk status action can set — the column's own enum. */
 export type MeetingBulkStatus = "scheduled" | "completed" | "cancelled";
@@ -55,7 +55,7 @@ export default function useMeetingsBulkActions({
     onApplied,
     onChanged,
 }: UseMeetingsBulkActionsOptions) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const [isApplying, setIsApplying] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -78,13 +78,13 @@ export default function useMeetingsBulkActions({
 
                 if (!result.success) {
                     message.error(
-                        result.message ?? td("Bulk action failed", { source: "en" }),
+                        result.message ?? t("pages.meetings.ui.bulk_action_failed"),
                     );
                     return;
                 }
 
                 message.success(
-                    result.message ?? td("Done", { source: "en" }),
+                    result.message ?? t("pages.meetings.ui.done"),
                 );
                 onApplied(toChange(result.ids ?? selectedIds));
                 clearSelection();
@@ -92,13 +92,13 @@ export default function useMeetingsBulkActions({
             } catch (error) {
                 message.error(
                     serverMessage(error) ??
-                        td("Bulk action failed", { source: "en" }),
+                        t("pages.meetings.ui.bulk_action_failed"),
                 );
             } finally {
                 setIsApplying(false);
             }
         },
-        [selectedIds, isApplying, clearSelection, onApplied, onChanged, td],
+        [selectedIds, isApplying, clearSelection, onApplied, onChanged, t],
     );
 
     return {

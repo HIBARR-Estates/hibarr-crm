@@ -17,6 +17,7 @@ import {
     meetingContactPhone,
     meetingCallTarget,
 } from "./meetingContactPhone";
+import useMeetingUiLabel from "@/Components/Redesign/meeting/useMeetingUiLabel";
 
 interface MeetingLocationPanelProps {
     meeting: DealFollowup;
@@ -42,6 +43,7 @@ export default function MeetingLocationPanel({
     className,
 }: MeetingLocationPanelProps) {
     const { td } = useTd();
+    const ui = useMeetingUiLabel();
     const item = toWorkspaceMeetingListItem(meeting);
 
     if (item.locationType === "video" && item.meetingLink) {
@@ -96,7 +98,7 @@ export default function MeetingLocationPanel({
                             color: T.BLUE,
                         }}
                     >
-                        {td(item.platformLabel, { source: "en" })}
+                        {ui(item.platformLabel)}
                     </div>
                     <div
                         className="font-semibold"
@@ -187,7 +189,6 @@ function PhoneLocation({
     className?: string;
 }) {
     const { t } = useTranslation();
-    const { td } = useTd();
     const phone = meetingContactPhone(meeting);
     const callTarget = meetingCallTarget(meeting);
 
@@ -199,7 +200,7 @@ function PhoneLocation({
                 t("pages.deals.workspace.meetings.phone_number_copied"),
             );
         } catch {
-            message.error(td("Could not copy the number"));
+            message.error(t("pages.meetings.ui.could_not_copy_the_number"));
         }
     };
 

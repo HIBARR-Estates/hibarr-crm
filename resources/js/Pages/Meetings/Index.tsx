@@ -694,7 +694,7 @@ function LegacyMeetingsIndex() {
                             disabled={isRefreshing}
                             type="text"
                         >
-                            {td("Refresh", { source: "en" })}
+                            {t("pages.meetings.ui.refresh")}
                         </Button>
                         {canAdd && (
                             <Button

@@ -113,7 +113,7 @@ export default function MeetingSummaryPanel({
         if (result?.success) {
             setSummary(result.meeting_summary ?? null);
             setEditing(false);
-            message.success(td("Summary saved"));
+            message.success(t("pages.meetings.ui.summary_saved"));
             onChanged?.();
         }
     };
@@ -123,7 +123,7 @@ export default function MeetingSummaryPanel({
         const result = await adoptAutomaticSummary();
         if (result?.success) {
             setSummary(result.meeting_summary ?? null);
-            message.success(td("Switched to the automatic summary"));
+            message.success(t("pages.meetings.ui.switched_to_the_automatic_summary"));
             onChanged?.();
         }
     };
@@ -133,7 +133,7 @@ export default function MeetingSummaryPanel({
         if (result?.success) {
             setAsked(true);
             message.success(
-                result.message ?? td("Asked for the summary again"),
+                result.message ?? t("pages.meetings.ui.asked_for_the_summary_again"),
             );
             onChanged?.();
         }
@@ -169,8 +169,8 @@ export default function MeetingSummaryPanel({
                 disabled={saving}
             >
                 {effectiveState === "generating"
-                    ? td("Write it myself")
-                    : td("Write the summary")}
+                    ? t("pages.meetings.ui.write_it_myself")
+                    : t("pages.meetings.ui.write_the_summary")}
             </Button>
         );
         const askButton = effectiveState === "stalled" &&
@@ -183,7 +183,7 @@ export default function MeetingSummaryPanel({
                     loading={saving}
                     disabled={saving}
                 >
-                    {td("Ask for it again")}
+                    {t("pages.meetings.ui.ask_for_it_again")}
                 </Button>
             );
 
@@ -211,11 +211,7 @@ export default function MeetingSummaryPanel({
                     <EmptyState
                         icon="clock"
                         title={t("pages.meetings.card.generating_summary")}
-                        description={td(
-                            asked
-                                ? "Asked again. The summary appears here once it is ready."
-                                : "The recording is still being processed. The summary appears here once it is ready.",
-                        )}
+                        description={asked ? t("pages.meetings.ui.asked_again_the_summary_appears_here_once_it_is") : t("pages.meetings.ui.the_recording_is_still_being_processed_the")}
                         footer={footer}
                     />
                     {failure}
@@ -228,12 +224,8 @@ export default function MeetingSummaryPanel({
                 <>
                     <EmptyState
                         icon="file-text"
-                        title={td("The summary did not arrive")}
-                        description={td(
-                            retryAvailable
-                                ? "It should have been ready by now. Ask for it again, or write it yourself."
-                                : "It should have been ready by now. You can write it yourself.",
-                        )}
+                        title={t("pages.meetings.ui.the_summary_did_not_arrive")}
+                        description={retryAvailable ? t("pages.meetings.ui.it_should_have_been_ready_by_now_ask_for_it") : t("pages.meetings.ui.it_should_have_been_ready_by_now_you_can_write")}
                         footer={footer}
                     />
                     {failure}
@@ -245,10 +237,8 @@ export default function MeetingSummaryPanel({
             <>
                 <EmptyState
                     icon="file-text"
-                    title={td("No summary for this meeting")}
-                    description={td(
-                        "Automatic summaries are built from the recording of a Zoho or Zoom meeting. For any other meeting, you can write one yourself.",
-                    )}
+                    title={t("pages.meetings.ui.no_summary_for_this_meeting")}
+                    description={t("pages.meetings.ui.automatic_summaries_are_built_from_the")}
                     footer={footer}
                 />
                 {failure}
@@ -296,9 +286,7 @@ export default function MeetingSummaryPanel({
                     }}
                 >
                     <span>
-                        {td(
-                            "An automatic summary arrived after yours. Yours is kept.",
-                        )}
+                        {t("pages.meetings.ui.an_automatic_summary_arrived_after_yours_yours")}
                     </span>
                     <Button
                         variant="ghost"
@@ -306,7 +294,7 @@ export default function MeetingSummaryPanel({
                         onClick={() => setConfirmAutomatic(true)}
                         disabled={saving}
                     >
-                        {td("Use the automatic one")}
+                        {t("pages.meetings.ui.use_the_automatic_one")}
                     </Button>
                 </div>
             )}
@@ -321,8 +309,8 @@ export default function MeetingSummaryPanel({
                 <p className="m-0" style={{ fontSize: 11, color: T.TEXT_HINT }}>
                     {manual ? (
                         <>
-                            {td("Written by")}{" "}
-                            {summary?.editor?.name ?? td("a team member")}
+                            {t("pages.meetings.ui.written_by")}{" "}
+                            {summary?.editor?.name ?? t("pages.meetings.ui.a_team_member")}
                             {summary?.edited_at &&
                                 ` · ${formatDateTime(summary.edited_at, {
                                     separator: " at ",
@@ -331,7 +319,7 @@ export default function MeetingSummaryPanel({
                     ) : (
                         summary?.created_at && (
                             <>
-                                {td("Generated")}{" "}
+                                {t("pages.meetings.ui.generated")}{" "}
                                 {formatDateTime(summary.created_at, {
                                     separator: " at ",
                                 })}
@@ -345,18 +333,16 @@ export default function MeetingSummaryPanel({
                         size="sm"
                         onClick={() => setEditing(true)}
                     >
-                        {td("Edit summary")}
+                        {t("pages.meetings.ui.edit_summary")}
                     </Button>
                 )}
             </div>
 
             <ConfirmDialog
                 open={confirmAutomatic}
-                title={td("Use the automatic summary?")}
-                message={td(
-                    "It replaces the version written by hand. This cannot be undone.",
-                )}
-                confirmLabel={td("Use automatic")}
+                title={t("pages.meetings.ui.use_the_automatic_summary")}
+                message={t("pages.meetings.ui.it_replaces_the_version_written_by_hand_this")}
+                confirmLabel={t("pages.meetings.ui.use_automatic")}
                 danger
                 onConfirm={handleAdopt}
                 onCancel={() => setConfirmAutomatic(false)}

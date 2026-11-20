@@ -89,7 +89,7 @@ export default function MeetingCard({
                     <SelectCheckbox
                         checked={selected}
                         onChange={() => onToggleSelect?.()}
-                        label={td("Select meeting")}
+                        label={t("pages.meetings.ui.select_meeting")}
                     />
                 )}
                 <DateBlock
@@ -169,7 +169,7 @@ export default function MeetingCard({
 
                 <RowActionMenu
                     actions={actions}
-                    ariaLabel={td("Meeting actions")}
+                    ariaLabel={t("pages.meetings.ui.meeting_actions")}
                 />
             </div>
 
@@ -223,8 +223,8 @@ export default function MeetingCard({
                         >
                             <Icon name="external-link" size={13} />
                             {record.type === "lead"
-                                ? td("Open lead")
-                                : td("Open deal")}
+                                ? t("pages.meetings.ui.open_lead")
+                                : t("pages.meetings.ui.open_deal")}
                         </a>
                     )}
                     {/* A phone meeting's counterpart to Join: ring them. */}
@@ -264,7 +264,7 @@ export default function MeetingCard({
                             onClick={onView}
                         >
                             <Icon name="file-text" size={13} />
-                            {td("Summary missing")}
+                            {t("pages.meetings.ui.summary_missing")}
                         </button>
                     )}
                     {summaryState === "generating" && (

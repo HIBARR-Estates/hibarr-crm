@@ -145,8 +145,8 @@ export default function MeetingLiveCard({
                     >
                         <Icon name="clock" size={13} />
                         {minutesRemaining > 0
-                            ? `${minutesRemaining} ${td("min left")}`
-                            : td("Ending now")}
+                            ? `${minutesRemaining} ${t("pages.meetings.ui.min_left")}`
+                            : t("pages.meetings.ui.ending_now")}
                     </span>
                     <span style={{ color: T.TEXT_HINT }}>·</span>
                     <span>{timeRange}</span>
@@ -205,7 +205,7 @@ export default function MeetingLiveCard({
                         aria-disabled="true"
                         aria-describedby={linkPendingId}
                         onClick={(event) => event.preventDefault()}
-                        title={td("The meeting link isn't available yet")}
+                        title={t("pages.meetings.ui.the_meeting_link_isnt_available_yet")}
                         className="inline-flex cursor-not-allowed items-center gap-2 font-semibold"
                         style={{
                             fontFamily: "inherit",
@@ -221,7 +221,7 @@ export default function MeetingLiveCard({
                         <Icon name="video" size={15} />
                         {t("pages.meetings.card.actions.join_meeting")}
                         <span id={linkPendingId} className="sr-only">
-                            {td("The meeting link isn't available yet")}
+                            {t("pages.meetings.ui.the_meeting_link_isnt_available_yet")}
                         </span>
                     </button>
                 ) : (
@@ -251,15 +251,15 @@ export default function MeetingLiveCard({
                             >
                                 <Icon name="external-link" size={15} />
                                 {record.type === "lead"
-                                    ? td("Open lead")
-                                    : td("Open deal")}
+                                    ? t("pages.meetings.ui.open_lead")
+                                    : t("pages.meetings.ui.open_deal")}
                             </a>
                         )}
                     </>
                 )}
                 <RowActionMenu
                     actions={actions}
-                    ariaLabel={td("Meeting actions")}
+                    ariaLabel={t("pages.meetings.ui.meeting_actions")}
                 />
             </div>
         </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { SummarySection } from "./useMeetingSummaryActions";
@@ -71,6 +72,7 @@ export default function MeetingSummaryEditor({
     onCancel,
 }: MeetingSummaryEditorProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
 
     const [rows, setRows] = useState<Row[]>(() => {
         if (initial.length > 0) {
@@ -121,7 +123,7 @@ export default function MeetingSummaryEditor({
                                 value={row.title}
                                 disabled={saving}
                                 maxLength={60}
-                                placeholder={td("Section title")}
+                                placeholder={t("pages.meetings.ui.section_title")}
                                 onChange={(event) =>
                                     patch(row.id, { title: event.target.value })
                                 }
@@ -168,7 +170,7 @@ export default function MeetingSummaryEditor({
                                     fontFamily: "inherit",
                                 }}
                             >
-                                {td("Remove")}
+                                {t("pages.meetings.ui.remove")}
                             </button>
                         )}
                     </div>
@@ -191,7 +193,7 @@ export default function MeetingSummaryEditor({
                     onClick={addSection}
                     disabled={saving}
                 >
-                    {td("Add a section")}
+                    {t("pages.meetings.ui.add_a_section")}
                 </Button>
             )}
 
@@ -203,7 +205,7 @@ export default function MeetingSummaryEditor({
 
             <div className="flex justify-end gap-2">
                 <Button variant="ghost" onClick={onCancel} disabled={saving}>
-                    {td("Cancel")}
+                    {t("pages.meetings.ui.cancel")}
                 </Button>
                 <Button
                     variant="primary"
@@ -211,7 +213,7 @@ export default function MeetingSummaryEditor({
                     loading={saving}
                     disabled={saving || sections.length === 0}
                 >
-                    {td("Save summary")}
+                    {t("pages.meetings.ui.save_summary")}
                 </Button>
             </div>
         </div>

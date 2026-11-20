@@ -314,7 +314,7 @@ export default function ScheduleMeetingModal({
                         disabled={saving}
                     >
                         {stepped && step > 0
-                            ? (stepLabels?.back ?? td("Back"))
+                            ? (stepLabels?.back ?? t("pages.meetings.ui.back"))
                             : labels.cancel}
                     </Button>
                     {selectedLink ? (
@@ -336,7 +336,7 @@ export default function ScheduleMeetingModal({
                                 saving || !essentialsComplete || !canAdvance
                             }
                         >
-                            {stepLabels?.next ?? td("Next")}
+                            {stepLabels?.next ?? t("pages.meetings.ui.next")}
                         </Button>
                     ) : (
                         <Button
@@ -376,7 +376,7 @@ export default function ScheduleMeetingModal({
                     }}
                 >
                     {stepLabels?.stepOf?.(step + 1, 2) ??
-                        `${td("Step")} ${step + 1} / 2`}
+                        `${t("pages.meetings.ui.step")} ${step + 1} / 2`}
                 </p>
             )}
 

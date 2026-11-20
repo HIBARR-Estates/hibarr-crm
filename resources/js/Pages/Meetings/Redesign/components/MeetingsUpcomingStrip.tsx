@@ -1,5 +1,5 @@
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { DealFollowup } from "@/Types/api/deal-followup";
@@ -55,7 +55,7 @@ export default function MeetingsUpcomingStrip({
     listIsEmpty,
 }: MeetingsUpcomingStripProps) {
     const { timezone } = useUserDateTime();
-    const { td } = useTd();
+    const { t } = useTranslation();
 
     // Still loading (the cards are a deferred prop): hold their place rather
     // than render nothing and push the list down when they arrive.
@@ -79,8 +79,8 @@ export default function MeetingsUpcomingStrip({
         // that nothing is coming. One quiet line says it; the full dashed
         // card is for a screen with nothing else on it.
         return (
-            <section className="mb-5" aria-label={td("Next meetings")}>
-                <StripHeading label={td("Next up")} />
+            <section className="mb-5" aria-label={t("pages.meetings.ui.next_meetings")}>
+                <StripHeading label={t("pages.meetings.ui.next_up")} />
                 <div
                     className="flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3"
                     style={{
@@ -90,12 +90,12 @@ export default function MeetingsUpcomingStrip({
                 >
                     <span style={{ fontSize: 13, color: T.TEXT_MUTED }}>
                         {hasAnyMeetings
-                            ? td("Nothing else is scheduled.")
-                            : td("You have not booked a meeting yet.")}
+                            ? t("pages.meetings.ui.nothing_else_is_scheduled")
+                            : t("pages.meetings.ui.you_have_not_booked_a_meeting_yet")}
                     </span>
                     {canSchedule && (
                         <Button variant="ghost" size="sm" onClick={onSchedule}>
-                            {td("Schedule a meeting")}
+                            {t("pages.meetings.ui.schedule_a_meeting")}
                         </Button>
                     )}
                 </div>
@@ -111,9 +111,9 @@ export default function MeetingsUpcomingStrip({
     const upcoming = buckets.filter(({ bucket }) => bucket === "upcoming");
 
     return (
-        <section className="mb-5" aria-label={td("Next meetings")}>
+        <section className="mb-5" aria-label={t("pages.meetings.ui.next_meetings")}>
             <StripHeading
-                label={live.length > 0 ? td("Happening now") : td("Next up")}
+                label={live.length > 0 ? t("pages.meetings.ui.happening_now") : t("pages.meetings.ui.next_up")}
             />
 
             {live.length > 0 && (
@@ -131,7 +131,7 @@ export default function MeetingsUpcomingStrip({
             {upcoming.length > 0 && (
                 <>
                     {live.length > 0 && (
-                        <StripHeading label={td("Next up")} />
+                        <StripHeading label={t("pages.meetings.ui.next_up")} />
                     )}
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                         {upcoming.map(({ meeting, bucket }) => (
@@ -154,15 +154,15 @@ export default function MeetingsUpcomingStrip({
 
 /** The cards' place while they load — same grid, so nothing shifts on arrival. */
 function StripSkeleton() {
-    const { td } = useTd();
+    const { t } = useTranslation();
 
     return (
         <section
             className="mb-5"
             aria-busy="true"
-            aria-label={td("Next meetings")}
+            aria-label={t("pages.meetings.ui.next_meetings")}
         >
-            <StripHeading label={td("Next up")} />
+            <StripHeading label={t("pages.meetings.ui.next_up")} />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {[0, 1, 2].map((index) => (
                     <div

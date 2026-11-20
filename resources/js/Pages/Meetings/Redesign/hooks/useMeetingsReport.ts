@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { message } from "antd";
 import { errorFormatter } from "@/lib/api/utils/common";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 
 export interface MeetingReportInput {
     discussed: string;
@@ -22,7 +22,7 @@ export interface MeetingReportInput {
  * either without knowing which.
  */
 export default function useMeetingsReport() {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const [errors, setErrors] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -64,7 +64,7 @@ export default function useMeetingsReport() {
                 const json = await response.json();
 
                 if (json?.success) {
-                    message.success(td("Follow-up report saved"));
+                    message.success(t("pages.meetings.ui.follow_up_report_saved"));
                     onSuccess?.();
                     return;
                 }
@@ -79,7 +79,7 @@ export default function useMeetingsReport() {
                 setIsSaving(false);
             }
         },
-        [],
+        [t],
     );
 
     return {
