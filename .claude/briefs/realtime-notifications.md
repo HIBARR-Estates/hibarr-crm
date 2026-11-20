@@ -46,6 +46,13 @@ down is recovered after it returned (~13 s, pusher-js reconnect backoff).
 10. **Collapse threshold (open decision 2):** more than 3 waiting collapse into one summary card (`COLLAPSE_AFTER`).
 11. **Reverb vs hosted Pusher (open decision 3):** self-hosted Reverb, as recommended.
 
+### Deployment target (updated)
+Staging runs on **Coolify (Traefik)** with the app behind a `coolify-nginx-reverse-proxy` container, not on a host
+with nginx + supervisor as the plan assumed. Reverb therefore runs as its own container (the entrypoint `reverb`
+role) on its own subdomain routed by Traefik straight to it (WebSocket upgrades are native), and the app publishes
+to it over the internal address via `REVERB_PUBLISH_*`. The nginx and supervisor instructions in this file's
+"Design" section no longer apply there; `docs/realtime-notifications-ops.md` is the current runbook.
+
 ### Known limits
 - Reconnect after a Reverb restart takes up to ~13 s (pusher-js backoff); notifications are not lost, they appear when it reconnects.
 - `time_ago` in the bell is as of arrival and refreshes on the next fetch.

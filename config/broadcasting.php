@@ -65,11 +65,15 @@ return [
             'key' => env('REVERB_APP_KEY'),
             'secret' => env('REVERB_APP_SECRET'),
             'app_id' => env('REVERB_APP_ID'),
+            // Where the APP publishes events (server to server). Defaults to the public address browsers
+            // use (REVERB_HOST/PORT/SCHEME); set REVERB_PUBLISH_* to the internal address of the Reverb
+            // container (e.g. reverb:8080 over http) so publishing never leaves the private network or
+            // depends on the public hostname resolving from inside the cluster.
             'options' => [
-                'host' => env('REVERB_HOST'),
-                'port' => env('REVERB_PORT', 443),
-                'scheme' => env('REVERB_SCHEME', 'https'),
-                'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
+                'host' => env('REVERB_PUBLISH_HOST', env('REVERB_HOST')),
+                'port' => env('REVERB_PUBLISH_PORT', env('REVERB_PORT', 443)),
+                'scheme' => env('REVERB_PUBLISH_SCHEME', env('REVERB_SCHEME', 'https')),
+                'useTLS' => env('REVERB_PUBLISH_SCHEME', env('REVERB_SCHEME', 'https')) === 'https',
             ],
             'client_options' => [
                 'connect_timeout' => 1,
