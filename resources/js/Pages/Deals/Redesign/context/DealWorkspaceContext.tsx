@@ -317,7 +317,14 @@ export function DealWorkspaceProvider({
                 : prev.active?.id === request.id
                   ? null
                   : prev.active;
-            return { active, requests };
+            // A KDV request arrives with its payment: refresh that row too,
+            // without letting it take over as the deal's active request.
+            const parent = request.vat_parent;
+            if (!parent) return { active, requests };
+            return {
+                active: active?.id === parent.id ? parent : active,
+                requests: requests.map((r) => (r.id === parent.id ? parent : r)),
+            };
         });
     }, []);
 

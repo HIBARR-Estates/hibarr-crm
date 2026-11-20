@@ -194,6 +194,8 @@ class DealPaymentController extends AccountBaseController
         $this->assertCanCancelPaymentRequest($deal);
         abort_unless((int) $payment->deal_id === (int) $deal->id, 404);
         abort_unless(filled($payment->external_reference), 404);
+        // A KDV request belongs to the payment whose invoice was asked for.
+        abort_if($payment->vat_for_payment_id !== null, 404);
 
         try {
             $this->documents->requestDocuments($payment, user()?->id);
@@ -208,6 +210,59 @@ class DealPaymentController extends AccountBaseController
             'status' => 'success',
             'data' => $this->dealPaymentService->serializeDealPayment($payment->fresh(['currency'])),
         ]);
+    }
+
+    /**
+     * Raises a second payment request for the KDV owed on a collected payment.
+     * Returns the payment (with its KDV state) and the new request.
+     */
+    public function requestVat(Request $request, Deal $deal, Payment $payment): JsonResponse
+    {
+        $this->assertFeatureEnabled();
+        if ($deal->isLocked()) {
+            abort_403(true);
+        }
+        // Same access as asking for the invoice: whoever can write to the deal or work the finance list.
+        $this->assertCanCancelPaymentRequest($deal);
+        abort_unless((int) $payment->deal_id === (int) $deal->id, 404);
+
+        $validated = $request->validate([
+            'provider_key' => 'nullable|string|in:manual-bank-transfer,nowpayments,cash',
+        ]);
+
+        try {
+            $created = $this->dealPaymentService->createVatRequest($deal, $payment, user(), $validated['provider_key'] ?? null);
+        } catch (HttpException $e) {
+            return response()->json(['status' => 'fail', 'message' => $e->getMessage()], $e->getStatusCode());
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->dealPaymentService->serializeDealPayment($payment->fresh(['currency'])),
+            'request' => $created,
+        ], 201);
+    }
+
+    /** Records the KDV as received in cash or settled outside the CRM. */
+    public function settleVat(Request $request, Deal $deal, Payment $payment): JsonResponse
+    {
+        $this->assertFeatureEnabled();
+        $this->assertCanViewDeal($deal);
+        // Marking money as received is the same call as confirming a transfer.
+        $this->assertCanConfirmPaymentTransfer();
+        abort_unless((int) $payment->deal_id === (int) $deal->id, 404);
+
+        $validated = $request->validate([
+            'method' => 'required|string|in:cash,external',
+        ]);
+
+        try {
+            $data = $this->dealPaymentService->settleVat($deal, $payment, user(), $validated['method']);
+        } catch (HttpException $e) {
+            return response()->json(['status' => 'fail', 'message' => $e->getMessage()], $e->getStatusCode());
+        }
+
+        return response()->json(['status' => 'success', 'data' => $data]);
     }
 
     /** Read-only state of one request, so the modal can see when an invoice has been made. */

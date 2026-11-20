@@ -238,6 +238,9 @@ export default function PaymentsSection({ deal, canCreate, canConfirmTransfer }:
                 }
                 onRetry={selected && canRetry(selected) ? () => setRetryTarget(selected) : undefined}
                 canRequestInvoice={canCreate || canConfirmTransfer}
+                canRequestVat={canCreate || canConfirmTransfer}
+                canSettleVat={canConfirmTransfer}
+                onVatChanged={upsertPaymentRequest}
             />
             <ConfirmDialog
                 open={confirmOpen}

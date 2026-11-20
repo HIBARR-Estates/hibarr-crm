@@ -24,6 +24,7 @@ import {
 } from "@/Pages/Deals/Redesign/adapters/mapDealPaymentUiState";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import usePaymentDocumentRequest from "./usePaymentDocumentRequest";
+import useVatCollection from "./useVatCollection";
 import type {
     DealPaymentRequest,
     DealPaymentUiState,
@@ -60,6 +61,12 @@ interface PaymentRequestDetailModalProps {
     canRequestInvoice?: boolean;
     /** Called with the updated request once an invoice has been requested. */
     onDocumentsRequested?: (request: DealPaymentRequest) => void;
+    /** Whether the viewer may raise a second payment request for the KDV. */
+    canRequestVat?: boolean;
+    /** Whether the viewer may record the KDV as received in cash or outside the CRM. */
+    canSettleVat?: boolean;
+    /** Called with the updated row: the new KDV request (it carries its payment) or the payment itself. */
+    onVatChanged?: (updated: DealPaymentRequest) => void;
 }
 
 const SUMMARY_KEY: Record<DealPaymentUiState, string> = {
@@ -272,15 +279,21 @@ export default function PaymentRequestDetailModal({
     companyCurrency,
     canRequestInvoice = false,
     onDocumentsRequested,
+    canRequestVat = false,
+    canSettleVat = false,
+    onVatChanged,
 }: PaymentRequestDetailModalProps) {
     const { t } = useTranslation();
     const { td } = useTd();
     const { requestDocuments, requesting } = usePaymentDocumentRequest();
     const [requestedId, setRequestedId] = useState<number | null>(null);
     const [confirmRequestOpen, setConfirmRequestOpen] = useState(false);
+    const { requestVat, settleVat, saving: savingVat } = useVatCollection();
+    const [vatAction, setVatAction] = useState<"request" | "cash" | "external" | null>(null);
     useEffect(() => {
         setRequestedId(null);
         setConfirmRequestOpen(false);
+        setVatAction(null);
     }, [request?.id]);
 
     if (!request) return null;
@@ -322,6 +335,26 @@ export default function PaymentRequestDetailModal({
             onDocumentsRequested?.(updated);
         }
     };
+    const vat = request.vat ?? null;
+    const runVatAction = async () => {
+        if (request.deal_id == null || vatAction === null) return;
+        const result = vatAction === "request"
+            ? await requestVat(request.deal_id, request.id)
+            : await settleVat(request.deal_id, request.id, vatAction);
+        setVatAction(null);
+        if (result) {
+            // A KDV request carries its payment, so one call refreshes both.
+            onVatChanged?.(result.request ?? result.payment);
+        }
+    };
+    const vatMethodLabel = (method: string | null | undefined) =>
+        method === "request"
+            ? t("pages.payment_requests.vat_method_request")
+            : method === "cash"
+                ? t("pages.payment_requests.vat_method_cash")
+                : method === "external"
+                    ? t("pages.payment_requests.vat_method_external")
+                    : DASH;
     const linkExpired = isCheckoutLinkExpired(request);
     const activeLink = hasActiveCheckoutLink(request);
     const summary = linkExpired
@@ -549,6 +582,59 @@ export default function PaymentRequestDetailModal({
                 </div>
             )}
 
+            {vat && (
+                <div style={{ marginTop: 12 }}>
+                    <Panel title={t("pages.payment_requests.vat_title")}>
+                        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+                            <div
+                                style={{
+                                    fontSize: REDESIGN_TYPE.BODY_LG,
+                                    fontWeight: 700,
+                                    color: T.NAVY,
+                                    fontVariantNumeric: "tabular-nums",
+                                }}
+                            >
+                                {vat.amount != null ? formatMoneyAmount(vat.amount, requestCurrency) : DASH}
+                                {vat.rate != null ? (
+                                    <span style={{ marginLeft: 8, fontWeight: 500, color: T.TEXT_MUTED }}>
+                                        {`${t("pages.payment_requests.vat_rate")} ${vat.rate}%`}
+                                    </span>
+                                ) : null}
+                            </div>
+                            <Badge variant={vat.status === "settled" ? "green" : vat.status === "requested" ? "blue" : "amber"}>
+                                {t(`pages.payment_requests.vat_status_${vat.status}`)}
+                            </Badge>
+                        </div>
+                        <p style={{ margin: "8px 0 0", fontSize: REDESIGN_TYPE.BODY, color: T.TEXT_MUTED, lineHeight: 1.45 }}>
+                            {vat.status === "settled"
+                                ? `${vatMethodLabel(vat.method)} · ${when(vat.settled_at)}`
+                                : vat.status === "requested"
+                                    ? t("pages.payment_requests.vat_requested_hint")
+                                    : t("pages.payment_requests.vat_due_hint")}
+                        </p>
+                        {vat.status === "due" && (canRequestVat || canSettleVat) && (
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+                                {canRequestVat && (
+                                    <Button variant="primary" onClick={() => setVatAction("request")}>
+                                        {t("pages.payment_requests.vat_action_request")}
+                                    </Button>
+                                )}
+                                {canSettleVat && (
+                                    <>
+                                        <Button variant="ghost" onClick={() => setVatAction("cash")}>
+                                            {t("pages.payment_requests.vat_action_cash")}
+                                        </Button>
+                                        <Button variant="ghost" onClick={() => setVatAction("external")}>
+                                            {t("pages.payment_requests.vat_action_external")}
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </Panel>
+                </div>
+            )}
+
             <div
                 style={{
                     display: "grid",
@@ -646,6 +732,18 @@ export default function PaymentRequestDetailModal({
                 <span>{`${field("reference")} ${request.payment_id ? `#${request.payment_id}` : DASH}`}</span>
             </div>
         </Modal>
+        <ConfirmDialog
+            open={vatAction !== null}
+            title={t(`pages.payment_requests.vat_confirm_${vatAction ?? "request"}_title`)}
+            message={t(`pages.payment_requests.vat_confirm_${vatAction ?? "request"}_message`, {
+                amount: vat?.amount != null ? formatMoneyAmount(vat.amount, requestCurrency) : "",
+            })}
+            confirmLabel={t(`pages.payment_requests.vat_confirm_${vatAction ?? "request"}_confirm`)}
+            confirmLoading={savingVat}
+            zIndex={1400}
+            onConfirm={runVatAction}
+            onCancel={() => setVatAction(null)}
+        />
         <ConfirmDialog
             open={confirmRequestOpen}
             title={t("pages.payment_requests.request_invoice_title")}

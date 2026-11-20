@@ -1596,6 +1596,115 @@ class DealPaymentRequestTest extends TestCase
         $this->assertSame(0, DB::table('payment_documents')->count());
     }
 
+    private function collectedPaymentWithInvoiceRequested(array $overrides = []): Payment
+    {
+        $id = $this->insertPayment(array_merge([
+            'external_reference' => 'kdv-1',
+            'ol_status' => 'completed',
+            'status' => 'complete',
+            'amount' => 2500,
+            'base_amount' => 2500,
+            'exchange_rate' => 1,
+            'paid_on' => now(),
+            'documents_requested_at' => now(),
+        ], $overrides));
+
+        return Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+    }
+
+    public function test_a_collected_payment_with_an_invoice_request_shows_the_kdv_due(): void
+    {
+        $payment = $this->collectedPaymentWithInvoiceRequested();
+
+        $row = app(DealPaymentService::class)->serializeDealPayment($payment);
+
+        $this->assertSame('due', $row['vat']['status']);
+        $this->assertSame(400.0, $row['vat']['amount']);
+        $this->assertSame(16.0, $row['vat']['rate']);
+    }
+
+    public function test_no_kdv_is_due_before_an_invoice_is_requested(): void
+    {
+        $payment = $this->collectedPaymentWithInvoiceRequested(['documents_requested_at' => null]);
+
+        $this->assertNull(app(DealPaymentService::class)->serializeDealPayment($payment)['vat']);
+    }
+
+    public function test_kdv_can_be_marked_received_in_cash_or_outside_the_crm_once(): void
+    {
+        $payment = $this->collectedPaymentWithInvoiceRequested();
+        $service = app(DealPaymentService::class);
+
+        $row = $service->settleVat($this->makeDeal(), $payment, $this->makeUser(), 'cash');
+
+        $this->assertSame('settled', $row['vat']['status']);
+        $this->assertSame('cash', $row['vat']['method']);
+        $this->assertDatabaseHas('payments', ['id' => $payment->id, 'vat_settlement_method' => 'cash', 'vat_settled_by_user_id' => 99]);
+
+        try {
+            $service->settleVat($this->makeDeal(), $payment->fresh(), $this->makeUser(), 'external');
+            $this->fail('Expected a second settlement to be refused.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+    }
+
+    public function test_kdv_cannot_be_collected_before_the_payment_is_collected_or_invoice_requested(): void
+    {
+        $service = app(DealPaymentService::class);
+
+        foreach ([['ol_status' => 'pending'], ['documents_requested_at' => null]] as $i => $override) {
+            $payment = $this->collectedPaymentWithInvoiceRequested($override + ['external_reference' => 'kdv-x'.$i]);
+            try {
+                $service->settleVat($this->makeDeal(), $payment, $this->makeUser(), 'cash');
+                $this->fail('Expected KDV collection to be refused.');
+            } catch (HttpException $e) {
+                $this->assertSame(409, $e->getStatusCode());
+            }
+        }
+    }
+
+    public function test_a_kdv_request_is_for_the_kdv_only_and_is_no_part_of_the_deal_value(): void
+    {
+        Http::fake();
+        $payment = $this->collectedPaymentWithInvoiceRequested();
+        $service = app(DealPaymentService::class);
+        $remainingBefore = $service->remainingBaseAmount($this->makeDeal());
+
+        $request = $service->createVatRequest($this->makeDeal(), $payment, $this->makeUser(), 'cash');
+
+        $this->assertEquals(400.0, (float) $request['amount']);
+        $this->assertSame($payment->id, $request['vat_for_payment_id']);
+        $this->assertSame('cash_pending', $request['ui_state']);
+        $this->assertNull($request['vat']);
+        $this->assertSame('requested', $service->serializeDealPayment($payment->fresh())['vat']['status']);
+        $this->assertSame($remainingBefore, $service->remainingBaseAmount($this->makeDeal()));
+
+        // A live KDV request blocks marking it received another way.
+        try {
+            $service->settleVat($this->makeDeal(), $payment->fresh(), $this->makeUser(), 'cash');
+            $this->fail('Expected a live KDV request to block settlement.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+    }
+
+    public function test_confirming_the_kdv_request_settles_the_payment_and_leaves_the_deal_alone(): void
+    {
+        Http::fake();
+        $payment = $this->collectedPaymentWithInvoiceRequested();
+        $service = app(DealPaymentService::class);
+        $service->createVatRequest($this->makeDeal(), $payment, $this->makeUser(), 'cash');
+
+        $service->confirmBankTransfer($this->makeDeal(), $this->makeUser());
+
+        $row = $service->serializeDealPayment($payment->fresh());
+        $this->assertSame('settled', $row['vat']['status']);
+        $this->assertSame('request', $row['vat']['method']);
+        $this->assertNull(DB::table('deals')->where('id', $this->dealId)->value('outcome_status'));
+        $this->assertSame($service->remainingBaseAmount($this->makeDeal()), 0.0);
+    }
+
     private function makeDeal(): Deal
     {
         return Deal::withoutGlobalScope(CompanyScope::class)->findOrFail($this->dealId);
@@ -1711,6 +1820,10 @@ class DealPaymentRequestTest extends TestCase
             $table->timestamp('invalidated_at')->nullable();
             $table->timestamp('documents_requested_at')->nullable();
             $table->unsignedInteger('documents_requested_by_user_id')->nullable();
+            $table->unsignedInteger('vat_for_payment_id')->nullable();
+            $table->timestamp('vat_settled_at')->nullable();
+            $table->string('vat_settlement_method', 16)->nullable();
+            $table->unsignedInteger('vat_settled_by_user_id')->nullable();
             $table->unsignedBigInteger('invalidated_by_user_id')->nullable();
             $table->string('invalidation_reason')->nullable();
             $table->decimal('base_amount', 16, 2)->nullable();
