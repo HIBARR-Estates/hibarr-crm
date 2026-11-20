@@ -27,6 +27,7 @@ import {
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import MeetingCalendarSyncRow from "@/Components/Redesign/meeting/MeetingCalendarSyncRow";
 import MeetingLocationPanel from "@/Components/Redesign/meeting/MeetingLocationPanel";
+import useMeetingUiLabel from "@/Components/Redesign/meeting/useMeetingUiLabel";
 export interface MeetingDetailNestedControls {
     editOpen: boolean;
     rescheduleOpen: boolean;
@@ -160,6 +161,7 @@ export default function MeetingDetailModal({
     footerLeading,
 }: MeetingDetailModalProps) {
     const { td } = useTd();
+    const ui = useMeetingUiLabel();
     const { t } = useTranslation();
     const { formatDate } = useUserDateTime();
     const [editOpen, setEditOpen] = useState(false);
@@ -241,7 +243,7 @@ export default function MeetingDetailModal({
                                     onClick={onMarkHeld}
                                     disabled={isUpdating}
                                 >
-                                    {td("Mark held")}
+                                    {t("pages.meetings.ui.mark_held")}
                                 </Button>
                             )}
                         {canEdit && (
@@ -267,10 +269,10 @@ export default function MeetingDetailModal({
                             onChange={setPanel}
                             fullWidth
                             variant="raised"
-                            ariaLabel={td("Meeting views")}
+                            ariaLabel={t("pages.meetings.ui.meeting_views")}
                             options={[
-                                { value: "info", label: td("Meeting info") },
-                                { value: "summary", label: td("Summary") },
+                                { value: "info", label: t("pages.meetings.ui.meeting_info") },
+                                { value: "summary", label: t("pages.meetings.ui.summary") },
                             ]}
                         />
                     </div>
@@ -326,8 +328,8 @@ export default function MeetingDetailModal({
                                     }}
                                 >
                                     {record.type === "deal"
-                                        ? td("Deal")
-                                        : td("Lead")}
+                                        ? t("pages.meetings.ui.deal")
+                                        : t("pages.meetings.ui.lead")}
                                 </span>
                             </button>
                         )}
@@ -336,7 +338,7 @@ export default function MeetingDetailModal({
                             <span
                                 className={`dr-pill ${PLATFORM_PILL[item.locationType] ?? "dr-pill-gray"}`}
                             >
-                                {td(item.platformLabel, { source: "en" })}
+                                {ui(item.platformLabel)}
                             </span>
                             {(() => {
                                 const status = getMeetingStatusDisplay(item);
@@ -361,7 +363,7 @@ export default function MeetingDetailModal({
                                                 background: status.dotColor,
                                             }}
                                         />
-                                        {td(status.label, { source: "en" })}
+                                        {ui(status.label)}
                                     </span>
                                 );
                             })()}
@@ -590,11 +592,8 @@ export default function MeetingDetailModal({
                                             }}
                                         >
                                             {showAllAttendees
-                                                ? td("Show fewer")
-                                                : td(
-                                                      `Show ${hiddenAttendeeCount} more`,
-                                                      { source: "en" },
-                                                  )}
+                                                ? t("pages.meetings.ui.show_fewer")
+                                                : t("pages.meetings.ui.show_count_more", { count: hiddenAttendeeCount })}
                                         </button>
                                     )}
                                 </>

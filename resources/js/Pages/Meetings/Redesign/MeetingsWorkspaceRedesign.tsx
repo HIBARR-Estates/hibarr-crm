@@ -35,15 +35,46 @@ import useAutoGridPageSize, {
 } from "./hooks/useAutoGridPageSize";
 import useMeetingsServerPagination from "./hooks/useMeetingsServerPagination";
 import useMeetingRecord from "./hooks/useMeetingRecord";
+import { type MeetingBulkChange } from "./hooks/useMeetingsBulkActions";
+import MeetingsListSkeleton from "./components/MeetingsListSkeleton";
+import useMeetingsImprovementsFlag from "@/Hooks/useMeetingsImprovementsFlag";
 import { type MeetingsTab } from "./adapters/meetingViewModel";
-import type { DealFollowup } from "@/Types/api/deal-followup";
+import type {
+    DealFollowup,
+    PaginatedFollowupResponse,
+} from "@/Types/api/deal-followup";
 import type { MeetingsRedesignPageProps } from "../Index";
 
 import "@/Components/Redesign/redesign.css";
 import "./meetings-redesign.css";
 
 /** Props the list request needs back — everything else stays as rendered. */
-const LIST_PROPS = ["meetings", "tabCounts", "activeTab"];
+const LIST_PROPS = ["meetings", "tabCounts", "activeTab", "hasAnyMeetings"];
+
+/** The same, before `crm.meetings-page-improvements` (no "has any" probe). */
+const LEGACY_LIST_PROPS = ["meetings", "tabCounts", "activeTab"];
+
+/**
+ * Stands in for the list while it has not been loaded (the page opens on the
+ * calendar). Never drawn — the skeleton is — it only keeps everything that
+ * reads `meetings.*` safe without a null check at each use.
+ */
+const EMPTY_PAGE: PaginatedFollowupResponse = {
+    current_page: 1,
+    data: [],
+    first_page_url: "",
+    from: 0,
+    last_page: 1,
+    last_page_url: "",
+    next_page_url: null,
+    path: "",
+    per_page: 0,
+    prev_page_url: null,
+    to: 0,
+    total: 0,
+};
+
+const NO_COUNTS = { all: 0, upcoming: 0, past: 0 };
 
 /**
  * Rows-per-page preference. Absent or "auto" means the page sizes itself to
@@ -119,21 +150,32 @@ const LIST_LAYOUTS: AutoGridLayout[] = [
 
 export default function MeetingsWorkspaceRedesign() {
     const { props } = usePage<MeetingsRedesignPageProps>();
+    // `crm.meetings-page-improvements`. Off, each behaviour below is as it was
+    // before the improvements (the server reads the same flag and sends the
+    // data to match).
+    const improved = useMeetingsImprovementsFlag();
+    const listProps = improved ? LIST_PROPS : LEGACY_LIST_PROPS;
     const {
         meetings: meetingsProp,
-        tabCounts,
+        tabCounts: tabCountsProp,
         activeTab,
+        initialView,
         filterPeople,
         calendarMeetings,
         calendarRequestedMonth,
         upcomingSoon,
-        hasAnyMeetings,
+        hasAnyMeetings: hasAnyMeetingsProp,
         userDeals,
         userLeads,
         meetingTypes,
         permissions,
     } = props;
     const userId = props.auth.user?.id;
+    /** The list's data is in hand — it is null until the list view asks. */
+    const listLoaded = meetingsProp != null;
+    const tabCounts = tabCountsProp ?? NO_COUNTS;
+    // Not known yet reads as "yes", so nothing says "no meetings" in passing.
+    const hasAnyMeetings = hasAnyMeetingsProp ?? true;
     // The Zoho Calendar overlay is announced but not built. It is shown only
     // to HIBARR staff, as a disabled "coming soon" chip — so the team can see
     // it landing without it reaching customers as a control that does
@@ -150,7 +192,7 @@ export default function MeetingsWorkspaceRedesign() {
         setCalendarMonth,
         overlayTypes,
         toggleOverlayType,
-    } = useMeetingsViewNavigation();
+    } = useMeetingsViewNavigation(initialView, improved);
 
     // The viewer's own tasks/events/tickets/leave for the shown month, from
     // the endpoint the legacy My Calendar page already uses. Fetched only
@@ -222,7 +264,7 @@ export default function MeetingsWorkspaceRedesign() {
     );
 
     const { filter } = usePageSearchAndFilter({ filterConfig });
-    const { openDrawer } = filter;
+    const { openDrawer, clearAllFilters } = filter;
 
     // Count clauses, not raw keys, so the badge matches the filter sentence
     // (a date range is two keys but reads as one filter).
@@ -235,6 +277,7 @@ export default function MeetingsWorkspaceRedesign() {
         selected,
         selectedIds,
         clearSelection,
+        retainOnly,
         toggleSelect,
         toggleGroupSelection,
     } = useRowSelection();
@@ -247,14 +290,39 @@ export default function MeetingsWorkspaceRedesign() {
     // Partial visits: only the list props come back, so the page never
     // re-renders from scratch and the scroll position holds.
     const visitList = useCallback(
-        (overrides: Record<string, string | number | null>) => {
+        (
+            overrides: Record<string, string | number | null>,
+            callbacks?: { onFinish?: () => void },
+        ) => {
             router.get(route("meetings.index"), mergeQueryParams(overrides), {
-                only: LIST_PROPS,
+                only: listProps,
                 preserveState: true,
                 preserveScroll: true,
+                onFinish: callbacks?.onFinish,
             });
         },
-        [],
+        [listProps],
+    );
+
+    /**
+     * The tab the reader just picked, until its list arrives. The tab bar
+     * follows the click straight away and the old list dims, instead of the
+     * whole page sitting unchanged for the length of a request and then
+     * jumping — which read as the click not having registered.
+     */
+    const [pendingTab, setPendingTab] = useState<MeetingsTab | null>(null);
+    const switchTab = useCallback(
+        (tab: MeetingsTab) => {
+            // Before the improvements: just the visit, no pending state.
+            if (!improved) {
+                visitList({ tab, page: null });
+                return;
+            }
+            if (tab === activeTab && pendingTab === null) return;
+            setPendingTab(tab);
+            visitList({ tab, page: null }, { onFinish: () => setPendingTab(null) });
+        },
+        [improved, activeTab, pendingTab, visitList],
     );
 
     // ── Paging ─────────────────────────────────────────────────────────
@@ -267,10 +335,57 @@ export default function MeetingsWorkspaceRedesign() {
         changePageSize,
         applyOptimistic,
         clearOptimistic,
+        invalidateCache,
     } = useMeetingsServerPagination({
-        meetings: meetingsProp,
-        only: LIST_PROPS,
+        meetings: meetingsProp ?? EMPTY_PAGE,
+        only: listProps,
     });
+
+    // The selection follows what is on screen. It used to survive a change of
+    // tab, page or filter, so the bar could count — and a bulk delete could
+    // remove — meetings the reader was no longer looking at.
+    useEffect(() => {
+        if (!improved) return;
+        retainOnly(meetings.data.map((meeting) => meeting.id));
+    }, [improved, meetings.data, retainOnly]);
+
+    // A bulk delete / status change the server has just confirmed, painted
+    // into the list at once. The reload that follows reconciles everything
+    // this cannot know (which tab a re-statused meeting now belongs on, the
+    // counts, the cards); until it lands the rows already show what happened.
+    // `applyOptimistic` drops the patch the moment a real page arrives.
+    const applyBulkChange = useCallback(
+        (change: MeetingBulkChange) => {
+            const ids = new Set(change.ids);
+            applyOptimistic((current) => {
+                if (change.type === "status") {
+                    return {
+                        ...current,
+                        data: current.data.map((meeting) =>
+                            ids.has(meeting.id)
+                                ? { ...meeting, status: change.status }
+                                : meeting,
+                        ),
+                    };
+                }
+
+                const data = current.data.filter(
+                    (meeting) => !ids.has(meeting.id),
+                );
+                const total = Math.max(
+                    0,
+                    current.total - (current.data.length - data.length),
+                );
+                return {
+                    ...current,
+                    data,
+                    total,
+                    last_page: Math.max(1, Math.ceil(total / current.per_page)),
+                };
+            });
+        },
+        [applyOptimistic],
+    );
 
     // Hiding the strip has to give its meetings back to the list, and showing
     // it has to take them away again — both are server-side, so the toggle
@@ -327,7 +442,7 @@ export default function MeetingsWorkspaceRedesign() {
         }
 
         router.reload({
-            only: [...LIST_PROPS, "upcomingSoon"],
+            only: [...listProps, "upcomingSoon"],
             onFinish: () => setIsTogglingStrip(false),
             onError: () => clearOptimistic(),
             onCancel: () => clearOptimistic(),
@@ -353,6 +468,7 @@ export default function MeetingsWorkspaceRedesign() {
         enabled:
             pinnedPageSize === null &&
             view === "list" &&
+            listLoaded &&
             (!stripVisible || upcomingSoon !== undefined),
         anchorRef: resultsRef,
         layouts: LIST_LAYOUTS,
@@ -404,26 +520,43 @@ export default function MeetingsWorkspaceRedesign() {
 
     // A pinned size has to be re-applied on a fresh visit, where the URL
     // carries no per_page of its own.
+    //
+    // Once, when the list first has data to compare against — on the
+    // calendar there is no list yet, and visiting with a page size then
+    // would ask the server for a list it is not building.
+    const pinnedAppliedRef = useRef(false);
     useEffect(() => {
+        if (!listLoaded || pinnedAppliedRef.current) return;
+        pinnedAppliedRef.current = true;
         if (pinnedPageSize === null) return;
-        if (pinnedPageSize === meetingsProp.per_page) return;
+        if (pinnedPageSize === meetings.per_page) return;
         changePageSize(pinnedPageSize);
-        // Mount-only: later changes go through pinPageSize.
+        // Later changes go through pinPageSize.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [listLoaded]);
 
     // ── Calendar month data ────────────────────────────────────────────
     // The month grid is a deferred prop the server only registers for the
     // calendar view, so opening the view (or moving month) asks for that one
     // key rather than re-rendering the page.
     const requestedMonthRef = useRef<string | null>(null);
-    const calendarReady = calendarMeetings?.month === calendarMonth;
+    /**
+     * Set when a meeting changed while the calendar was not on screen. The
+     * month already in props was read before that change, and a list-view
+     * reload cannot refresh it (the server only registers the calendar for a
+     * `view=calendar` request) — so the next visit to the calendar has to
+     * ask again rather than trust a month that is merely the right one.
+     */
+    const [calendarStale, setCalendarStale] = useState(false);
+    const calendarReady =
+        calendarMeetings?.month === calendarMonth && !calendarStale;
 
     useEffect(() => {
         if (view !== "calendar" || calendarReady) return;
         // This render already registered the key for this month, so Inertia is
-        // fetching it — asking again here would double the query.
-        if (calendarRequestedMonth === calendarMonth) return;
+        // fetching it — asking again here would double the query. A stale
+        // month is the exception: that registration is from before the change.
+        if (!calendarStale && calendarRequestedMonth === calendarMonth) return;
         if (requestedMonthRef.current === calendarMonth) return;
 
         const requestedMonth = calendarMonth;
@@ -448,20 +581,71 @@ export default function MeetingsWorkspaceRedesign() {
                 cal_month: calendarMonth,
             }),
             onStart: () => setCalendarLoading(true),
+            onSuccess: () => setCalendarStale(false),
             onFinish: () => setCalendarLoading(false),
             onError: releaseClaim,
             onCancel: releaseClaim,
         });
-    }, [view, calendarMonth, calendarReady, calendarRequestedMonth]);
+    }, [
+        view,
+        calendarMonth,
+        calendarReady,
+        calendarStale,
+        calendarRequestedMonth,
+    ]);
 
     // ── Refresh ────────────────────────────────────────────────────────
+    //
+    // Each view reloads only what it draws. The server builds the list (and
+    // the cards, tallies and "has any meetings" probe) only for the list view
+    // and the month grid only for the calendar, so a reload in one view must
+    // not ask for the other's props — it would get null back and overwrite
+    // what is held.
+    //
+    // In the list the "next up" cards ride along: the server leaves whatever
+    // the cards claim out of the list, so the two are one answer computed
+    // together. Reloading only the list after a change would compare it with
+    // stale cards — a meeting just booked for tomorrow would be taken out of
+    // the list as "in the cards" while the cards (never re-read) did not show
+    // it, so it appeared nowhere.
     const refreshProps = useMemo(
         () =>
-            view === "calendar"
-                ? [...LIST_PROPS, "calendarMeetings"]
-                : LIST_PROPS,
-        [view],
+            !improved
+                ? // As before: the list props, plus the month in the calendar.
+                  view === "calendar"
+                    ? [...LEGACY_LIST_PROPS, "calendarMeetings"]
+                    : LEGACY_LIST_PROPS
+                : view === "calendar"
+                  ? ["calendarMeetings"]
+                  : [...LIST_PROPS, ...(stripVisible ? ["upcomingSoon"] : [])],
+        [improved, view, stripVisible],
     );
+
+    // The list opens lazily. The page lands on the calendar, which does not
+    // build it, so the first switch to the list asks for it — and so does a
+    // switch after a change made in the calendar, since the list held from
+    // before that is stale. A stale list stays on screen, dimmed, while the
+    // fresh one comes; only a list never loaded shows the skeleton.
+    const [listStale, setListStale] = useState(false);
+    const listRequestedRef = useRef(false);
+    useEffect(() => {
+        if (!improved) return;
+        if (view !== "list" || (listLoaded && !listStale)) return;
+        if (listRequestedRef.current) return;
+        listRequestedRef.current = true;
+        router.reload({
+            only: [
+                ...listProps,
+                ...(stripVisible ? ["upcomingSoon"] : []),
+            ],
+            // `view=list` is what makes the server build the list.
+            data: mergeQueryParams({ view: "list" }),
+            onSuccess: () => setListStale(false),
+            onFinish: () => {
+                listRequestedRef.current = false;
+            },
+        });
+    }, [improved, view, listLoaded, listStale, stripVisible, listProps]);
 
     /** Current query string plus the calendar's month, so filters survive. */
     const reloadParams = useCallback(
@@ -476,13 +660,26 @@ export default function MeetingsWorkspaceRedesign() {
 
     const reloadList = useCallback(() => {
         requestedMonthRef.current = null;
+        if (improved) {
+            // Pages prefetched before this change are stale now.
+            invalidateCache();
+            // The reload below refreshes the view on screen only; the other
+            // one has to be re-read when next opened.
+            if (view === "calendar") setListStale(true);
+            else setCalendarStale(true);
+        }
         router.reload({ only: refreshProps, data: reloadParams() });
-    }, [refreshProps, reloadParams]);
+    }, [improved, view, refreshProps, reloadParams, invalidateCache]);
 
     const { refresh, isRefreshing } = usePageRefresh({
         onRefresh: () =>
             new Promise<void>((resolve) => {
                 requestedMonthRef.current = null;
+                if (improved) {
+                    invalidateCache();
+                    if (view === "calendar") setListStale(true);
+                    else setCalendarStale(true);
+                }
                 router.reload({
                     only: refreshProps,
                     data: reloadParams(),
@@ -506,10 +703,8 @@ export default function MeetingsWorkspaceRedesign() {
                 view={view}
                 onViewChange={setView}
                 showTabs={view === "list"}
-                tab={activeTab}
-                onTabChange={(tab: MeetingsTab) =>
-                    visitList({ tab, page: null })
-                }
+                tab={improved ? (pendingTab ?? activeTab) : activeTab}
+                onTabChange={switchTab}
                 counts={tabCounts}
                 onRefresh={refresh}
                 refreshing={isRefreshing}
@@ -527,7 +722,7 @@ export default function MeetingsWorkspaceRedesign() {
                 filterSentence={
                     activeFilterCount > 0 ? (
                         <ActiveFilterSentence
-                            count={meetings.total}
+                            count={listLoaded ? meetings.total : undefined}
                             entityLabel="meetings"
                             onOpenFilters={openDrawer}
                         />
@@ -550,6 +745,9 @@ export default function MeetingsWorkspaceRedesign() {
                         onReport={(m) => setReporting(m)}
                         onSchedule={() => openSchedule()}
                         canSchedule={canSchedule}
+                        hasAnyMeetings={hasAnyMeetings}
+                        listIsEmpty={meetings.data.length === 0}
+                        improved={improved}
                     />
                 )}
 
@@ -557,13 +755,16 @@ export default function MeetingsWorkspaceRedesign() {
                     <MeetingsBulkBar
                         selectedIds={selectedIds}
                         clearSelection={clearSelection}
+                        onApplied={improved ? applyBulkChange : undefined}
                         onChanged={reloadList}
                         canEdit={permissions.edit_lead_follow_up !== "none"}
                         canDelete={permissions.delete_lead_follow_up !== "none"}
                     />
                 )}
 
-                {view === "list" ? (
+                {improved && view === "list" && !listLoaded ? (
+                    <MeetingsListSkeleton />
+                ) : view === "list" ? (
                     <MeetingsResultsView
                         ref={resultsRef}
                         meetings={meetings}
@@ -581,16 +782,32 @@ export default function MeetingsWorkspaceRedesign() {
                         selected={selected}
                         onToggleSelect={toggleSelect}
                         onToggleAll={toggleGroupSelection}
-                        isPaging={isPaging || isTogglingStrip}
+                        isPaging={
+                            isPaging ||
+                            isTogglingStrip ||
+                            (improved && (pendingTab !== null || listStale))
+                        }
                         onSchedule={() => openSchedule()}
                         canSchedule={canSchedule}
                         hasAnyMeetings={hasAnyMeetings}
                         allInCards={
                             meetings.total === 0 && tabCounts[activeTab] > 0
                         }
+                        filtered={improved && activeFilterCount > 0}
+                        onClearFilters={clearAllFilters}
                     />
-                ) : calendarMeetings && calendarReady && !calendarLoading ? (
+                ) : calendarMeetings &&
+                  (improved || (calendarReady && !calendarLoading)) ? (
+                    // With the improvements, any month already in hand keeps
+                    // the calendar on screen: the toolbar stays usable and the
+                    // grid dims while the requested month (or a re-read after
+                    // a change) arrives. The skeleton is only for the very
+                    // first load. Without them, the whole calendar is replaced
+                    // by the skeleton until the month it asked for arrives.
                     <MeetingsCalendarView
+                        improved={improved}
+                        month={improved ? calendarMonth : undefined}
+                        loading={improved && (!calendarReady || calendarLoading)}
                         data={calendarMeetings}
                         onMonthChange={setCalendarMonth}
                         overlayEvents={overlayEvents}
@@ -695,7 +912,7 @@ export default function MeetingsWorkspaceRedesign() {
                 config={filterConfig}
                 optionsLoading={filterPeople === undefined}
                 entityLabel="meetings"
-                currentCount={meetings.total}
+                currentCount={listLoaded ? meetings.total : undefined}
                 savedViews
                 savedViewEntity="meeting"
             />

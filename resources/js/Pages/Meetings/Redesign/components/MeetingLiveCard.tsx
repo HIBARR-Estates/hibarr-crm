@@ -3,6 +3,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import AvatarStack from "@/Components/Redesign/primitives/AvatarStack";
 import Icon from "@/Components/Redesign/primitives/Icon";
+import MeetingCallButton from "@/Components/Redesign/meeting/MeetingCallButton";
 import RowActionMenu from "@/Components/Redesign/primitives/RowActionMenu";
 import {
     REDESIGN_RADIUS as R,
@@ -144,8 +145,8 @@ export default function MeetingLiveCard({
                     >
                         <Icon name="clock" size={13} />
                         {minutesRemaining > 0
-                            ? `${minutesRemaining} ${td("min left")}`
-                            : td("Ending now")}
+                            ? `${minutesRemaining} ${t("pages.meetings.ui.min_left")}`
+                            : t("pages.meetings.ui.ending_now")}
                     </span>
                     <span style={{ color: T.TEXT_HINT }}>·</span>
                     <span>{timeRange}</span>
@@ -204,7 +205,7 @@ export default function MeetingLiveCard({
                         aria-disabled="true"
                         aria-describedby={linkPendingId}
                         onClick={(event) => event.preventDefault()}
-                        title={td("The meeting link isn't available yet")}
+                        title={t("pages.meetings.ui.the_meeting_link_isnt_available_yet")}
                         className="inline-flex cursor-not-allowed items-center gap-2 font-semibold"
                         style={{
                             fontFamily: "inherit",
@@ -220,35 +221,45 @@ export default function MeetingLiveCard({
                         <Icon name="video" size={15} />
                         {t("pages.meetings.card.actions.join_meeting")}
                         <span id={linkPendingId} className="sr-only">
-                            {td("The meeting link isn't available yet")}
+                            {t("pages.meetings.ui.the_meeting_link_isnt_available_yet")}
                         </span>
                     </button>
                 ) : (
-                    record?.href && (
-                        <a
-                            href={record.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 font-semibold no-underline"
-                            style={{
-                                background: T.WHITE,
-                                color: T.NAVY,
-                                border: "none",
-                                borderRadius: 8,
-                                padding: "9px 14px",
-                                fontSize: 14,
-                            }}
-                        >
-                            <Icon name="external-link" size={15} />
-                            {record.type === "lead"
-                                ? td("Open lead")
-                                : td("Open deal")}
-                        </a>
-                    )
+                    <>
+                        {/* A phone meeting that is happening now: the action
+                            is ringing the client, as attending is for a video
+                            meeting. */}
+                        <MeetingCallButton
+                            meeting={meeting}
+                            bucket="live"
+                            className="dr-btn dr-btn-primary"
+                        />
+                        {record?.href && (
+                            <a
+                                href={record.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 font-semibold no-underline"
+                                style={{
+                                    background: T.WHITE,
+                                    color: T.NAVY,
+                                    border: "none",
+                                    borderRadius: 8,
+                                    padding: "9px 14px",
+                                    fontSize: 14,
+                                }}
+                            >
+                                <Icon name="external-link" size={15} />
+                                {record.type === "lead"
+                                    ? t("pages.meetings.ui.open_lead")
+                                    : t("pages.meetings.ui.open_deal")}
+                            </a>
+                        )}
+                    </>
                 )}
                 <RowActionMenu
                     actions={actions}
-                    ariaLabel={td("Meeting actions")}
+                    ariaLabel={t("pages.meetings.ui.meeting_actions")}
                 />
             </div>
         </div>

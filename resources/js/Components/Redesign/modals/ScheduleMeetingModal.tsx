@@ -58,6 +58,13 @@ interface ScheduleMeetingModalProps {
      * there is much less to ask.
      */
     stepped?: boolean;
+    /**
+     * Whether the first step may be left. For a caller whose first step asks
+     * for something this dialog cannot see (the Meetings index: which lead) —
+     * without it, "Next" worked with nothing chosen and the mistake only
+     * surfaced when the meeting was saved.
+     */
+    canAdvance?: boolean;
     /** Labels for the step chrome; required when `stepped`. */
     stepLabels?: {
         back: string;
@@ -77,6 +84,16 @@ interface ScheduleMeetingModalProps {
      * as before.
      */
     readyToSeed?: boolean;
+    /**
+     * Identity of the record `initialForm` was built from. When it changes
+     * while the modal stays open, only the fields that come from the record —
+     * who is on the meeting and who hosts it — are re-seeded, in place.
+     *
+     * The alternative was remounting the modal per record, which also threw
+     * away everything typed on the second step: going Back to pick a
+     * different lead lost the date, time, platform and notes.
+     */
+    recordKey?: string | null;
     /**
      * "agent" is the agent workspace's wide two-column dialog (canvas L7-32):
      * what and when on the left, how on the right. `stepped` doesn't apply.
@@ -108,8 +125,10 @@ export default function ScheduleMeetingModal({
     mustIncludeOwner = null,
     initialStart,
     stepped = false,
+    canAdvance = true,
     stepLabels,
     readyToSeed = true,
+    recordKey,
     variant = "default",
     relatedField,
     closeLabel,
@@ -120,6 +139,7 @@ export default function ScheduleMeetingModal({
     const [form, setForm] = useState<MeetingFormState>(initialForm);
     const [step, setStep] = useState(0);
     const seededForOpenRef = useRef(false);
+    const seededRecordKeyRef = useRef<string | null | undefined>(undefined);
 
     // How the time gets decided: here, or on one of the Calendly booking pages.
     const { props } = usePage();
@@ -169,8 +189,22 @@ export default function ScheduleMeetingModal({
                 ...(initialStart ?? {}),
             });
             seededForOpenRef.current = true;
+            seededRecordKeyRef.current = recordKey;
         }
-    }, [open, initialForm, initialStart, readyToSeed]);
+    }, [open, initialForm, initialStart, readyToSeed, recordKey]);
+
+    // A different record once the form is already in use: take its people,
+    // leave everything the user has entered since.
+    useEffect(() => {
+        if (!open || !seededForOpenRef.current || !readyToSeed) return;
+        if (seededRecordKeyRef.current === recordKey) return;
+        seededRecordKeyRef.current = recordKey;
+        setForm((current) => ({
+            ...current,
+            participants: initialForm.participants,
+            hostId: initialForm.hostId,
+        }));
+    }, [open, recordKey, readyToSeed, initialForm]);
 
     const handleClose = () => {
         if (saving) return;
@@ -280,7 +314,7 @@ export default function ScheduleMeetingModal({
                         disabled={saving}
                     >
                         {stepped && step > 0
-                            ? (stepLabels?.back ?? td("Back"))
+                            ? (stepLabels?.back ?? t("pages.meetings.ui.back"))
                             : labels.cancel}
                     </Button>
                     {selectedLink ? (
@@ -298,9 +332,11 @@ export default function ScheduleMeetingModal({
                         <Button
                             variant="primary"
                             onClick={() => setStep(1)}
-                            disabled={saving || !essentialsComplete}
+                            disabled={
+                                saving || !essentialsComplete || !canAdvance
+                            }
                         >
-                            {stepLabels?.next ?? td("Next")}
+                            {stepLabels?.next ?? t("pages.meetings.ui.next")}
                         </Button>
                     ) : (
                         <Button
@@ -340,7 +376,7 @@ export default function ScheduleMeetingModal({
                     }}
                 >
                     {stepLabels?.stepOf?.(step + 1, 2) ??
-                        `${td("Step")} ${step + 1} / 2`}
+                        `${t("pages.meetings.ui.step")} ${step + 1} / 2`}
                 </p>
             )}
 

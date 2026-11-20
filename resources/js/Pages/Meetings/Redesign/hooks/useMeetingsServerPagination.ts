@@ -51,6 +51,15 @@ export default function useMeetingsServerPagination({
     const scope = scopeOf(url);
     const cacheRef = useRef(new Map<string, PaginatedFollowupResponse>());
     const prefetchingRef = useRef(new Set<string>());
+    /**
+     * Bumped whenever the cache is dropped. A prefetch that was already in
+     * flight carries the generation it started under and is discarded if it
+     * lands after the cache was cleared — otherwise it would write a page
+     * read before a change back in as if it were current.
+     */
+    const generationRef = useRef(0);
+    /** Lets the prefetch effect run again after the cache was emptied. */
+    const [cacheEpoch, setCacheEpoch] = useState(0);
 
     const [optimistic, setOptimistic] =
         useState<PaginatedFollowupResponse | null>(null);
@@ -83,12 +92,15 @@ export default function useMeetingsServerPagination({
             }
 
             prefetchingRef.current.add(key);
+            const generation = generationRef.current;
             try {
                 const payload = await fetchMeetingsPage(targetPage, perPage, {
                     version: version as string | null,
                     component,
                 });
-                cacheRef.current.set(key, payload);
+                if (generation === generationRef.current) {
+                    cacheRef.current.set(key, payload);
+                }
             } catch {
                 // Prefetch is best-effort — paging still works via Inertia.
             } finally {
@@ -117,6 +129,7 @@ export default function useMeetingsServerPagination({
         display.last_page,
         display.per_page,
         prefetchPage,
+        cacheEpoch,
     ]);
 
     const visit = useCallback(
@@ -147,6 +160,7 @@ export default function useMeetingsServerPagination({
     const changePageSize = useCallback(
         (size: number, options?: { silent?: boolean }) => {
             onPersistPageSize?.(size);
+            generationRef.current += 1;
             cacheRef.current.clear();
             prefetchingRef.current.clear();
             // Drop any optimistic page too — otherwise `display` keeps
@@ -188,6 +202,18 @@ export default function useMeetingsServerPagination({
         setOptimistic(null);
     }, []);
 
+    // Every page held in the cache was read before whatever just changed —
+    // a meeting booked, moved, reported on or deleted. The cache only drops
+    // itself when the filters or tab change, so without this, stepping to a
+    // page that had been prefetched paints rows from before the change and
+    // then swaps them for the real ones a moment later.
+    const invalidateCache = useCallback(() => {
+        generationRef.current += 1;
+        cacheRef.current.clear();
+        prefetchingRef.current.clear();
+        setCacheEpoch((epoch) => epoch + 1);
+    }, []);
+
     return {
         meetings: display,
         isPaging,
@@ -195,5 +221,6 @@ export default function useMeetingsServerPagination({
         changePageSize,
         applyOptimistic,
         clearOptimistic,
+        invalidateCache,
     };
 }

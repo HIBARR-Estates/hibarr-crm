@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
 import Segmented from "@/Components/Redesign/primitives/Segmented";
@@ -58,6 +59,7 @@ export default function EditMeetingModal({
     onGenerateLink,
 }: EditMeetingModalProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const [form, setForm] = useState<MeetingFormState | null>(null);
     const [panel, setPanel] = useState<"details" | "confirmation">("details");
     const seededForOpenRef = useRef(false);
@@ -126,10 +128,10 @@ export default function EditMeetingModal({
                         onChange={setPanel}
                         fullWidth
                         variant="raised"
-                        ariaLabel={td("Edit views")}
+                        ariaLabel={t("pages.meetings.ui.edit_views")}
                         options={[
-                            { value: "details", label: td("Meeting details") },
-                            { value: "confirmation", label: td("Meeting outcome") },
+                            { value: "details", label: t("pages.meetings.ui.meeting_details") },
+                            { value: "confirmation", label: t("pages.meetings.ui.meeting_outcome") },
                         ]}
                     />
                 </div>

@@ -3742,29 +3742,57 @@ class DealController extends AccountBaseController
      */
     public function applyFollowUpQuickAction(Request $request)
     {
+        // The redesigned Meetings page posts here with axios and patches its
+        // own list from the answer. Answering it with `back()` made Inertia
+        // send the whole page's props again — every schedulable lead and
+        // deal included — only for the caller to reload the list on top.
+        $wantsJson = $request->expectsJson();
+
+        $ids = array_values(array_filter(
+            array_map('intval', explode(',', (string) $request->row_ids))
+        ));
+
         switch ($request->action_type) {
             case 'delete':
                 $this->deleteFollowUpRecords($request);
-
-                return back()->with([
-                    'status' => 'success',
-                    'message' => __('messages.deleteSuccess'),
-                ]);
+                $message = __('messages.deleteSuccess');
+                break;
 
             case 'change-status':
                 $this->changeBulkFollowUpStatus($request);
-
-                return back()->with([
-                    'status' => 'success',
-                    'message' => __('messages.updateSuccess'),
-                ]);
+                $message = __('messages.updateSuccess');
+                break;
 
             default:
+                // An unknown action is a failed request, not a success the
+                // caller should patch its list for.
+                if ($wantsJson) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => __('messages.selectAction'),
+                    ], 422);
+                }
+
                 return back()->with([
                     'status' => 'error',
                     'message' => __('messages.selectAction'),
                 ]);
         }
+
+        if ($wantsJson) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'action' => $request->action_type,
+                'ids' => $ids,
+                'status' => $request->action_type === 'change-status' ? $request->status : null,
+            ]);
+        }
+
+        return back()->with([
+            'status' => 'success',
+            'message' => $message,
+        ]);
     }
 
     /**

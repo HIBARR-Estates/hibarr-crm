@@ -1,3 +1,4 @@
+import useMeetingsImprovementsFlag from "@/Hooks/useMeetingsImprovementsFlag";
 import { useEffect, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
@@ -65,6 +66,8 @@ export default function MeetingsReportDialog({
     const [form, setForm] = useState<MeetingReportInput>(EMPTY);
     const [attendance, setAttendance] = useState<Attendance>("unknown");
     const { submitReport, isSaving, errors, clearErrors } = useMeetingsReport();
+    // Without the improvements the form always opened empty.
+    const improved = useMeetingsImprovementsFlag();
 
     // Keyed on the meeting's id, not `open` alone — a report left half-typed
     // for one meeting must never be filed against the next, including if the
@@ -72,7 +75,20 @@ export default function MeetingsReportDialog({
     // (e.g. "Report" clicked for a second meeting while it's still open for
     // the first).
     useEffect(() => {
-        setForm(EMPTY);
+        // Start from what the meeting's summary already says for the three
+        // prompts, so filing a report edits it instead of looking like a
+        // blank form that will replace it.
+        const existing = (improved
+            ? (meeting?.meeting_summary?.summary_object ?? {})
+            : {}) as Record<string, unknown>;
+        const text = (key: string) =>
+            typeof existing[key] === "string" ? (existing[key] as string) : "";
+        setForm({
+            ...EMPTY,
+            discussed: text("discussed"),
+            outcome: text("outcome"),
+            next_steps: text("next_steps"),
+        });
         setAttendance("unknown");
         clearErrors();
         // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on id, not the meeting object
@@ -121,9 +137,7 @@ export default function MeetingsReportDialog({
         <Modal
             open={open && meeting !== null}
             title={t("pages.meetings.card.actions.report")}
-            subtitle={td(
-                "Record what happened so the deal keeps its history after the call.",
-            )}
+            subtitle={t("pages.meetings.ui.record_what_happened_so_the_deal_keeps_its")}
             onClose={handleClose}
             maxWidth={640}
             dirty={Boolean(
@@ -146,7 +160,7 @@ export default function MeetingsReportDialog({
                         loading={isSaving}
                         disabled={isSaving || !form.discussed.trim()}
                     >
-                        {td("Save report")}
+                        {t("pages.meetings.ui.save_report")}
                     </Button>
                 </>
             }
@@ -161,21 +175,21 @@ export default function MeetingsReportDialog({
                 </div>
             )}
 
-            <ModalField label={td("Did the client attend?")}>
+            <ModalField label={t("pages.meetings.ui.did_the_client_attend")}>
                 <Segmented<Attendance>
                     value={attendance}
                     onChange={setAttendance}
-                    ariaLabel={td("Client attendance")}
+                    ariaLabel={t("pages.meetings.ui.client_attendance")}
                     fullWidth
                     options={[
-                        { value: "yes", label: td("Yes") },
-                        { value: "no", label: td("No show") },
-                        { value: "unknown", label: td("Not sure") },
+                        { value: "yes", label: t("pages.meetings.ui.yes") },
+                        { value: "no", label: t("pages.meetings.ui.no_show") },
+                        { value: "unknown", label: t("pages.meetings.ui.not_sure") },
                     ]}
                 />
             </ModalField>
 
-            <ModalField label={td("What was discussed")}>
+            <ModalField label={t("pages.meetings.ui.what_was_discussed")}>
                 <textarea
                     autoFocus
                     disabled={isSaving}
@@ -183,36 +197,34 @@ export default function MeetingsReportDialog({
                     onChange={(event) =>
                         patch({ discussed: event.target.value })
                     }
-                    placeholder={td("The main points covered in the meeting")}
+                    placeholder={t("pages.meetings.ui.the_main_points_covered_in_the_meeting")}
                     style={TEXTAREA_STYLE}
                 />
             </ModalField>
 
-            <ModalField label={td("Outcome")}>
+            <ModalField label={t("pages.meetings.ui.outcome")}>
                 <textarea
                     disabled={isSaving}
                     value={form.outcome}
                     onChange={(event) => patch({ outcome: event.target.value })}
-                    placeholder={td(
-                        "What was decided, and where that leaves the deal",
-                    )}
+                    placeholder={t("pages.meetings.ui.what_was_decided_and_where_that_leaves_the_deal")}
                     style={TEXTAREA_STYLE}
                 />
             </ModalField>
 
-            <ModalField label={td("Next steps")}>
+            <ModalField label={t("pages.meetings.ui.next_steps")}>
                 <textarea
                     disabled={isSaving}
                     value={form.next_steps}
                     onChange={(event) =>
                         patch({ next_steps: event.target.value })
                     }
-                    placeholder={td("Who does what, and by when")}
+                    placeholder={t("pages.meetings.ui.who_does_what_and_by_when")}
                     style={TEXTAREA_STYLE}
                 />
             </ModalField>
 
-            <ModalField label={td("Mark the meeting as completed")}>
+            <ModalField label={t("pages.meetings.ui.mark_the_meeting_as_completed")}>
                 <Switch
                     checked={form.mark_completed}
                     onChange={() =>
@@ -221,8 +233,8 @@ export default function MeetingsReportDialog({
                     disabled={isSaving}
                     label={
                         form.mark_completed
-                            ? td("Completed")
-                            : td("Leave as is")
+                            ? t("pages.meetings.ui.completed")
+                            : t("pages.meetings.ui.leave_as_is")
                     }
                 />
             </ModalField>
