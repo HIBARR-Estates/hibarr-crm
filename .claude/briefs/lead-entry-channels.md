@@ -118,6 +118,15 @@ All tables follow the repo's conventions: integer `id` + UUIDv7 `uuid`, models r
 | `entityId` int null / `entityKey` varchar(191) null | CHECK exactly one. Ids for our own rows. Keys for externally owned identifiers (formKey; later inbox addresses, phone numbers, Instagram ids). Keys are normalized before storing and lookup |
 | unique | partial unique `(entityType, entityId)` and `(entityType, entityKey)`: **one channel per object** |
 
+**Binding entity types** are a new code enum (`EntryBindingEntityType`, backend `src/infrastructure/enums/entry-channel.enum.ts`, Phase 1). Each type in `ENTRY_CHANNEL_TYPES` lists which of them it accepts. Each value names what the binding's id or key points at:
+
+| Value | Points at | Stored as | Who owns the record | Picker source / validation |
+|---|---|---|---|---|
+| `webinar`, `webinar_session`, `event_type`, `lead_magnet`, `form`, `landing_page`, `masterclass` | backend tables of the same name | `entityId` | backend | backend `GET …/entry-channels/bindable`; FK-checked on save |
+| `crm_package` | a CRM package. The backend keeps a synced copy in `crm_packages` (`crm-package.model.ts`, `crmPackageId`) | `entityId` = CRM package id (the `packageId` the package registration already sends) | CRM | listed and checked against `crm_packages` |
+| `crm_meeting_type` | a CRM `MeetingType` (`app/Models/MeetingType.php`). The consultation request sends it as `meetingDetails.meetingTypeId` | `entityId` = CRM meeting type id | CRM | the CRM settings UI lists its own meeting types; the backend has no copy, so it can't check the id exists |
+| `website_form` | a website form's `formKey`. **There is no table of forms**: it's a free string the website sends (`lookupKeyField`: lower-case, `^[a-z0-9][a-z0-9_-]*$`, max 100). Today it only appears as a key in `crm_lookup_entries` (`kind = lead_source`) | `entityKey` | the website | typed by the admin, validated with the same pattern; the picker suggests keys already in `crm_lookup_entries` and keys seen on recent entries |
+
 ### `lead_entries` (the per-submission log, the source of truth for "how did this lead come in, every time")
 | Column | Notes |
 |---|---|
