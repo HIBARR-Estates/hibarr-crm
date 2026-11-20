@@ -9,6 +9,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface SaveNoteFormData {
     title: string;
@@ -22,6 +23,7 @@ interface Props extends IModalProps {
 }
 
 const EditNote: React.FC<Props> = ({ deal, note, onClose, open }) => {
+    const { td } = useTd();
     // route("deal-notes.update", note.id)
     const [errors, setErrors] = useState<string[]>([]);
 
@@ -62,7 +64,7 @@ const EditNote: React.FC<Props> = ({ deal, note, onClose, open }) => {
 
     return (
         <Drawer
-            title="Edit Note"
+            title={td("Edit Note", { source: "en" })}
             placement="right"
             size="large"
             open={open}

@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { message } from "antd";
 import { router } from "@inertiajs/react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 /** Statuses the bulk status action can set — the column's own enum. */
 export type MeetingBulkStatus = "scheduled" | "completed" | "cancelled";
@@ -25,6 +26,7 @@ export default function useMeetingsBulkActions({
     clearSelection,
     onChanged,
 }: UseMeetingsBulkActionsOptions) {
+    const { td } = useTd();
     const [isApplying, setIsApplying] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -42,7 +44,7 @@ export default function useMeetingsBulkActions({
                         clearSelection();
                         onChanged();
                     },
-                    onError: () => message.error("Bulk action failed"),
+                    onError: () => message.error(td("Bulk action failed", { source: "en" })),
                     onFinish: () => setIsApplying(false),
                 },
             );

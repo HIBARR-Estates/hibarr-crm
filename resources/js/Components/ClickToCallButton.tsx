@@ -1,16 +1,29 @@
-import { type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
+import {
+    type KeyboardEvent,
+    type MouseEvent,
+    type ReactNode,
+    useEffect,
+    useState,
+    useSyncExternalStore,
+} from "react";
 import { PhoneOutlined } from "@ant-design/icons";
 import { App, Dropdown, type MenuProps, message, Tooltip } from "antd";
 import { usePage } from "@inertiajs/react";
 import { softphone } from "@/lib/softphone/SoftphoneClient";
 import useClickToCall from "@/Hooks/useClickToCall";
 import useTranslation from "@/Hooks/useTranslation";
-import useSoftphone, { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
+import useSoftphone, { canPlaceCrmCall } from "@/Hooks/useSoftphone";
 import axios from "axios";
 import type { TelephonyCallEntity } from "@/Types/api/telephony";
+import type { LeadCallPhone } from "@/lib/leadCallPhones";
 
 interface ClickToCallButtonProps {
     phone: string;
+    /**
+     * When a lead has more than one number, the click opens this list instead
+     * of dialling `phone`. A single entry behaves like `phone` alone.
+     */
+    phones?: LeadCallPhone[];
     entity: TelephonyCallEntity;
     className?: string;
     /** Inline icon-only (DetailField) vs full-width label (Deal surfaces). */
@@ -19,7 +32,6 @@ interface ClickToCallButtonProps {
     title?: string;
     ariaLabel?: string;
     dataAction?: string;
-    allowTelFallback?: boolean;
     children?: ReactNode;
 }
 
@@ -28,10 +40,12 @@ interface ClickToCallButtonProps {
  * on it dials via sipgate (audio in the tab); otherwise it falls back to the
  * OL click-to-call bridge. When multiple softphone lines are configured,
  * clicking opens a line selector and switches/registers the chosen line
- * before dialing.
+ * before dialing. When `phones` lists more than one number, the click
+ * opens that list first.
  */
 export default function ClickToCallButton({
     phone,
+    phones,
     entity,
     className = "",
     variant = "icon",
@@ -39,7 +53,6 @@ export default function ClickToCallButton({
     title,
     ariaLabel,
     dataAction,
-    allowTelFallback = true,
     children,
 }: ClickToCallButtonProps) {
     const { t } = useTranslation();
@@ -50,7 +63,6 @@ export default function ClickToCallButton({
     const {
         isEnabled: softphoneFeatureEnabled,
         devices,
-        hasLine,
         activeDeviceId,
         call: softphoneCall,
         isReady: softphoneIsReady,
@@ -58,10 +70,13 @@ export default function ClickToCallButton({
     const softphoneEnabled =
         softphoneFeatureEnabled &&
         props.featureFlags?.["crm.softphone"] === true;
-    const hasCallPermission = canMakeSoftphoneCalls(
-        props.auth?.user,
-        props.auth?.permissions,
-    );
+    const canDial = canPlaceCrmCall({
+        softphoneEnabled,
+        user: props.auth?.user,
+        permissions: props.auth?.permissions,
+        deviceCount: devices.length,
+        clickToCallEnabled: olEnabled,
+    });
     const [dialing, setDialing] = useState(false);
     const [cooling, setCooling] = useState(false);
     const [coolingRemaining, setCoolingRemaining] = useState(0);
@@ -96,25 +111,32 @@ export default function ClickToCallButton({
     const softphoneReady = registration === "registered" || softphoneIsReady;
 
     const trimmedPhone = phone.trim();
-    // The softphone is the path that needs make_softphone_calls; the 3CX/OL
-    // path is gated by its own flag, so requiring the permission here locked
-    // agents without it out of both.
-    // Users with no assigned line (Call routing) cannot dial through the
-    // softphone, so the button falls back to a plain tel: link for them.
-    const useSoftphonePath = softphoneEnabled && hasCallPermission && hasLine;
-    const useTelFallback = allowTelFallback && softphoneEnabled && hasCallPermission && !hasLine;
+    const numberChoices = (phones ?? [])
+        .map((item) => ({ labelKey: item.labelKey, phone: item.phone.trim() }))
+        .filter((item) => item.phone);
+    if (numberChoices.length === 0 && trimmedPhone) {
+        numberChoices.push({ labelKey: "", phone: trimmedPhone });
+    }
+    // Softphone when this user has a line; otherwise the 3CX bridge.
+    // Anyone else sees nothing — no tel: fallback.
+    const useSoftphonePath =
+        canDial && softphoneEnabled && devices.length > 0;
+    const multipleLines = useSoftphonePath && devices.length > 1;
 
-    if ((!useSoftphonePath && !olEnabled && !useTelFallback) || !trimmedPhone) {
+    if (!canDial || numberChoices.length === 0) {
         return null;
     }
 
+    const dialTarget = numberChoices[0].phone;
+
     const loading = useSoftphonePath
         ? dialing
-        : isCalling(trimmedPhone, entity);
+        : numberChoices.some((choice) => isCalling(choice.phone, entity));
     const cooldownSuffix = cooling ? ` (${coolingRemaining}s)` : "";
 
-    const makeCallWithDevice = (deviceId?: number) => {
-        if (loading || cooling) {
+    const makeCall = (targetPhone: string, deviceId?: number) => {
+        const normalizedTarget = targetPhone.trim();
+        if (loading || cooling || !normalizedTarget) {
             return;
         }
         setMenuOpen(false);
@@ -138,7 +160,7 @@ export default function ClickToCallButton({
                 );
                 return;
             }
-            const normalizedPhone = trimmedPhone
+            const normalizedPhone = normalizedTarget
                 .replace(/[^\d+]/g, "")
                 .replace(/(?!^)\+/g, "");
             setDialing(true);
@@ -180,44 +202,79 @@ export default function ClickToCallButton({
             return;
         }
 
-        if (useTelFallback) {
-            window.location.href = `tel:${trimmedPhone.replace(/[^\d+]/g, "")}`;
-            return;
-        }
-
-        void initiateCall(trimmedPhone, entity);
+        void initiateCall(normalizedTarget, entity);
     };
 
     const handleClick = (e?: React.MouseEvent) => {
         e?.stopPropagation();
-        makeCallWithDevice();
+        makeCall(dialTarget);
     };
 
-    const lineMenuItems: MenuProps["items"] = [
-        {
-            key: "select-line-group",
-            type: "group",
-            label: t("pages.telephony.select_line"),
-            children: devices.map((d) => ({
-                key: String(d.id),
-                disabled: loading || cooling,
-                label: (
-                    <span className="flex items-center justify-between gap-3">
-                        <span>{d.label}</span>
-                        {activeDeviceId === d.id && (
-                            <span className="text-[11px] text-emerald-600">
-                                {t("pages.telephony.active_line_badge")}
-                            </span>
-                        )}
-                    </span>
-                ),
-                onClick: ({ domEvent }) => {
-                    domEvent.stopPropagation();
-                    makeCallWithDevice(d.id);
-                },
-            })),
-        },
-    ];
+    const lineChoices = (targetPhone: string) =>
+        devices.map((d) => ({
+            key: `${targetPhone}-${d.id}`,
+            disabled: loading || cooling,
+            label: (
+                <span className="flex items-center justify-between gap-3">
+                    <span>{d.label}</span>
+                    {activeDeviceId === d.id && (
+                        <span className="text-[11px] text-emerald-600">
+                            {t("pages.telephony.active_line_badge")}
+                        </span>
+                    )}
+                </span>
+            ),
+            onClick: ({ domEvent }: { domEvent: MouseEvent | KeyboardEvent }) => {
+                domEvent.stopPropagation();
+                makeCall(targetPhone, d.id);
+            },
+        }));
+
+    const numberLabel = (choice: { labelKey: string; phone: string }) => (
+        <span className="flex min-w-[180px] flex-col leading-tight">
+            {choice.labelKey ? (
+                <span className="text-[13px] font-medium">{t(choice.labelKey)}</span>
+            ) : null}
+            <span className="text-[12px] opacity-70">{choice.phone}</span>
+        </span>
+    );
+
+    const menuItems: MenuProps["items"] =
+        numberChoices.length > 1
+            ? [
+                  {
+                      key: "select-number-group",
+                      type: "group",
+                      label: t("pages.telephony.select_number"),
+                      children: numberChoices.map((choice) =>
+                          multipleLines
+                              ? {
+                                    key: choice.phone,
+                                    label: numberLabel(choice),
+                                    children: lineChoices(choice.phone),
+                                }
+                              : {
+                                    key: choice.phone,
+                                    disabled: loading || cooling,
+                                    label: numberLabel(choice),
+                                    onClick: ({ domEvent }) => {
+                                        domEvent.stopPropagation();
+                                        makeCall(choice.phone);
+                                    },
+                                },
+                      ),
+                  },
+              ]
+            : [
+                  {
+                      key: "select-line-group",
+                      type: "group",
+                      label: t("pages.telephony.select_line"),
+                      children: lineChoices(dialTarget),
+                  },
+              ];
+
+    const showMenu = numberChoices.length > 1 || multipleLines;
 
     if (variant === "link") {
         const defaultContent = (
@@ -237,10 +294,10 @@ export default function ClickToCallButton({
             defaultContent
         );
 
-        if (useSoftphonePath && devices.length > 1) {
+        if (showMenu) {
             return (
                 <Dropdown
-                    menu={{ items: lineMenuItems }}
+                    menu={{ items: menuItems }}
                     trigger={["click"]}
                     open={menuOpen}
                     onOpenChange={setMenuOpen}
@@ -275,11 +332,11 @@ export default function ClickToCallButton({
         );
     }
 
-    if (useSoftphonePath && devices.length > 1) {
+    if (showMenu) {
         return (
             <Tooltip title={title ?? t("pages.telephony.call")}>
                 <Dropdown
-                    menu={{ items: lineMenuItems }}
+                    menu={{ items: menuItems }}
                     trigger={["click"]}
                     open={menuOpen}
                     onOpenChange={setMenuOpen}

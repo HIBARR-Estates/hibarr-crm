@@ -4,10 +4,12 @@ import {
     ContentRenderer,
     detectContentType,
 } from "@/Components/ContentRenderer";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title, Text } = Typography;
 
 const ContentRendererDemo = () => {
+    const { td } = useTd();
     const [showFull, setShowFull] = useState(false);
 
     const sampleContents = [
@@ -58,10 +60,9 @@ And here's a [link](https://example.com) and more content to test truncation...`
     return (
         <div className="max-w-4xl mx-auto p-6 space-y-6">
             <div className="text-center mb-8">
-                <Title level={2}>ContentRenderer Demo</Title>
+                <Title level={2}>{td("ContentRenderer Demo", { source: "en" })}</Title>
                 <Text type="secondary">
-                    Demonstrates automatic detection and rendering of HTML,
-                    Markdown, and plain text
+                    {td("Demonstrates automatic detection and rendering of HTML, Markdown, and plain text", { source: "en" })}
                 </Text>
             </div>
 
@@ -89,7 +90,7 @@ And here's a [link](https://example.com) and more content to test truncation...`
                                             type="secondary"
                                             className="text-sm"
                                         >
-                                            Detected as:{" "}
+                                            {td("Detected as:", { source: "en" })}{" "}
                                             <strong>{detectedType}</strong>
                                         </Text>
                                     </Space>
@@ -106,7 +107,7 @@ And here's a [link](https://example.com) and more content to test truncation...`
 
                                 <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                                     <Title level={5} className="mb-3">
-                                        Rendered Output:
+                                        {td("Rendered Output:", { source: "en" })}
                                     </Title>
                                     <ContentRenderer
                                         content={sample.content}
@@ -122,9 +123,7 @@ And here's a [link](https://example.com) and more content to test truncation...`
                                             type="secondary"
                                             className="text-sm"
                                         >
-                                            ↑ Content is truncated at 150
-                                            characters. Click "Show Full
-                                            Content" to see complete version.
+                                            {td("↑ Content is truncated at 150 characters. Click \"Show Full Content\" to see complete version.", { source: "en" })}
                                         </Text>
                                     </div>
                                 )}
@@ -134,10 +133,10 @@ And here's a [link](https://example.com) and more content to test truncation...`
                 })}
             </div>
 
-            <Card title="Interactive Example" className="shadow-sm">
+            <Card title={td("Interactive Example", { source: "en" })} className="shadow-sm">
                 <div className="space-y-4">
                     <Text>
-                        Click on the content below to see interactive behavior:
+                        {td("Click on the content below to see interactive behavior:", { source: "en" })}
                     </Text>
                     <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                         <ContentRenderer
@@ -149,10 +148,10 @@ And here's a [link](https://example.com) and more content to test truncation...`
                 </div>
             </Card>
 
-            <Card title="Use Cases" className="shadow-sm">
+            <Card title={td("Use Cases", { source: "en" })} className="shadow-sm">
                 <div className="grid md:grid-cols-3 gap-4">
                     <div>
-                        <Title level={5}>HTML Content</Title>
+                        <Title level={5}>{td("HTML Content", { source: "en" })}</Title>
                         <Text type="secondary" className="text-sm">
                             • Rich text from WYSIWYG editors
                             <br />
@@ -163,7 +162,7 @@ And here's a [link](https://example.com) and more content to test truncation...`
                         </Text>
                     </div>
                     <div>
-                        <Title level={5}>Markdown Content</Title>
+                        <Title level={5}>{td("Markdown Content", { source: "en" })}</Title>
                         <Text type="secondary" className="text-sm">
                             • Documentation
                             <br />
@@ -174,7 +173,7 @@ And here's a [link](https://example.com) and more content to test truncation...`
                         </Text>
                     </div>
                     <div>
-                        <Title level={5}>Plain Text</Title>
+                        <Title level={5}>{td("Plain Text", { source: "en" })}</Title>
                         <Text type="secondary" className="text-sm">
                             • Simple notes
                             <br />

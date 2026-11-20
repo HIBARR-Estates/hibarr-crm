@@ -7,6 +7,7 @@ import { PropertyPermissions } from "@/Hooks/usePropertyPermissions";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { router, usePage } from "@inertiajs/react";
 import type { ApiSuccessResponse } from "@/lib/api/types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -28,6 +29,7 @@ export default function PropertyTeamCard({
     permissions,
     employees = [],
 }: PropertyTeamCardProps) {
+    const { td } = useTd();
     const { props } = usePage<any>();
     const [selectedWatcherIds, setSelectedWatcherIds] = useState<number[]>([]);
     const [removingCollaboratorId, setRemovingCollaboratorId] = useState<
@@ -78,10 +80,10 @@ export default function PropertyTeamCard({
                     },
                 },
             );
-            message.success("Collaborator removed.");
+            message.success(td("Collaborator removed.", { source: "en" }));
             router.reload({ only: ["property"] });
         } catch {
-            message.error("Failed to remove collaborator.");
+            message.error(td("Failed to remove collaborator.", { source: "en" }));
         } finally {
             setRemovingCollaboratorId(null);
         }
@@ -110,7 +112,7 @@ export default function PropertyTeamCard({
             title={
                 <Space>
                     <TeamOutlined />
-                    <span>Property Team</span>
+                    <span>{td("Property Team", { source: "en" })}</span>
                 </Space>
             }
             className="mb-4"
@@ -118,7 +120,7 @@ export default function PropertyTeamCard({
             <div className="space-y-4">
                 <div>
                     <Text type="secondary" className="text-xs uppercase">
-                        Responsible Agent
+                        {td("Responsible Agent", { source: "en" })}
                     </Text>
                     <div className="mt-1 font-medium">
                         {responsibleAgent?.name || "Not assigned"}
@@ -127,7 +129,7 @@ export default function PropertyTeamCard({
 
                 <div>
                     <Text type="secondary" className="text-xs uppercase">
-                        Collaborators
+                        {td("Collaborators", { source: "en" })}
                     </Text>
                     <div className="mt-2 flex flex-wrap gap-2">
                         {collaborators.length > 0 ? (
@@ -150,7 +152,7 @@ export default function PropertyTeamCard({
                             ))
                         ) : (
                             <Text type="secondary" className="text-sm">
-                                No collaborators yet
+                                {td("No collaborators yet", { source: "en" })}
                             </Text>
                         )}
                     </div>
@@ -159,7 +161,7 @@ export default function PropertyTeamCard({
                 <div>
                     <div className="flex items-center justify-between gap-2 mb-2">
                         <Text type="secondary" className="text-xs uppercase">
-                            Watchers
+                            {td("Watchers", { source: "en" })}
                         </Text>
                         {permissions.canAddSelfAsWatcher && (
                             <Button
@@ -168,7 +170,7 @@ export default function PropertyTeamCard({
                                 loading={isAddingWatcher}
                                 onClick={() => addSelfWatcher({})}
                             >
-                                Watch this property
+                                {td("Watch this property", { source: "en" })}
                             </Button>
                         )}
                     </div>
@@ -192,7 +194,7 @@ export default function PropertyTeamCard({
                             ))
                         ) : (
                             <Text type="secondary" className="text-sm">
-                                No watchers yet
+                                {td("No watchers yet", { source: "en" })}
                             </Text>
                         )}
                     </div>
@@ -201,7 +203,7 @@ export default function PropertyTeamCard({
                             <Select
                                 mode="multiple"
                                 allowClear
-                                placeholder="Add watchers"
+                                placeholder={td("Add watchers", { source: "en" })}
                                 className="flex-1"
                                 value={selectedWatcherIds}
                                 onChange={setSelectedWatcherIds}
@@ -223,7 +225,7 @@ export default function PropertyTeamCard({
                                 loading={isSyncingWatchers}
                                 disabled={selectedWatcherIds.length === 0}
                             >
-                                Add
+                                {td("Add", { source: "en" })}
                             </Button>
                         </div>
                     )}
@@ -232,7 +234,7 @@ export default function PropertyTeamCard({
                 {permissions.isCollaborator && (
                     <Text type="secondary" className="text-xs block">
                         <UserDeleteOutlined className="mr-1" />
-                        Collaborators can edit public listing fields only.
+                        {td("Collaborators can edit public listing fields only.", { source: "en" })}
                     </Text>
                 )}
             </div>

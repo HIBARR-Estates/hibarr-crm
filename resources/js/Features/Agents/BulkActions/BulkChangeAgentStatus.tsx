@@ -6,6 +6,7 @@ import { CheckCircleOutlined, StopOutlined } from "@ant-design/icons";
 import { pluralOrSingular, isLoading as getLoadingStatus } from "@/lib/utils";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     ids: number[];
@@ -18,6 +19,7 @@ const BulkChangeAgentStatus: React.FC<Props> = ({
     ids,
     statusAction,
 }) => {
+    const { td } = useTd();
     const { mutate: bulkUpdate, status } = useApiMutate<
         { row_ids: string; action_type: string },
         any,
@@ -39,7 +41,7 @@ const BulkChangeAgentStatus: React.FC<Props> = ({
                     router.reload();
                 },
                 onError: () => {
-                    message.error("Failed to update agent status");
+                    message.error(td("Failed to update agent status", { source: "en" }));
                 },
             },
         );
@@ -72,7 +74,7 @@ const BulkChangeAgentStatus: React.FC<Props> = ({
                 )
             }
             confirmText={isEnable ? "Yes, Enable All" : "Yes, Disable All"}
-            cancelText="Cancel"
+            cancelText={td("Cancel", { source: "en" })}
             confirmType="primary"
         />
     );

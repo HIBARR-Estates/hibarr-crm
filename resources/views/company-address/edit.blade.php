@@ -159,16 +159,16 @@
                                 <div id="title">@lang('modules.accountSettings.autocompleteSearch')</div>
                                 <div id="type-selector" class="pac-controls d-none">
                                     <input type="radio" name="type" id="changetype-all" checked="checked"/>
-                                    <label for="changetype-all">All</label>
+                                    <label for="changetype-all">{{ td('All') }}</label>
 
                                     <input type="radio" name="type" id="changetype-establishment"/>
-                                    <label for="changetype-establishment">establishment</label>
+                                    <label for="changetype-establishment">{{ td('establishment') }}</label>
 
                                     <input type="radio" name="type" id="changetype-address"/>
-                                    <label for="changetype-address">address</label>
+                                    <label for="changetype-address">{{ td('address') }}</label>
 
                                     <input type="radio" name="type" id="changetype-geocode"/>
-                                    <label for="changetype-geocode">geocode</label>
+                                    <label for="changetype-geocode">{{ td('geocode') }}</label>
 
                                     <input type="radio" name="type" id="changetype-cities"/>
                                     <label for="changetype-cities">(cities)</label>
@@ -179,10 +179,10 @@
                                 <br/>
                                 <div id="strict-bounds-selector" class="pac-controls d-none">
                                     <input type="checkbox" id="use-location-bias" value="" checked/>
-                                    <label for="use-location-bias">Bias to map viewport</label>
+                                    <label for="use-location-bias">{{ td('Bias to map viewport') }}</label>
 
                                     <input type="checkbox" id="use-strict-bounds" value=""/>
-                                    <label for="use-strict-bounds">Strict bounds</label>
+                                    <label for="use-strict-bounds">{{ td('Strict bounds') }}</label>
                                 </div>
                             </div>
                             <div id="pac-container">

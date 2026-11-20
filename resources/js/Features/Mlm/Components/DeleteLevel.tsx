@@ -5,6 +5,7 @@ import { IModalProps } from "@/Types/common";
 import { useDeleteMlmLevel } from "@/Features/Mlm/api";
 import type { MlmLevel } from "@/Features/Mlm/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     level?: MlmLevel | null;
@@ -17,6 +18,7 @@ const DeleteLevel: React.FC<Props> = ({
     open,
     handleSuccessCallback,
 }) => {
+    const { td } = useTd();
     const { mutate: deleteLevel, status } = useDeleteMlmLevel(
         level?.id ?? 0,
         () => {
@@ -40,15 +42,15 @@ const DeleteLevel: React.FC<Props> = ({
                 fn: handleDelete,
                 loading,
             }}
-            title="Delete Level"
+            title={td("Delete Level", { source: "en" })}
             description={
                 level
                     ? `Are you sure you want to delete "${level.name}"? This will also remove associated criteria. This action cannot be undone.`
                     : "Are you sure you want to delete this level? This action cannot be undone."
             }
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
-            confirmText="Yes, Delete"
-            cancelText="Cancel"
+            confirmText={td("Yes, Delete", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
             confirmType="primary"
             confirmDanger={true}
         />

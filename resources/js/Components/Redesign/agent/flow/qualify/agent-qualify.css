@@ -470,3 +470,14 @@
 .agent-qo__chip-label {
     color: var(--dr-text-muted);
 }
+
+/* Script lines around a question (canvas L7-07): stacked Say bars. */
+.agent-qs__lines {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+.agent-qs__question + .agent-qs__lines {
+    margin: 14px 0 0;
+}

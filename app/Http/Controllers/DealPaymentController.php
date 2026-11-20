@@ -135,6 +135,27 @@ class DealPaymentController extends AccountBaseController
     }
 
     /**
+     * Deletes (soft) a cancelled payment request so it no longer counts
+     * toward any totals. Finance users only, and only for cancelled requests.
+     */
+    public function destroy(Deal $deal, Payment $payment): JsonResponse
+    {
+        $this->assertFeatureEnabled();
+        abort_403(! DealPaymentService::canConfirmTransfer(user()));
+
+        try {
+            $this->dealPaymentService->deleteCancelled($deal, $payment, user());
+        } catch (HttpException $e) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => $e->getMessage(),
+            ], $e->getStatusCode());
+        }
+
+        return response()->json(['status' => 'success']);
+    }
+
+    /**
      * Replaces an expired checkout link: the open request is cancelled, then
      * a new one is created in the same currency from the deal's current value.
      */
@@ -159,6 +180,47 @@ class DealPaymentController extends AccountBaseController
         return response()->json([
             'status' => 'success',
             'data' => $data,
+        ]);
+    }
+
+    public function requestDocuments(Deal $deal, Payment $payment): JsonResponse
+    {
+        $this->assertFeatureEnabled();
+        if ($deal->isLocked()) {
+            abort_403(true);
+        }
+        // Requesting an invoice lets a legal invoice number be taken, so it
+        // needs the same write access as cancelling or retrying a request.
+        $this->assertCanCancelPaymentRequest($deal);
+        abort_unless((int) $payment->deal_id === (int) $deal->id, 404);
+        abort_unless(filled($payment->external_reference), 404);
+
+        try {
+            $this->documents->requestDocuments($payment, user()?->id);
+        } catch (HttpException $e) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => $e->getMessage(),
+            ], $e->getStatusCode());
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->dealPaymentService->serializeDealPayment($payment->fresh(['currency'])),
+        ]);
+    }
+
+    /** Read-only state of one request, so the modal can see when an invoice has been made. */
+    public function documentStatus(Deal $deal, Payment $payment): JsonResponse
+    {
+        $this->assertFeatureEnabled();
+        $this->assertCanReadPaymentDocuments($deal);
+        abort_unless((int) $payment->deal_id === (int) $deal->id, 404);
+        abort_unless(filled($payment->external_reference), 404);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->dealPaymentService->serializeDealPayment($payment->fresh(['currency'])),
         ]);
     }
 

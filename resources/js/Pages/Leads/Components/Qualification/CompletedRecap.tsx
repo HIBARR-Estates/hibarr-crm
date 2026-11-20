@@ -12,6 +12,7 @@ import {
 } from "@/Types/qualification";
 import { QualificationTemplateService } from "@/Services/QualificationTemplateService";
 import { formatAnswerDisplay } from "./qualificationUtils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface CompletedRecapProps {
     qualification: LeadQualification;
@@ -26,6 +27,7 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
     templateService,
     onStartNew,
 }) => {
+    const { td } = useTd();
     const [tree, setTree] = useState<TemplateTree | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -82,10 +84,10 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
             ),
             children: (
                 <Descriptions size="small" column={1} bordered>
-                    <Descriptions.Item label="Agent">
+                    <Descriptions.Item label={td("Agent", { source: "en" })}>
                         {item.agent?.name ?? "—"}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Outcomes">
+                    <Descriptions.Item label={td("Outcomes", { source: "en" })}>
                         {(item.outcomes?.length
                             ? item.outcomes
                             : item.outcome
@@ -99,11 +101,11 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
                             .join(", ") || "—"}
                     </Descriptions.Item>
                     {item.outcome_comment?.trim() ? (
-                        <Descriptions.Item label="Comment">
+                        <Descriptions.Item label={td("Comment", { source: "en" })}>
                             {item.outcome_comment.trim()}
                         </Descriptions.Item>
                     ) : null}
-                    <Descriptions.Item label="Answers">
+                    <Descriptions.Item label={td("Answers", { source: "en" })}>
                         {(item.answers ?? []).length} captured
                     </Descriptions.Item>
                 </Descriptions>
@@ -117,7 +119,7 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
                     <div className="flex items-center gap-2 mb-2">
                         <CheckCircleOutlined className="text-green-500 text-xl" />
                         <h3 className="text-lg font-semibold text-gray-900">
-                            Qualification completed
+                            {td("Qualification completed", { source: "en" })}
                         </h3>
                     </div>
                     <p className="text-gray-500">
@@ -169,7 +171,7 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
                     icon={<PlusOutlined />}
                     onClick={onStartNew}
                 >
-                    Start new qualification
+                    {td("Start new qualification", { source: "en" })}
                 </Button>
             </div>
 

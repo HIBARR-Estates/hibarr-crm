@@ -1,0 +1,113 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\CalendlyMeetingLink;
+use App\Models\Deal;
+use App\Models\Lead;
+use App\Models\User;
+use App\Services\MeetingVisibilityService;
+use App\Support\CalendlyLinkBuilder;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * The Calendly links the schedule-meeting modal offers for one lead or deal:
+ * only those the signed-in user's roles are allowed to see, each already
+ * filled in with the contact's details and with the chosen staff as guests.
+ */
+class CalendlyMeetingLinkOptionsController extends AccountBaseController
+{
+    public function __invoke(Request $request): JsonResponse
+    {
+        abort_403(! in_array(user()->permission('add_lead_follow_up'), ['all', 'added'], true));
+
+        $validated = $request->validate([
+            'record_type' => 'required|in:lead,deal',
+            'record_id' => 'required|integer',
+            // Comma-separated user ids. Absent = just the signed-in user (the
+            // default); present but empty = nobody. Generous on purpose: only
+            // the first few become guests, and a long list must not fail the
+            // whole request and make the booking option vanish.
+            'guest_ids' => 'nullable|string|max:2000',
+        ]);
+
+        $recordId = (int) $validated['record_id'];
+        $lead = $validated['record_type'] === 'deal'
+            ? $this->leadOfDeal($this->schedulableDeal($recordId))
+            : $this->schedulableLead($recordId);
+
+        $guestEmails = $this->guestEmails($request->has('guest_ids') ? (string) ($validated['guest_ids'] ?? '') : null);
+
+        // A deal with no lead has no contact to fill in; the panel only claims
+        // the page is prefilled when it really is.
+        $prefilled = $lead !== null && (trim((string) $lead->client_name) !== '' || trim((string) $lead->client_email) !== '');
+
+        $roleIds = DB::table('role_user')->where('user_id', user()->id)->pluck('role_id')->map(fn ($id) => (int) $id)->all();
+
+        $links = CalendlyMeetingLink::visibleToRoles($roleIds)
+            ->orderBy('sort_order')->orderBy('id')->get()
+            ->map(fn (CalendlyMeetingLink $link) => [
+                'id' => $link->id,
+                'name' => $link->name,
+                'description' => $link->description,
+                'url' => CalendlyLinkBuilder::build($link, $lead, $guestEmails),
+                'prefilled' => $prefilled,
+            ])->values()->all();
+
+        return response()->json(['status' => 'success', 'data' => ['links' => $links]]);
+    }
+
+    /**
+     * Email addresses of the chosen colleagues, in the order chosen.
+     *
+     * @param  string|null  $guestIds  null = the default of the signed-in user alone
+     * @return list<string>
+     */
+    private function guestEmails(?string $guestIds): array
+    {
+        $ids = $guestIds === null
+            ? [(int) user()->id]
+            : array_slice(array_values(array_unique(array_filter(array_map('intval', explode(',', $guestIds))))), 0, CalendlyLinkBuilder::MAX_GUESTS * 2);
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $emails = User::whereIn('id', $ids)->where('company_id', company()->id)->pluck('email', 'id');
+
+        return collect($ids)->map(fn (int $id) => (string) ($emails[$id] ?? ''))->filter()->values()->all();
+    }
+
+    /**
+     * The record's contact details end up in the link, so the user must be
+     * allowed to schedule on this very record — the same check the Meetings
+     * page applies — not merely to schedule meetings in general.
+     */
+    private function schedulableLead(int $id): Lead
+    {
+        $lead = Lead::findOrFail($id);
+
+        abort_403(! MeetingVisibilityService::schedulableLeadsQuery()->where('id', $lead->id)->exists());
+
+        return $lead;
+    }
+
+    private function schedulableDeal(int $id): Deal
+    {
+        $deal = Deal::findOrFail($id);
+
+        abort_403(
+            $deal->next_follow_up !== 'yes'
+            || ! MeetingVisibilityService::schedulableDealsQuery()->where('id', $deal->id)->exists()
+        );
+
+        return $deal;
+    }
+
+    private function leadOfDeal(Deal $deal): ?Lead
+    {
+        return $deal->lead_id ? Lead::find($deal->lead_id) : null;
+    }
+}

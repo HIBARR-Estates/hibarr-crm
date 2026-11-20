@@ -14,7 +14,7 @@
 @if($policy && $policy->last_archived_at)
     <div class="alert alert-secondary mb-4">
         <i class="fa fa-clock mr-1"></i>
-        <strong>Last archived:</strong> {{ $policy->last_archived_at->format('M d, Y H:i') }}
+        <strong>{{ td('Last archived:') }}</strong> {{ $policy->last_archived_at->format('M d, Y H:i') }}
         ({{ $policy->last_archived_at->diffForHumans() }})
     </div>
 @endif
@@ -31,7 +31,7 @@
         </div>
         <div class="col-md-6">
             <x-forms.number fieldId="max_row_count"
-                            fieldLabel="Maximum Row Count"
+                            :fieldLabel="td('Maximum Row Count')"
                             fieldName="max_row_count"
                             fieldRequired="true"
                             :fieldValue="$policy->max_row_count ?? 5000000"
@@ -42,7 +42,7 @@
     <div class="row">
         <div class="col-md-6">
             <x-forms.select fieldId="archive_storage"
-                            fieldLabel="Archive Storage"
+                            :fieldLabel="td('Archive Storage')"
                             fieldName="archive_storage"
                             fieldRequired="true">
                 <option value="database" {{ ($policy->archive_storage ?? 'database') === 'database' ? 'selected' : '' }}>
@@ -55,7 +55,7 @@
         </div>
         <div class="col-md-6">
             <x-forms.text fieldId="archive_table"
-                          fieldLabel="Archive Table Name"
+                          :fieldLabel="td('Archive Table Name')"
                           fieldName="archive_table"
                           :fieldValue="$policy->archive_table ?? 'crm_events_archive'"
                           fieldHelp="Only used when storage is Database" />
@@ -66,7 +66,7 @@
         <div class="col-md-6">
             <div class="form-group my-3">
                 <x-forms.checkbox fieldId="retention_is_active"
-                                  fieldLabel="Enable Automatic Archival"
+                                  :fieldLabel="td('Enable Automatic Archival')"
                                   fieldName="is_active"
                                   :checked="$policy->is_active ?? true" />
             </div>

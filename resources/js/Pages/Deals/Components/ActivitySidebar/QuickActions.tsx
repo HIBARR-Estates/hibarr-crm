@@ -20,6 +20,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import useClickToCall from "@/Hooks/useClickToCall";
 import useSoftphone, { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     deal: Deal;
@@ -27,6 +28,7 @@ interface Props {
 }
 
 export default function QuickActions({ deal, permissions }: Props) {
+    const { td } = useTd();
     const { message: messageApi } = App.useApp();
     const { t } = useTranslation();
     const { props } = usePage();
@@ -34,7 +36,6 @@ export default function QuickActions({ deal, permissions }: Props) {
     const {
         isEnabled: softphoneFeatureEnabled,
         devices,
-        hasLine,
         activeDeviceId,
         call: softphoneCall,
     } = useSoftphone();
@@ -46,8 +47,8 @@ export default function QuickActions({ deal, permissions }: Props) {
         softphoneFeatureEnabled &&
         props.featureFlags?.["crm.softphone"] === true &&
         hasSoftphonePermission &&
-        hasLine;
-    const canUseLine = (softphoneFeatureEnabled && props.featureFlags?.["crm.softphone"] === true && hasSoftphonePermission) || olEnabled;
+        devices.length > 0;
+    const canUseLine = useSoftphonePath || olEnabled;
 
     const [conversationModalOpen, setConversationModalOpen] = useState(false);
     const [meetingModalOpen, setMeetingModalOpen] = useState(false);
@@ -108,9 +109,7 @@ export default function QuickActions({ deal, permissions }: Props) {
         }
         if (olEnabled) {
             void initiateCall(contactPhone, { type: "deal", id: deal.id });
-            return;
         }
-        window.open(`tel:${contactPhone.replace(/[^\d+]/g, "")}`, "_blank");
     };
 
     const handleQuickAction = (action: string) => {
@@ -200,7 +199,7 @@ export default function QuickActions({ deal, permissions }: Props) {
         {
             value: "whatsapp",
             icon: <WhatsAppOutlined style={{ color: "#25D366" }} />,
-            label: "WhatsApp",
+            label: td("WhatsApp", { source: "en" }),
         },
         ...(canUseLine
             ? [
@@ -233,12 +232,12 @@ export default function QuickActions({ deal, permissions }: Props) {
         {
             value: "telegram",
             icon: <MessageOutlined style={{ color: "#0088cc" }} />,
-            label: "Telegram",
+            label: td("Telegram", { source: "en" }),
         },
         {
             value: "instagram",
             icon: <InstagramOutlined style={{ color: "#E4405F" }} />,
-            label: "Instagram",
+            label: td("Instagram", { source: "en" }),
         },
     ];
 

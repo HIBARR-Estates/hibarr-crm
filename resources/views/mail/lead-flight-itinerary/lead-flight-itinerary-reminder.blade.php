@@ -31,12 +31,12 @@
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
 <tr>
 <td align="left">
-<img src="https://res.cloudinary.com/hibarr/image/upload/v1753433790/hibarr-logo-full-blue_f5xqb0.png" alt="HIBARR" width="140" height="36" style="display:block;width:140px;height:auto" />
+<img src="https://res.cloudinary.com/hibarr/image/upload/v1753433790/hibarr-logo-full-blue_f5xqb0.png" alt="{{ td('HIBARR') }}" width="140" height="36" style="display:block;width:140px;height:auto" />
 </td>
 </tr>
 <tr>
 <td style="padding-top:16px;font-family:'DM Mono',monospace;font-size:11px;line-height:16px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#003160">
-<span style="display:inline-block;width:18px;height:2px;background-color:#003160;vertical-align:middle;margin-right:10px"></span>Flight Reminder
+<span style="display:inline-block;width:18px;height:2px;background-color:#003160;vertical-align:middle;margin-right:10px"></span>{{ td('Flight Reminder') }}
 </td>
 </tr>
 </table>
@@ -68,9 +68,9 @@
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
 <tr>
 <td class="footer-links" style="font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:20px;text-transform:uppercase;letter-spacing:0.06em">
-<a href="https://hibarr.de/privacy-policy" style="color:#8a94b0;text-decoration:none">Privacy</a>
+<a href="https://hibarr.de/privacy-policy" style="color:#8a94b0;text-decoration:none">{{ td('Privacy') }}</a>
 <span style="margin:0 5px;color:#8a94b0">|</span>
-<a href="mailto:support@hibarr.de" style="color:#8a94b0;text-decoration:none">Support</a>
+<a href="mailto:support@hibarr.de" style="color:#8a94b0;text-decoration:none">{{ td('Support') }}</a>
 </td>
 </tr>
 <tr>

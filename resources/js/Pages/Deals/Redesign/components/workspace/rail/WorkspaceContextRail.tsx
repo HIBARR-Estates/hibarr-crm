@@ -4,10 +4,11 @@ import type { Deal } from "@/Types/api/deals";
 import type { DealFile } from "@/Types/api/file";
 import useTranslation from "@/Hooks/useTranslation";
 import useClickToCall from "@/Hooks/useClickToCall";
-import { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
+import useSoftphone, { canPlaceCrmCall } from "@/Hooks/useSoftphone";
 import ClickToCallButton from "@/Components/ClickToCallButton";
 import { usePage } from "@inertiajs/react";
-import { copyToClipboard, resolveLeadPhoneDisplay } from "@/lib/utils";
+import { copyToClipboard } from "@/lib/utils";
+import { leadCallPhones } from "@/lib/leadCallPhones";
 import type { DealTab } from "../../../types";
 import useDealDocuments from "../../../hooks/useDealDocuments";
 import useDealDocumentUpload from "../../../hooks/useDealDocumentUpload";
@@ -17,6 +18,7 @@ import DealDocumentSlotRow from "../DealDocumentSlotRow";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import PackagePropertyManager from "./PackagePropertyManager";
 import { initialsFromName } from "../../../adapters/initials";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface WorkspaceContextRailProps {
     deal: Deal;
@@ -59,6 +61,7 @@ export default function WorkspaceContextRail({
     onNavigateToSubTab,
     onSwitchToDealInfo,
 }: WorkspaceContextRailProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { message: appMessage } = App.useApp();
     const toast = appMessage ?? message;
@@ -102,19 +105,20 @@ export default function WorkspaceContextRail({
         contact?.client_name ||
         t("pages.deals.dossier.unknown_lead");
     const email = contact?.client_email || null;
-    const phone =
-        resolveLeadPhoneDisplay(
-            contact?.mobile,
-            contact?.mobile_with_phonecode,
-        ) ||
-        resolveLeadPhoneDisplay(contact?.cell) ||
-        "";
+    const callPhones = leadCallPhones(contact);
+    const phone = callPhones[0]?.phone ?? "";
     const { props } = usePage();
     const { isEnabled: clickToCallEnabled } = useClickToCall();
-    const softphoneEnabled =
-        canMakeSoftphoneCalls(props.auth?.user, props.auth?.permissions) &&
-        props.featureFlags?.["crm.softphone"] === true;
-    const canInitiateCall = clickToCallEnabled || softphoneEnabled;
+    const { isEnabled: softphoneFeatureEnabled, devices } = useSoftphone();
+    const canInitiateCall = canPlaceCrmCall({
+        softphoneEnabled:
+            softphoneFeatureEnabled &&
+            props.featureFlags?.["crm.softphone"] === true,
+        user: props.auth?.user,
+        permissions: props.auth?.permissions,
+        deviceCount: devices.length,
+        clickToCallEnabled,
+    });
     const dealCallEntity = { type: "deal" as const, id: deal.id };
     const leadUrl = contact?.id ? route("lead-contact.show", contact.id) : null;
     const leadSource = contact?.lead_source?.type || null;
@@ -151,7 +155,7 @@ export default function WorkspaceContextRail({
     }> = useMemo(
         () => [
             {
-                title: "Lead",
+                title: td("Lead", { source: "en" }),
                 summary: leadName,
                 body: (
                     <>
@@ -195,6 +199,7 @@ export default function WorkspaceContextRail({
                             canInitiateCall ? (
                                 <ClickToCallButton
                                     phone={phone}
+                                    phones={callPhones}
                                     entity={dealCallEntity}
                                     variant="link"
                                     className="flex w-full cursor-pointer items-center gap-1.5 rounded px-0 py-2 text-left text-xs text-dr-text-muted hover:bg-dr-gray disabled:cursor-not-allowed disabled:opacity-60"
@@ -242,7 +247,7 @@ export default function WorkspaceContextRail({
                 ),
             },
             {
-                title: "Deal details",
+                title: td("Deal details", { source: "en" }),
                 summary: packageSummary,
                 body: (
                     <PackagePropertyManager
@@ -252,7 +257,7 @@ export default function WorkspaceContextRail({
                 ),
             },
             {
-                title: "Documents",
+                title: td("Documents", { source: "en" }),
                 summary: `${documentSlots.filter((doc) => doc.uploaded).length}/${documentSlots.length}`,
                 body: (
                     <div>

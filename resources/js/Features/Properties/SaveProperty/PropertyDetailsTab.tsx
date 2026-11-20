@@ -12,6 +12,7 @@ import {
 import { PropertyFormProps } from "./PropertyForm";
 import { Property } from "@/Types";
 import { useEffect } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 
@@ -44,6 +45,7 @@ export default function PropertyDetailsTab({
     onErrorsClear,
     setErrors,
 }: Props) {
+    const { td } = useTd();
     const [form] = Form.useForm<Omit<Property, "id">>();
 
     // Populate form when data changes
@@ -94,11 +96,11 @@ export default function PropertyDetailsTab({
             }}
             size="middle"
         >
-            <Card title="Property Specifications" size="small">
+            <Card title={td("Property Specifications", { source: "en" })} size="small">
                 <Row gutter={[16, 16]}>
                     <Col span={8}>
-                        <Form.Item name="bedrooms" label="Bedrooms">
-                            <Select placeholder="Select bedrooms">
+                        <Form.Item name="bedrooms" label={td("Bedrooms", { source: "en" })}>
+                            <Select placeholder={td("Select bedrooms", { source: "en" })}>
                                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
                                     <Option key={num} value={num.toString()}>
                                         {num}
@@ -109,18 +111,18 @@ export default function PropertyDetailsTab({
                     </Col>
 
                     <Col span={8}>
-                        <Form.Item name="bathrooms" label="Bathrooms">
+                        <Form.Item name="bathrooms" label={td("Bathrooms", { source: "en" })}>
                             <InputNumber
                                 style={{ width: "100%" }}
-                                placeholder="Number of bathrooms"
+                                placeholder={td("Number of bathrooms", { source: "en" })}
                                 min={0}
                             />
                         </Form.Item>
                     </Col>
 
                     <Col span={8}>
-                        <Form.Item name="living_room" label="Living Rooms">
-                            <Select placeholder="Select living rooms">
+                        <Form.Item name="living_room" label={td("Living Rooms", { source: "en" })}>
+                            <Select placeholder={td("Select living rooms", { source: "en" })}>
                                 {[1, 2, 3, 4, 5].map((num) => (
                                     <Option key={num} value={num.toString()}>
                                         {num}
@@ -131,10 +133,10 @@ export default function PropertyDetailsTab({
                     </Col>
 
                     <Col span={8}>
-                        <Form.Item name="floor_number" label="Floor Number">
+                        <Form.Item name="floor_number" label={td("Floor Number", { source: "en" })}>
                             <InputNumber
                                 style={{ width: "100%" }}
-                                placeholder="Floor number"
+                                placeholder={td("Floor number", { source: "en" })}
                                 min={0}
                             />
                         </Form.Item>
@@ -143,11 +145,11 @@ export default function PropertyDetailsTab({
                     <Col span={8}>
                         <Form.Item
                             name="floors_in_building"
-                            label="Total Floors"
+                            label={td("Total Floors", { source: "en" })}
                         >
                             <InputNumber
                                 style={{ width: "100%" }}
-                                placeholder="Total floors in building"
+                                placeholder={td("Total floors in building", { source: "en" })}
                                 min={1}
                             />
                         </Form.Item>
@@ -156,11 +158,11 @@ export default function PropertyDetailsTab({
                     <Col span={8}>
                         <Form.Item
                             name="building_age"
-                            label="Building Age (years)"
+                            label={td("Building Age (years)", { source: "en" })}
                         >
                             <InputNumber
                                 style={{ width: "100%" }}
-                                placeholder="Building age"
+                                placeholder={td("Building age", { source: "en" })}
                                 min={0}
                             />
                         </Form.Item>
@@ -169,9 +171,9 @@ export default function PropertyDetailsTab({
                     <Col span={12}>
                         <Form.Item
                             name="furniture_status"
-                            label="Furniture Status"
+                            label={td("Furniture Status", { source: "en" })}
                         >
-                            <Select placeholder="Select furniture status">
+                            <Select placeholder={td("Select furniture status", { source: "en" })}>
                                 {FURNITURE_STATUS.map((status) => (
                                     <Option key={status} value={status}>
                                         {status}

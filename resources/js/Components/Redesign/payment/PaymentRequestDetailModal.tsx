@@ -1,9 +1,10 @@
-import { type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import Badge from "@/Components/Redesign/primitives/Badge";
 import Button from "@/Components/Redesign/primitives/Button";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import CheckoutLinkActions from "@/Components/Redesign/primitives/CheckoutLinkActions";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
@@ -22,6 +23,7 @@ import {
     isCollectedPaymentState,
 } from "@/Pages/Deals/Redesign/adapters/mapDealPaymentUiState";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import usePaymentDocumentRequest from "./usePaymentDocumentRequest";
 import type {
     DealPaymentRequest,
     DealPaymentUiState,
@@ -51,7 +53,13 @@ interface PaymentRequestDetailModalProps {
     onConfirm?: () => void;
     /** Present when this request's checkout link has expired and can be replaced. */
     onRetry?: () => void;
+    /** Present when the viewer may permanently delete this cancelled request. */
+    onDelete?: () => void;
     companyCurrency?: CurrencyDisplay | null;
+    /** Whether the viewer may record an invoice request (the same write access as cancelling). */
+    canRequestInvoice?: boolean;
+    /** Called with the updated request once an invoice has been requested. */
+    onDocumentsRequested?: (request: DealPaymentRequest) => void;
 }
 
 const SUMMARY_KEY: Record<DealPaymentUiState, string> = {
@@ -85,11 +93,22 @@ function safeRoute(name: string, param: string | number): string | null {
     }
 }
 
-function DocumentLink({ href, label, external = false }: { href: string; label: string; external?: boolean }) {
+function DocumentLink({
+    href,
+    label,
+    external = false,
+    onOpen,
+}: {
+    href: string;
+    label: string;
+    external?: boolean;
+    onOpen?: () => void;
+}) {
     return (
         <a
             className="dr-btn dr-btn-ghost"
             href={href}
+            onClick={onOpen}
             {...(external ? { target: "_blank", rel: "noreferrer" } : {})}
             style={{ textDecoration: "none" }}
         >
@@ -249,10 +268,29 @@ export default function PaymentRequestDetailModal({
     onCancel,
     onConfirm,
     onRetry,
+    onDelete,
     companyCurrency,
+    canRequestInvoice = false,
+    onDocumentsRequested,
 }: PaymentRequestDetailModalProps) {
     const { t } = useTranslation();
     const { td } = useTd();
+    const { requestDocuments, fetchStatus, requesting } = usePaymentDocumentRequest();
+    const [requestedId, setRequestedId] = useState<number | null>(null);
+    const [confirmRequestOpen, setConfirmRequestOpen] = useState(false);
+    const [invoiceOpenedId, setInvoiceOpenedId] = useState<number | null>(null);
+    const pollTimer = useRef<number | null>(null);
+    const stopPolling = () => {
+        if (pollTimer.current != null) window.clearTimeout(pollTimer.current);
+        pollTimer.current = null;
+    };
+    useEffect(() => {
+        setRequestedId(null);
+        setInvoiceOpenedId(null);
+        setConfirmRequestOpen(false);
+        stopPolling();
+        return stopPolling;
+    }, [request?.id]);
 
     if (!request) return null;
 
@@ -275,9 +313,27 @@ export default function PaymentRequestDetailModal({
             : undefined;
     const leadName = [request.lead_name, request.lead_company].filter(Boolean).join(" · ");
     const leadHref = request.lead_id ? safeRoute("lead-contact.show", request.lead_id) : null;
-    const agentHref = request.agent_user_id ? safeRoute("employees.show", request.agent_user_id) : null;
-    const invoiceUrl = documentHref(request, "invoice");
-    const receiptUrl = collected ? documentHref(request, "receipt") : null;
+    const documentsRequested = Boolean(request.documents_requested) || requestedId === request.id;
+    const canRequestDocuments = canRequestInvoice
+        && !documentsRequested
+        && request.deal_id != null
+        && request.ui_state !== "invalidated"
+        && request.ui_state !== "failed";
+    const invoiceUrl = documentsRequested ? documentHref(request, "invoice") : null;
+    // The invoice is generated the first time it is opened, and a receipt
+    // needs it, so opening the invoice here unlocks the receipt at once.
+    const invoiceGenerated = Boolean(request.invoice_issued) || invoiceOpenedId === request.id;
+    const receiptUrl = documentsRequested && collected && invoiceGenerated ? documentHref(request, "receipt") : null;
+    const receiptWaitingForInvoice = documentsRequested && collected && !invoiceGenerated;
+    const askForInvoice = async () => {
+        if (request.deal_id == null) return;
+        const updated = await requestDocuments(request.deal_id, request.id);
+        setConfirmRequestOpen(false);
+        if (updated) {
+            setRequestedId(request.id);
+            onDocumentsRequested?.(updated);
+        }
+    };
     const linkExpired = isCheckoutLinkExpired(request);
     const activeLink = hasActiveCheckoutLink(request);
     const summary = linkExpired
@@ -319,17 +375,10 @@ export default function PaymentRequestDetailModal({
 
     const person = (entry: DealPaymentVerifiedBy | null | undefined) => {
         if (!entry) return DASH;
-        const href = safeRoute("employees.show", entry.id);
         const name = entry.name?.trim() || `#${entry.id}`;
         return (
             <span>
-                {href ? (
-                    <Link href={href} style={{ color: T.NAVY, fontWeight: 600, textDecoration: "underline" }}>
-                        {name}
-                    </Link>
-                ) : (
-                    name
-                )}
+                {name}
                 {entry.email ? (
                     <span style={{ display: "block", color: T.TEXT_MUTED }}>{entry.email}</span>
                 ) : null}
@@ -337,7 +386,16 @@ export default function PaymentRequestDetailModal({
         );
     };
 
+    const documentRules = (
+        <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6 }}>
+            <li>{t("pages.payment_requests.rule_invoice_kdv")}</li>
+            <li>{t("pages.payment_requests.rule_invoice_on_request")}</li>
+            <li>{t("pages.payment_requests.rule_receipt_needs_invoice")}</li>
+        </ul>
+    );
+
     return (
+        <>
         <Modal
             open={open}
             title={t("pages.payment_requests.detail_title")}
@@ -348,11 +406,42 @@ export default function PaymentRequestDetailModal({
             maxWidth={680}
             footer={
                 <div className="flex w-full flex-wrap items-center gap-2">
+                    {canRequestDocuments && (
+                        <Button variant="ghost" onClick={() => setConfirmRequestOpen(true)}>
+                            <Icon name="file-text" size={14} />
+                            {t("pages.payment_requests.action_request_invoice")}
+                        </Button>
+                    )}
                     {invoiceUrl && (
-                        <DocumentLink href={invoiceUrl} label={t("pages.payment_requests.action_invoice")} />
+                        <DocumentLink
+                            href={invoiceUrl}
+                            label={t("pages.payment_requests.action_invoice")}
+                            onOpen={() => {
+                                const id = request.id;
+                                // The invoice is made server-side by the download; only unlock the receipt once it exists.
+                                let attempts = 0;
+                                const poll = async () => {
+                                    attempts += 1;
+                                    const fresh = await fetchStatus(request.deal_id, id);
+                                    if (fresh?.invoice_issued) {
+                                        setInvoiceOpenedId(id);
+                                        onDocumentsRequested?.(fresh);
+                                    } else if (attempts < 6) {
+                                        pollTimer.current = window.setTimeout(poll, 3000);
+                                    }
+                                };
+                                stopPolling();
+                                pollTimer.current = window.setTimeout(poll, 2500);
+                            }}
+                        />
                     )}
                     {receiptUrl && (
                         <DocumentLink href={receiptUrl} label={t("pages.payment_requests.action_receipt")} />
+                    )}
+                    {receiptWaitingForInvoice && (
+                        <span style={{ fontSize: REDESIGN_TYPE.CAPTION, color: T.TEXT_MUTED }}>
+                            {t("pages.payment_requests.receipt_waiting_invoice")}
+                        </span>
                     )}
                     {request.proof_url && (
                         <DocumentLink
@@ -361,11 +450,16 @@ export default function PaymentRequestDetailModal({
                             external
                         />
                     )}
-                    {(onCancel || onConfirm || (onRetry && linkExpired)) && (
+                    {(onCancel || onDelete || onConfirm || (onRetry && linkExpired)) && (
                         <div className="ml-auto flex items-center gap-2">
                             {onCancel && (
                                 <Button variant="ghost" style={{ color: T.RED }} onClick={onCancel}>
                                     {t("pages.deals.payment_request.cancel_action")}
+                                </Button>
+                            )}
+                            {onDelete && (
+                                <Button variant="ghost" style={{ color: T.RED }} onClick={onDelete}>
+                                    {t("pages.deals.payment_request.delete_action")}
                                 </Button>
                             )}
                             {onConfirm && (
@@ -452,7 +546,7 @@ export default function PaymentRequestDetailModal({
                     icon="users"
                     role={t("pages.payment_requests.detail_agent")}
                     name={request.agent_name ?? null}
-                    href={agentHref}
+                    href={null}
                 />
             </div>
 
@@ -586,5 +680,16 @@ export default function PaymentRequestDetailModal({
                 <span>{`${field("reference")} ${request.payment_id ? `#${request.payment_id}` : DASH}`}</span>
             </div>
         </Modal>
+        <ConfirmDialog
+            open={confirmRequestOpen}
+            title={t("pages.payment_requests.request_invoice_title")}
+            message={documentRules}
+            confirmLabel={t("pages.payment_requests.request_invoice_confirm")}
+            confirmLoading={requesting}
+            zIndex={1400}
+            onConfirm={askForInvoice}
+            onCancel={() => setConfirmRequestOpen(false)}
+        />
+        </>
     );
 }

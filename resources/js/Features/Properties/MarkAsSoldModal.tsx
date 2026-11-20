@@ -4,6 +4,7 @@ import { ShoppingCartOutlined } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -44,6 +45,7 @@ export default function MarkAsSoldModal({
     employees,
     onSuccess,
 }: MarkAsSoldModalProps) {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const [submitting, setSubmitting] = useState(false);
 
@@ -99,14 +101,14 @@ export default function MarkAsSoldModal({
             title={
                 <div className="flex items-center gap-2">
                     <ShoppingCartOutlined className="text-orange-500" />
-                    <span>Mark as Sold</span>
+                    <span>{td("Mark as Sold", { source: "en" })}</span>
                 </div>
             }
             open={open}
             onOk={handleOk}
             onCancel={handleCancel}
             confirmLoading={submitting}
-            okText="Confirm Sale"
+            okText={td("Confirm Sale", { source: "en" })}
             okButtonProps={{ danger: true }}
             width={520}
             destroyOnClose
@@ -115,12 +117,12 @@ export default function MarkAsSoldModal({
                 type="info"
                 showIcon
                 className="mb-4"
-                message="Create Property from Unit Type"
+                message={td("Create Property from Unit Type", { source: "en" })}
                 description={
                     <span>
-                        This will create a new <strong>Property</strong> record
+                        This will create a new <strong>{td("Property", { source: "en" })}</strong> record
                         from <strong>{unitTypeLabel}</strong> ({projectName})
-                        with status set to <strong>Sold</strong>. All unit type
+                        with status set to <strong>{td("Sold", { source: "en" })}</strong>. All unit type
                         details will be copied to the new property.
                     </span>
                 }
@@ -130,11 +132,11 @@ export default function MarkAsSoldModal({
                 {/* Deal selector (optional) */}
                 <Form.Item
                     name="deal_id"
-                    label="Link to Deal"
+                    label={td("Link to Deal", { source: "en" })}
                     extra="Optional — select a deal to associate with this sale"
                 >
                     <Select
-                        placeholder="Search and select a deal..."
+                        placeholder={td("Search and select a deal...", { source: "en" })}
                         allowClear
                         showSearch
                         optionFilterProp="label"
@@ -152,11 +154,11 @@ export default function MarkAsSoldModal({
                 {/* Responsible Agent (optional) */}
                 <Form.Item
                     name="responsible_agent_id"
-                    label="Responsible Agent"
+                    label={td("Responsible Agent", { source: "en" })}
                     extra="Optional — assign a responsible agent to the new property"
                 >
                     <Select
-                        placeholder="Select agent..."
+                        placeholder={td("Select agent...", { source: "en" })}
                         allowClear
                         showSearch
                         optionFilterProp="label"

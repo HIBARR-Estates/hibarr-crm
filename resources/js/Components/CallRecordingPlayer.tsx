@@ -3,10 +3,12 @@ import { App } from "antd";
 import {
     CaretRightFilled,
     DownloadOutlined,
+    ExportOutlined,
     LoadingOutlined,
     PauseOutlined,
 } from "@ant-design/icons";
 import "./CallRecordingPlayer.css";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface RecordingPlayerProps {
     /** API endpoint that streams the recording inline with the right MIME type. */
@@ -21,6 +23,16 @@ interface RecordingPlayerProps {
     durationSeconds?: number | null;
     filename?: string;
     expired?: boolean;
+    /**
+     * App endpoint that opens the recording in its own tab. For a WebM
+     * recording it leads to Bunny's player, the only place those play.
+     */
+    openUrl?: string | null;
+    /**
+     * The recording cannot play in the page (WebM): show a link to `openUrl`
+     * instead of the player.
+     */
+    opensInNewTab?: boolean;
 }
 
 /**
@@ -41,7 +53,10 @@ export default function RecordingPlayer({
     durationSeconds,
     filename,
     expired = false,
+    openUrl = null,
+    opensInNewTab = false,
 }: RecordingPlayerProps) {
+    const { td } = useTd();
     const { message } = App.useApp();
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const seekRef = useRef<HTMLDivElement | null>(null);
@@ -72,7 +87,7 @@ export default function RecordingPlayer({
                     return;
                 }
                 setFailed(true);
-                void message.error("The recording could not be played.");
+                void message.error(td("The recording could not be played.", { source: "en" }));
             });
         } else {
             audio.pause();
@@ -128,8 +143,33 @@ export default function RecordingPlayer({
     };
 
     if (expired) {
-        return <span className="cb-time">Expired — no longer available</span>;
+        return <span className="cb-time">{td("Expired — no longer available", { source: "en" })}</span>;
     }
+
+    if (opensInNewTab && openUrl) {
+        return (
+            <div className="cb-player-wrapper">
+                <div className="cb-player">
+                    <a
+                        href={openUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="cb-open"
+                        title={td("Plays in Bunny's player in a new tab", { source: "en" })}
+                        aria-label={`Open ${filename ?? "recording"} in a new tab`}
+                    >
+                        <ExportOutlined aria-hidden="true" />
+                        <span>{td("Open recording", { source: "en" })}</span>
+                    </a>
+                    {total ? <span className="cb-time cb-num cb-time--end">{formatTime(total)}</span> : null}
+                </div>
+            </div>
+        );
+    }
+
+    // Where a failed recording is offered: its own tab (Bunny's player for
+    // WebM), else the app download.
+    const fallbackUrl = openUrl ?? downloadUrl;
 
     const percent = total && total > 0 ? Math.min(100, (progress / total) * 100) : 0;
 
@@ -247,7 +287,7 @@ export default function RecordingPlayer({
                     href={downloadUrl}
                     download={filename}
                     aria-label={`Download ${filename ?? "recording"}`}
-                    title="Download"
+                    title={td("Download", { source: "en" })}
                     className="cb-icon-btn cb-icon-btn--plain"
                 >
                     <DownloadOutlined aria-hidden="true" />
@@ -258,10 +298,10 @@ export default function RecordingPlayer({
 
             {failed && (
                 <div className="cb-fail" role="alert">
-                    <span>Playback failed.</span>
-                    {downloadUrl && (
-                        <a href={downloadUrl} target="_blank" rel="noreferrer">
-                            Open the file
+                    <span>{td("Playback failed.", { source: "en" })}</span>
+                    {fallbackUrl && (
+                        <a href={fallbackUrl} target="_blank" rel="noopener noreferrer">
+                            {td("Open in a new tab", { source: "en" })}
                         </a>
                     )}
                 </div>

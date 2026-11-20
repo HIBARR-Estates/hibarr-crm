@@ -37,7 +37,7 @@ export default function PeopleTable({ page, statuses, extras, userId, nowMs, tim
     const statusById = new Map(statuses.map((status) => [status.id, status]));
 
     return (
-        <div className="agent-pp__table" role="table" aria-busy={busy} aria-label={t("pages.agent_workspace.people.title")}>
+        <div className="agent-table agent-pp__table" role="table" aria-busy={busy} aria-label={t("pages.agent_workspace.people.title")}>
             <div role="row" className="agent-pp__head">
                 {COLUMNS.map((column) => {
                     const label = t(`pages.agent_workspace.people.columns.${column}`);
@@ -47,7 +47,7 @@ export default function PeopleTable({ page, statuses, extras, userId, nowMs, tim
                                 key={column}
                                 type="button"
                                 role="columnheader"
-                                className="agent-pp__th"
+                                className="agent-table__th agent-pp__th"
                                 aria-sort={sortDirection === "asc" ? "ascending" : "descending"}
                                 title={t(sortDirection === "asc" ? "pages.agent_workspace.people.sort_due_asc" : "pages.agent_workspace.people.sort_due_desc")}
                                 onClick={onToggleSort}
@@ -57,7 +57,7 @@ export default function PeopleTable({ page, statuses, extras, userId, nowMs, tim
                         );
                     }
                     return (
-                        <span key={column} role="columnheader" className={`agent-pp__th ${COLUMN_CLASS[column]}`}>
+                        <span key={column} role="columnheader" className={`agent-table__th agent-pp__th ${COLUMN_CLASS[column]}`}>
                             {label}
                         </span>
                     );
@@ -111,7 +111,7 @@ export default function PeopleTable({ page, statuses, extras, userId, nowMs, tim
 /** Rows' worth of grey bars while the page's first props are still arriving (only on a hard load). */
 export function PeopleTableSkeleton() {
     return (
-        <div className="agent-pp__table" aria-hidden="true">
+        <div className="agent-table agent-pp__table" aria-hidden="true">
             {Array.from({ length: 8 }, (_, index) => (
                 <div key={index} className="agent-pp__skeleton-row">
                     {Array.from({ length: 7 }, (_, cell) => (

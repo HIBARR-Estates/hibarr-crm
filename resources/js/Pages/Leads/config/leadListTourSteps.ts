@@ -17,8 +17,9 @@ const STEP_KEY = (step: string, field: "title" | "body") =>
     `pages.leads.list_tour.steps.${step}.${field}`;
 
 /**
- * Due this week and the filter sentence are omitted from the DOM when the
- * chip count is 0 / filter v2 is off — the engine auto-skips missing targets.
+ * Due this week, Add Lead, and the filter sentence are omitted from the DOM
+ * when the chip count is 0, the viewer lacks add_lead, or filter v2 is off —
+ * the engine auto-skips missing targets.
  */
 export function buildLeadListTourSteps(): TourStep[] {
     return [

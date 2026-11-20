@@ -48,6 +48,7 @@ import type {
 } from "@/Features/Mlm/types";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 import { usePage } from "@inertiajs/react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends PageProps {}
 
@@ -61,6 +62,7 @@ const CycleFormModal: React.FC<{
     onClose: () => void;
     onSaved: () => void;
 }> = ({ open, editingCycle, defaultOverflow, onClose, onSaved }) => {
+    const { td } = useTd();
     const [form] = Form.useForm();
 
     const isEdit = !!editingCycle;
@@ -128,7 +130,7 @@ const CycleFormModal: React.FC<{
         >
             <Form form={form} layout="vertical" className="mt-4">
                 <Form.Item
-                    label="Cycle Name"
+                    label={td("Cycle Name", { source: "en" })}
                     name="name"
                     rules={[
                         { required: true, message: "Required" },
@@ -139,7 +141,7 @@ const CycleFormModal: React.FC<{
                 </Form.Item>
 
                 <Form.Item
-                    label="Start Date"
+                    label={td("Start Date", { source: "en" })}
                     name="start_date"
                     rules={[{ required: true, message: "Required" }]}
                 >
@@ -147,7 +149,7 @@ const CycleFormModal: React.FC<{
                 </Form.Item>
 
                 <Form.Item
-                    label="End Date"
+                    label={td("End Date", { source: "en" })}
                     name="end_date"
                     rules={[{ required: true, message: "Required" }]}
                 >
@@ -180,6 +182,7 @@ const ForceCompleteButton: React.FC<{
     enrollmentId: number;
     onCompleted: () => void;
 }> = ({ cycleId, enrollmentId, onCompleted }) => {
+    const { td } = useTd();
     const mutation = useForceCompleteEnrollment(
         cycleId,
         enrollmentId,
@@ -188,8 +191,8 @@ const ForceCompleteButton: React.FC<{
 
     return (
         <Popconfirm
-            title="Force-complete this enrollment?"
-            description="The agent's cycle will end and they will be re-enrolled in the current cycle."
+            title={td("Force-complete this enrollment?", { source: "en" })}
+            description={td("The agent's cycle will end and they will be re-enrolled in the current cycle.", { source: "en" })}
             onConfirm={() => mutation.mutate({})}
         >
             <Button
@@ -198,7 +201,7 @@ const ForceCompleteButton: React.FC<{
                 icon={<XCircle size={12} />}
                 loading={mutation.isPending}
             >
-                End
+                {td("End", { source: "en" })}
             </Button>
         </Popconfirm>
     );
@@ -211,11 +214,12 @@ const DeleteCycleButton: React.FC<{
     cycleId: number;
     onDeleted: () => void;
 }> = ({ cycleId, onDeleted }) => {
+    const { td } = useTd();
     const mutation = useDeleteCycle(cycleId, onDeleted);
 
     return (
         <Popconfirm
-            title="Delete this cycle?"
+            title={td("Delete this cycle?", { source: "en" })}
             onConfirm={() => mutation.mutate({})}
         >
             <Button
@@ -236,21 +240,22 @@ const ResnapshotButton: React.FC<{
     cycleId: number;
     onCompleted: () => void;
 }> = ({ cycleId, onCompleted }) => {
+    const { td } = useTd();
     const mutation = useResnapshot(cycleId, onCompleted);
 
     return (
         <Popconfirm
-            title="Re-snapshot levels for this cycle?"
-            description="This will update the frozen level rules used for commission calculations. Already-calculated commissions are not affected."
+            title={td("Re-snapshot levels for this cycle?", { source: "en" })}
+            description={td("This will update the frozen level rules used for commission calculations. Already-calculated commissions are not affected.", { source: "en" })}
             onConfirm={() => mutation.mutate({})}
-            okText="Re-snapshot"
+            okText={td("Re-snapshot", { source: "en" })}
         >
             <Button
                 size="small"
                 type="text"
                 icon={<RefreshCw size={14} />}
                 loading={mutation.isPending}
-                title="Re-snapshot levels"
+                title={td("Re-snapshot levels", { source: "en" })}
             />
         </Popconfirm>
     );
@@ -260,6 +265,7 @@ const ResnapshotButton: React.FC<{
 /*  Expandable Enrollment Row                                          */
 /* ------------------------------------------------------------------ */
 const EnrollmentSubTable: React.FC<{ cycleId: number }> = ({ cycleId }) => {
+    const { td } = useTd();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
     const { data, isLoading, refetch } = useMlmCycleDetail(cycleId);
@@ -267,7 +273,7 @@ const EnrollmentSubTable: React.FC<{ cycleId: number }> = ({ cycleId }) => {
 
     const columns = [
         {
-            title: "Agent",
+            title: td("Agent", { source: "en" }),
             key: "agent",
             render: (_: any, r: any) => (
                 <div>
@@ -277,51 +283,51 @@ const EnrollmentSubTable: React.FC<{ cycleId: number }> = ({ cycleId }) => {
             ),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             render: (v: string) => <EnrollmentStatusBadge status={v as any} />,
         },
         {
-            title: "Start",
+            title: td("Start", { source: "en" }),
             dataIndex: "effective_start_date",
             key: "start",
             render: (v: string) => formatCompanyDate(v, "-"),
         },
         {
-            title: "End",
+            title: td("End", { source: "en" }),
             dataIndex: "effective_end_date",
             key: "end",
             render: (v: string) => formatCompanyDate(v, "-"),
         },
         {
-            title: "Individual Sales",
+            title: td("Individual Sales", { source: "en" }),
             key: "nsa",
             align: "right" as const,
             render: (_: any, r: any) => r.metrics?.nsa ?? 0,
         },
         {
-            title: "Team Sales",
+            title: td("Team Sales", { source: "en" }),
             key: "nsd",
             align: "right" as const,
             render: (_: any, r: any) => r.metrics?.nsd ?? 0,
         },
         {
-            title: "Individual Revenue",
+            title: td("Individual Revenue", { source: "en" }),
             key: "vsa",
             align: "right" as const,
             render: (_: any, r: any) =>
                 `${currencySymbol}${(r.metrics?.vsa ?? 0).toLocaleString()}`,
         },
         {
-            title: "Team Revenue",
+            title: td("Team Revenue", { source: "en" }),
             key: "vsd",
             align: "right" as const,
             render: (_: any, r: any) =>
                 `${currencySymbol}${(r.metrics?.vsd ?? 0).toLocaleString()}`,
         },
         {
-            title: "Level",
+            title: td("Level", { source: "en" }),
             key: "level",
             render: (_: any, r: any) =>
                 r.level_achieved ? (
@@ -331,13 +337,13 @@ const EnrollmentSubTable: React.FC<{ cycleId: number }> = ({ cycleId }) => {
                 ),
         },
         {
-            title: "Overflow",
+            title: td("Overflow", { source: "en" }),
             key: "overflow",
             render: (_: any, r: any) =>
                 r.is_overflowing ? (
                     <Tag color="orange">Yes — {r.days_remaining}d left</Tag>
                 ) : (
-                    <span className="text-gray-400 text-xs">No</span>
+                    <span className="text-gray-400 text-xs">{td("No", { source: "en" })}</span>
                 ),
         },
         {
@@ -374,6 +380,7 @@ const EnrollmentSubTable: React.FC<{ cycleId: number }> = ({ cycleId }) => {
 /*  Main Page                                                          */
 /* ------------------------------------------------------------------ */
 const CycleManagement: React.FC<Props> = () => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const [page, setPage] = useState(1);
     const { data, isLoading, refetch } = useMlmCycles({
@@ -412,31 +419,31 @@ const CycleManagement: React.FC<Props> = () => {
             width: 60,
         },
         {
-            title: "Name",
+            title: td("Name", { source: "en" }),
             dataIndex: "name",
             key: "name",
             render: (v: string) => <span className="font-medium">{v}</span>,
         },
         {
-            title: "Start",
+            title: td("Start", { source: "en" }),
             dataIndex: "start_date",
             key: "start_date",
             render: (v: string) => formatCompanyDate(v, "-"),
         },
         {
-            title: "End",
+            title: td("End", { source: "en" }),
             dataIndex: "end_date",
             key: "end_date",
             render: (v: string) => formatCompanyDate(v, "-"),
         },
         {
-            title: "Duration",
+            title: td("Duration", { source: "en" }),
             dataIndex: "duration_days",
             key: "duration_days",
             render: (v: number) => `${v} days`,
         },
         {
-            title: "Days Left",
+            title: td("Days Left", { source: "en" }),
             dataIndex: "days_remaining",
             key: "days_remaining",
             render: (v: number, record: MlmCycle) =>
@@ -455,13 +462,13 @@ const CycleManagement: React.FC<Props> = () => {
         //     render: (v: number) => `${Number(v).toFixed(1)}×`,
         // },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             render: (v: string) => <CycleStatusBadge status={v as any} />,
         },
         {
-            title: "Enrollments",
+            title: td("Enrollments", { source: "en" }),
             dataIndex: "enrollments_count",
             key: "enrollments_count",
             align: "right" as const,
@@ -526,7 +533,7 @@ const CycleManagement: React.FC<Props> = () => {
                                         className="text-indigo-500"
                                     />
                                     <span className="font-semibold">
-                                        Cycles
+                                        {td("Cycles", { source: "en" })}
                                     </span>
                                 </div>
                             }
@@ -537,7 +544,7 @@ const CycleManagement: React.FC<Props> = () => {
                                     icon={<Plus size={14} />}
                                     onClick={openCreate}
                                 >
-                                    New Cycle
+                                    {td("New Cycle", { source: "en" })}
                                 </Button>
                             }
                         >

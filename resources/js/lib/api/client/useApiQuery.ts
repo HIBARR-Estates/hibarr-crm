@@ -61,12 +61,19 @@ export const useApiQuery = <
          * several seconds first.
          */
         retry?: boolean | number;
+        /**
+         * Keeps the last result on screen while a query with different
+         * params (a changed filter, another page) loads, instead of
+         * dropping to "no data". `isPlaceholderData` says it is still old.
+         */
+        keepPreviousData?: boolean;
     };
 }) => {
     const { props } = usePage();
     const { auth } = props;
 
     const { params, path, options } = input;
+    const { keepPreviousData: keepPrevious, ...queryOptions } = options ?? {};
 
     const queryData = useQuery({
         queryKey: [path, params],
@@ -76,7 +83,8 @@ export const useApiQuery = <
                 params,
                 path,
             }),
-        ...options,
+        ...queryOptions,
+        ...(keepPrevious ? { placeholderData: keepPreviousData } : {}),
     });
 
     return queryData;

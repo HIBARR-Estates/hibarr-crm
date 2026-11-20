@@ -145,14 +145,14 @@ export default function ExposesPanel({
         count: number;
         label: string;
     }> = [
-        { status: "shown", count: summary.shown, label: "awaiting response" },
+        { status: "shown", count: summary.shown, label: td("awaiting response", { source: "en" }) },
         { status: "accepted", count: summary.accepted, label: "accepted" },
         {
             status: "not_accepted",
             count: summary.not_accepted,
-            label: "not accepted",
+            label: td("not accepted", { source: "en" }),
         },
-        { status: "not_sent", count: summary.not_sent, label: "not sent" },
+        { status: "not_sent", count: summary.not_sent, label: td("not sent", { source: "en" }) },
     ];
 
     const hasExposes = exposes.length > 0;
@@ -291,7 +291,7 @@ export default function ExposesPanel({
                                         .dot,
                                 }}
                             />
-                            {entry.count} {td(entry.label)}
+                            {entry.count} {entry.label}
                         </div>
                     ))}
                 </div>
@@ -369,7 +369,7 @@ export default function ExposesPanel({
                                         className="text-[13px] font-bold"
                                         style={{ color: T.NAVY }}
                                     >
-                                        {group.label}
+                                        {td(group.label, { source: "en" })}
                                     </span>
                                     <span
                                         className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border px-1.5 text-[11px] font-semibold"
@@ -492,7 +492,7 @@ export default function ExposesPanel({
                                                             color: T.TEXT_MUTED,
                                                         }}
                                                     >
-                                                        {expose.source_label}
+                                                        {td(expose.source_label, { source: "en" })}
                                                     </div>
                                                 )}
                                             </div>

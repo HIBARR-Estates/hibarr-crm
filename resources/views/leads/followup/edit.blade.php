@@ -1,6 +1,6 @@
     <div class="modal-header">
     <h5 class="modal-title" id="modelHeading">@lang('modules.lead.editFollowUp')</h5>
-    <button type="button"  class="close" data-dismiss="modal" aria-label="Close"><span
+    <button type="button"  class="close" data-dismiss="modal" aria-label="{{ td('Close') }}"><span
             aria-hidden="true">×</span></button>
 </div>
 <div class="modal-body">
@@ -20,14 +20,14 @@
                     </div>
                     <div class="col-md-6">
                         <div class="bootstrap-timepicker timepicker">
-                            <x-forms.text fieldLabel="Start Time" :fieldPlaceholder="__('placeholders.hours')" fieldName="start_time" fieldId="start_time" fieldRequired="true" :fieldValue="$follow->next_follow_up_date->format(company()->time_format)"/>
+                            <x-forms.text :fieldLabel="td('Start Time')" :fieldPlaceholder="__('placeholders.hours')" fieldName="start_time" fieldId="start_time" fieldRequired="true" :fieldValue="$follow->next_follow_up_date->format(company()->time_format)"/>
                         </div>
                     </div>
 
                     <div class="col-md-12">
                         <x-forms.select fieldId="meeting_type_id" :fieldLabel="__('Meeting Type')" fieldName="meeting_type_id"
                             search="true">
-                            <option value="">-- Select Meeting Type --</option>
+                            <option value="">{{ td('-- Select Meeting Type --') }}</option>
                             @foreach (\App\Models\MeetingType::where('company_id', company()->id)->get() as $meetingType)
                                 <option value="{{ $meetingType->id }}" data-color="{{ $meetingType->color }}" {{ $follow->meeting_type_id == $meetingType->id ? 'selected' : '' }}>
                                     {{ $meetingType->name }}
@@ -38,10 +38,10 @@
                     <div class="col-md-12">
                         <x-forms.select fieldId="location" :fieldLabel="__('Location')" fieldName="location"
                             search="true">
-                            <option value="office" {{ $follow->location == 'office' ? 'selected' : '' }}>Office</option>
-                            <option value="zoom" {{ $follow->location == 'zoom' ? 'selected' : '' }}>Zoom</option>
-                            <option value="zoho_meet" {{ $follow->location == 'zoho_meet' ? 'selected' : '' }}>Zoho Meet</option>
-                            <option value="google_meet" {{ $follow->location == 'google_meet' ? 'selected' : '' }}>Google Meet</option>
+                            <option value="office" {{ $follow->location == 'office' ? 'selected' : '' }}>{{ td('Office') }}</option>
+                            <option value="zoom" {{ $follow->location == 'zoom' ? 'selected' : '' }}>{{ td('Zoom') }}</option>
+                            <option value="zoho_meet" {{ $follow->location == 'zoho_meet' ? 'selected' : '' }}>{{ td('Zoho Meet') }}</option>
+                            <option value="google_meet" {{ $follow->location == 'google_meet' ? 'selected' : '' }}>{{ td('Google Meet') }}</option>
                         </x-forms.select>
                     </div>
                     <div class="col-md-12" id="meeting_link_container" style="display: {{ $follow->location != 'office' ? 'block' : 'none' }};">

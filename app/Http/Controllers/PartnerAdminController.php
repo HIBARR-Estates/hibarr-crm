@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Helper\Reply;
 use App\Models\Lead;
-use App\Models\Role;
 use App\Models\LeadAgent;
+use App\Models\Role;
 use App\Models\User;
 use App\Notifications\PartnerInvited;
 use App\Support\PartnerRole;
@@ -26,7 +26,7 @@ class PartnerAdminController extends AccountBaseController
         parent::__construct();
 
         $this->middleware(function ($request, $next) {
-            abort_403(!\App\Support\PermissionGates::canManagePartners(user()));
+            abort_403(! \App\Support\PermissionGates::canManagePartners(user()));
 
             return $next($request);
         });
@@ -64,6 +64,7 @@ class PartnerAdminController extends AccountBaseController
                 'to' => $agents->lastItem(),
             ],
             'filters' => $request->only(['search']),
+            'canManageCommissionProfile' => \App\Support\PermissionGates::canManagePartnerNetwork(user()),
             'stats' => [
                 'total_partners' => LeadAgent::where('company_id', $companyId)->where('is_partner', true)->count(),
                 'total_referred_leads' => Lead::where('company_id', $companyId)->whereNotNull('referred_by_agent_id')->count(),

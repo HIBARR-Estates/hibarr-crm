@@ -62,6 +62,8 @@ import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useClickToCall from "@/Hooks/useClickToCall";
+import useSoftphone, { canPlaceCrmCall } from "@/Hooks/useSoftphone";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 import usePersistedPageSize from "@/Hooks/usePersistedPageSize";
 import {
@@ -116,6 +118,15 @@ export interface IndexProps extends Omit<PageProps, "filters"> {
     filters?: {
         lead_pipeline_id?: string;
         pipeline_stage_id?: string;
+        /** `<key>_mode` companions: "not_in" | "empty" | "any" | "active" | "inactive". */
+        lead_pipeline_id_mode?: string;
+        pipeline_stage_id_mode?: string;
+        category_id_mode?: string;
+        source_id_mode?: string;
+        package_id_mode?: string;
+        agent_id_mode?: string;
+        close_start_mode?: string;
+        value_range_mode?: string;
         category_id?: string;
         source_id?: string;
         package_id?: string;
@@ -156,6 +167,17 @@ const Index = ({
         ),
     );
     const { td } = useTd();
+    const { isEnabled: clickToCallEnabled } = useClickToCall();
+    const { isEnabled: softphoneFeatureEnabled, devices } = useSoftphone();
+    const canCallPhone = canPlaceCrmCall({
+        softphoneEnabled:
+            softphoneFeatureEnabled &&
+            pageProps.featureFlags?.["crm.softphone"] === true,
+        user: pageProps.auth?.user,
+        permissions: pageProps.auth?.permissions,
+        deviceCount: devices.length,
+        clickToCallEnabled,
+    });
     const companyCurrency = useCompanyCurrency();
     const isMobileResponsive = useMobileResponsiveLayoutFlag();
     const showProductTour =
@@ -266,9 +288,12 @@ const Index = ({
 
     // "all" unpins the list from a single pipeline; a multi-pipeline filter
     // value counts as unpinned too (the chip, not the selector, tells the truth).
+    // So does an exclusion: "every pipeline except 2" is not a pipeline to pin.
     const rawPipelineFilter = pageFilters?.lead_pipeline_id;
     const activePipelineId: number | "all" =
-        rawPipelineFilter === "all" || rawPipelineFilter?.includes(",")
+        rawPipelineFilter === "all" ||
+        rawPipelineFilter?.includes(",") ||
+        pageFilters?.lead_pipeline_id_mode
             ? "all"
             : rawPipelineFilter
               ? Number(rawPipelineFilter)
@@ -347,6 +372,8 @@ const Index = ({
 
         // Update pipeline; keep view so server stays view-aware (K1)
         params.lead_pipeline_id = String(value);
+        // Picking a pipeline replaces any "is not" / "is empty" on it.
+        delete params.lead_pipeline_id_mode;
         params.view = view;
 
         // List + header stats share the same filtered query, so both have to
@@ -542,12 +569,21 @@ const Index = ({
             t,
             td,
             companyCurrency,
+            canCallPhone,
         }),
         ["created_at", "lead_source", "updated_at"],
         isMobileResponsive,
     );
 
     const valueLeadPipelineId = activePipelineId;
+    // Paging rewrites the pipeline param from the page's own state. Under an
+    // exclusion that state is "all" (nothing pinned), which would overwrite the
+    // excluded ids and silently drop the exclusion on page 2: hand the URL's
+    // own value back instead.
+    const pipelineQueryValue: number | string | undefined =
+        pageFilters?.lead_pipeline_id_mode
+            ? pageFilters.lead_pipeline_id
+            : activePipelineId;
 
     const { persistPageSize } = usePersistedPageSize({
         storageKey: "hibarr_deals_per_page",
@@ -556,7 +592,7 @@ const Index = ({
             router.get(
                 route("deals.index"),
                 mergeQueryParams({
-                    lead_pipeline_id: valueLeadPipelineId,
+                    lead_pipeline_id: pipelineQueryValue,
                     page: 1,
                     per_page: perPage,
                     view,
@@ -765,7 +801,7 @@ const Index = ({
                                 router.get(
                                     route("deals.index"),
                                     mergeQueryParams({
-                                        lead_pipeline_id: valueLeadPipelineId,
+                                        lead_pipeline_id: pipelineQueryValue,
                                         page,
                                         per_page: deals.per_page,
                                         view,
@@ -782,7 +818,7 @@ const Index = ({
                                 router.get(
                                     route("deals.index"),
                                     mergeQueryParams({
-                                        lead_pipeline_id: valueLeadPipelineId,
+                                        lead_pipeline_id: pipelineQueryValue,
                                         page: 1,
                                         per_page: pageSize,
                                         view,
@@ -821,7 +857,7 @@ const Index = ({
                                     onColumnsUpdate={handleColumnsUpdate}
                                     filters={{
                                         ...filters,
-                                        lead_pipeline_id: valueLeadPipelineId,
+                                        lead_pipeline_id: pipelineQueryValue,
                                     }}
                                 />
                             )}

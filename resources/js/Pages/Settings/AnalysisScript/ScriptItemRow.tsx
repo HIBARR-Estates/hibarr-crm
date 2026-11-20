@@ -118,7 +118,7 @@ export default function ScriptItemRow({ row, sectionKey, onChange, onRemove }: P
                     <>
                         <input
                             className="dr-input"
-                            placeholder="Label (leave blank for default)"
+                            placeholder={td("Label (leave blank for default)", { source: "en" })}
                             value={row.label_override ?? ""}
                             onChange={(e) => onChange({ label_override: e.target.value || null })}
                             style={{ fontSize: 15 }}
@@ -127,7 +127,7 @@ export default function ScriptItemRow({ row, sectionKey, onChange, onRemove }: P
                             <textarea
                                 className="dr-input"
                                 rows={2}
-                                placeholder="Agent talking points for this step…"
+                                placeholder={td("Agent talking points for this step…", { source: "en" })}
                                 value={row.guide_text ?? ""}
                                 onChange={(e) => onChange({ guide_text: e.target.value || null })}
                                 style={{ fontSize: 15, resize: "vertical", marginTop: 6 }}
@@ -145,7 +145,7 @@ export default function ScriptItemRow({ row, sectionKey, onChange, onRemove }: P
                                     cursor: "pointer",
                                 }}
                             >
-                                ▼ Add talking points
+                                {td("▼ Add talking points", { source: "en" })}
                             </button>
                         )}
                     </>

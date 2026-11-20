@@ -26,6 +26,7 @@ import {
     resolveTokens,
     validateSegmentAnswer,
 } from "./qualificationUtils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 /** Told whether a save is running, and whether the last save to settle failed. */
 export type SavingListener = (saving: boolean, failed?: boolean) => void;
@@ -60,6 +61,7 @@ export const useQualificationFlow = ({
     onQualificationUpdated,
     onLeadUpdated,
 }: UseQualificationFlowOptions) => {
+    const { td } = useTd();
     const { props } = usePage<PageProps>();
     const tokenMap = useMemo(
         () => buildTokenMap(lead, props.auth),
@@ -144,7 +146,7 @@ export const useQualificationFlow = ({
                         })
                         .catch(() => {
                             lastSaveFailed.current = true;
-                            message.error("Failed to save answer");
+                            message.error(td("Failed to save answer", { source: "en" }));
                         }),
                 );
             saveChains.current.set(segment.key, chained);
@@ -329,7 +331,7 @@ export const useQualificationFlow = ({
         async (options?: { skipValidation?: boolean }) => {
             if (!currentSegment) return;
             if (validationError && !options?.skipValidation) {
-                message.warning("Please answer this question before continuing");
+                message.warning(td("Please answer this question before continuing", { source: "en" }));
                 return;
             }
             if (currentIndex >= visibleSegments.length - 1) return;
@@ -368,7 +370,7 @@ export const useQualificationFlow = ({
             },
         ): Promise<LeadQualification | null> => {
             if (!outcomes.length) {
-                message.warning("Select at least one outcome");
+                message.warning(td("Select at least one outcome", { source: "en" }));
                 return null;
             }
 
@@ -390,7 +392,7 @@ export const useQualificationFlow = ({
                 if (leadPatch) {
                     onLeadUpdated?.(leadPatch);
                 }
-                message.success("Qualification completed");
+                message.success(td("Qualification completed", { source: "en" }));
                 return updated;
             } catch (error) {
                 message.error(
@@ -430,9 +432,9 @@ export const useQualificationFlow = ({
         setCompleting(true);
         try {
             await service.abandonQualification(qualification.id);
-            message.info("Qualification abandoned");
+            message.info(td("Qualification abandoned", { source: "en" }));
         } catch {
-            message.error("Failed to abandon qualification");
+            message.error(td("Failed to abandon qualification", { source: "en" }));
         } finally {
             setCompleting(false);
         }

@@ -43,7 +43,7 @@ export async function testLineConnection(
 
     const uri = UserAgent.makeURI(config.uri);
     if (!uri) {
-        return fail("config", "The SIP URI is not valid (expected e.g. sip:12345@sipgate.de).");
+        return fail("config", "The SIP URI is not valid (expected e.g. sip:12345@domain.com).");
     }
     if (!/^wss:\/\//i.test(config.wss_url.trim())) {
         return fail("config", "The WSS URL must start with wss://.");

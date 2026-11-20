@@ -13,7 +13,9 @@ import type {
     SoftphoneCallFailureCode,
     SoftphoneCallStage,
     SoftphoneConfig,
+    SoftphoneRegistrationState,
     SoftphoneState,
+    SoftphoneWaitingCall,
 } from "@/Types/api/softphone";
 import {
     buildExplicitMicConstraints,
@@ -30,6 +32,18 @@ import {
     type BoostedMicProcessor,
     type MicProfileName,
 } from "./micAudioProcessor";
+
+export type {
+    SoftphoneCall,
+    SoftphoneCallContext,
+    SoftphoneCallFailure,
+    SoftphoneCallFailureCode,
+    SoftphoneCallStage,
+    SoftphoneConfig,
+    SoftphoneRegistrationState,
+    SoftphoneState,
+    SoftphoneWaitingCall,
+};
 
 /**
  * Thin SIP.js wrapper that turns sipgate Neo into an in-browser softphone.
@@ -86,6 +100,7 @@ const EMPTY_STATE: SoftphoneState = {
     registration: "idle",
     registrationError: null,
     call: null,
+    waitingCall: null,
     callFailure: null,
     lastCallError: null,
     quality: "unknown",
@@ -102,8 +117,8 @@ const FAILURE_BY_STATUS: Record<
     { code: SoftphoneCallFailureCode; reason: string }
 > = {
     403: {
-        code: "unknown",
-        reason: "This extension is not allowed to place calls.",
+        code: "connection_failed",
+        reason: "This line is not allowed to place calls or could not connect.",
     },
     404: {
         code: "not-found",
@@ -116,6 +131,26 @@ const FAILURE_BY_STATUS: Record<
     },
     486: { code: "busy", reason: "The line is busy." },
     487: { code: "cancelled", reason: "The call was cancelled." },
+    488: {
+        code: "connection_failed",
+        reason: "The call connection was not acceptable by the network.",
+    },
+    500: {
+        code: "connection_failed",
+        reason: "The telephone server encountered an internal error.",
+    },
+    502: {
+        code: "connection_failed",
+        reason: "The telephone network gateway is unreachable.",
+    },
+    503: {
+        code: "connection_failed",
+        reason: "The telephone service is temporarily unavailable.",
+    },
+    504: {
+        code: "connection_failed",
+        reason: "The telephone gateway connection timed out.",
+    },
     603: { code: "declined", reason: "The call was declined." },
     606: { code: "declined", reason: "The call was declined." },
 };
@@ -150,6 +185,8 @@ class SoftphoneClient {
     private registerer: Registerer | null = null;
     private startCancels: Set<() => void> = new Set();
     private session: ManagedSession | null = null;
+    /** A second inbound call held while `session` is live (call waiting). */
+    private waiting: Invitation | null = null;
     private answering = false;
     /** The agent pressed decline/hang up — not a failed call, so no notice. */
     private endedByUser = false;
@@ -238,16 +275,26 @@ class SoftphoneClient {
                 this.config = config;
                 this.setState({ ...EMPTY_STATE, registration: "registering" });
                 const rawUri = (config.uri || "").trim();
+                const lineDomain = domainOf(rawUri) || (config.provider ? `${config.provider}.de` : "sipgate.de");
                 const normalizedUri = /^sips?:/i.test(rawUri)
                     ? rawUri
                     : rawUri.includes("@")
                         ? `sip:${rawUri}`
                         : config.authorization_username
-                            ? `sip:${config.authorization_username}@sipgate.de`
+                            ? `sip:${config.authorization_username}@${lineDomain}`
                             : `sip:${rawUri}`;
                 const uri = UserAgent.makeURI(normalizedUri);
                 if (!uri) {
                     throw new Error(`Invalid SIP URI: ${config.uri}`);
+                }
+
+                const iceServers: Array<{ urls: string }> = [
+                    { urls: "stun:stun.l.google.com:19302" },
+                ];
+                if (config.stun_url) {
+                    iceServers.push({ urls: config.stun_url });
+                } else if (lineDomain) {
+                    iceServers.push({ urls: `stun:stun.${lineDomain}:3478` });
                 }
 
                 const userAgent = new UserAgent({
@@ -260,10 +307,7 @@ class SoftphoneClient {
                     displayName: config.display_name || undefined,
                     sessionDescriptionHandlerFactoryOptions: {
                         peerConnectionConfiguration: {
-                            iceServers: [
-                                { urls: "stun:stun.l.google.com:19302" },
-                                { urls: "stun:stun.sipgate.de:3478" },
-                            ],
+                            iceServers,
                         },
                     },
                     logLevel: "error",
@@ -433,10 +477,11 @@ class SoftphoneClient {
             throw new Error("No phone line is registered for this browser.");
         }
         if (!this.userAgent || this.state.registration !== "registered") {
+            const providerLabel = this.config.provider || "the provider";
             const reason =
                 this.state.registrationError ||
-                "Your phone line isn't connected to sipgate. Pick a line in the phone panel, then retry.";
-            this.reportSetupFailure(target, reason, context);
+                `Your phone line isn't connected to ${providerLabel}. Pick a line in the phone panel, then retry.`;
+            this.reportSetupFailure(target, reason, context, "connection_failed");
             throw new Error(
                 this.state.registrationError ||
                 "Your phone line isn't connected.",
@@ -517,11 +562,12 @@ class SoftphoneClient {
             // to build the request. This is the failure agents hit most often
             // (offline, no line, bad number) and it used to look like nothing
             // had happened at all.
+            const providerName = this.config?.provider || "the provider";
             this.failCall(
-                "unknown",
+                "connection_failed",
                 detail
                     ? `The call could not be placed: ${detail}`
-                    : "The call could not be placed — the request to sipgate failed.",
+                    : `The call could not be placed — the request to ${providerName} failed.`,
             );
             throw error;
         }
@@ -601,7 +647,33 @@ class SoftphoneClient {
         } catch {
             // ignore — session will terminate regardless
         }
-        this.endCall();
+        this.endCallIfCurrent(session);
+    }
+
+    /**
+     * Take the waiting call: end the current one, then answer the waiting
+     * call as a normal inbound call.
+     */
+    async answerWaiting(): Promise<void> {
+        const invitation = this.waiting;
+        if (!invitation || invitation.state === SessionState.Terminated) {
+            return;
+        }
+        // Cleared first so ending the current call does not promote it to a
+        // ringing call on its own (see endCall).
+        this.dropWaiting();
+        await this.hangup();
+        this.onIncoming(invitation);
+        await this.answer();
+    }
+
+    /**
+     * Stop offering the waiting call here. Nothing is sent to the network: a
+     * rejection on this leg could end the call on every other agent's device
+     * too. The leg closes when the call is answered elsewhere or abandoned.
+     */
+    dismissWaiting(): void {
+        this.dropWaiting();
     }
 
     async hangup(): Promise<void> {
@@ -627,7 +699,19 @@ class SoftphoneClient {
         } catch {
             // ignore
         }
-        this.endCall();
+        this.endCallIfCurrent(session);
+    }
+
+    /**
+     * End the call only if `session` is still the live one. While a hang-up
+     * was awaiting the network, the session's own "terminated" handler may
+     * already have ended it and promoted a waiting call; that call must not
+     * be torn down by the late cleanup of the old one.
+     */
+    private endCallIfCurrent(session: ManagedSession): void {
+        if (this.session === session) {
+            this.endCall();
+        }
     }
 
     /**
@@ -925,10 +1009,11 @@ class SoftphoneClient {
         peer: string,
         reason: string,
         context: SoftphoneCallContext | null,
+        code: SoftphoneCallFailureCode = "connection_failed",
     ): void {
         this.setState({
             callFailure: {
-                code: "unknown",
+                code,
                 reason,
                 peer,
                 direction: "outbound",
@@ -979,6 +1064,7 @@ class SoftphoneClient {
             peer: call.peer,
             direction: call.direction,
             context: call.context,
+            callId: call.id,
         };
         this.setState({
             callFailure: failure,
@@ -989,10 +1075,10 @@ class SoftphoneClient {
     }
 
     private onIncoming(invitation: Invitation): void {
-        // One call at a time — busy out any second simultaneous inbound.
+        // On a call already: hold it as a waiting call for the agent to take
+        // or decline, instead of turning it away.
         if (this.session) {
-            trace("softphone onIncoming: busy - rejecting second invitation");
-            void invitation.reject();
+            this.holdAsWaiting(invitation);
             return;
         }
 
@@ -1021,6 +1107,40 @@ class SoftphoneClient {
         this.beginCall(managed, "inbound", peer);
     }
 
+    /** Keep a second inbound call aside while the current one is live. */
+    private holdAsWaiting(invitation: Invitation): void {
+        // Only one call can wait; a third is turned away as busy (a 4xx, so
+        // other agents' legs of that call keep ringing).
+        if (this.waiting) {
+            trace("softphone onIncoming: busy - a call is already waiting");
+            void invitation.reject({ statusCode: 486 });
+            return;
+        }
+
+        this.waiting = invitation;
+        const waitingCall: SoftphoneWaitingCall = {
+            id: sipCallIdOf(invitation as unknown as ManagedSession) ?? `call-waiting-${++this.callSeq}`,
+            peer: invitation.remoteIdentity?.uri?.user ?? "Unknown caller",
+            receivedAt: Date.now(),
+        };
+        trace("softphone call waiting", waitingCall.id);
+        this.setState({ waitingCall });
+
+        invitation.stateChange.addListener((state) => {
+            // Caller hung up, or another agent answered.
+            if (state === SessionState.Terminated && this.waiting === invitation) {
+                this.dropWaiting();
+            }
+        });
+    }
+
+    private dropWaiting(): void {
+        this.waiting = null;
+        if (this.state.waitingCall) {
+            this.setState({ waitingCall: null });
+        }
+    }
+
     private beginCall(
         session: ManagedSession,
         direction: "outbound" | "inbound",
@@ -1029,11 +1149,7 @@ class SoftphoneClient {
     ): void {
         this.session = session;
         this.callSeq += 1;
-        const sipCallId =
-            (session as unknown as { incomingInviteRequest?: { message?: { callId?: string } } })?.incomingInviteRequest?.message?.callId ??
-            (session as unknown as { outgoingRequestMessage?: { callId?: string } })?.outgoingRequestMessage?.callId ??
-            (session as unknown as { id?: string })?.id;
-        const id = sipCallId && sipCallId.trim() !== "" ? sipCallId.trim() : `call-${this.callSeq}`;
+        const id = sipCallIdOf(session) ?? `call-${this.callSeq}`;
         // A fresh attempt starts from a clean slate: no stale failure notice,
         // and nothing here counts as "the agent hung up".
         this.endedByUser = false;
@@ -1227,6 +1343,15 @@ class SoftphoneClient {
         if (this.state.call) {
             this.setState({ call: null });
         }
+
+        // The call that was waiting now rings like any other inbound call.
+        const waiting = this.waiting;
+        if (waiting) {
+            this.dropWaiting();
+            if (waiting.state !== SessionState.Terminated) {
+                this.onIncoming(waiting);
+            }
+        }
     }
 
     private attachRemoteFromSession(session: ManagedSession): void {
@@ -1361,6 +1486,7 @@ class SoftphoneClient {
     }
 
     private async teardown(): Promise<void> {
+        this.dropWaiting();
         if (this.outboundMicProcessor) {
             this.outboundMicProcessor.dispose();
             this.outboundMicProcessor = null;
@@ -1389,6 +1515,19 @@ class SoftphoneClient {
 function domainOf(uri: string): string {
     const at = uri.indexOf("@");
     return at >= 0 ? uri.slice(at + 1).trim() : "";
+}
+
+/**
+ * The SIP Call-ID of a session: the same on every agent's leg of one call,
+ * which is what lets the server keep one rotation for it.
+ */
+function sipCallIdOf(session: ManagedSession): string | null {
+    const raw =
+        (session as unknown as { incomingInviteRequest?: { message?: { callId?: string } } })?.incomingInviteRequest?.message?.callId ??
+        (session as unknown as { outgoingRequestMessage?: { callId?: string } })?.outgoingRequestMessage?.callId ??
+        (session as unknown as { id?: string })?.id;
+
+    return raw && raw.trim() !== "" ? raw.trim() : null;
 }
 
 export function uriUserOf(uri: string): string {

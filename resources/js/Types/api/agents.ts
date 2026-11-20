@@ -8,6 +8,9 @@ export interface Agent {
     lead_category_id: number | null;
     parent_agent_id: number | null;
     status: "enabled" | "disabled";
+    is_partner?: boolean;
+    /** Decimal string from the `decimal:2` cast, e.g. "12.50". */
+    referral_pool_rate?: string | null;
     added_by: number | null;
     last_updated_by: number | null;
     created_at: string;
@@ -58,6 +61,7 @@ export interface AgentShowProps {
         edit_lead_agent: string;
         delete_lead_agent: string;
         view_deals: string;
+        manage_partner_network?: boolean;
     };
 }
 

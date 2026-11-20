@@ -1353,7 +1353,7 @@ export default function DealInfoSection({
                                 displayValue={
                                     currentDeal.category?.category_name ? (
                                         <span className="text-gray-700">
-                                            {currentDeal.category.category_name}
+                                            {td(currentDeal.category.category_name, { source: "en" })}
                                         </span>
                                     ) : (
                                         <span className="text-gray-400">

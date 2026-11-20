@@ -365,11 +365,22 @@ class CrmWriteService
         };
         $rawStatus = strtolower(trim((string) ($data['raw_status'] ?? $data['ol_status'] ?? '')));
 
+        // withTrashed: a deleted request still owns its external reference
+        // (unique per company), so a late OL write-back must find it rather
+        // than try to insert a duplicate.
         $existing = Payment::withoutGlobalScope(CompanyScope::class)
+            ->withTrashed()
             ->without(['order'])
             ->where('company_id', $companyId)
             ->where('external_reference', $externalReference)
             ->first();
+
+        // A request deleted in the CRM stays deleted. Ignore the write-back.
+        if ($existing !== null && $existing->trashed()) {
+            $existing->loadMissing(['currency', 'deal.leadStage', 'deal.pipeline']);
+
+            return ['payment' => $existing, 'created' => false];
+        }
 
         $created = $existing === null;
         $wasComplete = $existing !== null && $existing->status === 'complete';

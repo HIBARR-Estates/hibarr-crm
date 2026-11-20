@@ -12,6 +12,9 @@ import EntityAiSummaryHeader from "./EntityAiSummaryHeader";
 import EntityAiSummaryNextStep from "./EntityAiSummaryNextStep";
 import { SummaryPersonalizationProvider } from "./SummaryPersonalization";
 import { buildLeadTokenValues, personalizeSummaryText } from "./summaryTokens";
+import { usePage } from "@inertiajs/react";
+import useClickToCall from "@/Hooks/useClickToCall";
+import useSoftphone, { canPlaceCrmCall } from "@/Hooks/useSoftphone";
 import { executeSummaryAction, isExecutableAction } from "./summaryActions";
 import "./entity-summary.css";
 
@@ -38,6 +41,18 @@ export default function EntityAiSummaryCard({
 }: EntityAiSummaryCardProps) {
     const { t } = useTranslation();
     const { td } = useTd();
+    const { props } = usePage();
+    const { isEnabled: clickToCallEnabled } = useClickToCall();
+    const { isEnabled: softphoneFeatureEnabled, devices } = useSoftphone();
+    const canDial = canPlaceCrmCall({
+        softphoneEnabled:
+            softphoneFeatureEnabled &&
+            props.featureFlags?.["crm.softphone"] === true,
+        user: props.auth?.user,
+        permissions: props.auth?.permissions,
+        deviceCount: devices.length,
+        clickToCallEnabled,
+    });
     const isRedesign = variant === "redesign";
 
     // The summary text names the lead with tokens (the model never sees the name);
@@ -136,7 +151,7 @@ export default function EntityAiSummaryCard({
             nextStep: summary.next_step,
             entityType,
             entityId,
-            leadPhone,
+            leadPhone: canDial ? leadPhone : null,
             onQualifyLead,
             onCreateTask,
             onScheduleCall,
@@ -241,7 +256,7 @@ export default function EntityAiSummaryCard({
                                         This summary may be out of date because the{" "}
                                         {entityType} changed.{" "}
                                         <button type="button" onClick={startRegenerate}>
-                                            Refresh
+                                            {td("Refresh", { source: "en" })}
                                         </button>
                                     </>
                                 )}
@@ -262,7 +277,7 @@ export default function EntityAiSummaryCard({
                                         Showing a fallback summary because AI was
                                         unavailable.{" "}
                                         <button type="button" onClick={startRegenerate}>
-                                            Retry AI
+                                            {td("Retry AI", { source: "en" })}
                                         </button>
                                     </>
                                 )}
@@ -281,7 +296,7 @@ export default function EntityAiSummaryCard({
                                     className="entity-ai-summary-next-step__button entity-ai-summary-empty__cta"
                                     onClick={startGenerate}
                                 >
-                                    Generate AI Summary
+                                    {td("Generate AI Summary", { source: "en" })}
                                 </button>
                             </div>
                         )}

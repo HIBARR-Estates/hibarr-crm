@@ -3,6 +3,7 @@ import { Form, Select, DatePicker, Row, Col } from "antd";
 import type { FormInstance } from "antd/lib/form";
 import type { PrimaryCategory, PropertyEnumValues } from "@/Types";
 import { useFormOptions } from "../useFormOptions";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 
@@ -19,6 +20,7 @@ const ClassificationSection: React.FC<ClassificationSectionProps> = ({
     enumValues,
     lockedFields = new Set<string>(),
 }) => {
+    const { td } = useTd();
     const { constructionStatusOptions, viewTypeOptions, occupancyTypeOptions } =
         useFormOptions(enumValues, primaryCategory);
 
@@ -28,9 +30,9 @@ const ClassificationSection: React.FC<ClassificationSectionProps> = ({
             <Col xs={24} md={12}>
                 <Form.Item
                     name="construction_status"
-                    label="Construction Status"
+                    label={td("Construction Status", { source: "en" })}
                 >
-                    <Select placeholder="Select status" allowClear>
+                    <Select placeholder={td("Select status", { source: "en" })} allowClear>
                         {constructionStatusOptions.map((o) => (
                             <Option key={o.value} value={o.value}>
                                 {o.label}
@@ -42,11 +44,11 @@ const ClassificationSection: React.FC<ClassificationSectionProps> = ({
 
             {/* Completion Date */}
             <Col xs={24} md={12}>
-                <Form.Item name="completion_date" label="Completion Date">
+                <Form.Item name="completion_date" label={td("Completion Date", { source: "en" })}>
                     <DatePicker
                         style={{ width: "100%" }}
                         picker="month"
-                        placeholder="Select month/year"
+                        placeholder={td("Select month/year", { source: "en" })}
                         disabled={lockedFields.has('completion_date')}
                     />
                 </Form.Item>
@@ -56,12 +58,12 @@ const ClassificationSection: React.FC<ClassificationSectionProps> = ({
             <Col span={24}>
                 <Form.Item
                     name="view_types"
-                    label="View Types"
-                    tooltip="Select all applicable view types"
+                    label={td("View Types", { source: "en" })}
+                    tooltip={td("Select all applicable view types", { source: "en" })}
                 >
                     <Select
                         mode="multiple"
-                        placeholder="Select view types"
+                        placeholder={td("Select view types", { source: "en" })}
                         allowClear
                         disabled={lockedFields.has('view_types')}
                     >
@@ -79,9 +81,9 @@ const ClassificationSection: React.FC<ClassificationSectionProps> = ({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="current_occupancy"
-                        label="Current Occupancy"
+                        label={td("Current Occupancy", { source: "en" })}
                     >
-                        <Select placeholder="Select" allowClear>
+                        <Select placeholder={td("Select", { source: "en" })} allowClear>
                             {occupancyTypeOptions.map((o) => (
                                 <Option key={o.value} value={o.value}>
                                     {o.label}

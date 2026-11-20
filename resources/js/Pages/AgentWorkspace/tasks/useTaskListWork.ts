@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { message } from "antd";
-import useTaskStatus from "@/Hooks/useTaskStatus";
+import useTaskStatus, { applyTaskStatus } from "@/Hooks/useTaskStatus";
 import useTaskReschedule from "@/Components/Redesign/hooks/useTaskReschedule";
 import useTranslation from "@/Hooks/useTranslation";
 import type { Task } from "@/Types/api/tasks";
@@ -16,8 +16,11 @@ type Override = { kind: "done" } | { kind: "due"; date: string };
  * called. A failure puts the row back and says so; nothing reloads the page.
  * An override stays until the server's copy agrees with it, so a deferred
  * group landing mid-request cannot undo a click.
+ *
+ * `keepId` is a ticked task that stays on screen, struck through, while Do
+ * next is open under it (canvas L7-43).
  */
-export default function useTaskListWork(tasks: QueueTask[] | undefined, onSaved?: () => void) {
+export default function useTaskListWork(tasks: QueueTask[] | undefined, onSaved?: () => void, keepId: number | null = null) {
     const { t } = useTranslation();
     const [overrides, setOverrides] = useState<Record<number, Override>>({});
 
@@ -80,11 +83,15 @@ export default function useTaskListWork(tasks: QueueTask[] | undefined, onSaved?
 
     const rows = useMemo<QueueTask[] | undefined>(() => {
         if (!tasks) return tasks;
-        if (Object.keys(overrides).length === 0) return tasks;
+        if (Object.keys(overrides).length === 0 && keepId === null) return tasks;
         const out: QueueTask[] = [];
         let moved = false;
         for (const task of tasks) {
             const override = overrides[task.id];
+            if (task.id === keepId) {
+                out.push(applyTaskStatus(task, "done") as QueueTask);
+                continue;
+            }
             if (override?.kind === "done") continue;
             if (override?.kind === "due") {
                 moved = true;
@@ -92,7 +99,7 @@ export default function useTaskListWork(tasks: QueueTask[] | undefined, onSaved?
             } else out.push(task);
         }
         return moved ? out.sort(compareDue) : out;
-    }, [tasks, overrides]);
+    }, [tasks, overrides, keepId]);
 
     return { rows, complete, moveTo, setStatus, isStatusPending, isReschedulePending, clear };
 }

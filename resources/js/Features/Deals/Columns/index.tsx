@@ -25,6 +25,8 @@ interface DealColumnOptions {
     td?: TdFn;
     /** Fallback for rows whose deals.currency_id is null (routinely the case). */
     companyCurrency?: CurrencyDisplay;
+    /** When false, the contact number is text. It is a dial link only for users who can place calls. */
+    canCallPhone?: boolean;
 }
 
 export const DEAL_TABLE_COLUMNS = (
@@ -37,6 +39,7 @@ export const DEAL_TABLE_COLUMNS = (
         t = (key) => key,
         td = identityTd,
         companyCurrency,
+        canCallPhone = false,
     } = options;
 
     return [
@@ -148,12 +151,18 @@ export const DEAL_TABLE_COLUMNS = (
                                                 <div className="flex items-center space-x-1">
                                                     <PhoneOutlined className="text-gray-400 text-[10px]" />
                                                     <Tooltip title={mobile}>
-                                                        <a
-                                                            href={`tel:${mobile.replace(/[^\d+]/g, "")}`}
-                                                            className="hover:text-blue-600 hover:underline truncate"
-                                                        >
-                                                            {mobile}
-                                                        </a>
+                                                        {canCallPhone ? (
+                                                            <a
+                                                                href={`tel:${mobile.replace(/[^\d+]/g, "")}`}
+                                                                className="hover:text-blue-600 hover:underline truncate"
+                                                            >
+                                                                {mobile}
+                                                            </a>
+                                                        ) : (
+                                                            <span className="truncate">
+                                                                {mobile}
+                                                            </span>
+                                                        )}
                                                     </Tooltip>
                                                 </div>
                                             )}

@@ -297,7 +297,7 @@
                     @if (in_array('gitlab', user_modules()) && isset($gitlabIssue))
                         <div class="col-12 px-0 pb-3 d-block d-lg-flex d-md-flex">
                             <p class="mb-0 text-lightest f-14 w-30 d-inline-block ">
-                                GitLab</p>
+                                {{ td('GitLab') }}</p>
                             <div class="mb-0 w-70">
                                 <div class='card border'>
                                     <div

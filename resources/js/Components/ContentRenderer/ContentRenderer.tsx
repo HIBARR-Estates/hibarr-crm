@@ -2,6 +2,7 @@ import React from "react";
 import HtmlRenderer from "./HtmlRenderer";
 import MarkdownRenderer from "./MarkdownRenderer";
 import "./ContentRenderer.css";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export type ContentType = "html" | "markdown" | "text";
 
@@ -64,10 +65,11 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
     onClick,
     style = {},
 }) => {
+    const { td } = useTd();
     if (!content) {
         return (
             <span className={`text-gray-400 italic ${className}`}>
-                No content
+                {td("No content", { source: "en" })}
             </span>
         );
     }

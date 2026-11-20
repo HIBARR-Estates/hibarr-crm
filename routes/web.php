@@ -66,7 +66,6 @@ use App\Http\Controllers\KnowledgeBaseFileController;
 use App\Http\Controllers\LeadBoardController;
 use App\Http\Controllers\LeadCategoryController;
 use App\Http\Controllers\LeadContactController;
-use App\Http\Controllers\MarketingLeadController;
 use App\Http\Controllers\LeadContactFileController;
 use App\Http\Controllers\LeadContactMethodController;
 use App\Http\Controllers\LeadCustomFormController;
@@ -82,6 +81,7 @@ use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\LeaveFileController;
 use App\Http\Controllers\LeaveReportController;
 use App\Http\Controllers\LeavesQuotaController;
+use App\Http\Controllers\MarketingLeadController;
 use App\Http\Controllers\MeetingSavedViewController;
 use App\Http\Controllers\MeetingSummaryController;
 use App\Http\Controllers\MeetingTypeController;
@@ -556,6 +556,9 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     // The bytes are streamed through the app instead of handing out the raw
     // object-storage link, which is a durable bearer credential.
     Route::get('call-recordings/{callRecording}/download', [\App\Http\Controllers\CallRecordingController::class, 'download'])->name('call-recordings.download');
+    // WebM recordings play in Bunny's own player, so this one redirects there
+    // (after the same checks); anything else is streamed like download.
+    Route::get('call-recordings/{callRecording}/open', [\App\Http\Controllers\CallRecordingController::class, 'open'])->name('call-recordings.open');
 
     // Follow up
     Route::get('deals/follow-up/{leadID}', [DealController::class, 'followUpCreate'])->name('deals.follow_up');
@@ -662,7 +665,6 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     // deals route
 
     // Marketing lead flow — members of the departments picked in Lead settings only
-    Route::get('marketing-leads', [MarketingLeadController::class, 'page'])->name('marketing-leads.index');
     Route::get('marketing-leads/options', [MarketingLeadController::class, 'options'])->name('marketing-leads.options');
     Route::get('marketing-leads/utm-configs', [MarketingLeadController::class, 'utmConfigs'])->name('marketing-leads.utm-configs');
     Route::post('marketing-leads', [MarketingLeadController::class, 'store'])->name('marketing-leads.store');
@@ -760,9 +762,15 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('deals/{deal}/refresh', [DealController::class, 'refresh'])->name('deals.refresh');
     Route::get('deals/{deal}/ai-summary', [\App\Http\Controllers\DealSummaryController::class, 'show'])->name('deals.ai-summary');
     Route::post('deals/{deal}/ai-summary/regenerate', [\App\Http\Controllers\DealSummaryController::class, 'regenerate'])->name('deals.ai-summary.regenerate');
+    // The agent workspace meeting brief's AI talking points, per meeting on the deal.
+    Route::get('deals/{deal}/meetings/{meeting}/talking-points', [\App\Http\Controllers\DealMeetingTalkingPointsController::class, 'show'])
+        ->whereNumber('meeting')->name('deals.meeting-talking-points');
+    Route::post('deals/{deal}/meetings/{meeting}/talking-points', [\App\Http\Controllers\DealMeetingTalkingPointsController::class, 'generate'])
+        ->whereNumber('meeting')->name('deals.meeting-talking-points.generate');
     Route::get('deals/{deal}/edit', [DealController::class, 'edit'])->name('deals.edit');
     Route::put('deals/{deal}', [DealController::class, 'update'])->name('deals.update');
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
+    Route::patch('deals/{deal}/referral-commission', [DealController::class, 'updateReferralCommission'])->name('deals.referral_commission.update');
     Route::patch('deals/{deal}/outcome', [DealController::class, 'updateOutcome'])->name('deals.outcome.update');
     Route::get('deals/{deal}/outcome/preview', [DealController::class, 'previewOutcomeChange'])->name('deals.outcome.preview');
     Route::delete('deals/{deal}', [DealController::class, 'destroy'])->name('deals.destroy');
@@ -812,6 +820,9 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
 
     // Meeting Summary Routes
     Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');
+
+    // Calendly links the schedule-meeting modal offers for one lead/deal
+    Route::get('meetings/calendly-links', \App\Http\Controllers\CalendlyMeetingLinkOptionsController::class)->name('meetings.calendly_links');
 
     // Meeting Types
     Route::resource('meeting-types', MeetingTypeController::class);
@@ -1454,7 +1465,12 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::post('deals/{deal}/payment-requests', [DealPaymentController::class, 'store'])->name('deals.payment-requests.store');
     Route::post('deals/{deal}/payment-request/confirm', [DealPaymentController::class, 'confirm'])->name('deals.payment-request.confirm');
     Route::post('deals/{deal}/payment-request/cancel', [DealPaymentController::class, 'cancel'])->name('deals.payment-request.cancel');
+    Route::delete('deals/{deal}/payment-requests/{payment}', [DealPaymentController::class, 'destroy'])->name('deals.payment-requests.destroy');
     Route::post('deals/{deal}/payment-requests/{payment}/retry', [DealPaymentController::class, 'retry'])->name('deals.payment-requests.retry');
+    Route::post('deals/{deal}/payment-requests/{payment}/documents/request', [DealPaymentController::class, 'requestDocuments'])
+        ->name('deals.payment-requests.documents.request');
+    Route::get('deals/{deal}/payment-requests/{payment}/documents-status', [DealPaymentController::class, 'documentStatus'])
+        ->name('deals.payment-requests.documents.status');
     Route::get('deals/{deal}/payment-requests/{payment}/documents/{kind}', [DealPaymentController::class, 'document'])
         ->whereIn('kind', ['invoice', 'receipt'])
         ->name('deals.payment-requests.document');
@@ -1472,6 +1488,8 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::post('telephony/softphone/devices', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'store'])->name('telephony.softphone.devices.store');
     Route::get('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'show'])->name('telephony.softphone.devices.show')->whereNumber('id');
     Route::get('telephony/softphone/devices/{id}/credentials', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'credentials'])->name('telephony.softphone.devices.credentials')->whereNumber('id');
+    Route::post('telephony/softphone/devices/{id}/capacity/reserve', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'reserveCapacity'])->name('telephony.softphone.devices.capacity.reserve')->whereNumber('id');
+    Route::post('telephony/softphone/devices/{id}/capacity/release', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'releaseCapacity'])->name('telephony.softphone.devices.capacity.release')->whereNumber('id');
 
     Route::put('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'update'])->name('telephony.softphone.devices.update')->whereNumber('id');
     Route::delete('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'destroy'])->name('telephony.softphone.devices.destroy')->whereNumber('id');

@@ -29,6 +29,7 @@ import PdfFilesSection from "./components/PdfFilesSection";
 import DevelopersSection from "./components/DevelopersSection";
 import ProjectOffersSection from "../../Features/Offers/ProjectOffersSection";
 import HiddenBadge from "./components/HiddenBadge";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 // ============================================
 // Types
@@ -237,6 +238,7 @@ const Show = ({
     developerProjects,
     visibility,
 }: ShowProps) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const [activeSection, setActiveSection] = useState<SectionKey>(
         () => parseSectionFromUrl() ?? "overview",
@@ -318,21 +320,21 @@ const Show = ({
             case "exterior":
                 return (
                     <ImageGallerySection
-                        title="Exterior Images"
+                        title={td("Exterior Images", { source: "en" })}
                         images={imagesByTag.exterior || []}
                     />
                 );
             case "interior":
                 return (
                     <ImageGallerySection
-                        title="Interior Images"
+                        title={td("Interior Images", { source: "en" })}
                         images={imagesByTag.interior || []}
                     />
                 );
             case "siteplan":
                 return (
                     <ImageGallerySection
-                        title="Site Plan / Floor Plan"
+                        title={td("Site Plan / Floor Plan", { source: "en" })}
                         images={[
                             ...(imagesByTag["floor-plan"] || []),
                             ...(imagesByTag["site-plan"] || []),
@@ -384,7 +386,7 @@ const Show = ({
                                     className="flex items-center gap-1 text-gray-500 hover:text-gray-700 text-sm transition-colors"
                                 >
                                     <ArrowLeft size={14} />
-                                    <span>Back</span>
+                                    <span>{td("Back", { source: "en" })}</span>
                                 </Link>
                                 <span className="text-gray-300">|</span>
                             </div>

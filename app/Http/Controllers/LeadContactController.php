@@ -277,22 +277,14 @@ class LeadContactController extends AccountBaseController
     private function savedViewsForUser(): array
     {
         $userId = (int) user()->id;
+        $isAdmin = LeadSavedView::viewerIsAdmin();
 
         return LeadSavedView::query()
             ->visibleTo($userId)
             ->with('owner:id,name')
             ->orderByDesc('updated_at')
             ->get()
-            ->map(fn (LeadSavedView $view) => [
-                'id' => $view->id,
-                'name' => $view->name,
-                'filters' => $view->filters,
-                'visibility' => $view->visibility,
-                'pinned' => $view->pinned,
-                'is_owner' => (int) $view->user_id === $userId,
-                'owner_name' => $view->owner?->name,
-                'updated_at' => $view->updated_at?->toIso8601String(),
-            ])
+            ->map(fn (LeadSavedView $view) => $view->presentFor($userId, $isAdmin))
             ->all();
     }
 
@@ -333,8 +325,10 @@ class LeadContactController extends AccountBaseController
         // Only qualified leads have deals, and once one exists the page is
         // about the deal: open on the first deal the viewer may see (open
         // deals first). The deal page runs its own access check.
+        // "+ New deal" on a deal page comes here with ?new_deal=1 to open the
+        // create-deal form on the person, so that one request stays.
         $deals = $contactDeals->forLead((int) $id, user());
-        if ($deals !== []) {
+        if ($deals !== [] && ! $request->boolean('new_deal')) {
             return redirect()->route('agent.people.deal', ['lead' => (int) $id, 'deal' => $deals[0]['id']]);
         }
 
@@ -637,6 +631,7 @@ class LeadContactController extends AccountBaseController
                 $leadFollowUpsQuery = DealFollowUp::with([
                     'addedBy:id,name,image',
                     'host:id,name,image',
+                    'outcomeLoggedBy:id,name,image',
                     'meetingType',
                     'meetingSummary',
                     'deal:id,name,lead_id',

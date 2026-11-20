@@ -2,7 +2,13 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Modal, message } from "antd";
 import { router, usePage } from "@inertiajs/react";
 import {
+    activeModeOf,
+    isValuelessMode,
+    modeKeyOf,
     useFilter,
+    valueKeysOf,
+    withoutIdleModes,
+    type ExclusionMode,
     type FilterConfig,
     type FilterFieldConfig,
     type FilterOption,
@@ -11,6 +17,7 @@ import {
     CheckList,
     DatePresets,
     FieldShell,
+    ModeSwitch,
     PillGroup,
     ScoreRange,
     Segmented,
@@ -23,12 +30,15 @@ import {
 import UtmSection from "./UtmSection";
 import SaveViewPopover from "./SaveViewPopover";
 import ViewsBar from "./ViewsBar";
+import SavedViewsDrawer from "./SavedViewsDrawer";
 import { describeFilters, suggestViewName } from "./filterSummary";
 import useLeadSavedViews, {
     type LeadSavedView,
     type SavedViewEntity,
 } from "./useLeadSavedViews";
 import "./entity-filter-modal.css";
+import { useTranslation } from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const UTM_SECTION = "Campaign (UTM)";
 
@@ -43,6 +53,18 @@ interface EntityFilterModalProps {
     savedViews?: boolean;
     /** Which saved-view route group the bar reads and writes. */
     savedViewEntity?: SavedViewEntity;
+}
+
+/** Exactly what the backend will read back as query params: no blanks. */
+function storableFilters(filters: Record<string, any>): Record<string, any> {
+    return Object.fromEntries(
+        Object.entries(filters).filter(
+            ([, value]) =>
+                value != null &&
+                value !== "" &&
+                !(Array.isArray(value) && value.length === 0),
+        ),
+    );
 }
 
 function optionsOf(field: FilterFieldConfig): FilterOption[] {
@@ -119,6 +141,8 @@ export default function EntityFilterModal({
     savedViews: savedViewsEnabled = true,
     savedViewEntity = "lead",
 }: EntityFilterModalProps) {
+    const { t } = useTranslation();
+    const { td } = useTd();
     const { isDrawerOpen, closeDrawer, draftFilters, setFilter, applyFilters } =
         useFilter();
     const { props } = usePage<any>();
@@ -130,6 +154,7 @@ export default function EntityFilterModal({
     const { saving, createView, updateView, deleteView } =
         useLeadSavedViews(savedViewEntity);
     const [savePopoverOpen, setSavePopoverOpen] = useState(false);
+    const [viewsDrawerOpen, setViewsDrawerOpen] = useState(false);
     const [renameTarget, setRenameTarget] = useState<LeadSavedView | null>(
         null,
     );
@@ -186,15 +211,35 @@ export default function EntityFilterModal({
     );
 
     const parts = useMemo(
-        () => describeFilters(config, draftFilters),
-        [config, draftFilters],
+        () => describeFilters(config, draftFilters, { t, td }),
+        [config, draftFilters, t, td],
     );
+
+    /** Whether a field has a value of its own, apart from its mode. */
+    const hasDraftValue = (field: FilterFieldConfig) => {
+        return valueKeysOf(field).some((key) => {
+            const value = draftFilters[key];
+            return (
+                value != null &&
+                value !== "" &&
+                !(Array.isArray(value) && value.length === 0)
+            );
+        });
+    };
 
     /** Active-filter count per section, for the rail badges. */
     const sectionCounts = useMemo(() => {
         const counts: Record<string, number> = {};
         for (const section of sections) {
             counts[section.name] = section.fields.reduce((total, field) => {
+                // "Is empty" / "Has any" filter with no value of their own. "Is not"
+                // with nothing picked filters nothing, so it does not count.
+                if (
+                    isValuelessMode(activeModeOf(field, draftFilters)) &&
+                    !hasDraftValue(field)
+                ) {
+                    return total + 1;
+                }
                 if (field.control === "datePresets") {
                     const [startKey, endKey] = rangeKeysOf(field);
                     return (
@@ -223,10 +268,14 @@ export default function EntityFilterModal({
     }, [sections, draftFilters]);
 
     const activeFilterCount = parts.length;
+    const entity = td(entityLabel, { source: "en" });
 
     const clearDraft = useCallback(() => {
         for (const field of config.fields) {
             setFilter(field.key, null);
+            if (field.exclusions?.length) {
+                setFilter(modeKeyOf(field.key), null);
+            }
             if (field.control === "datePresets") {
                 rangeKeysOf(field).forEach((key) => setFilter(key, null));
             }
@@ -248,7 +297,10 @@ export default function EntityFilterModal({
 
     const applyView = (view: LeadSavedView) => {
         clearDraft();
-        for (const [key, value] of Object.entries(view.filters ?? {})) {
+        // A view saved before idle modes were dropped may still carry one.
+        for (const [key, value] of Object.entries(
+            withoutIdleModes(config, view.filters ?? {}),
+        )) {
             setFilter(key, value);
         }
         setActiveViewId(view.id);
@@ -259,25 +311,25 @@ export default function EntityFilterModal({
         visibility: "private" | "team";
         pinned: boolean;
     }) => {
-        // Persist exactly what the backend will read back as query params.
-        const filters = Object.fromEntries(
-            Object.entries(draftFilters).filter(
-                ([, value]) =>
-                    value != null &&
-                    value !== "" &&
-                    !(Array.isArray(value) && value.length === 0),
-            ),
-        );
-
+        // Renaming changes the name, pin and sharing only. A view's filters are
+        // replaced on purpose, from the drawer ("Update with current filters"),
+        // never as a side effect of a rename: for an admin on a team view that
+        // would silently overwrite what the whole team has saved.
         const result = renameTarget
-            ? await updateView(renameTarget.id, { ...payload, filters })
-            : await createView({ ...payload, filters });
+            ? await updateView(renameTarget.id, payload)
+            : // Persist exactly what the backend will read back as query params.
+              await createView({
+                  ...payload,
+                  filters: storableFilters(
+                      withoutIdleModes(config, draftFilters),
+                  ),
+              });
 
         if (result) {
             message.success(
                 payload.visibility === "team"
-                    ? `View saved and shared with your team.`
-                    : `View saved.`,
+                    ? t("pages.filters.view_saved_team")
+                    : t("pages.filters.view_saved"),
             );
             if (typeof result !== "boolean") setActiveViewId(result.id);
             setSavePopoverOpen(false);
@@ -285,7 +337,10 @@ export default function EntityFilterModal({
         }
     };
 
-    const renderField = (field: FilterFieldConfig) => {
+    const renderFieldControl = (
+        field: FilterFieldConfig,
+        modeSwitch?: React.ReactNode,
+    ) => {
         const value = draftFilters[field.key];
         const counts = (field.facetKey ? facets[field.facetKey] : undefined) as
             FacetCounts | undefined;
@@ -299,9 +354,10 @@ export default function EntityFilterModal({
                     <FieldShell
                         key={field.key}
                         label={field.label}
+                        action={modeSwitch}
                         hint={
                             value?.length
-                                ? `${value.length} selected`
+                                ? t("pages.filters.selected_n", { n: value.length })
                                 : undefined
                         }
                     >
@@ -318,7 +374,7 @@ export default function EntityFilterModal({
                 return (
                     <div className="lfm-flagrow" key={field.key}>
                         <span className="lfm-flagrow__label">
-                            {field.label}
+                            {td(field.label, { source: "en" })}
                         </span>
                         <Segmented
                             options={options}
@@ -333,9 +389,10 @@ export default function EntityFilterModal({
                     <FieldShell
                         key={field.key}
                         label={field.label}
+                        action={modeSwitch}
                         hint={
                             value?.length
-                                ? `${value.length} selected`
+                                ? t("pages.filters.selected_n", { n: value.length })
                                 : undefined
                         }
                     >
@@ -344,31 +401,51 @@ export default function EntityFilterModal({
                             value={value ?? []}
                             counts={counts}
                             onChange={set}
-                            searchPlaceholder={field.placeholder}
+                            searchPlaceholder={
+                                field.placeholder
+                                    ? td(field.placeholder, { source: "en" })
+                                    : undefined
+                            }
                         />
                     </FieldShell>
                 );
 
             case "tokens":
                 return (
-                    <FieldShell key={field.key} label={field.label}>
+                    <FieldShell
+                        key={field.key}
+                        label={field.label}
+                        action={modeSwitch}
+                    >
                         <TokenSelect
                             options={options}
                             value={value ?? []}
                             onChange={set}
-                            placeholder={field.placeholder}
+                            placeholder={
+                                field.placeholder
+                                    ? td(field.placeholder, { source: "en" })
+                                    : undefined
+                            }
                         />
                     </FieldShell>
                 );
 
             case "select":
                 return (
-                    <FieldShell key={field.key} label={field.label}>
+                    <FieldShell
+                        key={field.key}
+                        label={field.label}
+                        action={modeSwitch}
+                    >
                         <SingleSelect
                             options={options}
                             value={value ?? null}
                             onChange={set}
-                            placeholder={field.placeholder}
+                            placeholder={
+                                field.placeholder
+                                    ? td(field.placeholder, { source: "en" })
+                                    : undefined
+                            }
                         />
                     </FieldShell>
                 );
@@ -376,7 +453,11 @@ export default function EntityFilterModal({
             case "datePresets": {
                 const [startKey, endKey] = rangeKeysOf(field);
                 return (
-                    <FieldShell key={field.key} label={field.label}>
+                    <FieldShell
+                        key={field.key}
+                        label={field.label}
+                        action={modeSwitch}
+                    >
                         <DatePresets
                             start={draftFilters[startKey]}
                             end={draftFilters[endKey]}
@@ -384,9 +465,9 @@ export default function EntityFilterModal({
                                 setFilter(
                                     startKey,
                                     start,
-                                    `${field.label} from`,
+                                    t("pages.filters.label_from", { label: td(field.label, { source: "en" }) }),
                                 );
-                                setFilter(endKey, end, `${field.label} to`);
+                                setFilter(endKey, end, t("pages.filters.label_to", { label: td(field.label, { source: "en" }) }));
                             }}
                         />
                     </FieldShell>
@@ -395,7 +476,11 @@ export default function EntityFilterModal({
 
             case "scoreRange":
                 return (
-                    <FieldShell key={field.key} label={field.label}>
+                    <FieldShell
+                        key={field.key}
+                        label={field.label}
+                        action={modeSwitch}
+                    >
                         <ScoreRange
                             min={draftFilters[`min_${field.key}`]}
                             max={draftFilters[`max_${field.key}`]}
@@ -403,12 +488,12 @@ export default function EntityFilterModal({
                                 setFilter(
                                     `min_${field.key}`,
                                     min,
-                                    `Min ${field.label}`,
+                                    t("pages.filters.label_min", { label: td(field.label, { source: "en" }) }),
                                 );
                                 setFilter(
                                     `max_${field.key}`,
                                     max,
-                                    `Max ${field.label}`,
+                                    t("pages.filters.label_max", { label: td(field.label, { source: "en" }) }),
                                 );
                             }}
                         />
@@ -420,9 +505,10 @@ export default function EntityFilterModal({
                     <FieldShell
                         key={field.key}
                         label={field.label}
+                        action={modeSwitch}
                         hint={
                             value?.length
-                                ? `${value.length} selected`
+                                ? t("pages.filters.selected_n", { n: value.length })
                                 : undefined
                         }
                     >
@@ -437,11 +523,19 @@ export default function EntityFilterModal({
 
             default:
                 return (
-                    <FieldShell key={field.key} label={field.label}>
+                    <FieldShell
+                        key={field.key}
+                        label={field.label}
+                        action={modeSwitch}
+                    >
                         <input
                             className="lfm-text"
                             value={value ?? ""}
-                            placeholder={field.placeholder}
+                            placeholder={
+                                field.placeholder
+                                    ? td(field.placeholder, { source: "en" })
+                                    : undefined
+                            }
                             onChange={(event) =>
                                 set(event.target.value || null)
                             }
@@ -449,6 +543,64 @@ export default function EntityFilterModal({
                     </FieldShell>
                 );
         }
+    };
+
+    /**
+     * One field: its control, plus the "is one of / is not / is empty / has
+     * any" switch when the field offers exclusions. Empty and Has any need no
+     * values, so the control gives way to a one-line explanation.
+     */
+    const renderField = (field: FilterFieldConfig) => {
+        if (!field.exclusions?.length) return renderFieldControl(field);
+
+        const mode = activeModeOf(field, draftFilters);
+        const subject = td(field.sentence ?? field.label, { source: "en" }).toLowerCase();
+
+        const setMode = (next: ExclusionMode | null) => {
+            setFilter(modeKeyOf(field.key), next);
+            if (isValuelessMode(next)) {
+                // These modes ignore values: don't leave a hidden selection behind.
+                setFilter(field.key, null);
+                valueKeysOf(field).forEach((key) => setFilter(key, null));
+            }
+        };
+
+        const modeSwitch = (
+            <ModeSwitch
+                modes={field.exclusions}
+                value={mode}
+                labels={field.exclusionLabels}
+                onChange={setMode}
+                label={t("pages.filters.mode_aria", {
+                    field: td(field.label, { source: "en" }),
+                })}
+            />
+        );
+
+        if (isValuelessMode(mode)) {
+            return (
+                <FieldShell
+                    key={field.key}
+                    label={field.label}
+                    action={modeSwitch}
+                >
+                    <p className="lfm-modenote">
+                        {t(`pages.filters.mode_note_${mode}`, { entity, field: subject })}
+                    </p>
+                </FieldShell>
+            );
+        }
+
+        return (
+            <div className="lfm-fieldwrap" key={field.key}>
+                {renderFieldControl(field, modeSwitch)}
+                {mode === "not_in" && (
+                    <p className="lfm-modenote lfm-modenote--tight">
+                        {t("pages.filters.mode_note_not_in", { entity, field: subject })}
+                    </p>
+                )}
+            </div>
+        );
     };
 
     const utmFields = useMemo(
@@ -473,12 +625,15 @@ export default function EntityFilterModal({
                 <header className="lfm-header">
                     <div>
                         <h2 className="lfm-header__title">
-                            Filter {entityLabel}
+                            {t("pages.filters.modal_title", { entity })}
                         </h2>
                         <p className="lfm-header__sub">
                             {totalRows != null
-                                ? `Narrow ${fmt(totalRows)} ${entityLabel} down to the list you want to work today.`
-                                : `Narrow your ${entityLabel} down to the list you want to work today.`}
+                                ? t("pages.filters.modal_sub_total", {
+                                      total: fmt(totalRows),
+                                      entity,
+                                  })
+                                : t("pages.filters.modal_sub", { entity })}
                         </p>
                     </div>
                     <div className="lfm-header__actions">
@@ -512,8 +667,8 @@ export default function EntityFilterModal({
                                         setSearchText("");
                                     }
                                 }}
-                                placeholder="Search filters and options…"
-                                aria-label="Search filters and options"
+                                placeholder={t("pages.filters.search_filters_placeholder")}
+                                aria-label={t("pages.filters.search_filters_aria")}
                                 autoFocus
                             />
                             {searchText && (
@@ -521,7 +676,7 @@ export default function EntityFilterModal({
                                     type="button"
                                     className="lfm-search__clear"
                                     onClick={() => setSearchText("")}
-                                    aria-label="Clear search"
+                                    aria-label={t("pages.filters.clear_search")}
                                 >
                                     ✕
                                 </button>
@@ -533,13 +688,13 @@ export default function EntityFilterModal({
                             onClick={clearDraft}
                             disabled={activeFilterCount === 0}
                         >
-                            Reset
+                            {t("pages.filters.reset")}
                         </button>
                         <button
                             type="button"
                             className="lfm-iconbtn"
                             onClick={closeDrawer}
-                            aria-label="Close"
+                            aria-label={t("pages.filters.close")}
                         >
                             ✕
                         </button>
@@ -565,6 +720,7 @@ export default function EntityFilterModal({
                             void deleteView(view.id);
                             if (activeViewId === view.id) setActiveViewId(null);
                         }}
+                        onManage={() => setViewsDrawerOpen(true)}
                     />
                 )}
 
@@ -581,7 +737,7 @@ export default function EntityFilterModal({
                                 }`}
                                 onClick={() => scrollToSection(section.name)}
                             >
-                                <span>{section.name}</span>
+                                <span>{td(section.name, { source: "en" })}</span>
                                 {sectionCounts[section.name] > 0 && (
                                     <span className="lfm-rail__badge">
                                         {sectionCounts[section.name]}
@@ -592,17 +748,19 @@ export default function EntityFilterModal({
                         <div className="lfm-rail__spacer" />
                         <div className="lfm-estimate">
                             <div className="lfm-estimate__label">
-                                Current list
+                                {t("pages.filters.current_list")}
                             </div>
                             <div className="lfm-estimate__value">
                                 {currentCount != null
-                                    ? `${fmt(currentCount)} ${entityLabel}`
+                                    ? t("pages.filters.entity_count", { n: fmt(currentCount), entity })
                                     : "—"}
                             </div>
                             <div className="lfm-estimate__sub">
                                 {totalRows != null
-                                    ? `of ${fmt(totalRows)} · updates on Apply`
-                                    : "updates on Apply"}
+                                    ? t("pages.filters.of_total_updates", {
+                                          total: fmt(totalRows),
+                                      })
+                                    : t("pages.filters.updates_on_apply")}
                             </div>
                         </div>
                     </nav>
@@ -610,21 +768,26 @@ export default function EntityFilterModal({
                     <div className="lfm-pane" ref={paneRef}>
                         {optionsLoading && (
                             <div className="lfm-loading">
-                                Loading filter options…
+                                {t("pages.filters.loading_options")}
                             </div>
                         )}
                         {query && (
                             <div className="lfm-search-summary" role="status">
                                 {visibleFieldCount === 0
-                                    ? `No filters or options match “${searchText.trim()}”.`
-                                    : `${visibleFieldCount} ${visibleFieldCount === 1 ? "filter matches" : "filters match"} “${searchText.trim()}”.`}
+                                    ? t("pages.filters.no_filters_match", {
+                                          query: searchText.trim(),
+                                      })
+                                    : t("pages.filters.filters_match", {
+                                          count: visibleFieldCount,
+                                          query: searchText.trim(),
+                                      })}
                                 {visibleFieldCount === 0 && (
                                     <button
                                         type="button"
                                         className="lfm-search-summary__reset"
                                         onClick={() => setSearchText("")}
                                     >
-                                        Show all filters
+                                        {t("pages.filters.show_all_filters")}
                                     </button>
                                 )}
                             </div>
@@ -637,7 +800,7 @@ export default function EntityFilterModal({
                             >
                                 {index > 0 && <div className="lfm-divider" />}
                                 <h3 className="lfm-section__title">
-                                    {section.name}
+                                    {td(section.name, { source: "en" })}
                                 </h3>
                                 {section.name === UTM_SECTION ? (
                                     <UtmSection
@@ -668,7 +831,7 @@ export default function EntityFilterModal({
                                 <button
                                     type="button"
                                     className="lfm-tray__x"
-                                    aria-label={`Remove ${part.label} filter`}
+                                    aria-label={t("pages.filters.remove_filter", { label: part.label })}
                                     onClick={() => {
                                         part.keys.forEach((key) =>
                                             setFilter(key, null),
@@ -682,7 +845,7 @@ export default function EntityFilterModal({
                         ))}
                         {parts.length === 0 && (
                             <span className="lfm-tray__empty">
-                                No filters yet — everything below is optional.
+                                {t("pages.filters.no_filters_yet")}
                             </span>
                         )}
                     </div>
@@ -697,7 +860,7 @@ export default function EntityFilterModal({
                                 }}
                                 disabled={activeFilterCount === 0}
                             >
-                                Save as view
+                                {t("pages.filters.save_as_view")}
                             </button>
                         )}
                         <button
@@ -705,14 +868,36 @@ export default function EntityFilterModal({
                             className="lfm-btn lfm-btn--primary"
                             onClick={applyFilters}
                         >
-                            Apply filters
+                            {t("pages.filters.apply_filters")}
                         </button>
                     </div>
+
+                    <SavedViewsDrawer
+                        open={viewsDrawerOpen}
+                        views={savedViews}
+                        config={config}
+                        activeViewId={activeViewId}
+                        saving={saving}
+                        currentFilters={storableFilters(
+                            withoutIdleModes(config, draftFilters),
+                        )}
+                        onClose={() => setViewsDrawerOpen(false)}
+                        onApply={(view) => {
+                            applyView(view);
+                            setViewsDrawerOpen(false);
+                        }}
+                        onUpdate={updateView}
+                        onDelete={async (id) => {
+                            const ok = await deleteView(id);
+                            if (ok && activeViewId === id) setActiveViewId(null);
+                            return ok;
+                        }}
+                    />
 
                     <SaveViewPopover
                         open={savePopoverOpen}
                         parts={parts}
-                        suggestedName={suggestViewName(parts)}
+                        suggestedName={suggestViewName(parts, { t, td })}
                         saving={saving}
                         existing={renameTarget}
                         onCancel={() => {

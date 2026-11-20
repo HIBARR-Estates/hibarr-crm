@@ -22,6 +22,10 @@ export interface RelatedRecord {
     person?: string | null;
     /** The person's mobile with its country code, when there is one. */
     phone?: string | null;
+    /** A deal's outcome once it is closed ("won" or "lost"); deals only. */
+    outcome?: "won" | "lost" | null;
+    /** The deal's person (its lead record); deals only. */
+    lead_id?: number | null;
 }
 
 /** A full task, so the row can open TaskDetailModal without a second fetch. */
@@ -47,6 +51,8 @@ export type ScheduleEntry = DealFollowup & {
     person?: string | null;
     /** The deal's pipeline stage name, when the meeting is on a deal. */
     deal_stage?: string | null;
+    /** The deal or lead it is on, in the task rows' shape. */
+    related?: RelatedRecord | null;
     location_label: string | null;
     at: string | null;
     duration: number;

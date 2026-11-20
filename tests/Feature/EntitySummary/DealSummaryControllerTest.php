@@ -19,6 +19,15 @@ class DealSummaryControllerTest extends TestCase
         $response->assertStatus(404);
     }
 
+    public function test_meeting_talking_points_routes_return_404_when_flag_disabled(): void
+    {
+        $this->setFeatureFlag('sales.ai-entity-summary', false);
+        $this->withoutMiddleware();
+
+        $this->get('/account/deals/1/meetings/2/talking-points')->assertStatus(404);
+        $this->post('/account/deals/1/meetings/2/talking-points')->assertStatus(404);
+    }
+
     public function test_deal_ai_summary_flag_is_known(): void
     {
         $this->assertContains('sales.ai-entity-summary', config('features.known_flags'));

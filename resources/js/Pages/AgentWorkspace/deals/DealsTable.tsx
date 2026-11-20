@@ -28,10 +28,10 @@ export default function DealsTable({ stages, views, userId, currencySymbol, nowM
         : undefined;
 
     return (
-        <div className="agent-dp__table" role="table" aria-label={t("pages.agent_workspace.deals.list_label")} aria-busy={views === undefined}>
+        <div className="agent-table agent-dp__table" role="table" aria-label={t("pages.agent_workspace.deals.list_label")} aria-busy={views === undefined}>
             <div role="row" className="agent-dp__head">
                 {COLUMNS.map((column) => (
-                    <span key={column} role="columnheader" className={`agent-dp__th agent-dp__c--${column}`} aria-sort={column === "stage" ? "descending" : undefined}>
+                    <span key={column} role="columnheader" className={`agent-table__th agent-dp__th agent-dp__c--${column}`} aria-sort={column === "stage" ? "descending" : undefined}>
                         {t(`pages.agent_workspace.deals.columns.${column}`)}
                         {column === "stage" ? " ↑" : ""}
                     </span>

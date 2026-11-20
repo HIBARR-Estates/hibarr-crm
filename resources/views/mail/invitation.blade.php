@@ -116,7 +116,7 @@
 
                     <!-- Header with Logo -->
                     <tr>
-                        <td role="banner" aria-label="Email header" class="header-td"
+                        <td role="banner" aria-label="{{ td('Email header') }}" class="header-td"
                             style="padding:24px 40px; border-bottom:1px solid #e5e7eb;">
                             <table cellpadding="0" cellspacing="0" border="0" role="presentation">
                                 <tr>
@@ -136,7 +136,7 @@
 
                     <!-- Body Content -->
                     <tr>
-                        <td role="main" aria-label="Main email content" class="body-td" style="padding:48px 40px;">
+                        <td role="main" aria-label="{{ td('Main email content') }}" class="body-td" style="padding:48px 40px;">
 
                             <!-- Content Card -->
                             <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"

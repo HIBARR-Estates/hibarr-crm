@@ -10,7 +10,7 @@
 </div>
 <div class="modal-body">
     <div class="row d-flex align-content-center justify-content-center">
-        <img id="imageCropper" src="" alt="Picture">
+        <img id="imageCropper" src="" alt="{{ td('Picture') }}">
     </div>
 </div>
 <div class="modal-footer">

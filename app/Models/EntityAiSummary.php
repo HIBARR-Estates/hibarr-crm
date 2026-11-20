@@ -13,6 +13,9 @@ class EntityAiSummary extends BaseModel
 
     public const TYPE_DEAL = 'deal';
 
+    /** Talking points for one meeting on a deal; entity_id is the meeting (lead_follow_up) id. */
+    public const TYPE_DEAL_MEETING = 'deal_meeting';
+
     protected $table = 'entity_ai_summaries';
 
     protected $fillable = [

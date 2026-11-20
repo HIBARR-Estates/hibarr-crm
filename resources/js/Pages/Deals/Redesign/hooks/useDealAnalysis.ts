@@ -33,14 +33,23 @@ export interface UseDealAnalysisReturn {
     complete: (completionType: CompletionType, unfilledCount: number, afterSaves?: Promise<unknown>) => Promise<void>;
 }
 
-export default function useDealAnalysis(): UseDealAnalysisReturn {
+interface UseDealAnalysisOptions {
+    /**
+     * Open on mount when the analysis isn't complete (the deal page). The agent
+     * workspace passes false: the page opens first, and the analysis only when
+     * the agent asks for it.
+     */
+    openOnMount?: boolean;
+}
+
+export default function useDealAnalysis({ openOnMount = true }: UseDealAnalysisOptions = {}): UseDealAnalysisReturn {
     const { deal, setDeal } = useDealWorkspace();
 
     const isCompleted = deal.analysis_status === "completed";
 
     // Show on mount if not completed and not minimized this session.
     const [isOpen, setIsOpen] = useState<boolean>(() => {
-        if (isCompleted) return false;
+        if (isCompleted || !openOnMount) return false;
         return !wasMinimized(deal.id);
     });
 

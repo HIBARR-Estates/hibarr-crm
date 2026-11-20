@@ -99,7 +99,7 @@ export default function ResponseDistribution({ data }: { data: Data }) {
                                 />
                             </div>
                             <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>
-                                {bucket.label}
+                                {td(bucket.label, { source: "en" })}
                             </span>
                         </div>
                     );

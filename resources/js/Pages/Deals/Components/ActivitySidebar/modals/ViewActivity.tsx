@@ -11,6 +11,7 @@ import {
 } from "@ant-design/icons";
 import { Activity } from "@/Types/api/activity";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Paragraph } = Typography;
 
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export default function ViewActivity({ open, onClose, activity }: Props) {
+    const { td } = useTd();
     if (!activity) return null;
 
     const formatDate = (timestamp: string) =>
@@ -101,7 +103,7 @@ export default function ViewActivity({ open, onClose, activity }: Props) {
             title={
                 <div className="flex items-center">
                     {getChannelIcon(activity.channel_type)}
-                    <span>Activity Details</span>
+                    <span>{td("Activity Details", { source: "en" })}</span>
                 </div>
             }
             open={open}
@@ -109,7 +111,7 @@ export default function ViewActivity({ open, onClose, activity }: Props) {
             width={700}
             footer={[
                 <Button key="close" type="primary" onClick={onClose}>
-                    Close
+                    {td("Close", { source: "en" })}
                 </Button>,
             ]}
             className="view-activity-modal"
@@ -157,7 +159,7 @@ export default function ViewActivity({ open, onClose, activity }: Props) {
                     <Descriptions.Item
                         label={
                             <span className="font-medium text-gray-700">
-                                Activity ID
+                                {td("Activity ID", { source: "en" })}
                             </span>
                         }
                     >
@@ -168,7 +170,7 @@ export default function ViewActivity({ open, onClose, activity }: Props) {
                         <Descriptions.Item
                             label={
                                 <span className="font-medium text-gray-700">
-                                    Subject
+                                    {td("Subject", { source: "en" })}
                                 </span>
                             }
                         >
@@ -181,7 +183,7 @@ export default function ViewActivity({ open, onClose, activity }: Props) {
                     <Descriptions.Item
                         label={
                             <span className="font-medium text-gray-700">
-                                Channel Type
+                                {td("Channel Type", { source: "en" })}
                             </span>
                         }
                     >
@@ -198,7 +200,7 @@ export default function ViewActivity({ open, onClose, activity }: Props) {
                     <Descriptions.Item
                         label={
                             <span className="font-medium text-gray-700">
-                                Timestamp
+                                {td("Timestamp", { source: "en" })}
                             </span>
                         }
                     >
@@ -209,7 +211,7 @@ export default function ViewActivity({ open, onClose, activity }: Props) {
                         <Descriptions.Item
                             label={
                                 <span className="font-medium text-gray-700">
-                                    Sender
+                                    {td("Sender", { source: "en" })}
                                 </span>
                             }
                         >
@@ -221,7 +223,7 @@ export default function ViewActivity({ open, onClose, activity }: Props) {
                         <Descriptions.Item
                             label={
                                 <span className="font-medium text-gray-700">
-                                    Duration
+                                    {td("Duration", { source: "en" })}
                                 </span>
                             }
                         >
@@ -237,7 +239,7 @@ export default function ViewActivity({ open, onClose, activity }: Props) {
                             orientation="left"
                             className="font-medium text-gray-700"
                         >
-                            Message Content
+                            {td("Message Content", { source: "en" })}
                         </Divider>
                         <div className="bg-white border border-gray-200 rounded-lg p-4">
                             <Paragraph className="text-gray-800 leading-relaxed mb-0">
@@ -254,11 +256,11 @@ export default function ViewActivity({ open, onClose, activity }: Props) {
                             orientation="left"
                             className="font-medium text-gray-700"
                         >
-                            Additional Information
+                            {td("Additional Information", { source: "en" })}
                         </Divider>
                         <div className="bg-blue-50 p-3 rounded-lg">
                             <Text className="text-sm text-blue-800">
-                                <strong>Activity Type:</strong> {activity.type}
+                                <strong>{td("Activity Type:", { source: "en" })}</strong> {activity.type}
                             </Text>
                         </div>
                     </>

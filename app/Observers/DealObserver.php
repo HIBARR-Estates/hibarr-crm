@@ -202,7 +202,10 @@ class DealObserver
         // outcome revert path (outcome_status, won_at, commission_locked)
         // stay writable.
         if ($deal->getOriginal('commission_locked') && ! $deal->isDirty('commission_locked')) {
-            $protected = array_merge(['agent_id'], Deal::VALUE_AFFECTING_KEYS);
+            $protected = array_merge(
+                ['agent_id', 'referral_pool_rate', 'referral_fixed_amount'],
+                Deal::VALUE_AFFECTING_KEYS,
+            );
             $blocked = [];
 
             foreach ($protected as $field) {

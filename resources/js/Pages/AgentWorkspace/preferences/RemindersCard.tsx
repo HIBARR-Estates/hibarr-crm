@@ -84,7 +84,7 @@ export default function RemindersCard({ data, barSlot }: { data: ReminderPrefere
                             <span className="agent-pr__reminder-text">{t("pages.agent_workspace.prefs.reminders.before_meeting")}</span>
                             <Button
                                 size="sm"
-                                variant="danger"
+                                className="agent-btn-danger-soft"
                                 disabled={!prefs.canRemove || off || busy}
                                 onClick={() => prefs.remove(index)}
                                 aria-label={t("pages.agent_workspace.prefs.reminders.remove")}

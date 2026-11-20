@@ -4,6 +4,7 @@ import { CalendarDays, AlertTriangle, Clock } from "lucide-react";
 import type { EnrollmentStatus } from "../types";
 import EnrollmentStatusBadge from "./EnrollmentStatusBadge";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface EnrollmentInfo {
     id: number;
@@ -30,6 +31,7 @@ interface Props {
 }
 
 const EnrollmentStatusCard: React.FC<Props> = ({ enrollment, activeCycle }) => {
+    const { td } = useTd();
     if (!enrollment) {
         return (
             <Card
@@ -39,8 +41,7 @@ const EnrollmentStatusCard: React.FC<Props> = ({ enrollment, activeCycle }) => {
                 <div className="flex items-center gap-3 text-gray-500">
                     <CalendarDays size={18} />
                     <span className="text-sm">
-                        No active cycle enrollment. You will be enrolled when
-                        the next cycle begins.
+                        {td("No active cycle enrollment. You will be enrolled when the next cycle begins.", { source: "en" })}
                     </span>
                 </div>
             </Card>
@@ -101,7 +102,7 @@ const EnrollmentStatusCard: React.FC<Props> = ({ enrollment, activeCycle }) => {
                                     {enrollment.days_remaining}
                                 </span>
                                 <span className="text-gray-500 text-xs">
-                                    days left
+                                    {td("days left", { source: "en" })}
                                 </span>
                             </div>
                             <Progress
@@ -125,7 +126,7 @@ const EnrollmentStatusCard: React.FC<Props> = ({ enrollment, activeCycle }) => {
                     type="warning"
                     showIcon
                     icon={<AlertTriangle size={16} />}
-                    message="Overflow Period"
+                    message={td("Overflow Period", { source: "en" })}
                     description={`You are in overtime. You have ${enrollment.days_remaining} day(s) remaining to meet criteria before your cycle resets.${enrollment.max_overflow_date ? ` Overflow expires: ${formatCompanyDate(enrollment.max_overflow_date)}` : ""}`}
                     className="text-sm"
                 />

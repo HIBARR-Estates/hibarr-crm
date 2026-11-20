@@ -21,6 +21,7 @@ import {
     PhoneOutlined,
     TeamOutlined,
     FileDoneOutlined,
+    ReloadOutlined,
 } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import TaskCategoryManager from "./TaskCategoryManager";
@@ -122,6 +123,19 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
                               ),
                           ),
                   },
+                  {
+                      key: "calendly-links",
+                      icon: <CalendarIcon />,
+                      iconBg: "bg-sky-50",
+                      iconColor: "text-sky-500",
+                      title: t("pages.meetings.calendly_settings.hub_title"),
+                      description: t(
+                          "pages.meetings.calendly_settings.hub_description",
+                      ),
+                      connected: true,
+                      onOpen: () =>
+                          router.visit(route("calendly-meeting-links.index")),
+                  },
               ]
             : []),
         {
@@ -198,6 +212,20 @@ export default function SettingsIndex({ pageTitle }: { pageTitle: string }) {
                       connected: true,
                       onOpen: () =>
                           router.visit(route("company-dashboard-access.index")),
+                  },
+              ]
+            : []),
+        ...(isAdmin
+            ? [
+                  {
+                      key: "cache-refresh",
+                      icon: <ReloadOutlined />,
+                      iconBg: "bg-slate-50",
+                      iconColor: "text-slate-600",
+                      title: t("pages.cache_refresh.title"),
+                      description: t("pages.cache_refresh.card_desc"),
+                      connected: true,
+                      onOpen: () => router.visit(route("cache-refresh.index")),
                   },
               ]
             : []),

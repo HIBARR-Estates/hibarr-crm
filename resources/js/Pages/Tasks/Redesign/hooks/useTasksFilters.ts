@@ -15,6 +15,15 @@ export interface TasksFilterState {
     created_start_date?: string;
     created_end_date?: string;
     search?: string;
+    /** `<key>_mode`: "not_in" | "empty" | "any" — see ExclusionMode. */
+    status_mode?: string;
+    priority_mode?: string;
+    assigned_to_mode?: string;
+    assigned_by_mode?: string;
+    category_id_mode?: string;
+    labels_mode?: string;
+    project_id_mode?: string;
+    due_date_range_mode?: string;
 }
 
 /**
@@ -37,6 +46,10 @@ export function hasFilter(value: unknown): boolean {
     return appliedValues(value).length > 0;
 }
 
+/** "Is empty" / "Has any" carry no values, so they count as one selection themselves. */
+const isValueless = (mode: unknown): boolean =>
+    mode === "empty" || mode === "any";
+
 /**
  * Task filter badge count — filter application itself goes through
  * `FilterContext`/`taskFilterConfig`, this hook just counts active
@@ -47,17 +60,21 @@ export default function useTasksFilters(filters: TasksFilterState) {
     const activeCount = useMemo(() => {
         let total = 0;
 
-        total += appliedValues(filters.status).length;
-        total += appliedValues(filters.priority).length;
-        total += appliedValues(filters.assigned_to).length;
-        total += appliedValues(filters.assigned_by).length;
-        total += appliedValues(filters.category_id).length;
-        total += appliedValues(filters.labels).length;
+        const counted = (value: unknown, mode: unknown) =>
+            isValueless(mode) ? 1 : appliedValues(value).length;
+
+        total += counted(filters.status, filters.status_mode);
+        total += counted(filters.priority, filters.priority_mode);
+        total += counted(filters.assigned_to, filters.assigned_to_mode);
+        total += counted(filters.assigned_by, filters.assigned_by_mode);
+        total += counted(filters.category_id, filters.category_id_mode);
+        total += counted(filters.labels, filters.labels_mode);
 
         if (
-            filters.project_id != null &&
-            filters.project_id !== "" &&
-            filters.project_id !== "all"
+            isValueless(filters.project_id_mode) ||
+            (filters.project_id != null &&
+                filters.project_id !== "" &&
+                filters.project_id !== "all")
         ) {
             total += 1;
         }
@@ -67,6 +84,7 @@ export default function useTasksFilters(filters: TasksFilterState) {
         }
 
         if (
+            isValueless(filters.due_date_range_mode) ||
             hasFilter(filters.due_date_range) ||
             hasFilter(filters.due_start_date) ||
             hasFilter(filters.due_end_date)

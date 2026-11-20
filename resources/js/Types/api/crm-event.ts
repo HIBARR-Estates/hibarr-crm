@@ -40,7 +40,9 @@ export type CrmEventStatus =
     | "completed"
     | "error_occurred"
     | "missed"
-    | "rejected";
+    | "rejected"
+    /** Connected, but to voicemail rather than a person. */
+    | "voicemail";
 export type CrmEventDirection = "inbound" | "outbound";
 export type CrmEventGenerationType =
     | "user_generated"

@@ -8,6 +8,7 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Paragraph } = Typography;
 
@@ -25,6 +26,7 @@ const AssetGridView: React.FC<AssetGridViewProps> = ({
     onAssetClick,
     onAssetSelect,
 }) => {
+    const { td } = useTd();
     const getAssetIcon = (assetType: PropertyAsset["asset_type"]) => {
         switch (assetType) {
             case "image":
@@ -42,7 +44,7 @@ const AssetGridView: React.FC<AssetGridViewProps> = ({
     if (assets.length === 0) {
         return (
             <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
-                <Empty description="No assets found."  />
+                <Empty description={td("No assets found.", { source: "en" })}  />
             </div>
         );
     }
@@ -105,7 +107,7 @@ const AssetGridView: React.FC<AssetGridViewProps> = ({
                                     <div className="w-full h-full flex items-center justify-center bg-gray-200">
                                         <FileImageOutlined className="text-6xl text-gray-400" />
                                         <div className="absolute bottom-2 text-xs text-gray-500">
-                                            No URL
+                                            {td("No URL", { source: "en" })}
                                         </div>
                                     </div>
                                 )

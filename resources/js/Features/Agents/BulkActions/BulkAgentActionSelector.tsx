@@ -4,6 +4,7 @@ import { Role } from "@/Types";
 import BulkChangeAgentRole from "./BulkChangeAgentRole";
 import BulkChangeAgentStatus from "./BulkChangeAgentStatus";
 import BulkDeleteAgents from "./BulkDeleteAgents";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type TAgentBulkAction = "delete" | "enable" | "disable" | "change_role";
 
@@ -30,6 +31,7 @@ const BulkAgentActionSelector: React.FC<Props> = ({
     clearSelected,
     roles = [],
 }) => {
+    const { td } = useTd();
     const [action, setAction] = React.useState<TAgentBulkAction>();
     const [open, setOpen] = React.useState(false);
 
@@ -70,7 +72,7 @@ const BulkAgentActionSelector: React.FC<Props> = ({
                     {selectedEntityIds.length} selected
                 </span>
                 <Select
-                    placeholder="Choose action"
+                    placeholder={td("Choose action", { source: "en" })}
                     value={action}
                     onChange={setAction}
                     style={{ width: 180 }}
@@ -83,7 +85,7 @@ const BulkAgentActionSelector: React.FC<Props> = ({
                     disabled={!action}
                     onClick={onApply}
                 >
-                    Apply
+                    {td("Apply", { source: "en" })}
                 </Button>
             </div>
         </>

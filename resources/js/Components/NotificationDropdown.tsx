@@ -58,6 +58,7 @@ import { useNotificationAlertSettings } from "@/contexts/NotificationAlertSettin
 import { usePermission, isPermissionAll } from "@/lib/permissionUtils";
 import { router } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 dayjs.extend(relativeTime);
 
@@ -113,6 +114,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
     onDismiss,
     onClick,
 }) => {
+    const { td } = useTd();
     const handleClick = useCallback(() => {
         onClick(notification);
     }, [notification, onClick]);
@@ -170,7 +172,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                             >
                                 {notification.title}
                             </Text>
-                            <Tooltip title="Clear">
+                            <Tooltip title={td("Clear", { source: "en" })}>
                                 <Button
                                     type="text"
                                     size="small"
@@ -179,7 +181,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                                     }
                                     onClick={handleDismiss}
                                     className="opacity-70 group-hover:opacity-100 transition-opacity flex-shrink-0 -mt-0.5"
-                                    aria-label="Clear notification"
+                                    aria-label={td("Clear notification", { source: "en" })}
                                 />
                             </Tooltip>
                         </div>
@@ -230,6 +232,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     className = "",
     pollingInterval = 30000,
 }) => {
+    const { td } = useTd();
     const [open, setOpen] = useState(false);
     // Bump when acknowledgment changes so badge recalculates without a refetch.
     const [ackVersion, setAckVersion] = useState(0);
@@ -339,7 +342,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <BellOutlined className="text-lg" />
-                    <Text strong>Notifications</Text>
+                    <Text strong>{td("Notifications", { source: "en" })}</Text>
                     {notifications.length > 0 && (
                         <Badge
                             count={notifications.length}
@@ -383,7 +386,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                             // an explicit bump to actually render on top.
                             zIndex={1400}
                         >
-                            <Tooltip title="Alert settings">
+                            <Tooltip title={td("Alert settings", { source: "en" })}>
                                 <Button
                                     type="text"
                                     size="small"
@@ -425,7 +428,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                             loading={isMarkingRead}
                             className="text-xs"
                         >
-                            Mark all as read
+                            {td("Mark all as read", { source: "en" })}
                         </Button>
                     )}
                 </div>
@@ -458,7 +461,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                 ) : (
                     <Empty
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        description="No new notifications"
+                        description={td("No new notifications", { source: "en" })}
                         className="py-8"
                     />
                 )}
@@ -472,7 +475,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                     onClick={handleViewAll}
                     className="flex items-center justify-center gap-1"
                 >
-                    View all notifications
+                    {td("View all notifications", { source: "en" })}
                     <RightOutlined className="text-xs" />
                 </Button>
             </div>
