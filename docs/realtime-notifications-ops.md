@@ -71,6 +71,27 @@ Notes for this setup:
 - Containers normally get a very high open-file limit, so the descriptor limit that matters on a plain host is not
   an issue here.
 
+### Separate instance per environment (`docker-compose.reverb.yml`)
+
+Where the app is not on Coolify (e.g. production), or if you simply want each environment to have its own Reverb,
+run `docker-compose.reverb.yml` once per environment. Each instance has its own secrets and shares nothing, so a
+token from one can never work on the other.
+
+```bash
+cp docker/reverb.env.example .env.reverb.production   # fill it in; never commit it
+docker compose -p hibarr-reverb-production --env-file .env.reverb.production -f docker-compose.reverb.yml up -d
+```
+
+- Use the **same image tag as that environment's app**, and an Infisical identity for that environment only.
+- It listens on `REVERB_BIND:REVERB_PORT_LOCAL` (default `127.0.0.1:8080`). Point `REVERB_PUBLISH_HOST/PORT/SCHEME`
+  at it from the app (`127.0.0.1` / `8080` / `http` if it runs on the same machine; otherwise set `REVERB_BIND` to a
+  private interface and use that address).
+- Whatever fronts the environment must serve the public `ws.<domain>` host over TLS and forward `/app` with the
+  WebSocket upgrade (`Upgrade` / `Connection: upgrade`, HTTP/1.1) and an idle timeout of at least 120 s.
+- It runs from its image, so unlike the supervisor setup it does **not** need a restart on every app deploy: restart
+  it when the image tag, `config/reverb.php` or the `REVERB_*` values change. Open tabs reconnect on their own.
+- `ulimits.nofile` is set to 65536 (one descriptor per open tab).
+
 ### Host deployments (Jenkins + supervisor), if you still have any
 
 `scripts/fix_for_supervisor_reverb.sh` (called from the Jenkinsfile) runs Reverb under supervisor on a host and
