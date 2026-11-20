@@ -60,6 +60,14 @@ export interface CalendarDayBuckets {
 }
 
 interface MeetingsCalendarViewProps {
+    /**
+     * The month on screen (`YYYY-MM`). Owned by the page, not read off `data`:
+     * `data` can still be the previous month's while the next one loads, and
+     * the toolbar has to move on the moment it is clicked.
+     */
+    month: string;
+    /** True while `data` is not yet this month's (or is being re-read). */
+    loading?: boolean;
     data: CalendarPayload;
     onMonthChange: (month: string) => void;
     /** The viewer's own tasks/events/tickets/leave for this month. */
@@ -136,6 +144,8 @@ export function chipTone(event: CalendarEvent) {
 }
 
 export default function MeetingsCalendarView({
+    month,
+    loading = false,
     data,
     onMonthChange,
     overlayEvents,
@@ -164,7 +174,7 @@ export default function MeetingsCalendarView({
     // clicking the arrow dozens of times.
     const [monthPickerOpen, setMonthPickerOpen] = useState(false);
 
-    const monthStart = dayjs(`${data.month}-01`);
+    const monthStart = dayjs(`${month}-01`);
 
     const weekdays = useMemo(() => {
         // Week starts Monday; derived from dayjs so it follows the locale.
@@ -176,7 +186,10 @@ export default function MeetingsCalendarView({
 
     const meetingsByDay = useMemo(() => {
         const map = new Map<string, CalendarEvent[]>();
-        data.events.forEach((event) => {
+        // Another month's meetings would land in the wrong cells of this
+        // one's grid, so while it loads the grid is empty rather than wrong.
+        const events = data.month === month ? data.events : [];
+        events.forEach((event) => {
             if (!event.start) return;
             const key = dayjs
                 .utc(event.start)
@@ -187,7 +200,7 @@ export default function MeetingsCalendarView({
             else map.set(key, [event]);
         });
         return map;
-    }, [data.events, timezone]);
+    }, [data.events, data.month, month, timezone]);
 
     /**
      * A toggle appears when the month actually has rows of that type — no dead
@@ -245,11 +258,11 @@ export default function MeetingsCalendarView({
         }
         return result;
         // `monthStart` is a fresh Dayjs instance every render (derived from
-        // `data.month`, not memoized itself) — keying on it would recompute
-        // this on every render regardless of whether the month actually
-        // changed. `data.month` is the stable value that actually matters.
+        // `month`, not memoized itself) — keying on it would recompute this
+        // on every render regardless of whether the month actually changed.
+        // `month` is the stable value that actually matters.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data.month]);
+    }, [month]);
 
     const todayKey = dayjs().tz(timezone).format("YYYY-MM-DD");
 
@@ -259,12 +272,24 @@ export default function MeetingsCalendarView({
     return (
         <div
             className="overflow-hidden"
+            aria-busy={loading}
             style={{
                 background: T.WHITE,
                 border: `1px solid ${T.BORDER}`,
                 borderRadius: 10,
             }}
         >
+            {/* A month (or a re-read after a change) is on its way. The
+                toolbar above stays live; only the grid below waits. */}
+            <div
+                aria-hidden
+                className={loading ? "animate-pulse" : undefined}
+                style={{
+                    height: 2,
+                    background: loading ? T.BLUE : "transparent",
+                    transition: "background 120ms ease",
+                }}
+            />
             <div
                 className="flex flex-wrap items-center gap-4 px-[18px] py-3.5"
                 style={{ borderBottom: `1px solid ${T.BORDER_SOFT}` }}
@@ -454,7 +479,13 @@ export default function MeetingsCalendarView({
                 ))}
             </div>
 
-            <div className="grid grid-cols-7">
+            <div
+                className="grid grid-cols-7"
+                style={{
+                    opacity: loading ? 0.55 : 1,
+                    transition: "opacity 120ms ease",
+                }}
+            >
                 {cells.map(({ date, key }) => {
                     const dayKey = date?.format("YYYY-MM-DD");
                     const dayMeetings = dayKey

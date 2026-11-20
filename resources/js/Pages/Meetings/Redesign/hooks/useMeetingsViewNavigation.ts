@@ -4,7 +4,12 @@ import { router } from "@inertiajs/react";
 import type { MeetingsViewMode } from "../adapters/meetingViewModel";
 import type { UserCalendarEventType } from "./useUserCalendarEvents";
 
-const VIEW_STORAGE_KEY = "hibarr_meetings_view";
+/**
+ * A cookie rather than localStorage because the *server* needs it: the month
+ * grid is only prepared for the calendar, so which view this browser opens on
+ * has to be known before the first response, not after the page has run.
+ */
+const VIEW_COOKIE = "hibarr_meetings_view";
 const OVERLAY_STORAGE_KEY = "hibarr_meetings_calendar_overlay_types";
 
 /** Everything the overlay can show, on by default. */
@@ -41,21 +46,25 @@ function isViewMode(value: unknown): value is MeetingsViewMode {
     return VIEW_MODES.includes(value as MeetingsViewMode);
 }
 
+function rememberView(view: MeetingsViewMode): void {
+    try {
+        document.cookie = `${VIEW_COOKIE}=${view}; path=/; max-age=31536000; SameSite=Lax`;
+    } catch {
+        // A preference is a nicety; the page still works without it.
+    }
+}
+
 /**
- * `?view=` wins, so a shared link always lands on the view it names; failing
- * that the browser's last choice, which is what someone who always works in
- * the list expects to come back to.
+ * `?view=` wins, so a shared link always lands on the view it names. Failing
+ * that, the view the server opened the page on — it knows this browser's
+ * remembered choice and whether the link is about the list (an attendance
+ * deep link), and is what decided which data to send, so following it keeps
+ * the two from disagreeing. The calendar is the default.
  */
-function initialView(): MeetingsViewMode {
+function initialView(fromServer?: MeetingsViewMode): MeetingsViewMode {
     const fromQuery = queryParam("view");
     if (isViewMode(fromQuery)) return fromQuery;
-    if (typeof window === "undefined") return "list";
-    try {
-        const stored = localStorage.getItem(VIEW_STORAGE_KEY);
-        return isViewMode(stored) ? stored : "list";
-    } catch {
-        return "list";
-    }
+    return isViewMode(fromServer) ? fromServer : "calendar";
 }
 
 function initialMonth(): string {
@@ -77,16 +86,16 @@ function initialMonth(): string {
  * server data, but as a partial reload of the deferred `calendarMeetings` key
  * — the page itself never re-renders from scratch.
  */
-export default function useMeetingsViewNavigation() {
-    const [view, setViewState] = useState<MeetingsViewMode>(initialView);
+export default function useMeetingsViewNavigation(
+    serverView?: MeetingsViewMode,
+) {
+    const [view, setViewState] = useState<MeetingsViewMode>(() =>
+        initialView(serverView),
+    );
 
     const setView = useCallback((next: MeetingsViewMode) => {
         setViewState(next);
-        try {
-            localStorage.setItem(VIEW_STORAGE_KEY, next);
-        } catch {
-            // Preference is a nicety; failing to store it isn't an error.
-        }
+        rememberView(next);
     }, []);
 
     const [calendarMonth, setCalendarMonth] = useState<string>(initialMonth);
@@ -106,8 +115,10 @@ export default function useMeetingsViewNavigation() {
             url.searchParams.set("view", "calendar");
             url.searchParams.set("cal_month", month);
         } else {
-            // List is the default, so it needs no parameter of its own.
-            url.searchParams.delete("view");
+            // Named, not left implicit: the calendar is the default, so a
+            // list link without it would open as a calendar for whoever
+            // received it.
+            url.searchParams.set("view", "list");
             url.searchParams.delete("cal_month");
         }
         window.history.replaceState(window.history.state, "", url.toString());

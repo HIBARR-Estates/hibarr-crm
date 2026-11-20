@@ -20,5 +20,9 @@ class EncryptCookies extends Middleware
         // Same reason: the browser owns whether the "next up" cards show, and
         // the list query has to know, because it leaves their meetings out.
         'hibarr_meetings_next_up',
+        // And whether the page opens on the calendar or the list: the server
+        // only prepares the month grid for the calendar, so it has to know
+        // which one this browser lands on before the first response.
+        'hibarr_meetings_view',
     ];
 }

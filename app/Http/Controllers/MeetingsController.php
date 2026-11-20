@@ -411,7 +411,26 @@ class MeetingsController extends AccountBaseController
             // fetch instead of racing it with a duplicate request.
             $props['calendarRequestedMonth'] = null;
 
-            if ($request->get('view') === 'calendar') {
+            // The server decides the opening view and tells the page, so the
+            // two cannot disagree about it (the month grid is only prepared
+            // for the calendar).
+            //
+            // A link is about the list when it names a tab, an attendance
+            // outcome or a date window: the calendar shows a whole month and
+            // deliberately ignores a date range, so "meetings between X and
+            // Y" or "N missed" would otherwise open on a grid that cannot
+            // show what the link points at.
+            $view = $this->resolveView(
+                $request,
+                $request->filled('tab')
+                    || $attendanceFilter !== null
+                    || $wantsUnrecordedAttendance
+                    || $dateFrom !== null
+                    || $dateTo !== null
+            );
+            $props['initialView'] = $view;
+
+            if ($view === 'calendar') {
                 $calendarMonth = $this->resolveCalendarMonth($request->get('cal_month'));
                 $props['calendarRequestedMonth'] = $calendarMonth->format('Y-m');
                 $props['calendarMeetings'] = Inertia::defer(
@@ -424,6 +443,37 @@ class MeetingsController extends AccountBaseController
         }
 
         return Inertia::render('Meetings/Index', $props);
+    }
+
+    /**
+     * Which view the page opens on: the one the URL names, else the list when
+     * the link is about the list (an attendance deep link, a tab, a date
+     * window), else the
+     * one this browser last used (a cookie the page writes), else the
+     * calendar.
+     *
+     * The calendar is the default because "what is on this week" is what
+     * people open Meetings to see. It matters that the server agrees with
+     * the client about it: the month grid is a deferred prop registered only
+     * for the calendar, so a server that assumed the list would make every
+     * cold load of the default view wait on a second request for its data.
+     */
+    private function resolveView(Request $request, bool $linkedToList): string
+    {
+        $named = $request->get('view');
+        if (in_array($named, ['list', 'calendar'], true)) {
+            return $named;
+        }
+
+        // "N missed meetings" and `?tab=past` are about rows in the list;
+        // landing those on a month grid would hide what the link points at.
+        if ($linkedToList) {
+            return 'list';
+        }
+
+        $remembered = $request->cookie('hibarr_meetings_view');
+
+        return in_array($remembered, ['list', 'calendar'], true) ? $remembered : 'calendar';
     }
 
     /**

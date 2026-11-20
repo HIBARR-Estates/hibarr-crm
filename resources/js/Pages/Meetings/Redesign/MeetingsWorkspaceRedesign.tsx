@@ -124,6 +124,7 @@ export default function MeetingsWorkspaceRedesign() {
         meetings: meetingsProp,
         tabCounts,
         activeTab,
+        initialView,
         filterPeople,
         calendarMeetings,
         calendarRequestedMonth,
@@ -151,7 +152,7 @@ export default function MeetingsWorkspaceRedesign() {
         setCalendarMonth,
         overlayTypes,
         toggleOverlayType,
-    } = useMeetingsViewNavigation();
+    } = useMeetingsViewNavigation(initialView);
 
     // The viewer's own tasks/events/tickets/leave for the shown month, from
     // the endpoint the legacy My Calendar page already uses. Fetched only
@@ -692,8 +693,15 @@ export default function MeetingsWorkspaceRedesign() {
                             meetings.total === 0 && tabCounts[activeTab] > 0
                         }
                     />
-                ) : calendarMeetings && calendarReady && !calendarLoading ? (
+                ) : calendarMeetings ? (
+                    // Any month already in hand keeps the calendar on screen:
+                    // the toolbar stays usable and the grid dims while the
+                    // requested month (or a re-read after a change) arrives.
+                    // The skeleton is only for the very first load, when
+                    // there is nothing to show yet.
                     <MeetingsCalendarView
+                        month={calendarMonth}
+                        loading={!calendarReady || calendarLoading}
                         data={calendarMeetings}
                         onMonthChange={setCalendarMonth}
                         overlayEvents={overlayEvents}

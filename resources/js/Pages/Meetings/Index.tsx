@@ -49,6 +49,7 @@ import MeetingsWorkspaceRedesign from "./Redesign/MeetingsWorkspaceRedesign";
 import type {
     MeetingsTab,
     MeetingsTabCounts,
+    MeetingsViewMode,
 } from "./Redesign/adapters/meetingViewModel";
 import type { CalendarPayload } from "./Redesign/components/MeetingsCalendarView";
 
@@ -87,6 +88,12 @@ export interface MeetingsRedesignPageProps extends MeetingsSharedProps {
     meetings: PaginatedFollowupResponse;
     tabCounts: MeetingsTabCounts;
     activeTab: MeetingsTab;
+    /**
+     * The view the server opened the page on (calendar unless this browser
+     * remembered the list, or the link is about the list). The server only
+     * prepares the month grid for the calendar, so the page follows it.
+     */
+    initialView: MeetingsViewMode;
     calendarMeetings?: CalendarPayload;
     /** Month this render registered the deferred calendar for, else null. */
     calendarRequestedMonth: string | null;
