@@ -236,6 +236,12 @@ class PartnerInviteService
                             'message' => __('pages.partners.msg_resend_deactivated'),
                         ];
                     }
+                    if ($outcome === self::ACCEPTED) {
+                        return [
+                            'ok' => false,
+                            'message' => __('pages.partners.msg_resend_accepted'),
+                        ];
+                    }
                     if ($outcome === self::BUSY) {
                         return [
                             'ok' => false,
@@ -544,7 +550,7 @@ class PartnerInviteService
      * partner is removed first (nothing is sent to Keycloak), or provisioning
      * finishes and is recorded first (removal then disables the new identity).
      *
-     * @return self::PROVISIONED|self::PROVISION_FAILED|self::REMOVED|self::DEACTIVATED|self::BUSY
+     * @return self::PROVISIONED|self::PROVISION_FAILED|self::REMOVED|self::DEACTIVATED|self::ACCEPTED|self::BUSY
      */
     private function provisionFor(User $user): string
     {
@@ -566,6 +572,11 @@ class PartnerInviteService
             // the identity; until then there is nothing to create.
             if ($this->isDeactivated($user)) {
                 return self::DEACTIVATED;
+            }
+            // A first sign-in can commit while this waited for the lock: someone
+            // who already accepted is not enrolled or welcomed again.
+            if ($this->isAccepted($user)) {
+                return self::ACCEPTED;
             }
 
             [$first, $last] = self::splitName((string) $user->name);
