@@ -48,6 +48,11 @@ export interface DealPaymentRequest {
     invalidated_at: string | null;
     invalidated_by: DealPaymentVerifiedBy | null;
     invalidation_reason: string | null;
+    /** True once an invoice has been requested; documents exist only after that. */
+    documents_requested: boolean;
+    documents_requested_at: string | null;
+    /** True once the invoice has been generated; a receipt needs it. */
+    invoice_issued: boolean;
     added_by: DealPaymentVerifiedBy | null;
     last_updated_by: DealPaymentVerifiedBy | null;
     remarks: string | null;

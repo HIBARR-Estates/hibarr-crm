@@ -183,6 +183,47 @@ class DealPaymentController extends AccountBaseController
         ]);
     }
 
+    public function requestDocuments(Deal $deal, Payment $payment): JsonResponse
+    {
+        $this->assertFeatureEnabled();
+        if ($deal->isLocked()) {
+            abort_403(true);
+        }
+        // Requesting an invoice lets a legal invoice number be taken, so it
+        // needs the same write access as cancelling or retrying a request.
+        $this->assertCanCancelPaymentRequest($deal);
+        abort_unless((int) $payment->deal_id === (int) $deal->id, 404);
+        abort_unless(filled($payment->external_reference), 404);
+
+        try {
+            $this->documents->requestDocuments($payment, user()?->id);
+        } catch (HttpException $e) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => $e->getMessage(),
+            ], $e->getStatusCode());
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->dealPaymentService->serializeDealPayment($payment->fresh(['currency'])),
+        ]);
+    }
+
+    /** Read-only state of one request, so the modal can see when an invoice has been made. */
+    public function documentStatus(Deal $deal, Payment $payment): JsonResponse
+    {
+        $this->assertFeatureEnabled();
+        $this->assertCanReadPaymentDocuments($deal);
+        abort_unless((int) $payment->deal_id === (int) $deal->id, 404);
+        abort_unless(filled($payment->external_reference), 404);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->dealPaymentService->serializeDealPayment($payment->fresh(['currency'])),
+        ]);
+    }
+
     public function document(Deal $deal, Payment $payment, string $kind)
     {
         $this->assertFeatureEnabled();

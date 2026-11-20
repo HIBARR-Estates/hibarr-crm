@@ -68,6 +68,7 @@ class DealPaymentService
 
         $requests = $this->dealRequestsQuery($deal)
             ->with('currency')
+            ->withExists('invoiceDocuments as invoice_document_exists')
             ->orderByDesc('id')
             ->get()
             ->map(fn (Payment $payment) => $this->serializeDealPayment(
@@ -672,6 +673,13 @@ class DealPaymentService
             'invalidated_at' => $payment->invalidated_at?->toIso8601String(),
             'invalidated_by' => $people['invalidated_by'],
             'invalidation_reason' => $payment->invalidation_reason,
+            'documents_requested' => $payment->documents_requested_at !== null,
+            // List queries load invoice_document_exists in bulk; a single payment asks once.
+            'invoice_issued' => $payment->documents_requested_at !== null
+                && (($payment->getAttribute('invoice_document_exists') !== null)
+                    ? (bool) $payment->getAttribute('invoice_document_exists')
+                    : $payment->invoiceDocuments()->exists()),
+            'documents_requested_at' => $payment->documents_requested_at?->toIso8601String(),
             'added_by' => $people['added_by'],
             'last_updated_by' => $people['last_updated_by'],
             'remarks' => $payment->remarks,

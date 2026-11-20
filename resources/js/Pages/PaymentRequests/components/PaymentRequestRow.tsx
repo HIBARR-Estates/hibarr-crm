@@ -92,7 +92,8 @@ export default function PaymentRequestRow({
     };
     const leadLabel = [row.lead_name, row.lead_company].filter(Boolean).join(" · ");
     const leadUrl = row.lead_id && leadLabel ? leadHref(row.lead_id) : null;
-    const invoiceUrl = invoiceHref(row);
+    // Invoices exist only once someone has requested them.
+    const invoiceUrl = row.documents_requested ? invoiceHref(row) : null;
     const linkExpired = isCheckoutLinkExpired(row);
     const activeLink = hasActiveCheckoutLink(row);
     const foreignCurrency = Boolean(
@@ -219,9 +220,14 @@ export default function PaymentRequestRow({
                         <Icon name="download" size={14} />
                         {t("pages.payment_requests.action_invoice")}
                     </a>
-                ) : (
-                    <Button variant="ghost" size="sm" disabled icon={<Icon name="download" size={14} />}>
-                        {t("pages.payment_requests.action_invoice")}
+                ) : row.documents_requested || inactive ? null : (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onOpen}
+                        icon={<Icon name="file-text" size={14} />}
+                    >
+                        {t("pages.payment_requests.action_request_invoice")}
                     </Button>
                 )}
                 {activeLink && row.checkout_url && (
