@@ -1578,6 +1578,21 @@ class DealPaymentRequestTest extends TestCase
         $this->assertSame(1, DB::table('payment_documents')->where('kind', 'receipt')->count());
     }
 
+    public function test_a_receipt_cannot_be_issued_for_a_payment_that_was_not_collected(): void
+    {
+        $this->seedSellerSettings(['legal_name' => 'Örnek Emlak Ltd.', 'address' => 'Girne, KKTC', 'receipt_number_end' => 5000]);
+        $id = $this->insertPayment(['documents_requested_at' => now(), 'external_reference' => '884', 'ol_status' => 'pending', 'amount' => 100]);
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+
+        try {
+            app(DealPaymentDocumentService::class)->issue($payment, 'receipt');
+            $this->fail('Expected a receipt for an uncollected payment to be refused.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+        $this->assertSame(0, DB::table('payment_documents')->count());
+    }
+
     private function makeDeal(): Deal
     {
         return Deal::withoutGlobalScope(CompanyScope::class)->findOrFail($this->dealId);

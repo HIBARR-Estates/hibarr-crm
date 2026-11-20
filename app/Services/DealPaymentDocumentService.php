@@ -25,7 +25,8 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  * Documents exist only after someone records that the customer asked for an
  * invoice (requestDocuments); checkout itself collects the net amount and KDV
  * comes on top in the documents. A receipt exists only once the payment has
- * been collected and the invoice has been generated, and refers to that invoice.
+ * been collected. It does not need the invoice; when the invoice was already
+ * generated, the receipt settles it and refers to it.
  *
  * A document is issued the first time it is generated: it takes the next
  * number from the company's configured range and stores a snapshot of what
@@ -197,6 +198,11 @@ class DealPaymentDocumentService
         if ($kind === PaymentDocument::INVOICE
             && in_array(DealPaymentService::uiStateOf($payment), ['invalidated', 'failed'], true)) {
             throw new HttpException(409, 'This payment request ended before an invoice was issued.');
+        }
+
+        if ($kind === PaymentDocument::RECEIPT
+            && ! in_array(DealPaymentService::uiStateOf($payment), ['confirmed', 'paid_online'], true)) {
+            throw new HttpException(409, 'A receipt is available once the payment has been collected.');
         }
 
         // A receipt can be made without an invoice. When the invoice was
