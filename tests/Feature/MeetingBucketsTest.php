@@ -141,12 +141,44 @@ class MeetingBucketsTest extends TestCase
         $this->assertSame(5, (int) $counts->upcoming + (int) $counts->past);
     }
 
+    public function test_legacy_mode_keeps_the_rules_from_before_the_improvements(): void
+    {
+        // Without crm.meetings-page-improvements: Upcoming is "starts after now".
+        $cancelledFuture = $this->insertMeeting('cancelled', '+1 day');
+        $running = $this->insertMeeting('scheduled', '-10 minutes');
+        $scheduledFuture = $this->insertMeeting('scheduled', '+1 day');
+        $ended = $this->insertMeeting('scheduled', '-45 minutes');
+
+        $upcoming = $this->ids('scopeUpcoming', legacy: true);
+        $past = $this->ids('scopePast', legacy: true);
+
+        // A cancelled future meeting is in both tabs, a running one in neither
+        // — the behaviour the improvements fix, kept while the flag is off.
+        $this->assertEqualsCanonicalizing([$cancelledFuture, $scheduledFuture], $upcoming);
+        $this->assertEqualsCanonicalizing([$cancelledFuture, $ended], $past);
+        $this->assertNotContains($running, array_merge($upcoming, $past));
+        // Live is the same in both modes.
+        $this->assertSame([$running], $this->ids('scopeLive', legacy: true));
+    }
+
+    public function test_legacy_count_sql_reads_upcoming_as_starting_after_now(): void
+    {
+        $this->insertMeeting('cancelled', '+1 day');
+        $this->insertMeeting('scheduled', '-10 minutes');
+
+        [$sql, $bindings] = (new MeetingBuckets($this->now, legacy: true))->upcoming();
+
+        $count = (int) DB::table('lead_follow_up')->selectRaw("SUM($sql) as n", $bindings)->value('n');
+
+        $this->assertSame(1, $count);
+    }
+
     /** @return array<int, int> */
-    private function ids(string $scope): array
+    private function ids(string $scope, bool $legacy = false): array
     {
         $query = DB::table('lead_follow_up');
 
-        (new MeetingBuckets($this->now))->{$scope}($query);
+        (new MeetingBuckets($this->now, legacy: $legacy))->{$scope}($query);
 
         return $query->pluck('id')->map(fn ($id) => (int) $id)->all();
     }

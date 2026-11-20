@@ -32,8 +32,21 @@ const DEFAULT_DURATION_MINUTES = 30;
 export function meetingSummaryState(
     meeting: DealFollowup,
     bucket: "upcoming" | "live" | "past",
-    now: dayjs.Dayjs = dayjs(),
+    {
+        improved = false,
+        now = dayjs(),
+    }: { improved?: boolean; now?: dayjs.Dayjs } = {},
 ): MeetingSummaryState {
+    // Without `crm.meetings-page-improvements`: as it was — any past video
+    // meeting with a link and no summary is "generating", with no end.
+    if (!improved) {
+        if (!producesMeetingSummary(meeting.location, meeting.meeting_link)) {
+            return "none";
+        }
+        if (meeting.meeting_summary) return "ready";
+        return bucket === "past" ? "generating" : "none";
+    }
+
     // A summary that exists is a summary, whatever kind of meeting it was.
     if (meeting.meeting_summary) return "ready";
 

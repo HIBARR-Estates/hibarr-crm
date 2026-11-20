@@ -1,3 +1,4 @@
+import useMeetingsImprovementsFlag from "@/Hooks/useMeetingsImprovementsFlag";
 import { useEffect, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
@@ -65,6 +66,8 @@ export default function MeetingsReportDialog({
     const [form, setForm] = useState<MeetingReportInput>(EMPTY);
     const [attendance, setAttendance] = useState<Attendance>("unknown");
     const { submitReport, isSaving, errors, clearErrors } = useMeetingsReport();
+    // Without the improvements the form always opened empty.
+    const improved = useMeetingsImprovementsFlag();
 
     // Keyed on the meeting's id, not `open` alone — a report left half-typed
     // for one meeting must never be filed against the next, including if the
@@ -75,8 +78,9 @@ export default function MeetingsReportDialog({
         // Start from what the meeting's summary already says for the three
         // prompts, so filing a report edits it instead of looking like a
         // blank form that will replace it.
-        const existing = (meeting?.meeting_summary?.summary_object ??
-            {}) as Record<string, unknown>;
+        const existing = (improved
+            ? (meeting?.meeting_summary?.summary_object ?? {})
+            : {}) as Record<string, unknown>;
         const text = (key: string) =>
             typeof existing[key] === "string" ? (existing[key] as string) : "";
         setForm({

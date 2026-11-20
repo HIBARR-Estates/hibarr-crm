@@ -1,7 +1,9 @@
 import { useCallback, useState } from "react";
 import axios from "axios";
 import { message } from "antd";
+import { router } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
+import useMeetingsImprovementsFlag from "@/Hooks/useMeetingsImprovementsFlag";
 
 /** Statuses the bulk status action can set — the column's own enum. */
 export type MeetingBulkStatus = "scheduled" | "completed" | "cancelled";
@@ -16,9 +18,10 @@ interface UseMeetingsBulkActionsOptions {
     clearSelection: () => void;
     /**
      * Paints the change into the list the moment the server confirms it, so
-     * the rows react without waiting on the reload that follows.
+     * the rows react without waiting on the reload that follows. Only used
+     * with `crm.meetings-page-improvements`.
      */
-    onApplied: (change: MeetingBulkChange) => void;
+    onApplied?: (change: MeetingBulkChange) => void;
     /** Re-reads the list (and the cards, counts and pager) once it lands. */
     onChanged: () => void;
 }
@@ -56,6 +59,7 @@ export default function useMeetingsBulkActions({
     onChanged,
 }: UseMeetingsBulkActionsOptions) {
     const { t } = useTranslation();
+    const improved = useMeetingsImprovementsFlag();
     const [isApplying, setIsApplying] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -67,6 +71,27 @@ export default function useMeetingsBulkActions({
             // A second click while the first is in flight would send the same
             // ids twice — the second delete would find nothing to delete.
             if (selectedIds.length === 0 || isApplying) return;
+
+            // Without `crm.meetings-page-improvements`: an Inertia post that
+            // the server answers with a redirect, then the caller's reload.
+            if (!improved) {
+                setIsApplying(true);
+                router.post(
+                    route("deals.follow_up_apply_quick_action"),
+                    { ...data, row_ids: selectedIds.join(",") },
+                    {
+                        preserveScroll: true,
+                        onSuccess: () => {
+                            clearSelection();
+                            onChanged();
+                        },
+                        onError: () =>
+                            message.error(t("pages.meetings.ui.bulk_action_failed")),
+                        onFinish: () => setIsApplying(false),
+                    },
+                );
+                return;
+            }
 
             setIsApplying(true);
             try {
@@ -86,7 +111,7 @@ export default function useMeetingsBulkActions({
                 message.success(
                     result.message ?? t("pages.meetings.ui.done"),
                 );
-                onApplied(toChange(result.ids ?? selectedIds));
+                onApplied?.(toChange(result.ids ?? selectedIds));
                 clearSelection();
                 onChanged();
             } catch (error) {
@@ -98,7 +123,7 @@ export default function useMeetingsBulkActions({
                 setIsApplying(false);
             }
         },
-        [selectedIds, isApplying, clearSelection, onApplied, onChanged, t],
+        [selectedIds, isApplying, improved, clearSelection, onApplied, onChanged, t],
     );
 
     return {

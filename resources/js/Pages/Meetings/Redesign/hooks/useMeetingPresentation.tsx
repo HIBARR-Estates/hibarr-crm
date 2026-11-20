@@ -1,3 +1,4 @@
+import useMeetingsImprovementsFlag from "@/Hooks/useMeetingsImprovementsFlag";
 import dayjs from "dayjs";
 import {
     DeleteOutlined,
@@ -113,7 +114,8 @@ export default function useMeetingPresentation({
     );
     const { end } = meetingRange(meeting, timezone);
     const record = meetingRecordLink(meeting);
-    const summaryState = meetingSummaryState(meeting, bucket);
+    const improved = useMeetingsImprovementsFlag();
+    const summaryState = meetingSummaryState(meeting, bucket, { improved });
     const showJoin = canJoinMeeting(meeting, bucket);
 
     const dealStage = meeting.deal && "leadStage" in meeting.deal

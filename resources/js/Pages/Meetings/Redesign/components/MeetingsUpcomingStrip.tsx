@@ -1,6 +1,8 @@
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import useTranslation from "@/Hooks/useTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
+import EmptyState from "@/Components/Redesign/primitives/EmptyState";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import MeetingCard from "./MeetingCard";
@@ -27,6 +29,12 @@ interface MeetingsUpcomingStripProps {
      * stays out of the way.
      */
     listIsEmpty: boolean;
+    /**
+     * `crm.meetings-page-improvements`. Off, the strip renders nothing while
+     * it loads and shows its own dashed empty state when there is nothing
+     * next, as it did before.
+     */
+    improved: boolean;
 }
 
 /**
@@ -53,13 +61,15 @@ export default function MeetingsUpcomingStrip({
     canSchedule,
     hasAnyMeetings,
     listIsEmpty,
+    improved,
 }: MeetingsUpcomingStripProps) {
     const { timezone } = useUserDateTime();
     const { t } = useTranslation();
+    const { td } = useTd();
 
     // Still loading (the cards are a deferred prop): hold their place rather
     // than render nothing and push the list down when they arrive.
-    if (!meetings) return <StripSkeleton />;
+    if (!meetings) return improved ? <StripSkeleton /> : null;
 
     const handlers = (meeting: DealFollowup) => ({
         permissions,
@@ -69,6 +79,31 @@ export default function MeetingsUpcomingStrip({
         onDelete: () => onDelete(meeting),
         onReport: () => onReport(meeting),
     });
+
+    if (meetings.length === 0 && !improved) {
+        // Before the improvements: the strip's own dashed empty state, whatever
+        // the list below shows.
+        return (
+            <section className="mb-5" aria-label={t("pages.meetings.ui.next_meetings")}>
+                <StripHeading label={t("pages.meetings.ui.next_up")} />
+                <EmptyState
+                    icon="calendar"
+                    title={t("pages.meetings.ui.no_more_upcoming_meetings")}
+                    description={td(
+                        "Everything on your calendar has already happened. Book the next one when you are ready.",
+                    )}
+                    action={
+                        canSchedule
+                            ? {
+                                  label: t("pages.meetings.ui.schedule_a_meeting"),
+                                  onClick: onSchedule,
+                              }
+                            : undefined
+                    }
+                />
+            </section>
+        );
+    }
 
     if (meetings.length === 0) {
         // The list below is empty as well and has the full empty state: one

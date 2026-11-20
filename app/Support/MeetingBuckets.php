@@ -26,6 +26,10 @@ use Illuminate\Support\Facades\DB;
  *
  * A missing status reads as scheduled, the same default the browser applies
  * in `meetingBucket()`.
+ *
+ * `$legacy` restores the rules the page had before `crm.meetings-page-improvements`:
+ * Upcoming is "starts after now" (so a meeting in progress is in neither tab and a
+ * cancelled future one is in both), and a missing status is not read as scheduled.
  */
 final class MeetingBuckets
 {
@@ -34,7 +38,13 @@ final class MeetingBuckets
     public function __construct(
         private readonly CarbonInterface $now,
         private readonly int $defaultDuration = DealFollowUp::DEFAULT_DURATION_MINUTES,
+        private readonly bool $legacy = false,
     ) {}
+
+    private function status(): string
+    {
+        return $this->legacy ? 'status' : self::STATUS;
+    }
 
     /**
      * Start + duration, in the connection's own dialect. MySQL is what runs
@@ -57,7 +67,7 @@ final class MeetingBuckets
     public function live(): array
     {
         return [
-            '('.self::STATUS." = 'scheduled'"
+            '('.$this->status()." = 'scheduled'"
                 .' AND next_follow_up_date <= ?'
                 .' AND '.$this->endSql().' >= ?)',
             [$this->now, $this->defaultDuration, $this->now],
@@ -71,6 +81,10 @@ final class MeetingBuckets
      */
     public function upcoming(): array
     {
+        if ($this->legacy) {
+            return ['(next_follow_up_date > ?)', [$this->now]];
+        }
+
         return [
             '('.self::STATUS." = 'scheduled' AND ".$this->endSql().' >= ?)',
             [$this->defaultDuration, $this->now],
@@ -86,7 +100,7 @@ final class MeetingBuckets
     public function past(): array
     {
         return [
-            '('.self::STATUS." != 'scheduled' OR ".$this->endSql().' < ?)',
+            '('.$this->status()." != 'scheduled' OR ".$this->endSql().' < ?)',
             [$this->defaultDuration, $this->now],
         ];
     }

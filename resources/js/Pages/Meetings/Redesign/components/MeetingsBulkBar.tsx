@@ -14,7 +14,7 @@ interface MeetingsBulkBarProps {
     selectedIds: number[];
     clearSelection: () => void;
     /** Paints a confirmed change into the list ahead of the reload. */
-    onApplied: (change: MeetingBulkChange) => void;
+    onApplied?: (change: MeetingBulkChange) => void;
     onChanged: () => void;
     canEdit: boolean;
     canDelete: boolean;

@@ -10,6 +10,8 @@ import type { UserCalendarEventType } from "./useUserCalendarEvents";
  * has to be known before the first response, not after the page has run.
  */
 const VIEW_COOKIE = "hibarr_meetings_view";
+/** Where the view was remembered before the improvements (list by default). */
+const LEGACY_VIEW_STORAGE_KEY = "hibarr_meetings_view";
 const OVERLAY_STORAGE_KEY = "hibarr_meetings_calendar_overlay_types";
 
 /** Everything the overlay can show, on by default. */
@@ -61,9 +63,25 @@ function rememberView(view: MeetingsViewMode): void {
  * deep link), and is what decided which data to send, so following it keeps
  * the two from disagreeing. The calendar is the default.
  */
-function initialView(fromServer?: MeetingsViewMode): MeetingsViewMode {
+function initialView(
+    fromServer: MeetingsViewMode | undefined,
+    improved: boolean,
+): MeetingsViewMode {
     const fromQuery = queryParam("view");
     if (isViewMode(fromQuery)) return fromQuery;
+
+    // Without `crm.meetings-page-improvements`: the browser's last choice, and
+    // the list when it has none.
+    if (!improved) {
+        if (typeof window === "undefined") return "list";
+        try {
+            const stored = localStorage.getItem(LEGACY_VIEW_STORAGE_KEY);
+            return isViewMode(stored) ? stored : "list";
+        } catch {
+            return "list";
+        }
+    }
+
     return isViewMode(fromServer) ? fromServer : "calendar";
 }
 
@@ -87,38 +105,59 @@ function initialMonth(): string {
  * — the page itself never re-renders from scratch.
  */
 export default function useMeetingsViewNavigation(
-    serverView?: MeetingsViewMode,
+    serverView: MeetingsViewMode | undefined,
+    improved: boolean,
 ) {
     const [view, setViewState] = useState<MeetingsViewMode>(() =>
-        initialView(serverView),
+        initialView(serverView, improved),
     );
 
-    const setView = useCallback((next: MeetingsViewMode) => {
-        setViewState(next);
-        rememberView(next);
-    }, []);
+    const setView = useCallback(
+        (next: MeetingsViewMode) => {
+            setViewState(next);
+            if (improved) {
+                rememberView(next);
+                return;
+            }
+            try {
+                localStorage.setItem(LEGACY_VIEW_STORAGE_KEY, next);
+            } catch {
+                // Preference is a nicety; failing to store it isn't an error.
+            }
+        },
+        [improved],
+    );
 
     const [calendarMonth, setCalendarMonth] = useState<string>(initialMonth);
     const [overlayTypes, setOverlayTypes] =
         useState<UserCalendarEventType[]>(initialOverlayTypes);
 
-    const stateRef = useRef({ view, calendarMonth });
+    const stateRef = useRef({ view, calendarMonth, improved });
     useEffect(() => {
-        stateRef.current = { view, calendarMonth };
+        stateRef.current = { view, calendarMonth, improved };
     });
 
     const syncUrl = useCallback(() => {
         if (typeof window === "undefined") return;
-        const { view: currentView, calendarMonth: month } = stateRef.current;
+        const {
+            view: currentView,
+            calendarMonth: month,
+            improved: named,
+        } = stateRef.current;
         const url = new URL(window.location.href);
         if (currentView === "calendar") {
             url.searchParams.set("view", "calendar");
             url.searchParams.set("cal_month", month);
         } else {
-            // Named, not left implicit: the calendar is the default, so a
-            // list link without it would open as a calendar for whoever
-            // received it.
-            url.searchParams.set("view", "list");
+            if (named) {
+                // Named, not left implicit: the calendar is the default, so a
+                // list link without it would open as a calendar for whoever
+                // received it.
+                url.searchParams.set("view", "list");
+            } else {
+                // The list was the default, so it needed no parameter.
+                url.searchParams.delete("view");
+            }
             url.searchParams.delete("cal_month");
         }
         window.history.replaceState(window.history.state, "", url.toString());

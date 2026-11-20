@@ -66,9 +66,14 @@ interface MeetingsCalendarViewProps {
      * `data` can still be the previous month's while the next one loads, and
      * the toolbar has to move on the moment it is clicked.
      */
-    month: string;
+    month?: string;
     /** True while `data` is not yet this month's (or is being re-read). */
     loading?: boolean;
+    /**
+     * `crm.meetings-page-improvements`: reserve and draw the loading bar. Off,
+     * the calendar is as it was (it was never on screen while loading).
+     */
+    improved?: boolean;
     data: CalendarPayload;
     onMonthChange: (month: string) => void;
     /** The viewer's own tasks/events/tickets/leave for this month. */
@@ -145,8 +150,9 @@ export function chipTone(event: CalendarEvent) {
 }
 
 export default function MeetingsCalendarView({
-    month,
+    month: monthProp,
     loading = false,
+    improved = false,
     data,
     onMonthChange,
     overlayEvents,
@@ -176,6 +182,8 @@ export default function MeetingsCalendarView({
     // clicking the arrow dozens of times.
     const [monthPickerOpen, setMonthPickerOpen] = useState(false);
 
+    // Left out, the month on screen is the payload's own, as it was.
+    const month = monthProp ?? data.month;
     const monthStart = dayjs(`${month}-01`);
 
     const weekdays = useMemo(() => {
@@ -283,15 +291,17 @@ export default function MeetingsCalendarView({
         >
             {/* A month (or a re-read after a change) is on its way. The
                 toolbar above stays live; only the grid below waits. */}
-            <div
-                aria-hidden
-                className={loading ? "animate-pulse" : undefined}
-                style={{
-                    height: 2,
-                    background: loading ? T.BLUE : "transparent",
-                    transition: "background 120ms ease",
-                }}
-            />
+            {improved && (
+                <div
+                    aria-hidden
+                    className={loading ? "animate-pulse" : undefined}
+                    style={{
+                        height: 2,
+                        background: loading ? T.BLUE : "transparent",
+                        transition: "background 120ms ease",
+                    }}
+                />
+            )}
             <div
                 className="flex flex-wrap items-center gap-4 px-[18px] py-3.5"
                 style={{ borderBottom: `1px solid ${T.BORDER_SOFT}` }}

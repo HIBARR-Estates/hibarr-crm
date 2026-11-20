@@ -8,6 +8,8 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import MeetingDetailCompact from "@/Components/Redesign/modals/MeetingDetailCompact";
 import MeetingSummaryPanel from "@/Components/Redesign/meeting/MeetingSummaryPanel";
+import MeetingSummaryPanelLegacy from "@/Components/Redesign/meeting/MeetingSummaryPanelLegacy";
+import useMeetingsImprovementsFlag from "@/Hooks/useMeetingsImprovementsFlag";
 import { meetingSummaryState } from "@/Components/Redesign/meeting/meetingSummaryState";
 import {
     meetingBucket,
@@ -108,6 +110,7 @@ export default function MeetingViewModal({
     fallback,
 }: MeetingViewModalProps) {
     const redesignEnabled = useMeetingsPageRedesignFlag();
+    const improved = useMeetingsImprovementsFlag();
     const { timezone } = useUserDateTime();
     const { td } = useTd();
     const { t } = useTranslation();
@@ -152,17 +155,21 @@ export default function MeetingViewModal({
         setDeleteOpen,
     };
 
-    const summaryPanel = includeSummary ? (
+    const summaryState = meetingSummaryState(
+        meeting,
+        meetingBucket(meeting, timezone),
+        { improved },
+    );
+    const summaryPanel = !includeSummary ? undefined : improved ? (
         <MeetingSummaryPanel
             meeting={meeting}
             canEdit={canEdit}
             onChanged={onSummaryChanged}
-            state={meetingSummaryState(
-                meeting,
-                meetingBucket(meeting, timezone),
-            )}
+            state={summaryState}
         />
-    ) : undefined;
+    ) : (
+        <MeetingSummaryPanelLegacy meeting={meeting} state={summaryState} />
+    );
 
     return (
         <>

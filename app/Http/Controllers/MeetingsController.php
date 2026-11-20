@@ -34,6 +34,20 @@ class MeetingsController extends AccountBaseController
     private const REDESIGN_FLAG = 'crm.meetings-page-redesign';
 
     /**
+     * The page improvements, on top of the redesign. With it off every
+     * behaviour they changed is as it was before them: the bucket rules, the
+     * list-first default, the full lead/deal lists, the report that replaces
+     * a summary, and none of the new summary or lead-search endpoints.
+     */
+    private const IMPROVEMENTS_FLAG = 'crm.meetings-page-improvements';
+
+    private function improved(): bool
+    {
+        return FeatureFlags::enabled(self::REDESIGN_FLAG)
+            && FeatureFlags::enabled(self::IMPROVEMENTS_FLAG);
+    }
+
+    /**
      * Filter tabs the redesigned list accepts.
      *
      * No 'live' tab: a live meeting is called out in the strip, so a
@@ -84,6 +98,7 @@ class MeetingsController extends AccountBaseController
         // bucket scopes below — a meeting must land in exactly one of
         // Upcoming/Live/Past whichever page renders it.
         $redesign = FeatureFlags::enabled(self::REDESIGN_FLAG);
+        $improved = $redesign && FeatureFlags::enabled(self::IMPROVEMENTS_FLAG);
 
         $eagerLoads = [
             'deal:id,name,agent_id,value,currency_id,pipeline_stage_id,lead_id',
@@ -108,7 +123,7 @@ class MeetingsController extends AccountBaseController
         // tallies, the "next up" cards) reads it. Restating the rules per
         // query is how a cancelled meeting dated next week came to be both
         // Upcoming and Past, and a meeting in progress came to be neither.
-        $buckets = new MeetingBuckets($now, $defaultDuration);
+        $buckets = new MeetingBuckets($now, $defaultDuration, legacy: ! $improved);
 
         // The redesign's Upcoming tab: not over yet, so a meeting in progress
         // is still on it (it is the one you most want to find) and a
@@ -206,7 +221,10 @@ class MeetingsController extends AccountBaseController
         // ignores a date range, so "meetings between X and Y" or "N missed"
         // would otherwise open on a grid that cannot show what the link
         // points at.
-        $view = $redesign
+        //
+        // Without the improvements flag the page is list-first, as before:
+        // `?view=calendar` and nothing else picks the calendar.
+        $view = $improved
             ? $this->resolveView(
                 $request,
                 $request->filled('tab')
@@ -215,14 +233,14 @@ class MeetingsController extends AccountBaseController
                     || $dateFrom !== null
                     || $dateTo !== null
             )
-            : 'list';
+            : ($redesign && $request->get('view') === 'calendar' ? 'calendar' : 'list');
 
         // The list, its tab tallies, the cards and the "has any meetings"
         // probe are only for the list view. On the calendar they were four
         // queries (and a paginated one with eight relations) whose results
         // the page never drew — and every month change re-ran them. The page
         // asks for them with `view=list` when it switches over.
-        $loadList = $view === 'list';
+        $loadList = ! $improved || $view === 'list';
 
         // Ids the "next up" cards will claim, so the list below can leave
         // them out — a meeting belongs on the page once.
@@ -236,7 +254,7 @@ class MeetingsController extends AccountBaseController
         // list query depends on, so it rides along in a cookie the same way
         // the page size does. Hidden means no exclusions at all.
         $nextUpIds = $redesign && $loadList && $request->cookie('hibarr_meetings_next_up', '1') !== '0'
-            ? $this->upcomingSoonIds($userId, $buckets, $now)
+            ? $this->upcomingSoonIds($userId, $buckets, $now, $improved)
             : [];
 
         // ── Overview stats ─────────────────────────────────────────────
@@ -375,10 +393,10 @@ class MeetingsController extends AccountBaseController
         // schedulable lead and deal with each page load — unbounded, and
         // growing with the database — was only ever for its dropdown. The
         // legacy drawer still reads them.
-        $userDeals = $redesign
+        $userDeals = $improved
             ? collect()
             : MeetingVisibilityService::schedulableDealsQuery()->get();
-        $userLeads = $redesign
+        $userLeads = $improved
             ? collect()
             : MeetingVisibilityService::schedulableLeadsQuery()
                 ->get()
@@ -465,13 +483,17 @@ class MeetingsController extends AccountBaseController
             // The server decides the opening view and tells the page, so the
             // two cannot disagree about it (the month grid is only prepared
             // for the calendar, the list only for the list).
-            $props['initialView'] = $view;
+            if ($improved) {
+                $props['initialView'] = $view;
+            }
 
             // Whether "Ask for it again" can do anything: the retry webhook
             // is only configured once the meeting automation exposes a
             // trigger for it. Without it the summary tab offers writing the
             // summary by hand and no Retry button that could only fail.
-            $props['summaryRetryAvailable'] = (bool) config('app.automations.followups.summary_retry_webhook_url');
+            if ($improved) {
+                $props['summaryRetryAvailable'] = (bool) config('app.automations.followups.summary_retry_webhook_url');
+            }
 
             if ($view === 'calendar') {
                 $calendarMonth = $this->resolveCalendarMonth($request->get('cal_month'));
@@ -673,10 +695,12 @@ class MeetingsController extends AccountBaseController
             'next_steps' => trim($validated['next_steps'] ?? ''),
         ], 'strlen');
 
-        DB::transaction(function () use ($followUp, $summaryObject, $validated) {
+        $improved = $this->improved();
+
+        DB::transaction(function () use ($followUp, $summaryObject, $validated, $improved) {
             $summary = $followUp->meetingSummary;
 
-            if ($summary) {
+            if ($summary && $improved) {
                 // Merged into what is there, not put in its place: filing a
                 // report used to replace an automatic summary wholesale. The
                 // report's three prompts overwrite their own keys and every
@@ -692,17 +716,24 @@ class MeetingsController extends AccountBaseController
                     'edited_by' => user()->id,
                     'edited_at' => now(),
                 ]);
+            } elseif ($summary) {
+                // Without the improvements: replaced wholesale, as before.
+                $summary->update([
+                    'summary_object' => $summaryObject,
+                    'meeting_type_id' => $followUp->meeting_type_id,
+                ]);
             } else {
                 $summary = MeetingSummary::create([
                     'summary_object' => $summaryObject,
                     'meeting_type_id' => $followUp->meeting_type_id,
-                    'source' => MeetingSummary::SOURCE_MANUAL,
-                    'edited_by' => user()->id,
-                    'edited_at' => now(),
                     // Nullable: a meeting booked against a lead alone has no
                     // deal to hang the summary off, and still gets a report.
                     'deal_id' => $followUp->deal_id,
-                ]);
+                ] + ($improved ? [
+                    'source' => MeetingSummary::SOURCE_MANUAL,
+                    'edited_by' => user()->id,
+                    'edited_at' => now(),
+                ] : []));
                 $followUp->summary_id = $summary->id;
             }
 
@@ -781,6 +812,7 @@ class MeetingsController extends AccountBaseController
      */
     public function saveSummary(Request $request, DealFollowUp $followUp)
     {
+        abort_if(! $this->improved(), 404);
         $this->authorizeSummaryWrite($followUp);
 
         $validated = $request->validate([
@@ -863,6 +895,7 @@ class MeetingsController extends AccountBaseController
      */
     public function useAutomaticSummary(Request $request, DealFollowUp $followUp)
     {
+        abort_if(! $this->improved(), 404);
         $this->authorizeSummaryWrite($followUp);
 
         $summary = $followUp->meetingSummary;
@@ -899,6 +932,7 @@ class MeetingsController extends AccountBaseController
      */
     public function retrySummary(Request $request, DealFollowUp $followUp)
     {
+        abort_if(! $this->improved(), 404);
         $this->authorizeSummaryWrite($followUp);
 
         $url = config('app.automations.followups.summary_retry_webhook_url');
@@ -1090,13 +1124,18 @@ class MeetingsController extends AccountBaseController
      *
      * @return array<int, int>
      */
-    private function upcomingSoonIds(int $userId, MeetingBuckets $buckets, Carbon $now): array
+    private function upcomingSoonIds(int $userId, MeetingBuckets $buckets, Carbon $now, bool $improved): array
     {
-        $visible = function () use ($userId) {
-            return MeetingVisibilityService::scopeVisibleToUser(
+        $visible = function () use ($userId, $improved) {
+            $query = MeetingVisibilityService::scopeVisibleToUser(
                 DealFollowUp::query(),
                 $userId
             );
+
+            // Before the improvements the cards left out only cancelled
+            // meetings; now they are exactly what the Upcoming tab lists
+            // (still scheduled), which the bucket scope below already says.
+            return $improved ? $query : $query->where('status', '!=', 'cancelled');
         };
 
         $liveIds = $visible()
@@ -1255,6 +1294,7 @@ class MeetingsController extends AccountBaseController
      */
     public function searchLeads(Request $request)
     {
+        abort_if(! $this->improved(), 404);
         abort_403(! in_array($this->addFollowUpPermission, ['all', 'added']));
 
         $term = trim((string) $request->query('q', ''));
@@ -1296,8 +1336,14 @@ class MeetingsController extends AccountBaseController
      */
     public function getLeadForScheduling(Lead $lead)
     {
+        $improved = $this->improved();
+
+        // With the improvements: a lead is reachable through the viewer's lead
+        // permission or through a deal they may schedule on.
         abort_403(
-            ! MeetingVisibilityService::bookableLeadsQuery()
+            ! ($improved
+                ? MeetingVisibilityService::bookableLeadsQuery()
+                : MeetingVisibilityService::schedulableLeadsQuery())
                 ->where('id', $lead->id)
                 ->exists()
         );
@@ -1306,14 +1352,20 @@ class MeetingsController extends AccountBaseController
             'leadOwner:id,name,image,email',
         ]);
 
-        // Only deals the viewer may schedule on — not every deal on the lead
-        // — with their stage, so two deals of the same client can be told
-        // apart when picking which one a meeting belongs to.
-        $dealsForLead = MeetingVisibilityService::schedulableDealsQuery()
-            ->where('lead_id', $lead->id)
-            ->addSelect('pipeline_stage_id')
-            ->with('leadStage:id,name,label_color')
-            ->get();
+        // With the improvements: only deals the viewer may schedule on, with
+        // their stage, so two deals of the same client can be told apart.
+        // Before: every next-follow-up deal on the lead.
+        $dealsForLead = $improved
+            ? MeetingVisibilityService::schedulableDealsQuery()
+                ->where('lead_id', $lead->id)
+                ->addSelect('pipeline_stage_id')
+                ->with('leadStage:id,name,label_color')
+                ->get()
+            : Deal::select('id', 'name')
+                ->where('lead_id', $lead->id)
+                ->where('next_follow_up', 'yes')
+                ->orderBy('name')
+                ->get();
 
         return response()->json([
             'success' => true,

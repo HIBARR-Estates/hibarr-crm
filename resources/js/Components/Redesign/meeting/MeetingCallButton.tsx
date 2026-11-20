@@ -1,6 +1,7 @@
 import ClickToCallButton from "@/Components/ClickToCallButton";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import useTranslation from "@/Hooks/useTranslation";
+import useMeetingsImprovementsFlag from "@/Hooks/useMeetingsImprovementsFlag";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import { meetingCallTarget } from "@/Components/Redesign/meeting/meetingContactPhone";
 
@@ -30,7 +31,9 @@ export default function MeetingCallButton({
     className = "dr-btn dr-btn-ghost dr-btn-sm",
 }: MeetingCallButtonProps) {
     const { t } = useTranslation();
+    const improved = useMeetingsImprovementsFlag();
 
+    if (!improved) return null;
     if (meeting.location !== "phone" || bucket === "past") return null;
 
     const target = meetingCallTarget(meeting);
