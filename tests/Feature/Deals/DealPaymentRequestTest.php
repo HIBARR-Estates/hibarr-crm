@@ -1540,15 +1540,7 @@ class DealPaymentRequestTest extends TestCase
 
         $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
 
-        // A receipt never makes the invoice: that has to be generated first.
-        try {
-            app(DealPaymentDocumentService::class)->viewData($payment, 'receipt');
-            $this->fail('Expected the receipt to be refused before the invoice exists.');
-        } catch (HttpException $e) {
-            $this->assertSame(409, $e->getStatusCode());
-        }
-        $this->assertSame(0, DB::table('payment_documents')->count());
-
+        // A receipt is made after the invoice here, so it settles that invoice.
         app(DealPaymentDocumentService::class)->viewData($payment, 'invoice');
         $data = app(DealPaymentDocumentService::class)->viewData($payment, 'receipt');
         $html = view('payment-requests.document', $data)->render();
@@ -1560,6 +1552,48 @@ class DealPaymentRequestTest extends TestCase
         $this->assertStringContainsString('TAHSİLAT MAKBUZU', $html);
         $this->assertStringContainsString('A 000001 no.lu fatura', $html);
         $this->assertNull($data['stamp']);
+    }
+
+    public function test_a_receipt_can_be_generated_without_an_invoice(): void
+    {
+        $this->seedSellerSettings(['legal_name' => 'Örnek Emlak Ltd.', 'address' => 'Girne, KKTC', 'invoice_number_end' => 5000, 'receipt_number_end' => 5000]);
+        $id = $this->insertPayment(['documents_requested_at' => now(),
+            'external_reference' => '883',
+            'ol_status' => 'completed',
+            'status' => 'complete',
+            'amount' => 2500,
+            'paid_on' => now(),
+        ]);
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+
+        $data = app(DealPaymentDocumentService::class)->viewData($payment, 'receipt');
+
+        $this->assertSame('receipt', $data['kind']);
+        $this->assertNull($data['invoice_number']);
+        // Standalone, KDV is added on top of the net amount.
+        $this->assertSame('2.500,00', $data['subtotal_display']);
+        $this->assertSame('2.900,00', $data['total_display']);
+        $html = view('payment-requests.document', $data)->render();
+        $this->assertStringContainsString('TAHSİLAT MAKBUZU', $html);
+        $this->assertStringNotContainsString('no.lu fatura', $html);
+        $this->assertSame(0, DB::table('payment_documents')->where('kind', 'invoice')->count());
+        $this->assertSame(1, DB::table('payment_documents')->where('kind', 'receipt')->count());
+    }
+
+    public function test_a_receipt_cannot_be_issued_for_a_payment_that_was_not_collected(): void
+    {
+        $this->seedSellerSettings(['legal_name' => 'Örnek Emlak Ltd.', 'address' => 'Girne, KKTC', 'receipt_number_end' => 5000]);
+        $id = $this->insertPayment(['documents_requested_at' => now(), 'external_reference' => '884', 'ol_status' => 'pending', 'amount' => 100]);
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+
+        try {
+            app(DealPaymentDocumentService::class)->issue($payment, 'receipt');
+            $this->fail('Expected a receipt for an uncollected payment to be refused.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+        $this->assertSame(0, DB::table('payment_documents')->count());
     }
 
     private function makeDeal(): Deal
