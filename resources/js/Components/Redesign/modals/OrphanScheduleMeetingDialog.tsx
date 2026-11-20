@@ -3,21 +3,23 @@ import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import ScheduleMeetingModal from "@/Components/Redesign/modals/ScheduleMeetingModal";
-import Segmented from "@/Components/Redesign/primitives/Segmented";
 import { ModalField } from "@/Components/Redesign/primitives/Modal";
 import SearchableSelect, {
-    type SearchableSelectGroup,
+    type SearchableSelectOption,
 } from "@/Components/Redesign/primitives/SearchableSelect";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import {
     buildEmptyMeetingForm,
     getMeetingOwner,
     type MeetingFormState,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import useMeetingsScheduleCreate from "@/Components/Redesign/meeting/useMeetingsScheduleCreate";
+import useBookableLeads, {
+    type BookableLead,
+} from "@/Components/Redesign/meeting/useBookableLeads";
 import useScheduleRecordSource, {
     parseRecordKey,
     recordKey,
-    type ScheduleRecordKey,
     type ScheduleRecordType,
 } from "@/Components/Redesign/meeting/useScheduleRecordSource";
 
@@ -25,8 +27,14 @@ export interface OrphanScheduleMeetingDialogProps {
     open: boolean;
     onClose: () => void;
     onScheduled: () => void;
-    userDeals: Array<{ id: number; name: string }>;
-    userLeads: Array<{ id: number; name: string }>;
+    /**
+     * @deprecated The dialog searches leads on the server and asks for a
+     * lead's deals once it is picked. Kept so callers that still pass the
+     * lists compile; they are not read.
+     */
+    userDeals?: Array<{ id: number; name: string }>;
+    /** @deprecated See `userDeals`. */
+    userLeads?: Array<{ id: number; name: string }>;
     meetingTypes: Array<{ id: number; name: string; color?: string }>;
     /** Slot the calendar was clicked on, when the dialog was opened that way. */
     initialStart?: { date: string; startTime: string };
@@ -34,17 +42,34 @@ export interface OrphanScheduleMeetingDialogProps {
     initialRecord?: { type: ScheduleRecordType; id: number };
 }
 
+/** The lead the meeting is for. The name is empty until a fetch fills it in. */
+interface SelectedLead {
+    id: number;
+    name: string;
+}
+
+type LeadOption = SearchableSelectOption & { meta: string };
+
+function leadLabel(name: string, company?: string | null): string {
+    return company ? `${name} (${company})` : name;
+}
+
 /**
- * Meetings-page schedule flow for orphan/global create: pick deal or lead,
- * then the shared `MeetingFormFields` form. Deal/Lead workspace pages keep
- * their own bound schedule modals — they already know the record.
+ * Meetings-page schedule flow for orphan/global create: pick the **lead**,
+ * optionally link one of its deals, then the shared `MeetingFormFields` form.
+ * Deal/Lead workspace pages keep their own bound schedule modals — they
+ * already know the record.
+ *
+ * Lead first because a meeting is with a person. A deal is one of the things
+ * that person is in the middle of, so it is offered under the lead — and only
+ * when the lead has one — rather than asked up front as an either/or between
+ * two kinds of record. A lead with no deals books against the lead; so does a
+ * lead whose user decides the meeting is not about any of them.
  */
 export default function OrphanScheduleMeetingDialog({
     open,
     onClose,
     onScheduled,
-    userDeals,
-    userLeads,
     meetingTypes,
     initialStart,
     initialRecord,
@@ -55,32 +80,62 @@ export default function OrphanScheduleMeetingDialog({
     const currentUserId = props.auth?.user?.id;
     const currentUserEmail = props.auth?.user?.email;
 
-    // Which kind of record this meeting is for. A tab rather than one mixed
-    // list: picking the wrong entity type is the mistake worth preventing,
-    // and a deal and a lead of the same client read almost identically.
-    const [recordType, setRecordType] = useState<ScheduleRecordType>(
-        initialRecord?.type ?? "deal",
+    const initialLead = (): SelectedLead | null =>
+        initialRecord?.type === "lead"
+            ? { id: initialRecord.id, name: "" }
+            : null;
+    const initialDealId = (): number | null =>
+        initialRecord?.type === "deal" ? initialRecord.id : null;
+
+    const [lead, setLead] = useState<SelectedLead | null>(initialLead);
+    const [dealId, setDealId] = useState<number | null>(initialDealId);
+    const [leadQuery, setLeadQuery] = useState("");
+
+    const leadKey = lead ? recordKey("lead", lead.id) : null;
+    const dealKey = dealId ? recordKey("deal", dealId) : null;
+
+    // The lead is fetched for its owner and its deals; the deal, when one is
+    // chosen, for the agent and participants the form seeds from. Chosen
+    // together they are two requests, which is all it costs to keep the lead's
+    // deal list on screen while a deal is selected.
+    const leadState = useScheduleRecordSource(leadKey);
+    const dealState = useScheduleRecordSource(dealKey);
+    const recordState = dealKey ? dealState : leadState;
+    const selectedKey = dealKey ?? leadKey;
+    const { source, loading, error } = recordState;
+
+    const { leads, loading: searching, failed: searchFailed } = useBookableLeads(
+        leadQuery,
+        open,
     );
-    const [selectedKey, setSelectedKey] = useState<ScheduleRecordKey | null>(
-        initialRecord ? recordKey(initialRecord.type, initialRecord.id) : null,
-    );
-    const { source, loading, error } = useScheduleRecordSource(selectedKey);
     const { createMeeting, isCreating, errors, clearErrors } =
         useMeetingsScheduleCreate();
 
-    // Start each visit from a clean slate — a record left over from last time
-    // would silently book against the wrong deal.
+    // Start each visit from a clean slate — a lead left over from last time
+    // would silently book against the wrong person.
     useEffect(() => {
         if (!open) {
-            setRecordType(initialRecord?.type ?? "deal");
-            setSelectedKey(
-                initialRecord
-                    ? recordKey(initialRecord.type, initialRecord.id)
-                    : null,
-            );
+            setLead(initialLead());
+            setDealId(initialDealId());
+            setLeadQuery("");
             clearErrors();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- initialLead/initialDealId read the same two props
     }, [open, clearErrors, initialRecord?.type, initialRecord?.id]);
+
+    // Opened on a deal (a next-step button): the dialog still starts from the
+    // lead, so once the deal arrives take its lead from it. A deal with no
+    // lead is booked as a deal on its own.
+    useEffect(() => {
+        if (lead !== null || !dealId || !dealState.source) return;
+        const leadId = dealState.source.lead_id;
+        if (leadId) {
+            setLead({
+                id: leadId,
+                name: dealState.source.contact?.client_name ?? "",
+            });
+        }
+    }, [lead, dealId, dealState.source]);
 
     const initialForm = useMemo(
         () => buildEmptyMeetingForm(source, currentUserId, currentUserEmail),
@@ -89,29 +144,59 @@ export default function OrphanScheduleMeetingDialog({
     const mustIncludeOwner = useMemo(() => getMeetingOwner(source), [source]);
 
     const parsed = parseRecordKey(selectedKey);
-    const target = parsed
-        ? { ...parsed, hasOwner: mustIncludeOwner !== null }
-        : null;
+    const target = lead
+        ? {
+              type: "lead" as const,
+              id: lead.id,
+              dealId: dealId ?? undefined,
+              hasOwner: mustIncludeOwner !== null,
+          }
+        : dealId
+          ? {
+                type: "deal" as const,
+                id: dealId,
+                hasOwner: mustIncludeOwner !== null,
+            }
+          : null;
 
-    // Only the active tab's records — the group label stays so the list still
-    // says what it is holding.
-    const recordOptions = useMemo(() => {
-        const groups: SearchableSelectGroup[] = [];
-        const records = recordType === "deal" ? userDeals : userLeads;
-        if (records.length > 0) {
-            groups.push({
-                label:
-                    recordType === "deal"
-                        ? t("app.meetings.entity_type_deal")
-                        : t("app.meetings.entity_type_lead"),
-                options: records.map((record) => ({
-                    value: recordKey(recordType, record.id),
-                    label: record.name,
-                })),
+    const selectedLeadName =
+        lead?.name || leadState.source?.client_name || `#${lead?.id ?? ""}`;
+
+    // The chosen lead stays an option whatever the search box now says —
+    // otherwise typing to look for another one turns the selection into a
+    // bare number.
+    const leadOptions = useMemo(() => {
+        const options: LeadOption[] = leads.map((row: BookableLead) => ({
+            value: row.id,
+            label: leadLabel(row.name, row.company),
+            meta: [
+                row.phone,
+                row.email,
+                row.owner ? `${td("Owner")}: ${row.owner}` : null,
+            ]
+                .filter(Boolean)
+                .join(" · "),
+        }));
+        if (lead && !options.some((option) => option.value === lead.id)) {
+            options.unshift({
+                value: lead.id,
+                label: selectedLeadName,
+                meta: "",
             });
         }
-        return groups;
-    }, [recordType, userDeals, userLeads, t]);
+        return options;
+    }, [leads, lead, selectedLeadName, td]);
+
+    const dealOptions = useMemo(
+        () =>
+            leadState.dealsForLead.map((deal) => ({
+                value: deal.id,
+                label: deal.lead_stage?.name
+                    ? `${deal.name} · ${deal.lead_stage.name}`
+                    : deal.name,
+            })),
+        [leadState.dealsForLead],
+    );
 
     const dialogErrors = [...(error ? [t(error)] : []), ...errors];
 
@@ -155,74 +240,123 @@ export default function OrphanScheduleMeetingDialog({
             calendlyTarget={parsed}
             labels={{
                 title: t("app.meetings.actions.schedule"),
-                subtitle: td("Book a meeting on a deal or lead"),
+                subtitle: td("Pick the lead, then set up the meeting"),
                 cancel: t("pages.deals.common.cancel"),
                 submit: t("app.meetings.actions.schedule"),
             }}
             initialStart={initialStart}
             stepped
+            // Nothing to book without someone to book it with, and nothing
+            // to seed the next step from until that person has loaded.
+            canAdvance={target !== null && !loading}
             stepLabels={{
                 back: td("Back"),
                 next: td("Next: meeting details"),
                 stepOf: (n, of) =>
                     n === 1
-                        ? `${td("Step")} ${n}/${of} · ${td("What")}`
+                        ? `${td("Step")} ${n}/${of} · ${td("Who and what")}`
                         : `${td("Step")} ${n}/${of} · ${td("When and how it runs")}`,
             }}
             extraFields={
                 <>
-                    <ModalField label={td("Schedule for")}>
-                        <Segmented<ScheduleRecordType>
-                            value={recordType}
-                            onChange={(next) => {
-                                setRecordType(next);
-                                // The chosen record belongs to the tab that was
-                                // open; keeping it would book against a record
-                                // the list no longer shows.
-                                setSelectedKey(null);
+                    <ModalField label={td("Lead")}>
+                        <SearchableSelect<number>
+                            className="w-full"
+                            value={lead?.id}
+                            onChange={(value) => {
+                                const row = leads.find(
+                                    (candidate) => candidate.id === value,
+                                );
+                                // Another person: whichever deal was linked
+                                // belonged to the last one.
+                                setDealId(null);
+                                setLead(
+                                    value === undefined || value === null
+                                        ? null
+                                        : {
+                                              id: value,
+                                              name: row?.name ?? "",
+                                          },
+                                );
                                 clearErrors();
                             }}
-                            ariaLabel={td("Record type")}
-                            fullWidth
-                            options={[
-                                {
-                                    value: "deal",
-                                    label: t("app.meetings.entity_type_deal"),
-                                    count: userDeals.length,
-                                },
-                                {
-                                    value: "lead",
-                                    label: t("app.meetings.entity_type_lead"),
-                                    count: userLeads.length,
-                                },
-                            ]}
+                            // The server does the matching, so antd must not
+                            // also filter what comes back by the typed text.
+                            filterOption={false}
+                            onSearch={setLeadQuery}
+                            onOpenChange={(isOpen) => {
+                                if (!isOpen) setLeadQuery("");
+                            }}
+                            options={leadOptions}
+                            optionRender={(option) => {
+                                const data = option.data as LeadOption;
+                                return (
+                                    <div className="py-0.5">
+                                        <div
+                                            className="font-semibold"
+                                            style={{ color: T.TEXT }}
+                                        >
+                                            {data.label}
+                                        </div>
+                                        {data.meta && (
+                                            <div
+                                                style={{
+                                                    fontSize: 12,
+                                                    color: T.TEXT_MUTED,
+                                                }}
+                                            >
+                                                {data.meta}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            }}
+                            disabled={isCreating}
+                            loading={searching || leadState.loading}
+                            allowClear
+                            placeholder={td(
+                                "Search by name, company, email or phone",
+                            )}
+                            notFoundContent={
+                                searchFailed
+                                    ? td("Could not load leads. Try again.")
+                                    : searching
+                                      ? td("Searching…")
+                                      : td("No matching leads")
+                            }
                         />
                     </ModalField>
 
-                    <ModalField
-                        label={
-                            recordType === "deal"
-                                ? td("Related deal")
-                                : td("Related lead")
-                        }
-                    >
-                        <SearchableSelect<ScheduleRecordKey>
-                            className="w-full"
-                            value={selectedKey ?? undefined}
-                            onChange={(value) => {
-                                setSelectedKey(value ?? null);
-                                clearErrors();
-                            }}
-                            options={recordOptions}
-                            disabled={isCreating}
-                            loading={loading}
-                            allowClear
-                            placeholder={td("Choose a deal or lead")}
-                            notFoundContent={t(
-                                "pages.meetings.schedule.no_entities_available",
-                            )}
-                        />
-                    </ModalField>
+                    {/* Only a lead with deals has anything to link, and only
+                        the user can say whether this meeting is about one of
+                        them — so it is offered, never required. */}
+                    {lead && dealOptions.length > 0 && (
+                        <ModalField label={td("Link to a deal (optional)")}>
+                            <SearchableSelect<number>
+                                className="w-full"
+                                value={dealId ?? undefined}
+                                onChange={(value) => {
+                                    setDealId(value ?? null);
+                                    clearErrors();
+                                }}
+                                options={dealOptions}
+                                disabled={isCreating}
+                                loading={dealState.loading}
+                                allowClear
+                                placeholder={td(
+                                    "No deal — book against the lead",
+                                )}
+                            />
+                            <p
+                                className="m-0 mt-1"
+                                style={{ fontSize: 12, color: T.TEXT_HINT }}
+                            >
+                                {td(
+                                    "Link a deal only if this meeting belongs to it.",
+                                )}
+                            </p>
+                        </ModalField>
+                    )}
                 </>
             }
         />

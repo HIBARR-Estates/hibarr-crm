@@ -338,15 +338,26 @@ class MeetingsController extends AccountBaseController
         }
 
         // ── User's deals & leads for "Schedule Meeting" ────────────────
-        $userDeals = MeetingVisibilityService::schedulableDealsQuery()->get();
-        $userLeads = MeetingVisibilityService::schedulableLeadsQuery()
-            ->get()
-            ->map(fn (Lead $lead) => [
-                'id' => $lead->id,
-                'name' => $lead->company_name
-                    ? "{$lead->client_name} ({$lead->company_name})"
-                    : $lead->client_name,
-            ]);
+        //
+        // The redesigned schedule dialog searches leads on the server as the
+        // user types (`meetings.leads.search`) and asks for a lead's deals
+        // once one is picked, so it needs neither list. Sending every
+        // schedulable lead and deal with each page load — unbounded, and
+        // growing with the database — was only ever for its dropdown. The
+        // legacy drawer still reads them.
+        $userDeals = $redesign
+            ? collect()
+            : MeetingVisibilityService::schedulableDealsQuery()->get();
+        $userLeads = $redesign
+            ? collect()
+            : MeetingVisibilityService::schedulableLeadsQuery()
+                ->get()
+                ->map(fn (Lead $lead) => [
+                    'id' => $lead->id,
+                    'name' => $lead->company_name
+                        ? "{$lead->client_name} ({$lead->company_name})"
+                        : $lead->client_name,
+                ]);
 
         // ── Meeting types ──────────────────────────────────────────────
         $meetingTypes = MeetingType::where('is_active', 1)->get();
@@ -937,13 +948,59 @@ class MeetingsController extends AccountBaseController
     }
 
     /**
+     * Leads to book a meeting against, searched on the server as the user
+     * types in the schedule dialog.
+     *
+     * Matches name, company, email and phone, so two clients with the same
+     * name can be told apart, and returns enough per row (company, phone,
+     * owner) to do that on screen. Capped: the dialog is a picker, not a
+     * list. With nothing typed it offers the most recently added.
+     */
+    public function searchLeads(Request $request)
+    {
+        abort_403(! in_array($this->addFollowUpPermission, ['all', 'added']));
+
+        $term = trim((string) $request->query('q', ''));
+
+        $query = MeetingVisibilityService::bookableLeadsQuery()->with('leadOwner:id,name');
+
+        if ($term !== '') {
+            // `%` and `_` typed by the user are text, not wildcards.
+            $like = '%'.addcslashes($term, '%_\\').'%';
+            $query->where(function ($inner) use ($like) {
+                $inner->where('client_name', 'like', $like)
+                    ->orWhere('company_name', 'like', $like)
+                    ->orWhere('client_email', 'like', $like)
+                    ->orWhere('mobile', 'like', $like)
+                    ->orWhere('cell', 'like', $like);
+            });
+        } else {
+            $query->reorder()->orderByDesc('id');
+        }
+
+        $leads = $query->limit(20)->get()->map(fn (Lead $lead) => [
+            'id' => $lead->id,
+            'name' => $lead->client_name,
+            'company' => $lead->company_name,
+            'email' => $lead->client_email,
+            'phone' => $lead->mobile ?: $lead->cell,
+            'owner' => $lead->leadOwner?->name,
+        ])->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $leads,
+        ]);
+    }
+
+    /**
      * Return a lead's data sufficient for the SaveFollowup form (owner, related deals).
      * Called via AJAX when user selects a lead in the "Schedule Meeting" drawer.
      */
     public function getLeadForScheduling(Lead $lead)
     {
         abort_403(
-            ! MeetingVisibilityService::schedulableLeadsQuery()
+            ! MeetingVisibilityService::bookableLeadsQuery()
                 ->where('id', $lead->id)
                 ->exists()
         );
@@ -952,10 +1009,13 @@ class MeetingsController extends AccountBaseController
             'leadOwner:id,name,image,email',
         ]);
 
-        $dealsForLead = Deal::select('id', 'name')
+        // Only deals the viewer may schedule on — not every deal on the lead
+        // — with their stage, so two deals of the same client can be told
+        // apart when picking which one a meeting belongs to.
+        $dealsForLead = MeetingVisibilityService::schedulableDealsQuery()
             ->where('lead_id', $lead->id)
-            ->where('next_follow_up', 'yes')
-            ->orderBy('name')
+            ->addSelect('pipeline_stage_id')
+            ->with('leadStage:id,name,label_color')
             ->get();
 
         return response()->json([

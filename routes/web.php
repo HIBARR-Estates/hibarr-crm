@@ -797,6 +797,7 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('meetings', [\App\Http\Controllers\MeetingsController::class, 'index'])->name('meetings.index');
     Route::get('meetings/deal/{deal}', [\App\Http\Controllers\MeetingsController::class, 'getDealForScheduling'])->name('meetings.deal_for_scheduling');
     Route::get('meetings/lead/{lead}', [\App\Http\Controllers\MeetingsController::class, 'getLeadForScheduling'])->name('meetings.lead_for_scheduling');
+    Route::get('meetings/leads/search', [\App\Http\Controllers\MeetingsController::class, 'searchLeads'])->name('meetings.leads.search');
     Route::post('meeting-saved-views', [MeetingSavedViewController::class, 'store'])->name('meeting-saved-views.store');
     Route::patch('meeting-saved-views/{id}', [MeetingSavedViewController::class, 'update'])->name('meeting-saved-views.update');
     Route::delete('meeting-saved-views/{id}', [MeetingSavedViewController::class, 'destroy'])->name('meeting-saved-views.destroy');

@@ -383,6 +383,12 @@ export interface MeetingParticipantSource {
         user?: { id?: number; name?: string } | null;
     } | null;
     lead_owner?: { id?: number; name?: string } | null;
+    /** A deal's lead, when it has one — the schedule dialog starts from it. */
+    lead_id?: number | null;
+    /** A deal's contact, for naming its lead before the lead is fetched. */
+    contact?: { client_name?: string | null } | null;
+    /** A lead's own name. */
+    client_name?: string | null;
 }
 
 export const DEFAULT_MEETING_REMINDERS: Reminder[] = [

@@ -58,6 +58,13 @@ interface ScheduleMeetingModalProps {
      * there is much less to ask.
      */
     stepped?: boolean;
+    /**
+     * Whether the first step may be left. For a caller whose first step asks
+     * for something this dialog cannot see (the Meetings index: which lead) —
+     * without it, "Next" worked with nothing chosen and the mistake only
+     * surfaced when the meeting was saved.
+     */
+    canAdvance?: boolean;
     /** Labels for the step chrome; required when `stepped`. */
     stepLabels?: {
         back: string;
@@ -108,6 +115,7 @@ export default function ScheduleMeetingModal({
     mustIncludeOwner = null,
     initialStart,
     stepped = false,
+    canAdvance = true,
     stepLabels,
     readyToSeed = true,
     variant = "default",
@@ -298,7 +306,9 @@ export default function ScheduleMeetingModal({
                         <Button
                             variant="primary"
                             onClick={() => setStep(1)}
-                            disabled={saving || !essentialsComplete}
+                            disabled={
+                                saving || !essentialsComplete || !canAdvance
+                            }
                         >
                             {stepLabels?.next ?? td("Next")}
                         </Button>
