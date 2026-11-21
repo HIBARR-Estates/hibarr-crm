@@ -205,10 +205,17 @@ export interface PartnerTrendPoint {
 
 export interface PartnerReferral {
     id: number;
+    /** Full client name. */
     client: string | null;
+    /** First-touch UTM source when the lead has one, otherwise the lead source. */
+    source: string | null;
+    /** Lead source, only when it differs from `source`. */
+    lead_source: string | null;
     stage: string;
     stalled: boolean;
     days_open: number;
+    /** When the lead was added. */
+    added_at: string | null;
     idle_days: number;
     /** Null when this partner has no open flag on the referral. */
     flag_status: "open" | "acknowledged" | null;

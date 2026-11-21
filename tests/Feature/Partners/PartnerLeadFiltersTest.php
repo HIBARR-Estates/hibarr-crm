@@ -14,20 +14,25 @@ class PartnerLeadFiltersTest extends TestCase
     /** @return Collection<int, array<string, mixed>> */
     private function rows(): Collection
     {
-        $row = fn (int $id, string $full, ?int $status, int $open, int $won, int $lost) => [
-            'id' => $id,
-            'name' => 'X',
-            'status' => $status === null ? null : ['id' => $status, 'label' => "S$status", 'color' => null],
-            'deals' => ['open' => $open, 'won' => $won, 'lost' => $lost],
-            '_search' => mb_strtolower($full),
-        ];
+        $row = function (int $id, string $full, ?int $status, int $open, int $won, int $lost, ?string $source = null, ?string $leadSource = null, ?string $added = null) {
+            return [
+                'id' => $id,
+                'name' => 'X',
+                'source' => $source,
+                'lead_source' => $leadSource,
+                'created_at' => $added,
+                'status' => $status === null ? null : ['id' => $status, 'label' => "S$status", 'color' => null],
+                'deals' => ['open' => $open, 'won' => $won, 'lost' => $lost],
+                '_search' => mb_strtolower($full),
+            ];
+        };
 
         return collect([
-            $row(1, 'Aylin Yilmaz', 10, 2, 1, 0),   // open and won
-            $row(2, 'Maria Petrova', 10, 1, 0, 0),  // open only
-            $row(3, 'Lukas Hartmann', 20, 0, 0, 2), // lost only
-            $row(4, 'Ruben Demir', null, 0, 0, 0),  // no deals
-            $row(5, 'Kamil Novak', 20, 0, 1, 0),    // won only
+            $row(1, 'Aylin Yilmaz', 10, 2, 1, 0, 'google', 'Website', '2026-03-10T09:00:00+00:00'),
+            $row(2, 'Maria Petrova', 10, 1, 0, 0, 'facebook', null, '2026-03-01'),
+            $row(3, 'Lukas Hartmann', 20, 0, 0, 2, 'Website', null, '2026-01-15'),
+            $row(4, 'Ruben Demir', null, 0, 0, 0),
+            $row(5, 'Kamil Novak', 20, 0, 1, 0, 'google', null, '2026-03-10T18:00:00+00:00'),
         ]);
     }
 
@@ -89,5 +94,40 @@ class PartnerLeadFiltersTest extends TestCase
     {
         $this->assertSame([1], $this->ids(['status' => [10], 'deals' => ['won'], 'search' => 'aylin']));
         $this->assertSame([], $this->ids(['status' => [20], 'deals' => ['open']]));
+    }
+
+    public function test_source_filter_matches_the_preferred_source_or_a_differing_lead_source(): void
+    {
+        $this->assertSame([1, 5], $this->ids(['source' => ['google']]));
+        $this->assertSame([1, 3], $this->ids(['source' => ['Website']]));
+        $this->assertSame([2], $this->ids(['source' => ['facebook']]));
+        $this->assertSame([1, 2, 5], $this->ids(['source' => ['google', 'facebook']]));
+    }
+
+    public function test_a_lead_with_no_source_never_matches_a_source(): void
+    {
+        $this->assertNotContains(4, $this->ids(['source' => ['google', 'Website', 'facebook']]));
+    }
+
+    public function test_an_empty_source_selection_does_not_filter(): void
+    {
+        $this->assertSame([1, 2, 3, 4, 5], $this->ids(['source' => []]));
+    }
+
+    public function test_added_date_filter_is_inclusive_and_skips_leads_with_no_date(): void
+    {
+        $this->assertSame([1, 2, 5], $this->ids(['added_from' => '2026-03-01', 'added_to' => '2026-03-10']));
+        $this->assertSame([1, 5], $this->ids(['added_from' => '2026-03-10']));
+        $this->assertSame([3], $this->ids(['added_to' => '2026-01-15']));
+        $this->assertNotContains(4, $this->ids(['added_from' => '2020-01-01']));
+    }
+
+    public function test_added_sort_is_newest_first_by_default_and_oldest_first_when_asked(): void
+    {
+        $desc = PartnerLeadService::sortRows($this->rows(), 'added_desc')->pluck('id')->all();
+        $asc = PartnerLeadService::sortRows($this->rows(), 'added_asc')->pluck('id')->all();
+
+        $this->assertSame([5, 1, 2, 3, 4], $desc);
+        $this->assertSame([4, 3, 2, 1, 5], $asc);
     }
 }
