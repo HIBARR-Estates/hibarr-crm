@@ -133,6 +133,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Timezone Data (tzdata) Publishing
+    |--------------------------------------------------------------------------
+    |
+    | Publishes PHP's resolved IANA tzdata version to an unprefixed Redis key
+    | so hibarr-backend can verify Postgres/Node/PHP tzdata equality (HIB-2000).
+    |
+    */
+    'tzdata' => [
+        'redis_connection' => env('TZDATA_PHP_REDIS_CONNECTION', 'tzdata'),
+        'redis_key' => env('TZDATA_PHP_REDIS_KEY', 'tzdata:version:php'),
+        'redis_ttl_seconds' => (int) env('TZDATA_PHP_REDIS_TTL', 86400),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |

@@ -33,6 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+ENV TZ=UTC
 COPY --from=vendor /app/vendor ./vendor
 COPY . .
 # bootstrap/cache is gitignored and empty, so COPY . . does not create it.
@@ -78,7 +79,8 @@ ARG INFISICAL_CLI_VERSION=0.43.78
 
 ENV COMPOSER_ALLOW_SUPERUSER=1 \
     GRPC_ENABLED=false \
-    INFISICAL_DISABLE_UPDATE_CHECK=true
+    INFISICAL_DISABLE_UPDATE_CHECK=true \
+    TZ=UTC
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \

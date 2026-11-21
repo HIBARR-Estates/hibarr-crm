@@ -12,6 +12,7 @@ use App\Console\Commands\AutoCreateRecurringTasks;
 use App\Console\Commands\AutoStopTimer;
 use App\Console\Commands\BirthdayReminderCommand;
 use App\Console\Commands\CarryForwardLeaves;
+use App\Console\Commands\CheckTimeAlignmentCommand;
 use App\Console\Commands\ClearLogs;
 use App\Console\Commands\ClearNullSessions;
 use App\Console\Commands\CreateEmployeeLeaveQuotaHistory;
@@ -100,6 +101,7 @@ class Kernel extends ConsoleKernel
         SendMlmApproachingNotifications::class,
         ProcessAutomationDateTriggers::class,
         ProcessAutomationPendingRuns::class,
+        CheckTimeAlignmentCommand::class,
     ];
 
     /**
@@ -191,6 +193,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('clear-null-session')->hourly();
         $schedule->command('create-database-backup')->hourly();
         $schedule->command('delete-database-backup')->hourly();
+        $schedule->command('time:check-alignment')->hourly()->withoutOverlapping();
         $schedule->command('add-missing-permissions')->everyThirtyMinutes();
         $schedule->command('escalate-availability-requests')->everyThirtyMinutes();
 
