@@ -155,4 +155,8 @@ return [
     'somethingWentWrong' => 'Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.',
     'calendlyLinkMustBeCalendly' => 'Geben Sie einen sicheren Link von calendly.com ein, zum Beispiel https://calendly.com/your-team/intro-call.',
 
+    'meetingContactNoEmail' => ':name hat keine E-Mail-Adresse, daher kann kein Online-Meeting eingerichtet werden. Tragen Sie beim Lead eine ein oder wählen Sie eine andere Art des Treffens.',
+    'meetingContactNoPhone' => ':name hat keine Telefonnummer, daher kann kein Telefonat eingerichtet werden. Tragen Sie beim Lead eine ein oder wählen Sie eine andere Art des Treffens.',
+    'meetingContactNoWay' => ':name hat weder eine E-Mail-Adresse noch eine Telefonnummer, es gibt also keine Möglichkeit, die Person zu erreichen. Tragen Sie beim Lead eine ein, bevor Sie ein Meeting planen.',
+
 ];

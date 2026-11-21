@@ -2487,6 +2487,21 @@ return [
         // Fixed copy of the Meetings screens (rows, cards, calendar, dialogs,
         // summary tab). Keyed by what it says; `useMeetingUiLabel` maps the
         // config vocabulary (durations, tab and status names) onto these.
+        'contact' => [
+            'more' => 'ещё +{{count}}',
+            'this_lead' => 'Этот лид',
+            'no_email' => 'Адрес электронной почты не указан',
+            'no_phone' => 'Номер телефона не указан',
+            'badge_no_email' => 'Нет email',
+            'badge_no_phone' => 'Нет телефона',
+            'blocked_email' => 'У {{name}} нет адреса электронной почты, а онлайн-встреча отправляется по почте.',
+            'blocked_phone' => 'У {{name}} нет номера телефона, а для звонка он нужен.',
+            'blocked_any' => 'У {{name}} нет ни адреса электронной почты, ни номера телефона, поэтому связаться с ним невозможно.',
+            'blocked_help' => 'Добавьте контакт в лид, чтобы назначить эту встречу, или выберите другой способ встречи.',
+            'open_lead' => 'Открыть лид',
+            'detail_no_way' => 'С этим лидом нельзя связаться. Добавьте адрес электронной почты или номер телефона.',
+            'about_deal' => 'По сделке',
+        ],
         'ui' => [
             'synced' => 'Синхронизировано',
             'sync_failed' => 'Не удалось синхронизировать',

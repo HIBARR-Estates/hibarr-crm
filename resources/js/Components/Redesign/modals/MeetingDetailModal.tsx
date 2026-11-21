@@ -27,6 +27,9 @@ import {
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import MeetingCalendarSyncRow from "@/Components/Redesign/meeting/MeetingCalendarSyncRow";
 import MeetingLocationPanel from "@/Components/Redesign/meeting/MeetingLocationPanel";
+import MeetingLeadBlock from "@/Components/Redesign/meeting/MeetingLeadBlock";
+import { meetingAttendees } from "@/Components/Redesign/meeting/meetingAttendees";
+import { meetingLeadInfo } from "@/Components/Redesign/meeting/meetingPeople";
 import useMeetingUiLabel from "@/Components/Redesign/meeting/useMeetingUiLabel";
 export interface MeetingDetailNestedControls {
     editOpen: boolean;
@@ -177,7 +180,8 @@ export default function MeetingDetailModal({
     const item = toWorkspaceMeetingListItem(meeting);
     const dateLine = formatDate(item.startsAt, "-");
     const record = meetingRecordLink(meeting);
-    const attendees = meeting.participant_users ?? [];
+    // Host and participants, not the participants alone.
+    const attendees = meetingAttendees(meeting);
     const ATTENDEES_COLLAPSED_LIMIT = 4;
     const visibleAttendees = showAllAttendees
         ? attendees
@@ -282,7 +286,14 @@ export default function MeetingDetailModal({
 
                 {(!summaryPanel || panel === "info") && (
                     <>
-                        {record && (
+                        {/* The lead is who the meeting is with, so it comes first,
+                            with how to reach them and the deal under it. A
+                            meeting with no lead on record keeps the deal row. */}
+                        {meetingLeadInfo(meeting) && (
+                            <MeetingLeadBlock meeting={meeting} />
+                        )}
+
+                        {!meetingLeadInfo(meeting) && record && (
                             <button
                                 type="button"
                                 className="mb-3 flex w-full items-center gap-2 text-left"
@@ -568,6 +579,11 @@ export default function MeetingDetailModal({
                                                 <span className="text-[13px]">
                                                     {user.name}
                                                 </span>
+                                                {user.isHost && (
+                                                    <span className="dr-pill dr-pill-blue">
+                                                        {t("pages.meetings.ui.organizer")}
+                                                    </span>
+                                                )}
                                             </span>
                                         ))}
                                     </div>

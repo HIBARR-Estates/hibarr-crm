@@ -20,6 +20,9 @@ import {
 } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
 import { resolveMeetingDisplayTimezone } from "@/Pages/Meetings/Redesign/adapters/meetingTimeLabel";
 import { meetingRecordLink } from "@/Components/Redesign/meeting/meetingRecordLink";
+import MeetingLeadBlock from "@/Components/Redesign/meeting/MeetingLeadBlock";
+import { meetingAttendees } from "@/Components/Redesign/meeting/meetingAttendees";
+import { meetingLeadInfo } from "@/Components/Redesign/meeting/meetingPeople";
 import useMeetingAttendanceConfirmationFlag from "@/Hooks/useMeetingAttendanceConfirmationFlag";
 import MeetingConfirmationPanel from "@/Components/Redesign/meeting/MeetingConfirmationPanel";
 import MeetingCalendarSyncRow from "@/Components/Redesign/meeting/MeetingCalendarSyncRow";
@@ -167,13 +170,13 @@ export default function MeetingDetailCompact({
     const showConfirmationTab = useMeetingAttendanceConfirmationFlag();
 
     const item = toWorkspaceMeetingListItem(meeting);
-    const attendees = meeting.participant_users ?? [];
+    // Host and participants, not the participants alone.
+    const attendees = meetingAttendees(meeting);
     const ATTENDEES_COLLAPSED_LIMIT = 4;
     const visibleAttendees = showAllAttendees
         ? attendees
         : attendees.slice(0, ATTENDEES_COLLAPSED_LIMIT);
     const hiddenAttendeeCount = attendees.length - visibleAttendees.length;
-    const hostId = meeting.host_id ?? meeting.added_by?.id;
     const record = meetingRecordLink(meeting);
     const isActionable =
         (item.isUpcoming || item.isLive) && item.statusLabel === "scheduled";
@@ -337,7 +340,20 @@ export default function MeetingDetailCompact({
                             className="mb-4"
                             style={{ borderTop: `1px solid ${T.BORDER_SOFT}` }}
                         >
-                            {record && (
+                            {/* The lead is who the meeting is with: first, with
+                                how to reach them and the deal under it. */}
+                            {meetingLeadInfo(meeting) && (
+                                <div
+                                    className="pt-2.5"
+                                    style={{
+                                        borderBottom: `1px solid ${T.BORDER_SOFT}`,
+                                    }}
+                                >
+                                    <MeetingLeadBlock meeting={meeting} />
+                                </div>
+                            )}
+
+                            {!meetingLeadInfo(meeting) && record && (
                                 <InfoRow
                                     icon={
                                         record.type === "deal"
@@ -450,7 +466,7 @@ export default function MeetingDetailCompact({
                                                 >
                                                     {person.name}
                                                 </span>
-                                                {person.id === hostId && (
+                                                {person.isHost && (
                                                     <span className="dr-pill dr-pill-blue">
                                                         {t("pages.meetings.ui.organizer")}
                                                     </span>

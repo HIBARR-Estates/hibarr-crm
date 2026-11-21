@@ -2492,6 +2492,21 @@ return [
         // Fixed copy of the Meetings screens (rows, cards, calendar, dialogs,
         // summary tab). Keyed by what it says; `useMeetingUiLabel` maps the
         // config vocabulary (durations, tab and status names) onto these.
+        'contact' => [
+            'more' => '+{{count}} tane daha',
+            'this_lead' => 'Bu potansiyel müşteri',
+            'no_email' => 'Kayıtlı e-posta adresi yok',
+            'no_phone' => 'Kayıtlı telefon numarası yok',
+            'badge_no_email' => 'E-posta yok',
+            'badge_no_phone' => 'Telefon yok',
+            'blocked_email' => '{{name}} için e-posta adresi yok ve çevrim içi toplantı e-postayla gönderilir.',
+            'blocked_phone' => '{{name}} için telefon numarası yok ve telefon görüşmesi için bir numara gerekir.',
+            'blocked_any' => '{{name}} için ne e-posta adresi ne de telefon numarası var, bu yüzden ulaşmanın bir yolu yok.',
+            'blocked_help' => 'Bu toplantıyı planlamak için potansiyel müşteriye bir tane ekleyin veya başka bir görüşme yöntemi seçin.',
+            'open_lead' => 'Potansiyel müşteriyi aç',
+            'detail_no_way' => 'Bu potansiyel müşteriye ulaşmanın bir yolu yok. Bir e-posta adresi veya telefon numarası ekleyin.',
+            'about_deal' => 'İlgili fırsat',
+        ],
         'ui' => [
             'synced' => 'Eşitlendi',
             'sync_failed' => 'Eşitleme başarısız',

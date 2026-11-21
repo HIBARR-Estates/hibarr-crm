@@ -8,6 +8,9 @@ export interface BookableLead {
     email: string | null;
     phone: string | null;
     owner: string | null;
+    /** Whether they can be reached by email / phone at all (any contact method). */
+    has_email?: boolean;
+    has_phone?: boolean;
 }
 
 /** Typing pauses this long before the search goes out. */
