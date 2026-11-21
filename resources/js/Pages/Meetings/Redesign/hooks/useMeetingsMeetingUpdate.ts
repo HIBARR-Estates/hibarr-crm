@@ -17,7 +17,7 @@ import {
     type MeetingFormState,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import type { DealFollowup } from "@/Types/api/deal-followup";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 
 interface FollowUpUpdatePayload {
     id: number;
@@ -45,7 +45,7 @@ interface FollowUpUpdatePayload {
  * meeting back to the caller and lets the list re-read itself.
  */
 export default function useMeetingsMeetingUpdate() {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const [errors, setErrors] = useState<string[]>([]);
     const { props } = usePage();
 
@@ -107,7 +107,7 @@ export default function useMeetingsMeetingUpdate() {
             mutate(payload, {
                 onSuccess: (response) => {
                     setErrors([]);
-                    message.success(td("Meeting updated", { source: "en" }));
+                    message.success(t("pages.meetings.ui.meeting_updated"));
                     onSuccess?.(response.data as DealFollowup);
                 },
                 onError: (error) => {
@@ -118,7 +118,7 @@ export default function useMeetingsMeetingUpdate() {
                 },
             });
         },
-        [mutate, props.auth?.user?.timezone, props.auth?.user?.timezone_locked],
+        [mutate, t, props.auth?.user?.timezone, props.auth?.user?.timezone_locked],
     );
 
     return {

@@ -3,6 +3,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import AvatarStack from "@/Components/Redesign/primitives/AvatarStack";
 import DateBlock from "@/Components/Redesign/primitives/DateBlock";
 import Icon from "@/Components/Redesign/primitives/Icon";
+import MeetingCallButton from "@/Components/Redesign/meeting/MeetingCallButton";
 import RowActionMenu from "@/Components/Redesign/primitives/RowActionMenu";
 import SelectCheckbox from "@/Components/Redesign/primitives/SelectCheckbox";
 import {
@@ -88,7 +89,7 @@ export default function MeetingCard({
                     <SelectCheckbox
                         checked={selected}
                         onChange={() => onToggleSelect?.()}
-                        label={td("Select meeting")}
+                        label={t("pages.meetings.ui.select_meeting")}
                     />
                 )}
                 <DateBlock
@@ -168,7 +169,7 @@ export default function MeetingCard({
 
                 <RowActionMenu
                     actions={actions}
-                    ariaLabel={td("Meeting actions")}
+                    ariaLabel={t("pages.meetings.ui.meeting_actions")}
                 />
             </div>
 
@@ -222,10 +223,16 @@ export default function MeetingCard({
                         >
                             <Icon name="external-link" size={13} />
                             {record.type === "lead"
-                                ? td("Open lead")
-                                : td("Open deal")}
+                                ? t("pages.meetings.ui.open_lead")
+                                : t("pages.meetings.ui.open_deal")}
                         </a>
                     )}
+                    {/* A phone meeting's counterpart to Join: ring them. */}
+                    <MeetingCallButton
+                        meeting={meeting}
+                        bucket={bucket}
+                        className="dr-btn dr-btn-primary dr-btn-sm"
+                    />
                     {showJoin && (
                         <a
                             href={meeting.meeting_link}
@@ -247,6 +254,17 @@ export default function MeetingCard({
                         >
                             <Icon name="file-text" size={13} />
                             {t("pages.meetings.card.view_summary")}
+                        </button>
+                    )}
+                    {summaryState === "stalled" && (
+                        <button
+                            type="button"
+                            className="dr-meeting-link inline-flex items-center gap-1.5 font-semibold"
+                            style={{ fontSize: 12, color: T.AMBER }}
+                            onClick={onView}
+                        >
+                            <Icon name="file-text" size={13} />
+                            {t("pages.meetings.ui.summary_missing")}
                         </button>
                     )}
                     {summaryState === "generating" && (

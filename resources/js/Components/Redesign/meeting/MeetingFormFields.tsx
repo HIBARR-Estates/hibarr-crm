@@ -38,6 +38,7 @@ import {
     usesAutoMeetingLink,
 } from "./meetingFormUtils";
 import MeetingTimezoneField from "./MeetingTimezoneField";
+import useMeetingUiLabel from "@/Components/Redesign/meeting/useMeetingUiLabel";
 
 interface MeetingFormFieldsProps {
     form: MeetingFormState;
@@ -123,6 +124,7 @@ export default function MeetingFormFields({
     relatedField,
 }: MeetingFormFieldsProps) {
     const { td } = useTd();
+    const ui = useMeetingUiLabel();
     const { t } = useTranslation();
     const { props } = usePage();
     const userEmail = props.auth?.user?.email;
@@ -461,7 +463,7 @@ export default function MeetingFormFields({
                                                             : T.TEXT_MUTED,
                                                     }}
                                                 >
-                                                    {td(option.label, { source: "en" })}
+                                                    {ui(option.label)}
                                                 </button>
                                             );
                                         })}
@@ -532,7 +534,7 @@ export default function MeetingFormFields({
                     {isVideoMeeting && (
                         <ModalField
                             className="modal-field--section"
-                            label={td("Meeting provider", { source: "en" })}
+                            label={t("pages.meetings.ui.meeting_provider")}
                         >
                             <div className="meeting-form-providers grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 {VIDEO_PROVIDER_OPTIONS.map((provider) => {
@@ -543,10 +545,7 @@ export default function MeetingFormFields({
                                         !zohoAllowed;
                                     const optionDisabled =
                                         disabled || zohoLocked;
-                                    const zohoTooltip = td(
-                                        "Zoho Meeting is only available for @hibarr.de email accounts.",
-                                        { source: "en" },
-                                    );
+                                    const zohoTooltip = t("pages.meetings.ui.zoho_meeting_is_only_available_for_hibarr_de");
 
                                     const optionButton = (
                                         <button
@@ -621,7 +620,7 @@ export default function MeetingFormFields({
                     )}
 
                     {isPhysicalMeeting && (
-                        <ModalField label={td("Location", { source: "en" })}>
+                        <ModalField label={t("pages.meetings.ui.location")}>
                             <div className="flex flex-wrap gap-2">
                                 {PHYSICAL_VENUE_OPTIONS.map((option) => {
                                     const selected =
@@ -654,7 +653,7 @@ export default function MeetingFormFields({
                                                     : "pointer",
                                             }}
                                         >
-                                            {td(option.label, { source: "en" })}
+                                            {ui(option.label)}
                                         </button>
                                     );
                                 })}
@@ -665,12 +664,7 @@ export default function MeetingFormFields({
                                         type="text"
                                         value={form.locationDetail}
                                         disabled={disabled}
-                                        placeholder={td(
-                                            "Enter meeting location",
-                                            {
-                                                source: "en",
-                                            },
-                                        )}
+                                        placeholder={t("pages.meetings.ui.enter_meeting_location")}
                                         onChange={(event) =>
                                             updateForm({
                                                 locationDetail:
@@ -712,9 +706,7 @@ export default function MeetingFormFields({
                                             className="text-[12px] font-semibold uppercase tracking-wide"
                                             style={{ color: T.BLUE }}
                                         >
-                                            {td("Zoho Meeting", {
-                                                source: "en",
-                                            })}
+                                            {t("pages.meetings.ui.zoho_meeting")}
                                         </div>
                                         <a
                                             href={form.meetingLink}
@@ -770,10 +762,7 @@ export default function MeetingFormFields({
                                             color: T.TEXT_MUTED,
                                         }}
                                     >
-                                        {td(
-                                            "A Zoho Meeting link will be generated automatically after scheduling, and the event will be created and added to your Zoho Calendar.",
-                                            { source: "en" },
-                                        )}
+                                        {t("pages.meetings.ui.a_zoho_meeting_link_will_be_generated")}
                                     </p>
                                     {onGenerateLink ? (
                                         <Button
@@ -803,10 +792,7 @@ export default function MeetingFormFields({
                                         ? t(
                                               "pages.deals.workspace.meetings.existing_link_hint",
                                           )
-                                        : td(
-                                              "This event will also be created and added to your Zoho Calendar.",
-                                              { source: "en" },
-                                          )}
+                                        : t("pages.meetings.ui.this_event_will_also_be_created_and_added_to")}
                                 </p>
                             )}
                         </ModalField>
@@ -822,9 +808,7 @@ export default function MeetingFormFields({
                                 <input
                                     type="url"
                                     inputMode="url"
-                                    placeholder={td("Paste your meeting link", {
-                                        source: "en",
-                                    })}
+                                    placeholder={t("pages.meetings.ui.paste_your_meeting_link")}
                                     value={form.meetingLink}
                                     disabled={disabled}
                                     onChange={(event) =>
@@ -842,20 +826,10 @@ export default function MeetingFormFields({
                                         }
                                         title={
                                             externalCreateUrl
-                                                ? td(
-                                                      form.platform === "zoom"
-                                                          ? "Open Zoom to create the meeting"
-                                                          : "Open calendar to create the meeting with these details",
-                                                      { source: "en" },
-                                                  )
-                                                : td(
-                                                      "Select a date and start time first",
-                                                      { source: "en" },
-                                                  )
+                                                ? form.platform === "zoom" ? t("pages.meetings.ui.open_zoom_to_create_the_meeting") : t("pages.meetings.ui.open_calendar_to_create_the_meeting_with_these")
+                                                : t("pages.meetings.ui.select_a_date_and_start_time_first")
                                         }
-                                        aria-label={td("Create on provider", {
-                                            source: "en",
-                                        })}
+                                        aria-label={t("pages.meetings.ui.create_on_provider")}
                                         onClick={openExternalMeetingCreate}
                                         className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 text-[12px] font-bold transition-opacity hover:opacity-90"
                                         style={{
@@ -895,23 +869,15 @@ export default function MeetingFormFields({
                                             }
                                         />
                                         <span>
-                                            {td("Open", { source: "en" })}
+                                            {t("pages.meetings.ui.open")}
                                         </span>
                                     </button>
                                 ) : null}
                             </div>
                             <p className="meeting-form-hint">
                                 {canOpenExternalCreate
-                                    ? td(
-                                          form.platform === "zoom"
-                                              ? "Copy the join link from Zoom and paste it here. Zoom cannot prefill schedule details from CRM."
-                                              : "Use the button to open a prefilled calendar event, then paste the join link here.",
-                                          { source: "en" },
-                                      )
-                                    : td(
-                                          "Copy the join link from your video provider and paste it here.",
-                                          { source: "en" },
-                                      )}
+                                    ? form.platform === "zoom" ? t("pages.meetings.ui.copy_the_join_link_from_zoom_and_paste_it_here") : t("pages.meetings.ui.use_the_button_to_open_a_prefilled_calendar")
+                                    : t("pages.meetings.ui.copy_the_join_link_from_your_video_provider_and")}
                             </p>
                         </ModalField>
                     )}
@@ -957,18 +923,12 @@ export default function MeetingFormFields({
                             {mustIncludeOwner &&
                                 mustIncludeOwner.id !== form.hostId && (
                                     <p className="meeting-form-hint">
-                                        {td(
-                                            `If they aren't the host, ${mustIncludeOwner.name} will be added to participants automatically and can't be removed.`,
-                                            { source: "en" },
-                                        )}
+                                        {t("pages.meetings.ui.if_they_arent_the_host_name_will_be_added_to", { name: mustIncludeOwner.name })}
                                     </p>
                                 )}
                             {!hostLocked && form.hostId && (
                                 <p className="meeting-form-hint">
-                                    {td(
-                                        "The host can't be changed after this meeting is saved.",
-                                        { source: "en" },
-                                    )}
+                                    {t("pages.meetings.ui.the_host_cant_be_changed_after_this_meeting_is")}
                                 </p>
                             )}
                         </ModalField>
@@ -1009,10 +969,7 @@ export default function MeetingFormFields({
                                     : []
                             }
                             lockedRemovalMessage={(name) =>
-                                td(
-                                    `${name} can't be removed — because they are the deal agent`,
-                                    { source: "en" },
-                                )
+                                t("pages.meetings.ui.name_cant_be_removed_because_they_are_the_deal", { name })
                             }
                         />
                     </ModalField>
@@ -1197,10 +1154,7 @@ export default function MeetingFormFields({
                                     </div>
                                     {!canAddReminder && reminderTime >= 1 ? (
                                         <p className="meeting-form-hint">
-                                            {td(
-                                                "A 5-minute reminder is already included by default (along with 15m, 30m, and 1h).",
-                                                { source: "en" },
-                                            )}
+                                            {t("pages.meetings.ui.a_5_minute_reminder_is_already_included_by")}
                                         </p>
                                     ) : null}
                                 </div>
@@ -1326,7 +1280,7 @@ export default function MeetingFormFields({
                                             handleDurationSelect(option.value)
                                         }
                                     >
-                                        {td(option.label, { source: "en" })}
+                                        {ui(option.label)}
                                     </button>
                                 ))}
                             </div>

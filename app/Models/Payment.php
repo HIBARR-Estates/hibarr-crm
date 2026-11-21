@@ -110,6 +110,7 @@ class Payment extends BaseModel
         'verified_at' => 'datetime',
         'invalidated_at' => 'datetime',
         'documents_requested_at' => 'datetime',
+        'vat_settled_at' => 'datetime',
         'deleted_at' => 'datetime',
         'payment_gateway_response' => 'object',
     ];

@@ -1,3 +1,4 @@
+import useMeetingsImprovementsFlag from "@/Hooks/useMeetingsImprovementsFlag";
 import dayjs from "dayjs";
 import {
     DeleteOutlined,
@@ -113,7 +114,8 @@ export default function useMeetingPresentation({
     );
     const { end } = meetingRange(meeting, timezone);
     const record = meetingRecordLink(meeting);
-    const summaryState = meetingSummaryState(meeting, bucket);
+    const improved = useMeetingsImprovementsFlag();
+    const summaryState = meetingSummaryState(meeting, bucket, { improved });
     const showJoin = canJoinMeeting(meeting, bucket);
 
     const dealStage = meeting.deal && "leadStage" in meeting.deal
@@ -222,28 +224,28 @@ export default function useMeetingPresentation({
         };
     } else if (meeting.status === "cancelled" || meeting.status === "canceled") {
         stateChip = {
-            label: td("Cancelled"),
+            label: t("pages.meetings.ui.cancelled"),
             bg: T.SURFACE_2,
             border: T.BORDER,
             color: T.TEXT_MUTED,
         };
     } else if (meeting.client_attended === false) {
         stateChip = {
-            label: td("No show"),
+            label: t("pages.meetings.ui.no_show"),
             bg: T.AMBER_BANNER,
             border: T.AMBER_MID,
             color: T.AMBER,
         };
     } else if (meeting.status === "completed") {
         stateChip = {
-            label: td("Held"),
+            label: t("pages.meetings.ui.held"),
             bg: T.GREEN_LIGHT,
             border: T.GREEN_MID,
             color: T.GREEN,
         };
     } else if (past) {
         stateChip = {
-            label: td("Not reported"),
+            label: t("pages.meetings.ui.not_reported"),
             bg: T.SURFACE_2,
             border: T.BORDER,
             color: T.TEXT_HINT,
@@ -253,7 +255,7 @@ export default function useMeetingPresentation({
         // this state explicitly rather than leaving the column blank, and
         // pairs it with a countdown so the row says how soon it matters.
         stateChip = {
-            label: td("Scheduled"),
+            label: t("pages.meetings.ui.scheduled"),
             bg: T.BLUE_LIGHT,
             border: T.BLUE_MID,
             color: T.BLUE,
@@ -280,7 +282,7 @@ export default function useMeetingPresentation({
         day,
         weekday,
         timeRange,
-        timeMeta: live ? `${td("Now")} · ${timeRange}` : timeRange,
+        timeMeta: live ? `${t("pages.meetings.ui.now")} · ${timeRange}` : timeRange,
         minutesRemaining,
         title: meeting.meeting_type?.name
             ? td(meeting.meeting_type.name)
