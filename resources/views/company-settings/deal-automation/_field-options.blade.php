@@ -5,11 +5,11 @@
      variable mappings) rather than only evaluated — it drops the marketing
      identifiers that must not leave the system. --}}
 @php $selectedField = $selectedField ?? ''; @endphp
-<optgroup label="Native Fields" class="subject-group-deal">
-    <option value="value" data-type="number" {{ $selectedField == 'value' ? 'selected' : '' }}>Deal Value</option>
-    <option value="pipeline_stage_id" data-type="number" {{ $selectedField == 'pipeline_stage_id' ? 'selected' : '' }}>Stage</option>
+<optgroup label="{{ td('Native Fields') }}" class="subject-group-deal">
+    <option value="value" data-type="number" {{ $selectedField == 'value' ? 'selected' : '' }}>{{ td('Deal Value') }}</option>
+    <option value="pipeline_stage_id" data-type="number" {{ $selectedField == 'pipeline_stage_id' ? 'selected' : '' }}>{{ td('Stage') }}</option>
 </optgroup>
-<optgroup label="Hibarr Fields" class="subject-group-deal">
+<optgroup label="{{ td('Hibarr Fields') }}" class="subject-group-deal">
     @foreach($hibarrFields as $key => $label)
         @php
             $type = 'string';
@@ -19,7 +19,7 @@
         <option value="{{ $key }}" data-type="{{ $type }}" {{ $selectedField == $key ? 'selected' : '' }}>{{ $label }}</option>
     @endforeach
 </optgroup>
-<optgroup label="Related Data" class="subject-group-deal">
+<optgroup label="{{ td('Related Data') }}" class="subject-group-deal">
     @foreach($relatedFields as $key => $label)
         @php
             $type = 'string';
@@ -29,7 +29,7 @@
         <option value="{{ $key }}" data-type="{{ $type }}" {{ $selectedField == $key ? 'selected' : '' }}>{{ $label }}</option>
     @endforeach
 </optgroup>
-<optgroup label="Custom Fields" class="subject-group-deal">
+<optgroup label="{{ td('Custom Fields') }}" class="subject-group-deal">
     @foreach($customFields as $field)
         @php
             $type = 'string';

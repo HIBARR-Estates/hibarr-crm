@@ -2,6 +2,8 @@ import React from "react";
 import { useFilter } from "@/contexts/FilterContext";
 import { describeFilters } from "./filterSummary";
 import "./active-filter-sentence.css";
+import { useTranslation } from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface ActiveFilterSentenceProps {
     /** Result count for the currently applied filters. */
@@ -22,8 +24,11 @@ export default function ActiveFilterSentence({
     onOpenFilters,
     onSaveAsView,
 }: ActiveFilterSentenceProps) {
+    const { t } = useTranslation();
+    const { td } = useTd();
     const { config, filters, clearAllFilters } = useFilter();
-    const parts = describeFilters(config, filters);
+    const parts = describeFilters(config, filters, { t, td });
+    const entity = td(entityLabel, { source: "en" });
 
     if (parts.length === 0) return null;
 
@@ -31,16 +36,18 @@ export default function ActiveFilterSentence({
         <div className="lfs">
             <span className="lfs__dot" />
             <span className="lfs__text">
-                Showing {entityLabel} where{" "}
+                {t("pages.filters.showing_where", { entity })}{" "}
                 {parts.map((part, index) => (
                     <React.Fragment key={part.keys.join("|")}>
                         {index > 0 &&
-                            (index === parts.length - 1 ? " and " : ", ")}
+                            (index === parts.length - 1
+                                ? t("pages.filters.and_join")
+                                : ", ")}
                         <button
                             type="button"
                             className="lfs__clause"
                             onClick={onOpenFilters}
-                            title="Edit this filter"
+                            title={t("pages.filters.edit_filter")}
                         >
                             {part.text}
                         </button>
@@ -52,7 +59,7 @@ export default function ActiveFilterSentence({
                 <>
                     <span className="lfs__sep">—</span>
                     <span className="lfs__count">
-                        <b>{count.toLocaleString()}</b> {entityLabel}
+                        <b>{count.toLocaleString()}</b> {entity}
                     </span>
                 </>
             )}
@@ -66,7 +73,7 @@ export default function ActiveFilterSentence({
                         className="lfs__action"
                         onClick={onSaveAsView}
                     >
-                        Save as view
+                        {t("pages.filters.save_as_view")}
                     </button>
                     <span className="lfs__divider" />
                 </>
@@ -76,7 +83,7 @@ export default function ActiveFilterSentence({
                 className="lfs__action lfs__action--danger"
                 onClick={clearAllFilters}
             >
-                Clear all
+                {t("pages.filters.clear_all")}
             </button>
         </div>
     );

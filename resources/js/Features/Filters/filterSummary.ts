@@ -1,4 +1,11 @@
-import type { FilterConfig, FilterFieldConfig } from "@/contexts/FilterContext";
+import {
+    activeModeOf,
+    isValuelessMode,
+    modeKeyOf,
+    valueKeysOf,
+    type FilterConfig,
+    type FilterFieldConfig,
+} from "@/contexts/FilterContext";
 
 export interface FilterSummaryPart {
     /** The filter key(s) this part describes — removing it clears all of them. */
@@ -10,6 +17,43 @@ export interface FilterSummaryPart {
     /** Compact chip text, e.g. "Status · 2". */
     chip: string;
 }
+
+export interface SummaryI18n {
+    t: (key: string, options?: Record<string, any>) => string;
+    td: (text: string, options?: { source: "en" }) => string;
+}
+
+const EN_SUMMARY: Record<string, string> = {
+    summary_between: "{{noun}} between {{a}} and {{b}}",
+    summary_after: "{{noun}} after {{a}}",
+    summary_before: "{{noun}} before {{a}}",
+    summary_is: "{{noun}} is {{value}}",
+    summary_contains: "{{noun}} contains “{{value}}”",
+    summary_or: "{{a}} or {{b}}",
+    summary_one_of: "one of {{n}}",
+    summary_not: "{{noun}} is not {{value}}",
+    summary_empty: "{{noun}} is empty",
+    summary_any: "{{noun}} has any value",
+    summary_active: "{{noun}} is active",
+    summary_inactive: "{{noun}} is inactive",
+    chip_not: "{{label}}: not {{values}}",
+    chip_not_count: "{{label}} · not {{n}}",
+    chip_empty: "Empty",
+    chip_any: "Has any",
+    chip_active: "Active",
+    chip_inactive: "Inactive",
+    untitled_view: "Untitled view",
+};
+
+/** English fallback for callers that only need counts (no i18n hooks). */
+const EN_I18N: SummaryI18n = {
+    t: (key, options = {}) =>
+        (EN_SUMMARY[key.split(".").pop() ?? ""] ?? key).replace(
+            /\{\{(\w+)\}\}/g,
+            (_, name) => String(options[name] ?? ""),
+        ),
+    td: (text) => text,
+};
 
 function optionsOf(field: FilterFieldConfig) {
     const options =
@@ -25,18 +69,25 @@ function capitalize(text: string): string {
     return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function labelFor(field: FilterFieldConfig, value: any): string {
+function labelFor(
+    field: FilterFieldConfig,
+    value: any,
+    i18n: SummaryI18n,
+): string {
     const match = optionsOf(field).find(
         (option) => String(option.value) === String(value),
     );
-    return capitalize(match ? String(match.label) : String(value));
+    return capitalize(
+        i18n.td(match ? String(match.label) : String(value), { source: "en" }),
+    );
 }
 
 /** "A", "A or B", "one of 4" */
-function joinValues(labels: string[]): string {
+function joinValues(labels: string[], i18n: SummaryI18n): string {
     if (labels.length === 1) return labels[0];
-    if (labels.length === 2) return `${labels[0]} or ${labels[1]}`;
-    return `one of ${labels.length}`;
+    if (labels.length === 2)
+        return i18n.t("pages.filters.summary_or", { a: labels[0], b: labels[1] });
+    return i18n.t("pages.filters.summary_one_of", { n: labels.length });
 }
 
 function isEmpty(value: any): boolean {
@@ -54,6 +105,7 @@ function isEmpty(value: any): boolean {
 export function describeFilters(
     config: FilterConfig | null,
     filters: Record<string, any>,
+    i18n: SummaryI18n = EN_I18N,
 ): FilterSummaryPart[] {
     if (!config) return [];
 
@@ -63,7 +115,70 @@ export function describeFilters(
     for (const field of config.fields) {
         if (field.hidden || consumed.has(field.key)) continue;
 
-        const noun = capitalize(field.sentence ?? field.label.toLowerCase());
+        const fieldLabel = i18n.td(field.label, { source: "en" });
+        const noun = capitalize(
+            field.sentence
+                ? i18n.td(field.sentence, { source: "en" })
+                : fieldLabel,
+        );
+
+        // "Is not", "Is empty", "Has any": the mode is its own URL param and
+        // removing the clause has to clear it along with the values.
+        const mode = activeModeOf(field, filters);
+        if (mode) {
+            const modeKey = modeKeyOf(field.key);
+            const valueKeys = valueKeysOf(field);
+
+            if (isValuelessMode(mode)) {
+                const custom = field.exclusionLabels?.[mode];
+                const word = custom
+                    ? i18n.td(custom, { source: "en" })
+                    : i18n.t(`pages.filters.chip_${mode}`);
+                valueKeys.forEach((key) => consumed.add(key));
+                parts.push({
+                    keys: [...valueKeys, modeKey],
+                    label: fieldLabel,
+                    // A bespoke label ("No score") already is the whole clause.
+                    text: custom
+                        ? word
+                        : i18n.t(`pages.filters.summary_${mode}`, { noun }),
+                    chip: custom ? word : `${fieldLabel}: ${word}`,
+                });
+                continue;
+            }
+
+            // not_in: only describable once there is something to exclude.
+            const picked = filters[field.key];
+            if (!isEmpty(picked)) {
+                const list = Array.isArray(picked)
+                    ? picked
+                    : String(picked)
+                          .split(",")
+                          .map((entry) => entry.trim())
+                          .filter(Boolean);
+                const labels = list.map((entry) => labelFor(field, entry, i18n));
+                consumed.add(field.key);
+                parts.push({
+                    keys: [field.key, modeKey],
+                    label: fieldLabel,
+                    text: i18n.t("pages.filters.summary_not", {
+                        noun,
+                        value: joinValues(labels, i18n),
+                    }),
+                    chip:
+                        labels.length > 2
+                            ? i18n.t("pages.filters.chip_not_count", {
+                                  label: fieldLabel,
+                                  n: labels.length,
+                              })
+                            : i18n.t("pages.filters.chip_not", {
+                                  label: fieldLabel,
+                                  values: labels.join(", "),
+                              }),
+                });
+                continue;
+            }
+        }
 
         // Date range spans two keys.
         if (field.control === "datePresets") {
@@ -79,13 +194,13 @@ export function describeFilters(
 
             const text =
                 !isEmpty(start) && !isEmpty(end)
-                    ? `${noun} between ${start} and ${end}`
+                    ? i18n.t("pages.filters.summary_between", { noun, a: start, b: end })
                     : !isEmpty(start)
-                      ? `${noun} after ${start}`
-                      : `${noun} before ${end}`;
+                      ? i18n.t("pages.filters.summary_after", { noun, a: start })
+                      : i18n.t("pages.filters.summary_before", { noun, a: end });
             parts.push({
                 keys: [startKey, endKey],
-                label: field.label,
+                label: fieldLabel,
                 text,
                 chip: !isEmpty(start) && !isEmpty(end) ? `${start} → ${end}` : text,
             });
@@ -102,13 +217,13 @@ export function describeFilters(
 
             const text =
                 !isEmpty(min) && !isEmpty(max)
-                    ? `${noun} between ${min} and ${max}`
+                    ? i18n.t("pages.filters.summary_between", { noun, a: min, b: max })
                     : !isEmpty(min)
                       ? `${noun} ≥ ${min}`
                       : `${noun} ≤ ${max}`;
             parts.push({
                 keys: [`min_${field.key}`, `max_${field.key}`],
-                label: field.label,
+                label: fieldLabel,
                 text,
                 chip: text,
             });
@@ -120,35 +235,38 @@ export function describeFilters(
         consumed.add(field.key);
 
         if (field.control === "segmented" || field.type === "select") {
-            const label = labelFor(field, value);
+            const label = labelFor(field, value, i18n);
             parts.push({
                 keys: [field.key],
-                label: field.label,
-                text: `${noun} is ${label}`,
-                chip: `${field.label}: ${label}`,
+                label: fieldLabel,
+                text: i18n.t("pages.filters.summary_is", { noun, value: label }),
+                chip: `${fieldLabel}: ${label}`,
             });
             continue;
         }
 
         if (Array.isArray(value)) {
-            const labels = value.map((entry) => labelFor(field, entry));
+            const labels = value.map((entry) => labelFor(field, entry, i18n));
             parts.push({
                 keys: [field.key],
-                label: field.label,
-                text: `${noun} is ${joinValues(labels)}`,
+                label: fieldLabel,
+                text: i18n.t("pages.filters.summary_is", {
+                    noun,
+                    value: joinValues(labels, i18n),
+                }),
                 chip:
                     labels.length > 2
-                        ? `${field.label} · ${labels.length}`
-                        : `${field.label}: ${labels.join(", ")}`,
+                        ? `${fieldLabel} · ${labels.length}`
+                        : `${fieldLabel}: ${labels.join(", ")}`,
             });
             continue;
         }
 
         parts.push({
             keys: [field.key],
-            label: field.label,
-            text: `${noun} contains “${value}”`,
-            chip: `${field.label}: ${value}`,
+            label: fieldLabel,
+            text: i18n.t("pages.filters.summary_contains", { noun, value }),
+            chip: `${fieldLabel}: ${value}`,
         });
     }
 
@@ -164,8 +282,11 @@ export function joinSentence(parts: FilterSummaryPart[]): string {
 }
 
 /** Name suggestion for "Save as view", built from the strongest filters. */
-export function suggestViewName(parts: FilterSummaryPart[]): string {
-    if (parts.length === 0) return "Untitled view";
+export function suggestViewName(
+    parts: FilterSummaryPart[],
+    i18n: SummaryI18n = EN_I18N,
+): string {
+    if (parts.length === 0) return i18n.t("pages.filters.untitled_view");
     return parts
         .slice(0, 3)
         .map((part) => part.chip.replace(/^[^:]+:\s*/, ""))

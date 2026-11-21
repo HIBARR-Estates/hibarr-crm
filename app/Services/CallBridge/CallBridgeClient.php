@@ -10,9 +10,9 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 /**
  * Low-level HTTP client for OL's call bridge.
  *
- * OL owns all call data — this client never persists anything, it only
- * starts/ends calls and pulls status/event feeds that CallBridgeService
- * turns into timeline events. Paths and credentials come from
+ * OL owns all call data — this client never persists anything. It starts
+ * click-to-call calls, pushes softphone call events and recordings to OL, and
+ * pulls the event feed that CallBridgeService turns into timeline events. Paths and credentials come from
  * config('services.call_bridge.*').
  */
 class CallBridgeClient
@@ -26,36 +26,6 @@ class CallBridgeClient
     public function startCall(array $payload): array
     {
         return $this->request('POST', 'start_call', $payload);
-    }
-
-    /**
-     * End an active call through the OL call bridge.
-     *
-     * @return array<string, mixed>
-     */
-    public function endCall(string $callId): array
-    {
-        return $this->request('POST', 'end_call', ['call_id' => $callId]);
-    }
-
-    /**
-     * Fetch the current status of a single call.
-     *
-     * @return array<string, mixed>
-     */
-    public function getCallStatus(string $callId): array
-    {
-        return $this->request('GET', 'status', [], ['call_id' => $callId]);
-    }
-
-    /**
-     * Fetch calls that are currently active on the bridge.
-     *
-     * @return array<string, mixed>
-     */
-    public function getActiveCalls(): array
-    {
-        return $this->request('GET', 'active_calls');
     }
 
     /**
@@ -225,7 +195,87 @@ class CallBridgeClient
             }
         }
 
-        return $formatted;
+        return $formatted + $this->correlationFields($payload);
+    }
+
+    /**
+     * CRM correlation OL uses to store the call: the per-call reference the
+     * recording upload shares, the agent (by email — OL has its own user ids)
+     * and the lead/deal in CRM ids. Each is only sent when it is valid, so a
+     * bad value never fails OL's validation of the whole event.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function correlationFields(array $payload): array
+    {
+        $fields = [];
+
+        $callRef = $payload['callRef'] ?? $payload['call_ref'] ?? null;
+        if ((is_string($callRef) || is_numeric($callRef)) && trim((string) $callRef) !== '') {
+            $fields['callRef'] = mb_substr(trim((string) $callRef), 0, 64);
+        }
+
+        $email = $payload['agentEmail'] ?? $payload['agent_email'] ?? null;
+        if (is_string($email) && filter_var(trim($email), FILTER_VALIDATE_EMAIL)) {
+            $fields['agentEmail'] = mb_substr(trim($email), 0, 191);
+        }
+
+        $entityType = $payload['entityType'] ?? $payload['entity_type'] ?? null;
+        $entityId = $payload['entityId'] ?? $payload['entity_id'] ?? null;
+        if (in_array($entityType, ['lead', 'deal'], true) && is_numeric($entityId) && (int) $entityId > 0) {
+            $fields['entityType'] = $entityType;
+            $fields['entityId'] = (int) $entityId;
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Register a recording the CRM stored itself with OL
+     * (POST /call-bridge/emit/recording), so OL's call log holds it too.
+     *
+     * @param  array{callRef: string, crmRecordingId: int, url?: string|null, mimeType?: string|null, sizeBytes?: int|null, durationSeconds?: int|null, expiresAt?: string|null, direction?: string|null, phoneNumber?: string|null, agentEmail?: string|null, entityType?: string|null, entityId?: int|null}  $payload
+     * @return array<string, mixed>
+     */
+    public function emitRecording(array $payload): array
+    {
+        $callRef = trim((string) ($payload['callRef'] ?? ''));
+        if ($callRef === '' || empty($payload['crmRecordingId'])) {
+            return [];
+        }
+
+        $body = [
+            'callRef' => mb_substr($callRef, 0, 191),
+            'crmRecordingId' => (int) $payload['crmRecordingId'],
+        ];
+
+        // OL only accepts https links; a local-disk fallback has none.
+        $url = $payload['url'] ?? null;
+        if (is_string($url) && str_starts_with($url, 'https://')) {
+            $body['url'] = $url;
+        }
+        foreach (['mimeType', 'expiresAt'] as $key) {
+            if (is_string($payload[$key] ?? null) && $payload[$key] !== '') {
+                $body[$key] = $payload[$key];
+            }
+        }
+        foreach (['sizeBytes', 'durationSeconds'] as $key) {
+            if (is_numeric($payload[$key] ?? null)) {
+                $body[$key] = max(0, (int) $payload[$key]);
+            }
+        }
+        if (in_array($payload['direction'] ?? null, ['inbound', 'outbound'], true)) {
+            $body['direction'] = $payload['direction'];
+        }
+        if (is_string($payload['phoneNumber'] ?? null) && trim($payload['phoneNumber']) !== '') {
+            $body['phoneNumber'] = mb_substr(trim($payload['phoneNumber']), 0, 32);
+        }
+
+        $correlation = $this->correlationFields($payload);
+        unset($correlation['callRef']);
+
+        return $this->request('POST', 'emit_recording', $body + $correlation);
     }
 
     /**

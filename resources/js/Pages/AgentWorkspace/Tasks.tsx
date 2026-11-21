@@ -14,6 +14,9 @@ import { countViews, taskViews } from "./tasks/format";
 import type { TaskChip, TaskScope, TasksPayload } from "./tasks/types";
 import useTaskListWork from "./tasks/useTaskListWork";
 import useAgentTaskCreate from "./tasks/useAgentTaskCreate";
+import { taskDoneLabel } from "./donext/doNext";
+import useDoNext, { DoNext } from "./donext/useDoNext";
+import { isTaskDone } from "./today/useTodayWork";
 import "./tasks/tasks.css";
 
 // Opened on demand, so their code stays out of the first load.
@@ -110,9 +113,34 @@ export default function Tasks({
         [filters, shownScope],
     );
 
-    const work = useTaskListWork(tasks?.items);
+    // Do next (L7-43): after a tick, the next step for the same person or deal.
+    const doNext = useDoNext();
+    const [keepId, setKeepId] = useState<number | null>(null);
+    const work = useTaskListWork(tasks?.items, undefined, keepId);
+    const offerNext = useCallback(
+        (task: QueueTask, row: HTMLElement | null) => {
+            if (!task.related) return;
+            const opened = doNext.offer({ record: task.related, done: { kind: "task", label: taskDoneLabel(task) }, anchor: row });
+            setKeepId(opened && row ? task.id : null);
+        },
+        [doNext],
+    );
+    const closeNext = useCallback(() => {
+        doNext.close();
+        setKeepId(null);
+    }, [doNext]);
+    const completeTask = useCallback(
+        (task: QueueTask, row: HTMLElement | null) => {
+            work.complete(task);
+            offerNext(task, row);
+        },
+        [work.complete, offerNext],
+    );
+
     const views = useMemo(() => (work.rows ? taskViews(work.rows, nowMs, timezone) : undefined), [work.rows, nowMs, timezone]);
-    const counts = useMemo(() => (views ? countViews(views) : undefined), [views]);
+    // The ticked row kept under Do next is done: it no longer counts.
+    const liveViews = useMemo(() => views?.filter((view) => !isTaskDone(view.task)), [views]);
+    const counts = useMemo(() => (liveViews ? countViews(liveViews) : undefined), [liveViews]);
     const needle = search.trim().toLowerCase();
     const shown = useMemo(() => {
         if (!views) return views;
@@ -132,7 +160,7 @@ export default function Tasks({
     }, [chip, counts]);
 
     // Open tasks in this scope: the server's total, less what has been ticked since.
-    const open = tasks && work.rows ? tasks.total - (tasks.items.length - work.rows.length) : undefined;
+    const open = tasks && liveViews ? tasks.total - (tasks.items.length - liveViews.length) : undefined;
     const subtitle = open === undefined ? "" : open === 1 ? t("pages.agent_workspace.tasks.subtitle_one") : t("pages.agent_workspace.tasks.subtitle", { count: open });
 
     const [filtersMounted, setFiltersMounted] = useState(false);
@@ -152,13 +180,13 @@ export default function Tasks({
             timeZone: timezone,
             userId,
             onOpen: setOpenTask,
-            onComplete: work.complete,
+            onComplete: completeTask,
             onReschedule: setSnoozeTask,
             isCompleting: (taskId: number) => work.isStatusPending(taskId),
             isRescheduling: (taskId: number) => work.isReschedulePending(taskId),
         }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [nowMs, timezone, userId, work.complete, work.isStatusPending, work.isReschedulePending],
+        [nowMs, timezone, userId, completeTask, work.isStatusPending, work.isReschedulePending],
     );
 
     const truncated = tasks !== undefined && tasks.total > tasks.items.length;
@@ -229,6 +257,7 @@ export default function Tasks({
                         onComplete={(task) => {
                             work.complete(task);
                             setOpenTask(null);
+                            offerNext(task as QueueTask, null);
                         }}
                         onChanged={() => router.reload({ only: ["tasks"] })}
                     />
@@ -246,6 +275,14 @@ export default function Tasks({
                     />
                 ) : null}
             </Suspense>
+            <DoNext
+                request={doNext.request}
+                onClose={closeNext}
+                onSaved={() => {
+                    closeNext();
+                    router.reload({ only: ["tasks"] });
+                }}
+            />
         </>
     );
 }

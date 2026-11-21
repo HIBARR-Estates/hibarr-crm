@@ -1,6 +1,6 @@
 <div class="modal-header">
     <h5 class="modal-title" id="modelHeading">@lang('modules.roles.addRole')</h5>
-    <button type="button"  class="close" data-dismiss="modal" aria-label="Close"><span
+    <button type="button"  class="close" data-dismiss="modal" aria-label="{{ td('Close') }}"><span
             aria-hidden="true">×</span></button>
 </div>
 <div class="modal-body">
@@ -15,7 +15,7 @@
         @forelse($roles as $key=>$role)
             <tr id="cat-{{ $role->id }}">
                 <td>{{ $key + 1 }}</td>
-                <td data-row-id="{{ $role->id }}"  contenteditable="true" placeholder="Edit me..." >{{ $role->display_name }}
+                <td data-row-id="{{ $role->id }}"  contenteditable="true" placeholder="{{ td('Edit me...') }}" >{{ $role->display_name }}
                 </td>
                 <td><span class="text-lightest"><span class="badge badge-primary">{{ $role->unsynced_users_count }}</span> @lang('app.unsyncedUsers')</span></td>
                 <td class="text-right">

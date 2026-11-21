@@ -33,6 +33,22 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
+if (!function_exists('td')) {
+    /**
+     * Dynamic translation for server-side English copy. Mirrors the frontend
+     * `td()`: English locales get the text unchanged; other locales get the
+     * stored machine translation (queued on first use).
+     */
+    function td(?string $text): string
+    {
+        if ($text === null || $text === '') {
+            return '';
+        }
+
+        return app(\App\Services\DynamicTranslationService::class)->translate($text);
+    }
+}
+
 if (!function_exists('user')) {
 
     /**

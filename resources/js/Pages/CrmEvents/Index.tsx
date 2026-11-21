@@ -28,6 +28,7 @@ import {
     CloseCircleOutlined,
     ExclamationCircleOutlined,
     MinusCircleOutlined,
+    MessageOutlined,
     ArrowDownOutlined,
     ArrowUpOutlined,
 } from "@ant-design/icons";
@@ -42,6 +43,7 @@ import type {
     CrmEventDirection,
     CrmEventGenerationType,
 } from "@/Types/api/crm-event";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 dayjs.extend(relativeTime);
 
@@ -97,29 +99,35 @@ const GENERATION_CONFIG: Record<
     external: { label: "External", icon: <ApiOutlined />, color: "orange" },
 };
 
+/** `labelKey` is resolved with t() where the column renders. */
 const STATUS_CONFIG: Record<
     CrmEventStatus,
-    { label: string; icon: React.ReactNode; color: string }
+    { labelKey: string; icon: React.ReactNode; color: string }
 > = {
     completed: {
-        label: "Completed",
+        labelKey: "pages.deals.timeline.status_completed",
         icon: <CheckCircleOutlined />,
         color: "success",
     },
     error_occurred: {
-        label: "Error",
+        labelKey: "pages.deals.timeline.status_error",
         icon: <CloseCircleOutlined />,
         color: "error",
     },
     missed: {
-        label: "Missed",
+        labelKey: "pages.deals.timeline.status_missed",
         icon: <ExclamationCircleOutlined />,
         color: "warning",
     },
     rejected: {
-        label: "Rejected",
+        labelKey: "pages.deals.timeline.status_rejected",
         icon: <MinusCircleOutlined />,
         color: "volcano",
+    },
+    voicemail: {
+        labelKey: "pages.call_summary.voicemail",
+        icon: <MessageOutlined />,
+        color: "blue",
     },
 };
 
@@ -146,6 +154,7 @@ function Index({
     filters,
     filterOptions,
 }: CrmEventsIndexProps) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [localFilters, setLocalFilters] = useState<
@@ -186,19 +195,19 @@ function Index({
     // Table columns
     const columns: TableColumnsType<CrmEvent> = [
         {
-            title: "Event",
+            title: td("Event", { source: "en" }),
             dataIndex: ["event_type", "name"],
             key: "event",
             width: 220,
             render: (_: any, record: CrmEvent) => (
                 <div>
                     <Text strong className="text-[13px]">
-                        {record.event_type?.name ?? "Unknown"}
+                        {td(record.event_type?.name ?? "Unknown", { source: "en" })}
                     </Text>
                     {record.event_type?.category && (
                         <div>
                             <Tag className="text-[10px] mt-0.5" color="default">
-                                {record.event_type.category.name}
+                                {td(record.event_type.category.name, { source: "en" })}
                             </Tag>
                         </div>
                     )}
@@ -206,7 +215,7 @@ function Index({
             ),
         },
         {
-            title: "Origin",
+            title: td("Origin", { source: "en" }),
             dataIndex: "generation_type",
             key: "generation_type",
             width: 110,
@@ -222,7 +231,7 @@ function Index({
             },
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             width: 110,
@@ -230,7 +239,7 @@ function Index({
                 const cfg = STATUS_CONFIG[val];
                 return cfg ? (
                     <Tag icon={cfg.icon} color={cfg.color}>
-                        {cfg.label}
+                        {t(cfg.labelKey)}
                     </Tag>
                 ) : (
                     (val ?? "—")
@@ -238,7 +247,7 @@ function Index({
             },
         },
         {
-            title: "Direction",
+            title: td("Direction", { source: "en" }),
             dataIndex: "direction",
             key: "direction",
             width: 100,
@@ -255,7 +264,7 @@ function Index({
             },
         },
         {
-            title: "User",
+            title: td("User", { source: "en" }),
             dataIndex: "user",
             key: "user",
             width: 220,
@@ -278,7 +287,7 @@ function Index({
             },
         },
         {
-            title: "Model",
+            title: td("Model", { source: "en" }),
             key: "model",
             width: 130,
             render: (_: any, record: CrmEvent) =>
@@ -292,7 +301,7 @@ function Index({
                 ),
         },
         {
-            title: "Source",
+            title: td("Source", { source: "en" }),
             dataIndex: "source",
             key: "source",
             width: 90,
@@ -306,7 +315,7 @@ function Index({
                 ),
         },
         {
-            title: "Message",
+            title: td("Message", { source: "en" }),
             key: "message",
             width: 200,
             ellipsis: true,
@@ -322,7 +331,7 @@ function Index({
             },
         },
         {
-            title: "Occurred",
+            title: td("Occurred", { source: "en" }),
             dataIndex: "occurred_at",
             key: "occurred_at",
             width: 140,
@@ -343,7 +352,7 @@ function Index({
                 {/* Toolbar */}
                 <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                     <Input.Search
-                        placeholder="Search events, users, UUID…"
+                        placeholder={td("Search events, users, UUID…", { source: "en" })}
                         allowClear
                         defaultValue={filters.search}
                         onSearch={handleSearch}
@@ -372,7 +381,7 @@ function Index({
                                 icon={<ClearOutlined />}
                                 onClick={clearFilters}
                             >
-                                Clear
+                                {td("Clear", { source: "en" })}
                             </Button>
                         )}
                         <Button
@@ -421,7 +430,7 @@ function Index({
 
                 {/* Filters Drawer */}
                 <Drawer
-                    title="Filter Events"
+                    title={td("Filter Events", { source: "en" })}
                     open={filtersOpen}
                     onClose={() => setFiltersOpen(false)}
                     width={360}
@@ -433,18 +442,18 @@ function Index({
                                 setFiltersOpen(false);
                             }}
                         >
-                            Apply
+                            {td("Apply", { source: "en" })}
                         </Button>
                     }
                 >
                     <div className="flex flex-col gap-4">
                         <div>
                             <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                Category
+                                {td("Category", { source: "en" })}
                             </label>
                             <Select
                                 className="w-full"
-                                placeholder="All categories"
+                                placeholder={td("All categories", { source: "en" })}
                                 allowClear
                                 value={localFilters.category_slug}
                                 onChange={(val) =>
@@ -461,11 +470,11 @@ function Index({
                         </div>
                         <div>
                             <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                Origin
+                                {td("Origin", { source: "en" })}
                             </label>
                             <Select
                                 className="w-full"
-                                placeholder="All origins"
+                                placeholder={td("All origins", { source: "en" })}
                                 allowClear
                                 value={localFilters.generation_type}
                                 onChange={(val) =>
@@ -479,11 +488,11 @@ function Index({
                         </div>
                         <div>
                             <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                Status
+                                {td("Status", { source: "en" })}
                             </label>
                             <Select
                                 className="w-full"
-                                placeholder="All statuses"
+                                placeholder={td("All statuses", { source: "en" })}
                                 allowClear
                                 value={localFilters.status}
                                 onChange={(val) =>
@@ -497,11 +506,11 @@ function Index({
                         </div>
                         <div>
                             <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                Direction
+                                {td("Direction", { source: "en" })}
                             </label>
                             <Select
                                 className="w-full"
-                                placeholder="All directions"
+                                placeholder={td("All directions", { source: "en" })}
                                 allowClear
                                 value={localFilters.direction}
                                 onChange={(val) =>
@@ -515,11 +524,11 @@ function Index({
                         </div>
                         <div>
                             <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                Source
+                                {td("Source", { source: "en" })}
                             </label>
                             <Select
                                 className="w-full"
-                                placeholder="All sources"
+                                placeholder={td("All sources", { source: "en" })}
                                 allowClear
                                 value={localFilters.source}
                                 onChange={(val) =>
@@ -533,7 +542,7 @@ function Index({
                         </div>
                         <div>
                             <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                Date Range
+                                {td("Date Range", { source: "en" })}
                             </label>
                             <RangePicker
                                 className="w-full"

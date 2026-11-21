@@ -34,6 +34,6 @@
             </span>
         </span>
     @else
-        <span style="display:block; color:#1f2937;">No records were updated.</span>
+        <span style="display:block; color:#1f2937;">{{ td('No records were updated.') }}</span>
     @endif
 @endsection

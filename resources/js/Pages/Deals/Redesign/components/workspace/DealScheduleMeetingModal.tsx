@@ -78,6 +78,7 @@ export default function DealScheduleMeetingModal({
             variant={agent ? "agent" : "default"}
             relatedField={agent?.relatedField}
             closeLabel={agent?.closeLabel}
+            calendlyTarget={{ type: "deal", id: deal.id }}
             labels={{
                 title: t("pages.deals.workspace.meetings.schedule"),
                 subtitle: agent?.subtitle,

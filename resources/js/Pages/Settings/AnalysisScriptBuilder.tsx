@@ -35,6 +35,7 @@ import {
 } from "./AnalysisScript/types";
 
 import "@/Components/Redesign/redesign.css";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Pipeline {
     id: number;
@@ -47,6 +48,7 @@ const NO_FIELDS: PaletteCustomField[] = [];
 const NO_CATEGORIES: PaletteCategory[] = [];
 
 export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string }) {
+    const { td } = useTd();
     const [selectedPipelineId, setSelectedPipelineId] = useState<number | null>(null);
     const [sections, setSections] = useState<BuilderSection[]>([]);
     const [activeSectionKey, setActiveSectionKey] = useState<string | null>(null);
@@ -107,8 +109,8 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
                     context: f?.category_name ?? null,
                 };
             }
-            if (item.type === "question") return { label: "Question" };
-            if (item.type === "instruction") return { label: "Instruction" };
+            if (item.type === "question") return { label: td("Question", { source: "en" }) };
+            if (item.type === "instruction") return { label: td("Instruction", { source: "en" }) };
             return { label: ANALYSIS_FIELD_META[item.item_key]?.label ?? item.item_key };
         },
         [categories, dealCustomFields, leadCustomFields],
@@ -420,7 +422,7 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
                 <div className="flex flex-wrap items-end justify-between gap-3">
                     <div>
                         <div style={{ fontSize: 14, fontWeight: 600, color: T.TEXT_MUTED, marginBottom: 4 }}>
-                            Pipeline
+                            {td("Pipeline", { source: "en" })}
                         </div>
                         <MenuSelect
                             value={selectedPipelineId}
@@ -437,7 +439,7 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
                                 {stepCount === 1 ? "" : "s"}
                             </span>
                             {justSaved && (
-                                <span style={{ fontSize: 14, color: T.GREEN, fontWeight: 600 }}>✓ Saved</span>
+                                <span style={{ fontSize: 14, color: T.GREEN, fontWeight: 600 }}>{td("✓ Saved", { source: "en" })}</span>
                             )}
                             <input
                                 ref={fileInputRef}
@@ -457,16 +459,16 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
                                 disabled={loading}
                                 onClick={() => fileInputRef.current?.click()}
                             >
-                                Import JSON
+                                {td("Import JSON", { source: "en" })}
                             </button>
                             <button
                                 type="button"
                                 className="dr-btn dr-btn-ghost"
                                 disabled={loading}
                                 onClick={handleDownloadSample}
-                                title="Downloads a sample import file plus every live field key, id and type"
+                                title={td("Downloads a sample import file plus every live field key, id and type", { source: "en" })}
                             >
-                                Sample JSON
+                                {td("Sample JSON", { source: "en" })}
                             </button>
                             <button
                                 type="button"
@@ -481,10 +483,7 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
                 </div>
 
                 <p style={{ fontSize: 14, color: T.TEXT_MUTED, margin: 0 }}>
-                    Build the call script as sections. Drag fields, questions and instructions from the
-                    palette into a section, or add a field group to include a whole custom-field category.
-                    Download the sample JSON to get the import format plus every valid field key, id and
-                    type; import a filled-in file to load it into the canvas, then Save.
+                    {td("Build the call script as sections. Drag fields, questions and instructions from the palette into a section, or add a field group to include a whole custom-field category. Download the sample JSON to get the import format plus every valid field key, id and type; import a filled-in file to load it into the canvas, then Save.", { source: "en" })}
                 </p>
 
                 {importErrors.length > 0 && (
@@ -499,7 +498,7 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
                         }}
                     >
                         <div style={{ fontWeight: 600, marginBottom: 6 }}>
-                            Import rejected — nothing was changed:
+                            {td("Import rejected — nothing was changed:", { source: "en" })}
                         </div>
                         <ul style={{ margin: 0, paddingLeft: 18 }}>
                             {importErrors.slice(0, 20).map((e, i) => (
@@ -512,11 +511,11 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
 
                 {!selectedPipelineId ? (
                     <EmptyState
-                        title="Select a pipeline"
-                        description="Choose a pipeline above to edit its analysis script."
+                        title={td("Select a pipeline", { source: "en" })}
+                        description={td("Choose a pipeline above to edit its analysis script.", { source: "en" })}
                     />
                 ) : loading ? (
-                    <div style={{ fontSize: 15, color: T.TEXT_MUTED }}>Loading…</div>
+                    <div style={{ fontSize: 15, color: T.TEXT_MUTED }}>{td("Loading…", { source: "en" })}</div>
                 ) : (
                     <DndContext
                         sensors={sensors}
@@ -557,8 +556,8 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
 
                                 {sections.length === 0 && (
                                     <EmptyState
-                                        title="No sections yet"
-                                        description="Add a section, then drag fields into it from the palette."
+                                        title={td("No sections yet", { source: "en" })}
+                                        description={td("Add a section, then drag fields into it from the palette.", { source: "en" })}
                                     />
                                 )}
                             </div>
@@ -568,10 +567,10 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
             </div>
             <ConfirmDialog
                 open={pendingPipelineId !== null}
-                title="Discard unsaved changes?"
-                message="This script has edits you haven't saved. Switching pipeline will discard them."
-                confirmLabel="Discard and switch"
-                cancelLabel="Keep editing"
+                title={td("Discard unsaved changes?", { source: "en" })}
+                message={td("This script has edits you haven't saved. Switching pipeline will discard them.", { source: "en" })}
+                confirmLabel={td("Discard and switch", { source: "en" })}
+                cancelLabel={td("Keep editing", { source: "en" })}
                 danger
                 onConfirm={() => {
                     setSelectedPipelineId(pendingPipelineId);
@@ -582,10 +581,10 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
             />
             <ConfirmDialog
                 open={pendingImport !== null}
-                title="Replace this script?"
-                message="The imported file will replace every section currently on the canvas. Nothing is saved until you hit Save."
-                confirmLabel="Replace"
-                cancelLabel="Cancel"
+                title={td("Replace this script?", { source: "en" })}
+                message={td("The imported file will replace every section currently on the canvas. Nothing is saved until you hit Save.", { source: "en" })}
+                confirmLabel={td("Replace", { source: "en" })}
+                cancelLabel={td("Cancel", { source: "en" })}
                 danger
                 onConfirm={() => {
                     setSections(pendingImport ?? []);

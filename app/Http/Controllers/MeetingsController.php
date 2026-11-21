@@ -12,14 +12,18 @@ use App\Models\User;
 use App\Services\CalendarSyncDispatcher;
 use App\Services\CalendarSyncService;
 use App\Services\MeetingFilterFacetsService;
+use App\Services\MeetingFilters;
 use App\Services\MeetingVisibilityService;
 use App\Services\Reminders\MeetingReminderSync;
 use App\Support\FeatureFlags;
+use App\Support\MeetingBuckets;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 use DateTimeZone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -28,6 +32,20 @@ class MeetingsController extends AccountBaseController
 {
     /** Redesigned Meetings index (tab-driven list + month calendar). */
     private const REDESIGN_FLAG = 'crm.meetings-page-redesign';
+
+    /**
+     * The page improvements, on top of the redesign. With it off every
+     * behaviour they changed is as it was before them: the bucket rules, the
+     * list-first default, the full lead/deal lists, the report that replaces
+     * a summary, and none of the new summary or lead-search endpoints.
+     */
+    private const IMPROVEMENTS_FLAG = 'crm.meetings-page-improvements';
+
+    private function improved(): bool
+    {
+        return FeatureFlags::enabled(self::REDESIGN_FLAG)
+            && FeatureFlags::enabled(self::IMPROVEMENTS_FLAG);
+    }
 
     /**
      * Filter tabs the redesigned list accepts.
@@ -80,6 +98,7 @@ class MeetingsController extends AccountBaseController
         // bucket scopes below — a meeting must land in exactly one of
         // Upcoming/Live/Past whichever page renders it.
         $redesign = FeatureFlags::enabled(self::REDESIGN_FLAG);
+        $improved = $redesign && FeatureFlags::enabled(self::IMPROVEMENTS_FLAG);
 
         $eagerLoads = [
             'deal:id,name,agent_id,value,currency_id,pipeline_stage_id,lead_id',
@@ -92,41 +111,34 @@ class MeetingsController extends AccountBaseController
             // to "User #<id>" because `host_id` came through as a bare id
             // with no relation attached to resolve it from.
             'host:id,name,image',
+            'outcomeLoggedBy:id,name,image',
             'meetingType',
-            'meetingSummary',
+            'meetingSummary.editor',
         ];
 
         $defaultDuration = DealFollowUp::DEFAULT_DURATION_MINUTES;
 
-        // A meeting is "live" when it has started but not yet ended:
-        //   next_follow_up_date <= now AND next_follow_up_date + duration > now AND status = 'scheduled'
-        // The strip can still call those out; Upcoming itself does not.
-        $scopeLive = function ($query) use ($now, $defaultDuration) {
-            $query->where('status', 'scheduled')
-                ->where('next_follow_up_date', '<=', $now)
-                ->whereRaw(
-                    'DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) >= ?',
-                    [$defaultDuration, $now]
-                );
-        };
+        // Which group a meeting is in — live, upcoming or past — is decided in
+        // one place, MeetingBuckets, and everything below (the list, the tab
+        // tallies, the "next up" cards) reads it. Restating the rules per
+        // query is how a cancelled meeting dated next week came to be both
+        // Upcoming and Past, and a meeting in progress came to be neither.
+        $buckets = new MeetingBuckets($now, $defaultDuration, legacy: ! $improved);
 
+        // The redesign's Upcoming tab: not over yet, so a meeting in progress
+        // is still on it (it is the one you most want to find) and a
+        // cancelled or completed meeting dated in the future is not.
+        $scopeUpcomingTab = fn ($query) => $buckets->scopeUpcoming($query);
+
+        // Legacy page only: its Upcoming section is "start is still ahead",
+        // with in-progress meetings called out separately by the client.
         $scopeUpcoming = function ($query) use ($now) {
-            // Start is still ahead of the clock. A meeting that has already
-            // begun is live (strip) or past (list), not upcoming.
             $query->where('next_follow_up_date', '>', $now);
         };
 
-        // Past only after the end (start + duration), or when no longer
-        // scheduled. Live meetings (started, not yet ended) must not land here.
-        $scopePast = function ($query) use ($now, $defaultDuration) {
-            $query->where(function ($inner) use ($now, $defaultDuration) {
-                $inner->where('status', '!=', 'scheduled')
-                    ->orWhereRaw(
-                        'DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) < ?',
-                        [$defaultDuration, $now]
-                    );
-            });
-        };
+        // No longer scheduled, or already ended — the exact complement of
+        // the redesign's Upcoming tab.
+        $scopePast = fn ($query) => $buckets->scopePast($query);
 
         // ── Shared list filters ────────────────────────────────────────
         // Same contract as the lead/deal/task lists: the filter modal writes
@@ -135,15 +147,7 @@ class MeetingsController extends AccountBaseController
         // identically. Everything is applied to the tab tallies as well —
         // a tab whose count disagreed with the list it opens is worse than
         // no count at all.
-        $csv = function ($value): array {
-            if (is_array($value)) {
-                return array_values(array_filter($value, 'strlen'));
-            }
-
-            return is_string($value) && $value !== ''
-                ? array_values(array_filter(explode(',', $value), 'strlen'))
-                : [];
-        };
+        $meetingFilters = app(MeetingFilters::class);
 
         // Scalar Y-m-d only — Carbon::parse() on an array or garbage string
         // throws, and a malformed link shouldn't 500 the page.
@@ -158,17 +162,8 @@ class MeetingsController extends AccountBaseController
         };
 
         $search = is_string($request->get('search')) ? trim($request->get('search')) : '';
-        $meetingTypeIds = $csv($request->get('meeting_type_id'));
-        $statuses = array_values(array_intersect(
-            $csv($request->get('status')),
-            ['scheduled', 'completed', 'cancelled']
-        ));
-        $locations = $csv($request->get('location'));
-        $hostIds = $csv($request->get('host_id'));
-        $attendanceValues = array_values(array_intersect(
-            $csv($request->get('attendance')),
-            ['attended', 'no_show']
-        ));
+        $attendanceValues = $meetingFilters->includedAttendance($request);
+        $wantsUnrecordedAttendance = $meetingFilters->wantsUnrecordedAttendance($request);
         $recordType = in_array($request->get('record_type'), ['deal', 'lead'], true)
             ? $request->get('record_type')
             : null;
@@ -190,27 +185,16 @@ class MeetingsController extends AccountBaseController
         // or a month view could quietly come back missing meetings the list
         // beside it still shows.
         $applyNonDateFilters = function ($query) use (
+            $request,
+            $meetingFilters,
             $search,
-            $meetingTypeIds,
-            $statuses,
-            $locations,
-            $hostIds,
-            $attendanceValues,
             $recordType
         ) {
+            // Type, status, platform, host and attendance, with their
+            // "is not" / "not recorded yet" readings.
+            $meetingFilters->apply($query, $request);
+
             return $query
-                ->when($meetingTypeIds, fn ($q) => $q->whereIn('meeting_type_id', $meetingTypeIds))
-                ->when($statuses, fn ($q) => $q->whereIn('status', $statuses))
-                ->when($locations, fn ($q) => $q->whereIn('location', $locations))
-                ->when($attendanceValues, fn ($q) => $q->whereIn('attendance_outcome', $attendanceValues))
-                // "Host" reads as whoever owns the meeting: the named host
-                // where one is set, otherwise the person who booked it.
-                ->when($hostIds, fn ($q) => $q->where(function ($inner) use ($hostIds) {
-                    $inner->whereIn('host_id', $hostIds)
-                        ->orWhere(function ($fallback) use ($hostIds) {
-                            $fallback->whereNull('host_id')->whereIn('added_by', $hostIds);
-                        });
-                }))
                 ->when($recordType === 'deal', fn ($q) => $q->whereNotNull('deal_id'))
                 ->when($recordType === 'lead', fn ($q) => $q->whereNull('deal_id')->whereNotNull('lead_id'))
                 ->when($search !== '', fn ($q) => $q->where(function ($inner) use ($search) {
@@ -229,6 +213,35 @@ class MeetingsController extends AccountBaseController
             return $applyNonDateFilters($query);
         };
 
+        // Which view this request is for, decided before any list work so the
+        // calendar does not pay for a list nobody is looking at.
+        //
+        // A link is about the list when it names a tab, an attendance outcome
+        // or a date window: the calendar shows a whole month and deliberately
+        // ignores a date range, so "meetings between X and Y" or "N missed"
+        // would otherwise open on a grid that cannot show what the link
+        // points at.
+        //
+        // Without the improvements flag the page is list-first, as before:
+        // `?view=calendar` and nothing else picks the calendar.
+        $view = $improved
+            ? $this->resolveView(
+                $request,
+                $request->filled('tab')
+                    || ($attendanceValues[0] ?? null) !== null
+                    || $wantsUnrecordedAttendance
+                    || $dateFrom !== null
+                    || $dateTo !== null
+            )
+            : ($redesign && $request->get('view') === 'calendar' ? 'calendar' : 'list');
+
+        // The list, its tab tallies, the cards and the "has any meetings"
+        // probe are only for the list view. On the calendar they were four
+        // queries (and a paginated one with eight relations) whose results
+        // the page never drew — and every month change re-ran them. The page
+        // asks for them with `view=list` when it switches over.
+        $loadList = ! $improved || $view === 'list';
+
         // Ids the "next up" cards will claim, so the list below can leave
         // them out — a meeting belongs on the page once.
         //
@@ -240,8 +253,8 @@ class MeetingsController extends AccountBaseController
         // The strip can be hidden, and that is a browser-side preference the
         // list query depends on, so it rides along in a cookie the same way
         // the page size does. Hidden means no exclusions at all.
-        $nextUpIds = $redesign && $request->cookie('hibarr_meetings_next_up', '1') !== '0'
-            ? $this->upcomingSoonIds($userId, $scopeLive, $now)
+        $nextUpIds = $redesign && $loadList && $request->cookie('hibarr_meetings_next_up', '1') !== '0'
+            ? $this->upcomingSoonIds($userId, $buckets, $now, $improved)
             : [];
 
         // ── Overview stats ─────────────────────────────────────────────
@@ -251,20 +264,16 @@ class MeetingsController extends AccountBaseController
         // One pass with conditional sums instead of four trips over the same
         // table. The live count used to pull every past-dated scheduled meeting
         // into memory to filter in PHP — unbounded, and growing with history.
-        // The end-time expression matches the one the Upcoming/Past queries below use.
-        // The last three sums are the redesign's tab tallies; they restate the
-        // scopes above in SQL so a tab counts exactly the meetings that tab is
-        // about — including any the "next up" cards have lifted out of the
-        // table, which are still yours and still upcoming.
-        $liveSql = "status = 'scheduled'"
-            .' AND next_follow_up_date <= ?'
-            .' AND DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) >= ?';
-        // Mirror $scopePast: ended (start+duration < now) or no longer scheduled.
-        // Live meetings must not inflate the Past tab count.
-        $pastSql = "status != 'scheduled'"
-            .' OR DATE_ADD(next_follow_up_date, INTERVAL COALESCE(duration, ?) MINUTE) < ?';
+        // The last two sums are the redesign's tab tallies; they come from the
+        // same MeetingBuckets conditions as the list's scopes, so a tab counts
+        // exactly the meetings that tab lists — including any the "next up"
+        // cards have lifted out of the table, which are still yours and still
+        // upcoming.
+        [$liveSql, $liveBindings] = $buckets->live();
+        [$upcomingSql, $upcomingBindings] = $buckets->upcoming();
+        [$pastSql, $pastBindings] = $buckets->past();
 
-        $counts = $applyFilters(
+        $counts = ! $loadList ? null : $applyFilters(
             MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
         )
             ->selectRaw(
@@ -273,13 +282,13 @@ class MeetingsController extends AccountBaseController
                 .' SUM(next_follow_up_date BETWEEN ? AND ?) as this_week,'
                 ." SUM($liveSql) as live,"
                 ." SUM(status = 'completed') as completed,"
-                .' SUM(next_follow_up_date > ?) as upcoming_tab,'
+                ." SUM($upcomingSql) as upcoming_tab,"
                 ." SUM($pastSql) as past_tab",
                 [
                     $now, $weekStart, $weekEnd,
-                    $now, $defaultDuration, $now,
-                    $now,
-                    $defaultDuration, $now,
+                    ...$liveBindings,
+                    ...$upcomingBindings,
+                    ...$pastBindings,
                 ]
             )
             ->first();
@@ -313,8 +322,10 @@ class MeetingsController extends AccountBaseController
             $requestedTab = $request->get('tab');
             $activeTab = in_array($requestedTab, self::TABS, true)
                 ? $requestedTab
-                : ($attendanceFilter ? 'past' : 'upcoming');
+                : ($attendanceFilter || $wantsUnrecordedAttendance ? 'past' : 'upcoming');
+        }
 
+        if ($redesign && $loadList) {
             // The page sizes itself to the browser window, and leaves the
             // size it settled on in a cookie. Reading it here means a cold
             // load already arrives at the right length instead of always
@@ -336,7 +347,7 @@ class MeetingsController extends AccountBaseController
             if ($activeTab === 'past') {
                 $listQuery->where($scopePast);
             } elseif ($activeTab === 'upcoming') {
-                $listQuery->where($scopeUpcoming);
+                $listQuery->where($scopeUpcomingTab);
             }
             // 'all' takes every bucket — no extra scope.
 
@@ -344,7 +355,7 @@ class MeetingsController extends AccountBaseController
                 ->orderBy('next_follow_up_date', $ascending ? 'asc' : 'desc')
                 ->paginate($perPage, ['*'], 'page')
                 ->withQueryString();
-        } else {
+        } elseif (! $redesign) {
             // ── Legacy paginated sections ──────────────────────────────
             $upcomingPerPage = (int) $request->get('upcoming_per_page', 6);
             $pastPerPage = (int) $request->get('past_per_page', 6);
@@ -375,15 +386,26 @@ class MeetingsController extends AccountBaseController
         }
 
         // ── User's deals & leads for "Schedule Meeting" ────────────────
-        $userDeals = MeetingVisibilityService::schedulableDealsQuery()->get();
-        $userLeads = MeetingVisibilityService::schedulableLeadsQuery()
-            ->get()
-            ->map(fn (Lead $lead) => [
-                'id' => $lead->id,
-                'name' => $lead->company_name
-                    ? "{$lead->client_name} ({$lead->company_name})"
-                    : $lead->client_name,
-            ]);
+        //
+        // The redesigned schedule dialog searches leads on the server as the
+        // user types (`meetings.leads.search`) and asks for a lead's deals
+        // once one is picked, so it needs neither list. Sending every
+        // schedulable lead and deal with each page load — unbounded, and
+        // growing with the database — was only ever for its dropdown. The
+        // legacy drawer still reads them.
+        $userDeals = $improved
+            ? collect()
+            : MeetingVisibilityService::schedulableDealsQuery()->get();
+        $userLeads = $improved
+            ? collect()
+            : MeetingVisibilityService::schedulableLeadsQuery()
+                ->get()
+                ->map(fn (Lead $lead) => [
+                    'id' => $lead->id,
+                    'name' => $lead->company_name
+                        ? "{$lead->client_name} ({$lead->company_name})"
+                        : $lead->client_name,
+                ]);
 
         // ── Meeting types ──────────────────────────────────────────────
         $meetingTypes = MeetingType::where('is_active', 1)->get();
@@ -406,19 +428,23 @@ class MeetingsController extends AccountBaseController
         ];
 
         if ($redesign) {
+            // Null on the calendar (see `$loadList`): the page treats a null
+            // list as "not loaded yet" and asks for it on switching over.
             $props['meetings'] = $meetings;
-            $props['tabCounts'] = $tabCounts;
+            $props['tabCounts'] = $loadList ? $tabCounts : null;
             $props['activeTab'] = $activeTab;
 
             // Separates "you have never booked a meeting" from "you have no
             // meetings *left*", which read very differently on an empty list.
             // Only costs a query when the list came back empty; a non-empty
             // page has already answered the question.
-            $props['hasAnyMeetings'] = $meetings->total() > 0
-                || MeetingVisibilityService::scopeVisibleToUser(
-                    DealFollowUp::query(),
-                    $userId
-                )->exists();
+            $props['hasAnyMeetings'] = $loadList
+                ? $meetings->total() > 0
+                    || MeetingVisibilityService::scopeVisibleToUser(
+                        DealFollowUp::query(),
+                        $userId
+                    )->exists()
+                : null;
 
             // Filter-modal chrome. All three are deferred: the modal is closed
             // on first paint, the facet counts are several GROUP BY queries,
@@ -434,9 +460,15 @@ class MeetingsController extends AccountBaseController
             // which is a constant. Scoping it to the list's filters would
             // empty it the moment someone looked at Past meetings, which is
             // exactly when knowing what is next is most useful.
-            $props['upcomingSoon'] = Inertia::defer(
-                fn () => $this->upcomingSoon($nextUpIds, $eagerLoads)
-            );
+            //
+            // Only registered for the list, which is the only place they are
+            // drawn: a deferred prop is fetched in a follow-up request
+            // whether or not anything renders it.
+            if ($loadList) {
+                $props['upcomingSoon'] = Inertia::defer(
+                    fn () => $this->upcomingSoon($nextUpIds, $eagerLoads)
+                );
+            }
 
             // The month grid is a different query over a different window, and
             // only the calendar view can show it — register it as a deferred
@@ -448,7 +480,22 @@ class MeetingsController extends AccountBaseController
             // fetch instead of racing it with a duplicate request.
             $props['calendarRequestedMonth'] = null;
 
-            if ($request->get('view') === 'calendar') {
+            // The server decides the opening view and tells the page, so the
+            // two cannot disagree about it (the month grid is only prepared
+            // for the calendar, the list only for the list).
+            if ($improved) {
+                $props['initialView'] = $view;
+            }
+
+            // Whether "Ask for it again" can do anything: the retry webhook
+            // is only configured once the meeting automation exposes a
+            // trigger for it. Without it the summary tab offers writing the
+            // summary by hand and no Retry button that could only fail.
+            if ($improved) {
+                $props['summaryRetryAvailable'] = (bool) config('app.automations.followups.summary_retry_webhook_url');
+            }
+
+            if ($view === 'calendar') {
                 $calendarMonth = $this->resolveCalendarMonth($request->get('cal_month'));
                 $props['calendarRequestedMonth'] = $calendarMonth->format('Y-m');
                 $props['calendarMeetings'] = Inertia::defer(
@@ -461,6 +508,37 @@ class MeetingsController extends AccountBaseController
         }
 
         return Inertia::render('Meetings/Index', $props);
+    }
+
+    /**
+     * Which view the page opens on: the one the URL names, else the list when
+     * the link is about the list (an attendance deep link, a tab, a date
+     * window), else the
+     * one this browser last used (a cookie the page writes), else the
+     * calendar.
+     *
+     * The calendar is the default because "what is on this week" is what
+     * people open Meetings to see. It matters that the server agrees with
+     * the client about it: the month grid is a deferred prop registered only
+     * for the calendar, so a server that assumed the list would make every
+     * cold load of the default view wait on a second request for its data.
+     */
+    private function resolveView(Request $request, bool $linkedToList): string
+    {
+        $named = $request->get('view');
+        if (in_array($named, ['list', 'calendar'], true)) {
+            return $named;
+        }
+
+        // "N missed meetings" and `?tab=past` are about rows in the list;
+        // landing those on a month grid would hide what the link points at.
+        if ($linkedToList) {
+            return 'list';
+        }
+
+        $remembered = $request->cookie('hibarr_meetings_view');
+
+        return in_array($remembered, ['list', 'calendar'], true) ? $remembered : 'calendar';
     }
 
     /**
@@ -591,16 +669,7 @@ class MeetingsController extends AccountBaseController
      */
     public function report(Request $request, DealFollowUp $followUp)
     {
-        abort_403(! (
-            $this->editFollowUpPermission == 'all'
-            || ($this->editFollowUpPermission == 'added' && $followUp->added_by == user()->id)
-        ));
-
-        // Visible on the list is the bar for writing to it, same as show().
-        abort_403(! MeetingVisibilityService::scopeVisibleToUser(
-            DealFollowUp::query()->whereKey($followUp->getKey()),
-            user()->id
-        )->exists());
+        $this->authorizeSummaryWrite($followUp);
 
         $validated = $request->validate([
             'discussed' => 'required|string|max:5000',
@@ -626,10 +695,29 @@ class MeetingsController extends AccountBaseController
             'next_steps' => trim($validated['next_steps'] ?? ''),
         ], 'strlen');
 
-        DB::transaction(function () use ($followUp, $summaryObject, $validated) {
+        $improved = $this->improved();
+
+        DB::transaction(function () use ($followUp, $summaryObject, $validated, $improved) {
             $summary = $followUp->meetingSummary;
 
-            if ($summary) {
+            if ($summary && $improved) {
+                // Merged into what is there, not put in its place: filing a
+                // report used to replace an automatic summary wholesale. The
+                // report's three prompts overwrite their own keys and every
+                // other section survives. It is now a person's summary, so a
+                // later automatic push is kept beside it, not over it.
+                $summary->update([
+                    'summary_object' => array_merge($summary->summary_object ?? [], $summaryObject),
+                    'meeting_type_id' => $summary->meeting_type_id ?? $followUp->meeting_type_id,
+                    'ai_summary_object' => $summary->source === MeetingSummary::SOURCE_MANUAL
+                        ? $summary->ai_summary_object
+                        : ($summary->summary_object ?: $summary->ai_summary_object),
+                    'source' => MeetingSummary::SOURCE_MANUAL,
+                    'edited_by' => user()->id,
+                    'edited_at' => now(),
+                ]);
+            } elseif ($summary) {
+                // Without the improvements: replaced wholesale, as before.
                 $summary->update([
                     'summary_object' => $summaryObject,
                     'meeting_type_id' => $followUp->meeting_type_id,
@@ -641,7 +729,11 @@ class MeetingsController extends AccountBaseController
                     // Nullable: a meeting booked against a lead alone has no
                     // deal to hang the summary off, and still gets a report.
                     'deal_id' => $followUp->deal_id,
-                ]);
+                ] + ($improved ? [
+                    'source' => MeetingSummary::SOURCE_MANUAL,
+                    'edited_by' => user()->id,
+                    'edited_at' => now(),
+                ] : []));
                 $followUp->summary_id = $summary->id;
             }
 
@@ -659,6 +751,269 @@ class MeetingsController extends AccountBaseController
         return response()->json([
             'success' => true,
             'message' => __('messages.updateSuccess'),
+        ]);
+    }
+
+    /**
+     * Same bar `report()` has always used for writing to a meeting: edit
+     * permission, and the meeting visible to the viewer.
+     */
+    private function authorizeSummaryWrite(DealFollowUp $followUp): void
+    {
+        abort_403(! (
+            $this->editFollowUpPermission == 'all'
+            || ($this->editFollowUpPermission == 'added' && $followUp->added_by == user()->id)
+        ));
+
+        // Visible on the list is the bar for writing to it, same as show().
+        abort_403(! MeetingVisibilityService::scopeVisibleToUser(
+            DealFollowUp::query()->whereKey($followUp->getKey()),
+            user()->id
+        )->exists());
+    }
+
+    /**
+     * A summary section the page can show and edit as text: a string, a
+     * number, or a list of those. Anything else (a nested object) has no
+     * plain-text form, so the editor leaves it exactly as it is.
+     */
+    private function isEditableSummaryValue(mixed $value): bool
+    {
+        if (is_string($value) || is_numeric($value)) {
+            return true;
+        }
+
+        return is_array($value)
+            && array_is_list($value)
+            && collect($value)->every(fn ($item) => is_string($item) || is_numeric($item));
+    }
+
+    /**
+     * The summary as the detail dialog reads it, with who last wrote it.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function summaryPayload(DealFollowUp $followUp): ?array
+    {
+        $followUp->unsetRelation('meetingSummary');
+        $summary = $followUp->meetingSummary()->with('editor')->first();
+
+        return $summary?->toArray();
+    }
+
+    /**
+     * Write or correct a meeting's summary by hand.
+     *
+     * For when the automatic one never came, keeps failing, or is simply
+     * wrong. The page sends the sections it shows; sections the editor cannot
+     * show (a nested object) are carried over untouched. The automatic
+     * version it replaces is kept in `ai_summary_object`, so it can be
+     * brought back, and a later automatic push will not overwrite this one.
+     */
+    public function saveSummary(Request $request, DealFollowUp $followUp)
+    {
+        abort_if(! $this->improved(), 404);
+        $this->authorizeSummaryWrite($followUp);
+
+        $validated = $request->validate([
+            'sections' => 'required|array|min:1|max:20',
+            'sections.*.key' => 'required|string|max:60',
+            'sections.*.value' => 'nullable|string|max:20000',
+        ]);
+
+        if ($followUp->next_follow_up_date && $followUp->next_follow_up_date->isFuture()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A meeting can only be summarised once it has started.',
+            ], 422);
+        }
+
+        $edited = [];
+        foreach ($validated['sections'] as $section) {
+            $key = trim((string) preg_replace('/[^A-Za-z0-9 _-]/', '', $section['key']));
+            $value = trim((string) ($section['value'] ?? ''));
+            if ($key !== '' && $value !== '') {
+                $edited[$key] = $value;
+            }
+        }
+
+        if ($edited === []) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A summary needs at least one section with some text in it.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($followUp, $edited) {
+            $summary = $followUp->meetingSummary;
+            $existing = $summary?->summary_object ?? [];
+
+            // What the editor does not own stays: sections that cannot be
+            // shown as text.
+            $carried = array_filter(
+                $existing,
+                fn ($value) => ! $this->isEditableSummaryValue($value)
+            );
+
+            $attributes = [
+                'summary_object' => array_merge($edited, $carried),
+                'source' => MeetingSummary::SOURCE_MANUAL,
+                'edited_by' => user()->id,
+                'edited_at' => now(),
+            ];
+
+            if ($summary) {
+                // First edit of an automatic summary: keep it so it can be
+                // taken back. Later edits leave that copy alone.
+                if ($summary->source !== MeetingSummary::SOURCE_MANUAL && $existing !== []) {
+                    $attributes['ai_summary_object'] = $existing;
+                }
+                $summary->update($attributes);
+            } else {
+                $summary = MeetingSummary::create($attributes + [
+                    'meeting_type_id' => $followUp->meeting_type_id,
+                    // Nullable: a meeting booked against a lead alone has no deal.
+                    'deal_id' => $followUp->deal_id,
+                ]);
+                $followUp->summary_id = $summary->id;
+            }
+
+            $followUp->last_updated_by = user()->id;
+            $followUp->save();
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => __('messages.updateSuccess'),
+            'meeting_summary' => $this->summaryPayload($followUp),
+        ]);
+    }
+
+    /**
+     * Take the automatic summary that arrived after a person had written
+     * their own. Replaces their version, so the page asks first.
+     */
+    public function useAutomaticSummary(Request $request, DealFollowUp $followUp)
+    {
+        abort_if(! $this->improved(), 404);
+        $this->authorizeSummaryWrite($followUp);
+
+        $summary = $followUp->meetingSummary;
+
+        if (! $summary || empty($summary->ai_summary_object)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'There is no automatic summary to switch to.',
+            ], 422);
+        }
+
+        $summary->update([
+            'summary_object' => $summary->ai_summary_object,
+            'ai_summary_object' => null,
+            'source' => MeetingSummary::SOURCE_AI,
+            'edited_by' => null,
+            'edited_at' => null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('messages.updateSuccess'),
+            'meeting_summary' => $this->summaryPayload($followUp),
+        ]);
+    }
+
+    /**
+     * Ask the meeting automation to send a meeting's summary again.
+     *
+     * Only does what it says: it posts to the retry webhook when one is
+     * configured, and answers honestly when none is — the page then offers
+     * writing the summary instead. The wait restarts only when the automation
+     * accepted the request, never on a request that went nowhere.
+     */
+    public function retrySummary(Request $request, DealFollowUp $followUp)
+    {
+        abort_if(! $this->improved(), 404);
+        $this->authorizeSummaryWrite($followUp);
+
+        $url = config('app.automations.followups.summary_retry_webhook_url');
+
+        if (! $url) {
+            return response()->json([
+                'success' => false,
+                'code' => 'not_configured',
+                'message' => 'Asking for the summary again is not set up yet. You can write it yourself.',
+            ], 503);
+        }
+
+        if ($followUp->meetingSummary) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This meeting already has a summary.',
+            ], 422);
+        }
+
+        if ($followUp->next_follow_up_date && $followUp->next_follow_up_date->isFuture()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A meeting can only be summarised once it has started.',
+            ], 422);
+        }
+
+        // A button that can be pressed in a loop is a way to flood the
+        // automation, and past a few tries another one will not help.
+        if ($followUp->summary_retry_requested_at?->gt(now()->subMinutes(5))) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Already asked a moment ago. Give it a few minutes.',
+            ], 429);
+        }
+
+        if ((int) $followUp->summary_retry_count >= 5) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Asked several times already. You can write the summary yourself.',
+            ], 422);
+        }
+
+        try {
+            $response = Http::timeout(15)->acceptJson()->post($url, [
+                'type' => 'summary-retry',
+                'followUpInformation' => [
+                    'id' => $followUp->id,
+                    'deal_id' => $followUp->deal_id,
+                    'lead_id' => $followUp->lead_id,
+                    'meeting_id' => $followUp->meeting_id,
+                    'platform' => $followUp->location,
+                    'meeting_link' => $followUp->meeting_link,
+                    'meeting_type_id' => $followUp->meeting_type_id,
+                    'next_follow_up_date' => $followUp->next_follow_up_date,
+                    'duration' => $followUp->duration,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Meeting summary retry request failed', [
+                'follow_up_id' => $followUp->id,
+                'error' => $e->getMessage(),
+            ]);
+            $response = null;
+        }
+
+        if (! $response || ! $response->successful()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The summary service did not accept the request. Try again later, or write it yourself.',
+            ], 502);
+        }
+
+        $followUp->summary_retry_requested_at = now();
+        $followUp->summary_retry_count = (int) $followUp->summary_retry_count + 1;
+        $followUp->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Asked for the summary again. It should arrive shortly.',
+            'summary_retry_requested_at' => $followUp->summary_retry_requested_at,
+            'summary_retry_count' => $followUp->summary_retry_count,
         ]);
     }
 
@@ -769,22 +1124,31 @@ class MeetingsController extends AccountBaseController
      *
      * @return array<int, int>
      */
-    private function upcomingSoonIds(int $userId, callable $scopeLive, Carbon $now): array
+    private function upcomingSoonIds(int $userId, MeetingBuckets $buckets, Carbon $now, bool $improved): array
     {
-        $visible = function () use ($userId) {
-            return MeetingVisibilityService::scopeVisibleToUser(
+        $visible = function () use ($userId, $improved) {
+            $query = MeetingVisibilityService::scopeVisibleToUser(
                 DealFollowUp::query(),
                 $userId
-            )->where('status', '!=', 'cancelled');
+            );
+
+            // Before the improvements the cards left out only cancelled
+            // meetings; now they are exactly what the Upcoming tab lists
+            // (still scheduled), which the bucket scope below already says.
+            return $improved ? $query : $query->where('status', '!=', 'cancelled');
         };
 
         $liveIds = $visible()
-            ->where($scopeLive)
+            ->where(fn ($query) => $buckets->scopeLive($query))
             ->orderBy('next_follow_up_date', 'asc')
             ->pluck('id')
             ->all();
 
+        // Still scheduled and not yet over, and not started: the same
+        // Upcoming condition the list uses, so every card is a meeting the
+        // Upcoming tab would have listed.
         $futureIds = $visible()
+            ->where(fn ($query) => $buckets->scopeUpcoming($query))
             ->where('next_follow_up_date', '>', $now)
             ->orderBy('next_follow_up_date', 'asc')
             ->limit(self::UPCOMING_SOON_LIMIT)
@@ -874,8 +1238,9 @@ class MeetingsController extends AccountBaseController
             'lead:id,client_name,salutation,company_name,mobile,cell,office',
             'addedBy:id,name,image',
             'host:id,name,image',
+            'outcomeLoggedBy:id,name,image',
             'meetingType',
-            'meetingSummary',
+            'meetingSummary.editor',
         ]);
 
         DealFollowUp::attachParticipantUsers(collect([$followUp]));
@@ -919,13 +1284,66 @@ class MeetingsController extends AccountBaseController
     }
 
     /**
+     * Leads to book a meeting against, searched on the server as the user
+     * types in the schedule dialog.
+     *
+     * Matches name, company, email and phone, so two clients with the same
+     * name can be told apart, and returns enough per row (company, phone,
+     * owner) to do that on screen. Capped: the dialog is a picker, not a
+     * list. With nothing typed it offers the most recently added.
+     */
+    public function searchLeads(Request $request)
+    {
+        abort_if(! $this->improved(), 404);
+        abort_403(! in_array($this->addFollowUpPermission, ['all', 'added']));
+
+        $term = trim((string) $request->query('q', ''));
+
+        $query = MeetingVisibilityService::bookableLeadsQuery()->with('leadOwner:id,name');
+
+        if ($term !== '') {
+            // `%` and `_` typed by the user are text, not wildcards.
+            $like = '%'.addcslashes($term, '%_\\').'%';
+            $query->where(function ($inner) use ($like) {
+                $inner->where('client_name', 'like', $like)
+                    ->orWhere('company_name', 'like', $like)
+                    ->orWhere('client_email', 'like', $like)
+                    ->orWhere('mobile', 'like', $like)
+                    ->orWhere('cell', 'like', $like);
+            });
+        } else {
+            $query->reorder()->orderByDesc('id');
+        }
+
+        $leads = $query->limit(20)->get()->map(fn (Lead $lead) => [
+            'id' => $lead->id,
+            'name' => $lead->client_name,
+            'company' => $lead->company_name,
+            'email' => $lead->client_email,
+            'phone' => $lead->mobile ?: $lead->cell,
+            'owner' => $lead->leadOwner?->name,
+        ])->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $leads,
+        ]);
+    }
+
+    /**
      * Return a lead's data sufficient for the SaveFollowup form (owner, related deals).
      * Called via AJAX when user selects a lead in the "Schedule Meeting" drawer.
      */
     public function getLeadForScheduling(Lead $lead)
     {
+        $improved = $this->improved();
+
+        // With the improvements: a lead is reachable through the viewer's lead
+        // permission or through a deal they may schedule on.
         abort_403(
-            ! MeetingVisibilityService::schedulableLeadsQuery()
+            ! ($improved
+                ? MeetingVisibilityService::bookableLeadsQuery()
+                : MeetingVisibilityService::schedulableLeadsQuery())
                 ->where('id', $lead->id)
                 ->exists()
         );
@@ -934,11 +1352,20 @@ class MeetingsController extends AccountBaseController
             'leadOwner:id,name,image,email',
         ]);
 
-        $dealsForLead = Deal::select('id', 'name')
-            ->where('lead_id', $lead->id)
-            ->where('next_follow_up', 'yes')
-            ->orderBy('name')
-            ->get();
+        // With the improvements: only deals the viewer may schedule on, with
+        // their stage, so two deals of the same client can be told apart.
+        // Before: every next-follow-up deal on the lead.
+        $dealsForLead = $improved
+            ? MeetingVisibilityService::schedulableDealsQuery()
+                ->where('lead_id', $lead->id)
+                ->addSelect('pipeline_stage_id')
+                ->with('leadStage:id,name,label_color')
+                ->get()
+            : Deal::select('id', 'name')
+                ->where('lead_id', $lead->id)
+                ->where('next_follow_up', 'yes')
+                ->orderBy('name')
+                ->get();
 
         return response()->json([
             'success' => true,

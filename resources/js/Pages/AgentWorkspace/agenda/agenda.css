@@ -984,3 +984,11 @@
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+/* Attended, while Do next is open for it (L7-44). */
+.agent-outcome__choices .agent-outcome__chosen,
+.agent-outcome__choices .agent-outcome__chosen:hover {
+    border-color: var(--dr-green);
+    background: var(--dr-green);
+    color: var(--dr-white);
+}

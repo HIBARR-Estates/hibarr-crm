@@ -104,10 +104,51 @@ class InboundCallRotationTest extends TestCase
         $this->assertSame(0, $other['index']);
     }
 
-    /** @return array{users: array<int, array<string, mixed>>, index: int, slot_remaining_seconds: int} */
-    private function resolve(array $users, array $passed = []): array
+    public function test_a_busy_agent_is_skipped_while_a_free_one_is_ahead(): void
     {
-        return InboundCallRotation::resolve(self::COMPANY, self::CALL, $users, $passed, 20);
+        $rotation = $this->resolve($this->users(10, 11, 12), busy: [10]);
+
+        $this->assertSame(11, $rotation['users'][$rotation['index']]['id']);
+    }
+
+    public function test_a_skipped_busy_agent_is_rung_once_everyone_free_has_missed_it(): void
+    {
+        $this->resolve($this->users(10, 11), busy: [10]);
+        $this->age(20);
+
+        // 11 timed out: the busy agent moved to the back is now the only one left.
+        $rotation = $this->resolve($this->users(10, 11), busy: [10]);
+
+        $this->assertSame(10, $rotation['users'][$rotation['index']]['id']);
+    }
+
+    public function test_busy_agents_are_rung_when_nobody_free_is_left(): void
+    {
+        $rotation = $this->resolve($this->users(10, 11), busy: [10, 11]);
+
+        $this->assertSame(0, $rotation['index']);
+        $this->assertSame(10, $rotation['users'][0]['id']);
+    }
+
+    public function test_an_agent_who_passed_does_not_count_as_free(): void
+    {
+        // 11 is free but already passed, so busy 10 is the only one left.
+        $rotation = $this->resolve($this->users(10, 11), passed: [11], busy: [10]);
+
+        $this->assertSame(10, $rotation['users'][$rotation['index']]['id']);
+    }
+
+    public function test_the_roster_keeps_busy_agents_when_it_is_frozen(): void
+    {
+        $rotation = $this->resolve($this->users(10, 11, 12), busy: [11]);
+
+        $this->assertContains(11, array_column($rotation['users'], 'id'));
+    }
+
+    /** @return array{users: array<int, array<string, mixed>>, index: int, slot_remaining_seconds: int} */
+    private function resolve(array $users, array $passed = [], array $busy = []): array
+    {
+        return InboundCallRotation::resolve(self::COMPANY, self::CALL, $users, $passed, 20, $busy);
     }
 
     /** Pretend the call has been ringing for `$seconds` longer. */

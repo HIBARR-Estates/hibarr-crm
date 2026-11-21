@@ -21,6 +21,7 @@ import {
 import { Lead, Country, ClientCategory, Salutation, Language } from "@/Types";
 import PhoneInput from "antd-phone-input";
 import { useCountries } from "@/Hooks/useFormData";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -49,6 +50,7 @@ const AccountDetailsTab: React.FC<Props> = ({
     languages,
     permissions,
 }) => {
+    const { td } = useTd();
     const { countries } = useCountries();
 
     const [passwordVisible, setPasswordVisible] = useState(false);
@@ -96,16 +98,16 @@ const AccountDetailsTab: React.FC<Props> = ({
     return (
         <div>
             <Title level={4} className="mb-6">
-                Account Details
+                {td("Account Details", { source: "en" })}
             </Title>
 
             <Row gutter={[24, 16]}>
                 <Col span={18}>
                     <Row gutter={[16, 16]}>
                         <Col span={8}>
-                            <Form.Item name="salutation" label="Salutation">
+                            <Form.Item name="salutation" label={td("Salutation", { source: "en" })}>
                                 <Select
-                                    placeholder="Select salutation"
+                                    placeholder={td("Select salutation", { source: "en" })}
                                     allowClear
                                     options={salutations}
                                 />
@@ -115,7 +117,7 @@ const AccountDetailsTab: React.FC<Props> = ({
                         <Col span={8}>
                             <Form.Item
                                 name="name"
-                                label="Client Name"
+                                label={td("Client Name", { source: "en" })}
                                 rules={[
                                     {
                                         required: true,
@@ -123,14 +125,14 @@ const AccountDetailsTab: React.FC<Props> = ({
                                     },
                                 ]}
                             >
-                                <Input placeholder="Enter client name" />
+                                <Input placeholder={td("Enter client name", { source: "en" })} />
                             </Form.Item>
                         </Col>
 
                         <Col span={8}>
                             <Form.Item
                                 name="email"
-                                label="Email"
+                                label={td("Email", { source: "en" })}
                                 rules={[
                                     {
                                         type: "email",
@@ -138,19 +140,19 @@ const AccountDetailsTab: React.FC<Props> = ({
                                     },
                                 ]}
                             >
-                                <Input placeholder="Enter email address" />
+                                <Input placeholder={td("Enter email address", { source: "en" })} />
                             </Form.Item>
                         </Col>
 
                         <Col span={8}>
                             <Form.Item
                                 name="password"
-                                label="Password"
+                                label={td("Password", { source: "en" })}
                                 extra="Required for login"
                             >
                                 <Input.Group compact>
                                     <Input.Password
-                                        placeholder="Enter password"
+                                        placeholder={td("Enter password", { source: "en" })}
                                         visibilityToggle={{
                                             visible: passwordVisible,
                                             onVisibleChange: setPasswordVisible,
@@ -160,16 +162,16 @@ const AccountDetailsTab: React.FC<Props> = ({
                                     <Button
                                         icon={<RandomOutlined />}
                                         onClick={generateRandomPassword}
-                                        title="Generate random password"
+                                        title={td("Generate random password", { source: "en" })}
                                     />
                                 </Input.Group>
                             </Form.Item>
                         </Col>
 
                         <Col span={8}>
-                            <Form.Item name="country" label="Country">
+                            <Form.Item name="country" label={td("Country", { source: "en" })}>
                                 <Select
-                                    placeholder="Select country"
+                                    placeholder={td("Select country", { source: "en" })}
                                     showSearch
                                     filterOption={(input, option) =>
                                         (option?.label ?? "")
@@ -191,10 +193,10 @@ const AccountDetailsTab: React.FC<Props> = ({
                         </Col>
 
                         <Col span={8}>
-                            <Form.Item name="mobile" label="Mobile">
+                            <Form.Item name="mobile" label={td("Mobile", { source: "en" })}>
                                 <PhoneInput 
                                     enableSearch 
-                                    placeholder="Enter mobile number"
+                                    placeholder={td("Enter mobile number", { source: "en" })}
                                     country=""
                                 />
                             </Form.Item>
@@ -203,7 +205,7 @@ const AccountDetailsTab: React.FC<Props> = ({
                 </Col>
 
                 <Col span={6}>
-                    <Form.Item name="image" label="Profile Picture">
+                    <Form.Item name="image" label={td("Profile Picture", { source: "en" })}>
                         <Upload
                             listType="picture-card"
                             maxCount={1}
@@ -212,7 +214,7 @@ const AccountDetailsTab: React.FC<Props> = ({
                         >
                             <div>
                                 <PlusOutlined />
-                                <div className="mt-2">Upload</div>
+                                <div className="mt-2">{td("Upload", { source: "en" })}</div>
                             </div>
                         </Upload>
                     </Form.Item>
@@ -221,19 +223,19 @@ const AccountDetailsTab: React.FC<Props> = ({
 
             <Row gutter={[16, 16]}>
                 <Col span={8}>
-                    <Form.Item name="gender" label="Gender">
+                    <Form.Item name="gender" label={td("Gender", { source: "en" })}>
                         <Select
                             options={[
-                                { value: "male", label: "Male" },
-                                { value: "female", label: "Female" },
-                                { value: "others", label: "Others" },
+                                { value: "male", label: td("Male", { source: "en" }) },
+                                { value: "female", label: td("Female", { source: "en" }) },
+                                { value: "others", label: td("Others", { source: "en" }) },
                             ]}
                         />
                     </Form.Item>
                 </Col>
 
                 <Col span={8}>
-                    <Form.Item name="locale" label="Language">
+                    <Form.Item name="locale" label={td("Language", { source: "en" })}>
                         <Select
                             showSearch
                             filterOption={(input, option) =>
@@ -250,10 +252,10 @@ const AccountDetailsTab: React.FC<Props> = ({
                 </Col>
 
                 <Col span={8}>
-                    <Form.Item name="category_id" label="Client Category">
+                    <Form.Item name="category_id" label={td("Client Category", { source: "en" })}>
                         <Input.Group compact>
                             <Select
-                                placeholder="Select category"
+                                placeholder={td("Select category", { source: "en" })}
                                 style={{
                                     width:
                                         permissions.manage_client_category ===
@@ -271,7 +273,7 @@ const AccountDetailsTab: React.FC<Props> = ({
                             {permissions.manage_client_category === "all" && (
                                 <Button
                                     icon={<PlusOutlined />}
-                                    title="Add Category"
+                                    title={td("Add Category", { source: "en" })}
                                 />
                             )}
                         </Input.Group>
@@ -283,11 +285,11 @@ const AccountDetailsTab: React.FC<Props> = ({
                 <Col span={8}>
                     <Form.Item
                         name="sub_category_id"
-                        label="Client Sub Category"
+                        label={td("Client Sub Category", { source: "en" })}
                     >
                         <Input.Group compact>
                             <Select
-                                placeholder="Select sub category"
+                                placeholder={td("Select sub category", { source: "en" })}
                                 style={{
                                     width:
                                         permissions.manage_client_subcategory ===
@@ -305,7 +307,7 @@ const AccountDetailsTab: React.FC<Props> = ({
                                 "all" && (
                                 <Button
                                     icon={<PlusOutlined />}
-                                    title="Add Sub Category"
+                                    title={td("Add Sub Category", { source: "en" })}
                                 />
                             )}
                         </Input.Group>
@@ -313,19 +315,19 @@ const AccountDetailsTab: React.FC<Props> = ({
                 </Col>
 
                 <Col span={8}>
-                    <Form.Item name="login" label="Client Can Login">
+                    <Form.Item name="login" label={td("Client Can Login", { source: "en" })}>
                         <Radio.Group>
-                            <Radio value="enable">Yes</Radio>
-                            <Radio value="disable">No</Radio>
+                            <Radio value="enable">{td("Yes", { source: "en" })}</Radio>
+                            <Radio value="disable">{td("No", { source: "en" })}</Radio>
                         </Radio.Group>
                     </Form.Item>
                 </Col>
 
                 <Col span={8}>
-                    <Form.Item name="sendMail" label="Email Notifications">
+                    <Form.Item name="sendMail" label={td("Email Notifications", { source: "en" })}>
                         <Radio.Group>
-                            <Radio value="yes">Yes</Radio>
-                            <Radio value="no">No</Radio>
+                            <Radio value="yes">{td("Yes", { source: "en" })}</Radio>
+                            <Radio value="no">{td("No", { source: "en" })}</Radio>
                         </Radio.Group>
                     </Form.Item>
                 </Col>
@@ -334,9 +336,9 @@ const AccountDetailsTab: React.FC<Props> = ({
             {permissions.add_clients === "all" && (
                 <Row gutter={[16, 16]}>
                     <Col span={12}>
-                        <Form.Item name="added_by" label="Added By">
+                        <Form.Item name="added_by" label={td("Added By", { source: "en" })}>
                             <Select
-                                placeholder="Select employee"
+                                placeholder={td("Select employee", { source: "en" })}
                                 showSearch
                                 filterOption={(input, option) =>
                                     (option?.label ?? "")
@@ -358,10 +360,10 @@ const AccountDetailsTab: React.FC<Props> = ({
                 permissions.add_client_note === "both") && (
                 <Row>
                     <Col span={24}>
-                        <Form.Item name="note" label="Note">
+                        <Form.Item name="note" label={td("Note", { source: "en" })}>
                             <TextArea
                                 rows={4}
-                                placeholder="Enter note about the client"
+                                placeholder={td("Enter note about the client", { source: "en" })}
                             />
                         </Form.Item>
                     </Col>

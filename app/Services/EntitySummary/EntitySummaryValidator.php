@@ -93,6 +93,43 @@ class EntitySummaryValidator
     }
 
     /**
+     * A meeting's talking points: 1 to 4 non-empty lines. Trims each line, drops
+     * blanks and markdown bullets, caps each at 200 characters.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return list<string>
+     */
+    public function normalizeMeetingTalkingPoints(array $payload): array
+    {
+        $raw = $payload['points'] ?? null;
+
+        if (! is_array($raw)) {
+            throw new \InvalidArgumentException('Talking points missing required key: points');
+        }
+
+        $points = [];
+        foreach ($raw as $point) {
+            if (is_array($point)) {
+                $point = $point['text'] ?? null;
+            }
+            if (! is_string($point)) {
+                continue;
+            }
+            $point = trim(preg_replace('/^\s*(?:[-*•]|\d+[.)])\s+/u', '', $point) ?? '');
+            if ($point === '') {
+                continue;
+            }
+            $points[] = mb_substr($point, 0, 200);
+        }
+
+        if ($points === []) {
+            throw new \InvalidArgumentException('Talking points were empty.');
+        }
+
+        return array_slice($points, 0, 4);
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     public function validateDealSummary(array $payload): void

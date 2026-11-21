@@ -28,21 +28,21 @@
                     <div class="col-md-6">
                         <x-forms.text fieldId="name" :fieldLabel="__('app.name')" fieldName="name"
                                       fieldRequired="true" :fieldValue="$category->name ?? ''"
-                                      fieldPlaceholder="e.g. Communication" />
+                                      :fieldPlaceholder="td('e.g. Communication')" />
                     </div>
                     <div class="col-md-6">
-                        <x-forms.text fieldId="slug" fieldLabel="Slug" fieldName="slug"
+                        <x-forms.text fieldId="slug" :fieldLabel="td('Slug')" fieldName="slug"
                                       fieldRequired="true" :fieldValue="$category->slug ?? ''"
-                                      fieldPlaceholder="e.g. communication" />
-                        <small class="text-muted f-11">Auto-generated from name. Use lowercase letters, numbers, and underscores.</small>
+                                      :fieldPlaceholder="td('e.g. communication')" />
+                        <small class="text-muted f-11">{{ td('Auto-generated from name. Use lowercase letters, numbers, and underscores.') }}</small>
                     </div>
                 </div>
 
                 <div class="row">
                     <div class="col-md-12">
-                        <x-forms.textarea fieldId="description" fieldLabel="Description" fieldName="description"
+                        <x-forms.textarea fieldId="description" :fieldLabel="td('Description')" fieldName="description"
                                           :fieldValue="$category->description ?? ''"
-                                          fieldPlaceholder="Brief description of this event category" />
+                                          :fieldPlaceholder="td('Brief description of this event category')" />
                     </div>
                 </div>
 

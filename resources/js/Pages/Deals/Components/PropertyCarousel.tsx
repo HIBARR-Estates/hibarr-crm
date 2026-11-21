@@ -13,6 +13,7 @@ import {
     generatePropertySubtitle,
     storedPriceCurrency,
 } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const PROPERTY_STATUS_COLORS: Record<string, string> = {
     available: "green",
@@ -129,6 +130,7 @@ function PropertyCard({ product }: { product: any }) {
 }
 
 export default function PropertyCarousel({ products }: { products: any[] }) {
+    const { td } = useTd();
     const [pageIndex, setPageIndex] = useState(0);
     const total = products.length;
     const totalPages = Math.ceil(total / PER_PAGE);
@@ -160,14 +162,14 @@ export default function PropertyCarousel({ products }: { products: any[] }) {
                         <button
                             onClick={prev}
                             className="cursor-pointer bg-white hover:bg-gray-50 border border-gray-200 rounded-full w-5 h-5 flex items-center justify-center shadow-sm text-gray-500 hover:text-gray-800 transition"
-                            aria-label="Previous page"
+                            aria-label={td("Previous page", { source: "en" })}
                         >
                             <LeftOutlined style={{ fontSize: 9 }} />
                         </button>
                         <button
                             onClick={next}
                             className="cursor-pointer bg-white hover:bg-gray-50 border border-gray-200 rounded-full w-5 h-5 flex items-center justify-center shadow-sm text-gray-500 hover:text-gray-800 transition"
-                            aria-label="Next page"
+                            aria-label={td("Next page", { source: "en" })}
                         >
                             <RightOutlined style={{ fontSize: 9 }} />
                         </button>

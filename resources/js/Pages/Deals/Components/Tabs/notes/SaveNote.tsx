@@ -4,6 +4,7 @@ import { Form, Input, Button } from "antd";
 import { useEffect } from "react";
 import { SaveOutlined } from "@ant-design/icons";
 import HtmlEditor from "@/Components/HtmlEditor";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { TextArea } = Input;
 
@@ -30,6 +31,7 @@ export default function SaveNote({
     loading = false,
     errors = [],
 }: Props) {
+    const { td } = useTd();
     const [form] = Form.useForm();
 
     const isEditing = !!note;
@@ -88,7 +90,7 @@ export default function SaveNote({
             )}
 
             <Form.Item
-                label="Note Title"
+                label={td("Note Title", { source: "en" })}
                 name="title"
                 rules={[
                     {
@@ -100,13 +102,13 @@ export default function SaveNote({
             >
                 <Input
                     className="w-full"
-                    placeholder="Enter note title"
+                    placeholder={td("Enter note title", { source: "en" })}
                     disabled={loading}
                 />
             </Form.Item>
 
             <Form.Item
-                label="Note Details"
+                label={td("Note Details", { source: "en" })}
                 name="details"
                 className="mb-6"
                 rules={[
@@ -117,7 +119,7 @@ export default function SaveNote({
                 ]}
             >
                 <HtmlEditor
-                    placeholder="Enter detailed note information..."
+                    placeholder={td("Enter detailed note information...", { source: "en" })}
                     disabled={loading}
                     height={300}
                 />
@@ -125,7 +127,7 @@ export default function SaveNote({
 
             <div className="flex items-center justify-end space-x-3 mt-12 mb-4 pt-4 border-t border-gray-200">
                 <Button onClick={onCancel} disabled={loading}>
-                    Cancel
+                    {td("Cancel", { source: "en" })}
                 </Button>
                 <Button
                     type="primary"

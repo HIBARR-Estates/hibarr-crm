@@ -6,6 +6,7 @@ import {
     EyeOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Paragraph, Text } = Typography;
 
@@ -16,6 +17,7 @@ interface DescriptionMediaCardProps {
 export default function DescriptionMediaCard({
     property,
 }: DescriptionMediaCardProps) {
+    const { td } = useTd();
     // Get video and tour from assets or fallback to legacy fields
     const videoAssets =
         property.assets?.filter(
@@ -70,7 +72,7 @@ export default function DescriptionMediaCard({
                             href={videoUrl}
                             target="_blank"
                         >
-                            Watch Video
+                            {td("Watch Video", { source: "en" })}
                         </Button>
                     )}
                     {tourUrl && (
@@ -79,7 +81,7 @@ export default function DescriptionMediaCard({
                             href={tourUrl}
                             target="_blank"
                         >
-                            360° Virtual Tour
+                            {td("360° Virtual Tour", { source: "en" })}
                         </Button>
                     )}
                 </div>

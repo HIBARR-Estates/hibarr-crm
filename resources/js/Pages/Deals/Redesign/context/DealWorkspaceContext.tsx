@@ -59,6 +59,8 @@ interface DealWorkspaceValue {
     paymentRequests: DealPaymentRequest[];
     /** Patch one request into local state from a mutation response. */
     upsertPaymentRequest: (request: DealPaymentRequest) => void;
+    /** Drop a deleted request from local state. */
+    removePaymentRequest: (requestId: number) => void;
     paymentRequestLoading: boolean;
     refreshPaymentRequest: () => Promise<void>;
     /**
@@ -315,8 +317,22 @@ export function DealWorkspaceProvider({
                 : prev.active?.id === request.id
                   ? null
                   : prev.active;
-            return { active, requests };
+            // A KDV request arrives with its payment: refresh that row too,
+            // without letting it take over as the deal's active request.
+            const parent = request.vat_parent;
+            if (!parent) return { active, requests };
+            return {
+                active: active?.id === parent.id ? parent : active,
+                requests: requests.map((r) => (r.id === parent.id ? parent : r)),
+            };
         });
+    }, []);
+
+    const removePaymentRequest = useCallback((requestId: number) => {
+        setPaymentState((prev) => ({
+            active: prev.active?.id === requestId ? null : prev.active,
+            requests: prev.requests.filter((r) => r.id !== requestId),
+        }));
     }, []);
 
     const confirmPaymentInvalidation = useCallback(
@@ -398,6 +414,7 @@ export function DealWorkspaceProvider({
             paymentRequest: paymentState.active,
             paymentRequests: paymentState.requests,
             upsertPaymentRequest,
+            removePaymentRequest,
             paymentRequestLoading: paymentEnabled && paymentRequestQuery.isLoading,
             refreshPaymentRequest,
             withPaymentInvalidation,
@@ -422,6 +439,7 @@ export function DealWorkspaceProvider({
             paymentRequestQuery.isLoading,
             refreshPaymentRequest,
             upsertPaymentRequest,
+            removePaymentRequest,
             withPaymentInvalidation,
         ],
     );

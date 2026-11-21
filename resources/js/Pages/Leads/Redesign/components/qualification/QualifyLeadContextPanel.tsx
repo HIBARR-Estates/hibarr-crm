@@ -437,7 +437,7 @@ export default function QualifyLeadContextPanel({
                             rel="noreferrer"
                             className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-dr-gray-darker border border-dr-border bg-dr-gray hover:bg-slate-200 transition-colors"
                         >
-                            WhatsApp
+                            {td("WhatsApp", { source: "en" })}
                         </a>
                     ) : null}
                 </div>

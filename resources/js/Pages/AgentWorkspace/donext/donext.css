@@ -1,0 +1,428 @@
+/* Do next (canvas L7-43 to L7-45): the next step, added where the last one
+   was finished. A popover under the row on desktop and tablet, a bottom
+   sheet on a phone, a dialog where there is no row. No shadow: the navy
+   border carries it. */
+
+.agent-dn--popover {
+    position: absolute;
+    z-index: 1200;
+    border: 2px solid var(--dr-navy);
+    border-radius: 14px;
+    background: var(--dr-white);
+    color: var(--dr-text);
+}
+
+/* The caret, pointing at the row it belongs to. */
+.agent-dn--popover::before,
+.agent-dn--popover::after {
+    content: "";
+    position: absolute;
+    left: var(--caret, 86px);
+    width: 0;
+    height: 0;
+    border: solid transparent;
+    transform: translateX(-50%);
+}
+
+.agent-dn--popover::before {
+    top: -12px;
+    border-width: 0 11px 11px;
+    border-bottom-color: var(--dr-navy);
+}
+
+.agent-dn--popover::after {
+    top: -8px;
+    border-width: 0 9px 9px;
+    border-bottom-color: var(--dr-white);
+}
+
+.agent-dn--dialog {
+    width: min(600px, calc(100vw - 32px));
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    border: 2px solid var(--dr-navy);
+    border-radius: 14px;
+    background: var(--dr-white);
+}
+
+.agent-dn__body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px;
+}
+
+.agent-dn--sheet .agent-dn__body {
+    padding: 16px 16px 20px;
+}
+
+.agent-dn__head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.agent-dn__mark {
+    display: inline-flex;
+    flex: 0 0 34px;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--dr-navy);
+    color: var(--dr-white);
+}
+
+.agent-dn__heading {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.agent-dn__heading b {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--dr-text);
+}
+
+.agent-dn__heading small {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--dr-text-muted);
+}
+
+.agent-dn__close {
+    display: inline-flex;
+    flex: 0 0 32px;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--dr-text-muted);
+    cursor: pointer;
+}
+
+.agent-dn__close:hover {
+    background: var(--dr-surface-hover);
+    color: var(--dr-text);
+}
+
+.agent-dn__done {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    padding: 9px 11px;
+    border: 1px solid var(--dr-border);
+    border-radius: 9px;
+    background: var(--dr-surface-hover);
+    font-size: 13px;
+    color: var(--dr-text);
+}
+
+.agent-dn__done b {
+    font-weight: 600;
+}
+
+.agent-dn__check {
+    display: inline-flex;
+    flex: 0 0 18px;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    background: var(--dr-green);
+    color: var(--dr-white);
+}
+
+.agent-dn__kind {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.agent-dn__kind > :first-child {
+    flex: 0 0 auto;
+    align-self: flex-end;
+}
+
+.agent-dn__short {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 38px;
+    font-size: 12px;
+    color: var(--dr-text-muted);
+}
+
+.agent-dn__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.agent-dn__grid--two {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.agent-dn__field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+.agent-dn__field--grow {
+    flex: 1 1 auto;
+}
+
+.agent-dn__field > span:first-child {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--dr-gray-darker);
+}
+
+.agent-dn__input {
+    width: 100%;
+    height: 38px;
+    padding: 0 11px;
+    border: 1px solid var(--dr-border);
+    border-radius: 9px;
+    background: var(--dr-white);
+    font: inherit;
+    font-size: 13px;
+    color: var(--dr-text);
+}
+
+.agent-dn__input:focus {
+    border-color: var(--dr-blue);
+    outline: 2px solid var(--dr-blue-light);
+    outline-offset: 0;
+}
+
+.agent-dn__textarea {
+    height: auto;
+    min-height: 52px;
+    padding: 9px 11px;
+    line-height: 1.45;
+    resize: vertical;
+}
+
+.agent-dn__grid--task {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+
+/* Day and time in one field. */
+.agent-dn__when {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px 0 11px;
+}
+
+.agent-dn__when:focus-within {
+    border-color: var(--dr-blue);
+    outline: 2px solid var(--dr-blue-light);
+}
+
+.agent-dn__when input {
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    outline: 0;
+}
+
+.agent-dn__when input[type="date"] {
+    flex: 1 1 auto;
+}
+
+.agent-dn__when input[type="time"] {
+    flex: 0 0 auto;
+}
+
+.agent-dn__when > span {
+    color: var(--dr-text-muted);
+}
+
+.agent-dn__readonly {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 11px;
+    overflow: hidden;
+    border-radius: 9px;
+    background: var(--dr-surface-hover);
+    font-size: 13px;
+    color: var(--dr-text-muted);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.agent-dn__readonly-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.agent-dn__linked-mark {
+    flex: 0 0 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--dr-gray-dark);
+}
+
+/* A deal: the diamond the boards use for deals. */
+.agent-dn__linked-mark--deal {
+    border-radius: 1px;
+    transform: rotate(45deg);
+}
+
+.agent-dn__people {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.agent-dn__person {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 32px;
+    padding: 0 10px 0 3px;
+    border: 1px solid var(--dr-border);
+    border-radius: 999px;
+    background: var(--dr-surface-hover);
+    font-size: 12px;
+}
+
+.agent-dn__person b {
+    font-weight: 600;
+    color: var(--dr-text);
+}
+
+.agent-dn__person small {
+    font-size: 12px;
+    color: var(--dr-text-muted);
+}
+
+.agent-dn__avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--dr-navy);
+    color: var(--dr-white);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.agent-dn__person--host .agent-dn__avatar {
+    background: var(--dr-gray-dark);
+}
+
+.agent-dn__hint {
+    margin: -4px 0 0;
+    font-size: 12px;
+    color: var(--dr-text-muted);
+}
+
+.agent-dn__errors {
+    margin: 0;
+    padding: 9px 12px 9px 28px;
+    border: 1px solid var(--dr-time-late-border);
+    border-radius: 9px;
+    background: var(--dr-time-late-bg);
+    font-size: 12px;
+    color: var(--dr-time-late-text);
+}
+
+.agent-dn__foot {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--dr-border);
+}
+
+.agent-dn__foot p {
+    flex: 1 1 auto;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--dr-text-muted);
+}
+
+.agent-dn__actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+}
+
+@media (max-width: 639px) {
+    /* Three fields become the first on its own line, then two side by side. */
+    .agent-dn__grid,
+    .agent-dn__grid--task {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .agent-dn__grid > :first-child {
+        grid-column: 1 / -1;
+    }
+
+    .agent-dn--sheet .agent-dn__foot {
+        position: sticky;
+        bottom: 0;
+        z-index: 1;
+        margin: 0 -16px -20px;
+        padding: 12px 16px 16px;
+        background: var(--dr-white);
+    }
+
+    .agent-dn__kind {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .agent-dn__kind > :first-child {
+        align-self: flex-start;
+    }
+
+    .agent-dn__grid--two {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .agent-dn__foot {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .agent-dn__actions > * {
+        flex: 1 1 0;
+    }
+
+    .agent-dn__input {
+        height: 44px;
+        font-size: 16px;
+    }
+
+    .agent-dn__when input {
+        font-size: 16px;
+    }
+}

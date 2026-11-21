@@ -43,6 +43,7 @@ use App\Http\Controllers\LeadStageSettingController;
 use App\Http\Controllers\LeaveSettingController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\MeetingAttendanceConfirmationSettingsApiController;
+use App\Http\Controllers\CalendlyMeetingLinkController;
 use App\Http\Controllers\MessageSettingController;
 use App\Http\Controllers\MetaEventController;
 use App\Http\Controllers\ModuleSettingController;
@@ -228,6 +229,13 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('meeting-attendance-confirmation-settings', [MeetingAttendanceConfirmationSettingsApiController::class, 'page'])->name('meeting-attendance-confirmation-settings.index');
     Route::get('meeting-attendance-confirmation-settings/data', [MeetingAttendanceConfirmationSettingsApiController::class, 'index'])->name('meeting-attendance-confirmation-settings.data');
     Route::put('meeting-attendance-confirmation-settings/data', [MeetingAttendanceConfirmationSettingsApiController::class, 'update'])->name('meeting-attendance-confirmation-settings.update');
+
+    // Calendly booking links offered in the schedule-meeting modal, and which
+    // roles see them.
+    Route::get('calendly-meeting-links', [CalendlyMeetingLinkController::class, 'page'])->name('calendly-meeting-links.index');
+    Route::post('calendly-meeting-links/data', [CalendlyMeetingLinkController::class, 'store'])->name('calendly-meeting-links.store');
+    Route::put('calendly-meeting-links/data/{link}', [CalendlyMeetingLinkController::class, 'update'])->whereNumber('link')->name('calendly-meeting-links.update');
+    Route::delete('calendly-meeting-links/data/{link}', [CalendlyMeetingLinkController::class, 'destroy'])->whereNumber('link')->name('calendly-meeting-links.destroy');
 
     // Call Bridge — channels, per-line call pool and call recordings.
     Route::get('call-bridge', [\App\Http\Controllers\CallBridgeSettingsController::class, 'page'])->name('call-bridge.index');

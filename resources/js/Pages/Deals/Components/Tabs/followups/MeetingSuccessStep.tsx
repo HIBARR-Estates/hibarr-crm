@@ -2,6 +2,7 @@ import React from "react";
 import { Button } from "antd";
 import { CheckCircleOutlined, PlusOutlined, VideoCameraOutlined, PhoneOutlined, BankOutlined, EnvironmentOutlined, CalendarOutlined } from "@ant-design/icons";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     onDone: () => void;
@@ -66,6 +67,7 @@ const MeetingSuccessStep: React.FC<Props> = ({
     duration,
     location,
 }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const hasDetails = !!(entityName || date || time);
 
@@ -100,22 +102,22 @@ const MeetingSuccessStep: React.FC<Props> = ({
                             )}
                         </div>
                         <span className="shrink-0 text-[11px] font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
-                            Scheduled
+                            {td("Scheduled", { source: "en" })}
                         </span>
                     </div>
 
                     {/* Date / Time / Duration */}
                     <div className="px-4 py-3 grid grid-cols-3 gap-3 border-b border-gray-200">
                         <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Date</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">{td("Date", { source: "en" })}</p>
                             <p className="text-[13px] font-semibold text-gray-700">{formatDate(date)}</p>
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Time</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">{td("Time", { source: "en" })}</p>
                             <p className="text-[13px] font-semibold text-gray-700">{formatTime(time)}</p>
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Duration</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">{td("Duration", { source: "en" })}</p>
                             <p className="text-[13px] font-semibold text-gray-700">{formatDuration(duration)}</p>
                         </div>
                     </div>

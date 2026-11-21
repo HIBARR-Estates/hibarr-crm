@@ -2,6 +2,7 @@ import React from "react";
 import { Badge, Button } from "antd";
 import { FilterOutlined, ClearOutlined } from "@ant-design/icons";
 import { useFilter } from "@/contexts/FilterContext";
+import { useTranslation } from "@/Hooks/useTranslation";
 
 interface FilterStatusIndicatorProps {
     onOpenFilters?: () => void;
@@ -12,6 +13,7 @@ const FilterStatusIndicator: React.FC<FilterStatusIndicatorProps> = ({
     onOpenFilters,
     showClearAll = true,
 }) => {
+    const { t } = useTranslation();
     const { filters, clearAllFilters } = useFilter();
     const activeFilterCount = Object.keys(filters).length;
 
@@ -23,7 +25,7 @@ const FilterStatusIndicator: React.FC<FilterStatusIndicatorProps> = ({
                     onClick={onOpenFilters}
                     type={activeFilterCount > 0 ? "primary" : "default"}
                 >
-                    Filters
+                    {t("pages.filters.filters")}
                 </Button>
             </Badge>
             {showClearAll && activeFilterCount > 0 && (
@@ -34,7 +36,7 @@ const FilterStatusIndicator: React.FC<FilterStatusIndicatorProps> = ({
                     type="text"
                     danger
                 >
-                    Clear All
+                    {t("pages.filters.clear_all_caps")}
                 </Button>
             )}
         </div>

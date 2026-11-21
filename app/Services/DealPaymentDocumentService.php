@@ -22,8 +22,11 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  * KKTC invoices (Fatura) and collection receipts (Tahsilat Makbuzu) for a deal
  * payment request.
  *
- * An invoice can be issued for any live request. A receipt exists only once
- * the payment has been collected, and always refers to the request's invoice.
+ * Documents exist only after someone records that the customer asked for an
+ * invoice (requestDocuments); checkout itself collects the net amount and KDV
+ * comes on top in the documents. A receipt exists only once the payment has
+ * been collected. It does not need the invoice; when the invoice was already
+ * generated, the receipt settles it and refers to it.
  *
  * A document is issued the first time it is generated: it takes the next
  * number from the company's configured range and stores a snapshot of what
@@ -42,6 +45,40 @@ class DealPaymentDocumentService
     ) {}
 
     /**
+     * Records that the customer asked for an invoice and receipt. Until then
+     * no document is made, and checkout collects only the net amount. Asking
+     * again changes nothing.
+     */
+    public function requestDocuments(Payment $payment, ?int $userId): void
+    {
+        if ($payment->documents_requested_at !== null) {
+            return;
+        }
+
+        if (in_array(DealPaymentService::uiStateOf($payment), ['invalidated', 'failed'], true)) {
+            throw new HttpException(409, 'This payment request ended, so an invoice can no longer be requested for it.');
+        }
+
+        // Only the first of two simultaneous requests records itself; the
+        // conditional update leaves the other one's user and time untouched.
+        $now = now();
+        $recorded = Payment::withoutGlobalScopes()
+            ->whereKey($payment->id)
+            ->whereNull('documents_requested_at')
+            ->update([
+                'documents_requested_at' => $now,
+                'documents_requested_by_user_id' => $userId,
+            ]);
+
+        if ($recorded > 0) {
+            $payment->documents_requested_at = $now;
+            $payment->documents_requested_by_user_id = $userId;
+        } else {
+            $payment->refresh();
+        }
+    }
+
+    /**
      * Issues the document if needed and returns the data the PDF view renders.
      *
      * @return array<string, mixed>
@@ -55,7 +92,14 @@ class DealPaymentDocumentService
             throw new HttpException(409, 'A receipt is available once the payment has been collected.');
         }
 
-        $document = $this->issue($payment, $kind);
+        $document = $this->issued($payment, $kind);
+        if ($document === null) {
+            if ($payment->documents_requested_at === null) {
+                throw new HttpException(409, 'An invoice has to be requested before it is made.');
+            }
+
+            $document = $this->issue($payment, $kind);
+        }
         $settings = PaymentDocumentSetting::forCompany((int) $payment->company_id);
 
         return $this->present($document->snapshot, $settings, $copy, $this->stampFor($uiState));
@@ -156,28 +200,17 @@ class DealPaymentDocumentService
             throw new HttpException(409, 'This payment request ended before an invoice was issued.');
         }
 
-        // A receipt is always "karşılığı" an invoice, so the invoice is issued
-        // first and its number printed on the receipt.
-        $invoiceNumber = null;
-        $invoiceSnapshot = null;
-        if ($kind === PaymentDocument::RECEIPT) {
-            $invoice = $this->issued($payment, PaymentDocument::INVOICE) ?? $this->issue($payment, PaymentDocument::INVOICE);
-            $invoiceSnapshot = $invoice->snapshot;
-            $invoiceNumber = $invoiceSnapshot['number'] ?? null;
+        if ($kind === PaymentDocument::RECEIPT
+            && ! in_array(DealPaymentService::uiStateOf($payment), ['confirmed', 'paid_online'], true)) {
+            throw new HttpException(409, 'A receipt is available once the payment has been collected.');
         }
 
+        // A receipt can be made without an invoice. When the invoice was
+        // already issued, the receipt settles it: it prints its number and
+        // repeats its amounts. It never makes the invoice itself.
         $companyId = (int) $payment->company_id;
-        $paymentData = $this->paymentData($payment, $kind, $invoiceNumber);
-        if ($invoiceSnapshot) {
-            // The receipt settles that invoice, so it repeats the invoice's
-            // amounts and KDV even if the KDV rate setting changed since.
-            $paymentData['invoice_totals'] = [
-                'subtotal' => $invoiceSnapshot['subtotal'] ?? null,
-                'vat_rate' => $invoiceSnapshot['vat_rate'] ?? null,
-                'vat' => $invoiceSnapshot['vat'] ?? null,
-                'total' => $invoiceSnapshot['total'] ?? null,
-            ];
-        }
+        $invoice = $kind === PaymentDocument::RECEIPT ? $this->issued($payment, PaymentDocument::INVOICE) : null;
+        $paymentData = $this->settleInvoice($this->paymentData($payment, $kind, null), $invoice);
         // Look the TL rate up before taking the settings lock, so a slow rate
         // API never holds up other documents being issued for the company.
         $paymentData['try_rate'] = $this->tryRate(PaymentDocumentSetting::forCompany($companyId), $paymentData['currency_code']);
@@ -189,6 +222,12 @@ class DealPaymentDocumentService
                 // Locking the settings row serialises issuing per company, so
                 // two downloads at once can never take the same number.
                 $settings = $this->lockedSettings($companyId);
+
+                // The invoice may have been issued while this request waited
+                // for the rate or the lock, so look again under the lock.
+                if ($kind === PaymentDocument::RECEIPT && ($paymentData['invoice_number'] ?? null) === null) {
+                    $paymentData = $this->settleInvoice($paymentData, $this->issued($payment, PaymentDocument::INVOICE));
+                }
 
                 // An issued document is frozen, so it can never be issued
                 // without the seller details the law requires on it.
@@ -233,6 +272,53 @@ class DealPaymentDocumentService
 
             throw $e;
         }
+    }
+
+    /**
+     * A receipt settles an issued invoice, so it prints that invoice's number
+     * and repeats its amounts and KDV even if the KDV rate setting changed
+     * since. Without an invoice the data is returned unchanged.
+     *
+     * @param  array<string, mixed>  $paymentData
+     * @return array<string, mixed>
+     */
+    private function settleInvoice(array $paymentData, ?PaymentDocument $invoice): array
+    {
+        if ($invoice === null) {
+            return $paymentData;
+        }
+
+        $invoiceSnapshot = $invoice->snapshot;
+        $paymentData['invoice_number'] = $invoiceSnapshot['number'] ?? null;
+        $paymentData['invoice_totals'] = [
+            'subtotal' => $invoiceSnapshot['subtotal'] ?? null,
+            'vat_rate' => $invoiceSnapshot['vat_rate'] ?? null,
+            'vat' => $invoiceSnapshot['vat'] ?? null,
+            'total' => $invoiceSnapshot['total'] ?? null,
+        ];
+
+        return $paymentData;
+    }
+
+    /**
+     * The KDV the customer owes on top of the net amount: the saved invoice's
+     * KDV when it was generated, otherwise the company's current rate. The
+     * amount is in the payment's own currency. Null when there is no KDV.
+     *
+     * @return array{amount: float, rate: float}|null
+     */
+    public function vatDue(Payment $payment): ?array
+    {
+        $invoice = $this->issued($payment, PaymentDocument::INVOICE);
+        if ($invoice !== null && isset($invoice->snapshot['vat'], $invoice->snapshot['vat_rate'])) {
+            $amount = round((float) $invoice->snapshot['vat'], 2);
+            $rate = (float) $invoice->snapshot['vat_rate'];
+        } else {
+            $rate = (float) PaymentDocumentSetting::forCompany((int) $payment->company_id)->vat_rate;
+            $amount = round((float) $payment->amount * $rate / 100, 2);
+        }
+
+        return $amount > 0 ? ['amount' => $amount, 'rate' => $rate] : null;
     }
 
     private function issued(Payment $payment, string $kind): ?PaymentDocument
@@ -358,9 +444,10 @@ class DealPaymentDocumentService
             $vat = (float) $invoiceTotals['vat'];
         } else {
             $vatRate = (float) $settings->vat_rate;
-            // Request amounts are what the client pays, so KDV is included in them.
-            $net = round($amount / (1 + $vatRate / 100), 2);
-            $vat = round($amount - $net, 2);
+            // The request amount is the value of the service; KDV is added on top.
+            $net = round($amount, 2);
+            $vat = round($net * $vatRate / 100, 2);
+            $amount = round($net + $vat, 2);
         }
         $code = $data['currency_code'] ? strtoupper((string) $data['currency_code']) : null;
 

@@ -18,7 +18,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Inertia\Inertia;
 
 /**
  * The marketing lead flow: a multi-step modal for members of the departments
@@ -33,20 +32,11 @@ class MarketingLeadController extends AccountBaseController
         private readonly LeadCoreFieldsService $coreFieldsService,
     ) {
         parent::__construct();
-        $this->pageTitle = 'pages.marketing_leads.page_title';
         $this->middleware(function ($request, $next) {
             abort_403(! MarketingLeadIntake::allows(user()));
 
             return $next($request);
         });
-    }
-
-    /** A plain landing page so people without the leads list still reach the flow. */
-    public function page()
-    {
-        return Inertia::render('MarketingLeads/Index', [
-            'pageTitle' => __('pages.marketing_leads.page_title'),
-        ]);
     }
 
     /**

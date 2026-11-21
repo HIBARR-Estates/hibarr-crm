@@ -65,8 +65,8 @@
 
                 <div class="rd-header">
                     <div>
-                        <h1 class="rd-title">Reminders</h1>
-                        <p class="rd-subtitle">Scheduled and sent reminder emails</p>
+                        <h1 class="rd-title">{{ td('Reminders') }}</h1>
+                        <p class="rd-subtitle">{{ td('Scheduled and sent reminder emails') }}</p>
                     </div>
                 </div>
 
@@ -119,10 +119,10 @@
                         <input type="text"
                                name="search"
                                value="{{ $search }}"
-                               placeholder="Search reminder, email, or entity…"
+                               placeholder="{{ td('Search reminder, email, or entity…') }}"
                                class="rd-search-input">
                         <select name="entity_type" class="rd-select" onchange="this.form.submit()">
-                            <option value="all" @selected($entityType === 'all' || $entityType === '')>All types</option>
+                            <option value="all" @selected($entityType === 'all' || $entityType === '')>{{ td('All types') }}</option>
                             @foreach ($entityTypes as $type)
                                 <option value="{{ $type }}" @selected($entityType === $type)>
                                     {{ $entityTypeLabels[$type] ?? str_replace('_', ' ', ucfirst($type)) }}
@@ -130,11 +130,11 @@
                             @endforeach
                         </select>
                         <select name="date_range" class="rd-select" id="rd-date-range" onchange="rdOnDateRangeChange(this)">
-                            <option value="all" @selected($dateRange === 'all')>All dates</option>
-                            <option value="today" @selected($dateRange === 'today')>Today</option>
-                            <option value="yesterday" @selected($dateRange === 'yesterday')>Yesterday</option>
-                            <option value="7d" @selected($dateRange === '7d')>Last 7 days</option>
-                            <option value="custom" @selected($dateRange === 'custom')>Specific day…</option>
+                            <option value="all" @selected($dateRange === 'all')>{{ td('All dates') }}</option>
+                            <option value="today" @selected($dateRange === 'today')>{{ td('Today') }}</option>
+                            <option value="yesterday" @selected($dateRange === 'yesterday')>{{ td('Yesterday') }}</option>
+                            <option value="7d" @selected($dateRange === '7d')>{{ td('Last 7 days') }}</option>
+                            <option value="custom" @selected($dateRange === 'custom')>{{ td('Specific day…') }}</option>
                         </select>
                         <input type="date"
                                name="custom_date"
@@ -143,7 +143,7 @@
                                id="rd-custom-date"
                                onchange="this.form.submit()">
                         @if ($hasFilters)
-                            <a href="{{ route('reminder-ledger.index') }}" class="rd-reset-link">Reset</a>
+                            <a href="{{ route('reminder-ledger.index') }}" class="rd-reset-link">{{ td('Reset') }}</a>
                         @endif
                         <div class="rd-result-count">{{ $resultCount }}</div>
                     </form>
@@ -151,12 +151,12 @@
                     @if (!$isEmpty)
                         <div class="rd-desktop-only om-scroll-x">
                             <div class="rd-grid rd-grid-head" style="grid-template-columns:{{ $gridCols }};">
-                                <div>Entity</div>
-                                <div>Reminder</div>
-                                <div>Recipient</div>
-                                <div>Remind at</div>
-                                <div>Delivery</div>
-                                <div>Status</div>
+                                <div>{{ td('Entity') }}</div>
+                                <div>{{ td('Reminder') }}</div>
+                                <div>{{ td('Recipient') }}</div>
+                                <div>{{ td('Remind at') }}</div>
+                                <div>{{ td('Delivery') }}</div>
+                                <div>{{ td('Status') }}</div>
                                 <div></div>
                             </div>
                             @foreach ($groups as $group)
@@ -196,11 +196,11 @@
                                                 @if ($r['cancellable'])
                                                     <form method="POST" action="{{ route('reminder-ledger.send-now', ['reminder' => $r['id']]) }}" class="d-inline" onsubmit="return confirm('Send this reminder now, ahead of schedule?')">
                                                         @csrf
-                                                        <button type="submit" class="rd-btn-send">Send now</button>
+                                                        <button type="submit" class="rd-btn-send">{{ td('Send now') }}</button>
                                                     </form>
                                                     <form method="POST" action="{{ route('reminder-ledger.cancel', ['reminder' => $r['id']]) }}" class="d-inline" onsubmit="return confirm('Cancel this reminder? It won\'t be sent.')">
                                                         @csrf
-                                                        <button type="submit" class="rd-btn-cancel">Cancel</button>
+                                                        <button type="submit" class="rd-btn-cancel">{{ td('Cancel') }}</button>
                                                     </form>
                                                 @endif
                                             </div>
@@ -243,11 +243,11 @@
                                                     <span class="rd-mobile-actions">
                                                         <form method="POST" action="{{ route('reminder-ledger.send-now', ['reminder' => $r['id']]) }}" class="d-inline" onsubmit="return confirm('Send this reminder now, ahead of schedule?')">
                                                             @csrf
-                                                            <button type="submit" class="rd-btn-send">Send now</button>
+                                                            <button type="submit" class="rd-btn-send">{{ td('Send now') }}</button>
                                                         </form>
                                                         <form method="POST" action="{{ route('reminder-ledger.cancel', ['reminder' => $r['id']]) }}" class="d-inline" onsubmit="return confirm('Cancel this reminder? It won\'t be sent.')">
                                                             @csrf
-                                                            <button type="submit" class="rd-btn-cancel">Cancel</button>
+                                                            <button type="submit" class="rd-btn-cancel">{{ td('Cancel') }}</button>
                                                         </form>
                                                     </span>
                                                 @endif
@@ -259,8 +259,8 @@
                         </div>
                     @else
                         <div class="rd-empty">
-                            <div class="rd-empty-title">No reminders match</div>
-                            <div class="rd-empty-sub">Try clearing the search, date, or tab filters.</div>
+                            <div class="rd-empty-title">{{ td('No reminders match') }}</div>
+                            <div class="rd-empty-sub">{{ td('Try clearing the search, date, or tab filters.') }}</div>
                         </div>
                     @endif
 
@@ -283,11 +283,11 @@
             <div class="rd-drawer-title" id="rd-drawer-title"></div>
             <div id="rd-drawer-status-wrap"></div>
         </div>
-        <button type="button" class="rd-drawer-close" onclick="rdCloseDrawer()" aria-label="Close">×</button>
+        <button type="button" class="rd-drawer-close" onclick="rdCloseDrawer()" aria-label="{{ td('Close') }}">×</button>
     </div>
     <div class="rd-drawer-body">
         <div>
-            <div class="rd-drawer-section-label">What it's about</div>
+            <div class="rd-drawer-section-label">{{ td('What it\'s about') }}</div>
             <div class="rd-drawer-box-muted">
                 <div class="rd-drawer-entity-row">
                     <span id="rd-drawer-chip" class="rd-chip"></span>
@@ -297,14 +297,14 @@
             </div>
         </div>
         <div>
-            <div class="rd-drawer-section-label">Email message</div>
+            <div class="rd-drawer-section-label">{{ td('Email message') }}</div>
             <div class="rd-drawer-box">
                 <div id="rd-drawer-subject" class="rd-drawer-subject"></div>
                 <div id="rd-drawer-body-text" class="rd-drawer-body-text"></div>
             </div>
         </div>
         <div>
-            <div class="rd-drawer-section-label">Who</div>
+            <div class="rd-drawer-section-label">{{ td('Who') }}</div>
             <div class="rd-drawer-who">
                 <span id="rd-drawer-avatar" class="rd-avatar rd-avatar-lg"></span>
                 <span>
@@ -315,7 +315,7 @@
             <div id="rd-drawer-created-by" class="rd-drawer-created-by"></div>
         </div>
         <div>
-            <div class="rd-drawer-section-label">Timeline</div>
+            <div class="rd-drawer-section-label">{{ td('Timeline') }}</div>
             <div id="rd-drawer-timeline"></div>
         </div>
         <div id="rd-drawer-error-wrap" class="d-none">
@@ -325,11 +325,11 @@
     <div id="rd-drawer-footer" class="rd-drawer-footer d-none">
         <form id="rd-drawer-send-form" method="POST" action="" onsubmit="return confirm('Send this reminder now, ahead of schedule?')">
             @csrf
-            <button type="submit" class="rd-drawer-btn-primary">Send now</button>
+            <button type="submit" class="rd-drawer-btn-primary">{{ td('Send now') }}</button>
         </form>
         <form id="rd-drawer-cancel-form" method="POST" action="" onsubmit="return confirm('Cancel this reminder? It won\'t be sent.')">
             @csrf
-            <button type="submit" class="rd-drawer-btn-danger">Cancel reminder</button>
+            <button type="submit" class="rd-drawer-btn-danger">{{ td('Cancel reminder') }}</button>
         </form>
     </div>
 </div>

@@ -21,6 +21,7 @@ import SegmentCard from "./SegmentCard";
 import CaptureSummaryRail from "./CaptureSummaryRail";
 import QualificationActionsPanel from "./QualificationActionsPanel";
 import { findEntrySegment } from "./qualificationUtils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface InProgressViewProps {
     lead: Lead;
@@ -50,6 +51,7 @@ const InProgressView: React.FC<InProgressViewProps> = ({
     onActionsDone,
     onAbandoned,
 }) => {
+    const { td } = useTd();
     const [agentLanguage, setAgentLanguage] = useState(
         qualification.agent_language || "en",
     );
@@ -106,7 +108,7 @@ const InProgressView: React.FC<InProgressViewProps> = ({
                 <LeadQualificationHeader lead={lead} />
 
                 <div className="flex items-center justify-end gap-3 px-6 py-2 border-b border-gray-100 bg-white">
-                    <span className="text-sm text-gray-500">Script language</span>
+                    <span className="text-sm text-gray-500">{td("Script language", { source: "en" })}</span>
                     <Select
                         size="small"
                         value={agentLanguage}
@@ -124,7 +126,7 @@ const InProgressView: React.FC<InProgressViewProps> = ({
                             onClick={handleAbandon}
                             loading={flow.completing}
                         >
-                            Abandon
+                            {td("Abandon", { source: "en" })}
                         </Button>
                     ) : null}
                 </div>
@@ -194,7 +196,7 @@ const InProgressView: React.FC<InProgressViewProps> = ({
                                                 !flow.canGoBack || flow.saving
                                             }
                                         >
-                                            Back
+                                            {td("Back", { source: "en" })}
                                         </Button>
                                         <Button
                                             type="primary"
@@ -208,7 +210,7 @@ const InProgressView: React.FC<InProgressViewProps> = ({
                                             }
                                             loading={flow.saving}
                                         >
-                                            Next
+                                            {td("Next", { source: "en" })}
                                         </Button>
                                     </div>
                                 )}

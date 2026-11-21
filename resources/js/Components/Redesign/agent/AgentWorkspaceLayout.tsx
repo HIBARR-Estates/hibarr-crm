@@ -51,6 +51,7 @@ export default function AgentWorkspaceLayout({ children }: { children: ReactNode
     const [sticky, setSticky] = useState(false);
     const pinned = useMemo(() => ({ slot: pin, setSticky }), [pin]);
     useChromeBottom(top, slot);
+    useAgentBodyClass();
 
     return (
         <SecondRowSlot.Provider value={slot}>
@@ -152,6 +153,18 @@ function useChromeBottom(top: HTMLElement | null, secondRow: HTMLElement | null)
             root.style.removeProperty("--agent-chrome-bottom");
         };
     }, [top, secondRow]);
+}
+
+/**
+ * Marks <body> while the agent workspace is mounted. Dialogs portal to body,
+ * outside .agent-ws, where the layout's `leading-none` would squash every
+ * wrapped line to line-height 1; agent-workspace.css resets them under it.
+ */
+function useAgentBodyClass(): void {
+    useLayoutEffect(() => {
+        document.body.classList.add("agent-ws-body");
+        return () => document.body.classList.remove("agent-ws-body");
+    }, []);
 }
 
 /** Renders a page's pills (or other second-row controls) under the dock. */

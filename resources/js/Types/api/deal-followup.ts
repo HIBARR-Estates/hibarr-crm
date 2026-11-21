@@ -11,11 +11,21 @@ export interface Reminder {
 
 export interface MeetingSummary {
     id: number;
-    deal_id: number;
-    meeting_type_id?: number;
+    /** Null for a meeting booked against a lead alone. */
+    deal_id: number | null;
+    meeting_type_id?: number | null;
     summary_object: Record<string, string>;
     created_at: string;
     updated_at: string;
+    /** "ai" until a person writes or corrects it. */
+    source?: "ai" | "manual";
+    /**
+     * The latest automatic summary that arrived while a person's own version
+     * was in place — kept beside it, offered rather than applied.
+     */
+    ai_summary_object?: Record<string, unknown> | null;
+    edited_at?: string | null;
+    editor?: { id: number; name: string } | null;
 }
 
 export interface DealFollowup {
@@ -47,6 +57,9 @@ export interface DealFollowup {
     reminders?: Reminder[];
     participants?: number[]; // Array of user IDs
     meeting_summary?: MeetingSummary;
+    /** When the CRM last asked the automation for this meeting's summary again. */
+    summary_retry_requested_at?: string | null;
+    summary_retry_count?: number;
     deal?:
         | (Pick<Deal, "id" | "name"> & {
               leadStage?: {
@@ -77,6 +90,8 @@ export interface DealFollowup {
     attendance_outcome?: MeetingAttendanceOutcome | null;
     attendance_outcome_logged_at?: string | null;
     attendance_outcome_logged_by?: number | null;
+    /** Who recorded (or last changed) the outcome — eager-loaded as `outcomeLoggedBy`. */
+    outcome_logged_by?: { id: number; name: string; image?: string | null } | null;
     lead?: Pick<
         Lead,
         | "id"

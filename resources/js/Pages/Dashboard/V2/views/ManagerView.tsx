@@ -91,7 +91,7 @@ export default function ManagerView({
             >
                 <div style={tileGrid}>
                     <StatTile
-                        label="New leads"
+                        label={td("New leads", { source: "en" })}
                         value={teamKpis?.newLeads.value ?? null}
                         previous={teamKpis?.newLeads.previous}
                         spark={teamKpis?.newLeads.spark}
@@ -111,21 +111,21 @@ export default function ManagerView({
                         note={teamKpis?.contactedInSla.note}
                     />
                     <StatTile
-                        label="Meetings"
+                        label={td("Meetings", { source: "en" })}
                         value={teamKpis?.meetings.value ?? null}
                         previous={teamKpis?.meetings.previous}
                         spark={teamKpis?.meetings.spark}
                         note={teamKpis?.meetings.note}
                     />
                     <StatTile
-                        label="Deals created"
+                        label={td("Deals created", { source: "en" })}
                         value={teamKpis?.dealsCreated.value ?? null}
                         previous={teamKpis?.dealsCreated.previous}
                         spark={teamKpis?.dealsCreated.spark}
                         note={`${figure(teamKpis?.dealsCreated.previous ?? 0)} in the previous window`}
                     />
                     <StatTile
-                        label="Deals won"
+                        label={td("Deals won", { source: "en" })}
                         tone="green"
                         value={teamKpis?.dealsWon.value ?? null}
                         previous={teamKpis?.dealsWon.previous}
@@ -145,7 +145,7 @@ export default function ManagerView({
                 }}
             >
                 <DashboardPanel
-                    title="Funnel and stage conversion"
+                    title={td("Funnel and stage conversion", { source: "en" })}
                     note={`Leads created in the last ${lifecycleFunnel?.days ?? 90} days, followed forward. Click a drop to open that list.`}
                     footer={
                         lifecycleFunnel ? (
@@ -169,7 +169,7 @@ export default function ManagerView({
                     style={{ display: "flex", flexDirection: "column", gap: 14 }}
                 >
                     <DashboardPanel
-                        title="First response time"
+                        title={td("First response time", { source: "en" })}
                         note={`Leads created in the last ${period} days`}
                     >
                         <Deferred
@@ -187,7 +187,7 @@ export default function ManagerView({
                     </DashboardPanel>
 
                     <DashboardPanel
-                        title="Source quality"
+                        title={td("Source quality", { source: "en" })}
                         note={`Last ${sourceWindow.days} days · volume against what it converts to — no cost data reaches the CRM`}
                     >
                         <Deferred
@@ -209,7 +209,7 @@ export default function ManagerView({
                 panel trains people to stop looking at it. */}
             {!!openPartnerFlags?.length && (
                 <DashboardPanel
-                    title="Partner flags"
+                    title={td("Partner flags", { source: "en" })}
                     note="Partners asking for a look at a referral they introduced"
                 >
                     <PartnerFlagQueue rows={openPartnerFlags} />
@@ -218,7 +218,7 @@ export default function ManagerView({
 
             <DashboardPanel
                 flush
-                title="Agents"
+                title={td("Agents", { source: "en" })}
                 note={`Every active agent · last ${period} days · click a count to open that list · the marker on each bar is the median`}
             >
                 <Deferred

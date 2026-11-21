@@ -651,7 +651,7 @@ export default function CreateDealModal({
                                 className="mt-0.5 text-[14px] font-semibold"
                                 style={{ color: T.TEXT }}
                             >
-                                {solePackage.name}
+                                {td(solePackage.name, { source: "en" })}
                             </div>
                         </div>
                     )}
@@ -961,7 +961,7 @@ export default function CreateDealModal({
                 subtitle={subtitle}
                 icon={<span className="agent-cdm__diamond" aria-hidden="true" />}
                 closeLabel={td("Close", { source: "en" })}
-                width={680}
+                width={640}
                 form
                 footer={
                     <>

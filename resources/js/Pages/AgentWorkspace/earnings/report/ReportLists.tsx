@@ -9,6 +9,7 @@ import { formatMoney } from "../../deals/format";
 import { dayMonth } from "../format";
 import type { ReportDeal, ReportLead, ReportMeeting, ReportNote, ReportTab, ReportWindow } from "./types";
 import useReportList from "./useReportList";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const TABS: ReportTab[] = ["leads", "deals-created", "deals-closed", "meetings", "notes"];
 
@@ -31,13 +32,14 @@ interface TableProps<T> {
 
 /** The list the tabs share: the Earnings table's chrome, with the columns of the list. */
 function ReportTable<T>({ label, columns, rows, rowKey, sorted }: TableProps<T>) {
+    const { td } = useTd();
     const cols = columns.map((column) => `minmax(0, ${column.width ?? "1fr"})`).join(" ");
     return (
         <div role="table" aria-label={label} className="agent-table agent-ea__table agent-ea__table--report" style={{ ["--cols" as string]: cols }}>
             <div role="row" className="agent-ea__head">
                 {columns.map((column) => (
                     <span key={column.key} role="columnheader" className="agent-table__th agent-ea__th" aria-sort={sorted === column.key ? "descending" : undefined}>
-                        {column.label}
+                        {td(column.label, { source: "en" })}
                         {sorted === column.key ? " ↑" : ""}
                     </span>
                 ))}
@@ -189,6 +191,7 @@ function LeadsList({ window, agentId, active }: ListProps) {
 }
 
 function DealsList({ window, agentId, currencySymbol, active, closed }: ListProps & { closed: boolean }) {
+    const { td } = useTd();
     const { t, locale } = useTranslation();
     const date = useShortDate();
     const list = useReportList<ReportDeal>(closed ? "/account/agent-reports/deals-closed" : "/account/agent-reports/deals-created", window, agentId, active);
@@ -211,7 +214,7 @@ function DealsList({ window, agentId, currencySymbol, active, closed }: ListProp
                           row.lead_stage ? (
                               <span className="agent-ea__stage">
                                   <i style={{ background: row.lead_stage.label_color || "var(--dr-blue)" }} aria-hidden="true" />
-                                  {row.lead_stage.name}
+                                  {td(row.lead_stage.name, { source: "en" })}
                               </span>
                           ) : (
                               "—"

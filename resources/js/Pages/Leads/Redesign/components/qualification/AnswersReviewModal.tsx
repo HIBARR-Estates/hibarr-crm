@@ -226,7 +226,7 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                                             marginBottom: 2,
                                         }}
                                     >
-                                        {index + 1}. {segment.label}
+                                        {index + 1}. {td(segment.label, { source: "en" })}
                                     </div>
                                     <div
                                         style={{
@@ -372,7 +372,7 @@ export default function AnswersReviewModal({
                                             color: "var(--dr-navy)",
                                         }}
                                     >
-                                        {group.name}
+                                        {td(group.name, { source: "en" })}
                                     </h3>
                                     <span className="v2-pill v2-pill-gray">
                                         {group.runs.length}{" "}

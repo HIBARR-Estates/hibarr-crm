@@ -8,6 +8,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import Icon from "@/Components/Redesign/primitives/Icon";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const FOCUSABLE =
     'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -125,6 +126,7 @@ export function LeadV2ModalHeader({
     rightSlot,
     onClose,
 }: LeadV2ModalHeaderProps) {
+    const { td } = useTd();
     return (
         <div className="v2-modal-header">
             <div style={{ minWidth: 0 }}>
@@ -147,7 +149,7 @@ export function LeadV2ModalHeader({
             </div>
             <button
                 type="button"
-                aria-label="Close"
+                aria-label={td("Close", { source: "en" })}
                 onClick={onClose}
                 className="v2-modal-close"
             >

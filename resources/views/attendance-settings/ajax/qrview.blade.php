@@ -31,7 +31,7 @@
             @if(isset($outtimeDate) && isset($totalWorkingTime))
                 <div class="card-body">
                     <h5 class="card-title">{{ $message }}</h5>
-                    <p class="card-text">Clock out At - <time>{{ $outtimeDate }}</time></p>
+                    <p class="card-text">{{ td('Clock out At -') }} <time>{{ $outtimeDate }}</time></p>
                     <p class="card-text">Total Working Time: {{ $totalWorkingTime }}</p>
                 </div>
             @else
@@ -40,14 +40,14 @@
                         <h5 class="card-title">{{ $message }}</h5>
                     @else
                         <h5 class="card-title">{{ $message }}</h5>
-                        @if(isset($time))<p class="card-text">Clock In At - <time>{{ $time }}</time></p>@endif
+                        @if(isset($time))<p class="card-text">{{ td('Clock In At -') }} <time>{{ $time }}</time></p>@endif
                         {{-- Additional content --}}
                     @endif
                 </div>
             @endif
 
 
-            <a href="{{ route('dashboard') }}" class="btn">Go to Dashboard<img src="share.png" alt="" style="filter: contrast(0.1);"></a>
+            <a href="{{ route('dashboard') }}" class="btn">{{ td('Go to Dashboard') }}<img src="share.png" alt="" style="filter: contrast(0.1);"></a>
         </div>
 
     </div>

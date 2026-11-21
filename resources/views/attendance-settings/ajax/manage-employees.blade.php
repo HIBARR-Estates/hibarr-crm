@@ -1,6 +1,6 @@
 <div class="modal-header">
     <h5 class="modal-title" id="modelHeading">@lang('app.manageEmployee')</h5>
-    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+    <button type="button" class="close" data-dismiss="modal" aria-label="{{ td('Close') }}"><span aria-hidden="true">×</span></button>
 </div>
 <div class="modal-body">
     <x-table class="table-bordered" id="empRecordTable" headType="thead-light">

@@ -8,6 +8,7 @@ import {
     LeadSource,
 } from "@/Types/api/leads";
 import { User } from "@/Types";
+import { useTranslation } from "@/Hooks/useTranslation";
 
 const { Title } = Typography;
 
@@ -32,7 +33,7 @@ export default function CreateLead({
     onSuccess,
     lead,
     setLead,
-    title = "Create New Lead",
+    title,
     isPage = false,
     employees,
     categories,
@@ -40,12 +41,13 @@ export default function CreateLead({
     countries,
     salutations,
 }: CreateLeadProps) {
+    const { t } = useTranslation();
     const [form] = Form.useForm();
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     // Determine if we're editing or creating
     const isEditing = !!lead;
-    const submitText = isEditing ? "Update Lead" : "Create Lead";
+    const submitText = isEditing ? t("pages.leads.save_form.update_lead_cap") : t("pages.leads.save_form.create_lead_cap");
 
     // Initialize form data
     const initialData: CreateLeadFormData = {
@@ -97,7 +99,7 @@ export default function CreateLead({
                 submit("put", route("lead-contact.update", lead!.id), {
                     onSuccess: (res) => {
                         setPushing(false);
-                        const successMessage = "Lead updated successfully";
+                        const successMessage = t("pages.leads.save_form.lead_updated");
                         message.success(successMessage);
 
                         if (onSuccess) {
@@ -112,14 +114,14 @@ export default function CreateLead({
                         setPushing(false);
                         const errorMessages = Object.values(errors).flat();
                         setErrors(errors as Record<string, string>);
-                        message.error("Please check the form for errors");
+                        message.error(t("pages.leads.save_form.check_form"));
                     },
                 });
             } else {
                 submit("post", route("lead-contact.store"), {
                     onSuccess: (page) => {
                         setPushing(false);
-                        const successMessage = "Lead created successfully";
+                        const successMessage = t("pages.leads.save_form.lead_created");
                         message.success(successMessage);
                         reset();
 
@@ -135,7 +137,7 @@ export default function CreateLead({
                         setPushing(false);
                         const errorMessages = Object.values(errors).flat();
                         setErrors(errors as Record<string, string>);
-                        message.error("Please check the form for errors");
+                        message.error(t("pages.leads.save_form.check_form"));
                     },
                 });
             }
@@ -175,11 +177,11 @@ export default function CreateLead({
         <div className="space-y-6">
             {isPage && (
                 <div className="mb-6">
-                    <Title level={2}>{title}</Title>
+                    <Title level={2}>{title ?? t("pages.leads.save_form.create_new_lead")}</Title>
                 </div>
             )}
 
-            <h2 style={{ marginBottom: 24 }}>Create New Deal</h2>
+            <h2 style={{ marginBottom: 24 }}>{t("pages.leads.save_form.create_new_deal")}</h2>
         </div>
     );
 }

@@ -57,7 +57,7 @@
                        placeholder="32"
                        class="form-control height-35 f-14"/>
                 <x-slot name="preappend">
-                    <label class="input-group-text border-grey bg-white height-35">MB</label>
+                    <label class="input-group-text border-grey bg-white height-35">{{ td('MB') }}</label>
                 </x-slot>
             </x-forms.input-group>
             <small>{{__('messages.lowerValue')}} {{\App\Helper\Files::getUploadMaxFilesize()['size']}}</small>

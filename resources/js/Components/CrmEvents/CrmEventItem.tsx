@@ -13,6 +13,7 @@ import {
     CloseCircleOutlined,
     ExclamationCircleOutlined,
     MinusCircleOutlined,
+    MessageOutlined,
     DownOutlined,
     UpOutlined,
     ArrowDownOutlined,
@@ -129,6 +130,11 @@ const STATUS_CONFIG: Record<
         label: "Rejected",
         icon: <MinusCircleOutlined />,
         className: "text-gray-500 bg-gray-100",
+    },
+    voicemail: {
+        label: "Connected · voicemail",
+        icon: <MessageOutlined />,
+        className: "text-blue-600 bg-blue-50",
     },
 };
 
@@ -298,7 +304,7 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                     <span
                         className={`text-[11px] rounded-sm font-medium px-1.5 py-0.5 bg-gray-100 text-gray-600`}
                     >
-                        {event.event_type.category.name}
+                        {td(event.event_type.category.name, { source: "en" })}
                     </span>
                 )}
                 {!hideStatusChip && (

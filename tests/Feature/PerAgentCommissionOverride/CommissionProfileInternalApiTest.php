@@ -380,6 +380,47 @@ class CommissionProfileInternalApiTest extends PerAgentCommissionOverrideTestCas
         $this->assertNull(\App\Models\AgentCommissionRateAuditLog::first());
     }
 
+    public function test_referral_only_access_serves_no_override_rate_or_history(): void
+    {
+        $this->setFeatureFlag('sales.per-agent-commission-override', false);
+        $this->setFeatureFlag('crm.partner-referral-commission', true);
+
+        $companyId = $this->seedCompany();
+        $this->seedMlmSettings($companyId, 10);
+        $this->seedApiToken($companyId);
+
+        $agentId = $this->seedAgent($companyId, $this->seedUser($companyId), null, [
+            'is_partner' => true,
+            'referral_pool_rate' => 25,
+            'custom_direct_rate' => 7,
+            'custom_override_rate' => 7,
+        ]);
+
+        \Illuminate\Support\Facades\DB::table('agent_commission_rate_audit_logs')->insert([
+            'company_id' => $companyId,
+            'agent_id' => $agentId,
+            'previous_direct_rate' => 5,
+            'new_direct_rate' => 7,
+            'previous_override_rate' => 5,
+            'new_override_rate' => 7,
+            'previous_referral_pool_rate' => 10,
+            'new_referral_pool_rate' => 25,
+            'changed_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->getJson("/api/v1/internal/agents/{$agentId}/commission-profile", [
+            'X-API-TOKEN' => 'test-token',
+            'X-COMPANY-ID' => (string) $companyId,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.custom_commission_rate', null)
+            ->assertJsonPath('data.referral_pool_rate', 25.0)
+            ->assertJsonPath('data.audit.data.0.new_direct_rate', null)
+            ->assertJsonPath('data.audit.data.0.new_override_rate', null)
+            ->assertJsonPath('data.audit.data.0.new_referral_pool_rate', '25.00');
+    }
+
 }
-
-

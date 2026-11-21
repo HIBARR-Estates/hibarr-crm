@@ -6,6 +6,7 @@ import { EditOutlined, SaveOutlined, EyeOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import { ApiResponse } from "@/lib/api/types";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -31,6 +32,7 @@ const FileDetails: React.FC<Props> = ({
     onClose,
     onFileUpdated,
 }) => {
+    const { td } = useTd();
     const [isEditing, setIsEditing] = useState(false);
     const [form] = Form.useForm();
 
@@ -79,7 +81,7 @@ const FileDetails: React.FC<Props> = ({
             title={
                 <div className="flex items-center space-x-2">
                     <EyeOutlined />
-                    <span>File Details</span>
+                    <span>{td("File Details", { source: "en" })}</span>
                 </div>
             }
             open={open}
@@ -93,7 +95,7 @@ const FileDetails: React.FC<Props> = ({
                               onClick={handleCancel}
                               disabled={updateMutation.isPending}
                           >
-                              Cancel
+                              {td("Cancel", { source: "en" })}
                           </Button>,
                           <Button
                               key="save"
@@ -102,12 +104,12 @@ const FileDetails: React.FC<Props> = ({
                               loading={updateMutation.isPending}
                               onClick={handleSave}
                           >
-                              Save Changes
+                              {td("Save Changes", { source: "en" })}
                           </Button>,
                       ]
                     : [
                           <Button key="close" onClick={() => onClose()}>
-                              Close
+                              {td("Close", { source: "en" })}
                           </Button>,
                           ...(canEdit
                               ? [
@@ -117,7 +119,7 @@ const FileDetails: React.FC<Props> = ({
                                         icon={<EditOutlined />}
                                         onClick={handleEdit}
                                     >
-                                        Edit Description
+                                        {td("Edit Description", { source: "en" })}
                                     </Button>,
                                 ]
                               : []),
@@ -126,18 +128,18 @@ const FileDetails: React.FC<Props> = ({
         >
             <div className="space-y-4">
                 <Descriptions column={1} bordered size="small">
-                    <Descriptions.Item label="File Name">
+                    <Descriptions.Item label={td("File Name", { source: "en" })}>
                         <Text strong>{file.filename}</Text>
                     </Descriptions.Item>
-                    <Descriptions.Item label="File Size">
+                    <Descriptions.Item label={td("File Size", { source: "en" })}>
                         {formatFileSize(file.size)}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Uploaded">
+                    <Descriptions.Item label={td("Uploaded", { source: "en" })}>
                         {formatCompanyDateTime(file.created_at, {
                             separator: " at ",
                         })}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Last Modified">
+                    <Descriptions.Item label={td("Last Modified", { source: "en" })}>
                         {formatCompanyDateTime(file.updated_at, {
                             separator: " at ",
                         })}
@@ -145,7 +147,7 @@ const FileDetails: React.FC<Props> = ({
                 </Descriptions>
 
                 <div>
-                    <Title level={5}>Description</Title>
+                    <Title level={5}>{td("Description", { source: "en" })}</Title>
                     {isEditing ? (
                         <Form form={form} layout="vertical">
                             <Form.Item
@@ -160,7 +162,7 @@ const FileDetails: React.FC<Props> = ({
                             >
                                 <TextArea
                                     rows={4}
-                                    placeholder="Enter file description..."
+                                    placeholder={td("Enter file description...", { source: "en" })}
                                     showCount
                                     maxLength={500}
                                 />
@@ -172,7 +174,7 @@ const FileDetails: React.FC<Props> = ({
                                 <Text>{file.description}</Text>
                             ) : (
                                 <Text type="secondary" italic>
-                                    No description provided
+                                    {td("No description provided", { source: "en" })}
                                 </Text>
                             )}
                         </div>

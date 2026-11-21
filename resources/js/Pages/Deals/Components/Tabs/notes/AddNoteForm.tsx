@@ -51,7 +51,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
         ApiResponse<Note>
     >(route("deal-notes.store"), "POST", (response) => {
         if (response?.status === "success") {
-            message.success("Note created successfully!");
+            message.success(td("Note created successfully!", { source: "en" }));
             setErrors([]);
             form.resetFields();
             router.reload();

@@ -22,6 +22,7 @@ import type { Developer } from "@/Types/developerProject";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiSuccessResponse } from "@/lib/api/types";
 import { useFileUpload } from "@/Hooks/useFileUpload";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { TextArea } = Input;
 
@@ -50,6 +51,7 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
     onSuccess,
     canToggleHidden = false,
 }) => {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const isEditing = !!developer;
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -162,7 +164,7 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
             onCancel={() => !isLoading && onClose()}
             footer={[
                 <Button key="cancel" onClick={onClose} disabled={isLoading}>
-                    Cancel
+                    {td("Cancel", { source: "en" })}
                 </Button>,
                 <Button
                     key="submit"
@@ -178,7 +180,7 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
             <Form form={form} layout="vertical" className="mt-4">
                 <Form.Item
                     name="name"
-                    label="Developer Name"
+                    label={td("Developer Name", { source: "en" })}
                     rules={[
                         {
                             required: true,
@@ -186,14 +188,14 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
                         },
                     ]}
                 >
-                    <Input placeholder="Enter developer name" />
+                    <Input placeholder={td("Enter developer name", { source: "en" })} />
                 </Form.Item>
 
-                <Form.Item name="logo_url" label="Logo" hidden>
+                <Form.Item name="logo_url" label={td("Logo", { source: "en" })} hidden>
                     <Input />
                 </Form.Item>
 
-                <Form.Item label="Logo">
+                <Form.Item label={td("Logo", { source: "en" })}>
                     {logoUrl ? (
                         <div className="flex items-center gap-4">
                             <Avatar
@@ -209,7 +211,7 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
                                 onClick={handleRemoveLogo}
                                 disabled={isLoading}
                             >
-                                Remove
+                                {td("Remove", { source: "en" })}
                             </Button>
                         </div>
                     ) : (
@@ -228,7 +230,7 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
                                 <div className="text-center">
                                     <LoadingOutlined className="text-2xl text-blue-500 mb-2" />
                                     <p className="text-sm text-gray-500 mb-1">
-                                        Uploading...
+                                        {td("Uploading...", { source: "en" })}
                                     </p>
                                     <Progress
                                         percent={
@@ -242,10 +244,10 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
                                 <div className="text-center">
                                     <UploadOutlined className="text-2xl text-gray-400 mb-2" />
                                     <p className="text-sm text-gray-600">
-                                        Click or drag logo image
+                                        {td("Click or drag logo image", { source: "en" })}
                                     </p>
                                     <p className="text-xs text-gray-400">
-                                        PNG, JPG, WebP or SVG (max 2MB)
+                                        {td("PNG, JPG, WebP or SVG (max 2MB)", { source: "en" })}
                                     </p>
                                 </div>
                             )}
@@ -253,9 +255,9 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
                     )}
                 </Form.Item>
 
-                <Form.Item name="description" label="Description">
+                <Form.Item name="description" label={td("Description", { source: "en" })}>
                     <TextArea
-                        placeholder="Enter developer description"
+                        placeholder={td("Enter developer description", { source: "en" })}
                         rows={4}
                     />
                 </Form.Item>
@@ -264,7 +266,7 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
                     <Col xs={24} md={12}>
                         <Form.Item
                             name="whatsapp_group_link"
-                            label="WhatsApp Group Link"
+                            label={td("WhatsApp Group Link", { source: "en" })}
                             rules={[
                                 {
                                     type: "url",
@@ -278,7 +280,7 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
                     <Col xs={24} md={12}>
                         <Form.Item
                             name="google_drive_link"
-                            label="Google Drive Link"
+                            label={td("Google Drive Link", { source: "en" })}
                             rules={[
                                 {
                                     type: "url",
@@ -293,7 +295,7 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
 
                 <Form.Item
                     name="commission_percentage"
-                    label="Commission Percentage"
+                    label={td("Commission Percentage", { source: "en" })}
                     extra="Maximum total commission on deals for this developer's projects, shared across the agent, their uplines and the company. Leave empty to use the company default. A project can override it."
                 >
                     <InputNumber
@@ -302,14 +304,14 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
                         step={0.5}
                         className="w-full"
                         addonAfter="%"
-                        placeholder="Company default"
+                        placeholder={td("Company default", { source: "en" })}
                     />
                 </Form.Item>
 
                 {canToggleHidden && (
                     <Form.Item
                         name="is_hidden"
-                        label="Hide from view-only users"
+                        label={td("Hide from view-only users", { source: "en" })}
                         valuePropName="checked"
                         extra="When enabled, users without edit access will not see this developer or any of its projects."
                     >

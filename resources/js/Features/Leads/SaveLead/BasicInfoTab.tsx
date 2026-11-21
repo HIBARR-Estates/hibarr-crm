@@ -25,6 +25,7 @@ import {
     computeAgeRangeFromAge,
     getLeadAgeFieldVisibility,
 } from "@/lib/leadAge";
+import { useTranslation } from "@/Hooks/useTranslation";
 
 // interface BasicInfoTabProps
 //     extends Pick
@@ -70,8 +71,8 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     onSubmit,
     onCancel,
     loading = false,
-    submitText = "Save Contact",
-    cancelText = "Cancel",
+    submitText,
+    cancelText,
     onErrorsClear,
     setErrors,
     setLead,
@@ -81,6 +82,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     languageOptions = [],
     languagesLoading = false,
 }) => {
+    const { t } = useTranslation();
     const { props } = usePage<any>();
     const { countries } = useCountries();
     const {
@@ -237,11 +239,11 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             <div className="space-y-1">
                 <section className="save-lead-form__section">
                     <h3 className="save-lead-form__section-title">
-                        Contact information
+                        {t("pages.leads.save_form.section_contact")}
                     </h3>
                     <Row gutter={[24, 16]}>
                         <Col xs={24} md={8}>
-                            <Form.Item label="Salutation" name="salutation">
+                            <Form.Item label={t("pages.leads.save_form.salutation")} name="salutation">
                                 <FormDataSelector
                                     type="salutations"
                                     placeholder="—"
@@ -250,7 +252,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         </Col>
 
                         <Col xs={24} md={8}>
-                            <Form.Item label="Gender" name="gender">
+                            <Form.Item label={t("pages.leads.save_form.gender")} name="gender">
                                 <FormDataSelector
                                     type="genders"
                                     placeholder="—"
@@ -260,31 +262,31 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
                         <Col xs={24} md={8}>
                             <Form.Item
-                                label="Name"
+                                label={t("pages.leads.save_form.name")}
                                 name="client_name"
                                 required
                                 rules={[
                                     {
                                         required: true,
-                                        message: "Name is required",
+                                        message: t("pages.leads.save_form.name_required"),
                                     },
                                 ]}
                             >
-                                <Input placeholder="Enter full name" />
+                                <Input placeholder={t("pages.leads.save_form.enter_full_name")} />
                             </Form.Item>
                         </Col>
 
                         <Col xs={24} md={8}>
-                            <Form.Item label="Email" name="client_email">
+                            <Form.Item label={t("pages.leads.save_form.email")} name="client_email">
                                 <Input
                                     type="email"
-                                    placeholder="Enter email address"
+                                    placeholder={t("pages.leads.save_form.enter_email")}
                                 />
                             </Form.Item>
                         </Col>
 
                         <Col xs={24} md={8}>
-                            <Form.Item label="Mobile" name="mobile">
+                            <Form.Item label={t("pages.leads.save_form.mobile")} name="mobile">
                                 <PhoneInput
                                     id="mobile"
                                     enableSearch
@@ -296,7 +298,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
                         <Col xs={24} md={8}>
                             <Form.Item
-                                label="Preferred contact time"
+                                label={t("pages.leads.save_form.preferred_contact_time")}
                                 name="preferred_contact_times"
                             >
                                 <FormDataSelector
@@ -309,10 +311,10 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
                         {permissions?.view_lead_sources !== "none" && (
                             <Col xs={24} md={8}>
-                                <Form.Item label="Lead source" name="source_id">
+                                <Form.Item label={t("pages.leads.save_form.lead_source")} name="source_id">
                                     <FormDataSelector
                                         type="sources"
-                                        placeholder="Lead source"
+                                        placeholder={t("pages.leads.save_form.lead_source")}
                                     />
                                 </Form.Item>
                             </Col>
@@ -321,20 +323,20 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         {permissions?.view_lead_categories !== "none" && (
                             <Col xs={24} md={8}>
                                 <Form.Item
-                                    label="Lead category"
+                                    label={t("pages.leads.save_form.lead_category")}
                                     name="category_ids"
                                 >
                                     <FormDataSelector
                                         type="categories"
                                         mode="multiple"
-                                        placeholder="Lead categories"
+                                        placeholder={t("pages.leads.save_form.lead_categories")}
                                     />
                                 </Form.Item>
                             </Col>
                         )}
                         
                         <Col xs={24} md={8}>
-                            <Form.Item label="Temperature" name="temperature">
+                            <Form.Item label={t("pages.leads.save_form.temperature")} name="temperature">
                                 <FormDataSelector
                                     type="temperatures"
                                     placeholder="—"
@@ -344,12 +346,12 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
                         <Col xs={24} md={8}>
                             <Form.Item
-                                label="Lifecycle Status"
+                                label={t("pages.leads.save_form.lifecycle_status")}
                                 name="lead_lifecycle_status_id"
                             >
                                 <Select
                                     allowClear
-                                    placeholder="Lifecycle Status"
+                                    placeholder={t("pages.leads.save_form.lifecycle_status")}
                                     options={lifecycleStatusOptions}
                                 />
                             </Form.Item>
@@ -357,20 +359,20 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
                         {permissions?.add_lead === "all" && (
                             <Col xs={24} md={8}>
-                                <Form.Item label="Added By" name="added_by">
+                                <Form.Item label={t("pages.leads.save_form.added_by")} name="added_by">
                                     <FormDataSelector
                                         type="employees"
-                                        placeholder="Added By"
+                                        placeholder={t("pages.leads.save_form.added_by")}
                                     />
                                 </Form.Item>
                             </Col>
                         )}
 
                         <Col xs={24} md={8}>
-                            <Form.Item label="Lead Owner" name="lead_owner">
+                            <Form.Item label={t("pages.leads.save_form.lead_owner")} name="lead_owner">
                                 <FormDataSelector
                                     type="employees"
-                                    placeholder="Lead Owner"
+                                    placeholder={t("pages.leads.save_form.lead_owner")}
                                 />
                             </Form.Item>
                         </Col>
@@ -384,7 +386,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                                 <Row gutter={[24, 16]} className="mt-2">
                                     <Col span={24}>
                                         <Form.Item name="create_deal">
-                                            <Checkbox>Create Deal</Checkbox>
+                                            <Checkbox>{t("pages.leads.save_form.create_deal")}</Checkbox>
                                         </Form.Item>
                                     </Col>
                                 </Row>
@@ -393,8 +395,8 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             <div className="save-lead-form__auto-convert">
                                 <Form.Item name="create_client">
                                     <Checkbox>
-                                        Auto-convert lead to client when deal
-                                        stage is set to <strong>Won</strong>
+                                        {t("pages.leads.save_form.auto_convert_prefix")}{" "}
+                                        <strong>{t("pages.leads.save_form.won")}</strong>
                                     </Checkbox>
                                 </Form.Item>
                             </div>
@@ -406,15 +408,15 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
                 <section className="save-lead-form__section">
                         <h3 className="save-lead-form__section-title">
-                            Personal information
+                            {t("pages.leads.save_form.section_personal")}
                         </h3>
                         <Row gutter={[24, 16]}>
                             <Col span={12}>
-                                <Form.Item label="Languages" name="languages">
+                                <Form.Item label={t("pages.leads.save_form.languages")} name="languages">
                                     <Select
                                         mode="multiple"
                                         allowClear
-                                        placeholder="Select languages"
+                                        placeholder={t("pages.leads.save_form.select_languages")}
                                         options={languageOptions}
                                         loading={languagesLoading}
                                         showSearch
@@ -425,33 +427,33 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             <Col span={24}>
                                 <div className="grid grid-cols-[minmax(0,1fr)_4.5rem_minmax(0,1fr)] gap-3 w-full">
                                     <Form.Item
-                                        label="Date of Birth"
+                                        label={t("pages.leads.save_form.date_of_birth")}
                                         name="date_of_birth"
                                     >
                                         <DatePicker
                                             className="w-full"
                                             format={companyDateDayjsFormat()}
-                                            placeholder="Select date"
+                                            placeholder={t("pages.leads.save_form.select_date")}
                                         />
                                     </Form.Item>
-                                    <Form.Item label="Age" name="age">
+                                    <Form.Item label={t("pages.leads.save_form.age")} name="age">
                                         <InputNumber
                                             className="!w-full"
                                             min={0}
                                             max={300}
-                                            placeholder="Enter age"
+                                            placeholder={t("pages.leads.save_form.enter_age")}
                                             disabled={
                                                 ageFieldVisibility.ageAndRangeReadOnly
                                             }
                                         />
                                     </Form.Item>
                                     <Form.Item
-                                        label="Age Range"
+                                        label={t("pages.leads.save_form.age_range")}
                                         name="age_range"
                                     >
                                         <FormDataSelector
                                             type="age-ranges"
-                                            placeholder="Select age range"
+                                            placeholder={t("pages.leads.save_form.select_age_range")}
                                             disabled={
                                                 ageFieldVisibility.ageAndRangeReadOnly
                                             }
@@ -461,11 +463,11 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             </Col>
                             <Col span={12}>
                                 <Form.Item
-                                    label="Nationality"
+                                    label={t("pages.leads.save_form.nationality")}
                                     name="nationality"
                                 >
                                     <Select
-                                        placeholder="Select nationality"
+                                        placeholder={t("pages.leads.save_form.select_nationality")}
                                         allowClear
                                         showSearch
                                         optionFilterProp="label"
@@ -488,8 +490,8 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                                 </Form.Item>
                             </Col>
                             <Col span={12}>
-                                <Form.Item label="Occupation" name="occupation">
-                                    <Input placeholder="Enter occupation" />
+                                <Form.Item label={t("pages.leads.save_form.occupation")} name="occupation">
+                                    <Input placeholder={t("pages.leads.save_form.enter_occupation")} />
                                 </Form.Item>
                             </Col>
                         </Row>
@@ -497,37 +499,37 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
                 <section className="save-lead-form__section">
                     <h3 className="save-lead-form__section-title">
-                        Address information
+                        {t("pages.leads.save_form.section_address")}
                     </h3>
                     <Row gutter={[24, 16]}>
                         <Col span={24}>
-                            <Form.Item label="Street address" name="address">
-                                <Input placeholder="Enter street address" />
+                            <Form.Item label={t("pages.leads.save_form.street_address")} name="address">
+                                <Input placeholder={t("pages.leads.save_form.enter_street_address")} />
                             </Form.Item>
                         </Col>
 
                         <Col xs={24} md={12}>
-                            <Form.Item label="Postcode" name="postal_code">
-                                <Input placeholder="Enter postcode" />
+                            <Form.Item label={t("pages.leads.save_form.postcode")} name="postal_code">
+                                <Input placeholder={t("pages.leads.save_form.enter_postcode")} />
                             </Form.Item>
                         </Col>
 
                         <Col xs={24} md={12}>
-                            <Form.Item label="City" name="city">
-                                <Input placeholder="Enter city" />
+                            <Form.Item label={t("pages.leads.save_form.city")} name="city">
+                                <Input placeholder={t("pages.leads.save_form.enter_city")} />
                             </Form.Item>
                         </Col>
 
                         <Col xs={24} md={12}>
-                            <Form.Item label="State / Province" name="state">
-                                <Input placeholder="Enter state or province" />
+                            <Form.Item label={t("pages.leads.save_form.state_province")} name="state">
+                                <Input placeholder={t("pages.leads.save_form.enter_state_province")} />
                             </Form.Item>
                         </Col>
 
                         <Col xs={24} md={12}>
-                            <Form.Item label="Country" name="country">
+                            <Form.Item label={t("pages.leads.save_form.country")} name="country">
                                 <Select
-                                    placeholder="— Select country —"
+                                    placeholder={t("pages.leads.save_form.select_country_dashes")}
                                     allowClear
                                     showSearch
                                     optionFilterProp="label"
@@ -594,7 +596,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         <Divider />
                         <Row justify="end" gutter={8} style={{ marginTop: 24 }}>
                             <Col>
-                                <Button onClick={onCancel}>{cancelText}</Button>
+                                <Button onClick={onCancel}>{cancelText ?? t("pages.leads.save_form.cancel")}</Button>
                             </Col>
                             <Col>
                                 <Button
@@ -602,7 +604,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                                     htmlType="submit"
                                     loading={loading}
                                 >
-                                    {submitText}
+                                    {submitText ?? t("pages.leads.save_form.save_contact")}
                                 </Button>
                             </Col>
                         </Row>

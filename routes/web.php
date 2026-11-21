@@ -66,7 +66,6 @@ use App\Http\Controllers\KnowledgeBaseFileController;
 use App\Http\Controllers\LeadBoardController;
 use App\Http\Controllers\LeadCategoryController;
 use App\Http\Controllers\LeadContactController;
-use App\Http\Controllers\MarketingLeadController;
 use App\Http\Controllers\LeadContactFileController;
 use App\Http\Controllers\LeadContactMethodController;
 use App\Http\Controllers\LeadCustomFormController;
@@ -82,6 +81,7 @@ use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\LeaveFileController;
 use App\Http\Controllers\LeaveReportController;
 use App\Http\Controllers\LeavesQuotaController;
+use App\Http\Controllers\MarketingLeadController;
 use App\Http\Controllers\MeetingSavedViewController;
 use App\Http\Controllers\MeetingSummaryController;
 use App\Http\Controllers\MeetingTypeController;
@@ -665,7 +665,6 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     // deals route
 
     // Marketing lead flow — members of the departments picked in Lead settings only
-    Route::get('marketing-leads', [MarketingLeadController::class, 'page'])->name('marketing-leads.index');
     Route::get('marketing-leads/options', [MarketingLeadController::class, 'options'])->name('marketing-leads.options');
     Route::get('marketing-leads/utm-configs', [MarketingLeadController::class, 'utmConfigs'])->name('marketing-leads.utm-configs');
     Route::post('marketing-leads', [MarketingLeadController::class, 'store'])->name('marketing-leads.store');
@@ -763,9 +762,15 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('deals/{deal}/refresh', [DealController::class, 'refresh'])->name('deals.refresh');
     Route::get('deals/{deal}/ai-summary', [\App\Http\Controllers\DealSummaryController::class, 'show'])->name('deals.ai-summary');
     Route::post('deals/{deal}/ai-summary/regenerate', [\App\Http\Controllers\DealSummaryController::class, 'regenerate'])->name('deals.ai-summary.regenerate');
+    // The agent workspace meeting brief's AI talking points, per meeting on the deal.
+    Route::get('deals/{deal}/meetings/{meeting}/talking-points', [\App\Http\Controllers\DealMeetingTalkingPointsController::class, 'show'])
+        ->whereNumber('meeting')->name('deals.meeting-talking-points');
+    Route::post('deals/{deal}/meetings/{meeting}/talking-points', [\App\Http\Controllers\DealMeetingTalkingPointsController::class, 'generate'])
+        ->whereNumber('meeting')->name('deals.meeting-talking-points.generate');
     Route::get('deals/{deal}/edit', [DealController::class, 'edit'])->name('deals.edit');
     Route::put('deals/{deal}', [DealController::class, 'update'])->name('deals.update');
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
+    Route::patch('deals/{deal}/referral-commission', [DealController::class, 'updateReferralCommission'])->name('deals.referral_commission.update');
     Route::patch('deals/{deal}/outcome', [DealController::class, 'updateOutcome'])->name('deals.outcome.update');
     Route::get('deals/{deal}/outcome/preview', [DealController::class, 'previewOutcomeChange'])->name('deals.outcome.preview');
     Route::delete('deals/{deal}', [DealController::class, 'destroy'])->name('deals.destroy');
@@ -792,6 +797,7 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('meetings', [\App\Http\Controllers\MeetingsController::class, 'index'])->name('meetings.index');
     Route::get('meetings/deal/{deal}', [\App\Http\Controllers\MeetingsController::class, 'getDealForScheduling'])->name('meetings.deal_for_scheduling');
     Route::get('meetings/lead/{lead}', [\App\Http\Controllers\MeetingsController::class, 'getLeadForScheduling'])->name('meetings.lead_for_scheduling');
+    Route::get('meetings/leads/search', [\App\Http\Controllers\MeetingsController::class, 'searchLeads'])->name('meetings.leads.search');
     Route::post('meeting-saved-views', [MeetingSavedViewController::class, 'store'])->name('meeting-saved-views.store');
     Route::patch('meeting-saved-views/{id}', [MeetingSavedViewController::class, 'update'])->name('meeting-saved-views.update');
     Route::delete('meeting-saved-views/{id}', [MeetingSavedViewController::class, 'destroy'])->name('meeting-saved-views.destroy');
@@ -803,6 +809,11 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('meetings/{followUp}/detail', [\App\Http\Controllers\MeetingsController::class, 'show'])->name('meetings.detail')->whereNumber('followUp');
     Route::post('meetings/{followUp}/reschedule', [\App\Http\Controllers\MeetingsController::class, 'reschedule'])->name('meetings.reschedule');
     Route::post('meetings/{followUp}/report', [\App\Http\Controllers\MeetingsController::class, 'report'])->name('meetings.report');
+    // A summary written by hand, taken back from the automatic one, or asked
+    // for again. Same authorization as the report above.
+    Route::put('meetings/{followUp}/summary', [\App\Http\Controllers\MeetingsController::class, 'saveSummary'])->name('meetings.summary.save');
+    Route::post('meetings/{followUp}/summary/use-automatic', [\App\Http\Controllers\MeetingsController::class, 'useAutomaticSummary'])->name('meetings.summary.use_automatic');
+    Route::post('meetings/{followUp}/summary/retry', [\App\Http\Controllers\MeetingsController::class, 'retrySummary'])->name('meetings.summary.retry');
     Route::post('meetings/{followUp}/confirm-attendance', [\App\Http\Controllers\MeetingsController::class, 'confirmAttendance'])->name('meetings.confirm_attendance');
 
     // Meeting attendance confirmation (5-minutes-after-meeting-ends popup)
@@ -815,6 +826,9 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
 
     // Meeting Summary Routes
     Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'show'])->name('meeting-summary.show');
+
+    // Calendly links the schedule-meeting modal offers for one lead/deal
+    Route::get('meetings/calendly-links', \App\Http\Controllers\CalendlyMeetingLinkOptionsController::class)->name('meetings.calendly_links');
 
     // Meeting Types
     Route::resource('meeting-types', MeetingTypeController::class);
@@ -1457,7 +1471,16 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::post('deals/{deal}/payment-requests', [DealPaymentController::class, 'store'])->name('deals.payment-requests.store');
     Route::post('deals/{deal}/payment-request/confirm', [DealPaymentController::class, 'confirm'])->name('deals.payment-request.confirm');
     Route::post('deals/{deal}/payment-request/cancel', [DealPaymentController::class, 'cancel'])->name('deals.payment-request.cancel');
+    Route::delete('deals/{deal}/payment-requests/{payment}', [DealPaymentController::class, 'destroy'])->name('deals.payment-requests.destroy');
     Route::post('deals/{deal}/payment-requests/{payment}/retry', [DealPaymentController::class, 'retry'])->name('deals.payment-requests.retry');
+    Route::post('deals/{deal}/payment-requests/{payment}/documents/request', [DealPaymentController::class, 'requestDocuments'])
+        ->name('deals.payment-requests.documents.request');
+    Route::post('deals/{deal}/payment-requests/{payment}/vat/request', [DealPaymentController::class, 'requestVat'])
+        ->name('deals.payment-requests.vat.request');
+    Route::post('deals/{deal}/payment-requests/{payment}/vat/settle', [DealPaymentController::class, 'settleVat'])
+        ->name('deals.payment-requests.vat.settle');
+    Route::get('deals/{deal}/payment-requests/{payment}/documents-status', [DealPaymentController::class, 'documentStatus'])
+        ->name('deals.payment-requests.documents.status');
     Route::get('deals/{deal}/payment-requests/{payment}/documents/{kind}', [DealPaymentController::class, 'document'])
         ->whereIn('kind', ['invoice', 'receipt'])
         ->name('deals.payment-requests.document');

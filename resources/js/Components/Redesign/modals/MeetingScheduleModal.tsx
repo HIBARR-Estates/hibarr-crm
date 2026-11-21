@@ -1,6 +1,8 @@
 import useMeetingsPageRedesignFlag from "@/Hooks/useMeetingsPageRedesignFlag";
 import ScheduleMeetingDrawer from "@/Features/Meetings/ScheduleMeetingDrawer";
 import OrphanScheduleMeetingDialog from "@/Components/Redesign/modals/OrphanScheduleMeetingDialog";
+import OrphanScheduleMeetingDialogLegacy from "@/Components/Redesign/modals/OrphanScheduleMeetingDialogLegacy";
+import useMeetingsImprovementsFlag from "@/Hooks/useMeetingsImprovementsFlag";
 import useMeetingTypesForSchedule from "@/Components/Redesign/meeting/useMeetingTypesForSchedule";
 
 export interface MeetingScheduleModalProps {
@@ -42,6 +44,7 @@ export default function MeetingScheduleModal({
     initialRecord,
 }: MeetingScheduleModalProps) {
     const redesign = useMeetingsPageRedesignFlag();
+    const improved = useMeetingsImprovementsFlag();
     const meetingTypes = useMeetingTypesForSchedule(
         meetingTypesProp,
         redesign && open,
@@ -59,6 +62,23 @@ export default function MeetingScheduleModal({
                 userDeals={userDeals}
                 userLeads={userLeads}
                 onSuccess={onSuccess}
+            />
+        );
+    }
+
+    // Without `crm.meetings-page-improvements`: the Deal/Lead picker dialog it
+    // always was, fed by the lists the page sends.
+    if (!improved) {
+        return (
+            <OrphanScheduleMeetingDialogLegacy
+                open={open}
+                onClose={onClose}
+                onScheduled={handleScheduled}
+                userDeals={userDeals}
+                userLeads={userLeads}
+                meetingTypes={meetingTypes}
+                initialStart={initialStart}
+                initialRecord={initialRecord}
             />
         );
     }

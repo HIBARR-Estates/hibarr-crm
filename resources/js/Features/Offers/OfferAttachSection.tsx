@@ -5,6 +5,7 @@ import { useApiQuery } from "@/lib/api/client";
 import type { Offer, OfferablePivot } from "@/Types/api/offers";
 import dayjs from "dayjs";
 import { formatCompanyDate } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type OfferWithPivot = Offer & { pivot?: OfferablePivot };
 
@@ -45,6 +46,7 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
     offerableId,
     onRefresh,
 }) => {
+    const { td } = useTd();
     const [attaching, setAttaching] = useState(false);
     const [selectedOfferId, setSelectedOfferId] = useState<number | null>(null);
     const [loading, setLoading] = useState<number | null>(null); // track by offer ID
@@ -152,7 +154,7 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
                                             </span>
                                             {!pivotActive && (
                                                 <Tag color="default">
-                                                    Disabled
+                                                    {td("Disabled", { source: "en" })}
                                                 </Tag>
                                             )}
                                         </Space>
@@ -205,7 +207,7 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
                 />
             ) : (
                 <Empty
-                    description="No offers attached"
+                    description={td("No offers attached", { source: "en" })}
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                     className="my-2"
                 />
@@ -216,7 +218,7 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
                 <div className="flex items-center gap-3 mt-3">
                     <Select
                         className="flex-1"
-                        placeholder="Select an offer..."
+                        placeholder={td("Select an offer...", { source: "en" })}
                         loading={offersLoading}
                         showSearch
                         filterOption={(input, option) =>
@@ -239,7 +241,7 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
                         loading={attachLoading}
                         disabled={!selectedOfferId}
                     >
-                        Attach
+                        {td("Attach", { source: "en" })}
                     </Button>
                     <Button
                         size="small"
@@ -248,7 +250,7 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
                             setSelectedOfferId(null);
                         }}
                     >
-                        Cancel
+                        {td("Cancel", { source: "en" })}
                     </Button>
                 </div>
             ) : (
@@ -259,7 +261,7 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
                         icon={<LinkOutlined />}
                         onClick={() => setAttaching(true)}
                     >
-                        Attach Offer
+                        {td("Attach Offer", { source: "en" })}
                     </Button>
                 </div>
             )}

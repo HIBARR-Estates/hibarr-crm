@@ -103,28 +103,28 @@ export default function PartnerView({
                 {partnerStats ? (
                     <div style={tileGrid}>
                         <MultiStatTile
-                            label="Referrals"
+                            label={td("Referrals", { source: "en" })}
                             variant="team"
                             segments={[
                                 {
-                                    label: "Referred",
+                                    label: td("Referred", { source: "en" }),
                                     value: partnerStats.referredLeads,
                                 },
                                 {
-                                    label: "In progress",
+                                    label: td("In progress", { source: "en" }),
                                     value: partnerStats.inProgressLeads,
                                     tone: "blue",
                                 },
                                 {
-                                    label: "Completed",
+                                    label: td("Completed", { source: "en" }),
                                     value: partnerStats.convertedLeads,
                                     tone: "green",
                                 },
                             ]}
-                            hint="In progress means the referral has an open deal"
+                            hint={td("In progress means the referral has an open deal", { source: "en" })}
                         />
                         <StatTile
-                            label="Conversion"
+                            label={td("Conversion", { source: "en" })}
                             unit="%"
                             value={partnerStats.conversionRate}
                             note={
@@ -134,7 +134,7 @@ export default function PartnerView({
                             }
                         />
                         <StatTile
-                            label="Median time to close"
+                            label={td("Median time to close", { source: "en" })}
                             value={
                                 partnerStats.medianDaysToClose === null
                                     ? null
@@ -143,7 +143,7 @@ export default function PartnerView({
                             note="Referral to won"
                         />
                         <StatTile
-                            label="Forecast"
+                            label={td("Forecast", { source: "en" })}
                             value={
                                 partnerForecast?.amount
                                     ? currencyAmount(
@@ -163,7 +163,7 @@ export default function PartnerView({
             <div className="dv2-partner-insights">
                 {noReferrals ? (
                     <DashboardPanel
-                        title="Your referrals"
+                        title={td("Your referrals", { source: "en" })}
                         className="dv2-partner-span-2"
                         style={{ height: "100%" }}
                     >
@@ -179,7 +179,7 @@ export default function PartnerView({
                 ) : (
                     <>
                         <DashboardPanel
-                            title="Referrals over time"
+                            title={td("Referrals over time", { source: "en" })}
                             note="Submitted against completed, last 12 months"
                             extra={<Legend />}
                             style={{ height: "100%" }}
@@ -193,7 +193,7 @@ export default function PartnerView({
                         </DashboardPanel>
 
                         <DashboardPanel
-                            title="Where your referrals stand"
+                            title={td("Where your referrals stand", { source: "en" })}
                             note="Stage only — no client detail"
                             style={{ height: "100%" }}
                         >
@@ -203,7 +203,7 @@ export default function PartnerView({
                             >
                                 <StageFunnel
                                     labelWidth={96}
-                                    emptyMessage="No referrals to place yet."
+                                    emptyMessage={td("No referrals to place yet.", { source: "en" })}
                                     // A row of zero bars reads as a broken
                                     // chart, not as "nothing referred".
                                     data={(partnerFunnel?.[0]?.count
@@ -228,7 +228,7 @@ export default function PartnerView({
                 )}
 
                 <DashboardPanel
-                    title="Commission ledger"
+                    title={td("Commission ledger", { source: "en" })}
                     note="Company currency"
                     style={{ height: "100%" }}
                     footer={
@@ -378,7 +378,7 @@ export default function PartnerView({
                     <DashboardPanel
                         flush
                         fill
-                        title="Flags"
+                        title={td("Flags", { source: "en" })}
                         note="Replies from the partner team"
                         style={{ height: "100%" }}
                         extra={

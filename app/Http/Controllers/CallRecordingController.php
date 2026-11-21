@@ -13,6 +13,7 @@ use App\Services\CallRecording\CallRecordingTranscoder;
 use App\Services\FileStorageService;
 use App\Services\PermissionService;
 use App\Support\CallAccess;
+use App\Support\CallRefOwnership;
 use App\Services\CallRecording\CallRecordingLinker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -291,6 +292,17 @@ class CallRecordingController extends AccountBaseController
 
         $callRef = $request->input('call_ref');
 
+        // The ref comes from the browser and links this audio to a call's
+        // timeline and OL's call log. One another company already uses is not
+        // stored, so it can never tie this recording to their call.
+        if (is_string($callRef) && $callRef !== '' && CallRefOwnership::belongsToAnotherCompany($callRef, (int) $companyId)) {
+            Log::warning('CallRecordingController: call ref used by another company; not stored', [
+                'user_id' => user()->id,
+                'company_id' => $companyId,
+            ]);
+            $callRef = null;
+        }
+
         $recording = CallRecording::create([
             'company_id' => $companyId,
             'user_id' => user()->id,
@@ -308,7 +320,7 @@ class CallRecordingController extends AccountBaseController
             'duration_seconds' => $duration,
             'object_path' => $objectPath,
             'external_url' => $externalUrl,
-            'expires_at' => now()->addDays(30),
+            'expires_at' => now()->addDays(90),
         ]);
 
         Log::info('CallRecordingController: recording created', [
@@ -333,6 +345,35 @@ class CallRecordingController extends AccountBaseController
                 $recording->company_id !== null ? (int) $recording->company_id : null,
                 (int) user()->id,
             );
+
+            // Mirror the recording onto OL's call log; a dispatch failure must
+            // never fail the upload itself. On the `sync` connection (the
+            // config fallback) the job would run inside this request and hold
+            // the upload response on OL, so it runs after the response instead.
+            // Either way, a recording OL has not confirmed (`ol_synced_at`) is
+            // re-sent by the scheduled `call-recordings:sync-to-call-bridge`.
+            try {
+                $recordingId = (int) $recording->id;
+                if (config('queue.default') === 'sync') {
+                    app()->terminating(function () use ($recordingId): void {
+                        try {
+                            \App\Jobs\SyncCallRecordingToCallBridgeJob::dispatchSync($recordingId);
+                        } catch (\Throwable $e) {
+                            Log::warning('CallRecordingController: OL recording sync failed after response', [
+                                'recording_id' => $recordingId,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    });
+                } else {
+                    \App\Jobs\SyncCallRecordingToCallBridgeJob::dispatch($recordingId);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('CallRecordingController: could not queue OL recording sync', [
+                    'recording_id' => $recording->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return Reply::successWithData('Recording uploaded', [

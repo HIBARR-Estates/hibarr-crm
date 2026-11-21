@@ -303,7 +303,7 @@
                                         @if (!in_array('client', user_roles())) href="{{ route('employees.show', user()->id) }}" @endif>
                                         <div class="card-horizontal align-items-center">
                                             <div class="card-img">
-                                                <img class="" src=" {{ $user->image_url }}" alt="Card image">
+                                                <img class="" src=" {{ $user->image_url }}" alt="{{ td('Card image') }}">
                                             </div>
                                             <div class="card-body border-0 pl-0">
                                                 <div class="flex justify-between">

@@ -251,6 +251,7 @@ export default function ScheduleNextStepFlow({
                     })
                 }
                 mustIncludeOwner={mustIncludeOwner}
+                calendlyTarget={lead ? { type: "lead", id: lead.id } : null}
                 labels={{
                     title: td("Schedule meeting", { source: "en" }),
                     cancel: td("Cancel", { source: "en" }),

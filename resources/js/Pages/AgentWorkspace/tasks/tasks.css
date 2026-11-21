@@ -182,6 +182,20 @@
     opacity: 0.5;
 }
 
+/* Ticked, while Do next is open under it (L7-43). */
+.agent-tk__row--done .agent-tk__tick,
+.agent-tk__row--done .agent-tk__tick:disabled {
+    border-color: var(--dr-green);
+    background: var(--dr-green);
+    color: var(--dr-white);
+    opacity: 1;
+}
+
+.agent-tk__row--done .agent-tk__title {
+    color: var(--dr-text-muted);
+    text-decoration: line-through;
+}
+
 .agent-tk__title {
     min-width: 0;
     padding: 0;

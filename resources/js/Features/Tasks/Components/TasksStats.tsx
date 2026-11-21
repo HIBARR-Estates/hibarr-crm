@@ -5,6 +5,7 @@ import {
     FireOutlined,
     InboxOutlined,
 } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface TaskStats {
     total: number;
@@ -22,6 +23,7 @@ export const TasksStats: React.FC<TasksStatsProps> = ({
     stats,
     loading = false,
 }) => {
+    const { td } = useTd();
     const { total, completed, overdue, dueToday } = stats;
 
     const StatItem = ({
@@ -53,28 +55,28 @@ export const TasksStats: React.FC<TasksStatsProps> = ({
             <StatItem
                 icon={<InboxOutlined />}
                 value={total}
-                label="Total"
+                label={td("Total", { source: "en" })}
                 colorClass="text-gray-500"
             />
             <div className="h-4 w-px bg-gray-200 mx-2 hidden sm:block"></div>
             <StatItem
                 icon={<CheckCircleOutlined />}
                 value={completed}
-                label="Done"
+                label={td("Done", { source: "en" })}
                 colorClass="text-green-500"
             />
             <div className="h-4 w-px bg-gray-200 mx-2 hidden sm:block"></div>
             <StatItem
                 icon={<CalendarOutlined />}
                 value={dueToday}
-                label="Today"
+                label={td("Today", { source: "en" })}
                 colorClass="text-orange-500"
             />
             <div className="h-4 w-px bg-gray-200 mx-2 hidden sm:block"></div>
             <StatItem
                 icon={<FireOutlined />}
                 value={overdue}
-                label="Overdue"
+                label={td("Overdue", { source: "en" })}
                 colorClass="text-red-500"
             />
         </div>

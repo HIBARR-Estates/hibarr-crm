@@ -15,6 +15,7 @@ use App\Services\CallBridge\InboundCallRotation;
 use App\Services\CallBridge\LeadPhoneMatcher;
 use App\Services\CallBridge\LineConcurrencyManager;
 use App\Services\PermissionService;
+use App\Support\CallRefOwnership;
 use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -122,7 +123,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
             ]);
         }
 
-        $this->emitIncomingCallOnce($companyId, $authoritativeCallKey ?? $callId ?? $callRef, $request->input('phone'), $matchingLeads->first());
+        $this->emitIncomingCallOnce($companyId, $authoritativeCallKey ?? $callId ?? $callRef, $request->input('phone'), $matchingLeads->first(), is_scalar($callRef) ? (string) $callRef : null);
 
         $poolUsers = $this->getAvailableAgentsForTier($companyId, SoftphoneCallPoolAgent::TIER_LINE, $deviceId, 'pool');
         [$lead, $owner] = $this->resolveLeadAndOwner($matchingLeads, $companyId, $deviceId);
@@ -134,14 +135,24 @@ class TelephonySoftphoneEventController extends AccountBaseController
             $this->getAvailableAdminFallbackUsers($companyId),
         );
 
+        // Agents already on a call are skipped while anyone else can take it,
+        // so their turn does not make the caller wait. Once this call is
+        // answered the agent who took it is on a call too, so nobody counts as
+        // busy from then on.
+        $busyUserIds = $statusVal !== 'answered' ? LineConcurrencyManager::usersOnCall($companyId) : [];
+
         // With an id every agent shares, the order is frozen and the position
-        // advances on the server, so all browsers agree on who rings now.
+        // advances on the server, so all browsers agree on who rings now. The
+        // whole roster is frozen, busy agents included, so they can still be
+        // rung if everyone free has passed or timed out.
         $sharedCallKey = $this->sharedCallKey($callId);
         if ($sharedCallKey !== null) {
-            $rotation = InboundCallRotation::resolve($companyId, $sharedCallKey, $rotationUsers, $passedUserIds, $fallbackSeconds);
+            $rotation = InboundCallRotation::resolve($companyId, $sharedCallKey, $rotationUsers, $passedUserIds, $fallbackSeconds, $busyUserIds);
             $rotationUsers = $rotation['users'];
             $routing['rotation_index'] = $rotation['index'];
             $routing['slot_remaining_seconds'] = $rotation['slot_remaining_seconds'];
+        } else {
+            $rotationUsers = $this->withoutBusyAgents($rotationUsers, $passedUserIds, $busyUserIds);
         }
 
         $ownerEntry = collect($rotationUsers)->firstWhere('role', 'owner');
@@ -170,7 +181,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 $routing = array_merge($routing, [
                     'id' => $lead->id,
                     'lead_id' => $lead->id,
-                    'name' => $leadName !== '' ? $leadName : ('Lead #' . $lead->id),
+                    'name' => $leadName !== '' ? $leadName : ('Lead #'.$lead->id),
                     'url' => route('lead-contact.show', $lead->id),
                 ]);
             }
@@ -209,6 +220,32 @@ class TelephonySoftphoneEventController extends AccountBaseController
         ];
     }
 
+    /**
+     * For a call without a shared id (no server-held rotation): the rotation
+     * minus busy agents, unless no free agent who has not passed is left —
+     * then the busy agents are the only ones the call can still go to.
+     *
+     * @param  array<int, array{id: int, name: string, role: string, priority?: int}>  $rotationUsers
+     * @param  array<int, int>  $passedUserIds
+     * @param  array<int, int>  $busyUserIds
+     * @return array<int, array{id: int, name: string, role: string, priority?: int}>
+     */
+    private function withoutBusyAgents(array $rotationUsers, array $passedUserIds, array $busyUserIds): array
+    {
+        if ($busyUserIds === []) {
+            return $rotationUsers;
+        }
+
+        $isBusy = fn (array $user): bool => in_array((int) $user['id'], $busyUserIds, true);
+        $hasFreeUnpassed = collect($rotationUsers)->contains(
+            fn (array $user): bool => ! $isBusy($user) && ! in_array((int) $user['id'], $passedUserIds, true),
+        );
+
+        return $hasFreeUnpassed
+            ? array_values(array_filter($rotationUsers, fn (array $user): bool => ! $isBusy($user)))
+            : $rotationUsers;
+    }
+
     /** Admins and holders of make_softphone_calls can run the softphone. */
     private function canUseSoftphone(User $user): bool
     {
@@ -242,7 +279,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
     }
 
     /** Tell the call bridge (OL) about an incoming call, once per call. */
-    private function emitIncomingCallOnce(int $companyId, ?string $callKey, ?string $phone, ?Lead $lead): void
+    private function emitIncomingCallOnce(int $companyId, ?string $callKey, ?string $phone, ?Lead $lead, ?string $callRef = null): void
     {
         $callKey = trim((string) $callKey);
         if ($callKey === '') {
@@ -260,6 +297,9 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 'direction' => 'inbound',
                 'phone_number' => $phone,
                 'status' => 'ringing',
+                // Same key the answer/hang-up events and the recording use, so
+                // OL keeps one row per call instead of one per identifier.
+                'call_ref' => $callRef ?: $callKey,
             ];
             if ($lead !== null) {
                 $payload['entity_type'] = 'lead';
@@ -424,7 +464,9 @@ class TelephonySoftphoneEventController extends AccountBaseController
         }
 
         $trimmed = trim($callId);
-        if ($trimmed === '' || preg_match('/^call-\d+$/', $trimmed)) {
+        // Browser-local ids ("call-3", "call-waiting-3") mean a different
+        // call in every browser; CallKey applies the same rule.
+        if ($trimmed === '' || preg_match('/^call-(waiting-)?\d+$/', $trimmed)) {
             return false;
         }
 
@@ -454,6 +496,48 @@ class TelephonySoftphoneEventController extends AccountBaseController
         ];
 
         Cache::put(sprintf('softphone:call_status:id:%d:%s', $companyId, trim($callId)), $payload, 300);
+    }
+
+    /**
+     * Move a call's shared status under one per-call lock, so an agent
+     * answering and another passing at the same moment cannot interleave the
+     * check and the write. "answered" always lands, and always under the
+     * lock: it waits longer than the lock can be held, so a holder that
+     * stalls has its lease expire first. "ended" never overwrites another
+     * agent's answer, and is skipped if the lock cannot be had rather than
+     * written unchecked.
+     */
+    private function transitionCallStatus(int $companyId, ?string $callId, string $status, int $userId): void
+    {
+        if (! $this->isAuthoritativeCallId($callId)) {
+            return;
+        }
+
+        $apply = function () use ($companyId, $callId, $status, $userId): void {
+            if ($status === 'ended') {
+                $current = $this->getCallStatus($companyId, $callId);
+                if (($current['status'] ?? null) === 'answered' && (int) ($current['user_id'] ?? 0) !== $userId) {
+                    return;
+                }
+            }
+            $this->recordCallStatus($companyId, $callId, $status, $userId);
+        };
+
+        $lease = 5;
+        $wait = $status === 'answered' ? $lease + 2 : 3;
+
+        try {
+            Cache::lock(sprintf('softphone:call_status_lock:%d:%s', $companyId, trim((string) $callId)), $lease)->block($wait, $apply);
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException) {
+            // Waiting past the lease means no earlier holder can still be
+            // mid-write, so this is only reached when the cache keeps
+            // refusing the lock. Losing the answer would leave the other
+            // browsers ringing, so it is still written; "ended" is dropped.
+            Log::warning('Softphone: call status lock unavailable', ['status' => $status, 'call_id' => $callId]);
+            if ($status === 'answered') {
+                $apply();
+            }
+        }
     }
 
     /**
@@ -534,6 +618,20 @@ class TelephonySoftphoneEventController extends AccountBaseController
             'forwarded_from_user_name' => 'nullable|string|max:180',
         ]);
 
+        // The call ref comes from the browser and links timeline rows, the
+        // recording and OL's call log. One another company already uses is
+        // dropped before anything stores or forwards it; the event itself is
+        // still logged.
+        if (! empty($validated['call_ref'])
+            && CallRefOwnership::belongsToAnotherCompany((string) $validated['call_ref'], (int) company()->id)) {
+            Log::warning('TelephonySoftphoneEventController: call ref used by another company; dropped', [
+                'user_id' => (int) user()->id,
+                'company_id' => (int) company()->id,
+                'event' => $validated['event'] ?? null,
+            ]);
+            unset($validated['call_ref']);
+        }
+
         $isInbound = in_array($validated['direction'] ?? null, ['inbound', 'incoming'], true);
         $entityType = $validated['entity_type'] ?? null;
         $entityId = isset($validated['entity_id']) ? (int) $validated['entity_id'] : null;
@@ -590,9 +688,11 @@ class TelephonySoftphoneEventController extends AccountBaseController
                     LineConcurrencyManager::reserve($line, (int) user()->id, force: true);
                 }
                 $this->clearPassedUsers($companyId, $line?->id, $incomingDigits, $callId);
-                $this->recordCallStatus($companyId, $authoritativeKey, 'answered', (int) user()->id);
+                $this->transitionCallStatus($companyId, $authoritativeKey, 'answered', (int) user()->id);
             } elseif (in_array($eventSlug, ['call.ended', 'call.completed', 'call.failed', 'call.declined'], true)) {
-                $this->recordCallStatus($companyId, $authoritativeKey, 'ended', (int) user()->id);
+                // Missed/declined legs carry the shared SIP Call-ID, so an agent
+                // passing late must not end a call another agent has answered.
+                $this->transitionCallStatus($companyId, $authoritativeKey, 'ended', (int) user()->id);
             }
         }
 
@@ -718,6 +818,11 @@ class TelephonySoftphoneEventController extends AccountBaseController
                     'direction' => $emitDirection,
                     'phone_number' => $validated['phone'],
                     'status' => $validated['status'] ?? null,
+                    'duration' => $validated['duration'] ?? null,
+                    // OL keys the call on call_ref, so the recording upload
+                    // (which carries the same ref) lands on the same OL row.
+                    'call_ref' => $validated['call_ref'] ?? $callId,
+                    'agent_email' => user()?->email,
                 ];
                 if (! empty($entityType) && ! empty($entityId)) {
                     $emitPayload['entity_type'] = $entityType;
@@ -802,7 +907,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
             ->unique('user_id')
             ->map(fn (SoftphoneCallPoolAgent $agent): array => [
                 'id' => (int) $agent->user_id,
-                'name' => trim((string) ($agent->user?->name ?? '')) ?: ('User #' . $agent->user_id),
+                'name' => trim((string) ($agent->user?->name ?? '')) ?: ('User #'.$agent->user_id),
                 'role' => $role,
                 'priority' => (int) $agent->priority,
             ])

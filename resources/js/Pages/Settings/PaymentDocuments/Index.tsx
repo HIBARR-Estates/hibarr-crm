@@ -14,6 +14,7 @@ import type {
     PaymentDocumentSettings,
     PaymentDocumentSettingsForm,
 } from "./types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     pageTitle: string;
@@ -38,6 +39,7 @@ export default function PaymentDocumentSettingsPage({
     pageTitle,
     settings: initial,
 }: Props) {
+    const { td } = useTd();
     const { t } = useTranslation();
     const k = (key: string, params?: Record<string, string | number>) =>
         t(`${KEY}.${key}`, params);
@@ -321,7 +323,7 @@ export default function PaymentDocumentSettingsPage({
                                 <Field htmlFor="pds-iban" label="IBAN" error={errors.iban}>
                                     <input id="pds-iban" className="dr-input font-mono" {...text("iban")} />
                                 </Field>
-                                <Field htmlFor="pds-swift" label="SWIFT / BIC" error={errors.swift}>
+                                <Field htmlFor="pds-swift" label={td("SWIFT / BIC", { source: "en" })} error={errors.swift}>
                                     <input id="pds-swift" className="dr-input font-mono" {...text("swift")} />
                                 </Field>
                                 <Field htmlFor="pds-term" label={k("payment.term_days")} hint={k("payment.term_days_hint")} required error={errors.payment_term_days}>

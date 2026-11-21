@@ -1341,8 +1341,8 @@ button.agent-deal__row:disabled {
     list-style: none;
 }
 
-.agent-brief2__list > li {
-    border-bottom: 1px solid #eef0f3;
+.agent-brief2__list > li + li {
+    border-top: 1px solid #eef0f3;
 }
 
 .agent-brief2__ask,
@@ -1410,8 +1410,73 @@ button.agent-deal__row:disabled {
 }
 
 .agent-brief2__ready-title {
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 600;
+}
+
+/* Talking points (L8-08): AI tag, then a plain indigo bullet list. */
+.agent-brief2__ai {
+    padding: 2px 5px;
+    border-radius: 4px;
+    background: #4c4f8f;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.agent-dlg__section-head .agent-brief2__refresh {
+    height: 24px;
+    min-width: 24px;
+    margin: -5px 0 -5px auto;
+    padding: 0 6px;
+}
+
+.agent-brief2__points {
+    margin: 0;
+    padding-left: 18px;
+    color: #2b2f6b;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.agent-brief2__points.is-updating {
+    opacity: 0.55;
+}
+
+.agent-brief2__writing {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.agent-brief2__skel {
+    display: block;
+    width: 92%;
+    height: 10px;
+    border-radius: 5px;
+    background: linear-gradient(90deg, #eceef8 0%, #f6f6fc 50%, #eceef8 100%);
+    background-size: 200% 100%;
+    animation: agent-brief2-shimmer 1.2s ease-in-out infinite;
+}
+
+.agent-brief2__skel--short {
+    width: 64%;
+}
+
+@keyframes agent-brief2-shimmer {
+    from {
+        background-position: 100% 0;
+    }
+    to {
+        background-position: -100% 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .agent-brief2__skel {
+        animation: none;
+    }
 }
 
 @media (max-width: 767px) {

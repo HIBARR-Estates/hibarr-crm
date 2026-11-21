@@ -11,6 +11,7 @@ import type {
     MeetingsTabCounts,
     MeetingsViewMode,
 } from "../adapters/meetingViewModel";
+import useMeetingUiLabel from "@/Components/Redesign/meeting/useMeetingUiLabel";
 
 interface MeetingsHeaderProps {
     view: MeetingsViewMode;
@@ -78,12 +79,13 @@ export default function MeetingsHeader({
     filtersLabel,
 }: MeetingsHeaderProps) {
     const { td } = useTd();
+    const ui = useMeetingUiLabel();
     const { t } = useTranslation();
 
     return (
         <EntityListHeader
             title={t("app.meetings.my_meetings")}
-            subtitle={td("Everything scheduled across your leads and deals.")}
+            subtitle={t("pages.meetings.ui.everything_scheduled_across_your_leads_and_deals")}
             sticky
             viewOptions={VIEW_OPTIONS}
             viewValue={view}
@@ -101,7 +103,7 @@ export default function MeetingsHeader({
                             size={13}
                             className={refreshing ? "animate-spin" : undefined}
                         />
-                        {td("Refresh")}
+                        {t("pages.meetings.ui.refresh")}
                     </button>
                     {canSchedule && (
                         <button
@@ -124,10 +126,10 @@ export default function MeetingsHeader({
                         <Segmented<MeetingsTab>
                             value={tab}
                             onChange={onTabChange}
-                            ariaLabel={td("Filter meetings")}
+                            ariaLabel={t("pages.meetings.ui.filter_meetings")}
                             options={TAB_LABELS.map((option) => ({
                                 value: option.value,
-                                label: td(option.label),
+                                label: ui(option.label),
                                 count: counts[option.value],
                             }))}
                         />
@@ -147,8 +149,8 @@ export default function MeetingsHeader({
                                 size={13}
                             />
                             {stripVisible
-                                ? td("Hide next up")
-                                : td("Show next up")}
+                                ? t("pages.meetings.ui.hide_next_up")
+                                : t("pages.meetings.ui.show_next_up")}
                         </button>
                     </div>
                 ) : undefined

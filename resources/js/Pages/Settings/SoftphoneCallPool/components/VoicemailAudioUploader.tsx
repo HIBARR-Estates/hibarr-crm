@@ -8,6 +8,7 @@ import {
     UploadOutlined,
 } from "@ant-design/icons";
 import Switch from "@/Components/Redesign/primitives/Switch";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface VoicemailAudioUploaderProps {
     audioUrl: string;
@@ -29,6 +30,7 @@ export default function VoicemailAudioUploader({
     onToggleEnabled,
     isTogglingEnabled,
 }: VoicemailAudioUploaderProps) {
+    const { td } = useTd();
     const { message } = App.useApp();
     const [isUploading, setIsUploading] = useState<boolean>(false);
     const [isDeleting, setIsDeleting] = useState<boolean>(false);
@@ -39,7 +41,7 @@ export default function VoicemailAudioUploader({
         if (!file) return;
 
         if (file.size > MAX_AUDIO_BYTES) {
-            void message.error("Audio file size must be less than 10MB.");
+            void message.error(td("Audio file size must be less than 10MB.", { source: "en" }));
             if (fileInputRef.current) fileInputRef.current.value = "";
             return;
         }
@@ -137,11 +139,11 @@ export default function VoicemailAudioUploader({
                                 color: "var(--dr-text-muted)",
                             }}
                         >
-                            Tier 4 Fallback
+                            {td("Tier 4 Fallback", { source: "en" })}
                         </span>
                     </div>
                     <div style={{ fontSize: "12px", color: "var(--dr-text-muted)", marginTop: "2px" }}>
-                        Play a pre-recorded greeting or voice message when calls go unanswered across all fallback tiers.
+                        {td("Play a pre-recorded greeting or voice message when calls go unanswered across all fallback tiers.", { source: "en" })}
                     </div>
                 </div>
 
@@ -162,7 +164,7 @@ export default function VoicemailAudioUploader({
                                 checked={Boolean(isEnabled)}
                                 onChange={() => onToggleEnabled(!isEnabled)}
                                 loading={isTogglingEnabled}
-                                aria-label="Toggle voicemail feature"
+                                aria-label={td("Toggle voicemail feature", { source: "en" })}
                             />
                             <span
                                 style={{
@@ -202,7 +204,7 @@ export default function VoicemailAudioUploader({
                             disabled={isUploading || isDeleting}
                             onClick={() => void handleDeleteAudio()}
                             style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", padding: "6px 12px" }}
-                            title="Remove audio greeting"
+                            title={td("Remove audio greeting", { source: "en" })}
                         >
                             <DeleteOutlined />
                             <span>{isDeleting ? "Removing…" : "Remove"}</span>
@@ -227,7 +229,7 @@ export default function VoicemailAudioUploader({
                 >
                     <div style={{ display: "flex", flexDirection: "column", gap: "4px", minWidth: "200px" }}>
                         <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--dr-text)" }}>
-                            Current Audio File
+                            {td("Current Audio File", { source: "en" })}
                         </span>
                         <a
                             href={audioUrl}
@@ -251,7 +253,7 @@ export default function VoicemailAudioUploader({
                         src={audioUrl}
                         style={{ height: "36px", maxWidth: "380px", flex: "1 1 260px" }}
                     >
-                        Your browser does not support the audio element.
+                        {td("Your browser does not support the audio element.", { source: "en" })}
                     </audio>
                 </div>
             ) : (
@@ -289,7 +291,7 @@ export default function VoicemailAudioUploader({
                 >
                     <InfoCircleOutlined style={{ color: "#d97706" }} />
                     <span>
-                        Voicemail feature is currently turned off. Calls that are unanswered across all fallback tiers will disconnect without playing a voice greeting. Toggle ON above to activate voicemail fallback.
+                        {td("Voicemail feature is currently turned off. Calls that are unanswered across all fallback tiers will disconnect without playing a voice greeting. Toggle ON above to activate voicemail fallback.", { source: "en" })}
                     </span>
                 </div>
             )}

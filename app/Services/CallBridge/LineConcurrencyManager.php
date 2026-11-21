@@ -72,6 +72,27 @@ class LineConcurrencyManager
         });
     }
 
+    /**
+     * Agents of a company who are on a call right now, on any of its lines.
+     *
+     * @return list<int>
+     */
+    public static function usersOnCall(int $companyId): array
+    {
+        $deviceIds = SoftphoneDevice::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->pluck('id');
+
+        $userIds = [];
+        foreach ($deviceIds as $deviceId) {
+            foreach (array_keys(self::slots((int) $deviceId)) as $userId) {
+                $userIds[$userId] = true;
+            }
+        }
+
+        return array_keys($userIds);
+    }
+
     public static function activeCallsCount(int $deviceId, ?int $exceptUserId = null): int
     {
         $slots = self::slots($deviceId);

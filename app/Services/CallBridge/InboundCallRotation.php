@@ -32,16 +32,21 @@ class InboundCallRotation
      * rang for `$slotSeconds` without answering. `index` equal to the number
      * of users means the rotation is exhausted (final fallback window).
      *
+     * Agents in `$busyUserIds` (on another call) are skipped while someone
+     * who is free and has not passed is still ahead in the rotation; once
+     * nobody like that is left, the busy agents are rung after all.
+     *
      * @param  array<int, array{id: int, name: string, role: string, priority?: int}>  $sequence  Order to freeze on first sight.
      * @param  array<int, int>  $passedUserIds
+     * @param  array<int, int>  $busyUserIds
      * @return array{users: array<int, array{id: int, name: string, role: string, priority?: int}>, index: int, slot_remaining_seconds: int}
      */
-    public static function resolve(int $companyId, string $callKey, array $sequence, array $passedUserIds, int $slotSeconds): array
+    public static function resolve(int $companyId, string $callKey, array $sequence, array $passedUserIds, int $slotSeconds, array $busyUserIds = []): array
     {
         $key = self::cacheKey($companyId, $callKey);
         $slotSeconds = max(1, $slotSeconds);
 
-        $advance = function () use ($key, $sequence, $passedUserIds, $slotSeconds): array {
+        $advance = function () use ($key, $sequence, $passedUserIds, $slotSeconds, $busyUserIds): array {
             $now = microtime(true);
             $state = Cache::get($key);
             if (! is_array($state) || ! isset($state['users'], $state['index'], $state['slot_started_at'])) {
@@ -51,10 +56,40 @@ class InboundCallRotation
             $users = $state['users'];
             $index = (int) $state['index'];
             $slotStartedAt = (float) $state['slot_started_at'];
+            /** @var list<int> $deferred Busy agents already moved to the back. */
+            $deferred = array_map('intval', (array) ($state['deferred'] ?? []));
             $availableIds = array_map(fn (array $user): int => (int) $user['id'], $sequence);
+
+            // Whether someone free (not busy, not passed, still available) is
+            // at or after position $from — only then is a busy agent put back.
+            $freeAgentFrom = function (int $from) use (&$users, $availableIds, $passedUserIds, $busyUserIds): bool {
+                for ($i = $from; $i < count($users); $i++) {
+                    $id = (int) $users[$i]['id'];
+                    if (in_array($id, $availableIds, true)
+                        && ! in_array($id, $passedUserIds, true)
+                        && ! in_array($id, $busyUserIds, true)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            };
 
             while ($index < count($users)) {
                 $userId = (int) $users[$index]['id'];
+
+                // A busy agent is moved to the back once rather than dropped,
+                // so they are still rung if everyone after them misses it.
+                if (in_array($userId, $busyUserIds, true)
+                    && ! in_array($userId, $deferred, true)
+                    && $freeAgentFrom($index + 1)) {
+                    $users[] = $users[$index];
+                    $deferred[] = $userId;
+                    $index++;
+                    $slotStartedAt = $now;
+
+                    continue;
+                }
 
                 if (in_array($userId, $passedUserIds, true) || ! in_array($userId, $availableIds, true)) {
                     $index++;
@@ -78,6 +113,7 @@ class InboundCallRotation
                 'users' => $users,
                 'index' => $index,
                 'slot_started_at' => $slotStartedAt,
+                'deferred' => $deferred,
             ], self::TTL_SECONDS);
 
             return [

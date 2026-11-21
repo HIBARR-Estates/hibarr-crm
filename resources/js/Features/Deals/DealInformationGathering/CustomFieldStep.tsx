@@ -5,6 +5,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
 
 import CustomFieldRenderer from "@/Components/CustomFieldRenderer";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 // Wrapper because I need to import CustomFieldRenderer
 const CustomFieldRendererWrapper = ({ fields, form }: any) => {
@@ -36,6 +37,7 @@ const CustomFieldStep: React.FC<CustomFieldStepProps> = ({
     onPrev,
     isLast,
 }) => {
+    const { td } = useTd();
     const [form] = Form.useForm();
 
     // Fetch existing custom fields data for this deal
@@ -93,7 +95,7 @@ const CustomFieldStep: React.FC<CustomFieldStepProps> = ({
                         {stepConfig.title}
                     </h3>
                     <p className="text-gray-500 mt-1">
-                        Please fill in the details below
+                        {td("Please fill in the details below", { source: "en" })}
                     </p>
                     <Divider className="my-4" />
                 </div>
@@ -109,7 +111,7 @@ const CustomFieldStep: React.FC<CustomFieldStepProps> = ({
 
                 <div className="flex justify-between items-center">
                     <Button onClick={onPrev} className="px-6">
-                        Back
+                        {td("Back", { source: "en" })}
                     </Button>
                     <Button
                         type="primary"

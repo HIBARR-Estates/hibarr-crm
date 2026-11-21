@@ -60,6 +60,8 @@ interface ActivityCardsProps {
     onOpenBrief?: (id: number) => void;
     /** A row held at the top of Coming up that is not a task or meeting yet (a pending booking). */
     comingUpPinned?: ReactNode;
+    /** Do next from an empty Coming up (L7-47), where the record still keeps a next step. */
+    onDoNext?: (anchor: HTMLElement) => void;
     /**
      * The deal-only view: no Last touches (the timeline also carries the lead's
      * own events), Notes titled for the deal, and these cards after them.
@@ -192,6 +194,7 @@ function ComingUpCard({
     onOpenMeeting,
     onOpenBrief,
     comingUpPinned,
+    onDoNext,
 }: ActivityCardsProps) {
     const { t, locale } = useTranslation();
     const [filter, setFilter] = useState<ComingUpFilter>("all");
@@ -260,7 +263,19 @@ function ComingUpCard({
                     <span className="agent-card__gap-text">
                         {t(`pages.agent_workspace.contact.coming_up.${comingUpTitle ? "empty_deal_text" : "empty_lead_text"}`)}
                     </span>
-                    <NewActivityButton onCreate={onCreate} allowed={permissions.create} size="sm" tone="navy" />
+                    {onDoNext ? (
+                        <Button
+                            variant="navy"
+                            size="sm"
+                            className="agent-card__gap-action"
+                            icon={<Icon name="arrow-right" size={13} />}
+                            onClick={(event) => onDoNext(event.currentTarget)}
+                        >
+                            {t("pages.agent_workspace.do_next.title")}
+                        </Button>
+                    ) : (
+                        <NewActivityButton onCreate={onCreate} allowed={permissions.create} size="sm" tone="navy" />
+                    )}
                 </div>
             ) : shown.length === 0 && !pinned ? (
                 <NoMatch />

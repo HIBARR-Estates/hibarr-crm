@@ -892,7 +892,7 @@ function QualifyModalContent({
                                 </div>
                                 {templateTree.name ? (
                                     <p className="mt-2 text-[11px] text-dr-text-hint truncate">
-                                        {templateTree.name}
+                                        {td(templateTree.name, { source: "en" })}
                                     </p>
                                 ) : null}
                             </div>
@@ -1066,7 +1066,7 @@ function QualifyModalContent({
                                     value={option.value}
                                     style={{ color: T.TEXT }}
                                 >
-                                    {option.label}
+                                    {td(option.label, { source: "en" })}
                                 </option>
                             ))}
                         </select>

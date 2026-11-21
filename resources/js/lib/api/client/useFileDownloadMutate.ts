@@ -4,6 +4,7 @@ import { AuthType } from "@/Types";
 import { usePage } from "@inertiajs/react";
 import { App } from "antd";
 import download from "js-file-download";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 type AllowedHttpMethod = "POST" | "GET";
 
@@ -68,6 +69,7 @@ export const useFileDownloadMutate = <Payload = Record<string, any>>(
     method: AllowedHttpMethod = "POST",
     options?: FileDownloadOptions
 ) => {
+    const { td } = useTd();
     const { props } = usePage();
     const { auth } = props;
 
@@ -90,7 +92,7 @@ export const useFileDownloadMutate = <Payload = Record<string, any>>(
             download(response.data, response.filename);
 
             // Show success message
-            message.success("File downloaded successfully");
+            message.success(td("File downloaded successfully", { source: "en" }));
 
             // Execute callback
             options?.onSuccess?.();

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { PlusOutlined } from "@ant-design/icons";
 import { InputNumber, Select } from "antd";
 import type { EligibleUser } from "../types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface AddAgentInlineFormProps {
     eligibleUsers: EligibleUser[];
@@ -31,6 +32,7 @@ export default function AddAgentInlineForm({
     onPrioritySelected,
     onSubmit,
 }: AddAgentInlineFormProps) {
+    const { td } = useTd();
     const [isPicking, setIsPicking] = useState(false);
 
     const userOptions = useMemo(() => {
@@ -66,12 +68,12 @@ export default function AddAgentInlineForm({
     return (
         <div className="cb-add-row">
             <div className="cb-field">
-                <label>User</label>
+                <label>{td("User", { source: "en" })}</label>
                 <Select
                     showSearch
                     style={{ width: "100%" }}
                     placeholder={placeholder}
-                    aria-label="User"
+                    aria-label={td("User", { source: "en" })}
                     optionFilterProp="label"
                     value={selectedUserId ?? undefined}
                     onChange={(val) => onUserSelected(typeof val === "number" ? val : null)}
@@ -81,12 +83,12 @@ export default function AddAgentInlineForm({
                 />
             </div>
             <div className="cb-field" style={{ width: "120px", flexShrink: 0 }}>
-                <label title="Order this agent will ring (1–100)">Routing Order</label>
+                <label title={td("Order this agent will ring (1–100)", { source: "en" })}>{td("Routing Order", { source: "en" })}</label>
                 <InputNumber
                     min={1}
                     max={100}
                     style={{ width: "100%", height: "32px" }}
-                    aria-label="Routing Order"
+                    aria-label={td("Routing Order", { source: "en" })}
                     value={selectedPriority}
                     onChange={(val) => onPrioritySelected(val ?? 1)}
                 />
@@ -100,7 +102,7 @@ export default function AddAgentInlineForm({
                 {isSubmitting ? "Adding…" : "Add"}
             </button>
             <button type="button" className="cb-btn" onClick={handleCancel}>
-                Cancel
+                {td("Cancel", { source: "en" })}
             </button>
         </div>
     );

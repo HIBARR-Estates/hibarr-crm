@@ -3,6 +3,7 @@ import { IModalProps } from "@/Types/common";
 import { router } from "@inertiajs/react";
 import { Button, Form, message, Modal, Select } from "antd";
 import { useState } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     ids: number[];
@@ -13,6 +14,7 @@ const BulkChangeStatusProperties: React.FC<Props> = ({
     open,
     onClose,
 }) => {
+    const { td } = useTd();
     const [changeStatusLoading, setChangeStatusLoading] = useState(false);
     const [statusForm] = Form.useForm();
 
@@ -29,7 +31,7 @@ const BulkChangeStatusProperties: React.FC<Props> = ({
                 {
                     onSuccess: () => {
                         message.success(
-                            "Properties status changed successfully"
+                            td("Properties status changed successfully", { source: "en" })
                         );
 
                         onClose(true);
@@ -38,7 +40,7 @@ const BulkChangeStatusProperties: React.FC<Props> = ({
                         statusForm.resetFields();
                     },
                     onError: () => {
-                        message.error("Failed to change properties status");
+                        message.error(td("Failed to change properties status", { source: "en" }));
                     },
                     onFinish: () => {
                         setChangeStatusLoading(false);
@@ -50,7 +52,7 @@ const BulkChangeStatusProperties: React.FC<Props> = ({
 
     return (
         <Modal
-            title="Change Properties Status"
+            title={td("Change Properties Status", { source: "en" })}
             open={open}
             onCancel={() => !changeStatusLoading && onClose()}
             footer={[
@@ -59,7 +61,7 @@ const BulkChangeStatusProperties: React.FC<Props> = ({
                     onClick={() => onClose()}
                     disabled={changeStatusLoading}
                 >
-                    Cancel
+                    {td("Cancel", { source: "en" })}
                 </Button>,
                 <Button
                     key="submit"
@@ -67,7 +69,7 @@ const BulkChangeStatusProperties: React.FC<Props> = ({
                     loading={changeStatusLoading}
                     onClick={handleChangeStatus}
                 >
-                    Change Status
+                    {td("Change Status", { source: "en" })}
                 </Button>,
             ]}
         >
@@ -85,7 +87,7 @@ const BulkChangeStatusProperties: React.FC<Props> = ({
             <Form form={statusForm} layout="vertical">
                 <Form.Item
                     name="status"
-                    label="Select New Status"
+                    label={td("Select New Status", { source: "en" })}
                     rules={[
                         {
                             required: true,
@@ -94,23 +96,23 @@ const BulkChangeStatusProperties: React.FC<Props> = ({
                     ]}
                 >
                     <Select
-                        placeholder="Choose new status"
+                        placeholder={td("Choose new status", { source: "en" })}
                         // TODO: Refactor to get from backend as a single source of truth
                         options={[
                             {
-                                label: "Available",
+                                label: td("Available", { source: "en" }),
                                 value: "Available",
                             },
                             {
-                                label: "Under offer",
+                                label: td("Under offer", { source: "en" }),
                                 value: "Under offer",
                             },
                             {
-                                label: "Sold",
+                                label: td("Sold", { source: "en" }),
                                 value: "Sold",
                             },
                             {
-                                label: "Withdrawn",
+                                label: td("Withdrawn", { source: "en" }),
                                 value: "Withdrawn",
                             },
                         ]}

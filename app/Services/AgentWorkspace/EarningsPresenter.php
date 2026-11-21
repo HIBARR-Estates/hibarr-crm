@@ -40,7 +40,10 @@ class EarningsPresenter
         $open = $dispute?->status === MlmCommissionDispute::STATUS_OPEN;
         $status = $commission->status instanceof MlmCommissionStatus ? $commission->status->value : (string) $commission->status;
         $type = $commission->type instanceof MlmCommissionType ? $commission->type->value : (string) $commission->type;
-        $own = $type === MlmCommissionType::Agent->value;
+        $own = in_array($type, [
+            MlmCommissionType::Agent->value,
+            MlmCommissionType::Referral->value,
+        ], true);
 
         return [
             'id' => $commission->id,

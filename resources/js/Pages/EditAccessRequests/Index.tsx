@@ -24,6 +24,7 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import { generatePropertySubtitle } from "@/lib/utils";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface EditAccessRequest {
     id: number;
@@ -81,6 +82,7 @@ const statusIcons: Record<string, React.ReactNode> = {
 };
 
 const Index = () => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const [direction, setDirection] = useState<string>("all");
     const [statusFilter, setStatusFilter] = useState<string>("");
@@ -164,7 +166,7 @@ const Index = () => {
 
     const columns: TableColumnsType<EditAccessRequest> = [
         {
-            title: "Property",
+            title: td("Property", { source: "en" }),
             key: "property",
             render: (_, record) => (
                 <div>
@@ -187,24 +189,24 @@ const Index = () => {
             ),
         },
         {
-            title: "Requesting Agent",
+            title: td("Requesting Agent", { source: "en" }),
             key: "requesting_agent",
             render: (_, record) => (
                 <span>{record.requesting_agent?.name || "Unknown"}</span>
             ),
         },
         {
-            title: "Responsible Agent",
+            title: td("Responsible Agent", { source: "en" }),
             key: "responsible_agent",
             render: (_, record) =>
                 record.responsible_agent?.name ? (
                     <span>{record.responsible_agent.name}</span>
                 ) : (
-                    <span className="text-gray-400 italic">Hidden</span>
+                    <span className="text-gray-400 italic">{td("Hidden", { source: "en" })}</span>
                 ),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             key: "status",
             width: 130,
             render: (_, record) => (
@@ -218,30 +220,30 @@ const Index = () => {
             ),
         },
         {
-            title: "Message",
+            title: td("Message", { source: "en" }),
             key: "message",
             ellipsis: true,
             render: (_, record) => (
                 <span className="text-gray-600">
                     {record.message || (
-                        <span className="italic text-gray-400">No message</span>
+                        <span className="italic text-gray-400">{td("No message", { source: "en" })}</span>
                     )}
                 </span>
             ),
         },
         {
-            title: "Requested",
+            title: td("Requested", { source: "en" }),
             key: "created_at",
             width: 160,
             render: (_, record) => formatCompanyDateTime(record.created_at),
         },
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             width: 200,
             render: (_, record) => (
                 <Space>
-                    <Tooltip title="View details">
+                    <Tooltip title={td("View details", { source: "en" })}>
                         <Button
                             size="small"
                             icon={<EyeOutlined />}
@@ -257,14 +259,14 @@ const Index = () => {
                                 type="primary"
                                 onClick={() => handleRespond(record, "approve")}
                             >
-                                Approve
+                                {td("Approve", { source: "en" })}
                             </Button>
                             <Button
                                 size="small"
                                 danger
                                 onClick={() => handleRespond(record, "deny")}
                             >
-                                Deny
+                                {td("Deny", { source: "en" })}
                             </Button>
                         </>
                     )}
@@ -289,9 +291,9 @@ const Index = () => {
                     <div className="mb-4 flex items-center justify-between gap-4 flex-wrap">
                         <Segmented
                             options={[
-                                { label: "All", value: "all" },
-                                { label: "Sent by me", value: "sent" },
-                                { label: "Received", value: "received" },
+                                { label: td("All", { source: "en" }), value: "all" },
+                                { label: td("Sent by me", { source: "en" }), value: "sent" },
+                                { label: td("Received", { source: "en" }), value: "received" },
                             ]}
                             value={direction}
                             onChange={(val) => {
@@ -301,10 +303,10 @@ const Index = () => {
                         />
                         <Segmented
                             options={[
-                                { label: "All Statuses", value: "" },
-                                { label: "Pending", value: "pending" },
-                                { label: "Approved", value: "approved" },
-                                { label: "Denied", value: "denied" },
+                                { label: td("All Statuses", { source: "en" }), value: "" },
+                                { label: td("Pending", { source: "en" }), value: "pending" },
+                                { label: td("Approved", { source: "en" }), value: "approved" },
+                                { label: td("Denied", { source: "en" }), value: "denied" },
                             ]}
                             value={statusFilter}
                             onChange={(val) => {
@@ -368,16 +370,16 @@ const Index = () => {
                     {respondModal.request && (
                         <div className="py-2">
                             <p className="mb-2">
-                                <strong>Property:</strong>{" "}
+                                <strong>{td("Property:", { source: "en" })}</strong>{" "}
                                 {respondModal.request.property?.display_title ||
                                     respondModal.request.property?.title}
                             </p>
                             <p className="mb-2 text-gray-500 text-sm">
-                                <strong>Ref:</strong>{" "}
+                                <strong>{td("Ref:", { source: "en" })}</strong>{" "}
                                 {respondModal.request.property?.reference_code}
                             </p>
                             <p className="mb-2">
-                                <strong>Requesting Agent:</strong>{" "}
+                                <strong>{td("Requesting Agent:", { source: "en" })}</strong>{" "}
                                 {respondModal.request.requesting_agent?.name}
                             </p>
                             {respondModal.request.message && (
@@ -387,8 +389,7 @@ const Index = () => {
                                 </p>
                             )}
                             <p className="mb-3 text-sm text-gray-500">
-                                Approving grants collaborator access to edit
-                                public listing fields and manage assets.
+                                {td("Approving grants collaborator access to edit public listing fields and manage assets.", { source: "en" })}
                             </p>
                             <Input.TextArea
                                 placeholder={
@@ -409,7 +410,7 @@ const Index = () => {
                 </Modal>
 
                 <Modal
-                    title="Edit Access Request Details"
+                    title={td("Edit Access Request Details", { source: "en" })}
                     open={detailModal.open}
                     onCancel={() =>
                         setDetailModal({ open: false, request: null })
@@ -421,7 +422,7 @@ const Index = () => {
                         <div className="py-2 space-y-3">
                             <div>
                                 <span className="text-gray-500 text-sm">
-                                    Property
+                                    {td("Property", { source: "en" })}
                                 </span>
                                 <div className="font-medium">
                                     {detailModal.request.property?.display_title ||
@@ -430,7 +431,7 @@ const Index = () => {
                             </div>
                             <div>
                                 <span className="text-gray-500 text-sm">
-                                    Requesting Agent
+                                    {td("Requesting Agent", { source: "en" })}
                                 </span>
                                 <div>
                                     {detailModal.request.requesting_agent?.name}
@@ -439,7 +440,7 @@ const Index = () => {
                             {detailModal.request.responsible_agent && (
                                 <div>
                                     <span className="text-gray-500 text-sm">
-                                        Responsible Agent
+                                        {td("Responsible Agent", { source: "en" })}
                                     </span>
                                     <div>
                                         {
@@ -451,7 +452,7 @@ const Index = () => {
                             )}
                             <div>
                                 <span className="text-gray-500 text-sm">
-                                    Status
+                                    {td("Status", { source: "en" })}
                                 </span>
                                 <div>
                                     <Tag
@@ -476,7 +477,7 @@ const Index = () => {
                             {detailModal.request.message && (
                                 <div>
                                     <span className="text-gray-500 text-sm">
-                                        Message
+                                        {td("Message", { source: "en" })}
                                     </span>
                                     <div>{detailModal.request.message}</div>
                                 </div>
@@ -484,7 +485,7 @@ const Index = () => {
                             {detailModal.request.response_message && (
                                 <div>
                                     <span className="text-gray-500 text-sm">
-                                        Response
+                                        {td("Response", { source: "en" })}
                                     </span>
                                     <div>
                                         {detailModal.request.response_message}

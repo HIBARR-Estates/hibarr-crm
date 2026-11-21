@@ -9,6 +9,7 @@ import type {
     RoutingFieldOption,
     RoutingTrigger,
 } from "./types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 /**
  * Package settings mutations.
@@ -17,6 +18,7 @@ import type {
  * the response instead of triggering an Inertia visit, so edits stay instant.
  */
 export default function usePackages(initial: PackageRow[]) {
+    const { td } = useTd();
     const [packages, setPackages] = useState<PackageRow[]>(initial);
     const [overrides, setOverrides] = useState<Record<number, AgentOverride[]>>({});
     const [saving, setSaving] = useState(false);
@@ -111,7 +113,7 @@ export default function usePackages(initial: PackageRow[]) {
             );
             setOverrides((prev) => ({ ...prev, [packageId]: response.data?.data ?? [] }));
         } catch {
-            message.error("Could not load the agent overrides");
+            message.error(td("Could not load the agent overrides", { source: "en" }));
         }
     }, []);
 
@@ -191,7 +193,7 @@ export default function usePackages(initial: PackageRow[]) {
                     fieldItems: response.data?.data?.field_items ?? [],
                 };
             } catch {
-                message.error("Could not load the routing triggers");
+                message.error(td("Could not load the routing triggers", { source: "en" }));
                 return { triggers: [], fieldItems: [] };
             }
         },

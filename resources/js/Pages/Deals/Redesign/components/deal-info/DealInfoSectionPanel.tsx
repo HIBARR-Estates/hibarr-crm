@@ -266,7 +266,7 @@ export default function DealInfoSectionPanel({
                         displayValue={
                             deal.category?.category_name ? (
                                 <span className="text-dr-gray-darker">
-                                    {deal.category.category_name}
+                                    {td(deal.category.category_name, { source: "en" })}
                                 </span>
                             ) : (
                                 <span className="italic text-dr-text-hint">

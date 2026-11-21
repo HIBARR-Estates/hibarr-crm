@@ -23,6 +23,7 @@ import DealPaymentCreateModal from "@/Pages/Deals/Redesign/components/workspace/
 import useDealPayment from "@/Pages/Deals/Redesign/hooks/useDealPayment";
 import { formatMoneyAmount } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import type { Deal } from "@/Types/api/deals";
+import { useDealWorkspace } from "@/Pages/Deals/Redesign/context/DealWorkspaceContext";
 import type { DealPaymentRequest } from "@/Types/api/deal-payment";
 import SectionCard, { SectionEmpty, SectionNoMatch, SectionSkeleton } from "./SectionCard";
 
@@ -76,6 +77,7 @@ export default function PaymentsSection({ deal, canCreate, canConfirmTransfer }:
     const { formatDateTime } = useUserDateTime();
     const { paymentRequest, paymentRequests, paymentRequestLoading, confirmTransfer, cancelRequest, retryRequest, refreshStatus, confirming, cancelling, retrying, refreshing } =
         useDealPayment(deal.id);
+    const { upsertPaymentRequest } = useDealWorkspace();
     const [createOpen, setCreateOpen] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [cancelOpen, setCancelOpen] = useState(false);
@@ -220,6 +222,7 @@ export default function PaymentsSection({ deal, canCreate, canConfirmTransfer }:
                 sequenceTotal={ordered.length}
                 open={selected != null && !cancelOpen && !confirmOpen}
                 onClose={() => setSelectedId(null)}
+                onDocumentsRequested={upsertPaymentRequest}
                 onCancel={
                     selected
                     && selected.id === paymentRequest?.id
@@ -234,6 +237,10 @@ export default function PaymentsSection({ deal, canCreate, canConfirmTransfer }:
                         : undefined
                 }
                 onRetry={selected && canRetry(selected) ? () => setRetryTarget(selected) : undefined}
+                canRequestInvoice={canCreate || canConfirmTransfer}
+                canRequestVat={canCreate || canConfirmTransfer}
+                canSettleVat={canConfirmTransfer}
+                onVatChanged={upsertPaymentRequest}
             />
             <ConfirmDialog
                 open={confirmOpen}

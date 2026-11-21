@@ -1,4 +1,4 @@
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import SelectCheckbox from "@/Components/Redesign/primitives/SelectCheckbox";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { MEETING_COLUMNS as C } from "./MeetingRow";
@@ -27,7 +27,7 @@ export default function MeetingsListHeader({
     allSelected,
     onToggleAll,
 }: MeetingsListHeaderProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
 
     return (
         <div
@@ -41,38 +41,38 @@ export default function MeetingsListHeader({
             <SelectCheckbox
                 checked={allSelected}
                 onChange={onToggleAll}
-                label={td("Select all meetings on this page")}
+                label={t("pages.meetings.ui.select_all_meetings_on_this_page")}
             />
 
             <span className="shrink-0" style={{ width: C.time.width }}>
-                {td("Time")}
+                {t("pages.meetings.ui.time")}
             </span>
 
             {/* Matches the row's platform chip, which needs no heading of its
                 own — the platform is named in the type column and on hover. */}
             <span className="shrink-0" style={{ width: 28 }} aria-hidden />
 
-            <span className="min-w-0 flex-1">{td("Meeting with")}</span>
+            <span className="min-w-0 flex-1">{t("pages.meetings.ui.meeting_with")}</span>
 
             <span
                 className={`shrink-0 ${C.type.className}`}
                 style={{ width: C.type.width }}
             >
-                {td("Type")}
+                {t("pages.meetings.ui.type")}
             </span>
 
             <span
                 className={`shrink-0 ${C.status.className}`}
                 style={{ width: C.status.width }}
             >
-                {td("Status")}
+                {t("pages.meetings.ui.status")}
             </span>
 
             <span
                 className={`shrink-0 ${C.people.className}`}
                 style={{ width: C.people.width }}
             >
-                {td("People")}
+                {t("pages.meetings.ui.people")}
             </span>
 
             <span

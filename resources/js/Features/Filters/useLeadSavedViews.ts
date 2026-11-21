@@ -10,9 +10,19 @@ export interface LeadSavedView {
     visibility: "private" | "team";
     pinned: boolean;
     is_owner: boolean;
+    /**
+     * Whether the viewer may rename, re-pin, overwrite or delete this view:
+     * its owner, or an admin for a team-shared one. Entities that only let the
+     * owner manage a view don't send it; read it with `canManageView`.
+     */
+    can_manage?: boolean;
     owner_name?: string | null;
     updated_at?: string | null;
 }
+
+/** Owner-only entities send no `can_manage`; fall back to ownership for them. */
+export const canManageView = (view: LeadSavedView): boolean =>
+    view.can_manage ?? view.is_owner;
 
 export interface SaveViewPayload {
     name: string;

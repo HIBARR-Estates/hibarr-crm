@@ -151,7 +151,7 @@ export default function SoftphoneRecordingsPanel({ devices }: Props) {
     }, [recordings, devices]);
 
     if (query.isLoading) {
-        return <div className="cb-empty">Loading…</div>;
+        return <div className="cb-empty">{td("Loading…", { source: "en" })}</div>;
     }
 
     return (
@@ -161,20 +161,20 @@ export default function SoftphoneRecordingsPanel({ devices }: Props) {
                     {isAdmin ? "Recordings for every agent on your lines." : "Your call recordings."}
                 </span>
                 {isAdmin && (
-                    <div className="cb-seg" role="group" aria-label="Filter recordings">
+                    <div className="cb-seg" role="group" aria-label={td("Filter recordings", { source: "en" })}>
                         <button
                             type="button"
                             aria-pressed={scope === "company"}
                             onClick={() => setScope("company")}
                         >
-                            All agents
+                            {td("All agents", { source: "en" })}
                         </button>
                         <button
                             type="button"
                             aria-pressed={scope === "mine"}
                             onClick={() => setScope("mine")}
                         >
-                            Only me
+                            {td("Only me", { source: "en" })}
                         </button>
                     </div>
                 )}
@@ -184,8 +184,8 @@ export default function SoftphoneRecordingsPanel({ devices }: Props) {
                 admin-only "All agents" scope control — stays usable. */}
             {recordings.length === 0 ? (
                 <EmptyState
-                    title="No recordings yet"
-                    description="Call recordings appear here once an agent records a call."
+                    title={td("No recordings yet", { source: "en" })}
+                    description={td("Call recordings appear here once an agent records a call.", { source: "en" })}
                 />
             ) : (
                 groups.map((group) => (
@@ -194,7 +194,7 @@ export default function SoftphoneRecordingsPanel({ devices }: Props) {
                         <RightOutlined className="cb-chev" aria-hidden="true" />
                         <span className="cb-group__name">{group.key}</span>
                         {isDefaultLine(group.key, devices) && (
-                            <span className="cb-chip cb-chip--default">Default</span>
+                            <span className="cb-chip cb-chip--default">{td("Default", { source: "en" })}</span>
                         )}
                         <span className="cb-group__count">
                             {group.rows.length} recording{group.rows.length === 1 ? "" : "s"}
@@ -207,10 +207,10 @@ export default function SoftphoneRecordingsPanel({ devices }: Props) {
                         aria-label={`${group.key} recordings`}
                     >
                         <div className="cb-grid-row cb-grid-row--head cb-recs" role="row">
-                            <span>Recording</span>
-                            <span>Agent</span>
-                            <span>Duration</span>
-                            <span>Playback</span>
+                            <span>{td("Recording", { source: "en" })}</span>
+                            <span>{td("Agent", { source: "en" })}</span>
+                            <span>{td("Duration", { source: "en" })}</span>
+                            <span>{td("Playback", { source: "en" })}</span>
                         </div>
 
                         {group.rows.map((rec) => {
@@ -227,7 +227,7 @@ export default function SoftphoneRecordingsPanel({ devices }: Props) {
                                         </div>
                                         {rec.is_expired ? (
                                             <div className="cb-ctx cb-ctx--empty">
-                                                Expired — no longer playable
+                                                {td("Expired — no longer playable", { source: "en" })}
                                             </div>
                                         ) : (
                                             <div className="cb-ctx" title={ctx.text}>

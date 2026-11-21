@@ -175,13 +175,16 @@ class DealController extends AccountBaseController
         $isKanbanView = $view === 'kanban';
 
         // A board always renders one pipeline's columns, so a multi-pipeline
-        // filter ("1,2") or "all" falls back to the first/default pipeline.
-        $requestedPipelines = app(DealFilters::class)->values($request, 'lead_pipeline_id');
+        // filter ("1,2") or "all" falls back to the first/default pipeline, and
+        // an exclusion ("not 2") to the first one it has not ruled out.
+        $requestedPipelines = app(DealFilters::class)->includedValues($request, 'lead_pipeline_id');
         $pipelineId = count($requestedPipelines) === 1
             ? $requestedPipelines[0]
-            : optional($this->defaultPipeline)->id;
+            : $this->pipelineOutsideExclusion($request);
 
-        $boardColumns = $isKanbanView
+        // With every pipeline excluded there is no pipeline left to show: the
+        // board stays empty, like the table, instead of showing the default one.
+        $boardColumns = $isKanbanView && ! app(DealFilters::class)->pipelineExcluded($request, $pipelineId)
             ? $this->getBoardColumns($request, $pipelineId)
             : [];
 
@@ -203,11 +206,19 @@ class DealController extends AccountBaseController
             'stats' => $stats,
             'filters' => $request->only([
                 'lead_pipeline_id',
+                'lead_pipeline_id_mode',
                 'pipeline_stage_id',
+                'pipeline_stage_id_mode',
                 'category_id',
+                'category_id_mode',
                 'source_id',
+                'source_id_mode',
                 'package_id',
+                'package_id_mode',
                 'agent_id',
+                'agent_id_mode',
+                'close_start_mode',
+                'value_range_mode',
                 'outcome_status',
                 'is_locked',
                 'search',
@@ -276,12 +287,10 @@ class DealController extends AccountBaseController
         // other filter is shared with the kanban columns (DealFilters).
         $dealFilters = app(DealFilters::class);
 
-        if ($pipelines = $dealFilters->values($request, 'lead_pipeline_id')) {
-            $dealsQuery->whereIn('deals.lead_pipeline_id', $pipelines);
-        }
+        $dealFilters->applyColumn($dealsQuery, $request, 'lead_pipeline_id', 'deals.lead_pipeline_id');
 
-        if (! $pipelineStageId && $stages = $dealFilters->values($request, 'pipeline_stage_id')) {
-            $dealsQuery->whereIn('deals.pipeline_stage_id', $stages);
+        if (! $pipelineStageId) {
+            $dealFilters->applyColumn($dealsQuery, $request, 'pipeline_stage_id', 'deals.pipeline_stage_id');
         }
 
         $dealFilters->apply($dealsQuery, $request);
@@ -329,6 +338,20 @@ class DealController extends AccountBaseController
     }
 
     /**
+     * The pipeline a board opens on when the filter does not name exactly one:
+     * the default pipeline, unless the filter excludes it, then the first that
+     * it does not. With every pipeline excluded it keeps the default, and the
+     * callers then show nothing for it (see pipelineExcluded()).
+     */
+    private function pipelineOutsideExclusion(Request $request): ?int
+    {
+        $candidates = [optional($this->defaultPipeline)->id, ...collect($this->pipelines)->pluck('id')->all()];
+
+        return app(DealFilters::class)->firstPipelineNotExcluded($request, $candidates)
+            ?? optional($this->defaultPipeline)->id;
+    }
+
+    /**
      * Get board columns with deal counts for kanban view
      */
     protected function getBoardColumns(Request $request, $pipelineId)
@@ -361,7 +384,10 @@ class DealController extends AccountBaseController
             ->where('lead_pipeline_id', $pipelineId)
             ->with('userSetting')
             ->orderBy('priority', 'asc')
-            ->get();
+            ->get()
+            // A stage the filter excludes is not a column of the board.
+            ->reject(fn (PipelineStage $stage) => app(DealFilters::class)->stageExcluded($request, $stage->id))
+            ->values();
 
         // Calculate total value per column
         foreach ($boardColumns as $column) {
@@ -642,22 +668,24 @@ class DealController extends AccountBaseController
         $this->loadDataForInertiaIndex();
         $filters = app(DealFilters::class);
 
-        $requested = $filters->values($request, 'lead_pipeline_id');
+        $requested = $filters->includedValues($request, 'lead_pipeline_id');
         $pipelineId = count($requested) === 1
             ? (int) $requested[0]
-            : (int) (optional($this->defaultPipeline)->id ?? optional($this->pipelines->first())->id);
+            : (int) $this->pipelineOutsideExclusion($request);
 
         // The page is one pipeline's open deals; the outcome filter, the page
         // and the in-list search (done in the browser) are not part of it.
-        $query = $request->except(['outcome_status', 'lead_pipeline_id', 'page', 'view', 'search']);
+        $query = $request->except(['outcome_status', 'lead_pipeline_id', 'lead_pipeline_id_mode', 'page', 'view', 'search']);
         $filterRequest = Request::create('/', 'GET', array_merge($query, ['lead_pipeline_id' => $pipelineId]));
+        // Every pipeline excluded: the one kept for the page is itself ruled out.
+        $nothingToShow = $filters->pipelineExcluded($request, $pipelineId);
 
         $stages = PipelineStage::query()
             ->where('lead_pipeline_id', $pipelineId)
             ->orderBy('priority')
             ->get(['id', 'name', 'label_color', 'priority']);
 
-        $totals = $this->agentDealsBase($filterRequest, $pipelineId)
+        $totals = $this->agentDealsBase($filterRequest, $pipelineId, $nothingToShow)
             ->whereNull('deals.outcome_status')
             ->toBase()
             ->selectRaw('deals.pipeline_stage_id as stage_id, COUNT(*) as deals_count, COALESCE(SUM(deals.value), 0) as total_value')
@@ -666,7 +694,7 @@ class DealController extends AccountBaseController
             ->keyBy('stage_id');
 
         $monthStart = now()->startOfMonth();
-        $outcome = fn (OutcomeStatus $status, string $dateExpression) => (array) $this->agentDealsBase($filterRequest, $pipelineId)
+        $outcome = fn (OutcomeStatus $status, string $dateExpression) => (array) $this->agentDealsBase($filterRequest, $pipelineId, $nothingToShow)
             ->where('deals.outcome_status', $status->value)
             ->whereRaw($dateExpression.' >= ?', [$monthStart])
             ->toBase()
@@ -676,7 +704,7 @@ class DealController extends AccountBaseController
         $won = $outcome(OutcomeStatus::Won, 'COALESCE(deals.won_at, deals.updated_at)');
         $lost = $outcome(OutcomeStatus::Lost, 'deals.updated_at');
 
-        $mapDeals = fn () => $this->agentDealsBase($filterRequest, $pipelineId)
+        $mapDeals = fn () => $this->agentDealsBase($filterRequest, $pipelineId, $nothingToShow)
             ->whereNull('deals.outcome_status')
             ->with(['leadAgent.user:id,name', 'contact:id,client_name', 'currency:id,currency_symbol,currency_code'])
             ->select('deals.id', 'deals.name', 'deals.lead_id', 'deals.lead_pipeline_id', 'deals.pipeline_stage_id', 'deals.agent_id', 'deals.added_by', 'deals.value', 'deals.currency_id', 'deals.is_locked', 'deals.created_at')
@@ -749,14 +777,16 @@ class DealController extends AccountBaseController
      * filters (the same ones as the Deals index), before any deal columns
      * are chosen.
      */
-    private function agentDealsBase(Request $filterRequest, int $pipelineId)
+    private function agentDealsBase(Request $filterRequest, int $pipelineId, bool $nothingToShow = false)
     {
         $filters = app(DealFilters::class);
         $query = Deal::query()->where('deals.lead_pipeline_id', $pipelineId);
 
-        if ($stages = $filters->values($filterRequest, 'pipeline_stage_id')) {
-            $query->whereIn('deals.pipeline_stage_id', $stages);
+        if ($nothingToShow) {
+            $query->whereRaw('1 = 0');
         }
+
+        $filters->applyColumn($query, $filterRequest, 'pipeline_stage_id', 'deals.pipeline_stage_id');
 
         $filters->apply($query, $filterRequest);
 
@@ -1329,6 +1359,7 @@ class DealController extends AccountBaseController
         $dealFollowUps = DealFollowUp::with([
             'addedBy:id,name,image',
             'host:id,name,image',
+            'outcomeLoggedBy:id,name,image',
             'meetingType',
             'meetingSummary',
             'lead:id,client_name,mobile,cell,office',
@@ -2462,6 +2493,111 @@ class DealController extends AccountBaseController
     }
 
     /**
+     * Set this deal's referral percentage and agreed amount.
+     *
+     * The percentage, left empty, uses the partner's default. An agreed amount
+     * replaces that percentage. Both are frozen once commission has been calculated,
+     * and the agreed amount can never exceed the commission the deal can carry.
+     */
+    public function updateReferralCommission(Request $request, $id)
+    {
+        abort_if(! FeatureFlags::enabled('crm.partner-referral-commission'), 404);
+
+        $deal = Deal::findOrFail($id);
+
+        if ($deal->isLocked()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealLocked'),
+            ], 403);
+        }
+
+        $hasTeamAccess = $deal->hasTeamMemberAccess(user()->id);
+        $editPermission = user()->permission('edit_deals');
+
+        abort_403(! (
+            $editPermission == 'all'
+            || ($editPermission == 'added' && $deal->added_by == user()->id)
+            || ($editPermission == 'owned' && $hasTeamAccess)
+            || ($editPermission == 'both' && ($deal->added_by == user()->id || $hasTeamAccess))
+        ));
+
+        $validated = $request->validate([
+            'referral_pool_rate' => 'nullable|numeric|min:0|max:100',
+            'referral_fixed_amount' => 'nullable|numeric|min:0|max:9999999999999.99',
+        ]);
+
+        $maxAmount = null;
+
+        $blocked = DB::transaction(function () use ($request, $deal, $validated, &$maxAmount) {
+            $locked = Deal::query()->whereKey($deal->id)->lockForUpdate()->first();
+
+            if (! $locked) {
+                return 'locked';
+            }
+
+            // The deal may have been locked since the check above.
+            if ($locked->isLocked()) {
+                return 'deal_locked';
+            }
+
+            if ($locked->isCommissionLocked()) {
+                return 'locked';
+            }
+
+            if ($request->exists('referral_fixed_amount') && $validated['referral_fixed_amount'] !== null) {
+                // Checked against the locked row so a concurrent value or
+                // ceiling change cannot slip a larger amount through.
+                $maxAmount = app(\App\Services\MlmCommissionService::class)->maxReferralAmount($locked);
+
+                if (round((float) $validated['referral_fixed_amount'], 2) > $maxAmount) {
+                    return 'exceeds';
+                }
+            }
+
+            if ($request->exists('referral_pool_rate')) {
+                $locked->referral_pool_rate = $validated['referral_pool_rate'];
+            }
+
+            if ($request->exists('referral_fixed_amount')) {
+                $locked->referral_fixed_amount = $validated['referral_fixed_amount'];
+            }
+
+            $locked->save();
+
+            return null;
+        });
+
+        if ($blocked === 'exceeds') {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealReferralAmountTooHigh', [
+                    'max' => number_format((float) $maxAmount, 2),
+                ]),
+            ], 422);
+        }
+
+        if ($blocked === 'deal_locked') {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealLocked'),
+            ], 403);
+        }
+
+        if ($blocked === 'locked') {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealReferralLockedByCommission'),
+            ], 403);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->loadFullDeal($deal->id),
+        ]);
+    }
+
+    /**
      * Patch (partial update) a deal record.
      * Allows updating any subset of deal fields.
      */
@@ -3420,6 +3556,7 @@ class DealController extends AccountBaseController
         $followUp = DealFollowUp::with([
             'addedBy:id,name,image',
             'host:id,name,image',
+            'outcomeLoggedBy:id,name,image',
             'meetingType',
             'meetingSummary',
             'lead:id,client_name,mobile,cell,office',
@@ -3605,29 +3742,57 @@ class DealController extends AccountBaseController
      */
     public function applyFollowUpQuickAction(Request $request)
     {
+        // The redesigned Meetings page posts here with axios and patches its
+        // own list from the answer. Answering it with `back()` made Inertia
+        // send the whole page's props again — every schedulable lead and
+        // deal included — only for the caller to reload the list on top.
+        $wantsJson = $request->expectsJson();
+
+        $ids = array_values(array_filter(
+            array_map('intval', explode(',', (string) $request->row_ids))
+        ));
+
         switch ($request->action_type) {
             case 'delete':
                 $this->deleteFollowUpRecords($request);
-
-                return back()->with([
-                    'status' => 'success',
-                    'message' => __('messages.deleteSuccess'),
-                ]);
+                $message = __('messages.deleteSuccess');
+                break;
 
             case 'change-status':
                 $this->changeBulkFollowUpStatus($request);
-
-                return back()->with([
-                    'status' => 'success',
-                    'message' => __('messages.updateSuccess'),
-                ]);
+                $message = __('messages.updateSuccess');
+                break;
 
             default:
+                // An unknown action is a failed request, not a success the
+                // caller should patch its list for.
+                if ($wantsJson) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => __('messages.selectAction'),
+                    ], 422);
+                }
+
                 return back()->with([
                     'status' => 'error',
                     'message' => __('messages.selectAction'),
                 ]);
         }
+
+        if ($wantsJson) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'action' => $request->action_type,
+                'ids' => $ids,
+                'status' => $request->action_type === 'change-status' ? $request->status : null,
+            ]);
+        }
+
+        return back()->with([
+            'status' => 'success',
+            'message' => $message,
+        ]);
     }
 
     /**

@@ -28,6 +28,7 @@ import type {
     CrmEventDirection,
 } from "@/Types/api/crm-event";
 import type { ApiSuccessResponse } from "@/lib/api/types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 dayjs.extend(utc);
 
@@ -78,6 +79,7 @@ export default function LogActionModal({
     userId,
     nextStep,
 }: Props) {
+    const { td } = useTd();
     const [form] = Form.useForm();
     const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
     const [partialError, setPartialError] = useState<string | null>(null);
@@ -277,11 +279,11 @@ export default function LogActionModal({
 
     return (
         <Modal
-            title="Log Action"
+            title={td("Log Action", { source: "en" })}
             open={open}
             onOk={handleOk}
             onCancel={handleCancel}
-            okText="Save Event"
+            okText={td("Save Event", { source: "en" })}
             okButtonProps={{ loading: mutation.isPending }}
             destroyOnClose
             width={520}
@@ -291,7 +293,7 @@ export default function LogActionModal({
             <Form form={form} layout="vertical" requiredMark="optional">
                 <Form.Item
                     name="event_type_slug"
-                    label="Event Type"
+                    label={td("Event Type", { source: "en" })}
                     rules={[
                         {
                             required: true,
@@ -300,7 +302,7 @@ export default function LogActionModal({
                     ]}
                 >
                     <Select
-                        placeholder="Select event type…"
+                        placeholder={td("Select event type…", { source: "en" })}
                         showSearch
                         loading={_isLoading({ status: typesStatus })}
                         optionFilterProp="label"
@@ -313,8 +315,8 @@ export default function LogActionModal({
                 {metadataSchema && Object.keys(metadataSchema).length > 0 && (
                     <>
                         <Alert
-                            message="Additional information"
-                            description="This event type expects extra details. Please fill in the fields below."
+                            message={td("Additional information", { source: "en" })}
+                            description={td("This event type expects extra details. Please fill in the fields below.", { source: "en" })}
                             type="info"
                             showIcon
                             className="mb-4"
@@ -327,41 +329,41 @@ export default function LogActionModal({
 
                 <Form.Item
                     name="status"
-                    label="Status"
+                    label={td("Status", { source: "en" })}
                     initialValue="completed"
                 >
                     <Select
                         options={[
-                            { label: "Completed", value: "completed" },
+                            { label: td("Completed", { source: "en" }), value: "completed" },
                             {
-                                label: "Error Occurred",
+                                label: td("Error Occurred", { source: "en" }),
                                 value: "error_occurred",
                             },
-                            { label: "Missed", value: "missed" },
-                            { label: "Rejected", value: "rejected" },
+                            { label: td("Missed", { source: "en" }), value: "missed" },
+                            { label: td("Rejected", { source: "en" }), value: "rejected" },
                         ]}
                     />
                 </Form.Item>
 
                 <Form.Item
                     name="direction"
-                    label="Direction"
-                    tooltip="Leave blank if direction does not apply"
+                    label={td("Direction", { source: "en" })}
+                    tooltip={td("Leave blank if direction does not apply", { source: "en" })}
                 >
                     <Select
-                        placeholder="None"
+                        placeholder={td("None", { source: "en" })}
                         allowClear
                         options={[
-                            { label: "Inbound", value: "inbound" },
-                            { label: "Outbound", value: "outbound" },
+                            { label: td("Inbound", { source: "en" }), value: "inbound" },
+                            { label: td("Outbound", { source: "en" }), value: "outbound" },
                         ]}
                     />
                 </Form.Item>
 
-                <Form.Item name="comment" label="Message">
+                <Form.Item name="comment" label={td("Message", { source: "en" })}>
                     <TextArea
                         rows={3}
-                        placeholder="Add a message about this action…"
+                        placeholder={td("Add a message about this action…", { source: "en" })}
                         maxLength={2000}
                         showCount
                     />
@@ -369,13 +371,13 @@ export default function LogActionModal({
 
                 <Form.Item
                     name="occurred_at"
-                    label="Date & Time"
-                    tooltip="Defaults to now if left blank"
+                    label={td("Date & Time", { source: "en" })}
+                    tooltip={td("Defaults to now if left blank", { source: "en" })}
                 >
                     <DatePicker
                         showTime
                         className="w-full"
-                        placeholder="Select date & time (or leave blank for now)"
+                        placeholder={td("Select date & time (or leave blank for now)", { source: "en" })}
                         format="YYYY-MM-DD HH:mm:ss"
                     />
                 </Form.Item>
@@ -383,18 +385,16 @@ export default function LogActionModal({
                 {nextStep && (
                     <>
                         <Divider orientation="left" plain>
-                            Next step
+                            {td("Next step", { source: "en" })}
                         </Divider>
 
                         <Text type="secondary" className="mb-3 block text-xs">
-                            Optional. Saved as a task on this record — a record
-                            with no open next step is what puts it in your
-                            queue.
+                            {td("Optional. Saved as a task on this record — a record with no open next step is what puts it in your queue.", { source: "en" })}
                         </Text>
 
                         <Form.Item
                             name="next_step_title"
-                            label="What happens next"
+                            label={td("What happens next", { source: "en" })}
                             rules={[
                                 {
                                     // Half a next step is not a next step: a
@@ -410,13 +410,13 @@ export default function LogActionModal({
                         >
                             <Input
                                 maxLength={190}
-                                placeholder="e.g. Book a viewing"
+                                placeholder={td("e.g. Book a viewing", { source: "en" })}
                             />
                         </Form.Item>
 
                         <Form.Item
                             name="next_step_due"
-                            label="By when"
+                            label={td("By when", { source: "en" })}
                             dependencies={["next_step_title"]}
                             rules={[
                                 ({ getFieldValue }) => ({
@@ -450,7 +450,7 @@ export default function LogActionModal({
             )}
 
             <Text type="secondary" className="text-xs">
-                This will log a user-generated event against the current record.
+                {td("This will log a user-generated event against the current record.", { source: "en" })}
             </Text>
         </Modal>
     );

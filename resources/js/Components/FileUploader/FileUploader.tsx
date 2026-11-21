@@ -40,6 +40,7 @@ import {
     UploadStatus,
 } from "@/Types/uploads";
 import { formatFileSize } from "@/lib/config";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Dragger } = Upload;
 const { Text } = Typography;
@@ -82,6 +83,7 @@ const FileProgressItem: React.FC<FileProgressItemProps> = ({
     onCancel,
     onRemove,
 }) => {
+    const { td } = useTd();
     const {
         fileId,
         fileName,
@@ -123,7 +125,7 @@ const FileProgressItem: React.FC<FileProgressItemProps> = ({
 
                 {status === "success" && response && (
                     <Text type="secondary" className="text-xs truncate block">
-                        Uploaded successfully
+                        {td("Uploaded successfully", { source: "en" })}
                     </Text>
                 )}
 
@@ -135,14 +137,14 @@ const FileProgressItem: React.FC<FileProgressItemProps> = ({
 
                 {status === "cancelled" && (
                     <Text type="warning" className="text-xs">
-                        Upload cancelled
+                        {td("Upload cancelled", { source: "en" })}
                     </Text>
                 )}
             </div>
 
             <div className="flex items-center gap-1">
                 {canCancel && (
-                    <Tooltip title="Cancel upload">
+                    <Tooltip title={td("Cancel upload", { source: "en" })}>
                         <Button
                             type="text"
                             size="small"
@@ -153,7 +155,7 @@ const FileProgressItem: React.FC<FileProgressItemProps> = ({
                     </Tooltip>
                 )}
                 {isComplete && (
-                    <Tooltip title="Remove">
+                    <Tooltip title={td("Remove", { source: "en" })}>
                         <Button
                             type="text"
                             size="small"
@@ -186,6 +188,7 @@ const AggregateProgress: React.FC<AggregateProgressProps> = ({
     isUploading,
     onCancelAll,
 }) => {
+    const { td } = useTd();
     if (totalFiles === 0) return null;
 
     return (
@@ -203,7 +206,7 @@ const AggregateProgress: React.FC<AggregateProgressProps> = ({
                         danger
                         onClick={onCancelAll}
                     >
-                        Cancel All
+                        {td("Cancel All", { source: "en" })}
                     </Button>
                 )}
             </div>
@@ -268,6 +271,7 @@ export const FileUploader: React.FC<IFileUploaderProps> = ({
     listType = "text",
     showUploadList = false,
 }) => {
+    const { td } = useTd();
     // Use provided hook or create internal one
     const internalHook = useFileUpload({
         maxConcurrent,
@@ -449,7 +453,7 @@ export const FileUploader: React.FC<IFileUploaderProps> = ({
                         />
                     </p>
                     <p className="ant-upload-text text-lg font-medium">
-                        Click or drag files to this area
+                        {td("Click or drag files to this area", { source: "en" })}
                     </p>
                     <p className="ant-upload-hint text-gray-500">
                         {multiple
@@ -486,7 +490,7 @@ export const FileUploader: React.FC<IFileUploaderProps> = ({
                         onClick={() => setSelectedFiles([])}
                         disabled={isUploading}
                     >
-                        Clear
+                        {td("Clear", { source: "en" })}
                     </Button>
                 </div>
             )}

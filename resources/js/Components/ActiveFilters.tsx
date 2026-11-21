@@ -4,6 +4,8 @@ import { CloseOutlined } from "@ant-design/icons";
 import { TFilter } from "@/Types/common";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 import { THEME_COLOR } from "@/providers/antd/utils";
+import { useTranslation } from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -77,6 +79,8 @@ const ActiveFilters: React.FC<ActiveFiltersProps> = ({
     onClearAll,
     filterConfig = {},
 }) => {
+    const { t } = useTranslation();
+    const { td } = useTd();
     const activeFilterEntries = Object.entries(filters).filter(([_, value]) => {
         // Filter out empty, null, undefined, or "all" values
         return (
@@ -114,9 +118,12 @@ const ActiveFilters: React.FC<ActiveFiltersProps> = ({
     };
 
     const getFilterLabel = (key: string): string => {
-        return (
+        return td(
             (mergedConfig as any)[key]?.label ||
-            key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
+                key
+                    .replace(/_/g, " ")
+                    .replace(/\b\w/g, (l) => l.toUpperCase()),
+            { source: "en" },
         );
     };
 
@@ -125,7 +132,7 @@ const ActiveFilters: React.FC<ActiveFiltersProps> = ({
             <div className="flex items-center justify-between mb-2">
                 <Text strong className="text-sm text-blue-600">
                     <span className="text-gray-400">
-                        Active Filters ({activeFilterEntries.length})
+                        {t("pages.filters.active_filters", { n: activeFilterEntries.length })}
                     </span>
                 </Text>
                 {activeFilterEntries.length > 1 && (
@@ -133,7 +140,7 @@ const ActiveFilters: React.FC<ActiveFiltersProps> = ({
                         onClick={onClearAll}
                         className="text-xs text-blue-600 hover:text-blue-800 underline"
                     >
-                        Clear All
+                        {t("pages.filters.clear_all_caps")}
                     </button>
                 )}
             </div>

@@ -27,6 +27,7 @@ import {
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiResponse } from "@/lib/api/types";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -49,6 +50,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
     onClose,
     onNavigate,
 }) => {
+    const { td } = useTd();
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isEditingTags, setIsEditingTags] = useState(false);
     const [editedTags, setEditedTags] = useState<string[]>([]);
@@ -83,7 +85,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
             : "",
         "PUT",
         () => {
-            message.success("Tags updated successfully");
+            message.success(td("Tags updated successfully", { source: "en" }));
             setIsEditingTags(false);
             router.reload({ only: ["assets"] });
         },
@@ -174,7 +176,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
                         className="w-full max-h-[70vh] rounded-lg"
                         src={currentAsset.url}
                     >
-                        Your browser does not support the video tag.
+                        {td("Your browser does not support the video tag.", { source: "en" })}
                     </video>
                 ) : null;
 
@@ -206,7 +208,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
                 return (
                     <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
                         <Text className="text-gray-500">
-                            Preview not available
+                            {td("Preview not available", { source: "en" })}
                         </Text>
                     </div>
                 );
@@ -296,7 +298,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
                         {/* Tags */}
                         <div className="mb-3">
                             <div className="flex items-center gap-2 mb-2">
-                                <Text strong>Tags:</Text>
+                                <Text strong>{td("Tags:", { source: "en" })}</Text>
                                 {propertyId &&
                                     Object.keys(availableTags).length > 0 &&
                                     !isEditingTags && (
@@ -309,7 +311,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
                                             }
                                             className="p-0"
                                         >
-                                            Edit
+                                            {td("Edit", { source: "en" })}
                                         </Button>
                                     )}
                             </div>
@@ -322,7 +324,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
                                     <Select
                                         mode="multiple"
                                         style={{ width: "100%", maxWidth: 400 }}
-                                        placeholder="Select tags"
+                                        placeholder={td("Select tags", { source: "en" })}
                                         value={editedTags}
                                         onChange={setEditedTags}
                                         options={Object.entries(
@@ -340,7 +342,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
                                             onClick={handleSaveTags}
                                             loading={isUpdatingTags}
                                         >
-                                            Save
+                                            {td("Save", { source: "en" })}
                                         </Button>
                                         <Button
                                             size="small"
@@ -348,7 +350,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
                                             onClick={handleCancelTagEdit}
                                             disabled={isUpdatingTags}
                                         >
-                                            Cancel
+                                            {td("Cancel", { source: "en" })}
                                         </Button>
                                     </Space>
                                 </Space>
@@ -362,7 +364,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
                                     ))}
                                 </Space>
                             ) : (
-                                <Text type="secondary">No tags assigned</Text>
+                                <Text type="secondary">{td("No tags assigned", { source: "en" })}</Text>
                             )}
                         </div>
 
@@ -371,7 +373,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
                             Object.keys(currentAsset.metadata).length > 0 && (
                                 <div>
                                     <Text strong className="block mb-2">
-                                        Details:
+                                        {td("Details:", { source: "en" })}
                                     </Text>
                                     <Space direction="vertical" size="small">
                                         {currentAsset.metadata.width &&
@@ -418,7 +420,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
                                 target="_blank"
                                 download={currentAsset.name}
                             >
-                                Download
+                                {td("Download", { source: "en" })}
                             </Button>
                         )}
                     </Space>

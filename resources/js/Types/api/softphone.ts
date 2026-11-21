@@ -156,12 +156,25 @@ export interface SoftphoneCallFailure {
     direction: "outbound" | "inbound";
     /** Kept so "Try again" redials the same number with the same context. */
     context: SoftphoneCallContext | null;
+    /** SIP Call-ID of the failed call, shared with every other agent's leg of it. */
+    callId?: string;
+}
+
+/** A second inbound call that arrived while this agent was on a call. */
+export interface SoftphoneWaitingCall {
+    /** SIP Call-ID, shared with every other agent's leg of the call. */
+    id: string;
+    peer: string;
+    /** Epoch ms it started waiting. */
+    receivedAt: number;
 }
 
 export interface SoftphoneState {
     registration: SoftphoneRegistrationState;
     registrationError: string | null;
     call: SoftphoneCall | null;
+    /** A call waiting behind the current one; null when none is. */
+    waitingCall: SoftphoneWaitingCall | null;
     /** Set when a call ends without connecting; cleared by the dock. */
     callFailure: SoftphoneCallFailure | null;
     /** Last error raised by a call attempt, cleared on a successful sale. */

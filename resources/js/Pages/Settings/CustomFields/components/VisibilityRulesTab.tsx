@@ -66,7 +66,7 @@ export default function VisibilityRulesTab({ fields, onEdit, onRemove, onAdd, on
                         >
                             <div style={{ minWidth: 0 }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                                    <span style={{ fontSize: 15, fontWeight: 600, color: T.NAVY }}>{field.label}</span>
+                                    <span style={{ fontSize: 15, fontWeight: 600, color: T.NAVY }}>{td(field.label, { source: "en" })}</span>
                                     <span className="dr-pill dr-pill-navy">{field.module}</span>
                                 </div>
                                 <div style={{ fontSize: 14, color: T.TEXT_MUTED }}>

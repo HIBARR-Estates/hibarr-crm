@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Icon from "@/Components/Redesign/primitives/Icon";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface AgentCardSearchProps {
     value: string;
@@ -31,6 +32,7 @@ interface AgentCardFiltersProps<T extends string> {
 
 /** One-tap filters inside a contact card: All, then the kinds of row it holds. */
 export function AgentCardFilters<T extends string>({ options, value, onChange, label }: AgentCardFiltersProps<T>) {
+    const { td } = useTd();
     return (
         <div className="agent-cardctl__chips" role="group" aria-label={label}>
             {options.map((option) => (
@@ -41,7 +43,7 @@ export function AgentCardFilters<T extends string>({ options, value, onChange, l
                     aria-pressed={option.value === value}
                     onClick={() => onChange(option.value)}
                 >
-                    {option.label}
+                    {td(option.label, { source: "en" })}
                 </button>
             ))}
         </div>

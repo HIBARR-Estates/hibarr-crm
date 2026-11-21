@@ -4,7 +4,10 @@ namespace Tests\Unit\Services\CallBridge;
 
 use App\Models\SoftphoneDevice;
 use App\Services\CallBridge\LineConcurrencyManager;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class LineConcurrencyManagerTest extends TestCase
@@ -13,6 +16,36 @@ class LineConcurrencyManagerTest extends TestCase
     {
         parent::setUp();
         Cache::flush();
+    }
+
+    public function test_agents_on_a_call_on_any_of_the_companys_lines_are_listed(): void
+    {
+        $this->createDevicesTable();
+        DB::table('softphone_devices')->insert([
+            ['id' => 1, 'company_id' => 7],
+            ['id' => 2, 'company_id' => 7],
+            ['id' => 3, 'company_id' => 8],
+        ]);
+
+        LineConcurrencyManager::reserve($this->line(max: 2, id: 1), 10);
+        LineConcurrencyManager::reserve($this->line(max: 2, id: 2), 11);
+        LineConcurrencyManager::reserve($this->line(max: 2, id: 3), 12);
+
+        $onCall = LineConcurrencyManager::usersOnCall(7);
+        sort($onCall);
+
+        $this->assertSame([10, 11], $onCall);
+    }
+
+    public function test_an_agent_is_no_longer_on_a_call_once_their_slot_is_released(): void
+    {
+        $this->createDevicesTable();
+        DB::table('softphone_devices')->insert(['id' => 1, 'company_id' => 7]);
+
+        LineConcurrencyManager::reserve($this->line(max: 2, id: 1), 10);
+        LineConcurrencyManager::release(1, 10);
+
+        $this->assertSame([], LineConcurrencyManager::usersOnCall(7));
     }
 
     public function test_a_line_takes_calls_up_to_its_limit(): void
@@ -113,10 +146,19 @@ class LineConcurrencyManagerTest extends TestCase
         $this->assertSame(0, LineConcurrencyManager::activeCallsCount(42));
     }
 
-    private function line(?int $max, bool $active = true): SoftphoneDevice
+    private function createDevicesTable(): void
+    {
+        Schema::dropIfExists('softphone_devices');
+        Schema::create('softphone_devices', function (Blueprint $table): void {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('company_id');
+        });
+    }
+
+    private function line(?int $max, bool $active = true, int $id = 42): SoftphoneDevice
     {
         $line = new SoftphoneDevice;
-        $line->id = 42;
+        $line->id = $id;
         $line->provider = 'sipgate';
         $line->is_active = $active;
         $line->max_concurrent_calls = $max;

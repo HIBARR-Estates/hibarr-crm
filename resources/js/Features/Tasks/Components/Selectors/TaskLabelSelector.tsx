@@ -3,6 +3,7 @@ import { Select, Button, Spin, Space } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { useApiQuery } from "@/lib/api/client";
 import AddTaskLabelModal from "./AddTaskLabelModal";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface TaskLabel {
     id: number;
@@ -27,6 +28,7 @@ export default function TaskLabelSelector({
     className,
     mode = "multiple",
 }: Props) {
+    const { td } = useTd();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     const {
@@ -56,7 +58,7 @@ export default function TaskLabelSelector({
                     className="w-full text-left hover:bg-gray-50"
                     disabled={disabled}
                 >
-                    Add New Label
+                    {td("Add New Label", { source: "en" })}
                 </Button>
             </div>
         </>
@@ -90,7 +92,7 @@ export default function TaskLabelSelector({
                                     display: "inline-block",
                                 }}
                             />
-                            {label.label_name}
+                            {td(label.label_name, { source: "en" })}
                         </Space>
                     </Select.Option>
                 ))}

@@ -16,14 +16,14 @@
                 <label for="password">@lang('app.password')</label>
 
                 <input type="password" name="password"
-                       class="form-control height-50 f-15 light_text" placeholder="Password"
+                       class="form-control height-50 f-15 light_text" placeholder="{{ td('Password') }}"
                        id="password">
             </div>
 
             <div class="form-group text-left">
                 <label for="password">@lang('app.confirmPassword')</label>
                 <input type="password" name="password_confirmation"
-                       class="form-control height-50 f-15 light_text" placeholder="Confirm Password"
+                       class="form-control height-50 f-15 light_text" placeholder="{{ td('Confirm Password') }}"
                        id="password_confirmation">
             </div>
 
