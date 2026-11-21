@@ -18,45 +18,7 @@ RUN composer install \
         --ignore-platform-reqs
 
 # -----------------------------------------------------------------------------
-# Ziggy route file (needed by Mix / frontend)
-# -----------------------------------------------------------------------------
-FROM php:8.3-cli-bookworm AS ziggy
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        libzip-dev \
-        libicu-dev \
-        libonig-dev \
-        libpng-dev \
-        git \
-        unzip \
-    && docker-php-ext-install -j$(nproc) bcmath intl mbstring zip \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-COPY --from=vendor /app/vendor ./vendor
-COPY . .
-# bootstrap/cache is gitignored and empty, so COPY . . does not create it.
-# Artisan package discovery needs that directory to be present and writable.
-RUN mkdir -p \
-      bootstrap/cache \
-      storage/framework/cache/data \
-      storage/framework/sessions \
-      storage/framework/views \
-      storage/logs \
-    && printf '%s\n' \
-      'APP_NAME=Hibarr' \
-      'APP_ENV=production' \
-      'APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' \
-      'APP_DEBUG=false' \
-      'APP_URL=http://localhost' \
-      'GRPC_ENABLED=false' \
-      'LOG_CHANNEL=stderr' \
-      'OTEL_LOGS_ENABLED=false' \
-      > .env \
-    && php artisan ziggy:generate --ansi
-
-# -----------------------------------------------------------------------------
-# Frontend assets (Laravel Mix production build)
+# Frontend assets (Vite). Blade still requests fixed css/js paths.
 # -----------------------------------------------------------------------------
 FROM node:20-bookworm AS assets
 
@@ -65,8 +27,9 @@ COPY package.json package-lock.json ./
 RUN npm ci --no-audit --fund=false
 
 COPY . .
-COPY --from=ziggy /app/resources/js/ziggy.js ./resources/js/ziggy.js
-RUN npm run production
+RUN sed -i 's/\r$//' docker/build-blade-assets.sh \
+    && npm run v-build \
+    && bash docker/build-blade-assets.sh
 
 # -----------------------------------------------------------------------------
 # Runtime: nginx + PHP-FPM (supervisord)
@@ -135,10 +98,9 @@ WORKDIR /var/www/html
 
 COPY . .
 COPY --from=vendor /app/vendor ./vendor
-COPY --from=assets /app/public/js ./public/js
+COPY --from=assets /app/public/build ./public/build
 COPY --from=assets /app/public/css ./public/css
-COPY --from=assets /app/public/mix-manifest.json ./public/mix-manifest.json
-COPY --from=ziggy /app/resources/js/ziggy.js ./resources/js/ziggy.js
+COPY --from=assets /app/public/js ./public/js
 
 RUN composer dump-autoload --optimize --no-interaction --no-scripts \
     && mkdir -p \

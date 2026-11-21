@@ -1,3 +1,5 @@
+/* Tailwind v4 ignores corePlugins.preflight, and the Mix build shipped this
+   reset. Buttons, the signed-in name, and the page edge depend on it. */
 @import "tailwindcss" source(none);
 @config "../../tailwind.config.js";
 

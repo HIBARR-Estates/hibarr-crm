@@ -25,20 +25,14 @@ class HandleInertiaRequests extends Middleware
     protected array $rtlLocales = [];
 
     /**
-     * The root template that's loaded on the first page visit.
+     * Mix layout unless APP_BUNDLER=vite (the Docker image sets that).
      */
-    //  protected $rootView = 'layouts.inertia_vite';
-    protected $rootView = 'layouts.inertia_alt';
-
-    /**
-     * Get the root view based on the bundler configuration.
-     */
-    // public function rootView(Request $request): string
-    // {
-    //     return env('APP_BUNDLER') === 'vite'
-    //         ? 'layouts.inertia_vite'
-    //         : 'layouts.inertia_alt';
-    // }
+    public function rootView(Request $request): string
+    {
+        return config('app.bundler') === 'vite'
+            ? 'layouts.inertia_vite'
+            : 'layouts.inertia_alt';
+    }
 
     /**
      * Determines the current asset version.

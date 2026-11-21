@@ -11,12 +11,15 @@
     {{-- ✅ React Fast Refresh preamble must come first --}}
     @viteReactRefresh
 
-    {{-- ✅ Then load your Vite entrypoints --}}
-    {{-- Tailwind ships via Mix below; only inertia.tsx is a Vite entry (vite.config.mjs). --}}
-    @vite(['resources/js/inertia.tsx'])
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 
-    {{-- Optional Mix assets for legacy --}}
-    <link type="text/css" rel="stylesheet" media="all" href="{{ mix('css/tailwind.css') }}">
+    {{-- Hashed by Vite. asset('css/tailwind.css') has no hash, so browsers kept
+         an older file that was missing the --dr-* tokens and layout utilities. --}}
+    @vite([
+        'resources/js/inertia.tsx',
+        'resources/css/tailwind.css',
+        'resources/js/Components/Redesign/redesign.css',
+    ])
 
     @inertiaHead
 </head>

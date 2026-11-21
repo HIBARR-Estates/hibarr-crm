@@ -1,3 +1,4 @@
+import "@/Components/Redesign/redesign.css";
 import { createInertiaApp } from "@inertiajs/react";
 import { createRoot } from "react-dom/client";
 import { OuterProviders, InnerProviders } from "./providers";
