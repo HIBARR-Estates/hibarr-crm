@@ -89,8 +89,9 @@ COPY docker/php/zz-www.conf /usr/local/etc/php-fpm.d/zz-www.conf
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/hibarr.conf
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh \
-    && chmod +x /usr/local/bin/entrypoint.sh \
+COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh /usr/local/bin/healthcheck.sh \
+    && chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/healthcheck.sh \
     && sed -i 's/^listen = .*/listen = 127.0.0.1:9000/' /usr/local/etc/php-fpm.d/www.conf \
     && sed -i 's/^listen = .*/listen = 127.0.0.1:9000/' /usr/local/etc/php-fpm.d/zz-docker.conf 2>/dev/null || true
 
@@ -120,6 +121,11 @@ RUN composer dump-autoload --optimize --no-interaction --no-scripts \
     && chmod -R ug+rwx storage bootstrap/cache public/user-uploads
 
 EXPOSE 80
+
+# Platforms that deploy this image (and ignore a compose healthcheck) run the
+# image check. 302 from / is success. Workers exit 0 without opening port 80.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=150s --retries=3 \
+    CMD /usr/local/bin/healthcheck.sh
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/hibarr.conf"]
