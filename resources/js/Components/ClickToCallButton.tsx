@@ -16,6 +16,7 @@ import useSoftphone, { canPlaceCrmCall } from "@/Hooks/useSoftphone";
 import axios from "axios";
 import type { TelephonyCallEntity } from "@/Types/api/telephony";
 import type { LeadCallPhone } from "@/lib/leadCallPhones";
+import type { ChannelBlockEvaluation } from "@/Components/Suppression/types";
 
 interface ClickToCallButtonProps {
     phone: string;
@@ -33,6 +34,7 @@ interface ClickToCallButtonProps {
     ariaLabel?: string;
     dataAction?: string;
     children?: ReactNode;
+    suppressionBlock?: ChannelBlockEvaluation | null;
 }
 
 /**
@@ -54,6 +56,7 @@ export default function ClickToCallButton({
     ariaLabel,
     dataAction,
     children,
+    suppressionBlock = null,
 }: ClickToCallButtonProps) {
     const { t } = useTranslation();
     const { props } = usePage();
@@ -132,11 +135,20 @@ export default function ClickToCallButton({
     const loading = useSoftphonePath
         ? dialing
         : numberChoices.some((choice) => isCalling(choice.phone, entity));
+    const isSuppressed = Boolean(suppressionBlock?.blocked);
+    const suppressedTitle = isSuppressed
+        ? suppressionBlock?.canViewDetails && suppressionBlock?.reason
+            ? t("pages.suppressions.before_contact.call_blocked_reason", {
+                  reason: suppressionBlock.reason,
+              })
+            : t("pages.suppressions.before_contact.call_unavailable")
+        : undefined;
+    const isDisabled = loading || cooling || isSuppressed;
     const cooldownSuffix = cooling ? ` (${coolingRemaining}s)` : "";
 
     const makeCall = (targetPhone: string, deviceId?: number) => {
         const normalizedTarget = targetPhone.trim();
-        if (loading || cooling || !normalizedTarget) {
+        if (loading || cooling || isSuppressed || !normalizedTarget) {
             return;
         }
         setMenuOpen(false);
@@ -301,15 +313,15 @@ export default function ClickToCallButton({
                     trigger={["click"]}
                     open={menuOpen}
                     onOpenChange={setMenuOpen}
-                    disabled={loading || cooling}
+                    disabled={isDisabled}
                 >
                     <button
                         type="button"
                         onClick={(e) => e.stopPropagation()}
-                        disabled={loading || cooling}
+                        disabled={isDisabled}
                         className={className}
-                        title={title}
-                        aria-label={ariaLabel ?? title}
+                        title={suppressedTitle ?? title}
+                        aria-label={suppressedTitle ?? ariaLabel ?? title}
                         data-action={dataAction}
                     >
                         {buttonContent}
@@ -321,10 +333,10 @@ export default function ClickToCallButton({
             <button
                 type="button"
                 onClick={handleClick}
-                disabled={loading || cooling}
+                disabled={isDisabled}
                 className={className}
-                title={title}
-                aria-label={ariaLabel ?? title}
+                title={suppressedTitle ?? title}
+                aria-label={suppressedTitle ?? ariaLabel ?? title}
                 data-action={dataAction}
             >
                 {buttonContent}
@@ -334,21 +346,29 @@ export default function ClickToCallButton({
 
     if (showMenu) {
         return (
-            <Tooltip title={title ?? t("pages.telephony.call")}>
+            <Tooltip title={suppressedTitle ?? title ?? t("pages.telephony.call")}>
                 <Dropdown
                     menu={{ items: menuItems }}
                     trigger={["click"]}
                     open={menuOpen}
                     onOpenChange={setMenuOpen}
-                    disabled={loading || cooling}
+                    disabled={isDisabled}
                 >
                     <PhoneOutlined
                         role="button"
-                        aria-label={ariaLabel ?? title ?? t("pages.telephony.call")}
+                        aria-disabled={isDisabled}
+                        aria-label={
+                            suppressedTitle ??
+                            ariaLabel ??
+                            title ??
+                            t("pages.telephony.call")
+                        }
                         data-action={dataAction}
                         onClick={(e) => e.stopPropagation()}
-                        className={`mt-1 flex-shrink-0 cursor-pointer text-[11px] text-green-600 opacity-0 transition-opacity hover:text-green-700 group-hover:opacity-100 ${
-                            loading ? "pointer-events-none opacity-50" : ""
+                        className={`mt-1 flex-shrink-0 text-[11px] transition-opacity ${
+                            isDisabled
+                                ? "pointer-events-none cursor-not-allowed text-slate-400 opacity-50"
+                                : "cursor-pointer text-green-600 opacity-0 hover:text-green-700 group-hover:opacity-100"
                         } ${className}`}
                     />
                 </Dropdown>
@@ -357,15 +377,23 @@ export default function ClickToCallButton({
     }
 
     return (
-        <Tooltip title={title ?? t("pages.telephony.call")}>
+        <Tooltip title={suppressedTitle ?? title ?? t("pages.telephony.call")}>
             <PhoneOutlined
                 role="button"
-                aria-label={ariaLabel ?? title ?? t("pages.telephony.call")}
+                aria-disabled={isDisabled}
+                aria-label={
+                    suppressedTitle ??
+                    ariaLabel ??
+                    title ??
+                    t("pages.telephony.call")
+                }
                 data-action={dataAction}
-                className={`mt-1 flex-shrink-0 cursor-pointer text-[11px] text-green-600 opacity-0 transition-opacity hover:text-green-700 group-hover:opacity-100 ${
-                    loading ? "pointer-events-none opacity-50" : ""
+                className={`mt-1 flex-shrink-0 text-[11px] transition-opacity ${
+                    isDisabled
+                        ? "pointer-events-none cursor-not-allowed text-slate-400 opacity-50"
+                        : "cursor-pointer text-green-600 opacity-0 hover:text-green-700 group-hover:opacity-100"
                 } ${className}`}
-                onClick={handleClick}
+                onClick={isDisabled ? undefined : handleClick}
             />
         </Tooltip>
     );

@@ -1339,6 +1339,19 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::post('communication-activities', [\App\Http\Controllers\CommunicationActivityController::class, 'store'])
         ->name('communication-activities.store');
 
+    // Global Suppression restrictions, block, and lift (proxies OL v1 API with acting CRM user).
+    Route::get('suppressions/restrictions/handle', [\App\Http\Controllers\SuppressionController::class, 'handleRestrictions'])
+        ->name('suppressions.restrictions.handle');
+    Route::get('suppressions/restrictions/{entityType}/{entityId}', [\App\Http\Controllers\SuppressionController::class, 'entityRestrictions'])
+        ->whereIn('entityType', ['lead', 'deal'])
+        ->whereNumber('entityId')
+        ->name('suppressions.restrictions.entity');
+    Route::post('suppressions', [\App\Http\Controllers\SuppressionController::class, 'block'])
+        ->name('suppressions.block');
+    Route::post('suppressions/{uuid}/lift', [\App\Http\Controllers\SuppressionController::class, 'lift'])
+        ->whereUuid('uuid')
+        ->name('suppressions.lift');
+
     // Developers
     Route::prefix('developers')->name('developers.')->group(function () {
         Route::get('/', [App\Http\Controllers\DeveloperController::class, 'index'])->name('index');

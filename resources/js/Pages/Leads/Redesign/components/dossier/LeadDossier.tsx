@@ -19,6 +19,14 @@ import {
 } from "../lead-info/LeadAttributionFields";
 import DossierField from "./DossierField";
 import DossierSection from "./DossierSection";
+import SuppressionRestrictionsPanel from "@/Components/Suppression/SuppressionRestrictionsPanel";
+import type {
+    BlockedChannelSummary,
+    ChannelBlockEvaluation,
+    SuppressionContactTarget,
+    SuppressionPermissions,
+    SuppressionRestriction,
+} from "@/Components/Suppression/types";
 
 /** Dossier keys that edit in place instead of rendering a read-only value. */
 const EDITABLE_FIELDS: Partial<
@@ -35,12 +43,28 @@ interface LeadDossierProps {
     onOpenLeadInfo?: () => void;
     /** Record-scoped edit permission, from the parent's `canEditLead` check. */
     canEdit?: boolean;
+    suppressionTargets?: SuppressionContactTarget[];
+    suppressionRestrictions?: SuppressionRestriction[];
+    suppressionBlockedChannels?: BlockedChannelSummary[];
+    suppressionUnavailable?: boolean;
+    suppressionLoading?: boolean;
+    suppressionPermissions?: SuppressionPermissions;
+    onSuppressionsChanged?: () => Promise<void> | void;
+    callBlock?: ChannelBlockEvaluation | null;
 }
 
 export default function LeadDossier({
     lead,
     onOpenLeadInfo,
     canEdit = false,
+    suppressionTargets = [],
+    suppressionRestrictions = [],
+    suppressionBlockedChannels = [],
+    suppressionUnavailable = false,
+    suppressionLoading = false,
+    suppressionPermissions,
+    onSuppressionsChanged,
+    callBlock = null,
 }: LeadDossierProps) {
     const { td } = useTd();
     const { formatDateTime } = useUserDateTime();
@@ -184,6 +208,9 @@ export default function LeadDossier({
                                                             type: "lead",
                                                             id: lead.id,
                                                         }}
+                                                        suppressionBlock={
+                                                            callBlock
+                                                        }
                                                         className="mt-0"
                                                     />
                                                 )}
@@ -195,6 +222,20 @@ export default function LeadDossier({
                     </DossierSection>
                 );
             })}
+
+            {suppressionPermissions && onSuppressionsChanged ? (
+                <SuppressionRestrictionsPanel
+                    entityType="lead"
+                    entityId={lead.id}
+                    targets={suppressionTargets}
+                    restrictions={suppressionRestrictions}
+                    blockedChannels={suppressionBlockedChannels}
+                    unavailable={suppressionUnavailable}
+                    loading={suppressionLoading}
+                    permissions={suppressionPermissions}
+                    onChanged={onSuppressionsChanged}
+                />
+            ) : null}
 
             {(createdLabel || updatedLabel) && (
                 <footer className="v2-dossier-footnote">

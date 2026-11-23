@@ -7,6 +7,7 @@ import type {
     EmailKnownAddress,
     EmailRecordRef,
 } from "@/Email/types";
+import type { ChannelBlockEvaluation } from "@/Components/Suppression/types";
 
 export interface ComposerEntryModalProps {
     open: boolean;
@@ -26,6 +27,7 @@ export interface ComposerEntryModalProps {
     onManageMailbox?: () => void;
     /** Dock the form in a parent surface instead of a modal. */
     variant?: "modal" | "embedded";
+    getEmailSuppression?: (handle?: string | null) => ChannelBlockEvaluation;
 }
 
 function formatBytes(bytes: number | null): string {
@@ -51,6 +53,7 @@ export default function ComposerEntryModal({
     variant = "modal",
     allowedAddresses = null,
     record = null,
+    getEmailSuppression,
 }: ComposerEntryModalProps) {
     const { t } = useTranslation();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -120,6 +123,16 @@ export default function ComposerEntryModal({
     const showSignaturePreview =
         form.includeSignature && signature?.has_content === true;
 
+    const activeRecipients = [...form.to, ...form.cc];
+    const primaryRecipient = activeRecipients[0] ?? prefillTo ?? null;
+    const suppressionCheck = getEmailSuppression
+        ? activeRecipients
+              .map((addr) => getEmailSuppression(addr))
+              .find((ev) => ev.blocked || ev.warningOnly) ??
+          getEmailSuppression(primaryRecipient)
+        : null;
+    const emailBlocked = Boolean(suppressionCheck?.blocked);
+
     const actions = (
         <>
             <Button
@@ -139,7 +152,8 @@ export default function ComposerEntryModal({
                     uploading ||
                     loadingConnections ||
                     !selectedConnection ||
-                    hasInvalidAttachment
+                    hasInvalidAttachment ||
+                    emailBlocked
                 }
                 loading={sending}
             >
@@ -150,6 +164,35 @@ export default function ComposerEntryModal({
 
     const composerFields = (
         <>
+            {suppressionCheck?.blocked ? (
+                <div
+                    role="alert"
+                    className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900"
+                >
+                    {suppressionCheck.canViewDetails && suppressionCheck.reason
+                        ? t(
+                              "pages.suppressions.before_contact.email_blocked_reason",
+                              { reason: suppressionCheck.reason },
+                          )
+                        : t(
+                              "pages.suppressions.before_contact.email_unavailable",
+                          )}
+                </div>
+            ) : suppressionCheck?.warningOnly ? (
+                <div
+                    role="status"
+                    className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950"
+                >
+                    {suppressionCheck.canViewDetails && suppressionCheck.reason
+                        ? t(
+                              "pages.suppressions.before_contact.email_non_transactional_reason",
+                              { reason: suppressionCheck.reason },
+                          )
+                        : t(
+                              "pages.suppressions.before_contact.email_non_transactional",
+                          )}
+                </div>
+            ) : null}
             {loadingConnections ? (
                 <p className="m-0 text-sm text-dr-text-muted">
                     {t("pages.email.composer.loading")}
