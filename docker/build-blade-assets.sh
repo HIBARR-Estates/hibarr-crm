@@ -41,4 +41,7 @@ cat \
     resources/js/main.js \
     resources/js/custom.js \
     > "$tmp"
+# mktemp is mode 600. mv keeps that mode, and nginx (www-data) then
+# 403s the bundle. The Blade preloader never gets past init().
 mv "$tmp" public/js/main.js
+chmod 644 public/js/main.js public/js/bootstrap.js

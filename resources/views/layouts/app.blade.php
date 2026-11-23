@@ -298,11 +298,15 @@
 
 <script>
     $(window).on('load', function () {
-        // Animate loader off screen
-        init();
-        $(".preloader-container").fadeOut("slow", function () {
-            $(this).removeClass("d-flex");
-        });
+        // Animate loader off screen. init() has to fail open: a missing
+        // plugin used to throw here and leave the spinner up forever.
+        try {
+            init();
+        } finally {
+            $(".preloader-container").fadeOut("slow", function () {
+                $(this).removeClass("d-flex");
+            });
+        }
     });
 
     $('body').on('click', '.view-notification', function (event) {

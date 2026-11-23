@@ -101,6 +101,9 @@ COPY --from=vendor /app/vendor ./vendor
 COPY --from=assets /app/public/build ./public/build
 COPY --from=assets /app/public/css ./public/css
 COPY --from=assets /app/public/js ./public/js
+# The Blade bundle is assembled via mktemp (mode 600). nginx runs as
+# www-data and would 403 js/main.js, which leaves the page preloader up.
+RUN chmod -R a+rX public/build public/css public/js
 
 RUN composer dump-autoload --optimize --no-interaction --no-scripts \
     && mkdir -p \

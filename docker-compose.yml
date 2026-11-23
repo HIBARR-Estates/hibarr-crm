@@ -27,6 +27,14 @@ services:
       - hibarr_uploads:/var/www/html/public/user-uploads
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # nginx is up before PHP-FPM; / boots Laravel and 302s to login when healthy.
+    # start_period covers Infisical export plus up to ~2 min of DB wait.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "--max-time", "8", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 150s
 
   queue:
     image: hibarr-crm:local
@@ -46,7 +54,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      - app
+      app:
+        condition: service_healthy
 
   scheduler:
     image: hibarr-crm:local
@@ -66,7 +75,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      - app
+      app:
+        condition: service_healthy
 
 volumes:
   hibarr_storage:
