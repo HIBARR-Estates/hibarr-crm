@@ -8,6 +8,26 @@ mkdir -p public/css public/js
 
 npx sass resources/scss/main.scss public/css/main.css --style=compressed --no-source-map
 
+# Dart Sass leaves @import "*.css" as a browser request. Those paths point at
+# node_modules, which is not in the image, so Quill's styles never load.
+node --input-type=module <<'JS'
+import fs from "fs";
+import path from "path";
+
+const cssPath = "public/css/main.css";
+const fromDir = "resources/scss";
+let css = fs.readFileSync(cssPath, "utf8");
+css = css.replace(/@import\s*["']([^"']+\.css)["']\s*;?/g, (match, spec) => {
+    const file = path.resolve(fromDir, spec);
+    if (!fs.existsSync(file)) {
+        console.warn("Leaving unresolved CSS import:", spec);
+        return match;
+    }
+    return fs.readFileSync(file, "utf8");
+});
+fs.writeFileSync(cssPath, css);
+JS
+
 node docker/build-tailwind.js
 
 npx esbuild resources/js/bootstrap.js \
@@ -18,8 +38,13 @@ npx esbuild resources/js/bootstrap.js \
     --define:process.env.MIX_PUSHER_APP_KEY=\"\" \
     --define:process.env.MIX_PUSHER_APP_CLUSTER=\"\"
 
-tmp="$(mktemp)"
-cat \
+# A vendor file can end with //# sourceMappingURL and no newline. Concatenating
+# the next file onto that line comments it out (moment is one line, so the
+# whole library disappeared and moment-timezone threw). Every part gets its
+# own trailing newline. Write the file directly so it is not mktemp's mode 600,
+# which nginx (www-data) cannot read.
+: > public/js/main.js
+for part in \
     public/js/bootstrap.js \
     public/vendor/bootstrap/js/bootstrap.bundle.min.js \
     public/vendor/moment/moment-with-locales.min.js \
@@ -39,9 +64,9 @@ cat \
     node_modules/quill-mention/dist/quill.mention.min.js \
     node_modules/quill-magic-url/dist/index.js \
     resources/js/main.js \
-    resources/js/custom.js \
-    > "$tmp"
-# mktemp is mode 600. mv keeps that mode, and nginx (www-data) then
-# 403s the bundle. The Blade preloader never gets past init().
-mv "$tmp" public/js/main.js
+    resources/js/custom.js
+do
+    cat "$part"
+    printf '\n'
+done > public/js/main.js
 chmod 644 public/js/main.js public/js/bootstrap.js

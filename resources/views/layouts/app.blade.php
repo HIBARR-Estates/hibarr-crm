@@ -201,6 +201,19 @@
     const RIGHT_MODAL_TITLE = '#right-modal-title';
     const company = @json(companyOrGlobalSetting());
     const pusher_setting = @json(pusher_settings());
+    if (typeof startEcho === 'function' && pusher_setting && Number(pusher_setting.status) === 1 && pusher_setting.pusher_app_key) {
+        startEcho({
+            key: pusher_setting.pusher_app_key,
+            cluster: pusher_setting.pusher_cluster,
+            forceTLS: Number(pusher_setting.force_tls) === 1,
+            authEndpoint: '/broadcasting/auth',
+            auth: {
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                }
+            }
+        });
+    }
     const message_setting = @json(message_setting());
     const SEARCH_KEYWORD = "{{ request('search_keyword') }}";
     const MOMENTJS_TIME_FORMAT = "{{ (companyOrGlobalSetting()->time_format == 'h:i A') ? 'hh:mm A' : ( (companyOrGlobalSetting()->time_format == 'h:i a') ? 'hh:mm a' : 'H:mm') }}";

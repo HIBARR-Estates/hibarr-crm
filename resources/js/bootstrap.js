@@ -20,9 +20,25 @@ import Echo from 'laravel-echo';
 
 window.Pusher = require('pusher-js');
 
-window.Echo = new Echo({
-    broadcaster: 'pusher',
-    key: process.env.MIX_PUSHER_APP_KEY,
-    cluster: process.env.MIX_PUSHER_APP_CLUSTER,
-    forceTLS: true
-});
+// An empty key throws inside Pusher and aborts this bundle. Docker builds
+// have no MIX_PUSHER_* at image build time, so the throw used to skip every
+// script concatenated after this file: selects, Dropzone, form submits.
+window.startEcho = function (options) {
+    if (window.Echo || !options || !options.key) {
+        return window.Echo || null;
+    }
+
+    window.Echo = new Echo(Object.assign({
+        broadcaster: 'pusher',
+        forceTLS: true,
+    }, options));
+
+    return window.Echo;
+};
+
+if (process.env.MIX_PUSHER_APP_KEY) {
+    window.startEcho({
+        key: process.env.MIX_PUSHER_APP_KEY,
+        cluster: process.env.MIX_PUSHER_APP_CLUSTER,
+    });
+}
