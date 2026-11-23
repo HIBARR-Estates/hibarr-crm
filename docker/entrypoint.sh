@@ -63,6 +63,7 @@ fetch_infisical_env() {
   [ -n "${APP_BUNDLER:-}" ] && upsert_env APP_BUNDLER "$APP_BUNDLER"
   [ -n "${REDIRECT_HTTPS:-}" ] && upsert_env REDIRECT_HTTPS "$REDIRECT_HTTPS"
   [ -n "${APP_URL:-}" ] && upsert_env APP_URL "$APP_URL"
+  [ -n "${TRUSTED_PROXIES:-}" ] && upsert_env TRUSTED_PROXIES "$TRUSTED_PROXIES"
 
   chmod 600 "$env_file"
 

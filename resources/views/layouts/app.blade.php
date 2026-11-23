@@ -310,17 +310,24 @@
 @stack('scripts')
 
 <script>
-    $(window).on('load', function () {
-        // Animate loader off screen. init() has to fail open: a missing
-        // plugin used to throw here and leave the spinner up forever.
+    // Hide the overlay as soon as this script runs. window.load waits for
+    // every image and stylesheet; one that never finishes leaves this
+    // fixed layer over the settings form, so buttons never receive clicks.
+    (function () {
+        document.querySelectorAll(".preloader-container").forEach(function (el) {
+            el.classList.remove("d-flex");
+            el.style.setProperty("display", "none", "important");
+            el.style.setProperty("pointer-events", "none", "important");
+        });
+
         try {
-            init();
-        } finally {
-            $(".preloader-container").fadeOut("slow", function () {
-                $(this).removeClass("d-flex");
-            });
+            if (typeof init === "function") {
+                init();
+            }
+        } catch (error) {
+            console.error(error);
         }
-    });
+    })();
 
     $('body').on('click', '.view-notification', function (event) {
         event.preventDefault();

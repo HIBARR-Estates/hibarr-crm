@@ -82,7 +82,9 @@ class AppServiceProvider extends ServiceProvider
 
         Cashier::useCustomerModel(Company::class);
 
-        if (config('app.redirect_https')) {
+        // Behind Coolify the request arrives as HTTP. An https APP_URL still has
+        // to win, or Ziggy emits http:// links and the browser blocks them.
+        if (config('app.redirect_https') || str_starts_with((string) config('app.url'), 'https://')) {
             URL::forceScheme('https');
         }
 

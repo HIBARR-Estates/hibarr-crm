@@ -4,12 +4,16 @@ x-infisical: &infisical-env
   INFISICAL_PROJECT_ID: ${INFISICAL_PROJECT_ID:?Set INFISICAL_PROJECT_ID in .env}
   INFISICAL_ENV: ${INFISICAL_ENV:-dev}
 
+# One image, three roles. Set CRM_IMAGE to a registry tag when the image is built elsewhere.
+x-crm-image: &crm-image
+  image: ${CRM_IMAGE:-hibarr-crm:latest}
+
 services:
   app:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    image: hibarr-crm:local
+    <<: *crm-image
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8080}:80"
@@ -19,9 +23,10 @@ services:
       CONTAINER_ROLE: app
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-false}
       OTEL_LOGS_ENABLED: ${OTEL_LOGS_ENABLED:-false}
-      APP_URL: http://localhost:${APP_PORT:-8080}
+      APP_URL: ${APP_URL:-http://localhost:8080}
       APP_BUNDLER: vite
-      REDIRECT_HTTPS: "false"
+      REDIRECT_HTTPS: ${REDIRECT_HTTPS:-false}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
     volumes:
       - hibarr_storage:/var/www/html/storage
       - hibarr_uploads:/var/www/html/public/user-uploads
@@ -37,7 +42,7 @@ services:
       start_period: 150s
 
   queue:
-    image: hibarr-crm:local
+    <<: *crm-image
     restart: unless-stopped
     environment:
       <<: *infisical-env
@@ -45,9 +50,10 @@ services:
       CONTAINER_ROLE: queue
       OTEL_LOGS_ENABLED: ${OTEL_LOGS_ENABLED:-false}
       RUN_MIGRATIONS: "false"
-      APP_URL: http://localhost:${APP_PORT:-8080}
+      APP_URL: ${APP_URL:-http://localhost:8080}
       APP_BUNDLER: vite
-      REDIRECT_HTTPS: "false"
+      REDIRECT_HTTPS: ${REDIRECT_HTTPS:-false}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
     volumes:
       - hibarr_storage:/var/www/html/storage
       - hibarr_uploads:/var/www/html/public/user-uploads
@@ -58,7 +64,7 @@ services:
         condition: service_healthy
 
   scheduler:
-    image: hibarr-crm:local
+    <<: *crm-image
     restart: unless-stopped
     environment:
       <<: *infisical-env
@@ -66,9 +72,10 @@ services:
       CONTAINER_ROLE: scheduler
       OTEL_LOGS_ENABLED: ${OTEL_LOGS_ENABLED:-false}
       RUN_MIGRATIONS: "false"
-      APP_URL: http://localhost:${APP_PORT:-8080}
+      APP_URL: ${APP_URL:-http://localhost:8080}
       APP_BUNDLER: vite
-      REDIRECT_HTTPS: "false"
+      REDIRECT_HTTPS: ${REDIRECT_HTTPS:-false}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
     volumes:
       - hibarr_storage:/var/www/html/storage
       - hibarr_uploads:/var/www/html/public/user-uploads

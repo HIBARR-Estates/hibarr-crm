@@ -274,6 +274,9 @@
         }).hide();
     });
 
-    document.querySelector('#settingsMenu .active').scrollIntoView()
+    var activeSetting = document.querySelector('#settingsMenu .active');
+    if (activeSetting) {
+        activeSetting.scrollIntoView();
+    }
 
 </script>
