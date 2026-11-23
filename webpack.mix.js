@@ -94,7 +94,23 @@ mix.js("resources/js/bootstrap.js", "public/js")
         require("@tailwindcss/postcss"),
         require("autoprefixer"),
     ])
-    .options({ processCssUrls: false })
+    .options({
+        processCssUrls: false,
+        // Mix minifies with one terser worker per CPU, each holding its own copy of
+        // the chunk it is working on, outside the --max-old-space-size heap cap. On a
+        // many-core, modest-RAM builder (CI, Docker) that is what gets the build
+        // OOM-killed (exit 137). MIX_TERSER_WORKERS caps it; unset keeps Mix's default.
+        ...(process.env.MIX_TERSER_WORKERS
+            ? {
+                  terser: {
+                      parallel: Number(process.env.MIX_TERSER_WORKERS),
+                      // options() replaces Mix's whole terser object, so restate its
+                      // defaults to keep the minified output unchanged.
+                      terserOptions: { compress: true, output: { comments: false } },
+                  },
+              }
+            : {}),
+    })
     // A4: keep source maps in development; omit large .map files from production builds
     .sourceMaps(false, "source-map")
     // mix.js() and each mix.ts() register an identical babel-loader rule, and
@@ -115,6 +131,27 @@ mix.js("resources/js/bootstrap.js", "public/js")
     })
     .webpackConfig({
         plugins: [new RemoveSvgStylingPlugin()],
+        // Opt-in persistent module cache (CI, Docker and Jenkins set
+        // WEBPACK_FS_CACHE=1 and keep the cache directory between runs).
+        // Unchanged modules are not re-parsed, so a rebuild after a small change
+        // skips most of the work. WEBPACK_CACHE_DIR points it somewhere that
+        // outlives the checkout (Jenkins builds every release in a new folder).
+        // Off by default: webpack's production default is no cache, and a stale
+        // cache directory is the first thing to rule out if a build misbehaves.
+        ...(process.env.WEBPACK_FS_CACHE
+            ? {
+                  cache: {
+                      type: "filesystem",
+                      cacheDirectory: process.env.WEBPACK_CACHE_DIR
+                          ? path.resolve(process.env.WEBPACK_CACHE_DIR)
+                          : path.resolve(
+                                __dirname,
+                                "node_modules/.cache/webpack"
+                            ),
+                      buildDependencies: { config: [__filename] },
+                  },
+              }
+            : {}),
         // Async chunks (one per Inertia page, plus posthog) carry a content
         // hash. With fixed names, a browser holding one release's runtime or
         // vendor bundle (open tab, or a cached copy — .htaccess caches .js for

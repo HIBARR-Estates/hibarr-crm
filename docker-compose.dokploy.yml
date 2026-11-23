@@ -1,0 +1,184 @@
+# Hibarr CRM on Dokploy (Docker Compose application).
+#
+# Runs the image Woodpecker CI publishes to GHCR; nothing is built on the Dokploy host.
+# See docs/dokploy.md for setup, the data move from the Jenkins server, and rollback.
+#
+# Release order, enforced by depends_on: `migrate` runs first and must exit 0
+# before app/queue/scheduler are (re)created. If a migration fails, the deploy
+# fails and the previous containers keep running.
+#
+# No ports are published and no Traefik labels are written here: attach the
+# domain to the `app` service (port 80) in Dokploy's Domains tab.
+#
+# Required environment (Dokploy -> Environment):
+#   IMAGE_TAG              latest (newest develop build) | develop-<short sha> (pin / rollback)
+#   APP_URL                public https URL, e.g. https://crm.example.com
+#   INFISICAL_API_URL      https://infisical.hibarr.org
+#   INFISICAL_PROJECT_ID   the project id from .infisical.json
+#   INFISICAL_ENV          prod | staging
+#   INFISICAL_CLIENT_ID + INFISICAL_CLIENT_SECRET   machine identity (preferred)
+#     or INFISICAL_TOKEN   a static token
+# Optional: RUN_MIGRATIONS is not used here (the migrate service replaces it),
+#   QUEUE_NAMES, OTEL_LOGS_ENABLED, REDIRECT_HTTPS (default true).
+
+x-image: &image ghcr.io/hibarr-estates/hibarr-crm:${IMAGE_TAG:?Set IMAGE_TAG (latest or develop-<short sha>)}
+
+x-env: &env
+  INFISICAL_API_URL: ${INFISICAL_API_URL:?Set INFISICAL_API_URL}
+  INFISICAL_PROJECT_ID: ${INFISICAL_PROJECT_ID:?Set INFISICAL_PROJECT_ID}
+  INFISICAL_ENV: ${INFISICAL_ENV:?Set INFISICAL_ENV (prod or staging)}
+  INFISICAL_CLIENT_ID: ${INFISICAL_CLIENT_ID:-}
+  INFISICAL_CLIENT_SECRET: ${INFISICAL_CLIENT_SECRET:-}
+  INFISICAL_TOKEN: ${INFISICAL_TOKEN:-}
+  APP_URL: ${APP_URL:?Set APP_URL to the public https URL}
+  APP_BUNDLER: mix
+  GRPC_ENABLED: "false"
+  REDIRECT_HTTPS: ${REDIRECT_HTTPS:-true}
+  OTEL_LOGS_ENABLED: ${OTEL_LOGS_ENABLED:-false}
+
+x-volumes: &volumes
+  - hibarr_storage:/var/www/html/storage
+  - hibarr_uploads:/var/www/html/public/user-uploads
+
+services:
+  migrate:
+    image: *image
+    pull_policy: always
+    restart: "no"
+    environment:
+      <<: *env
+      CONTAINER_ROLE: migrate
+    volumes: *volumes
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  app:
+    image: *image
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *env
+      CONTAINER_ROLE: app
+      # The migrate service owns migrations; do not also run them on every start.
+      RUN_MIGRATIONS: "false"
+    volumes: *volumes
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      # nginx -> php-fpm ping; never boots Laravel or touches the database.
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # Covers the Infisical fetch and the MySQL wait before FPM is up.
+      start_period: 90s
+
+  queue:
+    image: *image
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *env
+      CONTAINER_ROLE: queue
+    volumes: *volumes
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Let running jobs finish on redeploy (worker --timeout is 300s).
+    stop_grace_period: 6m
+
+  # Expose PDF generation (headless Chrome, jobs can run for minutes). Kept off
+  # the default worker so a long render never delays other jobs. The default
+  # `queue` worker does not listen to `expose`; do not add it to its QUEUE_NAMES.
+  expose:
+    image: *image
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *env
+      CONTAINER_ROLE: queue
+      QUEUE_NAMES: expose
+    volumes: *volumes
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # GenerateExposeJob allows 420s.
+    stop_grace_period: 8m
+
+  # gRPC API for the other backend (RoadRunner serving worker.php; services,
+  # auth and proto list are the ones the Jenkins hosts run). Opt in per
+  # environment with COMPOSE_PROFILES=grpc in Dokploy's Environment tab.
+  #
+  # Reached through Traefik over TLS at GRPC_DOMAIN: Traefik terminates TLS and
+  # talks cleartext HTTP/2 (h2c) to RoadRunner, which is what gRPC needs. Set
+  # GRPC_ROUTER_NAME to something unique if staging and production share one
+  # Dokploy. To skip Traefik and let clients connect to host:9001 directly (as
+  # the staging "Phase 1" setup did), remove the labels and add `ports: ["9001:9001"]`.
+  grpc:
+    profiles: ["grpc"]
+    image: *image
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *env
+      CONTAINER_ROLE: grpc
+    volumes: *volumes
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - dokploy-network
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.${GRPC_ROUTER_NAME:-hibarr-grpc}.rule=Host(`${GRPC_DOMAIN:-grpc.invalid}`)
+      - traefik.http.routers.${GRPC_ROUTER_NAME:-hibarr-grpc}.entrypoints=websecure
+      - traefik.http.routers.${GRPC_ROUTER_NAME:-hibarr-grpc}.tls.certresolver=letsencrypt
+      - traefik.http.services.${GRPC_ROUTER_NAME:-hibarr-grpc}.loadbalancer.server.port=9001
+      - traefik.http.services.${GRPC_ROUTER_NAME:-hibarr-grpc}.loadbalancer.server.scheme=h2c
+    healthcheck:
+      # A TCP connect proves the gRPC listener is up (RoadRunner binds it once
+      # the worker pool is allocated). The status endpoint on :2114 is there for
+      # monitoring. bash is in the image; /dev/tcp is a bash feature.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9001"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # Four Laravel workers boot before the listener opens.
+      start_period: 120s
+    # RoadRunner's destroy_timeout is 60s.
+    stop_grace_period: 75s
+
+  scheduler:
+    image: *image
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *env
+      CONTAINER_ROLE: scheduler
+    volumes: *volumes
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  hibarr_storage:
+  hibarr_uploads:
+
+networks:
+  # Created by Dokploy; Traefik joins it. Only the grpc service uses it here
+  # (the web service is attached by the Domains tab).
+  dokploy-network:
+    external: true

@@ -1,15 +1,29 @@
 # syntax=docker/dockerfile:1
 #
-# HTTP-only Hibarr CRM image (nginx + PHP-FPM). No RoadRunner / gRPC.
+# Hibarr CRM image: nginx + PHP-FPM for the web app, plus the same code run as a
+# queue worker, scheduler, one-shot migrator or RoadRunner gRPC server,
+# depending on CONTAINER_ROLE (see entrypoint.sh).
+#
+# Cross-building: the image must match the CPU of the host that runs it, which can
+# differ from the CPU of the CI agent (the agent is an ARM Mac mini, the Dokploy
+# host is x86-64: build with `--platform linux/amd64`). Stages whose OUTPUT does not
+# depend on the CPU (composer packages, route list, the frontend bundle, protobuf
+# classes, the Puppeteer JavaScript and its downloaded browser) are pinned to
+# $BUILDPLATFORM so they run natively and fast. Only `runtime` (apt, PHP extension
+# compilation) and the `smoke` checks run for the target CPU, and under emulation
+# when it differs. With matching CPUs, every `--platform` below is a no-op.
 
 # -----------------------------------------------------------------------------
 # Composer dependencies
 # -----------------------------------------------------------------------------
-FROM composer:2 AS vendor
+FROM --platform=$BUILDPLATFORM composer:2 AS vendor
 
 WORKDIR /app
 COPY composer.json composer.lock ./
-RUN composer install \
+# The cache mount keeps downloaded packages between builds on the same builder,
+# so a lock-file change only fetches the packages that actually changed.
+RUN --mount=type=cache,target=/tmp/cache \
+    composer install \
         --no-dev \
         --no-interaction \
         --prefer-dist \
@@ -20,7 +34,7 @@ RUN composer install \
 # -----------------------------------------------------------------------------
 # Ziggy route file (needed by Mix / frontend)
 # -----------------------------------------------------------------------------
-FROM php:8.3-cli-bookworm AS ziggy
+FROM --platform=$BUILDPLATFORM php:8.3-cli-bookworm AS ziggy
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libzip-dev \
@@ -34,7 +48,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY --from=vendor /app/vendor ./vendor
-COPY . .
+# Only what booting the app to list routes needs. Copying the whole repo here
+# made every frontend, test or docs change re-run this stage. The generated
+# ziggy.js is content-addressed when the assets stage copies it, so a change
+# that leaves the routes identical does not rebuild the frontend.
+COPY artisan composer.json ./
+COPY bootstrap ./bootstrap
+COPY config ./config
+COPY database ./database
+COPY routes ./routes
+COPY app ./app
+COPY resources/lang ./resources/lang
+COPY resources/views ./resources/views
 # bootstrap/cache is gitignored and empty, so COPY . . does not create it.
 # Artisan package discovery needs that directory to be present and writable.
 RUN mkdir -p \
@@ -58,20 +83,132 @@ RUN mkdir -p \
 # -----------------------------------------------------------------------------
 # Frontend assets (Laravel Mix production build)
 # -----------------------------------------------------------------------------
-FROM node:20-bookworm AS assets
+FROM --platform=$BUILDPLATFORM node:20-bookworm AS assets
 
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --fund=false
+# `puppeteer` is a dependency (Expose PDFs), and its install step downloads
+# ~600 MB of Chrome. The bundler never launches a browser; the runtime image
+# gets Chrome from the pdf-tools stage below.
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --fund=false --prefer-offline
 
-COPY . .
+# Only what webpack reads. tailwind.config.js scans resources/** and app/**/*.php
+# for class names, so `app` stays in; everything else (tests, docs, database,
+# config, routes, lang) no longer invalidates the slow build below.
+# `artisan` looks unrelated, but Laravel Mix detects a Laravel project by that file
+# existing and only then sets its public directory to `public`. Without it the build
+# compiles, then fails while versioning with "ENOENT ... open '/js/antd.js'" (it
+# looks for the output at the filesystem root).
+COPY artisan webpack.mix.js tailwind.config.js postcss.config.js tsconfig.json .babelrc ./
+COPY public/vendor ./public/vendor
+COPY app ./app
+COPY resources/css ./resources/css
+COPY resources/scss ./resources/scss
+COPY resources/views ./resources/views
+COPY resources/js ./resources/js
 COPY --from=ziggy /app/resources/js/ziggy.js ./resources/js/ziggy.js
-RUN npm run production
+# (.dockerignore already excludes public/js and public/css: Mix regenerates them.)
+#
+# WEBPACK_FS_CACHE + the cache mount keep webpack's module cache between builds
+# on the same builder, so a rebuild after a small change skips most compilation.
+#
+# MIX_TERSER_WORKERS caps the minifier's worker processes. Uncapped, Mix starts one
+# per CPU, and on a many-core builder with modest RAM the build is OOM-killed
+# ("Killed", exit code 137). Raise it only on a builder with plenty of memory.
+ARG MIX_TERSER_WORKERS=2
+# The webpack filesystem cache is off by default: in a throwaway builder (Woodpecker's
+# buildx plugin) it never gets reused, and it keeps the whole module graph in memory to
+# serialize it, which is exactly what an OOM-prone builder cannot spare. Pass
+# --build-arg WEBPACK_FS_CACHE=1 on a persistent builder to get the warm-cache speedup.
+ARG WEBPACK_FS_CACHE=
+RUN --mount=type=cache,target=/app/node_modules/.cache \
+    MIX_TERSER_WORKERS="${MIX_TERSER_WORKERS}" WEBPACK_FS_CACHE="${WEBPACK_FS_CACHE}" npm run production
+
+# -----------------------------------------------------------------------------
+# PDF tooling for Expose (Spatie Laravel PDF -> Browsershot -> Node -> Puppeteer
+# -> Chrome). Browsershot runs `node vendor/spatie/browsershot/bin/browser.cjs`
+# with NODE_PATH=`npm root -g`, so puppeteer must be installed globally, and the
+# app never passes an executable path, so Puppeteer must find Chrome in its own
+# cache. Same arrangement as the Jenkins hosts (puppeteer + its managed Chrome).
+# -----------------------------------------------------------------------------
+# Only the pinned version leaves this stage, so the Chrome download below is
+# re-run when puppeteer changes, not whenever any dependency does.
+FROM --platform=$BUILDPLATFORM node:20-bookworm-slim AS pdf-version
+WORKDIR /tmp/lock
+COPY package-lock.json ./
+RUN node -p "require('./package-lock.json').packages['node_modules/puppeteer'].version" > /puppeteer-version
+
+# node + npm for the runtime image. This stage has no --platform pin, so it is the
+# TARGET CPU's image (the default). It is only copied from, never executed at build
+# time, so no emulation is needed even when the target CPU differs from the builder's.
+FROM node:20-bookworm-slim AS node-runtime
+
+FROM --platform=$BUILDPLATFORM node:20-bookworm-slim AS pdf-tools
+# Browsershot launches Chrome with `headless: 'shell'` unless the app calls
+# newHeadless() (it does not), and that mode needs puppeteer's separate
+# chrome-headless-shell build; full Chrome is not used. If the app ever switches,
+# build with --build-arg PUPPETEER_BROWSERS="chrome chrome-headless-shell".
+ARG PUPPETEER_BROWSERS=chrome-headless-shell
+ARG TARGETARCH
+ENV PUPPETEER_CACHE_DIR=/opt/puppeteer \
+    PUPPETEER_SKIP_DOWNLOAD=true
+COPY --from=pdf-version /puppeteer-version /tmp/puppeteer-version
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g --no-audit --fund=false "puppeteer@$(cat /tmp/puppeteer-version)" \
+    && mkdir -p /opt/puppeteer \
+    && case "${TARGETARCH:-amd64}" in \
+         amd64) \
+           for browser in ${PUPPETEER_BROWSERS}; do \
+             PUPPETEER_SKIP_DOWNLOAD= puppeteer browsers install "$browser" --platform linux; \
+           done ;; \
+         *) \
+           echo "WARNING: Chrome for Testing has no Linux ${TARGETARCH} build, so this image has no browser and Expose PDFs will not work. Build for linux/amd64 for a working image." >&2 ;; \
+       esac \
+    && chmod -R a+rX /opt/puppeteer
+
+# -----------------------------------------------------------------------------
+# gRPC server: RoadRunner binary + protobuf-generated PHP classes.
+# -----------------------------------------------------------------------------
+# Same release as the spiral/roadrunner package pinned in composer.lock, so the
+# server and the PHP worker library stay in step. The asset layout is not
+# assumed beyond "a file named rr". `rr --version` runs at build time when the
+# builder can execute it (same CPU), so a wrong URL fails the build instead of the
+# container; when cross-building, the smoke stage runs the same check on the target.
+FROM --platform=$BUILDPLATFORM php:8.3-cli-bookworm AS rr-bin
+ARG BUILDARCH
+ARG TARGETARCH
+WORKDIR /tmp/rr
+COPY composer.lock ./
+RUN set -eux; \
+    version="$(php -r '$l = json_decode(file_get_contents("composer.lock"), true); foreach ($l["packages"] as $p) { if ($p["name"] === "spiral/roadrunner") { echo ltrim($p["version"], "v"); } }')"; \
+    test -n "$version"; \
+    curl -fsSL -o rr.tgz "https://github.com/roadrunner-server/roadrunner/releases/download/v${version}/roadrunner-${version}-linux-${TARGETARCH:-amd64}.tar.gz"; \
+    mkdir out; \
+    tar -xzf rr.tgz -C out; \
+    install -m 0755 "$(find out -type f -name rr | head -n 1)" /usr/local/bin/rr; \
+    test -s /usr/local/bin/rr; \
+    if [ "${BUILDARCH}" = "${TARGETARCH:-amd64}" ]; then rr --version; fi
+
+# `make proto` equivalent. protoc nests its output under the PHP namespace path
+# (App/Grpc/Generated/...); the app autoloads App\Grpc\Generated\ from
+# app/Grpc/Generated, so the nested directory is lifted out. Debian's protoc
+# (3.21) matches what the Ubuntu hosts generated with. Only `proto/` is copied,
+# so this layer rebuilds when a .proto changes and not otherwise.
+FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS proto-gen
+RUN apt-get update && apt-get install -y --no-install-recommends protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /work
+COPY proto ./proto
+RUN mkdir -p /out /gen \
+    && protoc --proto_path=proto --php_out=/out proto/*.proto \
+    && cp -r /out/App/Grpc/Generated/. /gen/
 
 # -----------------------------------------------------------------------------
 # Runtime: nginx + PHP-FPM (supervisord)
 # -----------------------------------------------------------------------------
-FROM php:8.3-fpm-bookworm
+FROM php:8.3-fpm-bookworm AS runtime
 
 ARG TARGETARCH
 ARG INFISICAL_CLI_VERSION=0.43.78
@@ -80,6 +217,14 @@ ENV COMPOSER_ALLOW_SUPERUSER=1 \
     GRPC_ENABLED=false \
     INFISICAL_DISABLE_UPDATE_CHECK=true
 
+# Extensions are compiled position-independent (-fPIC) whatever libtool decides.
+# libtool normally adds -fPIC after probing the compiler, but the probe treats any
+# stray text on stderr as "flag unsupported", and under CPU emulation (this image is
+# cross-built for x86-64 on an ARM agent) it can answer "no". The extension is then
+# compiled with the image's default -fpie, which cannot be linked into a shared
+# object ("relocation R_X86_64_PC32 against undefined symbol module_registry can not
+# be used when making a shared object; recompile with -fPIC"). PECL does not use
+# PHP_CFLAGS, so redis gets the flag through CFLAGS.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
@@ -96,6 +241,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libonig-dev \
         libxml2-dev \
         default-mysql-client \
+    && export PHP_CFLAGS="$PHP_CFLAGS -fPIC" \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
         bcmath \
@@ -107,7 +253,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         pcntl \
         pdo_mysql \
         zip \
-    && pecl install redis \
+    && CFLAGS="-g -O2 -fPIC" pecl install redis \
     && docker-php-ext-enable redis \
     && ARCH="${TARGETARCH:-amd64}" \
     && curl -fsSL -o /tmp/infisical-cli.tar.gz \
@@ -118,6 +264,52 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && infisical --version \
     && rm -rf /var/lib/apt/lists/* \
     && rm -f /etc/nginx/sites-enabled/default
+
+# PDF rendering for Expose. Kept after the PHP extension layer above so changing
+# it does not recompile PHP extensions. Libraries are Chrome's runtime needs;
+# fonts are the ones the Expose templates name (DejaVu Sans, Open Sans,
+# Helvetica/Arial via Liberation) plus emoji.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        fonts-dejavu-core \
+        fonts-liberation \
+        fonts-noto-color-emoji \
+        fonts-open-sans \
+        libasound2 \
+        libatk-bridge2.0-0 \
+        libatk1.0-0 \
+        libcairo2 \
+        libcups2 \
+        libdbus-1-3 \
+        libdrm2 \
+        libexpat1 \
+        libfontconfig1 \
+        libgbm1 \
+        libglib2.0-0 \
+        libnspr4 \
+        libnss3 \
+        libpango-1.0-0 \
+        libx11-6 \
+        libx11-xcb1 \
+        libxcb1 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxext6 \
+        libxfixes3 \
+        libxkbcommon0 \
+        libxrandr2 \
+        xdg-utils \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
+COPY --from=node-runtime /usr/local/lib/node_modules /usr/local/lib/node_modules
+# The puppeteer package is plain JavaScript (no native modules), so the copy built on
+# the builder's CPU is valid for any target.
+COPY --from=pdf-tools /usr/local/lib/node_modules/puppeteer /usr/local/lib/node_modules/puppeteer
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+COPY --from=pdf-tools /opt/puppeteer /opt/puppeteer
+# php-fpm (clear_env = no) and the queue worker inherit this, so Puppeteer finds
+# the matching Chrome without the app configuring a path.
+ENV PUPPETEER_CACHE_DIR=/opt/puppeteer
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -139,6 +331,10 @@ COPY --from=assets /app/public/js ./public/js
 COPY --from=assets /app/public/css ./public/css
 COPY --from=assets /app/public/mix-manifest.json ./public/mix-manifest.json
 COPY --from=ziggy /app/resources/js/ziggy.js ./resources/js/ziggy.js
+# gRPC: generated classes must be in place before the autoload dump below so
+# they land in the optimized classmap.
+COPY --from=proto-gen /gen/ ./app/Grpc/Generated/
+COPY --from=rr-bin /usr/local/bin/rr /usr/local/bin/rr
 
 RUN composer dump-autoload --optimize --no-interaction --no-scripts \
     && mkdir -p \
@@ -154,7 +350,38 @@ RUN composer dump-autoload --optimize --no-interaction --no-scripts \
     && chown -R www-data:www-data storage bootstrap/cache public/user-uploads \
     && chmod -R ug+rwx storage bootstrap/cache public/user-uploads
 
+# Release identity for the "new version available" banner (app/Support/AppBuild.php,
+# resources/js/lib/staleBuildCheck.ts). Same shape the Jenkins build wrote with
+# `make write-build-version`. Last on purpose: it changes every build, and
+# nothing above should be invalidated by it. CI also polls this file after a
+# deploy to confirm the new release is the one answering.
+ARG BUILD_ID=docker
+ARG GIT_SHA=unknown
+RUN printf '{"id":"%s-%s"}\n' "$BUILD_ID" "$(printf '%s' "$GIT_SHA" | cut -c1-7)" > public/build-version.json
+
 EXPOSE 80
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/hibarr.conf"]
+
+# -----------------------------------------------------------------------------
+# CI smoke test. `docker build --target smoke .` runs the checks below as build
+# steps, so building the target IS the test: no running Docker daemon is needed in
+# a later pipeline step, and the checks run inside the exact image that gets
+# published (which also proves the frontend bundle compiles). Nothing outside
+# CI builds this target, and BuildKit skips it when building `final`.
+# -----------------------------------------------------------------------------
+FROM runtime AS smoke
+COPY scripts/ci /ci
+RUN sh /ci/smoke-image.sh \
+    && sh /ci/smoke-pdf.sh \
+    && sh /ci/smoke-grpc.sh
+# Starts RoadRunner with the real worker.php. Informational until it has passed
+# once in CI (the workers boot Laravel without a database), so it never fails the build.
+RUN GRPC_BOOT=1 sh /ci/smoke-grpc.sh || echo "gRPC boot test failed (informational, see the log above)"
+
+# -----------------------------------------------------------------------------
+# The default (last) stage is what `docker build .` and the pipeline's publish
+# step produce: the runtime image, without the smoke test's /ci scripts.
+# -----------------------------------------------------------------------------
+FROM runtime AS final

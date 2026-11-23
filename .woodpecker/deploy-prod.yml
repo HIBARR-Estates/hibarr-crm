@@ -1,0 +1,49 @@
+# HIBARR CI Infrastructure — laravel-app template
+#
+# Synced verbatim into consuming repos' .woodpecker/deploy-prod.yml by sync/sync.sh.
+# Manually triggered only: promotes an already-built GHCR image to production via
+# Dokploy, then waits until the NEW release is the one answering.
+#
+# Differs from backend-service/deploy-prod.yml only in the script it calls:
+# deploy-release-check.sh allows a ~5 minute boot (the container fetches secrets,
+# waits for the database and runs migrations first) and confirms the release by
+# comparing /build-version.json with this pipeline's commit, which a bare HTTP 200
+# from a still-running old container would not.
+#
+# Run it on the commit whose image you want live (pick the branch/commit when
+# triggering the manual run): the image tag is <branch>-<short sha> and the release
+# check looks for that sha.
+#
+# Secret requirements per consuming repo (Woodpecker repo secrets):
+#   - DOKPLOY_PROD_WEBHOOK   the Compose app's deploy webhook URL from Dokploy
+#   - PROD_HEALTH_URL        e.g. https://crm.example.com/healthz  (the /healthz suffix
+#                            turns on the release check; any other URL checks HTTP 200 only)
+
+when:
+  - event: manual
+
+steps:
+  - name: prepare
+    image: node:20-alpine
+    commands:
+      - SHORT_SHA=$(echo $CI_COMMIT_SHA | cut -c1-7)
+      # `export` matters: deploy-production sources this file then runs a script as a
+      # CHILD process (see backend-service/deploy-prod.yml).
+      - echo "export SHORT_SHA=$SHORT_SHA" > .woodpecker-env
+      - echo "Deploying image tagged develop-$SHORT_SHA to production"
+
+  - name: deploy-production
+    image: alpine/curl
+    depends_on: [prepare]
+    environment:
+      IMAGE_NAME: "ghcr.io/hibarr-estates/${CI_REPO_NAME}"
+      CI_BRANCH_TAG: "develop"
+      DOKPLOY_WEBHOOK:
+        from_secret: DOKPLOY_PROD_WEBHOOK
+      HEALTH_URL:
+        from_secret: PROD_HEALTH_URL
+    commands:
+      # alpine/curl only ships /bin/sh, not bash.
+      - apk add --no-cache bash
+      - . .woodpecker-env
+      - bash .woodpecker-scripts/deploy-release-check.sh

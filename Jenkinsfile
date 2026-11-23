@@ -133,14 +133,24 @@ pipeline {
                             chmod -R 775 bootstrap/cache || true
                             # ----------------------------
 
+                            # Every release builds in a fresh directory, so without these the
+                            # build re-downloads every package and recompiles every module.
+                            # Keep the caches next to shared/ so they survive the 5-release cleanup.
+                            CACHE_DIR=/home/$TARGET_USER/shared/cache
+                            mkdir -p \$CACHE_DIR/npm \$CACHE_DIR/composer \$CACHE_DIR/webpack \$CACHE_DIR/rr
+                            export npm_config_cache=\$CACHE_DIR/npm
+                            export COMPOSER_CACHE_DIR=\$CACHE_DIR/composer
+                            export WEBPACK_CACHE_DIR=\$CACHE_DIR/webpack
+                            export WEBPACK_FS_CACHE=1
+
                             # Run Build via Makefile (BUILD_ID is expanded by the Jenkins agent)
                             export BUILD_ID=$BUILD_ID
                             make build-artifact
 
                             echo 'Step 1b: gRPC binary setup...'
                             # Proto classes already generated in build-artifact (make proto + autoload refresh)
-                            # Install RoadRunner binary for Linux
-                            make rr-install
+                            # Install RoadRunner binary for Linux (cached across releases)
+                            bash scripts/install-rr-cached.sh \$CACHE_DIR/rr
                             chmod +x ./rr
 
                             echo 'Step 2: Linking Shared Assets...'

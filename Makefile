@@ -201,16 +201,30 @@ deploy-production:
 	$(MAKE) queue-restart
 
 
-# Run this on Jenkins to prepare the artifact
+# Run this on Jenkins to prepare the artifact.
+#
+# The PHP chain (composer -> proto -> autoload -> ziggy routes) and `npm ci` do
+# not depend on each other, so they run side by side; the Mix build needs both
+# (it imports the generated resources/js/ziggy.js and node_modules).
+# Jenkinsfile points npm/Composer/webpack caches at a directory shared across
+# releases (see WEBPACK_FS_CACHE in webpack.mix.js); locally they default to the
+# usual per-user caches, so this target still works anywhere.
 build-artifact:
 	@if [ ! -f composer.phar ]; then curl -sS https://getcomposer.org/installer | php; fi
+	$(MAKE) -j2 --output-sync=target build-deps-php build-deps-js
+	npm run production
+	$(MAKE) write-build-version
+
+build-deps-php:
 	php composer.phar install --no-interaction --prefer-dist --optimize-autoloader
 	$(MAKE) proto
 	php composer.phar dump-autoload --optimize
-	npm install
 	php artisan ziggy:generate
-	npm run production
-	$(MAKE) write-build-version
+
+# `npm ci` installs exactly package-lock.json (no lock rewrite, and it fails
+# loudly if package.json and the lock drift apart) and reuses the npm cache.
+build-deps-js:
+	npm ci --no-audit --fund=false --prefer-offline
 
 # Opaque id sitting tabs poll against after a deploy (`public/build-version.json`).
 write-build-version:
