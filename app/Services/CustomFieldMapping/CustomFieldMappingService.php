@@ -354,9 +354,11 @@ class CustomFieldMappingService
                     ->where('cfd.model', Deal::CUSTOM_FIELD_MODEL)
                     ->where('cfd.custom_field_id', $source->id);
             })
+            // Same notion of "has a value" as CustomFieldValueConverter::read(): trimmed, non-empty.
+            ->when($source->company_id, fn ($q, $companyId) => $q->where('deals.company_id', $companyId))
             ->whereNotNull('deals.lead_id')
-            ->where('cfd.value', '<>', '')
-            ->where('cfd.value', '<>', '[]')
+            ->whereRaw("TRIM(cfd.value) <> ''")
+            ->whereRaw("TRIM(cfd.value) <> '[]'")
             ->groupBy('deals.lead_id')
             ->selectRaw('deals.lead_id as lead_id, MAX(deals.id) as deal_id')
             ->get();
@@ -389,6 +391,7 @@ class CustomFieldMappingService
                 continue;
             }
 
+            $rowExists = array_key_exists($recordId, $existing);
             $current = $existing[$recordId] ?? null;
             $hasValue = $this->isFilled($current, $target);
 
@@ -406,7 +409,7 @@ class CustomFieldMappingService
 
             if (! $dryRun) {
                 $target['type'] === 'custom'
-                    ? $this->writeCustomValue($target['field'], $target['model'], $recordId, $value, $current !== null)
+                    ? $this->writeCustomValue($target['field'], $target['model'], $recordId, $value, $rowExists)
                     : $this->writeDefinedValue($target['defined'], $recordId, $value);
             }
 

@@ -346,4 +346,19 @@ class CustomFieldMappingTest extends TestCase
         $this->expectException(InvalidMappingException::class);
         $this->service->run($this->request($source, $target), dryRun: true);
     }
+
+    public function test_whitespace_only_newest_deal_does_not_hide_an_older_deals_value(): void
+    {
+        $lead = $this->lead();
+        $older = $this->deal($lead);
+        $newer = $this->deal($lead);
+        $source = $this->field(Deal::CUSTOM_FIELD_MODEL, 'Deal note');
+        $target = $this->field(Lead::CUSTOM_FIELD_MODEL, 'Lead note');
+        $this->put($source, Deal::CUSTOM_FIELD_MODEL, $older->id, 'real value');
+        $this->put($source, Deal::CUSTOM_FIELD_MODEL, $newer->id, '   ');
+
+        $this->service->run($this->request($source, $target), dryRun: false);
+
+        $this->assertSame('real value', $this->read($target, Lead::CUSTOM_FIELD_MODEL, $lead->id));
+    }
 }
