@@ -3059,7 +3059,7 @@ return [
         'vat_status_due' => 'KDV offen',
         'vat_status_requested' => 'KDV angefordert',
         'vat_status_settled' => 'KDV eingegangen',
-        'vat_due_hint' => 'Der Kunde hat eine Rechnung angefordert, deshalb kommt die KDV zum Nettobetrag hinzu. Sie kann über eine zweite Zahlungsanforderung eingezogen werden oder als bar erhalten bzw. außerhalb des CRM beglichen erfasst werden.',
+        'vat_due_hint' => 'Der Kunde hat Unterlagen angefordert, deshalb ist KDV zusätzlich zum Nettobetrag fällig. Sie kann über eine zweite Zahlungsanforderung eingezogen werden oder als bar erhalten bzw. außerhalb des CRM beglichen erfasst werden.',
         'vat_requested_hint' => 'Eine zweite Zahlungsanforderung für die KDV ist offen. Die KDV gilt als eingegangen, sobald sie bestätigt ist.',
         'vat_action_request' => 'KDV-Zahlung anfordern',
         'vat_action_cash' => 'Bar erhalten',

@@ -3158,7 +3158,7 @@ return [
         'vat_status_due' => 'KDV due',
         'vat_status_requested' => 'KDV requested',
         'vat_status_settled' => 'KDV collected',
-        'vat_due_hint' => 'The customer asked for an invoice, so KDV is due on top of the net amount. Collect it by sending a second payment request, or record that it was received in cash or settled outside the CRM.',
+        'vat_due_hint' => 'The customer asked for documents, so KDV is due on top of the net amount. Collect it by sending a second payment request, or record that it was received in cash or settled outside the CRM.',
         'vat_requested_hint' => 'A second payment request for the KDV is open. The KDV counts as collected once it is confirmed.',
         'vat_action_request' => 'Request KDV payment',
         'vat_action_cash' => 'Received in cash',

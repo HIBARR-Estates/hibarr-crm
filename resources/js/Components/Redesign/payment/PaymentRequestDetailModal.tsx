@@ -288,6 +288,8 @@ export default function PaymentRequestDetailModal({
     const { requestDocuments, fetchStatus, requesting } = usePaymentDocumentRequest();
     const [requestedId, setRequestedId] = useState<number | null>(null);
     const receiptRefreshed = useRef<number | null>(null);
+    // Bumped whenever another payment is selected or the modal goes away, so a late receipt refresh is dropped.
+    const receiptRefreshToken = useRef(0);
     const [confirmRequestOpen, setConfirmRequestOpen] = useState(false);
     const { requestVat, settleVat, saving: savingVat } = useVatCollection();
     const [vatAction, setVatAction] = useState<"request" | "cash" | "external" | null>(null);
@@ -295,6 +297,11 @@ export default function PaymentRequestDetailModal({
         setRequestedId(null);
         setConfirmRequestOpen(false);
         setVatAction(null);
+        receiptRefreshed.current = null;
+        const token = receiptRefreshToken;
+        return () => {
+            token.current += 1;
+        };
     }, [request?.id]);
 
     if (!request) return null;
@@ -327,21 +334,24 @@ export default function PaymentRequestDetailModal({
     const invoiceUrl = documentsRequested ? documentHref(request, "invoice") : null;
     // A receipt only needs a collected payment, not the invoice or its request.
     // Before any request, only someone who may record one can generate it.
-    const receiptUrl = collected && (documentsRequested || canRequestInvoice) ? documentHref(request, "receipt") : null;
+    const receiptUrl = collected && (documentsRequested || request.vat != null || canRequestInvoice)
+        ? documentHref(request, "receipt") : null;
     // Asking for a receipt is itself the document request, so KDV becomes
     // due. Read the payment back once the download has been issued.
     const refreshAfterReceipt = () => {
-        if (documentsRequested || request.deal_id == null) return;
+        if (request.vat != null || request.deal_id == null) return;
         const { deal_id: dealId, id } = request;
+        const token = receiptRefreshToken.current;
         // The server records the request while it makes the download, so
         // look again a few times in case that takes a moment.
         [1500, 4000, 9000].forEach((delay, attempt) => {
             window.setTimeout(async () => {
                 if (attempt > 0 && receiptRefreshed.current === id) return;
                 const updated = await fetchStatus(dealId, id);
-                if (updated?.documents_requested) {
+                // Another payment was selected meanwhile: do not touch it.
+                if (token !== receiptRefreshToken.current) return;
+                if (updated?.vat != null) {
                     receiptRefreshed.current = id;
-                    setRequestedId(id);
                     onDocumentsRequested?.(updated);
                 }
             }, delay);

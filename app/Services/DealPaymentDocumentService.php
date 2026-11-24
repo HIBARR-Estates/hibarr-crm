@@ -94,15 +94,11 @@ class DealPaymentDocumentService
 
         $document = $this->issued($payment, $kind);
         if ($document === null) {
-            if ($payment->documents_requested_at === null) {
-                // Asking for a receipt is itself the customer's request for
-                // documents, so KDV becomes due without an invoice. An invoice
-                // still has to be requested before it is made.
-                if ($kind !== PaymentDocument::RECEIPT) {
-                    throw new HttpException(409, 'An invoice has to be requested before it is made.');
-                }
-
-                $this->requestDocuments($payment, auth()->id() ? (int) auth()->id() : null);
+            // An invoice has to be asked for. A receipt does not: issuing it is
+            // itself the customer's request for documents (see vatRequested),
+            // so it never opens the way to an invoice.
+            if ($kind === PaymentDocument::INVOICE && $payment->documents_requested_at === null) {
+                throw new HttpException(409, 'An invoice has to be requested before it is made.');
             }
 
             $document = $this->issue($payment, $kind);
@@ -305,6 +301,16 @@ class DealPaymentDocumentService
         ];
 
         return $paymentData;
+    }
+
+    /**
+     * Whether the customer has asked for documents, so KDV is due on top of
+     * the net amount: an invoice was requested, or a receipt was issued.
+     */
+    public function vatRequested(Payment $payment): bool
+    {
+        return $payment->documents_requested_at !== null
+            || $this->issued($payment, PaymentDocument::RECEIPT) !== null;
     }
 
     /**

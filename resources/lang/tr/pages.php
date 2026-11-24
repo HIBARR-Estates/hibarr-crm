@@ -3037,7 +3037,7 @@ return [
         'vat_status_due' => 'KDV bekleniyor',
         'vat_status_requested' => 'KDV talep edildi',
         'vat_status_settled' => 'KDV tahsil edildi',
-        'vat_due_hint' => 'Müşteri fatura talep ettiği için KDV net tutarın üzerine eklenir. İkinci bir ödeme talebiyle tahsil edebilir veya nakit alındığını ya da CRM dışında ödendiğini kaydedebilirsiniz.',
+        'vat_due_hint' => 'Müşteri belge istediği için KDV net tutarın üzerine eklenir. İkinci bir ödeme talebiyle tahsil edebilir veya nakit alındığını ya da CRM dışında ödendiğini kaydedebilirsiniz.',
         'vat_requested_hint' => 'KDV için ikinci bir ödeme talebi açık. Onaylandığında KDV tahsil edilmiş sayılır.',
         'vat_action_request' => 'KDV ödemesi iste',
         'vat_action_cash' => 'Nakit alındı',

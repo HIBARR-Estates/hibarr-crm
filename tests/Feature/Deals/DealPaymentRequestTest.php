@@ -1581,7 +1581,7 @@ class DealPaymentRequestTest extends TestCase
         $this->assertSame(1, DB::table('payment_documents')->where('kind', 'receipt')->count());
     }
 
-    public function test_a_receipt_needs_no_invoice_request_and_records_the_request_itself(): void
+    public function test_a_receipt_needs_no_invoice_request_and_makes_kdv_due(): void
     {
         $this->seedSellerSettings(['legal_name' => 'Örnek Emlak Ltd.', 'address' => 'Girne, KKTC', 'receipt_number_end' => 5000, 'invoice_number_end' => 5000]);
         $id = $this->insertPayment([
@@ -1603,13 +1603,23 @@ class DealPaymentRequestTest extends TestCase
             $this->assertSame(409, $e->getStatusCode());
         }
 
+        $this->assertNull(app(DealPaymentService::class)->serializeDealPayment($payment->fresh())['vat']);
+
         $data = $documents->viewData($payment, 'receipt');
 
         $this->assertSame('receipt', $data['kind']);
         $this->assertNull($data['invoice_number']);
-        $this->assertNotNull($payment->fresh()->documents_requested_at);
-        $this->assertSame(0, DB::table('payment_documents')->where('kind', 'invoice')->count());
+        // The receipt is the customer's request for documents: KDV is due,
+        // but the invoice was never asked for and is still refused.
+        $this->assertNull($payment->fresh()->documents_requested_at);
         $this->assertSame('due', app(DealPaymentService::class)->serializeDealPayment($payment->fresh())['vat']['status']);
+        try {
+            $documents->viewData($payment->fresh(), 'invoice');
+            $this->fail('Expected an invoice that was not requested to stay refused after a receipt.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+        $this->assertSame(0, DB::table('payment_documents')->where('kind', 'invoice')->count());
     }
 
     public function test_a_receipt_cannot_be_issued_for_a_payment_that_was_not_collected(): void
