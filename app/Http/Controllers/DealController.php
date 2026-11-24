@@ -466,7 +466,7 @@ class DealController extends AccountBaseController
      */
     protected function loadDataForInertiaIndex(): void
     {
-        $this->pipelines = LeadPipeline::all();
+        $this->pipelines = LeadPipeline::visibleInSystem()->get();
         $this->defaultPipeline = LeadPipeline::where('default', 1)->first();
     }
 
@@ -487,7 +487,7 @@ class DealController extends AccountBaseController
 
     protected function loadPipelineData()
     {
-        $this->pipelines = LeadPipeline::all();
+        $this->pipelines = LeadPipeline::visibleInSystem()->get();
         $defaultPipeline = LeadPipeline::where('default', 1)->first();
         $this->defaultPipeline = $defaultPipeline;
         $this->stages = PipelineStage::where('lead_pipeline_id', optional($defaultPipeline)->id)->get();
@@ -725,11 +725,12 @@ class DealController extends AccountBaseController
         return Inertia::render('AgentWorkspace/Deals', [
             'pageTitle' => __('pages.agent_workspace.deals.title'),
             'userId' => (int) user()->id,
-            // `visible` is the pipeline's nav-visibility setting; the default pipeline is always visible.
+            // `visible` combines nav-visibility + system-visibility; the default pipeline is always visible.
             'pipelines' => $this->pipelines->map(fn ($pipeline) => [
                 'id' => (int) $pipeline->id,
                 'name' => $pipeline->name,
-                'visible' => ! $navVisibility || (bool) $pipeline->default || ! $pipeline->hidden_from_nav,
+                'visible' => ((bool) $pipeline->default || ! $pipeline->hidden_from_system)
+                    && (! $navVisibility || (bool) $pipeline->default || ! $pipeline->hidden_from_nav),
             ])->values(),
             'pipelineId' => $pipelineId,
             'filters' => $request->only([
@@ -1011,11 +1012,11 @@ class DealController extends AccountBaseController
             // Quick action / composer follow in E-29.
             'emailQuickAction' => EmailFeature::quickActionFor(user()),
 
-            // A pipeline that sells packages does not sell individual properties,
-            // so properties / recommendations / offers are hidden for its deals.
-            'pipelineHasPackages' => $deal->lead_pipeline_id
-                ? \App\Models\PackagePipeline::where('pipeline_id', $deal->lead_pipeline_id)->exists()
-                : false,
+            // Explicit pipeline offering_type: package-only hides properties /
+            // recommendations / offers; property-only hides packages; both shows either.
+            'pipelineHasPackages' => (bool) optional($deal->pipeline)->isPackageOffering(),
+            'pipelineOfferingType' => optional($deal->pipeline)?->offeringType()
+                ?? \App\Models\LeadPipeline::OFFERING_PROPERTY,
 
             // ---- C1 deferred (queries run only when Inertia resolves these) ----
             // notes / dealFollowUps / files / tasks are no longer deferred props —
@@ -1695,7 +1696,7 @@ class DealController extends AccountBaseController
 
         $this->categories = $this->categories->get();
 
-        $this->leadPipelines = LeadPipeline::orderBy('default', 'DESC')->get();
+        $this->leadPipelines = LeadPipeline::visibleInSystem()->orderBy('default', 'DESC')->get();
         $this->leadStages = PipelineStage::all();
         $this->countries = countries();
 
@@ -1986,7 +1987,7 @@ class DealController extends AccountBaseController
         $this->categories = $this->categories->get();
         $this->leadContacts = Lead::all();
         $this->products = Product::all();
-        $this->leadPipelines = LeadPipeline::all();
+        $this->leadPipelines = LeadPipeline::visibleInSystem()->get();
 
         $this->stages = PipelineStage::all();
 
@@ -3969,6 +3970,7 @@ class DealController extends AccountBaseController
 
         // Get all pipelines for the dropdown
         $this->pipelines = \App\Models\LeadPipeline::where('company_id', company()->id)
+            ->visibleInSystem()
             ->orderBy('id')
             ->get();
 

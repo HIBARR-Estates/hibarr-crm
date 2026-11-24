@@ -954,7 +954,7 @@ return [
         'automationDesc' => 'E-Mail-Vorlagen und Automatisierungen verwalten, die bei Leads, Deals und Meetings laufen.',
         'comingSoon' => 'Demnächst verfügbar',
         'connected' => 'Verbunden',
-        'dealsDesc' => 'Deal-Kategorien, Pipelines und Phasen verwalten.',
+        'dealsDesc' => 'Deal-Pipelines, Phasen, Sichtbarkeit und Analysescripts verwalten.',
         'employeesDesc' => 'Mitarbeiter finden und sich als einer von ihnen anmelden, um die App aus dessen Konto zu sehen.',
         'leadsDesc' => 'Unternehmensstandards für den Umgang mit Leads, einschließlich Quellen, Status und Zeitvorgaben für den Erstkontakt.',
         'manage' => 'Verwalten',

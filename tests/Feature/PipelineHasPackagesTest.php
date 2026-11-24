@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\PackagePipeline;
+use App\Models\LeadPipeline;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -10,9 +10,9 @@ use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
- * Deals in a pipeline that has a package linked to it hide properties,
- * recommendations and offers. DealController@show ships the decision as the
- * `pipelineHasPackages` prop; this covers the lookup behind it.
+ * DealController@show ships `pipelineHasPackages` / `pipelineOfferingType` from
+ * `lead_pipelines.offering_type` so the deal UI can show only the package or
+ * property selector.
  */
 class PipelineHasPackagesTest extends TestCase
 {
@@ -28,12 +28,11 @@ class PipelineHasPackagesTest extends TestCase
 
         $this->resetSchema();
 
-        Schema::create('package_pipeline', function (Blueprint $table) {
+        Schema::create('lead_pipelines', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('company_id')->nullable();
-            $table->unsignedInteger('package_id');
-            $table->unsignedInteger('pipeline_id');
-            $table->unsignedInteger('default_stage_id')->nullable();
+            $table->string('name')->nullable();
+            $table->string('offering_type', 20)->default('property');
             $table->timestamps();
         });
     }
@@ -44,31 +43,56 @@ class PipelineHasPackagesTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_pipeline_with_a_linked_package_reports_true(): void
+    public function test_package_offering_pipeline_reports_true(): void
     {
-        $this->link(packageId: 5, pipelineId: 1);
+        $id = $this->insertPipeline(LeadPipeline::OFFERING_PACKAGE);
 
-        $this->assertTrue($this->hasPackages(1));
+        $pipeline = LeadPipeline::findOrFail($id);
+
+        $this->assertTrue($pipeline->isPackageOffering());
+        $this->assertFalse($pipeline->isPropertyOffering());
     }
 
-    public function test_pipeline_without_a_linked_package_reports_false(): void
+    public function test_property_offering_pipeline_reports_false(): void
     {
-        $this->link(packageId: 5, pipelineId: 1);
+        $id = $this->insertPipeline(LeadPipeline::OFFERING_PROPERTY);
 
-        $this->assertFalse($this->hasPackages(2));
+        $pipeline = LeadPipeline::findOrFail($id);
+
+        $this->assertFalse($pipeline->isPackageOffering());
+        $this->assertTrue($pipeline->isPropertyOffering());
     }
 
-    private function hasPackages(int $pipelineId): bool
+    public function test_both_offering_allows_packages_and_properties(): void
     {
-        return PackagePipeline::where('pipeline_id', $pipelineId)->exists();
+        $id = $this->insertPipeline(LeadPipeline::OFFERING_BOTH);
+        $pipeline = LeadPipeline::findOrFail($id);
+
+        $this->assertSame(LeadPipeline::OFFERING_BOTH, $pipeline->offeringType());
+        $this->assertFalse($pipeline->isPackageOffering());
+        $this->assertFalse($pipeline->isPropertyOffering());
+        $this->assertTrue($pipeline->allowsPackages());
+        $this->assertTrue($pipeline->allowsProperties());
     }
 
-    private function link(int $packageId, int $pipelineId): void
+    public function test_missing_offering_type_defaults_to_property(): void
     {
-        DB::table('package_pipeline')->insert([
+        $id = $this->insertPipeline(LeadPipeline::OFFERING_PROPERTY);
+        $pipeline = LeadPipeline::findOrFail($id);
+        // Empty/legacy values fail closed to property (show properties only).
+        $pipeline->offering_type = null;
+
+        $this->assertSame(LeadPipeline::OFFERING_PROPERTY, $pipeline->offeringType());
+        $this->assertFalse($pipeline->isPackageOffering());
+        $this->assertTrue($pipeline->isPropertyOffering());
+    }
+
+    private function insertPipeline(string $offeringType): int
+    {
+        return (int) DB::table('lead_pipelines')->insertGetId([
             'company_id' => 1,
-            'package_id' => $packageId,
-            'pipeline_id' => $pipelineId,
+            'name' => 'Pipeline '.$offeringType,
+            'offering_type' => $offeringType,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -76,6 +100,6 @@ class PipelineHasPackagesTest extends TestCase
 
     private function resetSchema(): void
     {
-        Schema::dropIfExists('package_pipeline');
+        Schema::dropIfExists('lead_pipelines');
     }
 }

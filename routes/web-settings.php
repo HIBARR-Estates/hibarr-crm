@@ -372,6 +372,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
     Route::get('lead-pipeline-update/{statusId}', [LeadPipelineSettingController::class, 'statusUpdate'])->name('lead-pipeline-update.stageUpdate');
     Route::put('lead-pipeline-setting/{id}/nav-visibility', [LeadPipelineSettingController::class, 'updateNavVisibility'])->name('lead-pipeline-setting.nav-visibility');
+    Route::put('lead-pipeline-setting/{id}/system-visibility', [LeadPipelineSettingController::class, 'updateSystemVisibility'])->name('lead-pipeline-setting.system-visibility');
     Route::put('lead-pipeline-setting/{id}/analysis-script', [\App\Http\Controllers\PipelineAnalysisScriptController::class, 'upsert'])->name('pipeline.analysis-script.upsert');
     Route::get('lead-pipeline-setting/{id}/analysis-script', [\App\Http\Controllers\PipelineAnalysisScriptController::class, 'show'])->name('pipeline.analysis-script.show');
     Route::get('analysis-script-builder', [\App\Http\Controllers\PipelineAnalysisScriptController::class, 'builder'])->name('analysis-script-builder.show');

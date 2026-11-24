@@ -59,6 +59,7 @@ class PackageSettingsController extends AccountBaseController
                 ])
                 ->values(),
             'pipelines' => LeadPipeline::where('company_id', $companyId)
+                ->visibleInSystem()
                 ->get(['id', 'name'])
                 ->values(),
             'stages' => PipelineStage::where('company_id', $companyId)
