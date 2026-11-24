@@ -177,11 +177,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
         // configured SIP URI domain) so this endpoint cannot be abused as an
         // oracle for arbitrary unrelated realms.
         $expectedRealm = SipProviderRegistry::digestRealm($device->provider);
-        $uriDomain = null;
-        if (is_string($device->uri) && str_contains($device->uri, '@')) {
-            $afterAt = substr($device->uri, strpos($device->uri, '@') + 1);
-            $uriDomain = trim(explode(';', explode(':', $afterAt)[0])[0]);
-        }
+        $uriDomain = is_string($device->uri) ? self::sipUriHost($device->uri) : null;
         $wssHost = is_string($device->wss_url) ? parse_url($device->wss_url, PHP_URL_HOST) : null;
         $allowedRealms = array_values(array_filter(array_unique([$expectedRealm, $uriDomain, is_string($wssHost) ? $wssHost : null])));
         // Custom lines have no registry realm but are still pinned to their
@@ -275,11 +271,48 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
     /** Free the caller's slot on the line once their call is over. */
     public function releaseCapacity(int $id): JsonResponse
     {
-        $device = $this->findCallableDevice($id);
+        // Release only ever frees the caller's own slot, so it is not gated on
+        // the call permissions: a user whose login is disabled, or who loses
+        // the line, mid-call must still free the slot they hold instead of
+        // blocking the line until the stale timeout. Reserving a slot and
+        // signing challenges stay refused (findCallableDevice).
+        $this->assertSoftphoneEnabled();
+        abort_if(user() === null, 403);
+
+        $device = SoftphoneDevice::findOrFail($id);
 
         LineConcurrencyManager::release((int) $device->id, (int) user()->id);
 
         return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * Host of a SIP URI (RFC 3261 §19.1.1) without user, port, URI
+     * parameters or headers: `sip:alice@PBX.example:5061;transport=tls?x=y`
+     * gives `PBX.example`. Null without a `user@host` part, so a bare
+     * `sip:4711` never turns the user into an allowed realm.
+     */
+    public static function sipUriHost(string $uri): ?string
+    {
+        $rest = preg_replace('/^\s*<?\s*sips?:/i', '', trim($uri)) ?? '';
+        // Parameters, headers and a closing angle bracket end the authority.
+        $rest = preg_split('/[;?>]/', $rest)[0];
+        $at = strrpos($rest, '@');
+        if ($at === false) {
+            return null;
+        }
+        $hostport = substr($rest, $at + 1);
+
+        if (str_starts_with($hostport, '[')) {
+            $end = strpos($hostport, ']');
+            $host = $end === false ? '' : substr($hostport, 0, $end + 1);
+        } else {
+            $host = explode(':', $hostport)[0];
+        }
+
+        $host = trim($host);
+
+        return $host !== '' ? $host : null;
     }
 
     /** A line of this company that the current user may call on. */

@@ -86,6 +86,28 @@ import { publishIncomingCall } from "./dock/incomingCallBridge";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
 /**
+ * POST a softphone call event, retrying transient failures (no response,
+ * 429, 5xx) with backoff. Send an `event_id` so a retry whose first attempt
+ * reached the server is logged only once. Gives up quietly after the last
+ * attempt or on a 4xx, which a retry cannot fix.
+ */
+async function postCallEventWithRetry(payload: Record<string, unknown>, attempts = 4): Promise<void> {
+    for (let attempt = 1; ; attempt++) {
+        try {
+            await axios.post(route("telephony.softphone.events.store"), payload);
+            return;
+        } catch (error) {
+            const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+            const transient = status === undefined || status === 429 || status >= 500;
+            if (!transient || attempt >= attempts) {
+                return;
+            }
+            await new Promise((resolve) => window.setTimeout(resolve, 1000 * 2 ** (attempt - 1)));
+        }
+    }
+}
+
+/**
  * Call-control widget for the in-browser softphone (sipgate Neo via SIP.js).
  * No dialer — calls are originated by click-to-call elsewhere; this surface
  * auto-opens while a call is ringing/active and shows answer/decline or
@@ -1268,8 +1290,11 @@ export default function SoftphoneDock({
                     : 0
                 : undefined;
 
-        void axios
-            .post(route("telephony.softphone.events.store"), {
+        // The terminal outcome is the only record of how the call ended, so it
+        // is retried until the server accepts it; the fixed event_id makes a
+        // retry whose first attempt did land a no-op on the server.
+        void postCallEventWithRetry({
+                event_id: `${lastEndedCall.callId}:end`,
                 phone: lastEndedCall.peer,
                 device_id: meta?.deviceId ?? activeDeviceId,
                 call_id: lastEndedCall.callId,
@@ -1292,9 +1317,6 @@ export default function SoftphoneDock({
                           forwarded_from_user_name: fwd.lastForwardedUser.name,
                       }
                     : {}),
-            })
-            .catch(() => {
-                // Timeline logging is best-effort only.
             });
     }, [lastEndedCall, isActiveTab, activeDeviceId]);
 
@@ -1457,10 +1479,13 @@ export default function SoftphoneDock({
             recorder.onerror = (event: any) => {
                 console.error("[softphone] MediaRecorder runtime error:", event?.error || event);
             };
-            recordChunksRef.current = [];
+            // This recording's own buffer: a later recording replaces the ref,
+            // and this recording's stop callback must not read or reset it.
+            const chunks: Blob[] = [];
+            recordChunksRef.current = chunks;
             recorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
-                    recordChunksRef.current.push(event.data);
+                    chunks.push(event.data);
                 }
             };
 
@@ -1468,13 +1493,17 @@ export default function SoftphoneDock({
             const callConnectedAt = activeCall?.connectedAt || activeCall?.answeredAt || recordingStartedAt;
 
             recorder.onstop = async () => {
-                const blob = new Blob(recordChunksRef.current, { type: recorder.mimeType || mimeType || "audio/mp4" });
-                recordChunksRef.current = [];
+                const blob = new Blob(chunks, { type: recorder.mimeType || mimeType || "audio/mp4" });
+                if (recordChunksRef.current === chunks) {
+                    recordChunksRef.current = [];
+                }
                 const stopTime = Date.now();
                 const elapsedRecording = recordingStartedAt ? (stopTime - recordingStartedAt) / 1000 : 0;
                 const elapsedCall = callConnectedAt ? (stopTime - callConnectedAt) / 1000 : 0;
                 const duration = Math.max(1, Math.round(Math.max(elapsedRecording, elapsedCall)));
-                recordStartedAtRef.current = null;
+                if (recordStartedAtRef.current === recordingStartedAt) {
+                    recordStartedAtRef.current = null;
+                }
 
                 // Release recording stream tracks (cloned WebRTC stream or isolated mic stream)
                 micStream?.getTracks().forEach((track) => track.stop());
@@ -1485,12 +1514,17 @@ export default function SoftphoneDock({
                 if (recordStreamRef.current === destination.stream) {
                     recordStreamRef.current = null;
                 }
-                const audioCtx = recordContextRef.current ?? ctx;
-                recordContextRef.current = null;
-                recordRecorderRef.current = null;
-                if (audioCtx && audioCtx.state !== "closed") {
+                // Only this recording's context and recorder: the refs may
+                // already belong to the next recording.
+                if (recordContextRef.current === ctx) {
+                    recordContextRef.current = null;
+                }
+                if (recordRecorderRef.current === recorder) {
+                    recordRecorderRef.current = null;
+                }
+                if (ctx.state !== "closed") {
                     try {
-                        await audioCtx.close();
+                        await ctx.close();
                     } catch {
                         // ignore
                     }

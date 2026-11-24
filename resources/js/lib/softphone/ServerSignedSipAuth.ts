@@ -50,7 +50,19 @@ interface StoredSignedDigest extends SignedDigestResponse {
 
 interface SipRequestLike {
     method: string;
-    ruri: { toString(): string } | string;
+    ruri: { toRaw?(): string; toString(): string } | string;
+}
+
+/**
+ * The Request-URI exactly as it went on the wire. sip.js writes the request
+ * line with `ruri.toRaw()`, and the server signed that string; `toString()`
+ * normalises (lower-cases the host), so it could miss the stored signature.
+ */
+function wireRequestUri(ruri: SipRequestLike["ruri"]): string {
+    if (typeof ruri === "string") {
+        return ruri;
+    }
+    return typeof ruri.toRaw === "function" ? ruri.toRaw() : String(ruri);
 }
 
 interface SipChallengeLike {
@@ -308,6 +320,30 @@ function formatNc(count: number): string {
  */
 export class PreSignedDigestStore {
     private entries = new Map<string, StoredSignedDigest>();
+    /** method -> when the client last abandoned requests of that method. */
+    private cancelledAt = new Map<string, number>();
+
+    /**
+     * The client abandoned its pending `method` requests (e.g. the agent hung
+     * up an outbound call while its INVITE's 407 was being signed). Requests
+     * sent before now get no signature, so sip.js finishes them without an
+     * authenticated retry instead of ringing the far end after all.
+     */
+    cancelPending(method: string): void {
+        const key = method.toUpperCase();
+        this.cancelledAt.set(key, Date.now());
+        for (const entryKey of [...this.entries.keys()]) {
+            if (entryKey.startsWith(`${key}|`)) {
+                this.entries.delete(entryKey);
+            }
+        }
+    }
+
+    /** Whether a request of `method` sent at `sentAt` was abandoned since. */
+    wasCancelled(method: string, sentAt: number): boolean {
+        const at = this.cancelledAt.get(method.toUpperCase());
+        return at !== undefined && sentAt <= at;
+    }
 
     private keyOf(
         method: string,
@@ -344,6 +380,7 @@ export class PreSignedDigestStore {
 
     clear(): void {
         this.entries.clear();
+        this.cancelledAt.clear();
     }
 
     createAuthenticationFactory(fallbackUsername: string) {
@@ -355,7 +392,7 @@ export class PreSignedDigestStore {
             ): boolean {
                 const realm = challenge.realm ?? "";
                 const nonce = challenge.nonce ?? "";
-                const uri = String(request.ruri);
+                const uri = wireRequestUri(request.ruri);
                 if (!realm || !nonce || !uri) {
                     return false;
                 }
@@ -525,7 +562,9 @@ export function createServerSignedTransportClass(
                 algorithm: challenge.algorithm,
             })
                 .then((signed) => {
-                    if (signed) {
+                    // Abandoned while signing: deliver the 401/407 unsigned
+                    // so sip.js ends that transaction without a retry.
+                    if (signed && !store.wasCancelled(pending.method, pending.sentAt)) {
                         store.putForMethod(pending.method, signed);
                     }
                 })

@@ -26,6 +26,11 @@ use Illuminate\Support\Facades\Schema;
 
 class TelephonySoftphoneEventController extends AccountBaseController
 {
+    /**
+     * `incoming_call_fallback_seconds` is how long each agent's rotation slot
+     * rings (it is the slotSeconds passed to InboundCallRotation::resolve and
+     * the dock's per-slot timer), so its default is the rotation's by design.
+     */
     private const DEFAULT_FALLBACK_SECONDS = InboundCallRotation::DEFAULT_SLOT_SECONDS;
 
     private static ?bool $hasCanReceiveCallsColumn = null;
@@ -616,6 +621,11 @@ class TelephonySoftphoneEventController extends AccountBaseController
             'is_forwarded' => 'nullable|boolean',
             'forwarded_from_user_id' => 'nullable|integer|min:1',
             'forwarded_from_user_name' => 'nullable|string|max:180',
+            // Client idempotency key: a retried POST with the same key is
+            // logged once (CallBridgeService dedupes on the event id).
+            // Visible ASCII only: SIP Call-IDs (which it is built from) may
+            // contain most punctuation.
+            'event_id' => 'nullable|string|max:120|regex:/^[\x21-\x7E]+$/',
         ]);
 
         // The call ref comes from the browser and links timeline rows, the
@@ -764,6 +774,11 @@ class TelephonySoftphoneEventController extends AccountBaseController
 
         try {
             $this->callBridge->logCallEvent([
+                // Scoped to company and agent so one browser's key can never
+                // suppress another's event.
+                ...(! empty($validated['event_id'])
+                    ? ['id' => sprintf('softphone:%d:%d:%s', (int) company()->id, (int) user()->id, $validated['event_id'])]
+                    : []),
                 'event' => $validated['event'] ?? 'call.started',
                 'call_id' => $validated['call_id'] ?? null,
                 'direction' => $validated['direction'] ?? 'outbound',

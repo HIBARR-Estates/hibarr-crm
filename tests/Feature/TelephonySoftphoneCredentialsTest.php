@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\SoftphoneDevice;
 use App\Models\User;
-use App\Support\SipProviderRegistry;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -265,6 +264,48 @@ class TelephonySoftphoneCredentialsTest extends TestCase
             ->assertOk();
     }
 
+    public function test_sign_challenge_reads_the_realm_host_past_uri_parameters_and_headers(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsAdmin();
+        $device = $this->makeDevice(null);
+        $device->uri = 'sip:alice@PBX.example:5061;transport=tls?subject=hello';
+        $device->wss_url = 'wss://edge.example/ws';
+        $device->save();
+
+        $payload = fn (string $realm) => [
+            'method' => 'REGISTER',
+            'uri' => 'sip:pbx.example',
+            'realm' => $realm,
+            'nonce' => 'nonce-host',
+        ];
+
+        $this->postJson(route('telephony.softphone.devices.sign-challenge', $device->id), $payload('pbx.example'))->assertOk();
+        $this->postJson(route('telephony.softphone.devices.sign-challenge', $device->id), $payload('edge.example'))->assertOk();
+        $this->postJson(route('telephony.softphone.devices.sign-challenge', $device->id), $payload('pbx.example?subject=hello'))
+            ->assertStatus(422);
+    }
+
+    public function test_sip_uri_host_parsing(): void
+    {
+        $this->assertSame('pbx.example', \App\Http\Controllers\TelephonySoftphoneDeviceController::sipUriHost('sip:alice@pbx.example'));
+        $this->assertSame('pbx.example', \App\Http\Controllers\TelephonySoftphoneDeviceController::sipUriHost('<sips:alice@pbx.example:5061;transport=tls>'));
+        $this->assertSame('[2001:db8::1]', \App\Http\Controllers\TelephonySoftphoneDeviceController::sipUriHost('sip:alice@[2001:db8::1]:5060'));
+        $this->assertNull(\App\Http\Controllers\TelephonySoftphoneDeviceController::sipUriHost('sip:4711'));
+    }
+
+    public function test_a_user_disabled_mid_call_can_still_release_their_line_slot(): void
+    {
+        $this->withoutMiddleware();
+        $device = $this->makeDevice('sipgate');
+
+        $this->actingAsUser(isAdmin: false, login: 'disable');
+
+        // Reserving (and signing) is refused, but freeing the slot they hold is not.
+        $this->postJson(route('telephony.softphone.devices.capacity.reserve', $device->id))->assertStatus(403);
+        $this->postJson(route('telephony.softphone.devices.capacity.release', $device->id))->assertOk();
+    }
+
     public function test_sign_challenge_blocks_deactivated_or_unauthorized_users(): void
     {
         $this->withoutMiddleware();
@@ -301,7 +342,8 @@ class TelephonySoftphoneCredentialsTest extends TestCase
         $this->withoutMiddleware();
         $this->actingAsAdmin();
         $device = $this->makeDevice('sipgate');
-        $ha1 = SipProviderRegistry::ha1('sipgate', '4711', self::PASSWORD);
+        // The reusable HA1 must never reach a log either.
+        $ha1 = md5('4711:sipgate.de:'.self::PASSWORD);
 
         Log::spy();
 

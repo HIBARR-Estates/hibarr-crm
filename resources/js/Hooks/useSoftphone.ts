@@ -349,6 +349,16 @@ async function activateDeviceInternal(deviceId: number): Promise<boolean> {
             if (token !== activationToken || !storeState.isActiveTab) {
                 return false;
             }
+            // A call may have started on the current line while the
+            // credentials loaded: switching now would drop it without an
+            // outcome. Refuse, and point the picker back at the line in use.
+            if (wouldInterruptLiveCall(deviceId)) {
+                if (registeredDeviceId !== null && storeState.activeDeviceId === deviceId) {
+                    storeDeviceId(registeredDeviceId);
+                    updateStore({ activeDeviceId: registeredDeviceId });
+                }
+                return false;
+            }
             const credentials = response.data?.data;
             if (response.data?.status === "success" && credentials) {
                 await softphone.start(credentials);

@@ -196,24 +196,6 @@ class SipProviderRegistry
     }
 
     /**
-     * Digest HA1 = md5("username:realm:password") (RFC 2617). Lets the browser
-     * answer the SIP digest challenge without ever holding the password: the
-     * hash authenticates but cannot be reversed. Null when it cannot be built.
-     */
-    public static function ha1(?string $platform, ?string $username, ?string $password): ?string
-    {
-        $realm = self::digestRealm($platform);
-        $username = (string) $username;
-        $password = (string) $password;
-
-        if ($realm === null || $username === '' || $password === '') {
-            return null;
-        }
-
-        return md5($username.':'.$realm.':'.$password);
-    }
-
-    /**
      * Compute a SIP Digest challenge response for a single request: RFC 2617
      * for MD5, RFC 7616/8760 for SHA-256 (same construction, other hash).
      *

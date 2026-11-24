@@ -655,7 +655,13 @@ export interface BoostedMicProcessor {
     setNegotiatedCodec(codecMimeType: string | null): void;
     getLowPassFrequency(): number;
     getLiveLevelSnapshot(): LiveLevelSnapshot;
-    dispose(): void;
+    /**
+     * Tear the processor down. By default the raw microphone tracks are
+     * stopped too (the processed track replaced them on the sender). Pass
+     * `keepSourceTracks` when the raw track may still be live on a sender,
+     * e.g. after `replaceTrack` failed and the processor was never installed.
+     */
+    dispose(options?: { keepSourceTracks?: boolean }): void;
 }
 
 /**
@@ -1038,7 +1044,7 @@ export function createBoostedMicStream(
         return computeEffectiveLowPassHz(cfg);
     };
 
-    const dispose = () => {
+    const dispose = (options?: { keepSourceTracks?: boolean }) => {
         disposed = true;
         try {
             window.removeEventListener("pointerdown", retryResumeOnGesture, true);
@@ -1046,19 +1052,21 @@ export function createBoostedMicStream(
         } catch {
             // ignore
         }
-        // Always stop both the underlying hardware mic tracks (rawStream) and
-        // the processed destination tracks so the browser releases the mic
-        // immediately even after RTCRtpSender.replaceTrack swapped the raw track out.
-        try {
-            rawStream.getTracks().forEach((t) => {
-                try {
-                    t.stop();
-                } catch {
-                    // ignore
-                }
-            });
-        } catch {
-            // ignore
+        // Stop the underlying hardware mic tracks (rawStream) so the browser
+        // releases the mic even after RTCRtpSender.replaceTrack swapped the
+        // raw track out — unless the caller says a sender may still use them.
+        if (!options?.keepSourceTracks) {
+            try {
+                rawStream.getTracks().forEach((t) => {
+                    try {
+                        t.stop();
+                    } catch {
+                        // ignore
+                    }
+                });
+            } catch {
+                // ignore
+            }
         }
         try {
             destination.stream.getTracks().forEach((t) => {
