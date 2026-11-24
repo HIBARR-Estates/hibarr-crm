@@ -40,6 +40,7 @@ import {
     createDeviceChallengeSigner,
     createServerSignedTransportClass,
 } from "./ServerSignedSipAuth";
+import { providerMessage, resolveProviderProfile } from "./providerProfile";
 
 export type {
     SoftphoneCall,
@@ -56,7 +57,9 @@ export type {
 };
 
 /**
- * Thin SIP.js wrapper that turns sipgate Neo into an in-browser softphone.
+ * Thin SIP.js wrapper that turns a SIP-over-WebSocket line (today sipgate
+ * Neo) into an in-browser softphone. Per-provider behaviour and wording come
+ * from the line's provider profile (see providerProfile.ts).
  *
  * The browser registers as the SIP user agent over WSS and owns the audio
  * path directly with sipgate. It deliberately does NOT talk to OL's call
@@ -121,7 +124,9 @@ const EMPTY_STATE: SoftphoneState = {
 };
 
 /**
- * Maps a negative final SIP response onto something an agent can act on.
+ * Maps a negative final SIP response onto something an agent can act on. The
+ * wording here is provider-neutral; a provider overrides it per status in its
+ * profile (SipProviderRegistry `messages.call_status`).
  * sip.js 0.21 exposes the status code only through the INVITE request
  * delegate, so these are the codes a carrier realistically returns for a call
  * that never connects.
@@ -294,13 +299,14 @@ class SoftphoneClient {
 
                 this.config = config;
                 this.setState({ ...EMPTY_STATE, registration: "registering" });
+                const profile = resolveProviderProfile(config);
                 const rawUri = (config.uri || "").trim();
-                const lineDomain = domainOf(rawUri) || (config.provider ? `${config.provider}.de` : "sipgate.de");
+                const lineDomain = domainOf(rawUri) || profile.sip_domain || "";
                 const normalizedUri = /^sips?:/i.test(rawUri)
                     ? rawUri
                     : rawUri.includes("@")
                         ? `sip:${rawUri}`
-                        : config.authorization_username
+                        : config.authorization_username && lineDomain
                             ? `sip:${config.authorization_username}@${lineDomain}`
                             : `sip:${rawUri}`;
                 const uri = UserAgent.makeURI(normalizedUri);
@@ -308,14 +314,7 @@ class SoftphoneClient {
                     throw new Error(`Invalid SIP URI: ${config.uri}`);
                 }
 
-                const iceServers: Array<{ urls: string }> = [
-                    { urls: "stun:stun.l.google.com:19302" },
-                ];
-                if (config.stun_url) {
-                    iceServers.push({ urls: config.stun_url });
-                } else if (lineDomain) {
-                    iceServers.push({ urls: `stun:stun.${lineDomain}:3478` });
-                }
+                const iceServers = profile.ice_servers.map((server) => ({ ...server }));
 
                 const useChallengeSigning =
                     config.auth_mode === "challenge" ||
@@ -333,6 +332,7 @@ class SoftphoneClient {
                         ? createServerSignedTransportClass(
                               createDeviceChallengeSigner(config.id),
                               digestStore,
+                              profile.digest_algorithms,
                           )
                         : undefined;
 
@@ -389,7 +389,7 @@ class SoftphoneClient {
                         cleanup();
                         reject(
                             new Error(
-                                "The line did not answer the registration in time.",
+                                providerMessage(profile, "registration_timeout"),
                             ),
                         );
                     }, 10_000);
@@ -435,8 +435,8 @@ class SoftphoneClient {
                                     reject(
                                         new Error(
                                             status === 401 || status === 403
-                                                ? "The line rejected the username or password."
-                                                : `The line rejected the registration (${status ?? "unknown"}).`,
+                                                ? providerMessage(profile, "registration_auth_failed")
+                                                : providerMessage(profile, "registration_rejected", { status }),
                                         ),
                                     );
                                 },
@@ -533,10 +533,9 @@ class SoftphoneClient {
             throw new Error("No phone line is registered for this browser.");
         }
         if (!this.userAgent || this.state.registration !== "registered") {
-            const providerLabel = this.config.provider || "the provider";
             const reason =
                 this.state.registrationError ||
-                `Your phone line isn't connected to ${providerLabel}. Pick a line in the phone panel, then retry.`;
+                providerMessage(resolveProviderProfile(this.config), "not_registered");
             this.reportSetupFailure(target, reason, context, "connection_failed");
             throw new Error(
                 this.state.registrationError ||
@@ -553,7 +552,8 @@ class SoftphoneClient {
             return;
         }
 
-        const domain = domainOf(this.config.uri);
+        const profile = resolveProviderProfile(this.config);
+        const domain = domainOf(this.config.uri) || profile.sip_domain || "";
         const dialTarget = normalizePhoneForSip(target, domain);
         if (!dialTarget) {
             this.reportSetupFailure(
@@ -593,11 +593,17 @@ class SoftphoneClient {
         this.beginCall(inviter, "outbound", target, context);
 
         try {
-            // Same identity header as before the regressions: the line's own
-            // SIP URI (this is what sipgate accepted when calls last worked).
-            const extraHeaders = this.config.uri
-                ? [`P-Preferred-Identity: ${this.config.uri.startsWith("sip:") ? `<${this.config.uri}>` : `<sip:${this.config.authorization_username || this.config.uri}@${domain || "sipgate.de"}>`}`]
-                : [];
+            // The line's own SIP URI as caller identity, in whichever header
+            // the provider expects (none when its profile says so).
+            const identityUri = this.config.uri.startsWith("sip:")
+                ? this.config.uri
+                : domain
+                  ? `sip:${this.config.authorization_username || this.config.uri}@${domain}`
+                  : null;
+            const extraHeaders =
+                profile.identity_header && identityUri
+                    ? [`${profile.identity_header}: <${identityUri}>`]
+                    : [];
             trace("softphone INVITE sent", dialTarget.startsWith("+") ? "e164+" : "digits");
             await (inviter as unknown as Inviter).invite({
                 requestDelegate: this.inviteDelegate(),
@@ -630,13 +636,12 @@ class SoftphoneClient {
             // to build the request. This is the failure agents hit most often
             // (offline, no line, bad number) and it used to look like nothing
             // had happened at all.
-            const providerName = this.config?.provider || "the provider";
             this.releaseSessionMedia(inviter);
             this.failCall(
                 "connection_failed",
                 detail
                     ? `The call could not be placed: ${detail}`
-                    : `The call could not be placed — the request to ${providerName} failed.`,
+                    : providerMessage(profile, "invite_failed"),
             );
             throw error;
         }
@@ -1138,10 +1143,16 @@ class SoftphoneClient {
             this.endCall();
             return;
         }
+        // The failure code (busy, declined, ...) is standard SIP; only the
+        // wording can be the provider's own (its profile's call_status).
         const mapped =
             statusCode != null ? FAILURE_BY_STATUS[statusCode] : undefined;
+        const providerReason =
+            statusCode != null
+                ? resolveProviderProfile(this.config).messages.call_status[String(statusCode)]
+                : undefined;
 
-        this.failCall(mapped?.code ?? "unknown", mapped?.reason ??
+        this.failCall(mapped?.code ?? "unknown", providerReason ?? mapped?.reason ??
             (reasonPhrase
                 ? `The call could not be completed (${statusCode ?? ""} ${reasonPhrase}).`.trim()
                 : "The call could not be completed."));

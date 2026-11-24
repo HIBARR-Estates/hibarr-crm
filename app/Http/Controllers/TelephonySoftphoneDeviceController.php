@@ -127,6 +127,8 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
                 'stun_url' => SipProviderRegistry::stunUrl($device->provider),
                 'max_concurrent_calls' => LineConcurrencyManager::maxConcurrentCalls($device),
                 'auth_mode' => 'challenge',
+                // Per-provider behaviour and wording for the browser client.
+                'provider_profile' => SipProviderRegistry::clientProfile($device->provider),
             ],
         ]);
     }
@@ -134,8 +136,9 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
     /**
      * Sign a single SIP 401/407 Digest challenge on behalf of the browser.
      *
-     * Returns only the single-use MD5 response bound to that specific nonce,
-     * method, and request URI. Neither the SIP password nor HA1 ever leaves
+     * Returns only the single-use response bound to that specific nonce,
+     * method, and request URI, in a Digest algorithm the line's provider
+     * allows (SipProviderRegistry::digestAlgorithms). Neither the SIP password nor HA1 ever leaves
      * the server, and revoking a user or disabling a line stops signing
      * immediately.
      */
@@ -157,9 +160,18 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
             'qop' => ['nullable', 'string', Rule::in(['auth', 'auth-int'])],
             'nc' => ['nullable', 'string', 'regex:/^[0-9a-fA-F]{8}$/', 'required_with:qop'],
             'cnonce' => ['nullable', 'string', 'max:128', 'required_with:qop'],
-            'algorithm' => ['nullable', 'string', Rule::in(['MD5', 'md5'])],
+            'algorithm' => ['nullable', 'string', 'max:20'],
+            // Kept for older clients; auth-int is only signed for empty bodies.
             'body_md5' => ['nullable', 'string', 'regex:/^[0-9a-fA-F]{32}$/'],
         ]);
+
+        // RFC 2617: an absent algorithm means MD5.
+        $algorithm = strtoupper((string) ($validated['algorithm'] ?? 'MD5'));
+        if (! in_array($algorithm, SipProviderRegistry::digestAlgorithms($device->provider), true)) {
+            throw ValidationException::withMessages([
+                'algorithm' => 'This line\'s provider does not use the '.$algorithm.' Digest algorithm.',
+            ]);
+        }
 
         // Pin the digest realm to the provider's known realm (or the line's
         // configured SIP URI domain) so this endpoint cannot be abused as an
@@ -214,7 +226,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
             qop: $qop,
             nc: $nc,
             cnonce: $cnonce,
-            bodyMd5: $validated['body_md5'] ?? null,
+            algorithm: $algorithm,
         );
 
         Log::info('softphone.challenge_signed', [
@@ -234,7 +246,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
                 'nonce' => $validated['nonce'],
                 'uri' => $validated['uri'],
                 'response' => $response,
-                'algorithm' => 'MD5',
+                'algorithm' => $algorithm,
                 'qop' => $qop,
                 'nc' => $nc,
                 'cnonce' => $cnonce,

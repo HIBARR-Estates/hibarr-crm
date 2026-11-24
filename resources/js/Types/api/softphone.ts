@@ -1,4 +1,36 @@
-/** sipgate Neo WebRTC config for one device/line (from its credentials). */
+/** Agent-facing messages a provider may word its own way. */
+export interface SipProviderMessages {
+    not_registered: string;
+    registration_auth_failed: string;
+    /** `:status` is replaced with the SIP status code. */
+    registration_rejected: string;
+    registration_timeout: string;
+    transport_failed: string;
+    invite_failed: string;
+    /** Overrides for a call's negative final response, keyed by SIP status. */
+    call_status: Record<string, string>;
+}
+
+/**
+ * How the softphone behaves for one SIP provider (SipProviderRegistry::
+ * clientProfile). Server-owned so a new provider is a registry entry.
+ */
+export interface SipProviderProfile {
+    /** Registry key (e.g. "sipgate"), null for an unknown provider. */
+    key: string | null;
+    /** Name shown to agents in messages. */
+    label: string;
+    /** SIP domain used when the line's URI has none. */
+    sip_domain: string | null;
+    ice_servers: Array<{ urls: string }>;
+    /** Digest algorithms the server signs for (e.g. ["MD5"]). */
+    digest_algorithms: string[];
+    /** Header carrying the line's URI on outgoing INVITEs, or null for none. */
+    identity_header: string | null;
+    messages: SipProviderMessages;
+}
+
+/** WebRTC config for one device/line (from its credentials). */
 export interface SoftphoneConfig {
     /** Saved line id, used by server-side SIP Digest challenge signing. */
     id?: number;
@@ -15,6 +47,8 @@ export interface SoftphoneConfig {
     provider?: string | null;
     stun_url?: string | null;
     max_concurrent_calls?: number;
+    /** Provider behaviour and wording; generic defaults when absent. */
+    provider_profile?: SipProviderProfile | null;
 }
 
 /** A device/line as listed for the picker + settings (no secrets). */

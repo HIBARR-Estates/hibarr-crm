@@ -117,6 +117,8 @@ export default function useSoftphoneLineTest() {
                         uri: stored.uri,
                         wss_url: stored.wss_url,
                         authorization_username: stored.authorization_username,
+                        provider: stored.provider,
+                        provider_profile: stored.provider_profile ?? draft.provider_profile,
                         authorization_password: undefined,
                         authorization_ha1: undefined,
                     };

@@ -84,6 +84,53 @@ class TelephonySoftphoneCredentialsTest extends TestCase
         $this->assertArrayNotHasKey('authorization_ha1', $data);
     }
 
+    public function test_credentials_carry_the_providers_client_profile(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsAdmin();
+
+        $sipgate = $this->getJson(route('telephony.softphone.devices.credentials', $this->makeDevice('sipgate')->id))
+            ->assertOk()
+            ->json('data.provider_profile');
+
+        $this->assertSame('sipgate', $sipgate['key']);
+        $this->assertSame('sipgate', $sipgate['label']);
+        $this->assertSame('sipgate.de', $sipgate['sip_domain']);
+        $this->assertSame(['MD5'], $sipgate['digest_algorithms']);
+        $this->assertSame('P-Preferred-Identity', $sipgate['identity_header']);
+        $this->assertContains(['urls' => 'stun:stun.sipgate.de:3478'], $sipgate['ice_servers']);
+        $this->assertStringContainsString('sipgate', $sipgate['messages']['call_status']['403']);
+        $this->assertStringContainsString('sipgate', $sipgate['messages']['not_registered']);
+
+        // An unknown provider gets the neutral wording, never sipgate's.
+        $custom = $this->getJson(route('telephony.softphone.devices.credentials', $this->makeDevice(null)->id))
+            ->assertOk()
+            ->json('data.provider_profile');
+
+        $this->assertNull($custom['key']);
+        $this->assertSame('your SIP provider', $custom['label']);
+        $this->assertSame([], $custom['messages']['call_status']);
+        $this->assertStringNotContainsString('sipgate', json_encode($custom['messages']));
+    }
+
+    public function test_sign_challenge_refuses_a_digest_algorithm_the_provider_does_not_use(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAsAdmin();
+        $device = $this->makeDevice('sipgate');
+
+        $this->postJson(route('telephony.softphone.devices.sign-challenge', $device->id), [
+            'method' => 'REGISTER',
+            'uri' => 'sip:sipgate.de',
+            'realm' => 'sipgate.de',
+            'nonce' => 'nonce-sha',
+            'qop' => 'auth',
+            'nc' => '00000001',
+            'cnonce' => 'abcdef123456',
+            'algorithm' => 'SHA-256',
+        ])->assertStatus(422)->assertJsonValidationErrors(['algorithm']);
+    }
+
     public function test_a_disabled_line_returns_423_for_credentials_and_sign_challenge(): void
     {
         $this->withoutMiddleware();

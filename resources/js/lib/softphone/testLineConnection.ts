@@ -6,6 +6,7 @@ import {
     createDeviceChallengeSigner,
     createServerSignedTransportClass,
 } from "./ServerSignedSipAuth";
+import { providerMessage, resolveProviderProfile } from "./providerProfile";
 
 /** Where a connection test stopped. `registered` is the only success. */
 export type LineTestStage =
@@ -47,6 +48,7 @@ export async function testLineConnection(
         latencyMs: null,
     });
 
+    const profile = resolveProviderProfile(config);
     const uri = UserAgent.makeURI(config.uri);
     if (!uri) {
         return fail("config", "The SIP URI is not valid (expected e.g. sip:12345@domain.com).");
@@ -69,6 +71,7 @@ export async function testLineConnection(
             ? createServerSignedTransportClass(
                   createDeviceChallengeSigner(config.id),
                   digestStore,
+                  profile.digest_algorithms,
               )
             : undefined;
 
@@ -107,10 +110,7 @@ export async function testLineConnection(
         } catch (error) {
             return isTimeout(error)
                 ? fail("timeout", "The WSS server did not answer in time.")
-                : fail(
-                      "transport",
-                      "Could not connect to the WSS URL. Check the address and that the server is reachable.",
-                  );
+                : fail("transport", providerMessage(profile, "transport_failed"));
         }
 
         // Short expiry so a test that cannot unregister cleanly lapses quickly.
@@ -120,7 +120,7 @@ export async function testLineConnection(
             const timer = window.setTimeout(
                 () =>
                     resolve(
-                        fail("timeout", "The line did not answer the registration in time."),
+                        fail("timeout", providerMessage(profile, "registration_timeout")),
                     ),
                 TEST_TIMEOUT_MS,
             );
@@ -147,10 +147,10 @@ export async function testLineConnection(
                             const status = response.message.statusCode;
                             done(
                                 status === 401 || status === 403
-                                    ? fail("auth", "The line rejected the username or password.")
+                                    ? fail("auth", providerMessage(profile, "registration_auth_failed"))
                                     : fail(
                                           "rejected",
-                                          `The line rejected the registration (${status ?? "unknown"}).`,
+                                          providerMessage(profile, "registration_rejected", { status }),
                                       ),
                             );
                         },

@@ -19,7 +19,6 @@ export interface SignChallengeParams {
     nc: string | null;
     cnonce: string | null;
     algorithm: string;
-    body_md5?: string;
 }
 
 export interface SignedDigestResponse {
@@ -65,7 +64,8 @@ interface SipChallengeLike {
 
 const PENDING_TTL_MS = 120_000;
 const SIGNED_TTL_MS = 60_000;
-const EMPTY_BODY_MD5 = "d41d8cd98f00b204e9800998ecf8427e";
+/** Used when the line's provider profile names none. */
+const DEFAULT_ALGORITHMS: readonly string[] = ["MD5"];
 
 /**
  * Unfold RFC 3261 multi-line SIP headers (lines starting with SP/HTAB).
@@ -146,6 +146,7 @@ export function parseOutgoingSipRequest(
  */
 export function parseDigestChallengeHeader(
     headerValue: string,
+    allowedAlgorithms: readonly string[] = DEFAULT_ALGORITHMS,
 ): DigestChallenge | null {
     const trimmed = headerValue.trim();
     if (!/^Digest\s+/i.test(trimmed)) {
@@ -166,8 +167,10 @@ export function parseDigestChallengeHeader(
         params[key] = value;
     }
 
+    // RFC 2617: no algorithm means MD5. Anything the line's provider does not
+    // use is left to sip.js, which then fails the request cleanly.
     const algorithm = (params.algorithm || "MD5").toUpperCase();
-    if (algorithm !== "MD5") {
+    if (!allowedAlgorithms.some((a) => a.toUpperCase() === algorithm)) {
         return null;
     }
 
@@ -193,7 +196,7 @@ export function parseDigestChallengeHeader(
     }
 
     return {
-        algorithm: "MD5",
+        algorithm,
         realm,
         nonce,
         qop,
@@ -206,7 +209,10 @@ export function parseDigestChallengeHeader(
  * Inspect an incoming raw SIP message; returns challenge details ONLY for
  * `401 Unauthorized` and `407 Proxy Authentication Required` with a Digest challenge.
  */
-export function parseIncomingSipChallenge(rawSip: string): {
+export function parseIncomingSipChallenge(
+    rawSip: string,
+    allowedAlgorithms: readonly string[] = DEFAULT_ALGORITHMS,
+): {
     statusCode: 401 | 407;
     branch: string | null;
     cseqMethod: string | null;
@@ -232,7 +238,7 @@ export function parseIncomingSipChallenge(rawSip: string): {
         if (idx === -1) continue;
         const name = line.slice(0, idx).trim().toLowerCase();
         if (name !== targetHeader) continue;
-        const parsed = parseDigestChallengeHeader(line.slice(idx + 1));
+        const parsed = parseDigestChallengeHeader(line.slice(idx + 1), allowedAlgorithms);
         if (parsed) {
             challenge = parsed;
             break;
@@ -405,6 +411,7 @@ export class PreSignedDigestStore {
 export function createServerSignedTransportClass(
     signChallenge: ChallengeSigner,
     store: PreSignedDigestStore,
+    allowedAlgorithms: readonly string[] = DEFAULT_ALGORITHMS,
 ) {
     return class ServerSignedSipTransport extends Web.Transport {
         private pendingByBranch = new Map<string, PendingRequest>();
@@ -460,7 +467,7 @@ export function createServerSignedTransportClass(
         }
 
         private handleIncomingMessage(rawMessage: string): void {
-            const challengeInfo = parseIncomingSipChallenge(rawMessage);
+            const challengeInfo = parseIncomingSipChallenge(rawMessage, allowedAlgorithms);
             if (!challengeInfo) {
                 this.upstreamOnMessage?.(rawMessage);
                 return;
@@ -513,10 +520,9 @@ export function createServerSignedTransportClass(
                 qop: challenge.qop,
                 nc,
                 cnonce,
+                // auth-int only reaches here for an empty body; the server
+                // hashes the empty body itself in the challenge's algorithm.
                 algorithm: challenge.algorithm,
-                ...(challenge.qop === "auth-int"
-                    ? { body_md5: EMPTY_BODY_MD5 }
-                    : {}),
             })
                 .then((signed) => {
                     if (signed) {
