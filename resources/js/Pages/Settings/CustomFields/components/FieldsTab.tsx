@@ -9,12 +9,13 @@ interface Props {
     moduleGroups: ModuleGroup[];
     onEdit: (field: SettingsField) => void;
     onDelete: (field: SettingsField) => void;
+    onMap: (field: SettingsField) => void;
     onReorder: (moduleName: string, orderedIds: number[]) => void;
 }
 
-const ROW_COLUMNS = "36px 1.6fr 1fr 1.8fr .8fr .8fr 1fr 96px";
+const ROW_COLUMNS = "36px 1.6fr 1fr 1.8fr .8fr .8fr 1fr 130px";
 
-export default function FieldsTab({ fields, moduleGroups, onEdit, onDelete, onReorder }: Props) {
+export default function FieldsTab({ fields, moduleGroups, onEdit, onDelete, onMap, onReorder }: Props) {
     const { td } = useTd();
     const [search, setSearch] = useState("");
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -238,6 +239,15 @@ export default function FieldsTab({ fields, moduleGroups, onEdit, onDelete, onRe
                                                         style={{ width: 30, height: 30, minHeight: 30, padding: 0, borderRadius: 7, border: "1px solid transparent" }}
                                                     >
                                                         <Icon name="edit" size={16} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        title={td("Map & migrate", { source: "en" })}
+                                                        onClick={() => onMap(field)}
+                                                        className="dr-btn dr-btn-ghost"
+                                                        style={{ width: 30, height: 30, minHeight: 30, padding: 0, borderRadius: 7, border: "1px solid transparent" }}
+                                                    >
+                                                        <Icon name="swap" size={16} />
                                                     </button>
                                                     <button
                                                         type="button"

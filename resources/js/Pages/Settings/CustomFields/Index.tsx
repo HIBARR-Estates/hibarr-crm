@@ -12,9 +12,10 @@ import "@/Components/Redesign/redesign.css";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 
-import { ModuleGroup, SettingsField, SettingsCategory, fieldHasRule } from "./types";
+import { DefinedField, ModuleGroup, SettingsField, SettingsCategory, fieldHasRule } from "./types";
 import useCustomFieldMutations from "./hooks/useCustomFieldMutations";
 import useCustomFieldCategoryMutations from "./hooks/useCustomFieldCategoryMutations";
+import useCustomFieldMapping from "./hooks/useCustomFieldMapping";
 import FieldsTab from "./components/FieldsTab";
 import CategoriesTab from "./components/CategoriesTab";
 import VisibilityRulesTab from "./components/VisibilityRulesTab";
@@ -22,12 +23,14 @@ import FieldModal from "./components/FieldModal";
 import CategoryModal from "./components/CategoryModal";
 import VisibilityRuleModal from "./components/VisibilityRuleModal";
 import DuplicateRuleModal from "./components/DuplicateRuleModal";
+import MapFieldModal from "./components/MapFieldModal";
 
 type TabKey = "fields" | "categories" | "visibility";
 
 interface Props {
     pageTitle: string;
     moduleGroups: ModuleGroup[];
+    definedFields: DefinedField[];
     fields?: SettingsField[];
     categories?: SettingsCategory[];
 }
@@ -47,7 +50,7 @@ function TabSkeleton() {
     );
 }
 
-function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFields, categories: initialCategories }: Props) {
+function CustomFieldsSettingsBody({ pageTitle, moduleGroups, definedFields, fields: initialFields, categories: initialCategories }: Props) {
     const { td } = useTd();
     const { t } = useTranslation();
     const [tab, setTab] = useState<TabKey>("fields");
@@ -67,6 +70,8 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
 
     const fieldMutations = useCustomFieldMutations({ setFields });
     const categoryMutations = useCustomFieldCategoryMutations({ setCategories, moduleGroups });
+    const mapping = useCustomFieldMapping({ setFields });
+    const [mapSourceField, setMapSourceField] = useState<SettingsField | null>(null);
 
     const [fieldModalOpen, setFieldModalOpen] = useState(false);
     const [editingField, setEditingField] = useState<SettingsField | null>(null);
@@ -279,6 +284,7 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
                                 moduleGroups={moduleGroups}
                                 onEdit={handleEditField}
                                 onDelete={handleDeleteField}
+                                onMap={setMapSourceField}
                                 onReorder={(moduleName, orderedIds) => {
                                     const group = moduleGroups.find((g) => g.name === moduleName);
                                     if (group) setDefaultModuleId(group.id);
@@ -353,6 +359,16 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, fields: initialFiel
                 availableFields={fields}
                 onClose={() => setDuplicateSourceField(null)}
                 onDuplicated={handleRuleSaved}
+            />
+
+            <MapFieldModal
+                open={!!mapSourceField}
+                sourceField={mapSourceField}
+                fields={fields}
+                moduleGroups={moduleGroups}
+                definedFields={definedFields ?? []}
+                mapping={mapping}
+                onClose={() => setMapSourceField(null)}
             />
 
             <ConfirmDialog
