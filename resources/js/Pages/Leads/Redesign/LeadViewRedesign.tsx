@@ -55,6 +55,8 @@ import WorkspaceCard from "./components/workspace/WorkspaceCard";
 import LeadDossier from "./components/dossier/LeadDossier";
 import DossierQuickActions from "./components/dossier/DossierQuickActions";
 import { leadCallPhones } from "@/lib/leadCallPhones";
+import useEntitySuppressions from "@/Components/Suppression/useEntitySuppressions";
+import { extractLeadSuppressionTargets } from "@/Components/Suppression/suppressionPolicy";
 import CommunicationModal from "@/Email/CommunicationModal";
 import { subscribeOpenSourceEmail } from "@/Email/openSourceEmail";
 import type { EmailFollowUpKind, EmailQuickAction } from "@/Email/types";
@@ -166,6 +168,29 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         refetchSallyInsights,
     } = useLeadWorkspace();
     const callPhones = leadCallPhones(lead);
+    const suppressions = useEntitySuppressions("lead", lead.id);
+    const suppressionTargets = useMemo(
+        () => extractLeadSuppressionTargets(lead),
+        [lead],
+    );
+    const callSuppressionBlock = useMemo(
+        () =>
+            suppressions.getChannelBlock(
+                "call",
+                "transactional",
+                callPhones[0]?.phone,
+            ),
+        [suppressions, callPhones],
+    );
+    const getEmailSuppression = useCallback(
+        (handle?: string | null) =>
+            suppressions.getChannelBlock(
+                "email",
+                "transactional",
+                handle ?? lead.client_email,
+            ),
+        [suppressions, lead.client_email],
+    );
     // Unlike the other gated tabs, Sally visibility depends on an async client
     // fetch, so it must stay in play until the query settles — otherwise a
     // ?tab=sally deep link is reset to overview before the data arrives.
@@ -769,6 +794,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                         leadId={lead.id}
                                         phones={callPhones}
                                         phone={callPhones[0]?.phone}
+                                        callBlock={callSuppressionBlock}
                                         onLogAction={() =>
                                             setCreateKind("log")
                                         }
@@ -861,6 +887,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                     leadId={lead.id}
                                     phones={callPhones}
                                     phone={callPhones[0]?.phone}
+                                    callBlock={callSuppressionBlock}
                                     onLogAction={() =>
                                         setCreateKind("log")
                                     }
@@ -879,6 +906,22 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                     lead,
                                     page.props.auth?.user?.id,
                                 )}
+                                suppressionTargets={suppressionTargets}
+                                suppressionRestrictions={
+                                    suppressions.restrictions
+                                }
+                                suppressionBlockedChannels={
+                                    suppressions.blockedChannels
+                                }
+                                suppressionUnavailable={
+                                    suppressions.unavailable
+                                }
+                                suppressionLoading={suppressions.loading}
+                                suppressionPermissions={
+                                    suppressions.permissions
+                                }
+                                onSuppressionsChanged={suppressions.refetch}
+                                callBlock={callSuppressionBlock}
                                 onOpenLeadInfo={() => {
                                     nav.setInfoSection("personal");
                                     nav.setTab("leadinfo");
@@ -916,6 +959,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 messageId={emailFocusMessageId}
                 hasConnection={hasMailboxConnection}
                 prefillTo={lead.client_email ?? null}
+                getEmailSuppression={getEmailSuppression}
                 onCreateFollowUp={openCreateFromEmail}
             />
 

@@ -17,6 +17,7 @@ use App\Email\Models\EmailSignature;
 use App\Email\Sending\KnownAddresses;
 use App\Email\Sending\SendAttemptService;
 use App\Email\Sending\SignatureAppender;
+use App\Services\Suppression\SuppressionClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -101,6 +102,32 @@ class SendController
             $record = $this->records->find($request->user(), $input['record_type'], (int) $input['record_id']);
             abort_if($record === null, 404);
             $allowed = $this->addresses->forRecord($record);
+        }
+
+        $recipients = array_merge($to, $cc);
+        if ($recipients !== []) {
+            $checkItems = array_map(
+                fn (EmailAddress $addr): array => [
+                    'email' => $addr->address,
+                    'scope' => SuppressionClient::SCOPE_TRANSACTIONAL,
+                ],
+                $recipients
+            );
+            $suppressionResults = app(SuppressionClient::class)->checkBatch($checkItems);
+
+            foreach ($suppressionResults as $index => $result) {
+                if ($result->blocked) {
+                    $recipient = $recipients[$index] ?? null;
+                    $reasonSuffix = $result->reason ? " ({$result->reason})" : '';
+                    throw ValidationException::withMessages([
+                        'to' => sprintf(
+                            'Email cannot be sent to %s: suppressed on global suppression list%s.',
+                            $recipient ? SuppressionClient::maskEmail($recipient->address) : 'recipient',
+                            $reasonSuffix
+                        ),
+                    ]);
+                }
+            }
         }
 
         try {

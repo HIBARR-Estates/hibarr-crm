@@ -19,6 +19,14 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import PackagePropertyManager from "./PackagePropertyManager";
 import { initialsFromName } from "../../../adapters/initials";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import SuppressionRestrictionsPanel from "@/Components/Suppression/SuppressionRestrictionsPanel";
+import type {
+    BlockedChannelSummary,
+    ChannelBlockEvaluation,
+    SuppressionContactTarget,
+    SuppressionPermissions,
+    SuppressionRestriction,
+} from "@/Components/Suppression/types";
 
 interface WorkspaceContextRailProps {
     deal: Deal;
@@ -38,6 +46,14 @@ interface WorkspaceContextRailProps {
     restrictPackageOrProperty?: boolean;
     onNavigateToSubTab: (tab: DealTab) => void;
     onSwitchToDealInfo: () => void;
+    suppressionTargets?: SuppressionContactTarget[];
+    suppressionRestrictions?: SuppressionRestriction[];
+    suppressionBlockedChannels?: BlockedChannelSummary[];
+    suppressionUnavailable?: boolean;
+    suppressionLoading?: boolean;
+    suppressionPermissions?: SuppressionPermissions;
+    onSuppressionsChanged?: () => Promise<void> | void;
+    callBlock?: ChannelBlockEvaluation | null;
 }
 
 const SECTION_TITLE_KEYS: Record<string, string> = {
@@ -60,6 +76,14 @@ export default function WorkspaceContextRail({
     restrictPackageOrProperty = false,
     onNavigateToSubTab,
     onSwitchToDealInfo,
+    suppressionTargets = [],
+    suppressionRestrictions = [],
+    suppressionBlockedChannels = [],
+    suppressionUnavailable = false,
+    suppressionLoading = false,
+    suppressionPermissions,
+    onSuppressionsChanged,
+    callBlock = null,
 }: WorkspaceContextRailProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -202,6 +226,7 @@ export default function WorkspaceContextRail({
                                     phones={callPhones}
                                     entity={dealCallEntity}
                                     variant="link"
+                                    suppressionBlock={callBlock}
                                     className="flex w-full cursor-pointer items-center gap-1.5 rounded px-0 py-2 text-left text-xs text-dr-text-muted hover:bg-dr-gray disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     <Icon name="phone" size={12} />
@@ -233,6 +258,19 @@ export default function WorkspaceContextRail({
                                 </span>
                             </div>
                         )}
+                        {suppressionPermissions && onSuppressionsChanged ? (
+                            <SuppressionRestrictionsPanel
+                                entityType="deal"
+                                entityId={deal.id}
+                                targets={suppressionTargets}
+                                restrictions={suppressionRestrictions}
+                                blockedChannels={suppressionBlockedChannels}
+                                unavailable={suppressionUnavailable}
+                                loading={suppressionLoading}
+                                permissions={suppressionPermissions}
+                                onChanged={onSuppressionsChanged}
+                            />
+                        ) : null}
                         {leadUrl && (
                             <div className="mt-2 border-t border-dr-border-soft pt-2 text-right">
                                 <a

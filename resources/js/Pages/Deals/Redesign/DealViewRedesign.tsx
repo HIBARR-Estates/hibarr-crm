@@ -43,6 +43,8 @@ import CommunicationModal from "@/Email/CommunicationModal";
 import { subscribeOpenSourceEmail } from "@/Email/openSourceEmail";
 import type { EmailFollowUpKind, EmailQuickAction } from "@/Email/types";
 import { replaceUrlKeepingHistoryState } from "@/lib/inertiaHistory";
+import useEntitySuppressions from "@/Components/Suppression/useEntitySuppressions";
+import { extractLeadSuppressionTargets } from "@/Components/Suppression/suppressionPolicy";
 
 export default function DealViewRedesign(props: DealShowProps) {
     const { props: pageProps } = usePage<PageProps>();
@@ -162,6 +164,26 @@ function DealViewRedesignInner(
         canRefresh: () => !isDealEditMode,
     });
     const { deal, files } = useDealWorkspace();
+    const suppressions = useEntitySuppressions("deal", deal?.id);
+    const suppressionTargets = useMemo(
+        () => extractLeadSuppressionTargets(deal?.contact),
+        [deal?.contact],
+    );
+    const callSuppressionBlock = useMemo(
+        () =>
+            suppressions.getChannelBlock(
+                "call",
+                "transactional",
+                deal?.contact?.mobile ?? deal?.contact?.cell,
+            ),
+        [suppressions, deal?.contact?.mobile, deal?.contact?.cell],
+    );
+    const getEmailSuppression = (handle?: string | null) =>
+        suppressions.getChannelBlock(
+            "email",
+            "transactional",
+            handle ?? deal?.contact?.client_email,
+        );
     const pageTitle = props?.pageTitle || deal?.name;
     const { t, locale } = useTranslation();
     // Adapters are plain functions with no hook access, so publish the active
@@ -359,6 +381,24 @@ function DealViewRedesignInner(
                                     onSwitchToDealInfo={() =>
                                         nav.goToDealInfo("general")
                                     }
+                                    suppressionTargets={suppressionTargets}
+                                    suppressionRestrictions={
+                                        suppressions.restrictions
+                                    }
+                                    suppressionBlockedChannels={
+                                        suppressions.blockedChannels
+                                    }
+                                    suppressionUnavailable={
+                                        suppressions.unavailable
+                                    }
+                                    suppressionLoading={suppressions.loading}
+                                    suppressionPermissions={
+                                        suppressions.permissions
+                                    }
+                                    onSuppressionsChanged={
+                                        suppressions.refetch
+                                    }
+                                    callBlock={callSuppressionBlock}
                                 />
                             </div>
                         </div>
@@ -374,6 +414,7 @@ function DealViewRedesignInner(
                 messageId={emailFocusMessageId}
                 hasConnection={hasMailboxConnection}
                 prefillTo={deal.contact?.client_email ?? null}
+                getEmailSuppression={getEmailSuppression}
                 onCreateFollowUp={openCreateFromEmail}
             />
         </PageLayout>

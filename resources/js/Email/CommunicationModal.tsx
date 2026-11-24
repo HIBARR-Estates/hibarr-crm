@@ -11,6 +11,7 @@ import type {
     EmailFollowUpKind,
     EmailRecordRef,
 } from "@/Email/types";
+import type { ChannelBlockEvaluation } from "@/Components/Suppression/types";
 
 export interface CommunicationModalProps {
     open: boolean;
@@ -22,6 +23,7 @@ export interface CommunicationModalProps {
     hasConnection: boolean;
     prefillTo?: string | null;
     onCreateFollowUp?: (kind: EmailFollowUpKind, messageId: string) => void;
+    getEmailSuppression?: (handle?: string | null) => ChannelBlockEvaluation;
 }
 
 /**
@@ -37,6 +39,7 @@ export default function CommunicationModal({
     hasConnection,
     prefillTo,
     onCreateFollowUp,
+    getEmailSuppression,
 }: CommunicationModalProps) {
     const { t } = useTranslation();
     const [focusId, setFocusId] = useState<string | null>(messageId);
@@ -75,6 +78,10 @@ export default function CommunicationModal({
         setComposing(true);
     };
 
+    const emailSuppression = getEmailSuppression
+        ? getEmailSuppression(prefillTo)
+        : null;
+
     return (
         <Modal
             open={open}
@@ -89,6 +96,36 @@ export default function CommunicationModal({
                     {t("pages.email.communication.channel_email")}
                 </span>
             </div>
+
+            {emailSuppression?.blocked ? (
+                <div
+                    role="alert"
+                    className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900"
+                >
+                    {emailSuppression.canViewDetails && emailSuppression.reason
+                        ? t(
+                              "pages.suppressions.before_contact.email_blocked_reason",
+                              { reason: emailSuppression.reason },
+                          )
+                        : t(
+                              "pages.suppressions.before_contact.email_unavailable",
+                          )}
+                </div>
+            ) : emailSuppression?.warningOnly ? (
+                <div
+                    role="status"
+                    className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950"
+                >
+                    {emailSuppression.canViewDetails && emailSuppression.reason
+                        ? t(
+                              "pages.suppressions.before_contact.email_non_transactional_reason",
+                              { reason: emailSuppression.reason },
+                          )
+                        : t(
+                              "pages.suppressions.before_contact.email_non_transactional",
+                          )}
+                </div>
+            ) : null}
 
             {!hasConnection ? (
                 <div className="flex flex-col gap-3">
@@ -201,6 +238,7 @@ export default function CommunicationModal({
                             enabled={hasConnection}
                             allowedAddresses={addresses}
                             record={record}
+                            getEmailSuppression={getEmailSuppression}
                             onManageMailbox={() =>
                                 router.visit(MAILBOX_SETTINGS_PATH)
                             }

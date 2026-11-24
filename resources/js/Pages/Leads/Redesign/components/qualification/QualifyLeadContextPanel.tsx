@@ -15,6 +15,7 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { initialsFromName } from "@/Pages/Deals/Redesign/adapters/initials";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
 import { leadCallPhones } from "@/lib/leadCallPhones";
+import useEntitySuppressions from "@/Components/Suppression/useEntitySuppressions";
 
 interface QualifyLeadContextPanelProps {
     lead: Lead;
@@ -369,6 +370,22 @@ export default function QualifyLeadContextPanel({
     }, [lead.cell, mobileDisplay, officeDisplay]);
     const whatsapp = resolveLeadPhoneDisplay(lead.client_whatsapp);
     const initials = initialsFromName(leadName);
+    const suppressions = useEntitySuppressions("lead", lead.id);
+    const callBlock = suppressions.getChannelBlock(
+        "call",
+        "transactional",
+        callPhones[0]?.phone,
+    );
+    const whatsappBlock = suppressions.getChannelBlock(
+        "whatsapp",
+        "transactional",
+        whatsapp,
+    );
+    const whatsappReasonTitle = whatsappBlock.blocked
+        ? whatsappBlock.canViewDetails && whatsappBlock.reason
+            ? `WhatsApp blocked: ${whatsappBlock.reason}`
+            : "WhatsApp unavailable"
+        : undefined;
 
     return (
         <aside
@@ -418,6 +435,7 @@ export default function QualifyLeadContextPanel({
                             phones={callPhones}
                             entity={{ type: "lead", id: lead.id }}
                             variant="link"
+                            suppressionBlock={callBlock}
                             label={td("Call", { source: "en" })}
                             className="flex flex-1 items-center justify-center gap-0.5 py-1.5 rounded-md text-xs font-medium text-white bg-dr-navy transition-colors disabled:opacity-60"
                         />
@@ -431,14 +449,25 @@ export default function QualifyLeadContextPanel({
                         </a>
                     ) : null}
                     {whatsapp ? (
-                        <a
-                            href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-dr-gray-darker border border-dr-border bg-dr-gray hover:bg-slate-200 transition-colors"
-                        >
-                            {td("WhatsApp", { source: "en" })}
-                        </a>
+                        whatsappBlock.blocked ? (
+                            <button
+                                type="button"
+                                disabled
+                                title={whatsappReasonTitle}
+                                className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-slate-400 border border-dr-border bg-slate-100 cursor-not-allowed"
+                            >
+                                {td("WhatsApp", { source: "en" })}
+                            </button>
+                        ) : (
+                            <a
+                                href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-dr-gray-darker border border-dr-border bg-dr-gray hover:bg-slate-200 transition-colors"
+                            >
+                                {td("WhatsApp", { source: "en" })}
+                            </a>
+                        )
                     ) : null}
                 </div>
             </div>

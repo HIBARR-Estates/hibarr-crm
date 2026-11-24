@@ -9,6 +9,7 @@ import type { EmailQuickAction } from "@/Email/types";
 import useEmailUnreadCount from "@/Email/hooks/useEmailUnreadCount";
 import { isMeaningfulDossierValue } from "../../adapters/dossierAdapter";
 import type { LeadCallPhone } from "@/lib/leadCallPhones";
+import type { ChannelBlockEvaluation } from "@/Components/Suppression/types";
 
 interface DossierQuickActionsProps {
     leadId?: number;
@@ -21,6 +22,7 @@ interface DossierQuickActionsProps {
     /** Present only when crm.email is on and the user is allowlisted. */
     emailQuickAction?: EmailQuickAction | null;
     onEmail?: () => void;
+    callBlock?: ChannelBlockEvaluation | null;
 }
 
 type ActionId = "log" | "note" | "meeting" | "email";
@@ -42,6 +44,7 @@ export default function DossierQuickActions({
     onScheduleMeeting,
     emailQuickAction = null,
     onEmail,
+    callBlock = null,
 }: DossierQuickActionsProps) {
     const { t } = useTranslation();
     const { props } = usePage();
@@ -139,6 +142,7 @@ export default function DossierQuickActions({
                             phones={callPhones}
                             entity={{ type: "lead", id: leadId! }}
                             variant="link"
+                            suppressionBlock={callBlock}
                             className="v2-quick-actions__btn"
                             title={callTitle}
                             ariaLabel={callTitle}
