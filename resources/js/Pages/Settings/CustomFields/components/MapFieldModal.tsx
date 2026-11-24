@@ -48,7 +48,7 @@ const sectionLabel = {
 
 function Stat({ label, value, tone }: { label: string; value: number; tone?: "warn" | "ok" }) {
     return (
-        <div style={{ flex: "1 1 120px", border: `1px solid ${T.BORDER}`, borderRadius: 8, padding: "8px 10px" }}>
+        <div style={{ border: `1px solid ${T.BORDER}`, borderRadius: 8, padding: "8px 10px" }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: tone === "warn" && value > 0 ? T.RED : T.TEXT }}>{value}</div>
             <div style={{ fontSize: 11, color: T.TEXT_MUTED }}>{label}</div>
         </div>
@@ -266,7 +266,7 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
                     {report && (
                         <div style={{ marginTop: 16 }}>
                             <div style={sectionLabel}>{td("Preview — nothing has been changed yet", { source: "en" })}</div>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8 }}>
                                 <Stat label={td("Values found", { source: "en" })} value={report.source_total} />
                                 <Stat label={td("Will be migrated", { source: "en" })} value={report.mapped} />
                                 <Stat label={td("Already the same", { source: "en" })} value={report.unchanged} />
