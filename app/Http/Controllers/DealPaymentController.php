@@ -286,6 +286,15 @@ class DealPaymentController extends AccountBaseController
         abort_unless((int) $payment->deal_id === (int) $deal->id, 404);
         abort_unless(filled($payment->external_reference), 404);
 
+        // The first receipt records the customer's document request, so it
+        // needs the same write access as asking for an invoice.
+        if ($kind === 'receipt' && $payment->documents_requested_at === null) {
+            if ($deal->isLocked()) {
+                abort_403(true);
+            }
+            $this->assertCanCancelPaymentRequest($deal);
+        }
+
         try {
             $copy = request()->query('copy') === 'copy' ? 'copy' : 'original';
 

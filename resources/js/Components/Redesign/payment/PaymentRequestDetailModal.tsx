@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -287,6 +287,7 @@ export default function PaymentRequestDetailModal({
     const { td } = useTd();
     const { requestDocuments, fetchStatus, requesting } = usePaymentDocumentRequest();
     const [requestedId, setRequestedId] = useState<number | null>(null);
+    const receiptRefreshed = useRef<number | null>(null);
     const [confirmRequestOpen, setConfirmRequestOpen] = useState(false);
     const { requestVat, settleVat, saving: savingVat } = useVatCollection();
     const [vatAction, setVatAction] = useState<"request" | "cash" | "external" | null>(null);
@@ -325,19 +326,26 @@ export default function PaymentRequestDetailModal({
         && request.ui_state !== "failed";
     const invoiceUrl = documentsRequested ? documentHref(request, "invoice") : null;
     // A receipt only needs a collected payment, not the invoice or its request.
-    const receiptUrl = collected ? documentHref(request, "receipt") : null;
+    // Before any request, only someone who may record one can generate it.
+    const receiptUrl = collected && (documentsRequested || canRequestInvoice) ? documentHref(request, "receipt") : null;
     // Asking for a receipt is itself the document request, so KDV becomes
     // due. Read the payment back once the download has been issued.
     const refreshAfterReceipt = () => {
         if (documentsRequested || request.deal_id == null) return;
         const { deal_id: dealId, id } = request;
-        window.setTimeout(async () => {
-            const updated = await fetchStatus(dealId, id);
-            if (updated?.documents_requested) {
-                setRequestedId(id);
-                onDocumentsRequested?.(updated);
-            }
-        }, 1500);
+        // The server records the request while it makes the download, so
+        // look again a few times in case that takes a moment.
+        [1500, 4000, 9000].forEach((delay, attempt) => {
+            window.setTimeout(async () => {
+                if (attempt > 0 && receiptRefreshed.current === id) return;
+                const updated = await fetchStatus(dealId, id);
+                if (updated?.documents_requested) {
+                    receiptRefreshed.current = id;
+                    setRequestedId(id);
+                    onDocumentsRequested?.(updated);
+                }
+            }, delay);
+        });
     };
     const askForInvoice = async () => {
         if (request.deal_id == null) return;
