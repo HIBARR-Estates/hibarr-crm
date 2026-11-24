@@ -30,6 +30,45 @@ class TrustProxiesTest extends TestCase
         $this->assertSame('203.0.113.9', $this->clientIp('198.51.100.7', '*'));
     }
 
+    public function test_https_app_url_wins_over_a_proxy_that_says_http(): void
+    {
+        config([
+            'app.url' => 'https://preview-crm.hibarr.org',
+            'app.redirect_https' => false,
+        ]);
+
+        $this->assertSame(
+            'https://preview-crm.hibarr.org/account/employees',
+            $this->requestUrl('http', null)
+        );
+    }
+
+    public function test_local_http_app_stays_http(): void
+    {
+        config([
+            'app.url' => 'http://hibarr-crm.test',
+            'app.redirect_https' => false,
+        ]);
+
+        $this->assertSame(
+            'http://preview-crm.hibarr.org/account/employees',
+            $this->requestUrl('http', null)
+        );
+    }
+
+    public function test_cloudflare_visitor_scheme_marks_the_request_https(): void
+    {
+        config([
+            'app.url' => 'http://localhost:8080',
+            'app.redirect_https' => false,
+        ]);
+
+        $this->assertSame(
+            'https://preview-crm.hibarr.org/account/employees',
+            $this->requestUrl('http', '{"scheme":"https"}')
+        );
+    }
+
     private function clientIp(string $remoteAddr, ?string $trustedProxies): string
     {
         config(['app.trusted_proxies' => $trustedProxies]);
@@ -40,5 +79,29 @@ class TrustProxiesTest extends TestCase
         ]);
 
         return (new TrustProxies())->handle($request, fn (Request $request) => response($request->ip()))->getContent();
+    }
+
+    private function requestUrl(string $forwardedProto, ?string $cfVisitor): string
+    {
+        $server = [
+            'REMOTE_ADDR' => '127.0.0.1',
+            'HTTP_HOST' => 'preview-crm.hibarr.org',
+            'HTTP_X_FORWARDED_PROTO' => $forwardedProto,
+        ];
+
+        if ($cfVisitor !== null) {
+            $server['HTTP_CF_VISITOR'] = $cfVisitor;
+        }
+
+        $request = Request::create('http://preview-crm.hibarr.org/account/employees', 'GET', [], [], [], $server);
+
+        $url = '';
+        (new TrustProxies())->handle($request, function (Request $request) use (&$url) {
+            $url = $request->url();
+
+            return response('ok');
+        });
+
+        return $url;
     }
 }

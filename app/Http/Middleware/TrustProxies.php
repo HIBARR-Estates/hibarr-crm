@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use Closure;
 use Illuminate\Http\Middleware\TrustProxies as Middleware;
+use Illuminate\Http\Request;
 
 class TrustProxies extends Middleware
 {
@@ -40,6 +42,37 @@ class TrustProxies extends Middleware
         }
 
         return array_values(array_filter(array_map('trim', explode(',', $configured))));
+    }
+
+    /**
+     * The hop in front of nginx can report the connection as HTTP even when the
+     * browser loaded the page over HTTPS. route() follows the configured scheme,
+     * but url()->full() (what the datatables ajax URL is) follows the request.
+     * Those have to agree, or the browser blocks the data request as mixed content.
+     */
+    public function handle(Request $request, Closure $next)
+    {
+        $request::setTrustedProxies([], $this->getTrustedHeaderNames());
+
+        $this->setTrustedProxyIpAddresses($request);
+
+        if ($this->shouldForceHttps($request)) {
+            $request->headers->set('X-Forwarded-Proto', 'https');
+            $request->server->set('HTTPS', 'on');
+        }
+
+        return $next($request);
+    }
+
+    private function shouldForceHttps(Request $request): bool
+    {
+        if (config('app.redirect_https') || str_starts_with((string) config('app.url'), 'https://')) {
+            return true;
+        }
+
+        $visitor = json_decode((string) $request->headers->get('CF-Visitor'), true);
+
+        return is_array($visitor) && ($visitor['scheme'] ?? null) === 'https';
     }
 
 }
