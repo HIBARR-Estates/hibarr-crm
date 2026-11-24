@@ -63,7 +63,7 @@ Rules:
 Routing often depends on *who or what brought the lead*, not only on what they filled in: "leads from the spring Meta campaign go to the DE team", "leads from partner X go to that partner's manager". These are recorded as **entry context**, a second dimension next to the channel. They are **not** channels or bindings:
 
 - One campaign or partner drives many forms of different types (a webinar *and* a consultation). A channel tree is per type, and a binding maps one object to one channel, so a campaign can't be a binding without forcing a choice between "the webinar's channel" and "the campaign's channel" for the same entry. As context, both are kept.
-- Context reuses existing records (agents, attribution links, UTM configs). The only new data is one partner flag and two link columns.
+- Context reuses existing records (agents, attribution links, UTM configs). The only new data is `agents.isPartner`, `applications.partnerAgentId`, and `utm_id` on issued link URLs.
 
 #### Partner and agent: both come from `agt`
 A partner can bring a lead two ways, and both identify the partner through an agent:
