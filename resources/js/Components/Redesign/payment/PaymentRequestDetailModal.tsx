@@ -285,7 +285,7 @@ export default function PaymentRequestDetailModal({
 }: PaymentRequestDetailModalProps) {
     const { t } = useTranslation();
     const { td } = useTd();
-    const { requestDocuments, requesting } = usePaymentDocumentRequest();
+    const { requestDocuments, fetchStatus, requesting } = usePaymentDocumentRequest();
     const [requestedId, setRequestedId] = useState<number | null>(null);
     const [confirmRequestOpen, setConfirmRequestOpen] = useState(false);
     const { requestVat, settleVat, saving: savingVat } = useVatCollection();
@@ -324,8 +324,21 @@ export default function PaymentRequestDetailModal({
         && request.ui_state !== "invalidated"
         && request.ui_state !== "failed";
     const invoiceUrl = documentsRequested ? documentHref(request, "invoice") : null;
-    // A receipt only needs the request and a collected payment, not the invoice.
-    const receiptUrl = documentsRequested && collected ? documentHref(request, "receipt") : null;
+    // A receipt only needs a collected payment, not the invoice or its request.
+    const receiptUrl = collected ? documentHref(request, "receipt") : null;
+    // Asking for a receipt is itself the document request, so KDV becomes
+    // due. Read the payment back once the download has been issued.
+    const refreshAfterReceipt = () => {
+        if (documentsRequested || request.deal_id == null) return;
+        const { deal_id: dealId, id } = request;
+        window.setTimeout(async () => {
+            const updated = await fetchStatus(dealId, id);
+            if (updated?.documents_requested) {
+                setRequestedId(id);
+                onDocumentsRequested?.(updated);
+            }
+        }, 1500);
+    };
     const askForInvoice = async () => {
         if (request.deal_id == null) return;
         const updated = await requestDocuments(request.deal_id, request.id);
@@ -440,7 +453,11 @@ export default function PaymentRequestDetailModal({
                         />
                     )}
                     {receiptUrl && (
-                        <DocumentLink href={receiptUrl} label={t("pages.payment_requests.action_receipt")} />
+                        <DocumentLink
+                            href={receiptUrl}
+                            label={t("pages.payment_requests.action_receipt")}
+                            onOpen={refreshAfterReceipt}
+                        />
                     )}
                     {request.proof_url && (
                         <DocumentLink

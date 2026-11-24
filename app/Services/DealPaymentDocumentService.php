@@ -22,10 +22,10 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  * KKTC invoices (Fatura) and collection receipts (Tahsilat Makbuzu) for a deal
  * payment request.
  *
- * Documents exist only after someone records that the customer asked for an
- * invoice (requestDocuments); checkout itself collects the net amount and KDV
- * comes on top in the documents. A receipt exists only once the payment has
- * been collected. It does not need the invoice; when the invoice was already
+ * An invoice exists only after someone records that the customer asked for it
+ * (requestDocuments); checkout itself collects the net amount and KDV comes on
+ * top in the documents. A receipt exists once the payment has been collected;
+ * asking for it records that request itself. It does not need the invoice; when the invoice was already
  * generated, the receipt settles it and refers to it.
  *
  * A document is issued the first time it is generated: it takes the next
@@ -95,7 +95,14 @@ class DealPaymentDocumentService
         $document = $this->issued($payment, $kind);
         if ($document === null) {
             if ($payment->documents_requested_at === null) {
-                throw new HttpException(409, 'An invoice has to be requested before it is made.');
+                // Asking for a receipt is itself the customer's request for
+                // documents, so KDV becomes due without an invoice. An invoice
+                // still has to be requested before it is made.
+                if ($kind !== PaymentDocument::RECEIPT) {
+                    throw new HttpException(409, 'An invoice has to be requested before it is made.');
+                }
+
+                $this->requestDocuments($payment, auth()->id() ? (int) auth()->id() : null);
             }
 
             $document = $this->issue($payment, $kind);

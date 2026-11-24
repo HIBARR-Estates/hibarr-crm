@@ -3031,7 +3031,7 @@ return [
         'request_invoice_confirm' => 'Fatura iste',
         'rule_invoice_kdv' => 'Ödeme sayfası yalnızca net tutarı tahsil eder. Fatura istenirse KDV bunun üzerine eklenir.',
         'rule_invoice_on_request' => 'Fatura, ödeme talebi oluşturulurken değil, burada istendikten sonra düzenlenir.',
-        'rule_receipt_needs_invoice' => 'Makbuz, ödeme tahsil edildikten ve fatura talep edildikten sonra oluşturulabilir. Faturanın düzenlenmiş olması gerekmez; fatura düzenlenmişse makbuz o faturayı kapatır.',
+        'rule_receipt_needs_invoice' => 'Makbuz, ödeme tahsil edildikten sonra oluşturulabilir. Ne fatura ne de fatura talebi gerekir; makbuz oluşturmak müşterinin belge istediğini kaydeder ve KDV ödenmesi gerekir. Fatura düzenlenmişse makbuz o faturayı kapatır.',
         'vat_title' => 'KDV',
         'vat_rate' => 'oran',
         'vat_status_due' => 'KDV bekleniyor',

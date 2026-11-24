@@ -1581,6 +1581,37 @@ class DealPaymentRequestTest extends TestCase
         $this->assertSame(1, DB::table('payment_documents')->where('kind', 'receipt')->count());
     }
 
+    public function test_a_receipt_needs_no_invoice_request_and_records_the_request_itself(): void
+    {
+        $this->seedSellerSettings(['legal_name' => 'Örnek Emlak Ltd.', 'address' => 'Girne, KKTC', 'receipt_number_end' => 5000, 'invoice_number_end' => 5000]);
+        $id = $this->insertPayment([
+            'external_reference' => '885',
+            'ol_status' => 'completed',
+            'status' => 'complete',
+            'amount' => 2500,
+            'paid_on' => now(),
+        ]);
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+        $documents = app(DealPaymentDocumentService::class);
+
+        // The invoice still has to be asked for.
+        try {
+            $documents->viewData($payment, 'invoice');
+            $this->fail('Expected an invoice that was not requested to be refused.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+
+        $data = $documents->viewData($payment, 'receipt');
+
+        $this->assertSame('receipt', $data['kind']);
+        $this->assertNull($data['invoice_number']);
+        $this->assertNotNull($payment->fresh()->documents_requested_at);
+        $this->assertSame(0, DB::table('payment_documents')->where('kind', 'invoice')->count());
+        $this->assertSame('due', app(DealPaymentService::class)->serializeDealPayment($payment->fresh())['vat']['status']);
+    }
+
     public function test_a_receipt_cannot_be_issued_for_a_payment_that_was_not_collected(): void
     {
         $this->seedSellerSettings(['legal_name' => 'Örnek Emlak Ltd.', 'address' => 'Girne, KKTC', 'receipt_number_end' => 5000]);

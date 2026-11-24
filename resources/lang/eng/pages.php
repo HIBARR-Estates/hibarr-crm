@@ -3152,7 +3152,7 @@ return [
         'request_invoice_confirm' => 'Request invoice',
         'rule_invoice_kdv' => 'Checkout collects the net amount only. When an invoice is requested, KDV is added on top of it.',
         'rule_invoice_on_request' => 'The invoice is generated only after it has been requested here, not when the payment is requested.',
-        'rule_receipt_needs_invoice' => 'A receipt can be generated once the payment is collected and the invoice has been requested. The invoice does not have to be generated; if it was, the receipt settles it.',
+        'rule_receipt_needs_invoice' => 'A receipt can be generated once the payment is collected. It needs neither the invoice nor an invoice request; generating it records that the customer asked for documents, so KDV is due on top. If the invoice was generated, the receipt settles it.',
         'vat_title' => 'KDV',
         'vat_rate' => 'rate',
         'vat_status_due' => 'KDV due',
