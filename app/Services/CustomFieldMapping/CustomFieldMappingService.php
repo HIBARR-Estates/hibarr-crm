@@ -118,6 +118,7 @@ class CustomFieldMappingService
     private function hasUnmigratedValues(array $report): bool
     {
         return $report['skipped_incompatible'] > 0
+            || $report['skipped_locked'] > 0
             || $report['skipped_conflict'] > 0
             || $report['no_target_record'] > 0
             || $report['superseded'] > 0;
@@ -135,6 +136,7 @@ class CustomFieldMappingService
             'unchanged' => 0,
             'skipped_conflict' => 0,
             'skipped_incompatible' => 0,
+            'skipped_locked' => 0,
             'no_target_record' => 0,
             'superseded' => 0,
             'added_options' => [],
@@ -373,7 +375,20 @@ class CustomFieldMappingService
             ? $this->existingCustomValues($target, array_keys($pending))
             : $this->existingDefinedValues($target['defined'], array_keys($pending));
 
+        // Locked deals refuse custom-field edits everywhere else in the app
+        // (see DealGatheringController::updateCustomFieldsBulk), so a bulk
+        // migration must not be the one path that rewrites them.
+        $locked = $target['model'] === Deal::CUSTOM_FIELD_MODEL
+            ? Deal::whereIn('id', array_keys($pending))->where('is_locked', true)->pluck('id')->flip()->all()
+            : [];
+
         foreach ($pending as $recordId => $value) {
+            if (isset($locked[$recordId])) {
+                $report['skipped_locked']++;
+
+                continue;
+            }
+
             $current = $existing[$recordId] ?? null;
             $hasValue = $this->isFilled($current, $target);
 

@@ -140,6 +140,7 @@ export interface MappingReport {
     unchanged: number;
     skipped_conflict: number;
     skipped_incompatible: number;
+    skipped_locked: number;
     no_target_record: number;
     superseded: number;
     added_options: string[];
@@ -159,7 +160,7 @@ export function typesCompatible(sourceType: string, targetType: string): boolean
     if ((UNMAPPABLE_TYPES as readonly string[]).includes(sourceType) || (UNMAPPABLE_TYPES as readonly string[]).includes(targetType)) {
         return false;
     }
-    const sameOnly = (type: string) => !["text", "textarea", "email", "url", "phone", "mobile", "country", "select", "radio", "multiselect", "checkbox", "number", "date", "datetime"].includes(type);
+    const sameOnly = (type: string) => !["text", "textarea", "email", "url", "phone", "mobile", "select", "radio", "multiselect", "checkbox", "number", "date", "datetime"].includes(type);
     if (sameOnly(sourceType) || sameOnly(targetType)) return sourceType === targetType;
     return true;
 }

@@ -262,4 +262,85 @@ class CustomFieldMappingTest extends TestCase
         $this->expectException(InvalidMappingException::class);
         $this->service->run($this->request($source, $target), dryRun: true);
     }
+
+    public function test_locked_deals_are_not_written_and_block_deleting_the_source(): void
+    {
+        $lead = $this->lead();
+        $open = $this->deal($lead);
+        $locked = $this->deal($lead);
+        DB::table('deals')->where('id', $locked->id)->update(['is_locked' => true]);
+        $source = $this->field(Lead::CUSTOM_FIELD_MODEL, 'Lead note');
+        $target = $this->field(Deal::CUSTOM_FIELD_MODEL, 'Deal note');
+        $this->put($source, Lead::CUSTOM_FIELD_MODEL, $lead->id, 'shared');
+
+        $report = $this->service->run($this->request($source, $target), dryRun: false);
+
+        $this->assertSame('shared', $this->read($target, Deal::CUSTOM_FIELD_MODEL, $open->id));
+        $this->assertNull($this->read($target, Deal::CUSTOM_FIELD_MODEL, $locked->id));
+        $this->assertSame(1, $report['skipped_locked']);
+
+        $this->expectException(InvalidMappingException::class);
+        $this->service->run($this->request($source, $target, ['delete_source_field' => true]), dryRun: false);
+    }
+
+    public function test_text_to_number_treats_comma_groups_as_thousands_and_rejects_prose(): void
+    {
+        $a = $this->lead();
+        $b = $this->lead();
+        $c = $this->lead();
+        $source = $this->field(Lead::CUSTOM_FIELD_MODEL, 'Raw');
+        $target = $this->field(Lead::CUSTOM_FIELD_MODEL, 'Amount', 'number');
+        $this->put($source, Lead::CUSTOM_FIELD_MODEL, $a->id, '1,234');
+        $this->put($source, Lead::CUSTOM_FIELD_MODEL, $b->id, '12,5');
+        $this->put($source, Lead::CUSTOM_FIELD_MODEL, $c->id, 'about ten');
+
+        $report = $this->service->run($this->request($source, $target), dryRun: false);
+
+        $this->assertSame('1234', $this->read($target, Lead::CUSTOM_FIELD_MODEL, $a->id));
+        $this->assertSame('12.5', $this->read($target, Lead::CUSTOM_FIELD_MODEL, $b->id));
+        $this->assertNull($this->read($target, Lead::CUSTOM_FIELD_MODEL, $c->id));
+        $this->assertSame(1, $report['skipped_incompatible']);
+    }
+
+    public function test_free_text_is_not_turned_into_a_date(): void
+    {
+        $good = $this->lead();
+        $bad = $this->lead();
+        $source = $this->field(Lead::CUSTOM_FIELD_MODEL, 'Raw date');
+        $this->put($source, Lead::CUSTOM_FIELD_MODEL, $good->id, '01.05.1990');
+        $this->put($source, Lead::CUSTOM_FIELD_MODEL, $bad->id, 'next friday');
+
+        $report = $this->service->run(
+            ['source_id' => $source->id, 'target_type' => 'defined', 'target_key' => 'lead.date_of_birth'],
+            dryRun: false,
+        );
+
+        $this->assertSame(1, $report['mapped']);
+        $this->assertSame(1, $report['skipped_incompatible']);
+        $this->assertSame('1990-05-01', substr((string) DB::table('leads')->where('id', $good->id)->value('date_of_birth'), 0, 10));
+    }
+
+    public function test_age_outside_the_allowed_range_is_rejected(): void
+    {
+        $lead = $this->lead();
+        $source = $this->field(Lead::CUSTOM_FIELD_MODEL, 'Years');
+        $this->put($source, Lead::CUSTOM_FIELD_MODEL, $lead->id, '900');
+
+        $report = $this->service->run(
+            ['source_id' => $source->id, 'target_type' => 'defined', 'target_key' => 'lead.age'],
+            dryRun: false,
+        );
+
+        $this->assertSame(1, $report['skipped_incompatible']);
+        $this->assertNull(DB::table('leads')->where('id', $lead->id)->value('age'));
+    }
+
+    public function test_text_cannot_be_mapped_into_a_country_field(): void
+    {
+        $source = $this->field(Lead::CUSTOM_FIELD_MODEL, 'Where');
+        $target = $this->field(Lead::CUSTOM_FIELD_MODEL, 'Country', 'country');
+
+        $this->expectException(InvalidMappingException::class);
+        $this->service->run($this->request($source, $target), dryRun: true);
+    }
 }

@@ -33,16 +33,16 @@ final class DefinedFieldRegistry
     /**
      * key => [label, store, column, kind, max length (string kind only)]
      *
-     * @return array<string, array{key: string, label: string, store: string, column: string, kind: string, max: ?int, model: string}>
+     * @return array<string, array{key: string, label: string, store: string, column: string, kind: string, max: ?int, range: ?array, model: string}>
      */
     private static function definitions(): array
     {
-        $lead = fn (string $label, string $column, string $kind, ?int $max = null) => [
-            'label' => $label, 'store' => self::STORE_LEAD, 'column' => $column, 'kind' => $kind, 'max' => $max,
+        $lead = fn (string $label, string $column, string $kind, ?int $max = null, ?array $range = null) => [
+            'label' => $label, 'store' => self::STORE_LEAD, 'column' => $column, 'kind' => $kind, 'max' => $max, 'range' => $range,
             'model' => Lead::CUSTOM_FIELD_MODEL,
         ];
-        $deal = fn (string $label, string $column, string $kind, ?int $max = null) => [
-            'label' => $label, 'store' => self::STORE_DEAL_EXTRA, 'column' => $column, 'kind' => $kind, 'max' => $max,
+        $deal = fn (string $label, string $column, string $kind, ?int $max = null, ?array $range = null) => [
+            'label' => $label, 'store' => self::STORE_DEAL_EXTRA, 'column' => $column, 'kind' => $kind, 'max' => $max, 'range' => $range,
             'model' => Deal::CUSTOM_FIELD_MODEL,
         ];
 
@@ -50,7 +50,7 @@ final class DefinedFieldRegistry
             'lead.nationality' => $lead('Lead · Nationality', 'nationality', self::KIND_STRING, 255),
             'lead.occupation' => $lead('Lead · Occupation', 'occupation', self::KIND_STRING, 255),
             'lead.date_of_birth' => $lead('Lead · Date of birth', 'date_of_birth', self::KIND_DATE),
-            'lead.age' => $lead('Lead · Age', 'age', self::KIND_INT),
+            'lead.age' => $lead('Lead · Age', 'age', self::KIND_INT, null, [0, 150]),
             'lead.languages' => $lead('Lead · Languages', 'languages', self::KIND_LANGUAGES),
             'lead.city' => $lead('Lead · City', 'city', self::KIND_STRING, 255),
             'lead.state' => $lead('Lead · State / region', 'state', self::KIND_STRING, 255),
@@ -70,7 +70,7 @@ final class DefinedFieldRegistry
     }
 
     /**
-     * @return array<string, array{key: string, label: string, store: string, column: string, kind: string, max: ?int, model: string}>
+     * @return array<string, array{key: string, label: string, store: string, column: string, kind: string, max: ?int, range: ?array, model: string}>
      */
     public static function all(): array
     {
@@ -90,7 +90,7 @@ final class DefinedFieldRegistry
     }
 
     /**
-     * @return array{key: string, label: string, store: string, column: string, kind: string, max: ?int, model: string}|null
+     * @return array{key: string, label: string, store: string, column: string, kind: string, max: ?int, range: ?array, model: string}|null
      */
     public static function find(string $key): ?array
     {

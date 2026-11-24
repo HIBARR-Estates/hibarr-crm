@@ -143,7 +143,7 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
         }
     };
 
-    const notMigrated = report ? report.skipped_incompatible + report.skipped_conflict + report.no_target_record + report.superseded : 0;
+    const notMigrated = report ? report.skipped_incompatible + report.skipped_locked + report.skipped_conflict + report.no_target_record + report.superseded : 0;
     const deleting = after !== "keep";
     const applyBlocked = !report || (deleting && notMigrated > 0 && !allowLoss);
 
@@ -163,7 +163,7 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
                 <span style={{ display: "block", fontSize: 13, fontWeight: 500, color: value === "keep" ? T.TEXT : value === "delete_field" ? T.RED : T.TEXT }}>
                     {label}
                 </span>
-                {hint && <span style={{ display: "block", fontSize: 11, color: T.TEXT_HINT }}>{hint}</span>}
+                {hint && <span style={{ display: "block", fontSize: 11, color: T.TEXT_MUTED }}>{hint}</span>}
             </span>
         </label>
     );
@@ -202,7 +202,7 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
             ) : done && report ? (
                 <div style={{ fontSize: 13, color: T.TEXT }}>
                     <p style={{ marginTop: 0 }}>
-                        {td(`${report.mapped} value(s) migrated.`, { source: "en" })}
+                        {td(`${report.mapped} record(s) updated.`, { source: "en" })}
                         {report.deleted_field
                             ? ` ${td("The source field was deleted.", { source: "en" })}`
                             : report.deleted_values > 0
@@ -267,11 +267,12 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
                         <div style={{ marginTop: 16 }}>
                             <div style={sectionLabel}>{td("Preview — nothing has been changed yet", { source: "en" })}</div>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8 }}>
-                                <Stat label={td("Values found", { source: "en" })} value={report.source_total} />
-                                <Stat label={td("Will be migrated", { source: "en" })} value={report.mapped} />
+                                <Stat label={td("Source values", { source: "en" })} value={report.source_total} />
+                                <Stat label={td("Records to update", { source: "en" })} value={report.mapped} />
                                 <Stat label={td("Already the same", { source: "en" })} value={report.unchanged} />
                                 <Stat label={td("Kept (target has a value)", { source: "en" })} value={report.skipped_conflict} tone="warn" />
                                 <Stat label={td("Incompatible", { source: "en" })} value={report.skipped_incompatible} tone="warn" />
+                                <Stat label={td("Locked deals (skipped)", { source: "en" })} value={report.skipped_locked} tone="warn" />
                                 <Stat label={td("No record to write to", { source: "en" })} value={report.no_target_record} tone="warn" />
                                 {report.superseded > 0 && <Stat label={td("Older deals (newest wins)", { source: "en" })} value={report.superseded} tone="warn" />}
                             </div>

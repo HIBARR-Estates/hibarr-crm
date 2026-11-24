@@ -29,7 +29,8 @@ class CustomFieldValueConverter
     /** Files and structured types (currency, range, ...): only copyable to the same type. */
     public const NEUTRAL_OPAQUE = 'opaque';
 
-    private const TEXT_TYPES = ['text', 'textarea', 'email', 'url', 'phone', 'mobile', 'country'];
+    // 'country' is deliberately absent: its stored format isn't free text, so it only maps to another country field.
+    private const TEXT_TYPES = ['text', 'textarea', 'email', 'url', 'phone', 'mobile'];
     private const OPTION_TYPES = ['select', 'radio'];
     private const MULTI_TYPES = ['multiselect', 'checkbox'];
 
@@ -99,7 +100,7 @@ class CustomFieldValueConverter
     ): array {
         $type = $target->type;
 
-        if ($neutral['kind'] === self::NEUTRAL_OPAQUE || in_array($type, ['file', 'currency', 'range', 'currency_range', 'multiSelectCountry'], true)) {
+        if ($neutral['kind'] === self::NEUTRAL_OPAQUE || in_array($type, ['file', 'currency', 'range', 'currency_range', 'country', 'multiSelectCountry'], true)) {
             return $neutral['type'] === $type
                 ? ['value' => (string) $this->stringify($neutral), 'reason' => null]
                 : $this->fail("{$neutral['type']} can only be copied to another {$neutral['type']} field");
@@ -116,9 +117,9 @@ class CustomFieldValueConverter
         }
 
         if ($type === 'number') {
-            $text = str_replace([' ', ','], ['', '.'], $this->stringify($neutral));
+            $text = $this->normalizeNumber($this->stringify($neutral));
 
-            return is_numeric($text)
+            return $text !== null
                 ? ['value' => $text, 'reason' => null]
                 : $this->fail('not a number');
         }
@@ -167,7 +168,7 @@ class CustomFieldValueConverter
      * Renders a neutral value for a defined (built-in) field target.
      *
      * @param  array{kind: string, value: mixed, type: string}  $neutral
-     * @param  array{kind: string, max: ?int}  $target
+     * @param  array{kind: string, max: ?int, range?: ?array{0: int, 1: int}}  $target
      * @return array{value: mixed, reason: ?string}
      */
     public function toDefinedField(array $neutral, array $target): array
@@ -192,9 +193,15 @@ class CustomFieldValueConverter
             case DefinedFieldRegistry::KIND_INT:
                 $text = trim($this->stringify($neutral));
 
-                return preg_match('/^-?\d+(\.0+)?$/', $text)
-                    ? ['value' => (int) $text, 'reason' => null]
-                    : $this->fail('not a whole number');
+                if (! preg_match('/^-?\d+(\.0+)?$/', $text)) {
+                    return $this->fail('not a whole number');
+                }
+
+                [$min, $max] = $target['range'] ?? [null, null];
+
+                return ($min !== null && (int) $text < $min) || ($max !== null && (int) $text > $max)
+                    ? $this->fail("outside the allowed range {$min}–{$max}")
+                    : ['value' => (int) $text, 'reason' => null];
 
             case DefinedFieldRegistry::KIND_BOOL:
                 $text = mb_strtolower(trim($this->stringify($neutral)));
@@ -269,11 +276,35 @@ class CustomFieldValueConverter
             return null;
         }
 
+        // Carbon::parse() accepts free text such as "next friday" or "5", which
+        // would silently turn prose into a date. Only accept explicit numeric dates.
+        if (! preg_match('/^\d{4}-\d{1,2}-\d{1,2}([ T]\d{1,2}:\d{2}(:\d{2})?)?$|^\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4}$/', $neutral['value'])) {
+            return null;
+        }
+
         try {
-            return Carbon::parse($neutral['value']);
+            return Carbon::parse(str_replace('/', '-', $neutral['value']));
         } catch (Throwable) {
             return null;
         }
+    }
+
+    /**
+     * "1 234.5", "1234,5" and "1,234.50" are numbers; "1,234" is ambiguous
+     * (thousands vs. decimal) and is read as thousands, which is what an
+     * integer-looking value almost always means. Returns null when unsure.
+     */
+    private function normalizeNumber(string $text): ?string
+    {
+        $text = str_replace([' ', "\u{00A0}"], '', trim($text));
+
+        if (preg_match('/^-?\d{1,3}(,\d{3})+(\.\d+)?$/', $text)) {
+            $text = str_replace(',', '', $text);
+        } elseif (preg_match('/^-?\d+,\d{1,2}$/', $text)) {
+            $text = str_replace(',', '.', $text);
+        }
+
+        return is_numeric($text) ? $text : null;
     }
 
     /** @return list<string> */
