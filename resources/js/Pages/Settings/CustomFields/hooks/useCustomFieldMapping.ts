@@ -2,7 +2,6 @@ import { Dispatch, SetStateAction, useCallback, useState } from "react";
 import axios from "axios";
 import { message } from "antd";
 import useTranslation from "@/Hooks/useTranslation";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import { MappingOptions, MappingReport, MappingTarget, SettingsField } from "../types";
 
 interface Options {
@@ -27,7 +26,6 @@ function buildPayload(sourceId: number, target: MappingTarget, options: MappingO
  */
 export default function useCustomFieldMapping({ setFields }: Options) {
     const { t } = useTranslation();
-    const { td } = useTd();
     const [previewing, setPreviewing] = useState(false);
     const [applying, setApplying] = useState(false);
 
@@ -84,7 +82,7 @@ export default function useCustomFieldMapping({ setFields }: Options) {
                         ),
                     );
                 }
-                message.success(td("Field mapping applied", { source: "en" }));
+                message.success(t("pages.settings.custom_fields_mapping.applied"));
                 return { ok: true, report };
             } catch (error: any) {
                 message.error(errorMessage(error));
@@ -93,7 +91,7 @@ export default function useCustomFieldMapping({ setFields }: Options) {
                 setApplying(false);
             }
         },
-        [errorMessage, setFields, td],
+        [errorMessage, setFields, t],
     );
 
     return { previewing, applying, preview, apply };

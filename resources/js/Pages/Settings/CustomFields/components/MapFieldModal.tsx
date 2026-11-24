@@ -4,6 +4,7 @@ import Button from "@/Components/Redesign/primitives/Button";
 import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     DefinedField,
     MappingOptions,
@@ -63,6 +64,7 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: "wa
  */
 export default function MapFieldModal({ open, sourceField, fields, moduleGroups, definedFields, mapping, onClose }: Props) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const [targetValue, setTargetValue] = useState("");
     const [conflict, setConflict] = useState<MappingOptions["conflict"]>("skip");
     const [addMissing, setAddMissing] = useState(false);
@@ -92,9 +94,9 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
         const custom = fields
             .filter((f) => f.id !== sourceField.id && [LEAD_MODEL, DEAL_MODEL].includes(modelOf(f.module) ?? ""))
             .filter((f) => typesCompatible(sourceField.type, f.type))
-            .map((f) => ({ value: `custom:${f.id}`, label: `${f.label} · ${f.module} ${td("custom field", { source: "en" })}` }));
+            .map((f) => ({ value: `custom:${f.id}`, label: `${f.label} · ${f.module} ${t("pages.settings.custom_fields_mapping.suffix_custom_field")}` }));
         const defined = typesCompatible(sourceField.type, "text")
-            ? definedFields.map((f) => ({ value: `defined:${f.key}`, label: `${f.label} ${td("(built-in)", { source: "en" })}` }))
+            ? definedFields.map((f) => ({ value: `defined:${f.key}`, label: `${f.label} ${t("pages.settings.custom_fields_mapping.suffix_built_in")}` }))
             : [];
         return [...custom, ...defined];
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -126,8 +128,8 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
     const crossHint =
         sourceModel && targetModel && sourceModel !== targetModel
             ? sourceModel === LEAD_MODEL
-                ? td("Every deal of a lead receives the lead's value.", { source: "en" })
-                : td("A lead takes the value of its most recent deal that has one.", { source: "en" })
+                ? t("pages.settings.custom_fields_mapping.cross_lead_to_deal")
+                : t("pages.settings.custom_fields_mapping.cross_deal_to_lead")
             : null;
 
     const handlePreview = async () => {
@@ -176,25 +178,25 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
     return (
         <Modal
             open={open}
-            title={td("Map & migrate field", { source: "en" })}
+            title={t("pages.settings.custom_fields_mapping.title")}
             subtitle={sourceField ? `${sourceField.label} · ${sourceField.module}` : undefined}
             onClose={onClose}
             maxWidth={560}
             footer={
                 done ? (
                     <Button variant="primary" onClick={onClose}>
-                        {td("Done", { source: "en" })}
+                        {t("pages.settings.custom_fields_mapping.done")}
                     </Button>
                 ) : (
                     <>
                         <Button onClick={onClose} disabled={mapping.applying}>
-                            {td("Cancel", { source: "en" })}
+                            {t("pages.settings.custom_fields_mapping.cancel")}
                         </Button>
                         <Button onClick={handlePreview} loading={mapping.previewing} disabled={!target || mapping.applying}>
-                            {td("Preview", { source: "en" })}
+                            {t("pages.settings.custom_fields_mapping.preview")}
                         </Button>
                         <Button variant={deleting ? "danger" : "primary"} onClick={handleApply} loading={mapping.applying} disabled={applyBlocked}>
-                            {deleting ? td("Migrate & delete", { source: "en" }) : td("Migrate", { source: "en" })}
+                            {deleting ? t("pages.settings.custom_fields_mapping.migrate_and_delete") : t("pages.settings.custom_fields_mapping.migrate")}
                         </Button>
                     </>
                 )
@@ -202,25 +204,25 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
         >
             {!mappable ? (
                 <div style={{ fontSize: 13, color: T.TEXT_HINT, fontStyle: "italic" }}>
-                    {td("Only lead and deal fields can be mapped.", { source: "en" })}
+                    {t("pages.settings.custom_fields_mapping.only_lead_deal")}
                 </div>
             ) : done && report ? (
                 <div style={{ fontSize: 13, color: T.TEXT }}>
                     <p style={{ marginTop: 0 }}>
-                        {td(`${report.mapped} record(s) updated.`, { source: "en" })}
+                        {t("pages.settings.custom_fields_mapping.records_updated", { n: report.mapped })}
                         {report.deleted_field
-                            ? ` ${td("The source field was deleted.", { source: "en" })}`
+                            ? ` ${t("pages.settings.custom_fields_mapping.source_deleted")}`
                             : report.deleted_values > 0
-                              ? ` ${td(`${report.deleted_values} source value(s) deleted.`, { source: "en" })}`
+                              ? ` ${t("pages.settings.custom_fields_mapping.source_values_deleted", { n: report.deleted_values })}`
                               : ""}
                     </p>
                     {report.added_options.length > 0 && (
-                        <p>{td("Options added to the target field:", { source: "en" })} {report.added_options.join(", ")}</p>
+                        <p>{t("pages.settings.custom_fields_mapping.options_added")} {report.added_options.join(", ")}</p>
                     )}
                 </div>
             ) : (
                 <>
-                    <ModalField label={td("Map into", { source: "en" })}>
+                    <ModalField label={t("pages.settings.custom_fields_mapping.map_into")}>
                         <MenuSelect
                             value={targetValue}
                             onChange={(v) => {
@@ -228,13 +230,13 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
                                 setAddMissing(false);
                                 resetReport();
                             }}
-                            options={[{ value: "", label: td("Choose a field…", { source: "en" }) }, ...targetOptions]}
+                            options={[{ value: "", label: t("pages.settings.custom_fields_mapping.choose_field") }, ...targetOptions]}
                             fullWidth
                         />
                         {crossHint && <div style={{ fontSize: 11, color: T.TEXT_HINT, marginTop: 4 }}>{crossHint}</div>}
                     </ModalField>
 
-                    <ModalField label={td("If the target already has a value", { source: "en" })}>
+                    <ModalField label={t("pages.settings.custom_fields_mapping.conflict_label")}>
                         <MenuSelect
                             value={conflict}
                             onChange={(v) => {
@@ -242,8 +244,8 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
                                 resetReport();
                             }}
                             options={[
-                                { value: "skip", label: td("Keep the existing value", { source: "en" }) },
-                                { value: "overwrite", label: td("Overwrite with this field's value", { source: "en" }) },
+                                { value: "skip", label: t("pages.settings.custom_fields_mapping.conflict_keep") },
+                                { value: "overwrite", label: t("pages.settings.custom_fields_mapping.conflict_overwrite") },
                             ]}
                             fullWidth
                         />
@@ -259,41 +261,41 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
                                     resetReport();
                                 }}
                             />
-                            {td("Add options the target field is missing", { source: "en" })}
+                            {t("pages.settings.custom_fields_mapping.add_missing_options")}
                         </label>
                     )}
 
-                    <div style={sectionLabel}>{td("After migrating", { source: "en" })}</div>
-                    {radio("keep", td("Keep this field and its values", { source: "en" }))}
-                    {radio("delete_values", td("Delete this field's values, keep the field", { source: "en" }))}
-                    {radio("delete_field", td("Delete this field and its values", { source: "en" }), td("Cannot be undone.", { source: "en" }))}
+                    <div style={sectionLabel}>{t("pages.settings.custom_fields_mapping.after_label")}</div>
+                    {radio("keep", t("pages.settings.custom_fields_mapping.after_keep"))}
+                    {radio("delete_values", t("pages.settings.custom_fields_mapping.after_delete_values"))}
+                    {radio("delete_field", t("pages.settings.custom_fields_mapping.after_delete_field"), t("pages.settings.custom_fields_mapping.cannot_be_undone"))}
 
                     {report && (
                         <div style={{ marginTop: 16 }}>
-                            <div style={sectionLabel}>{td("Preview — nothing has been changed yet", { source: "en" })}</div>
+                            <div style={sectionLabel}>{t("pages.settings.custom_fields_mapping.preview_heading")}</div>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8 }}>
-                                <Stat label={td("Source values", { source: "en" })} value={report.source_total} />
-                                <Stat label={td("Records to update", { source: "en" })} value={report.mapped} />
-                                <Stat label={td("Already the same", { source: "en" })} value={report.unchanged} />
-                                <Stat label={td("Kept (target has a value)", { source: "en" })} value={report.skipped_conflict} tone="warn" />
-                                <Stat label={td("Incompatible", { source: "en" })} value={report.skipped_incompatible} tone="warn" />
-                                <Stat label={td("Locked deals (skipped)", { source: "en" })} value={report.skipped_locked} tone="warn" />
-                                <Stat label={td("No record to write to", { source: "en" })} value={report.no_target_record} tone="warn" />
-                                {report.superseded > 0 && <Stat label={td("Older deals (newest wins)", { source: "en" })} value={report.superseded} tone="warn" />}
+                                <Stat label={t("pages.settings.custom_fields_mapping.stat_source_values")} value={report.source_total} />
+                                <Stat label={t("pages.settings.custom_fields_mapping.stat_records_to_update")} value={report.mapped} />
+                                <Stat label={t("pages.settings.custom_fields_mapping.stat_unchanged")} value={report.unchanged} />
+                                <Stat label={t("pages.settings.custom_fields_mapping.stat_kept")} value={report.skipped_conflict} tone="warn" />
+                                <Stat label={t("pages.settings.custom_fields_mapping.stat_incompatible")} value={report.skipped_incompatible} tone="warn" />
+                                <Stat label={t("pages.settings.custom_fields_mapping.stat_locked")} value={report.skipped_locked} tone="warn" />
+                                <Stat label={t("pages.settings.custom_fields_mapping.stat_no_record")} value={report.no_target_record} tone="warn" />
+                                {report.superseded > 0 && <Stat label={t("pages.settings.custom_fields_mapping.stat_superseded")} value={report.superseded} tone="warn" />}
                             </div>
 
                             {report.added_options.length > 0 && (
                                 <div style={{ fontSize: 12, color: T.TEXT_MUTED, marginTop: 8 }}>
-                                    {td("Options that will be added:", { source: "en" })} {report.added_options.join(", ")}
+                                    {t("pages.settings.custom_fields_mapping.options_will_be_added")} {report.added_options.join(", ")}
                                 </div>
                             )}
 
                             {report.incompatible_samples.length > 0 && (
                                 <div style={{ marginTop: 10, fontSize: 12, color: T.TEXT_MUTED }}>
-                                    <div style={{ fontWeight: 600, marginBottom: 4 }}>{td("Examples that can't be migrated", { source: "en" })}</div>
+                                    <div style={{ fontWeight: 600, marginBottom: 4 }}>{t("pages.settings.custom_fields_mapping.examples_heading")}</div>
                                     {report.incompatible_samples.map((s) => (
                                         <div key={`${s.record_id}-${s.value}`} style={{ padding: "2px 0" }}>
-                                            #{s.record_id} · “{s.value}” — {s.reason}
+                                            #{s.record_id} · “{s.value}” — {td(s.reason, { source: "en" })}
                                         </div>
                                     ))}
                                 </div>
@@ -302,7 +304,7 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
                             {deleting && notMigrated > 0 && (
                                 <label style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 12, fontSize: 13, color: T.RED, cursor: "pointer" }}>
                                     <input type="checkbox" checked={allowLoss} onChange={(e) => setAllowLoss(e.target.checked)} style={{ marginTop: 3 }} />
-                                    {td(`${notMigrated} value(s) won't be migrated and will be lost when the source is deleted. Delete anyway.`, { source: "en" })}
+                                    {t("pages.settings.custom_fields_mapping.loss_confirm", { n: notMigrated })}
                                 </label>
                             )}
                         </div>
