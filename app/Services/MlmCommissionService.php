@@ -16,6 +16,7 @@ use App\Models\MlmCycleLevelSnapshot;
 use App\Models\MlmLevel;
 use App\Models\Package;
 use App\Models\Property;
+use App\Support\CommissionTerms;
 use App\Support\FeatureFlags;
 use Illuminate\Support\Facades\Log;
 
@@ -217,23 +218,22 @@ class MlmCommissionService
             }
         }
 
-        // Referral share of the pool, taken from what the company would keep.
-        // The closer and upline amounts above are left as they are.
+        // Referral commission, taken from what the company would keep. The
+        // closer and upline amounts above are left as they are.
         //
         // Room is measured in the already-rounded amounts: each leg rounds on its
         // own, so subtracting percentages could let the legs sum a cent over the
         // ceiling. The closer's and uplines' amounts are never reduced.
         $ceilingAmount = round($this->calculateAmount($dealValue, $maxCommission), 2);
-        $referralLeg = $this->buildReferralLeg(
+        $referralLegs = $this->buildReferralLegs(
             $deal,
             $agent,
             $dealValue,
-            $ceilingAmount,
             max(0.0, round($ceilingAmount - (float) collect($records)->sum('amount'), 2)),
         );
 
-        if ($referralLeg !== null) {
-            $records[] = $referralLeg;
+        if ($referralLegs !== []) {
+            array_push($records, ...$referralLegs);
 
             // A fixed referral does not land on a clean percentage, so the
             // remainder is whatever currency is still under the ceiling.
@@ -362,12 +362,13 @@ class MlmCommissionService
 
         $persistedLegs = MlmCommission::where('deal_id', $deal->id)
             ->where('status', '!=', MlmCommissionStatus::Reverted->value)
-            ->get(['type', 'amount', 'percentage', 'agent_id'])
+            ->get(['type', 'amount', 'percentage', 'agent_id', 'package_id'])
             ->map(fn (MlmCommission $leg) => [
                 'type' => $leg->type->value,
                 'amount' => (float) $leg->amount,
                 'percentage' => $leg->percentage !== null ? (float) $leg->percentage : null,
                 'agent_id' => (int) $leg->agent_id,
+                'package_id' => $leg->package_id !== null ? (int) $leg->package_id : null,
             ]);
 
         $isProjected = $persistedLegs->isEmpty();
@@ -380,6 +381,7 @@ class MlmCommissionService
                     ? (float) $leg['percentage']
                     : null,
                 'agent_id' => (int) $leg['agent_id'],
+                'package_id' => isset($leg['package_id']) ? (int) $leg['package_id'] : null,
             ])
             : $persistedLegs;
 
@@ -408,7 +410,7 @@ class MlmCommissionService
             'paid_total' => round($paidTotal, 2),
             'revenue_to_company' => round($revenueToCompany, 2),
             'is_projected' => $isProjected,
-            'referral' => $this->referralDisplay($deal, $isPackageDeal, $dealValueInCompanyCurrency, $legs, ! $isProjected),
+            'referral' => $this->referralDisplay($deal, $dealValueInCompanyCurrency, $legs, ! $isProjected),
             // Every leg that paid a person, in engine order (agent first, then
             // uplines outward). Excludes the system leg, so these always sum to
             // paid_total rather than to something the reader has to unpick.
@@ -630,13 +632,9 @@ class MlmCommissionService
             );
         }
 
-        $pool = round((float) array_sum(array_column($legs, 'amount')), 2);
         $dealValue = (float) ($deal->value ?? 0) * (float) ($deal->exchange_rate ?? 1);
-        $referralLeg = $this->buildReferralLeg($deal, $agent, $dealValue, $pool, null);
 
-        if ($referralLeg !== null) {
-            $legs[] = $referralLeg;
-        }
+        array_push($legs, ...$this->buildReferralLegs($deal, $agent, $dealValue, null));
 
         Log::info('MlmCommissionService: Resolved '.count($legs)." package commission legs for deal {$deal->id}");
 
@@ -663,17 +661,17 @@ class MlmCommissionService
             ->where('package_id', $package->id)
             ->first();
 
-        $type = $override?->commission_type ?? $package->commission_type;
-
-        // Distinct from $type === null (fall through to the level-based split):
+        // Distinct from no rule at all (fall through to the level-based split):
         // None is a configured zero, so no leg is written and nothing falls
-        // through. Checked before touching commission_value at all — that value
-        // is meaningless for None and never trusted to already be zero.
-        if ($type === null || $type === PackageCommissionType::None) {
+        // through. A stray value on a None rule is never trusted.
+        $terms = CommissionTerms::make(
+            $override?->commission_type ?? $package->commission_type,
+            $override?->commission_value ?? $package->commission_value,
+        );
+
+        if ($terms === null || $terms->isNone()) {
             return null;
         }
-
-        $value = (float) ($override?->commission_value ?? $package->commission_value);
 
         // Percentage is computed against packages.value, which is stored in
         // the package's OWN currency (packages.currency) — not necessarily
@@ -683,9 +681,7 @@ class MlmCommissionService
         // settings-page convention (the input is labelled with the
         // company's symbol, not the package's — see PackageFormModal.tsx),
         // so applying a rate to it would double-convert an already-correct number.
-        $amount = $type === PackageCommissionType::Percentage
-            ? round((float) $package->value * ($value / 100) * $this->packageCurrencyRate($package), 2)
-            : round($value, 2);
+        $amount = $terms->amount((float) $package->value * $this->packageCurrencyRate($package));
 
         if ($amount <= 0) {
             return null;
@@ -693,7 +689,7 @@ class MlmCommissionService
 
         return [
             'amount' => $amount,
-            'percentage' => $type === PackageCommissionType::Percentage ? $value : null,
+            'percentage' => $terms->percentage(),
         ];
     }
 
@@ -813,12 +809,10 @@ class MlmCommissionService
     }
 
     /**
-     * Who referred this deal's lead, and the percentage and agreed amount that
-     * decide their leg. Null when the lead has no referrer.
-     *
-     * @return array{agent: LeadAgent, partner_percentage: float|null, deal_percentage: float|null, fixed_amount: float|null}|null
+     * Who referred this deal's lead, or null: the feature is off, the lead has no
+     * referrer, or the referrer belongs to another company.
      */
-    protected function referralSettings(Deal $deal): ?array
+    protected function referrerFor(Deal $deal): ?LeadAgent
     {
         if (! $this->isReferralCommissionEnabled() || ! $deal->lead_id) {
             return null;
@@ -838,11 +832,9 @@ class MlmCommissionService
             return null;
         }
 
-        $referrerId = $lead->referred_by_agent_id;
-
         $referrer = LeadAgent::withoutGlobalScopes()
             ->with('user:id,name')
-            ->find($referrerId);
+            ->find($lead->referred_by_agent_id);
 
         // The referrer must belong to the lead's own company: the lead was
         // matched to the deal's company above, but the agent id it carries is
@@ -851,164 +843,212 @@ class MlmCommissionService
             return null;
         }
 
-        return [
-            'agent' => $referrer,
-            'partner_percentage' => $referrer->referral_pool_rate !== null
-                ? (float) $referrer->referral_pool_rate
-                : null,
-            'deal_percentage' => $deal->referral_pool_rate !== null
-                ? (float) $deal->referral_pool_rate
-                : null,
-            'fixed_amount' => $deal->referral_fixed_amount !== null
-                ? (float) $deal->referral_fixed_amount
-                : null,
-        ];
+        return $referrer;
     }
 
     /**
-     * Settings and figures for the deal commission block. The percentage is
-     * always described, including when an agreed amount is what gets paid.
+     * The referral rules in force for a deal, most specific first:
      *
-     * @param  \Illuminate\Support\Collection<int, array{type: string, amount: float}>  $legs
+     * 1. The deal's own override, one rule on the deal value.
+     * 2. One rule per attached package, from the referrer's row for that package
+     *    (the same row that holds what they earn as the closer on it). A package
+     *    the referrer has no referral terms on pays them nothing.
+     * 3. With no package attached, the referrer's own terms, on the deal value.
+     *
+     * Each entry carries the base its percentage is taken from, in company
+     * currency: the package value for a package, the deal value otherwise.
+     *
+     * @return array<int, array{terms: CommissionTerms, package: ?Package, source: string, base: float}>
+     */
+    protected function referralTermsFor(Deal $deal, LeadAgent $referrer, float $dealValue): array
+    {
+        $override = CommissionTerms::make($deal->referral_commission_type, $deal->referral_commission_value);
+
+        if ($override !== null) {
+            return [['terms' => $override, 'package' => null, 'source' => 'deal', 'base' => $dealValue]];
+        }
+
+        $packages = $deal->packages()->get();
+
+        if ($packages->isEmpty()) {
+            $terms = CommissionTerms::make($referrer->referral_commission_type, $referrer->referral_commission_value);
+
+            return $terms === null
+                ? []
+                : [['terms' => $terms, 'package' => null, 'source' => 'partner', 'base' => $dealValue]];
+        }
+
+        $rows = AgentPackageCommissionRate::query()
+            ->where('agent_id', $referrer->id)
+            ->whereIn('package_id', $packages->pluck('id'))
+            ->get()
+            ->keyBy('package_id');
+
+        $entries = [];
+
+        foreach ($packages as $package) {
+            $row = $rows->get($package->id);
+            $terms = $row
+                ? CommissionTerms::make($row->referral_commission_type, $row->referral_commission_value)
+                : null;
+
+            if ($terms === null) {
+                continue;
+            }
+
+            $entries[] = [
+                'terms' => $terms,
+                'package' => $package,
+                'source' => 'package',
+                // Same base as the closer's percentage on this package.
+                'base' => (float) $package->value * $this->packageCurrencyRate($package),
+            ];
+        }
+
+        return $entries;
+    }
+
+    /**
+     * What a deal-level override would pay on this deal, for checking it against
+     * the most the deal can carry before it is saved.
+     */
+    public function referralOverrideAmount(Deal $deal, CommissionTerms $terms): float
+    {
+        return $terms->amount((float) ($deal->value ?? 0) * (float) ($deal->exchange_rate ?? 1));
+    }
+
+    /**
+     * The referral legs for a deal, one per package that pays the referrer or a
+     * single leg for a deal-level or property-deal rule.
+     *
+     * On a level deal $roomAmount is what the company still holds and the legs
+     * together are capped there. On a package deal $roomAmount is null: the
+     * closer's package fee is not reduced, and the legs together are held to the
+     * most the deal can carry (its ceiling percentage of the deal value).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function buildReferralLegs(
+        Deal $deal,
+        LeadAgent $closer,
+        float $dealValue,
+        ?float $roomAmount,
+    ): array {
+        $referrer = $this->referrerFor($deal);
+
+        if ($referrer === null) {
+            return [];
+        }
+
+        $remaining = $roomAmount !== null
+            ? max(0.0, round($roomAmount, 2))
+            : $this->maxReferralAmount($deal, $closer, $dealValue);
+
+        $legs = [];
+
+        foreach ($this->referralTermsFor($deal, $referrer, $dealValue) as $entry) {
+            if ($entry['terms']->isNone()) {
+                continue;
+            }
+
+            $amount = min($entry['terms']->amount($entry['base']), $remaining);
+
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $remaining = round($remaining - $amount, 2);
+
+            $legs[] = $this->leg(
+                deal: $deal,
+                agent: $referrer,
+                sourceAgent: $closer,
+                level: null,
+                percentage: $dealValue > 0 ? round($amount / $dealValue * 100, 2) : null,
+                amount: round($amount, 2),
+                type: MlmCommissionType::Referral,
+                packageId: $entry['package']?->id,
+            );
+        }
+
+        return $legs;
+    }
+
+    /**
+     * Terms and figures for the deal commission block.
+     *
+     * Once commission is on the ledger only what was paid is shown: the rules
+     * may have changed since, so they cannot reconstruct that figure.
+     *
+     * @param  \Illuminate\Support\Collection<int, array{type: string, amount: float, package_id: int|null}>  $legs
      * @return array<string, mixed>|null
      */
     protected function referralDisplay(
         Deal $deal,
-        bool $isPackageDeal,
         float $dealValue,
         \Illuminate\Support\Collection $legs,
         bool $settled = false,
     ): ?array {
-        $settings = $this->referralSettings($deal);
+        $referrer = $this->referrerFor($deal);
 
-        if ($settings === null) {
+        if ($referrer === null) {
             return null;
         }
 
-        $percentage = $settings['deal_percentage'] ?? $settings['partner_percentage'];
-        $fixed = $settings['fixed_amount'];
-        $inherited = $settings['deal_percentage'] === null;
         $closer = $deal->agent_id
             ? LeadAgent::withoutGlobalScopes()->find($deal->agent_id)
             : null;
-        $pool = $isPackageDeal
-            ? round((float) $legs->where('type', MlmCommissionType::Agent->value)->sum('amount'), 2)
-            : $this->calculateAmount($dealValue, $this->ceilingFor($deal, $closer));
-        // A settled inherited share was frozen on the ledger. The partner
-        // default may have changed since, so it cannot reconstruct that figure.
-        $rateForAmount = $inherited && $settled ? null : $percentage;
-        $percentageAmount = ($rateForAmount !== null && $rateForAmount > 0 && $pool > 0)
-            ? round($pool * ($rateForAmount / 100), 2)
-            : null;
-        $referralLeg = $legs->first(
-            fn (array $leg) => $leg['type'] === MlmCommissionType::Referral->value
+        $paidLegs = $legs->filter(fn (array $leg) => $leg['type'] === MlmCommissionType::Referral->value)->values();
+        $paidFor = fn (?int $packageId) => round(
+            (float) $paidLegs->filter(fn (array $leg) => ($leg['package_id'] ?? null) === $packageId)->sum('amount'),
+            2
         );
-        $paid = $referralLeg ? (float) $referralLeg['amount'] : 0.0;
-        $raw = $fixed !== null ? $fixed : ($percentageAmount ?? 0.0);
-        $capped = $percentageAmount !== null || $fixed !== null
-            ? $raw > 0 && ($paid + 0.009) < $raw
-            : false;
+
+        if ($settled) {
+            $names = Package::withoutGlobalScopes()
+                ->whereIn('id', $paidLegs->pluck('package_id')->filter()->all())
+                ->pluck('name', 'id');
+
+            $terms = $paidLegs->map(fn (array $leg) => [
+                'source' => 'recorded',
+                'package_id' => $leg['package_id'] ?? null,
+                'package_name' => ($leg['package_id'] ?? null) !== null ? $names->get($leg['package_id']) : null,
+                'type' => null,
+                'value' => null,
+                'amount' => round((float) $leg['amount'], 2),
+                'capped' => false,
+            ])->all();
+        } else {
+            $terms = array_map(function (array $entry) use ($paidFor) {
+                $raw = $entry['terms']->amount($entry['base']);
+                $paid = $paidFor($entry['package']?->id);
+
+                return [
+                    'source' => $entry['source'],
+                    'package_id' => $entry['package']?->id,
+                    'package_name' => $entry['package']?->name,
+                    'type' => $entry['terms']->type->value,
+                    'value' => $entry['terms']->value,
+                    'amount' => $paid,
+                    'capped' => $raw > 0 && ($paid + 0.009) < $raw,
+                ];
+            }, $this->referralTermsFor($deal, $referrer, $dealValue));
+        }
 
         return [
-            'referrer_name' => $settings['agent']->user?->name ?: 'Unknown',
-            'partner_percentage' => $settings['partner_percentage'],
-            'deal_percentage' => $settings['deal_percentage'],
-            'percentage' => $percentage,
-            'fixed_amount' => $fixed,
-            'applied' => $fixed !== null ? 'fixed' : 'percentage',
-            'percentage_amount' => $percentageAmount,
-            'capped' => $capped,
+            'referrer_name' => $referrer->user?->name ?: 'Unknown',
+            'override' => [
+                'type' => $deal->referral_commission_type?->value,
+                'value' => $deal->referral_commission_value !== null
+                    ? (float) $deal->referral_commission_value
+                    : null,
+            ],
+            'terms' => array_values($terms),
+            'paid_total' => round((float) $paidLegs->sum('amount'), 2),
+            'capped' => in_array(true, array_column($terms, 'capped'), true),
             'settled' => $settled,
-            'max_amount' => $isPackageDeal
-                ? $this->maxReferralAmount($deal, $closer, $dealValue)
-                : $pool,
-            'base' => $isPackageDeal ? 'package' : 'pool',
+            'max_amount' => $this->maxReferralAmount($deal, $closer, $dealValue),
         ];
-    }
-
-    /**
-     * The referral leg, or null when nothing is payable.
-     *
-     * An agreed amount replaces the percentage. On a level deal $roomAmount is
-     * what the company still holds, and the leg is capped there. On a package
-     * deal $roomAmount is null: the amount is paid in full and the closer's
-     * package fee is not reduced. $percentageBase is the pool the percentage
-     * is taken from (the ceiling amount, or the closer's package commission).
-     *
-     * @return array<string, mixed>|null
-     */
-    protected function buildReferralLeg(
-        Deal $deal,
-        LeadAgent $closer,
-        float $dealValue,
-        ?float $percentageBase,
-        ?float $roomAmount,
-    ): ?array {
-        $settings = $this->referralSettings($deal);
-
-        if ($settings === null) {
-            return null;
-        }
-
-        $percentage = $settings['deal_percentage'] ?? $settings['partner_percentage'];
-        $fixed = $settings['fixed_amount'];
-
-        // On a level deal the company's remainder is already the tighter bound.
-        // A package deal has no remainder, so the deal's own commission ceiling
-        // is what stops a share from out-paying the deal.
-        $limit = $roomAmount !== null
-            ? max(0.0, round($roomAmount, 2))
-            : $this->maxReferralAmount($deal, $closer, $dealValue);
-
-        if ($fixed !== null) {
-            $raw = round($fixed, 2);
-
-            if ($raw <= 0) {
-                return null;
-            }
-
-            $amount = min($raw, $limit);
-
-            if ($amount <= 0) {
-                return null;
-            }
-
-            return $this->leg(
-                deal: $deal,
-                agent: $settings['agent'],
-                sourceAgent: $closer,
-                level: null,
-                percentage: null,
-                amount: round($amount, 2),
-                type: MlmCommissionType::Referral,
-            );
-        }
-
-        if ($percentage === null || $percentage <= 0 || $percentageBase === null || $percentageBase <= 0) {
-            return null;
-        }
-
-        $raw = round($percentageBase * ($percentage / 100), 2);
-
-        if ($raw <= 0) {
-            return null;
-        }
-
-        $amount = min($raw, $limit);
-
-        if ($amount <= 0) {
-            return null;
-        }
-
-        return $this->leg(
-            deal: $deal,
-            agent: $settings['agent'],
-            sourceAgent: $closer,
-            level: null,
-            percentage: $dealValue > 0 ? round($amount / $dealValue * 100, 2) : null,
-            amount: round($amount, 2),
-            type: MlmCommissionType::Referral,
-        );
     }
 
     /**

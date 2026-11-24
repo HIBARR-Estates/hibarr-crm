@@ -391,7 +391,8 @@ class CommissionProfileInternalApiTest extends PerAgentCommissionOverrideTestCas
 
         $agentId = $this->seedAgent($companyId, $this->seedUser($companyId), null, [
             'is_partner' => true,
-            'referral_pool_rate' => 25,
+            'referral_commission_type' => 'percentage',
+            'referral_commission_value' => 2,
             'custom_direct_rate' => 7,
             'custom_override_rate' => 7,
         ]);
@@ -403,8 +404,10 @@ class CommissionProfileInternalApiTest extends PerAgentCommissionOverrideTestCas
             'new_direct_rate' => 7,
             'previous_override_rate' => 5,
             'new_override_rate' => 7,
-            'previous_referral_pool_rate' => 10,
-            'new_referral_pool_rate' => 25,
+            'previous_referral_commission_type' => 'fixed',
+            'previous_referral_commission_value' => 10,
+            'new_referral_commission_type' => 'percentage',
+            'new_referral_commission_value' => 2,
             'changed_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
@@ -417,10 +420,13 @@ class CommissionProfileInternalApiTest extends PerAgentCommissionOverrideTestCas
 
         $response->assertOk()
             ->assertJsonPath('data.custom_commission_rate', null)
-            ->assertJsonPath('data.referral_pool_rate', 25.0)
+            ->assertJsonPath('data.referral_commission_type', 'percentage')
+            // JSON carries 2.0 as 2.
+            ->assertJsonPath('data.referral_commission_value', 2)
             ->assertJsonPath('data.audit.data.0.new_direct_rate', null)
             ->assertJsonPath('data.audit.data.0.new_override_rate', null)
-            ->assertJsonPath('data.audit.data.0.new_referral_pool_rate', '25.00');
+            ->assertJsonPath('data.audit.data.0.new_referral_commission_type', 'percentage')
+            ->assertJsonPath('data.audit.data.0.new_referral_commission_value', '2.00');
     }
 
 }

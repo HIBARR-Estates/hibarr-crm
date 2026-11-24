@@ -2,15 +2,17 @@ import { useCallback, useState } from "react";
 import axios from "axios";
 import { App, message } from "antd";
 import useTranslation from "@/Hooks/useTranslation";
+import type { ReferralCommissionType } from "@/Types/api/deals";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 export interface ReferralCommissionInput {
-    referral_pool_rate: number | null;
-    referral_fixed_amount: number | null;
+    /** Null clears the deal's own terms: the referrer's package or partner terms apply. */
+    referral_commission_type: ReferralCommissionType | null;
+    referral_commission_value: number | null;
 }
 
 /**
- * Saves the deal's referral percentage and agreed amount, then patches the
+ * Saves the deal's own referral terms, then patches the
  * workspace deal's commission summary from the response so the split updates in
  * place. Only value_breakdown is taken from the response: replacing the whole
  * deal would let a slow referral save overwrite a newer edit to the deal's value.

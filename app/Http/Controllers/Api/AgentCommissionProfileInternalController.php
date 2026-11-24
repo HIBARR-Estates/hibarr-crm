@@ -56,7 +56,8 @@ class AgentCommissionProfileInternalController extends Controller
         }
 
         if ($this->referralEnabled()) {
-            $rules['referral_pool_rate'] = 'nullable|numeric|min:0|max:100';
+            $rules['referral_commission_type'] = 'nullable|in:percentage,fixed,none';
+            $rules['referral_commission_value'] = 'nullable|numeric|min:0|max:9999999999999.99';
         }
 
         $validated = $request->validate($rules);

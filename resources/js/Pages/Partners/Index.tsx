@@ -5,6 +5,8 @@ import axios from "axios";
 import DashboardLayout from "@/Components/DashboardLayout";
 import usePartnerReferralCommissionFlag from "@/Hooks/usePartnerReferralCommissionFlag";
 import useTranslation from "@/Hooks/useTranslation";
+import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
+import { describeReferralTerms } from "@/lib/referralTerms";
 import PageLayout from "@/Components/PageLayout";
 import {
     Button,
@@ -26,8 +28,9 @@ interface PartnerAgent {
     id: number;
     status: "enabled" | "disabled";
     is_partner: boolean;
-    /** Decimal string from the `decimal:2` cast, e.g. "12.50". */
-    referral_pool_rate?: string | null;
+    /** What the partner earns on a referred deal with no package; a decimal string from the `decimal:2` cast. */
+    referral_commission_type?: "percentage" | "fixed" | null;
+    referral_commission_value?: string | null;
     referred_leads_count: number;
     /** True for an account made through Invite Partner, which can be re-invited. */
     can_resend?: boolean;
@@ -88,6 +91,14 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
     const { td } = useTd();
     const { t } = useTranslation();
     const referralCommissionEnabled = usePartnerReferralCommissionFlag();
+    const currency = useCompanyCurrency();
+    const describeTerms = (agent: PartnerAgent) =>
+        describeReferralTerms(
+            t,
+            agent.referral_commission_type,
+            agent.referral_commission_value,
+            currency.symbol || currency.code || "",
+        );
 
     const [rows, setRows] = useState<PartnerAgent[]>(agents.data);
     const [stats, setStats] = useState<Stats>(initialStats);
@@ -286,26 +297,19 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                                         ? td("Enabled", { source: "en" })
                                         : td("Disabled", { source: "en" })}
                                 </Badge>
-                                {referralCommissionEnabled && (canManageCommissionProfile ? (
-                                <Link
-                                    href={route("mlm.agent_dashboard", agent.id)}
-                                    style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}
-                                >
-                                    {agent.referral_pool_rate != null
-                                        ? t("pages.agents.referral_share_of_pool", {
-                                              rate: agent.referral_pool_rate,
-                                          })
-                                        : t("pages.agents.referral_share_none")}
-                                </Link>
-                                ) : (
-                                <span style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}>
-                                    {agent.referral_pool_rate != null
-                                        ? t("pages.agents.referral_share_of_pool", {
-                                              rate: agent.referral_pool_rate,
-                                          })
-                                        : t("pages.agents.referral_share_none")}
-                                </span>
-                                ))}
+                                {referralCommissionEnabled &&
+                                    (canManageCommissionProfile ? (
+                                        <Link
+                                            href={route("mlm.agent_dashboard", agent.id)}
+                                            style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}
+                                        >
+                                            {describeTerms(agent)}
+                                        </Link>
+                                    ) : (
+                                        <span style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}>
+                                            {describeTerms(agent)}
+                                        </span>
+                                    ))}
                                 <Badge variant="blue">
                                     {td(":count leads referred", { source: "en" }).replace(
                                         ":count",

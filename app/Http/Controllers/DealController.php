@@ -9,6 +9,7 @@ use App\DataTables\LeadGDPRDataTable;
 use App\DataTables\ProposalDataTable;
 use App\Email\EmailFeature;
 use App\Email\FollowUps\AttachesSourceEmail;
+use App\Actions\Deals\UpdateDealReferralTerms;
 use App\Enums\AgeRange;
 use App\Enums\MlmCommissionStatus;
 use App\Enums\OutcomeStatus;
@@ -72,6 +73,7 @@ use App\Services\PipelineScopeResolverService;
 use App\Services\Reminders\MeetingReminderSync;
 use App\Services\SallyMeetingInsightService;
 use App\Services\SallySuggestionLogService;
+use App\Support\CommissionTerms;
 use App\Support\FeatureFlags;
 use App\Support\UserTimezone;
 use App\Traits\DealAutomationTrait;
@@ -2495,11 +2497,12 @@ class DealController extends AccountBaseController
     }
 
     /**
-     * Set this deal's referral percentage and agreed amount.
+     * Set this deal's own referral terms: a percentage of the deal value, an
+     * agreed amount, or "not paid". With no type the override is cleared and the
+     * referrer's package or partner terms apply.
      *
-     * The percentage, left empty, uses the partner's default. An agreed amount
-     * replaces that percentage. Both are frozen once commission has been calculated,
-     * and the agreed amount can never exceed the commission the deal can carry.
+     * Frozen once commission has been calculated, and never more than the
+     * commission the deal can carry.
      */
     public function updateReferralCommission(Request $request, $id)
     {
@@ -2524,69 +2527,42 @@ class DealController extends AccountBaseController
             || ($editPermission == 'both' && ($deal->added_by == user()->id || $hasTeamAccess))
         ));
 
+        $type = $request->input('referral_commission_type');
+        $valueRules = in_array($type, ['percentage', 'fixed'], true)
+            ? ['required', 'numeric', 'min:0', $type === 'percentage' ? 'max:100' : 'max:9999999999999.99']
+            : ['nullable'];
+
         $validated = $request->validate([
-            'referral_pool_rate' => 'nullable|numeric|min:0|max:100',
-            'referral_fixed_amount' => 'nullable|numeric|min:0|max:9999999999999.99',
+            'referral_commission_type' => ['nullable', \Illuminate\Validation\Rule::enum(\App\Enums\PackageCommissionType::class)],
+            'referral_commission_value' => $valueRules,
         ]);
 
-        $maxAmount = null;
+        // Null type clears the override and the deal goes back to the referrer's
+        // package or partner terms. "None" has no value to keep.
+        $terms = CommissionTerms::make(
+            $validated['referral_commission_type'] ?? null,
+            $validated['referral_commission_value'] ?? null,
+        );
 
-        $blocked = DB::transaction(function () use ($request, $deal, $validated, &$maxAmount) {
-            $locked = Deal::query()->whereKey($deal->id)->lockForUpdate()->first();
+        $result = app(UpdateDealReferralTerms::class)->handle($deal->id, $terms);
 
-            if (! $locked) {
-                return 'locked';
-            }
-
-            // The deal may have been locked since the check above.
-            if ($locked->isLocked()) {
-                return 'deal_locked';
-            }
-
-            if ($locked->isCommissionLocked()) {
-                return 'locked';
-            }
-
-            if ($request->exists('referral_fixed_amount') && $validated['referral_fixed_amount'] !== null) {
-                // Checked against the locked row so a concurrent value or
-                // ceiling change cannot slip a larger amount through.
-                $maxAmount = app(\App\Services\MlmCommissionService::class)->maxReferralAmount($locked);
-
-                if (round((float) $validated['referral_fixed_amount'], 2) > $maxAmount) {
-                    return 'exceeds';
-                }
-            }
-
-            if ($request->exists('referral_pool_rate')) {
-                $locked->referral_pool_rate = $validated['referral_pool_rate'];
-            }
-
-            if ($request->exists('referral_fixed_amount')) {
-                $locked->referral_fixed_amount = $validated['referral_fixed_amount'];
-            }
-
-            $locked->save();
-
-            return null;
-        });
-
-        if ($blocked === 'exceeds') {
+        if ($result['outcome'] === UpdateDealReferralTerms::EXCEEDS) {
             return response()->json([
                 'success' => false,
                 'message' => __('messages.dealReferralAmountTooHigh', [
-                    'max' => number_format((float) $maxAmount, 2),
+                    'max' => number_format((float) $result['max'], 2),
                 ]),
             ], 422);
         }
 
-        if ($blocked === 'deal_locked') {
+        if ($result['outcome'] === UpdateDealReferralTerms::DEAL_LOCKED) {
             return response()->json([
                 'success' => false,
                 'message' => __('messages.dealLocked'),
             ], 403);
         }
 
-        if ($blocked === 'locked') {
+        if ($result['outcome'] === UpdateDealReferralTerms::COMMISSION_LOCKED) {
             return response()->json([
                 'success' => false,
                 'message' => __('messages.dealReferralLockedByCommission'),

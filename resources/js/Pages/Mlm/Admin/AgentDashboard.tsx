@@ -13,6 +13,7 @@ import {
     InputNumber,
     Button,
     Input,
+    Select,
     message,
 } from "antd";
 import { DataTable } from "@/Components/DataTable";
@@ -99,6 +100,8 @@ const AdminAgentDashboard: React.FC<Props> = ({
     const [commissionForm] =
         Form.useForm<AgentCommissionProfileUpdatePayload>();
 
+    const referralType = Form.useWatch("referral_commission_type", commissionForm);
+
     const updateCommissionProfile = useUpdateAgentCommissionProfile(
         agent.id,
         () => {
@@ -115,7 +118,10 @@ const AdminAgentDashboard: React.FC<Props> = ({
             commissionForm.setFieldsValue({
                 custom_commission_rate:
                     commissionProfile.custom_commission_rate,
-                referral_pool_rate: commissionProfile.referral_pool_rate,
+                referral_commission_type:
+                    commissionProfile.referral_commission_type,
+                referral_commission_value:
+                    commissionProfile.referral_commission_value,
             });
         }
     }, [commissionProfile, commissionForm]);
@@ -783,50 +789,68 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                             </Form.Item>
                                                         )}
                                                         {agent.is_partner && (
-                                                            <Form.Item
-                                                                label={t("pages.agents.referral_share")}
-                                                                name="referral_pool_rate"
-                                                                tooltip={t("pages.agents.referral_share_tooltip")}
-                                                                rules={[
-                                                                    {
-                                                                        validator:
-                                                                            async (
-                                                                                _,
-                                                                                value,
-                                                                            ) => {
-                                                                                if (
-                                                                                    value ===
-                                                                                        null ||
-                                                                                    value ===
-                                                                                        undefined ||
-                                                                                    value ===
-                                                                                        ""
-                                                                                ) {
-                                                                                    return;
-                                                                                }
-
-                                                                                if (
-                                                                                    value <
-                                                                                        0 ||
-                                                                                    value >
-                                                                                        100
-                                                                                ) {
-                                                                                    throw new Error(
-                                                                                        t("pages.agents.referral_share_invalid"),
-                                                                                    );
-                                                                                }
+                                                            <div className="mb-2">
+                                                                <div className="mb-1 text-sm">
+                                                                    {t("pages.agents.referral_commission")}
+                                                                </div>
+                                                                <div className="mb-2 text-xs text-gray-500">
+                                                                    {t("pages.agents.referral_commission_tooltip")}
+                                                                </div>
+                                                                <div className="flex gap-3">
+                                                                    <Form.Item
+                                                                        name="referral_commission_type"
+                                                                        className="mb-0 w-1/2"
+                                                                    >
+                                                                        <Select
+                                                                            allowClear
+                                                                            placeholder={t("pages.agents.referral_commission_none")}
+                                                                            onChange={() =>
+                                                                                commissionForm.setFieldValue(
+                                                                                    "referral_commission_value",
+                                                                                    null,
+                                                                                )
+                                                                            }
+                                                                            options={[
+                                                                                {
+                                                                                    value: "percentage",
+                                                                                    label: t("pages.agents.referral_commission_percentage"),
+                                                                                },
+                                                                                {
+                                                                                    value: "fixed",
+                                                                                    label: t("pages.agents.referral_commission_fixed"),
+                                                                                },
+                                                                            ]}
+                                                                        />
+                                                                    </Form.Item>
+                                                                    <Form.Item
+                                                                        name="referral_commission_value"
+                                                                        className="mb-0 w-1/2"
+                                                                        rules={[
+                                                                            {
+                                                                                validator: async (_, value) => {
+                                                                                    if (!referralType) {
+                                                                                        return;
+                                                                                    }
+                                                                                    if (value === null || value === undefined || value === "") {
+                                                                                        throw new Error(t("pages.agents.referral_commission_required"));
+                                                                                    }
+                                                                                    if (value < 0 || (referralType === "percentage" && value > 100)) {
+                                                                                        throw new Error(t("pages.agents.referral_commission_invalid"));
+                                                                                    }
+                                                                                },
                                                                             },
-                                                                    },
-                                                                ]}
-                                                            >
-                                                                <InputNumber
-                                                                    min={0}
-                                                                    max={100}
-                                                                    className="w-full"
-                                                                    addonAfter="%"
-                                                                    placeholder={t("pages.agents.referral_share_none")}
-                                                                />
-                                                            </Form.Item>
+                                                                        ]}
+                                                                    >
+                                                                        <InputNumber
+                                                                            min={0}
+                                                                            max={referralType === "percentage" ? 100 : undefined}
+                                                                            disabled={!referralType}
+                                                                            className="w-full"
+                                                                            addonAfter={referralType === "percentage" ? "%" : undefined}
+                                                                        />
+                                                                    </Form.Item>
+                                                                </div>
+                                                            </div>
                                                         )}
                                                             <Form.Item
                                                                 label={td("Reason", { source: "en" })}
@@ -903,15 +927,30 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                                     );
                                                                                 }
                                                                                 if (
-                                                                                    row.previous_referral_pool_rate !=
+                                                                                    row.previous_referral_commission_type !=
                                                                                         null ||
-                                                                                    row.new_referral_pool_rate !=
+                                                                                    row.new_referral_commission_type !=
                                                                                         null
                                                                                 ) {
+                                                                                    const describe = (
+                                                                                        type?: string | null,
+                                                                                        value?: number | null,
+                                                                                    ) =>
+                                                                                        type === "percentage"
+                                                                                            ? `${value}%`
+                                                                                            : type === "fixed"
+                                                                                              ? String(value)
+                                                                                              : "—";
                                                                                     parts.push(
-                                                                                        t("pages.agents.referral_share_audit", {
-                                                                                            from: String(row.previous_referral_pool_rate ?? "—"),
-                                                                                            to: String(row.new_referral_pool_rate ?? "—"),
+                                                                                        t("pages.agents.referral_commission_audit", {
+                                                                                            from: describe(
+                                                                                                row.previous_referral_commission_type,
+                                                                                                row.previous_referral_commission_value,
+                                                                                            ),
+                                                                                            to: describe(
+                                                                                                row.new_referral_commission_type,
+                                                                                                row.new_referral_commission_value,
+                                                                                            ),
                                                                                         }),
                                                                                     );
                                                                                 }

@@ -149,7 +149,7 @@ class Deal extends BaseModel
     // shows to viewers cleared for it (see attachCommissionSummary), so they never
     // leave through plain serialization. The deal panel reads them from
     // value_breakdown.commission.referral.
-    protected $hidden = ['pivot', 'referral_pool_rate', 'referral_fixed_amount'];
+    protected $hidden = ['pivot', 'referral_commission_type', 'referral_commission_value'];
 
     // total_discount is an aggregate — appending it globally cost one extra query
     // per deal on every list that gets serialized. Only the deal show page reads
@@ -166,8 +166,9 @@ class Deal extends BaseModel
         'commission_locked' => 'boolean',
         'commission_locked_at' => 'datetime',
         'max_commission_percentage' => 'decimal:2',
-        'referral_pool_rate' => 'decimal:2',
-        'referral_fixed_amount' => 'decimal:2',
+        // A per-deal override of the referral terms (null type: no override).
+        'referral_commission_type' => \App\Enums\PackageCommissionType::class,
+        'referral_commission_value' => 'decimal:2',
         'manual_value' => 'decimal:2',
         'calculated_value' => 'decimal:2',
         'discount_value' => 'decimal:2',

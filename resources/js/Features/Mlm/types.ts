@@ -29,6 +29,8 @@ export interface LevelData {
 
 // ── MLM Enums ────────────────────────────────────────────────────
 export type MlmMetric = "nsa" | "nsd" | "vsa" | "vsd" | "nsa_nsd" | "vsa_vsd";
+/** The same rule shape as a package's commission. A partner's "none" is stored as no terms. */
+export type ReferralCommissionType = "percentage" | "fixed" | "none";
 export type MlmCommissionType = "agent" | "upline" | "system" | "referral";
 export type MlmCommissionStatus = "pending" | "paid" | "reverted";
 export type CriteriaOperator = ">=" | "<=" | "=" | ">" | "<";
@@ -372,8 +374,10 @@ export interface AgentCommissionRateAuditLog {
     new_direct_rate: number | null;
     previous_override_rate: number | null;
     new_override_rate: number | null;
-    previous_referral_pool_rate?: number | null;
-    new_referral_pool_rate?: number | null;
+    previous_referral_commission_type?: ReferralCommissionType | null;
+    previous_referral_commission_value?: number | null;
+    new_referral_commission_type?: ReferralCommissionType | null;
+    new_referral_commission_value?: number | null;
     changed_at: string;
     reason: string | null;
     changed_by_user?: { id: number; name: string } | null;
@@ -388,7 +392,9 @@ export interface AgentCommissionProfile {
         default_commission_rate: number;
     } | null;
     custom_commission_rate: number | null;
-    referral_pool_rate?: number | null;
+    /** What the partner earns on a referred deal with no package, from the deal value. */
+    referral_commission_type?: ReferralCommissionType | null;
+    referral_commission_value?: number | null;
     is_partner?: boolean;
     bounds: AgentCommissionRateBounds;
     audit: PaginatedResponse<AgentCommissionRateAuditLog>;
@@ -396,7 +402,8 @@ export interface AgentCommissionProfile {
 
 export interface AgentCommissionProfileUpdatePayload {
     custom_commission_rate?: number | null;
-    referral_pool_rate?: number | null;
+    referral_commission_type?: ReferralCommissionType | null;
+    referral_commission_value?: number | null;
     reason?: string | null;
 }
 
