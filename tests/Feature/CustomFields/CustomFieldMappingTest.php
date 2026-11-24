@@ -206,6 +206,7 @@ class CustomFieldMappingTest extends TestCase
         $this->service->run($this->request($source, $target, ['delete_source_field' => true]), dryRun: false);
 
         $this->assertNull(CustomField::find($source->id));
+        $this->assertSame(0, DB::table('custom_fields_data')->where('custom_field_id', $source->id)->count());
         $this->assertSame('keep-me', $this->read($target, Lead::CUSTOM_FIELD_MODEL, $lead->id));
     }
 

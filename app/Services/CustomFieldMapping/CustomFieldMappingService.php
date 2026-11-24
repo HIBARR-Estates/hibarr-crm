@@ -94,9 +94,13 @@ class CustomFieldMappingService
                 }
 
                 if ($deleteField) {
+                    // Delete the values explicitly rather than lean on the FK cascade,
+                    // so the count reported is what was actually removed.
+                    $report['deleted_values'] = DB::table('custom_fields_data')
+                        ->where('custom_field_id', $source->id)
+                        ->delete();
                     $source->delete();
                     $report['deleted_field'] = true;
-                    $report['deleted_values'] = $report['source_total'];
                 } elseif ($deleteValues) {
                     $report['deleted_values'] = DB::table('custom_fields_data')
                         ->where('custom_field_id', $source->id)
