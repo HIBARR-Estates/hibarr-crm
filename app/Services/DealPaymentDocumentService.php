@@ -217,6 +217,12 @@ class DealPaymentDocumentService
         $companyId = (int) $payment->company_id;
         $invoice = $kind === PaymentDocument::RECEIPT ? $this->issued($payment, PaymentDocument::INVOICE) : null;
         $paymentData = $this->settleInvoice($this->paymentData($payment, $kind, null), $invoice);
+        // A KDV payment is the KDV itself: its receipt prints that amount as
+        // collected and never adds KDV on top of it.
+        if ($payment->vat_for_payment_id !== null) {
+            $amount = round((float) $payment->amount, 2);
+            $paymentData['invoice_totals'] = ['subtotal' => $amount, 'vat' => 0.0, 'vat_rate' => 0.0, 'total' => $amount];
+        }
         // Look the TL rate up before taking the settings lock, so a slow rate
         // API never holds up other documents being issued for the company.
         $paymentData['try_rate'] = $this->tryRate(PaymentDocumentSetting::forCompany($companyId), $paymentData['currency_code']);
@@ -334,10 +340,12 @@ class DealPaymentDocumentService
      */
     public function vatDue(Payment $payment): ?array
     {
-        $invoice = $this->issued($payment, PaymentDocument::INVOICE);
-        if ($invoice !== null && isset($invoice->snapshot['vat'], $invoice->snapshot['vat_rate'])) {
-            $amount = round((float) $invoice->snapshot['vat'], 2);
-            $rate = (float) $invoice->snapshot['vat_rate'];
+        // The KDV already printed on an issued document wins over today's rate:
+        // the invoice first, then a standalone receipt.
+        $issued = $this->issued($payment, PaymentDocument::INVOICE) ?? $this->issued($payment, PaymentDocument::RECEIPT);
+        if ($issued !== null && isset($issued->snapshot['vat'], $issued->snapshot['vat_rate'])) {
+            $amount = round((float) $issued->snapshot['vat'], 2);
+            $rate = (float) $issued->snapshot['vat_rate'];
         } else {
             $rate = (float) PaymentDocumentSetting::forCompany((int) $payment->company_id)->vat_rate;
             $amount = round((float) $payment->amount * $rate / 100, 2);

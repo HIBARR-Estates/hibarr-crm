@@ -1625,6 +1625,27 @@ class DealPaymentRequestTest extends TestCase
         $this->assertSame(0, DB::table('payment_documents')->where('kind', 'invoice')->count());
     }
 
+    public function test_a_standalone_receipt_keeps_its_kdv_when_the_rate_changes_and_a_kdv_payment_gets_no_second_kdv(): void
+    {
+        $this->seedSellerSettings(['legal_name' => 'Örnek Emlak Ltd.', 'address' => 'Girne, KKTC', 'receipt_number_end' => 5000]);
+        $id = $this->insertPayment(['external_reference' => '886', 'ol_status' => 'completed', 'status' => 'complete', 'amount' => 2500, 'paid_on' => now()]);
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+        $documents = app(DealPaymentDocumentService::class);
+
+        $documents->viewData($payment, 'receipt');
+        DB::table('payment_document_settings')->where('company_id', $this->companyId)->update(['vat_rate' => 20]);
+
+        // The receipt printed 16%, so that is the KDV that is due.
+        $this->assertEquals(400.0, $documents->vatDue($payment->fresh())['amount']);
+
+        // The KDV payment's own receipt shows what was collected, nothing added.
+        $kdvId = $this->insertPayment(['external_reference' => '887', 'ol_status' => 'completed', 'status' => 'complete', 'amount' => 400, 'paid_on' => now(), 'vat_for_payment_id' => $id]);
+        $kdv = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($kdvId);
+        $data = $documents->viewData($kdv, 'receipt');
+        $this->assertSame('400,00', $data['total_display']);
+    }
+
     public function test_a_receipt_cannot_be_issued_for_a_payment_that_was_not_collected(): void
     {
         $this->seedSellerSettings(['legal_name' => 'Örnek Emlak Ltd.', 'address' => 'Girne, KKTC', 'receipt_number_end' => 5000]);

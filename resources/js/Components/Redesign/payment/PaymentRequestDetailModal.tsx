@@ -374,6 +374,8 @@ export default function PaymentRequestDetailModal({
             : await settleVat(request.deal_id, request.id, vatAction);
         setVatAction(null);
         if (result) {
+            // Drop receipt refreshes that were read before this KDV update.
+            receiptRefreshToken.current += 1;
             // A KDV request carries its payment, so one call refreshes both.
             onVatChanged?.(result.request ?? result.payment);
         }
