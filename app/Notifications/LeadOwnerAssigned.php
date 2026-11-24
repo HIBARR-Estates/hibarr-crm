@@ -99,7 +99,7 @@ class LeadOwnerAssigned extends BaseNotification
         $assignedByName = $this->safeMailText(user()?->name ?? __('app.system'), 100);
         $introText = $this->capitalizeSentences(__('email.leadAgentAssigned.intro', ['name' => $assignedByName]));
         $footerNote = $this->capitalizeSentences(__('email.leadAgentAssigned.footer'));
-        $preheader = $this->safePreheader($this->inboxPreheader() ?: $introText);
+        $preheader = $this->safePreheader($this->inboxPreheader((int) $notifiable->id) ?: $introText);
 
         $contentParts = [
             $introText,
@@ -156,7 +156,12 @@ class LeadOwnerAssigned extends BaseNotification
         ];
     }
 
-    private function inboxPreheader(): string
+    /**
+     * The preheader may quote an AI summary, but only the recipient's own:
+     * a lead summary is built from the viewer's visible records and stored
+     * per viewer.
+     */
+    private function inboxPreheader(int $recipientId = 0): string
     {
         $companyId = $this->companyId ?? $this->company?->id;
         if ($companyId) {
@@ -164,7 +169,8 @@ class LeadOwnerAssigned extends BaseNotification
                 (int) $companyId,
                 EntityAiSummary::TYPE_LEAD,
                 $this->leadId,
-                70
+                70,
+                $recipientId > 0 ? (string) $recipientId : ''
             );
             if ($snippet !== null && $snippet !== '') {
                 return $this->capitalizeSentences($this->safePreheader($snippet, 70));

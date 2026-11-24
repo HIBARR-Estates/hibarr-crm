@@ -130,6 +130,9 @@ class DealSummaryService
                 'company_id' => $deal->company_id,
                 'entity_type' => EntityAiSummary::TYPE_DEAL,
                 'entity_id' => $deal->id,
+                // Deal summaries carry no note content and the deal page
+                // already gates on `view_deals`, so they stay shared.
+                'viewer_key' => '',
             ],
             [
                 'summary_json' => $summary,
@@ -149,6 +152,7 @@ class DealSummaryService
             ->where('company_id', $deal->company_id)
             ->where('entity_type', EntityAiSummary::TYPE_DEAL)
             ->where('entity_id', $deal->id)
+            ->where('viewer_key', '')
             ->first();
     }
 

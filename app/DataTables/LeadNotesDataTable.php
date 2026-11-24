@@ -105,18 +105,15 @@ class LeadNotesDataTable extends BaseDataTable
     public function query(LeadNote $model)
     {
         $request = $this->request();
-        $notes = $model->where('lead_id', $request->leadID);
+        // Same read scope the direct note page and the Lead page's notes tab
+        // apply — a note is never listed here if it could not be opened there.
+        $notes = $model->where('lead_id', $request->leadID)->visibleTo(user());
 
         if (in_array('lead', user_roles())) {
-            $notes->where('type', 0);
-            $notes->orWhere('is_lead_show', 1);
-        }
-
-        if (!in_array('admin', user_roles())) {
+            // Grouped: an ungrouped orWhere would escape the lead_id filter
+            // and surface notes belonging to other leads.
             $notes->where(function ($query) {
-                return $query->whereHas('members', function ($query) {
-                    return $query->where('user_id', user()->id);
-                })->where('type', 1)->orWhere('type', 0);
+                $query->where('type', 0)->orWhere('is_lead_show', 1);
             });
         }
 
