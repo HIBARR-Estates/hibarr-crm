@@ -9,6 +9,14 @@ class LeadMarketing extends BaseModel
 {
     protected $table = 'lead_marketing';
 
+    /**
+     * ApiModel hides created_at/updated_at by default. The first-touch UTM card
+     * shows when that touch was recorded, so created_at must reach the page.
+     *
+     * @var list<string>
+     */
+    protected $hidden = ['pivot'];
+
     protected $fillable = [
         'lead_id',
         // UTM & Campaign Tracking

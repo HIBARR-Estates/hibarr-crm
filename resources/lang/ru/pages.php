@@ -702,6 +702,7 @@ return [
             'touch_origin_bitrix_import' => 'Импорт Bitrix',
             'touch_origin_deal_import' => 'Импорт сделки',
             'touch_origin_backfill' => 'Импортировано',
+            'first_touch_at' => 'Дата первого касания',
             'traffic_source_id' => 'Traffic Source ID',
             'facebook_click_id' => 'Facebook Click ID',
             'facebook_lead_id' => 'Facebook Lead ID',

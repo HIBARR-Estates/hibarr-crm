@@ -702,6 +702,7 @@ return [
             'touch_origin_bitrix_import' => 'Bitrix içe aktarma',
             'touch_origin_deal_import' => 'Fırsat içe aktarma',
             'touch_origin_backfill' => 'İçe aktarıldı',
+            'first_touch_at' => 'İlk temas tarihi',
             'traffic_source_id' => 'Traffic Source ID',
             'facebook_click_id' => 'Facebook Click ID',
             'facebook_lead_id' => 'Facebook Lead ID',

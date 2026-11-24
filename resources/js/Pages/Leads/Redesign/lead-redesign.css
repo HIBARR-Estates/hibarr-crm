@@ -1386,6 +1386,15 @@
 .lead-redesign .v2-mkt-row:nth-child(2n) {
     border-right: none;
 }
+.lead-redesign .v2-mkt-row.is-span-full {
+    grid-column: 1 / -1;
+    border-right: none;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--dr-surface-2);
+}
 .lead-redesign .v2-mkt-label {
     font-size: 11px;
     font-weight: 600;
@@ -1405,6 +1414,10 @@
     }
     .lead-redesign .v2-mkt-row {
         border-right: none;
+    }
+    .lead-redesign .v2-mkt-row.is-span-full {
+        flex-direction: column;
+        gap: 4px;
     }
 }
 
@@ -1429,7 +1442,7 @@
     padding: 0;
 }
 .lead-redesign .v2-mkt-touch {
-    padding: 10px 0;
+    padding: 12px 0;
     border-bottom: 1px solid var(--dr-border-soft);
 }
 .lead-redesign .v2-mkt-touch:last-child {
@@ -1440,18 +1453,29 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    margin-bottom: 6px;
+    margin-bottom: 10px;
 }
 .lead-redesign .v2-mkt-touch-date {
     font-size: 12px;
     font-weight: 650;
     color: var(--dr-text);
 }
-.lead-redesign .v2-mkt-touch-values {
+.lead-redesign .v2-mkt-touch-badges {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px 20px;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+.lead-redesign .v2-mkt-touch-values {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 20px;
     margin: 0;
+    width: 100%;
+}
+.lead-redesign .v2-mkt-touch-values > div {
+    min-width: 0;
 }
 .lead-redesign .v2-mkt-touch-values dt {
     font-size: 11px;
@@ -1459,6 +1483,7 @@
     text-transform: uppercase;
     letter-spacing: 0.02em;
     color: var(--dr-text-hint);
+    margin-bottom: 2px;
 }
 .lead-redesign .v2-mkt-touch-values dd {
     margin: 0;
@@ -1466,6 +1491,14 @@
     font-weight: 500;
     color: var(--dr-text);
     word-break: break-word;
+}
+@media (max-width: 720px) {
+    .lead-redesign .v2-mkt-touch-values {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .lead-redesign .v2-mkt-touch-badges {
+        margin-left: 0;
+    }
 }
 
 .lead-redesign .v2-dropzone {

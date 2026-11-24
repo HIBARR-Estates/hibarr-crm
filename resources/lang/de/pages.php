@@ -721,6 +721,7 @@ return [
             'touch_origin_bitrix_import' => 'Bitrix-Import',
             'touch_origin_deal_import' => 'Deal-Import',
             'touch_origin_backfill' => 'Importiert',
+            'first_touch_at' => 'Datum des Erstkontakts',
             'traffic_source_id' => 'Traffic-Quell-ID',
             'facebook_click_id' => 'Facebook Click ID',
             'facebook_lead_id' => 'Facebook Lead ID',
