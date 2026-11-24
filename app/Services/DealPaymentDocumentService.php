@@ -36,6 +36,9 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 class DealPaymentDocumentService
 {
+    /** @var array<int, bool> Payments known to have an issued receipt. */
+    private array $receiptSeen = [];
+
     public const KINDS = [PaymentDocument::INVOICE, PaymentDocument::RECEIPT];
 
     public const COPIES = ['original', 'copy'];
@@ -309,8 +312,17 @@ class DealPaymentDocumentService
      */
     public function vatRequested(Payment $payment): bool
     {
-        return $payment->documents_requested_at !== null
-            || $this->issued($payment, PaymentDocument::RECEIPT) !== null;
+        if ($payment->documents_requested_at !== null) {
+            return true;
+        }
+
+        // A receipt never goes away once issued, so a positive answer can be
+        // remembered; a negative one is looked up again.
+        if (($this->receiptSeen[$payment->id] ?? false) === true) {
+            return true;
+        }
+
+        return $this->receiptSeen[$payment->id] = $this->issued($payment, PaymentDocument::RECEIPT) !== null;
     }
 
     /**

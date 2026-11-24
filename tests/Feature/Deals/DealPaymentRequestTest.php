@@ -1609,6 +1609,9 @@ class DealPaymentRequestTest extends TestCase
 
         $this->assertSame('receipt', $data['kind']);
         $this->assertNull($data['invoice_number']);
+        // The printed receipt carries the KDV that is reported as due.
+        $this->assertSame('2.500,00', $data['subtotal_display']);
+        $this->assertSame('2.900,00', $data['total_display']);
         // The receipt is the customer's request for documents: KDV is due,
         // but the invoice was never asked for and is still refused.
         $this->assertNull($payment->fresh()->documents_requested_at);
