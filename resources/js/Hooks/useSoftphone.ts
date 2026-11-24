@@ -667,9 +667,9 @@ export default function useSoftphone() {
         if (!storeState.isActiveTab) return;
         await softphone.answer();
     }, []);
-    const reject = useCallback(async () => {
+    const reject = useCallback(async (outcome: "missed" | "declined" = "missed") => {
         if (!storeState.isActiveTab) return;
-        await softphone.reject();
+        await softphone.reject(outcome);
     }, []);
     const hangup = useCallback(async () => {
         if (!storeState.isActiveTab) return;

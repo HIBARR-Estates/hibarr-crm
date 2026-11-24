@@ -1043,20 +1043,56 @@ export function createBoostedMicStream(
         try {
             window.removeEventListener("pointerdown", retryResumeOnGesture, true);
             window.removeEventListener("keydown", retryResumeOnGesture, true);
-            destination.stream.getTracks().forEach((t) => t.stop());
-            source.disconnect();
-            hpf.disconnect();
-            rnnoiseNode?.disconnect();
-            expanderNode?.disconnect();
-            lowMidCut.disconnect();
-            manualGainNode.disconnect();
-            compressor.disconnect();
-            makeupGainNode.disconnect();
-            highShelf.disconnect();
-            lowPass.disconnect();
-            limiter.disconnect();
-            ceilingShaper.disconnect();
-            analyser.disconnect();
+        } catch {
+            // ignore
+        }
+        // Always stop both the underlying hardware mic tracks (rawStream) and
+        // the processed destination tracks so the browser releases the mic
+        // immediately even after RTCRtpSender.replaceTrack swapped the raw track out.
+        try {
+            rawStream.getTracks().forEach((t) => {
+                try {
+                    t.stop();
+                } catch {
+                    // ignore
+                }
+            });
+        } catch {
+            // ignore
+        }
+        try {
+            destination.stream.getTracks().forEach((t) => {
+                try {
+                    t.stop();
+                } catch {
+                    // ignore
+                }
+            });
+        } catch {
+            // ignore
+        }
+        for (const node of [
+            source,
+            hpf,
+            rnnoiseNode,
+            expanderNode,
+            lowMidCut,
+            manualGainNode,
+            compressor,
+            makeupGainNode,
+            highShelf,
+            lowPass,
+            limiter,
+            ceilingShaper,
+            analyser,
+        ]) {
+            try {
+                node?.disconnect();
+            } catch {
+                // ignore
+            }
+        }
+        try {
             if (ctx.state !== "closed") {
                 void ctx.close().catch(() => undefined);
             }

@@ -19,6 +19,7 @@ import {
 import "./SoftphoneDock.css";
 import type {
     SoftphoneCall,
+    SoftphoneCallEndReason,
     SoftphoneCallFailure,
     SoftphoneCallPhase,
     SoftphoneCallStage,
@@ -178,6 +179,7 @@ export default function SoftphoneDock({
     const recordChunksRef = useRef<Blob[]>([]);
     const recordContextRef = useRef<AudioContext | null>(null);
     const recordStreamRef = useRef<MediaStream | null>(null);
+    const recordMicStreamRef = useRef<MediaStream | null>(null);
     const recordStartedAtRef = useRef<number | null>(null);
     const recordRecorderRef = useRef<MediaRecorder | null>(null);
     const [recordingUploading, setRecordingUploading] = useState(false);
@@ -824,7 +826,7 @@ export default function SoftphoneDock({
                     onComplete: () => {
                         setIsPlayingVoiceMessage(false);
                         stopAll();
-                        void reject();
+                        void reject("missed");
                     },
                 });
 
@@ -834,7 +836,7 @@ export default function SoftphoneDock({
                     cancelPlay();
                     setIsPlayingVoiceMessage(false);
                     stopAll();
-                    void reject();
+                    void reject("missed");
                 }, safetySeconds * 1000);
 
                 return () => {
@@ -843,11 +845,11 @@ export default function SoftphoneDock({
                 };
             }
 
-            // Final fallback tier timeout: if no one answers within fallback seconds, dismiss the call
+            // Final fallback tier timeout: if no one answers within fallback seconds, mark call as missed
             fallbackRef.current = setTimeout(() => {
                 stopRinging();
                 stopAll();
-                void reject();
+                void reject("missed");
             }, slotMs);
 
             return () => {
@@ -1061,7 +1063,7 @@ export default function SoftphoneDock({
             return;
         }
 
-        await reject();
+        await reject("declined");
     }, [activeCall, canPassInbound, handlePassInbound, reject]);
 
     /** One-shot "call finished" cue when a live call drops. Shared by the dock Answer button and the notification island Answer action, and keyed on the call id so one answered call can only ever log once. */
@@ -1108,20 +1110,16 @@ export default function SoftphoneDock({
     );
 
     /**
-     * Log "call ended" whenever a connected call ends, whoever hangs up. It
-     * used to be logged only from the dock's End button, so a call the other
-     * side ended left no ended row and its recording never reached the lead.
-     * Keyed on the call id so one call logs once.
+     * Snapshot metadata while a call is live so that when `state.lastEndedCall`
+     * fires (after `activeCall` is cleared), the terminal status event still
+     * carries the call's callRef, entity, device, and forwarding info.
      */
-    const connectedCallRef = useRef<{
+    const liveCallMetaRef = useRef<{
         id: string;
-        peer: string | null;
-        direction: "inbound" | "outbound";
-        answeredAt: number | null;
         callRef: string | null;
-        leadId: number | null;
+        entityType: "lead" | "deal" | null;
+        entityId: number | null;
         deviceId: number | null;
-        /** Snapshot while live: the routing/forwarding refs reset when the call ends. */
         fwd: {
             isForwarded: boolean;
             lastForwardedUser: RotationUser | null;
@@ -1153,56 +1151,140 @@ export default function SoftphoneDock({
                 });
         }
     }, [activeCall?.id, activeDeviceId, isActiveTab]);
+
+    // Keep metadata snapshotted while a call is live, and log inbound answer.
     useEffect(() => {
-        // Every open tab mounts the dock and passive tabs mirror the owner's
-        // call; only the tab that owns the call logs it, or each extra tab
-        // would add a duplicate "ended" row.
         if (!isActiveTab) {
-            connectedCallRef.current = null;
+            liveCallMetaRef.current = null;
             return;
         }
-        if (activeCall && activeCall.phase === "active") {
-            connectedCallRef.current = {
-                id: activeCall.id,
-                peer: activeCall.peer ?? null,
-                direction: activeCall.direction === "inbound" ? "inbound" : "outbound",
-                answeredAt: activeCall.answeredAt ?? null,
-                callRef,
-                leadId: callLead?.id ?? null,
-                deviceId: activeDeviceId ?? null,
-                fwd: { ...forwardedInfoRef.current },
-            };
-            if (activeCall.direction === "inbound" && activeCall.peer) {
-                void logInboundCallStarted(activeCall.id, activeCall.peer);
-            }
+        if (!activeCall) {
             return;
         }
-        const ended = connectedCallRef.current;
-        if (!ended || (activeCall && activeCall.id === ended.id && activeCall.phase === "active")) {
+        const ctxEntityType = activeCall.context?.entityType ?? null;
+        const ctxEntityId = activeCall.context?.entityId ?? null;
+        const entityType: "lead" | "deal" | null =
+            ctxEntityType && ctxEntityId
+                ? ctxEntityType
+                : callLead?.id
+                  ? "lead"
+                  : inboundRoute?.matched && inboundRoute.lead_id
+                    ? "lead"
+                    : null;
+        const entityId: number | null =
+            ctxEntityType && ctxEntityId
+                ? ctxEntityId
+                : (callLead?.id ?? (inboundRoute?.matched ? inboundRoute.lead_id : null) ?? null);
+
+        liveCallMetaRef.current = {
+            id: activeCall.id,
+            callRef,
+            entityType,
+            entityId,
+            deviceId: activeDeviceId ?? null,
+            fwd: { ...forwardedInfoRef.current },
+        };
+
+        if (activeCall.phase === "active" && activeCall.direction === "inbound" && activeCall.peer) {
+            void logInboundCallStarted(activeCall.id, activeCall.peer);
+        }
+    }, [
+        activeCall?.id,
+        activeCall?.phase,
+        activeCall?.context?.entityType,
+        activeCall?.context?.entityId,
+        callRef,
+        callLead?.id,
+        inboundRoute?.matched,
+        inboundRoute?.lead_id,
+        activeDeviceId,
+        isActiveTab,
+        isForwarded,
+        lastForwardedUser,
+        callRoutingReason,
+        logInboundCallStarted,
+    ]);
+
+    // Unified call-end logger: whenever ANY SIP call ends (connected, user hangup
+    // while calling/ringing, unanswered incoming timeout, caller hangup, declined,
+    // busy, failed...), update the call status from "started" to its terminal
+    // outcome on the Calls page. Keyed on callId so every call logs once.
+    const lastEndedCall = state.lastEndedCall ?? null;
+    useEffect(() => {
+        if (!isActiveTab || !lastEndedCall || !lastEndedCall.peer) {
             return;
         }
-        connectedCallRef.current = null;
-        if (endedLoggedRef.current === ended.id || !ended.peer) {
+        if (endedLoggedRef.current === lastEndedCall.callId) {
             return;
         }
-        endedLoggedRef.current = ended.id;
-        const fwd = ended.fwd;
-        const duration = ended.answeredAt
-            ? Math.max(1, Math.round((Date.now() - ended.answeredAt) / 1000))
-            : 0;
+        endedLoggedRef.current = lastEndedCall.callId;
+
+        if (lastEndedCall.reason === "answered_elsewhere") {
+            return;
+        }
+
+        const meta =
+            liveCallMetaRef.current?.id === lastEndedCall.callId
+                ? liveCallMetaRef.current
+                : null;
+        if (meta) {
+            liveCallMetaRef.current = null;
+        }
+
+        const entityType =
+            lastEndedCall.context?.entityType ??
+            meta?.entityType ??
+            (lastEndedCall.context?.leadId ? "lead" : null);
+        const entityId =
+            lastEndedCall.context?.entityId ??
+            meta?.entityId ??
+            lastEndedCall.context?.leadId ??
+            null;
+
+        const outcomeEventByReason: Record<
+            Exclude<SoftphoneCallEndReason, "answered_elsewhere">,
+            { event: string; status: string }
+        > = {
+            completed: { event: "call.ended", status: "completed" },
+            missed: { event: "call.missed", status: "missed" },
+            declined: { event: "call.declined", status: "declined" },
+            busy: { event: "call.busy", status: "busy" },
+            voicemail: { event: "call.voicemail", status: "voicemail" },
+            failed: { event: "call.failed", status: "failed" },
+        };
+        const mapped = outcomeEventByReason[lastEndedCall.reason];
+
+        const effectiveCallRef =
+            meta?.callRef ??
+            (typeof crypto !== "undefined" && "randomUUID" in crypto
+                ? crypto.randomUUID()
+                : `call-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+
+        const fwd = meta?.fwd ?? forwardedInfoRef.current;
+        const duration =
+            lastEndedCall.reason === "completed"
+                ? lastEndedCall.answeredAt
+                    ? Math.max(1, Math.round((lastEndedCall.endedAt - lastEndedCall.answeredAt) / 1000))
+                    : 0
+                : undefined;
+
         void axios
             .post(route("telephony.softphone.events.store"), {
-                phone: ended.peer,
-                device_id: ended.deviceId,
-                call_id: ended.id,
-                // Without a lead the server matches inbound numbers itself.
-                ...(ended.leadId ? { entity_type: "lead", entity_id: ended.leadId } : {}),
-                event: "call.ended",
-                direction: ended.direction,
-                status: "completed",
-                duration,
+                phone: lastEndedCall.peer,
+                device_id: meta?.deviceId ?? activeDeviceId,
+                call_id: lastEndedCall.callId,
+                call_ref: effectiveCallRef,
+                ...(entityType && entityId ? { entity_type: entityType, entity_id: entityId } : {}),
+                direction: lastEndedCall.direction,
+                ...mapped,
+                ...(duration !== undefined ? { duration } : {}),
+                ...(lastEndedCall.reason !== "completed" && lastEndedCall.failureCode
+                    ? { failure_reason: lastEndedCall.failureCode }
+                    : {}),
+                ...(lastEndedCall.reason !== "completed" && lastEndedCall.failureMessage
+                    ? { failure_message: lastEndedCall.failureMessage.slice(0, 255) }
+                    : {}),
                 routing_reason: fwd.callRoutingReason,
-                ...(ended.callRef ? { call_ref: ended.callRef } : {}),
                 ...(fwd.isForwarded && fwd.lastForwardedUser
                     ? {
                           is_forwarded: true,
@@ -1214,17 +1296,7 @@ export default function SoftphoneDock({
             .catch(() => {
                 // Timeline logging is best-effort only.
             });
-    }, [
-        activeCall?.id,
-        activeCall?.phase,
-        callRef,
-        callLead?.id,
-        activeDeviceId,
-        isActiveTab,
-        isForwarded,
-        lastForwardedUser,
-        callRoutingReason,
-    ]);
+    }, [lastEndedCall, isActiveTab, activeDeviceId]);
 
     // Incoming calls are surfaced in the softphone dock only. The dock auto-opens while a call is ringing or live and owns Answer/Decline/Hang up.
 
@@ -1300,8 +1372,9 @@ export default function SoftphoneDock({
     useEffect(() => {
         if (!isActiveTab || !hasActiveCall || !canRecord || activeCall?.phase !== "active") return;
 
+        let cancelled = false;
         const started = async () => {
-            if (recordRecorderRef.current) return;
+            if (cancelled || recordRecorderRef.current) return;
             const audioEl = remoteAudioRef.current;
             const remoteStream = audioEl?.srcObject instanceof MediaStream ? audioEl.srcObject : null;
             // Prefer the live WebRTC sender track directly from SIP.js before falling back
@@ -1323,9 +1396,23 @@ export default function SoftphoneDock({
                 }
             }
 
+            if (cancelled) {
+                micStream?.getTracks().forEach((track) => track.stop());
+                return;
+            }
+            recordMicStreamRef.current = micStream;
+
             const ctx = new AudioContext();
             if (ctx.state === "suspended") {
                 await ctx.resume().catch(() => undefined);
+            }
+            if (cancelled) {
+                micStream?.getTracks().forEach((track) => track.stop());
+                if (recordMicStreamRef.current === micStream) {
+                    recordMicStreamRef.current = null;
+                }
+                void ctx.close().catch(() => undefined);
+                return;
             }
             const destination = ctx.createMediaStreamDestination();
 
@@ -1391,6 +1478,13 @@ export default function SoftphoneDock({
 
                 // Release recording stream tracks (cloned WebRTC stream or isolated mic stream)
                 micStream?.getTracks().forEach((track) => track.stop());
+                if (recordMicStreamRef.current === micStream) {
+                    recordMicStreamRef.current = null;
+                }
+                destination.stream.getTracks().forEach((track) => track.stop());
+                if (recordStreamRef.current === destination.stream) {
+                    recordStreamRef.current = null;
+                }
                 const audioCtx = recordContextRef.current ?? ctx;
                 recordContextRef.current = null;
                 recordRecorderRef.current = null;
@@ -1467,6 +1561,7 @@ export default function SoftphoneDock({
 
         void started();
         return () => {
+            cancelled = true;
             const recorder = recordRecorderRef.current;
             if (recorder && recorder.state !== "inactive") {
                 try {
@@ -1476,6 +1571,10 @@ export default function SoftphoneDock({
                 }
             }
             recordRecorderRef.current = null;
+            recordMicStreamRef.current?.getTracks().forEach((track) => track.stop());
+            recordMicStreamRef.current = null;
+            recordStreamRef.current?.getTracks().forEach((track) => track.stop());
+            recordStreamRef.current = null;
             recordContextRef.current?.close().catch(() => undefined);
             recordContextRef.current = null;
             recordStartedAtRef.current = null;
@@ -1600,77 +1699,53 @@ export default function SoftphoneDock({
         return () => window.clearTimeout(timer);
     }, [callFailure, clearCallFailure, failureNoticeMs]);
 
-    // Every outbound or inbound attempt that never connected (busy, declined, no answer,
-    // not registered, disconnected...) goes on the timeline / call log. The failure object is
-    // replaced per attempt, so keying on identity logs each one exactly once.
+    // Log setup failures that prevented a SIP session from ever starting (no line,
+    // not registered, line at capacity, invalid number). Failures on an actual SIP
+    // call carry `callId` and are logged by the unified `lastEndedCall` effect above.
     const loggedFailureRef = useRef<typeof callFailure>(null);
     useEffect(() => {
         if (
+            !isActiveTab ||
             !callFailure ||
+            callFailure.callId ||
             loggedFailureRef.current === callFailure
         ) {
             return;
         }
 
-        const isInbound = callFailure.direction === "inbound";
-
-        // Inbound calls answered elsewhere or passive tabs must not log failures
-        if (isInbound && (callFailure.code === "answered_elsewhere" || !isActiveTab)) {
-            return;
-        }
-
         loggedFailureRef.current = callFailure;
-        const leadId = callFailure.context?.leadId ?? matchedLead?.id ?? inboundRoute?.lead_id ?? null;
-        if (!isInbound && !leadId) {
-            return;
-        }
 
-        const event = isInbound
-            ? (callFailure.code === "declined"
-                ? { event: "call.declined", status: "declined" }
-                : { event: "call.missed", status: "missed" })
-            : (callFailure.code === "busy"
-                ? { event: "call.busy", status: "busy" }
-                : callFailure.code === "declined"
-                  ? { event: "call.declined", status: "declined" }
-                  : callFailure.code === "no-answer"
-                    ? { event: "call.missed", status: "missed" }
-                    : { event: "call.failed", status: "failed" });
+        const entityType =
+            callFailure.context?.entityType ??
+            (callFailure.context?.leadId ? "lead" : null);
+        const entityId =
+            callFailure.context?.entityId ??
+            callFailure.context?.leadId ??
+            null;
 
-        const effectiveCallRef =
-            callRef ||
-            lastActiveCallRef.current ||
-            (typeof crypto !== "undefined" && "randomUUID" in crypto
+        const freshRef =
+            typeof crypto !== "undefined" && "randomUUID" in crypto
                 ? crypto.randomUUID()
-                : `call-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+                : `call-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
-        const fwd = forwardedInfoRef.current;
         void axios
             .post(route("telephony.softphone.events.store"), {
                 phone: callFailure.peer,
                 device_id: activeDeviceId,
-                // The shared SIP Call-ID joins this leg to the other agents'
-                // legs of the same call, so the call log shows one row.
-                call_id: callFailure.callId || effectiveCallRef,
-                call_ref: effectiveCallRef,
-                ...(leadId ? { entity_type: "lead", entity_id: leadId } : {}),
+                call_id: freshRef,
+                call_ref: freshRef,
+                ...(entityType && entityId ? { entity_type: entityType, entity_id: entityId } : {}),
                 direction: callFailure.direction,
+                event: "call.failed",
+                status: "failed",
                 failure_reason: callFailure.code,
                 failure_message: (callFailure.reason || "").slice(0, 255),
-                routing_reason: fwd.callRoutingReason,
-                ...(fwd.isForwarded && fwd.lastForwardedUser
-                    ? {
-                          is_forwarded: true,
-                          forwarded_from_user_id: fwd.lastForwardedUser.id,
-                          forwarded_from_user_name: fwd.lastForwardedUser.name,
-                      }
-                    : {}),
-                ...event,
+                routing_reason: "outbound",
             })
             .catch(() => {
                 // Timeline logging is best-effort only.
             });
-    }, [callFailure, isActiveTab, activeDeviceId, callRef, matchedLead?.id, inboundRoute?.lead_id]);
+    }, [callFailure, isActiveTab, activeDeviceId]);
 
     const retryFailedCall = () => {
         const failure = callFailure;

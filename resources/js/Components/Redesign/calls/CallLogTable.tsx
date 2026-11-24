@@ -9,7 +9,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { formatCallDuration } from "@/lib/crmEvents/callSummary";
 import CallLegs from "./CallLegs";
-import { CallDirectionIcon, OUTCOME_KEYS, formatCallFailure, getRecordingStatus } from "./callFormat";
+import { CallDirectionIcon, OUTCOME_KEYS, formatCallFailure, getRecordingStatus, isMissedOrFailedCall } from "./callFormat";
 import type { CallLogRow } from "./types";
 
 const COLUMN_COUNT = 6;
@@ -77,7 +77,7 @@ export default function CallLogTable({ rows }: { rows: CallLogRow[] }) {
                         const outcome = outcomeKey
                             ? t(`pages.call_summary.${outcomeKey}`)
                             : td(row.outcome, { source: "en" });
-                        const missed = row.outcome === "missed" || row.outcome === "failed" || (row.answered === false && row.direction === "inbound");
+                        const isRed = isMissedOrFailedCall(row.outcome);
                         const failureText = formatCallFailure(row.failure_reason, row.failure_message, t);
                         const rec = row.recording;
                         const recState = getRecordingStatus(row);
@@ -93,14 +93,14 @@ export default function CallLogTable({ rows }: { rows: CallLogRow[] }) {
                                     </td>
                                     <td style={bodyCell}>
                                         <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                                            <CallDirectionIcon direction={row.direction} size={28} />
+                                            <CallDirectionIcon direction={row.direction} outcome={row.outcome} size={28} />
                                             <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                                                    <span style={{ fontWeight: 600, color: missed ? T.RED : T.TEXT }}>
+                                                    <span style={{ fontWeight: 600, color: isRed ? T.RED : T.TEXT }}>
                                                         {direction} · {outcome}
                                                     </span>
                                                     {failureText && (
-                                                        <Badge variant="red" style={{ fontSize: 11, padding: "1px 8px" }}>
+                                                        <Badge variant={isRed ? "red" : "gray"} style={{ fontSize: 11, padding: "1px 8px" }}>
                                                             {failureText}
                                                         </Badge>
                                                     )}

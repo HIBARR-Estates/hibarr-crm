@@ -9,10 +9,12 @@ import {
 import type {
     SoftphoneCall,
     SoftphoneCallContext,
+    SoftphoneCallEndReason,
     SoftphoneCallFailure,
     SoftphoneCallFailureCode,
     SoftphoneCallStage,
     SoftphoneConfig,
+    SoftphoneEndedCall,
     SoftphoneRegistrationState,
     SoftphoneState,
     SoftphoneWaitingCall,
@@ -32,14 +34,22 @@ import {
     type BoostedMicProcessor,
     type MicProfileName,
 } from "./micAudioProcessor";
+import {
+    PreSignedDigestStore,
+    bindServerSignedAuth,
+    createDeviceChallengeSigner,
+    createServerSignedTransportClass,
+} from "./ServerSignedSipAuth";
 
 export type {
     SoftphoneCall,
     SoftphoneCallContext,
+    SoftphoneCallEndReason,
     SoftphoneCallFailure,
     SoftphoneCallFailureCode,
     SoftphoneCallStage,
     SoftphoneConfig,
+    SoftphoneEndedCall,
     SoftphoneRegistrationState,
     SoftphoneState,
     SoftphoneWaitingCall,
@@ -68,6 +78,9 @@ export interface OutboundAudioDiagnostics {
 
 interface SDHLike {
     peerConnection?: RTCPeerConnection | null;
+    localMediaStream?: MediaStream | null;
+    _localMediaStream?: MediaStream | null;
+    close?: () => void;
 }
 
 /** A peer connection we already attached media-path listeners to. */
@@ -102,6 +115,7 @@ const EMPTY_STATE: SoftphoneState = {
     call: null,
     waitingCall: null,
     callFailure: null,
+    lastEndedCall: null,
     lastCallError: null,
     quality: "unknown",
 };
@@ -190,6 +204,10 @@ class SoftphoneClient {
     private answering = false;
     /** The agent pressed decline/hang up — not a failed call, so no notice. */
     private endedByUser = false;
+    /** Whether this call reached the "ringing" stage before ending. */
+    private reachedRinging = false;
+    /** Outcome passed to reject() so unanswered timeout logs "missed" vs explicit "declined". */
+    private rejectOutcome: "missed" | "declined" | null = null;
     /** A reason is already on record for this attempt (don't overwrite it). */
     private failureRecorded = false;
     /** Tracks whether an inbound INVITE was canceled due to answer elsewhere. */
@@ -200,6 +218,8 @@ class SoftphoneClient {
     private state: SoftphoneState = EMPTY_STATE;
     private outboundMicProcessor: BoostedMicProcessor | null = null;
     private rawSenderTrack: MediaStreamTrack | null = null;
+    private micBoostTimers = new Set<number>();
+    private clonedLocalTracks = new Set<MediaStreamTrack>();
 
     subscribe(listener: Listener): () => void {
         this.listeners.add(listener);
@@ -297,13 +317,41 @@ class SoftphoneClient {
                     iceServers.push({ urls: `stun:stun.${lineDomain}:3478` });
                 }
 
+                const useChallengeSigning =
+                    config.auth_mode === "challenge" ||
+                    (!config.authorization_password &&
+                        !config.authorization_ha1 &&
+                        typeof config.id === "number");
+
+                const digestStore = useChallengeSigning
+                    ? new PreSignedDigestStore()
+                    : null;
+                const transportConstructor =
+                    useChallengeSigning &&
+                    digestStore &&
+                    typeof config.id === "number"
+                        ? createServerSignedTransportClass(
+                              createDeviceChallengeSigner(config.id),
+                              digestStore,
+                          )
+                        : undefined;
+
                 const userAgent = new UserAgent({
                     uri,
+                    ...(transportConstructor ? { transportConstructor } : {}),
                     transportOptions: { server: config.wss_url },
                     authorizationUsername:
                         config.authorization_username || undefined,
-                    authorizationPassword:
-                        config.authorization_password || undefined,
+                    // Saved lines sign SIP Digest challenges server-side so
+                    // neither the password nor HA1 ever reaches the browser.
+                    ...(useChallengeSigning
+                        ? {}
+                        : config.authorization_ha1
+                          ? { authorizationHa1: config.authorization_ha1 }
+                          : {
+                                authorizationPassword:
+                                    config.authorization_password || undefined,
+                            }),
                     displayName: config.display_name || undefined,
                     sessionDescriptionHandlerFactoryOptions: {
                         peerConnectionConfiguration: {
@@ -312,6 +360,14 @@ class SoftphoneClient {
                     },
                     logLevel: "error",
                 });
+
+                if (useChallengeSigning && digestStore) {
+                    bindServerSignedAuth(
+                        userAgent,
+                        digestStore,
+                        config.authorization_username || uri.user || "",
+                    );
+                }
 
                 userAgent.delegate = {
                     onInvite: (invitation) => this.onIncoming(invitation),
@@ -550,10 +606,22 @@ class SoftphoneClient {
                 },
             } as never);
             // SessionDescriptionHandler exists only after invite() — attach remote audio now.
-            if (this.session) {
-                this.attachRemoteFromSession(this.session);
+            if (this.session === inviter) {
+                this.attachRemoteFromSession(inviter);
                 this.refreshRemoteAudio();
-                this.watchMediaPath(this.session);
+                this.watchMediaPath(inviter);
+            } else {
+                // Call was already ended while invite()/getUserMedia was in flight — release any acquired mic immediately.
+                this.releaseSessionMedia(inviter);
+                try {
+                    if (inviter.state === SessionState.Established) {
+                        void inviter.bye().catch(() => undefined);
+                    } else if (inviter.state !== SessionState.Terminated) {
+                        void inviter.cancel().catch(() => undefined);
+                    }
+                } catch {
+                    // ignore
+                }
             }
         } catch (error: unknown) {
             console.error("[softphone] INVITE failed");
@@ -563,6 +631,7 @@ class SoftphoneClient {
             // (offline, no line, bad number) and it used to look like nothing
             // had happened at all.
             const providerName = this.config?.provider || "the provider";
+            this.releaseSessionMedia(inviter);
             this.failCall(
                 "connection_failed",
                 detail
@@ -605,6 +674,11 @@ class SoftphoneClient {
                 },
                 sessionDescriptionHandlerModifiers: [sdpModifier],
             });
+            if (this.session !== session || this.state.call?.id !== answeringCallId) {
+                // Call ended while accept()/getUserMedia was in flight — release any acquired mic immediately.
+                this.releaseSessionMedia(session);
+                return;
+            }
             this.attachRemoteFromSession(session);
             this.refreshRemoteAudio();
             window.setTimeout(() => this.refreshRemoteAudio(), 250);
@@ -619,6 +693,12 @@ class SoftphoneClient {
                 });
             }
         } catch (error) {
+            if (
+                this.session !== session ||
+                (session.state as SessionState) === SessionState.Terminated
+            ) {
+                this.releaseSessionMedia(session);
+            }
             // Only the fixed message is logged: the rejected error carries the
             // SIP URI and other customer data.
             trace("softphone answer() failed");
@@ -635,12 +715,14 @@ class SoftphoneClient {
         }
     }
 
-    async reject(): Promise<void> {
+    async reject(outcome: "missed" | "declined" = "missed"): Promise<void> {
         const session = this.session;
         if (!session) {
             return;
         }
-        // Declining is a choice, not a failure — no notice for it.
+        // Declining or rotation timeout is not an alarming error popup — record
+        // the outcome cleanly so the call log updates from "started".
+        this.rejectOutcome = outcome;
         this.endedByUser = true;
         try {
             await session.reject();
@@ -798,7 +880,9 @@ class SoftphoneClient {
             return null;
         }
         try {
-            return new MediaStream([this.rawSenderTrack.clone()]);
+            const cloned = this.rawSenderTrack.clone();
+            this.trackClonedLocalTrack(cloned);
+            return new MediaStream([cloned]);
         } catch {
             return null;
         }
@@ -871,7 +955,9 @@ class SoftphoneClient {
             return null;
         }
         try {
-            return new MediaStream([audioSender.track.clone()]);
+            const cloned = audioSender.track.clone();
+            this.trackClonedLocalTrack(cloned);
+            return new MediaStream([cloned]);
         } catch {
             return null;
         }
@@ -1033,11 +1119,25 @@ class SoftphoneClient {
         if (!call || !context) {
             return;
         }
-        this.setState({ call: { ...call, context } });
+        this.setState({
+            call: {
+                ...call,
+                context: {
+                    ...call.context,
+                    ...context,
+                },
+            },
+        });
     }
 
     /** A negative final response: remember why, then tear the session down. */
     private failFromStatus(statusCode?: number, reasonPhrase?: string): void {
+        // When the agent intentionally clicked End (hangup -> CANCEL -> 487),
+        // don't flash an error popup; endCall() still logs the final outcome.
+        if (this.endedByUser) {
+            this.endCall();
+            return;
+        }
         const mapped =
             statusCode != null ? FAILURE_BY_STATUS[statusCode] : undefined;
 
@@ -1045,6 +1145,35 @@ class SoftphoneClient {
             (reasonPhrase
                 ? `The call could not be completed (${statusCode ?? ""} ${reasonPhrase}).`.trim()
                 : "The call could not be completed."));
+    }
+
+    /** Map a failure code onto the corresponding Calls page outcome. */
+    private mapFailureToEndReason(
+        direction: "outbound" | "inbound",
+        code: SoftphoneCallFailureCode,
+        wasAnswered: boolean,
+    ): SoftphoneCallEndReason {
+        if (wasAnswered) {
+            return "completed";
+        }
+        if (code === "answered_elsewhere") {
+            return "answered_elsewhere";
+        }
+        if (direction === "inbound") {
+            return code === "declined" ? "declined" : "missed";
+        }
+        switch (code) {
+            case "busy":
+                return "busy";
+            case "declined":
+                return "declined";
+            case "no-answer":
+                return "missed";
+            case "cancelled":
+                return this.reachedRinging ? "missed" : "failed";
+            default:
+                return "failed";
+        }
     }
 
     /**
@@ -1058,6 +1187,10 @@ class SoftphoneClient {
         if (!call) {
             return;
         }
+        const wasAnswered =
+            call.answeredAt !== null ||
+            call.connectedAt !== null ||
+            call.phase === "active";
         const failure: SoftphoneCallFailure = {
             code,
             reason,
@@ -1071,7 +1204,11 @@ class SoftphoneClient {
             lastCallError: reason,
         });
         this.failureRecorded = true;
-        this.endCall();
+        this.endCall({
+            reason: this.mapFailureToEndReason(call.direction, code, wasAnswered),
+            failureCode: wasAnswered ? null : code,
+            failureMessage: wasAnswered ? null : reason,
+        });
     }
 
     private onIncoming(invitation: Invitation): void {
@@ -1153,6 +1290,8 @@ class SoftphoneClient {
         // A fresh attempt starts from a clean slate: no stale failure notice,
         // and nothing here counts as "the agent hung up".
         this.endedByUser = false;
+        this.reachedRinging = direction === "inbound";
+        this.rejectOutcome = null;
         this.failureRecorded = false;
 
         this.setState({
@@ -1225,13 +1364,17 @@ class SoftphoneClient {
                         // SIP.js transitions the session to Terminated before calling onReject/onRedirect delegates.
                         // Defer fallback termination to allow the final-response delegate to record the specific status first.
                         setTimeout(() => {
+                            if (this.session !== session) {
+                                this.releaseSessionMedia(session);
+                                return;
+                            }
                             if (!this.failureRecorded && !this.endedByUser && this.state.call) {
                                 this.failCall(
                                     "terminated",
                                     "The call ended before it connected.",
                                 );
                             } else if (!this.state.call) {
-                                // Already cleaned up
+                                this.releaseSessionMedia(session);
                             } else {
                                 this.endCall();
                             }
@@ -1260,6 +1403,9 @@ class SoftphoneClient {
         const call = this.state.call;
         if (!call || call.stage === stage) {
             return;
+        }
+        if (stage === "ringing") {
+            this.reachedRinging = true;
         }
         if (stage === "connected" && this.outboundMicProcessor) {
             const ctxState = this.outboundMicProcessor.audioContext.state;
@@ -1316,13 +1462,75 @@ class SoftphoneClient {
         evaluate();
     }
 
-    private endCall(): void {
+    private endCall(override?: {
+        reason?: SoftphoneCallEndReason;
+        failureCode?: SoftphoneCallFailureCode | null;
+        failureMessage?: string | null;
+    }): void {
+        const session = this.session;
+        const call = this.state.call;
         this.session = null;
-        if (this.outboundMicProcessor) {
-            this.outboundMicProcessor.dispose();
-            this.outboundMicProcessor = null;
+
+        let endedCall: SoftphoneEndedCall | null = null;
+        if (call) {
+            const wasAnswered =
+                call.answeredAt !== null ||
+                call.connectedAt !== null ||
+                call.phase === "active";
+
+            let reason: SoftphoneCallEndReason;
+            let failureCode: SoftphoneCallFailureCode | null = override?.failureCode ?? null;
+            let failureMessage: string | null = override?.failureMessage ?? null;
+
+            if (override?.reason) {
+                reason = override.reason;
+            } else if (wasAnswered) {
+                reason = "completed";
+                failureCode = null;
+                failureMessage = null;
+            } else if (call.direction === "inbound") {
+                if (this.inboundCanceledReason === "answered_elsewhere") {
+                    reason = "answered_elsewhere";
+                    failureCode = "answered_elsewhere";
+                    failureMessage = "This call was answered on another device.";
+                } else if (this.rejectOutcome === "declined") {
+                    reason = "declined";
+                    failureCode = "declined";
+                    failureMessage = "Call declined.";
+                } else {
+                    reason = "missed";
+                    failureCode = "no-answer";
+                    failureMessage = "Missed incoming call.";
+                }
+            } else if (this.reachedRinging) {
+                reason = "missed";
+                failureCode = "no-answer";
+                failureMessage = "Call ended before it was answered.";
+            } else {
+                reason = "failed";
+                failureCode = "cancelled";
+                failureMessage = "Call ended before connecting.";
+            }
+
+            endedCall = {
+                callId: call.id,
+                peer: call.peer,
+                direction: call.direction,
+                stage: call.stage,
+                wasAnswered,
+                answeredAt: call.answeredAt,
+                endedAt: Date.now(),
+                endedByUser: this.endedByUser,
+                reason,
+                failureCode,
+                failureMessage,
+                context: call.context,
+            };
         }
-        this.rawSenderTrack = null;
+
+        this.releaseSessionMedia(session);
+        this.rejectOutcome = null;
+
         if (this.remoteAudio) {
             const audio = this.remoteAudio;
             try {
@@ -1340,8 +1548,8 @@ class SoftphoneClient {
                 // ignore cleanup errors
             }
         }
-        if (this.state.call) {
-            this.setState({ call: null });
+        if (call) {
+            this.setState({ call: null, lastEndedCall: endedCall });
         }
 
         // The call that was waiting now rings like any other inbound call.
@@ -1351,6 +1559,119 @@ class SoftphoneClient {
             if (waiting.state !== SessionState.Terminated) {
                 this.onIncoming(waiting);
             }
+        }
+    }
+
+    private trackClonedLocalTrack(track: MediaStreamTrack): void {
+        this.clonedLocalTracks.add(track);
+        const cleanup = () => {
+            this.clonedLocalTracks.delete(track);
+        };
+        track.addEventListener("ended", cleanup, { once: true });
+    }
+
+    /**
+     * Stop every microphone / WebRTC media track owned by a session so the
+     * browser releases the hardware microphone immediately on any call end.
+     */
+    private releaseSessionMedia(session: ManagedSession | null): void {
+        this.micBoostTimers.forEach((id) => window.clearTimeout(id));
+        this.micBoostTimers.clear();
+
+        if (this.outboundMicProcessor) {
+            try {
+                this.outboundMicProcessor.dispose();
+            } catch {
+                // ignore
+            }
+            this.outboundMicProcessor = null;
+        }
+
+        if (this.rawSenderTrack) {
+            try {
+                this.rawSenderTrack.stop();
+            } catch {
+                // ignore
+            }
+            this.rawSenderTrack = null;
+        }
+
+        this.clonedLocalTracks.forEach((track) => {
+            try {
+                track.stop();
+            } catch {
+                // ignore
+            }
+        });
+        this.clonedLocalTracks.clear();
+
+        if (!session) {
+            return;
+        }
+
+        const sdh = session.sessionDescriptionHandler as unknown as
+            | SDHLike
+            | undefined;
+
+        const stopStream = (stream: MediaStream | null | undefined) => {
+            if (!stream) return;
+            try {
+                stream.getTracks().forEach((track) => {
+                    try {
+                        track.stop();
+                    } catch {
+                        // ignore
+                    }
+                });
+            } catch {
+                // ignore
+            }
+        };
+
+        stopStream(sdh?.localMediaStream);
+        stopStream(sdh?._localMediaStream);
+
+        const pc = sdh?.peerConnection;
+        if (pc) {
+            try {
+                pc.getSenders().forEach((sender) => {
+                    try {
+                        sender.track?.stop();
+                    } catch {
+                        // ignore
+                    }
+                });
+            } catch {
+                // ignore
+            }
+            try {
+                pc.getTransceivers?.().forEach((transceiver) => {
+                    try {
+                        transceiver.sender?.track?.stop();
+                    } catch {
+                        // ignore
+                    }
+                });
+            } catch {
+                // ignore
+            }
+            try {
+                pc.getReceivers().forEach((receiver) => {
+                    try {
+                        receiver.track?.stop();
+                    } catch {
+                        // ignore
+                    }
+                });
+            } catch {
+                // ignore
+            }
+        }
+
+        try {
+            sdh?.close?.();
+        } catch {
+            // ignore
         }
     }
 
@@ -1461,15 +1782,36 @@ class SoftphoneClient {
                 const rawStream = new MediaStream([rawTrack]);
 
                 const processor = createBoostedMicStream(rawStream);
+                if (this.session !== session) {
+                    processor.dispose();
+                    rawTrack.stop();
+                    return;
+                }
                 if (this.outboundMicProcessor) {
                     this.outboundMicProcessor.dispose();
                 }
                 this.outboundMicProcessor = processor;
                 await processor.ensureRunning();
+                if (this.session !== session) {
+                    processor.dispose();
+                    if (this.outboundMicProcessor === processor) {
+                        this.outboundMicProcessor = null;
+                    }
+                    rawTrack.stop();
+                    return;
+                }
                 inspectAndLogRawTrackSettings(rawTrack, undefined, processor.audioContext.state);
 
                 try {
                     await sender.replaceTrack(processor.track);
+                    if (this.session !== session) {
+                        processor.dispose();
+                        if (this.outboundMicProcessor === processor) {
+                            this.outboundMicProcessor = null;
+                        }
+                        rawTrack.stop();
+                        return;
+                    }
                     await ensureAudioSenderBitrateUncapped(sender);
                     trace("softphone outbound mic boost applied to sender");
                 } catch (err) {
@@ -1481,17 +1823,20 @@ class SoftphoneClient {
         };
 
         void findAndBoost();
-        setTimeout(() => void findAndBoost(), 250);
-        setTimeout(() => void findAndBoost(), 1000);
+        for (const delayMs of [250, 1000]) {
+            const timerId = window.setTimeout(() => {
+                this.micBoostTimers.delete(timerId);
+                void findAndBoost();
+            }, delayMs);
+            this.micBoostTimers.add(timerId);
+        }
     }
 
     private async teardown(): Promise<void> {
         this.dropWaiting();
-        if (this.outboundMicProcessor) {
-            this.outboundMicProcessor.dispose();
-            this.outboundMicProcessor = null;
-        }
-        this.rawSenderTrack = null;
+        const session = this.session;
+        this.session = null;
+        this.releaseSessionMedia(session);
         try {
             await this.registerer?.unregister();
         } catch {

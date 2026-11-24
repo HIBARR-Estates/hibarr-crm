@@ -9,6 +9,16 @@ import type {
     SoftphoneDeviceCredentialsResponse,
 } from "@/Types/api/softphone";
 
+/** Whether the form still describes the SIP identity the line was saved with. */
+function sameSipIdentity(draft: SoftphoneConfig, stored: SoftphoneConfig): boolean {
+    const norm = (value: string | null | undefined) => (value ?? "").trim();
+    return (
+        norm(draft.uri).toLowerCase() === norm(stored.uri).toLowerCase() &&
+        norm(draft.wss_url).toLowerCase() === norm(stored.wss_url).toLowerCase() &&
+        norm(draft.authorization_username) === norm(stored.authorization_username)
+    );
+}
+
 export type LineTestState =
     | { status: "testing" }
     | { status: "done"; result: LineTestResult; testedAt: number };
@@ -84,16 +94,31 @@ export default function useSoftphoneLineTest() {
 
     /**
      * Test the settings typed into the form. On edit a blank password means
-     * "the stored one", which is fetched for the test only.
+     * "the stored one": the stored password never reaches the browser, so the
+     * server signs the SIP challenge with the line's saved identity. That only
+     * proves anything if the form still has that identity, so a changed SIP
+     * URI, username or server needs the password typed in again.
      */
     const testDraft = useCallback(
         (draft: SoftphoneConfig, editingId: number | null) =>
             run(editingId ? String(editingId) : "draft", async () => {
                 if (editingId && !draft.authorization_password) {
                     const stored = await fetchStored(editingId);
+                    if (!sameSipIdentity(draft, stored)) {
+                        throw new Error(
+                            "You changed the SIP URI, username or server. Enter the password to test the new settings.",
+                        );
+                    }
                     return {
                         ...draft,
-                        authorization_password: stored.authorization_password,
+                        id: stored.id,
+                        auth_mode: stored.auth_mode,
+                        // Register as exactly what the server signs for.
+                        uri: stored.uri,
+                        wss_url: stored.wss_url,
+                        authorization_username: stored.authorization_username,
+                        authorization_password: undefined,
+                        authorization_ha1: undefined,
                     };
                 }
                 return draft;

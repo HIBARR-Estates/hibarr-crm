@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\Schema;
 
 class TelephonySoftphoneEventController extends AccountBaseController
 {
-    private const DEFAULT_FALLBACK_SECONDS = 20;
+    private const DEFAULT_FALLBACK_SECONDS = InboundCallRotation::DEFAULT_SLOT_SECONDS;
 
     private static ?bool $hasCanReceiveCallsColumn = null;
 
@@ -689,7 +689,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
                 }
                 $this->clearPassedUsers($companyId, $line?->id, $incomingDigits, $callId);
                 $this->transitionCallStatus($companyId, $authoritativeKey, 'answered', (int) user()->id);
-            } elseif (in_array($eventSlug, ['call.ended', 'call.completed', 'call.failed', 'call.declined'], true)) {
+            } elseif (in_array($eventSlug, ['call.ended', 'call.completed', 'call.missed', 'call.busy', 'call.voicemail', 'call.failed', 'call.declined'], true)) {
                 // Missed/declined legs carry the shared SIP Call-ID, so an agent
                 // passing late must not end a call another agent has answered.
                 $this->transitionCallStatus($companyId, $authoritativeKey, 'ended', (int) user()->id);
@@ -805,7 +805,7 @@ class TelephonySoftphoneEventController extends AccountBaseController
             try {
                 $emitDirection = $validated['direction'] ?? 'outbound';
                 $emitEvent = $validated['event'] ?? 'call.started';
-                if (! in_array($emitEvent, ['call.started', 'call.answered', 'call_answered', 'incoming_call', 'outgoing_call', 'call.ended', 'call_ended', 'call.missed', 'call_missed', 'call.declined', 'call_declined', 'call.busy', 'call_busy', 'call.failed', 'call_failed', 'call_voicemail'], true)) {
+                if (! in_array($emitEvent, ['call.started', 'call.answered', 'call_answered', 'incoming_call', 'outgoing_call', 'call.ended', 'call_ended', 'call.missed', 'call_missed', 'call.declined', 'call_declined', 'call.busy', 'call_busy', 'call.failed', 'call_failed', 'call.voicemail', 'call_voicemail'], true)) {
                     $emitEvent = ($emitDirection === 'inbound') ? 'incoming_call' : 'call.started';
                 }
                 $callId = $validated['call_id'] ?? $validated['call_ref'] ?? null;

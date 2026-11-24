@@ -8,6 +8,7 @@ use App\Support\FeatureFlags;
 use App\Support\SipProviderRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -90,33 +91,28 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
         ]);
     }
 
-    /** Full credentials for ONE line so the browser can register it. */
+    /**
+     * Connection config for ONE line so the browser can register it.
+     *
+     * Never returns `authorization_password` or `authorization_ha1`: the
+     * browser authenticates SIP 401/407 Digest challenges via `signChallenge()`
+     * so no reusable SIP secret ever leaves the server.
+     */
     public function credentials(Request $request, int $id): JsonResponse
     {
-        $this->assertSoftphoneEnabled();
+        $device = $this->findCallableDevice($id);
 
-        // This returns the SIP authorization_password in cleartext, so it is
-        // gated on the softphone permission rather than the feature flag alone.
-        // Admins bypass the permission check, matching assertCanManage().
-        // Non-admins may only fetch credentials for lines they are assigned
-        // to under Call routing (fallback-list users may use any line).
-        if (! user()->hasRole('admin')) {
-            $allowedLines = \App\Models\SoftphoneCallPoolAgent::allowedDeviceIdsForUser(
-                (int) company()->id,
-                (int) user()->id
-            );
-            abort_if($allowedLines !== null && ! in_array($id, $allowedLines, true), 403);
-        }
-        abort_403(
-            ! user()->hasRole('admin')
-            && ! in_array(user()->permission('make_softphone_calls'), ['all', 'added'])
-        );
-
-        $device = SoftphoneDevice::findOrFail($id);
-
-        // A disabled line hands out no credentials: no browser can register
-        // it, so it can neither place nor receive calls until it is enabled.
+        // A disabled line cannot register, place, or receive calls.
         abort_if($device->is_active === false, 423, 'This line is disabled.');
+
+        // Audit trail for every config hand-out; never includes any secret.
+        Log::info('softphone.credentials_issued', [
+            'user_id' => user()->id,
+            'company_id' => company()->id,
+            'device_id' => $device->id,
+            'ip' => $request->ip(),
+            'mode' => 'challenge',
+        ]);
 
         return response()->json([
             'status' => 'success',
@@ -127,10 +123,121 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
                 'wss_url' => $device->wss_url,
                 'uri' => $device->uri,
                 'authorization_username' => $device->authorization_username,
-                'authorization_password' => $device->authorization_password,
                 'display_name' => $device->display_name,
                 'stun_url' => SipProviderRegistry::stunUrl($device->provider),
                 'max_concurrent_calls' => LineConcurrencyManager::maxConcurrentCalls($device),
+                'auth_mode' => 'challenge',
+            ],
+        ]);
+    }
+
+    /**
+     * Sign a single SIP 401/407 Digest challenge on behalf of the browser.
+     *
+     * Returns only the single-use MD5 response bound to that specific nonce,
+     * method, and request URI. Neither the SIP password nor HA1 ever leaves
+     * the server, and revoking a user or disabling a line stops signing
+     * immediately.
+     */
+    public function signChallenge(Request $request, int $id): JsonResponse
+    {
+        $device = $this->findCallableDevice($id);
+
+        abort_if($device->is_active === false, 423, 'This line is disabled.');
+
+        $validated = $request->validate([
+            'method' => ['required', 'string', Rule::in([
+                'REGISTER', 'INVITE', 'BYE', 'CANCEL', 'ACK',
+                'OPTIONS', 'PRACK', 'UPDATE', 'INFO', 'REFER',
+                'SUBSCRIBE', 'NOTIFY', 'PUBLISH', 'MESSAGE',
+            ])],
+            'uri' => 'required|string|max:512',
+            'realm' => 'required|string|max:255',
+            'nonce' => 'required|string|max:512',
+            'qop' => ['nullable', 'string', Rule::in(['auth', 'auth-int'])],
+            'nc' => ['nullable', 'string', 'regex:/^[0-9a-fA-F]{8}$/', 'required_with:qop'],
+            'cnonce' => ['nullable', 'string', 'max:128', 'required_with:qop'],
+            'algorithm' => ['nullable', 'string', Rule::in(['MD5', 'md5'])],
+            'body_md5' => ['nullable', 'string', 'regex:/^[0-9a-fA-F]{32}$/'],
+        ]);
+
+        // Pin the digest realm to the provider's known realm (or the line's
+        // configured SIP URI domain) so this endpoint cannot be abused as an
+        // oracle for arbitrary unrelated realms.
+        $expectedRealm = SipProviderRegistry::digestRealm($device->provider);
+        $uriDomain = null;
+        if (is_string($device->uri) && str_contains($device->uri, '@')) {
+            $afterAt = substr($device->uri, strpos($device->uri, '@') + 1);
+            $uriDomain = trim(explode(';', explode(':', $afterAt)[0])[0]);
+        }
+        $wssHost = is_string($device->wss_url) ? parse_url($device->wss_url, PHP_URL_HOST) : null;
+        $allowedRealms = array_values(array_filter(array_unique([$expectedRealm, $uriDomain, is_string($wssHost) ? $wssHost : null])));
+        // Custom lines have no registry realm but are still pinned to their
+        // own SIP URI domain or WSS host. A line with none of these cannot be
+        // pinned, so it is refused rather than signing any realm.
+        if ($allowedRealms === [] || ! collect($allowedRealms)->contains(fn (string $r) => strcasecmp($r, $validated['realm']) === 0)) {
+            Log::warning('softphone.challenge_realm_mismatch', [
+                'user_id' => user()->id,
+                'company_id' => company()->id,
+                'device_id' => $device->id,
+                'received_realm' => $validated['realm'],
+                'allowed_realms' => $allowedRealms,
+            ]);
+            throw ValidationException::withMessages([
+                'realm' => 'Unexpected SIP authentication realm for this line.',
+            ]);
+        }
+
+        $username = trim((string) ($device->authorization_username ?? ''));
+        if ($username === '' && is_string($device->uri)) {
+            $withoutScheme = preg_replace('/^sips?:/i', '', trim($device->uri)) ?? '';
+            $atPos = strpos($withoutScheme, '@');
+            $username = $atPos !== false ? trim(substr($withoutScheme, 0, $atPos)) : trim($withoutScheme);
+        }
+        $password = (string) ($device->authorization_password ?? '');
+
+        if ($username === '' || $password === '') {
+            abort(422, 'This line is missing SIP credentials.');
+        }
+
+        $qop = $validated['qop'] ?? null;
+        $nc = $qop !== null ? strtolower((string) $validated['nc']) : null;
+        $cnonce = $qop !== null ? (string) $validated['cnonce'] : null;
+
+        $response = SipProviderRegistry::signDigestChallenge(
+            username: $username,
+            password: $password,
+            realm: $validated['realm'],
+            method: $validated['method'],
+            uri: $validated['uri'],
+            nonce: $validated['nonce'],
+            qop: $qop,
+            nc: $nc,
+            cnonce: $cnonce,
+            bodyMd5: $validated['body_md5'] ?? null,
+        );
+
+        Log::info('softphone.challenge_signed', [
+            'user_id' => user()->id,
+            'company_id' => company()->id,
+            'device_id' => $device->id,
+            'method' => $validated['method'],
+            'realm' => $validated['realm'],
+            'ip' => $request->ip(),
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'username' => $username,
+                'realm' => $validated['realm'],
+                'nonce' => $validated['nonce'],
+                'uri' => $validated['uri'],
+                'response' => $response,
+                'algorithm' => 'MD5',
+                'qop' => $qop,
+                'nc' => $nc,
+                'cnonce' => $cnonce,
             ],
         ]);
     }
@@ -168,15 +275,23 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
     {
         $this->assertSoftphoneEnabled();
 
-        abort_403(
-            ! user()->hasRole('admin')
-            && ! in_array(user()->permission('make_softphone_calls'), ['all', 'added'], true)
+        $currentUser = user();
+        abort_if(
+            $currentUser === null
+            || (($currentUser->status ?? 'active') !== 'active')
+            || (($currentUser->login ?? 'enable') === 'disable'),
+            403
         );
 
-        if (! user()->hasRole('admin')) {
+        abort_403(
+            ! $currentUser->hasRole('admin')
+            && ! in_array($currentUser->permission('make_softphone_calls'), ['all', 'added'], true)
+        );
+
+        if (! $currentUser->hasRole('admin')) {
             $allowedLines = \App\Models\SoftphoneCallPoolAgent::allowedDeviceIdsForUser(
                 (int) company()->id,
-                (int) user()->id
+                (int) $currentUser->id
             );
             abort_if($allowedLines !== null && ! in_array($id, $allowedLines, true), 403);
         }
@@ -191,7 +306,7 @@ class TelephonySoftphoneDeviceController extends AccountBaseController
 
         $validated = $this->validateDevice($request);
 
-        $device = new SoftphoneDevice();
+        $device = new SoftphoneDevice;
         $device->company_id = (int) company()->id;
         $device->added_by = (int) user()->id;
         $this->fill($device, $validated);

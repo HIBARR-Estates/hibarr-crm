@@ -1,9 +1,16 @@
 /** sipgate Neo WebRTC config for one device/line (from its credentials). */
 export interface SoftphoneConfig {
+    /** Saved line id, used by server-side SIP Digest challenge signing. */
+    id?: number;
     wss_url: string;
     uri: string;
     authorization_username: string | null;
-    authorization_password: string;
+    /** Absent for saved lines (server signs SIP Digest challenges instead). */
+    authorization_password?: string;
+    /** Deprecated fallback; saved lines use `auth_mode: "challenge"`. */
+    authorization_ha1?: string;
+    /** "challenge" = server signs 401/407 SIP Digest challenges without exposing secrets. */
+    auth_mode?: "challenge" | "password" | "ha1";
     display_name: string | null;
     provider?: string | null;
     stun_url?: string | null;
@@ -126,6 +133,34 @@ export type SoftphoneConnectionQuality =
 export interface SoftphoneCallContext {
     leadId: number | null;
     leadName?: string | null;
+    entityType?: "lead" | "deal" | null;
+    entityId?: number | null;
+}
+
+/** Terminal outcome for a call that just ended (maps directly to Calls page outcomes). */
+export type SoftphoneCallEndReason =
+    | "completed"
+    | "missed"
+    | "declined"
+    | "busy"
+    | "voicemail"
+    | "failed"
+    | "answered_elsewhere";
+
+/** Snapshot emitted whenever any SIP call ends so the dock always logs its final status. */
+export interface SoftphoneEndedCall {
+    callId: string;
+    peer: string;
+    direction: "outbound" | "inbound";
+    stage: SoftphoneCallStage;
+    wasAnswered: boolean;
+    answeredAt: number | null;
+    endedAt: number;
+    endedByUser: boolean;
+    reason: SoftphoneCallEndReason;
+    failureCode: SoftphoneCallFailureCode | null;
+    failureMessage: string | null;
+    context: SoftphoneCallContext | null;
 }
 
 /** Why a call ended before it ever connected. */
@@ -177,6 +212,8 @@ export interface SoftphoneState {
     waitingCall: SoftphoneWaitingCall | null;
     /** Set when a call ends without connecting; cleared by the dock. */
     callFailure: SoftphoneCallFailure | null;
+    /** Set whenever any live call ends (answered, missed, failed, declined, busy). */
+    lastEndedCall?: SoftphoneEndedCall | null;
     /** Last error raised by a call attempt, cleared on a successful sale. */
     lastCallError: string | null;
     /** Rough audio/connection quality while a call is active. */

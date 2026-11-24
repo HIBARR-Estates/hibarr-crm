@@ -70,6 +70,9 @@ return [
         'crm.partner-referral-commission',
         'shared.3cx-calling',
         'crm.softphone',
+        // Softphone credentials endpoint returns a digest HA1 hash instead of the plaintext SIP password
+        // (needs the provider's digest realm verified in staging first). Off: plaintext password as before.
+        'crm.softphone-ha1',
         'callbridge.integrations',
         'crm.mobile-responsive-layout',
         'crm.property-completeness-score',

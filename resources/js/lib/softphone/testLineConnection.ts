@@ -1,5 +1,11 @@
 import { Registerer, RegistererState, UserAgent } from "sip.js";
 import type { SoftphoneConfig } from "@/Types/api/softphone";
+import {
+    PreSignedDigestStore,
+    bindServerSignedAuth,
+    createDeviceChallengeSigner,
+    createServerSignedTransportClass,
+} from "./ServerSignedSipAuth";
 
 /** Where a connection test stopped. `registered` is the only success. */
 export type LineTestStage =
@@ -49,14 +55,49 @@ export async function testLineConnection(
         return fail("config", "The WSS URL must start with wss://.");
     }
 
+    const useChallengeSigning =
+        config.auth_mode === "challenge" ||
+        (!config.authorization_password &&
+            !config.authorization_ha1 &&
+            typeof config.id === "number");
+
+    const digestStore = useChallengeSigning
+        ? new PreSignedDigestStore()
+        : null;
+    const transportConstructor =
+        useChallengeSigning && digestStore && typeof config.id === "number"
+            ? createServerSignedTransportClass(
+                  createDeviceChallengeSigner(config.id),
+                  digestStore,
+              )
+            : undefined;
+
     const userAgent = new UserAgent({
         uri,
+        ...(transportConstructor ? { transportConstructor } : {}),
         transportOptions: { server: config.wss_url.trim() },
         authorizationUsername: config.authorization_username || undefined,
-        authorizationPassword: config.authorization_password || undefined,
+        // Saved lines authenticate via server-side challenge signing; unsaved
+        // form tests use the password the admin just typed locally.
+        ...(useChallengeSigning
+            ? {}
+            : config.authorization_ha1
+              ? { authorizationHa1: config.authorization_ha1 }
+              : {
+                    authorizationPassword:
+                        config.authorization_password || undefined,
+                }),
         displayName: config.display_name || undefined,
         logLevel: "error",
     });
+
+    if (useChallengeSigning && digestStore) {
+        bindServerSignedAuth(
+            userAgent,
+            digestStore,
+            config.authorization_username || uri.user || "",
+        );
+    }
 
     let registerer: Registerer | null = null;
 
