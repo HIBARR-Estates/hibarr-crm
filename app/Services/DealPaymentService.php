@@ -204,8 +204,8 @@ class DealPaymentService
             throw new NotFoundHttpException('No payment request found for this deal.');
         }
 
-        if ($parent->documents_requested_at === null) {
-            throw new HttpException(409, 'KDV is collected once an invoice has been requested.');
+        if (! $this->documents->vatRequested($parent)) {
+            throw new HttpException(409, 'KDV is collected once the customer has asked for an invoice or a receipt.');
         }
 
         if (! in_array(self::uiStateOf($parent), ['confirmed', 'paid_online'], true)) {
@@ -871,7 +871,7 @@ class DealPaymentService
 
     /**
      * Where the KDV on a collected payment stands. Null while there is
-     * nothing to collect: no invoice asked for, payment not yet collected,
+     * nothing to collect: no invoice or receipt asked for, payment not yet collected,
      * or the row is itself a KDV request.
      *
      * @return array<string, mixed>|null
@@ -879,8 +879,8 @@ class DealPaymentService
     private function vatState(Payment $payment, string $uiState): ?array
     {
         if ($payment->vat_for_payment_id !== null
-            || $payment->documents_requested_at === null
             || ! in_array($uiState, ['confirmed', 'paid_online'], true)
+            || ! $this->documents->vatRequested($payment)
         ) {
             return null;
         }
