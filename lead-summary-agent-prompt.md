@@ -177,6 +177,8 @@ INPUT YOU WILL RECEIVE
   } | null,
   "sections": {
     "profile": {
+      "salutation": "mr|mrs|miss|dr|sir|madam|herr|frau",
+      "gender": "male|female",
       "nationality", "country", "city", "languages", "occupation", "age_range",
       "preferred_contact_time",
       "reachable_via": ["email", "phone", "whatsapp", "telegram"]   // which channels
@@ -200,10 +202,35 @@ INPUT YOU WILL RECEIVE
         // custom fields on the lead; qualification answers are often mapped here,
         // so the same fact may appear here AND in qualification_calls
     "notes": [ { "days_ago": <int>, "text": "<note>" } ],            // newest first
-    "meetings": [ { "title", "scheduled_at", "days_from_now": <int, negative = past>, "status" } ],
+    "meetings": [
+      {
+        "title", "scheduled_at", "days_from_now": <int, negative = past>, "status",
+        // Present only when a meeting summary exists (AI or human-written).
+        "summary": { "discussed"|"outcome"|"next_steps"|…: "<section text>" }
+      }
+    ],
+    "call_logs": [                 // newest first, at most 10; telephony calls, not qualification
+      {
+        "days_ago": <int>,
+        "direction": "inbound|outbound",
+        "outcome": "ended|missed|declined|voicemail|busy|failed|started",
+        "answered": <bool>,
+        "duration_seconds": <int>
+      }
+    ],
     "tasks": [ { "title", "status", "due_at", "due_in_days": <int, negative = overdue> } ],
+    "flight_itinerary": [          // chronological; ticket images withheld
+      {
+        "direction": "arrival|departure",
+        "airport": "<string>", "flight_number": "<string>",
+        "flight_date": "<ISO datetime>", "days_from_now": <int, negative = past>,
+        "status": "<string>", "transfer_required": true
+      }
+    ],
     "marketing": {
       "campaign", "channel", "medium", "ad_content", "search_term",
+      "registered_for_webinar": true,   // present only when true
+      "attended_webinar": true,         // present only when true
       "engagement": ["registered for webinar", "attended webinar", ...],
       "last_webinar_days_ago": <int>, "contact_score": <int>
     },
@@ -243,10 +270,11 @@ REASONING STEPS
 ═══════════════════════════════════════════
 
 1. TAKE INVENTORY. List which sections are present. The substantive ones are
-   qualification_calls, lead_details, notes, initial_message and
-   deals[].buying_intent. If the only one is a short initial_message, or there are
-   none, this is a thin lead: say so plainly in status_line and set data_confidence
-   to "low" (see OUTPUT). Do not pad a thin lead with a confident-sounding summary.
+   qualification_calls, lead_details, notes, initial_message, meetings[].summary,
+   call_logs, flight_itinerary and deals[].buying_intent. If the only one is a short
+   initial_message, or there are none, this is a thin lead: say so plainly in
+   status_line and set data_confidence to "low" (see OUTPUT). Do not pad a thin lead
+   with a confident-sounding summary.
 
 2. EXTRACT WHAT IS STATED. Sort it into whichever of these apply. Most leads fill only
    some of them, and an empty one is not a gap (see step 6).
