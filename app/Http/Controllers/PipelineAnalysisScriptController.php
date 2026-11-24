@@ -33,7 +33,7 @@ class PipelineAnalysisScriptController extends Controller
         abort_403(!(user()->permission('manage_lead_setting') == 'all' && in_array('leads', user()->modules)));
 
         return Inertia::render('Settings/AnalysisScriptBuilder', [
-            'pageTitle' => __('modules.deal.analysisScript'),
+            'pageTitle' => __('modules.deal.dealSettings'),
         ]);
     }
 

@@ -952,7 +952,7 @@ return [
         'automationDesc' => 'Potansiyel müşteriler, fırsatlar ve toplantılarda çalışan e-posta şablonlarını ve otomasyonları yönetin.',
         'comingSoon' => 'Yakında',
         'connected' => 'Bağlı',
-        'dealsDesc' => 'Fırsat kategorilerini, süreç hatlarını ve aşamaları yönetin.',
+        'dealsDesc' => 'Fırsat süreç hatlarını, aşamaları, görünürlüğü ve analiz senaryolarını yönetin.',
         'employeesDesc' => 'Çalışanları bulun ve uygulamayı onların hesabından görmek için onlar olarak oturum açın.',
         'leadsDesc' => 'Kaynaklar, durumlar ve ilk iletişim süresi dahil, potansiyel müşterilerin nasıl ele alınacağına dair şirket varsayılanları.',
         'manage' => 'Yönet',

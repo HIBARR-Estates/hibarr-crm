@@ -14,6 +14,7 @@ import PageLayout from "@/Components/PageLayout";
 import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
+import Segmented from "@/Components/Redesign/primitives/Segmented";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
@@ -24,8 +25,14 @@ import FieldPalette, {
     type PaletteCategory,
     type PaletteCustomField,
 } from "./AnalysisScript/FieldPalette";
+import PipelineManagementPanel from "./AnalysisScript/PipelineManagementPanel";
 import ScriptCanvas from "./AnalysisScript/ScriptCanvas";
-import { downloadJson, parseScriptJson, sampleScriptJson } from "./AnalysisScript/scriptJson";
+import {
+    currentScriptJson,
+    downloadJson,
+    parseScriptJson,
+    sampleScriptJson,
+} from "./AnalysisScript/scriptJson";
 import {
     itemsToSections,
     makeKey,
@@ -36,6 +43,9 @@ import {
 
 import "@/Components/Redesign/redesign.css";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { useTranslation } from "@/Hooks/useTranslation";
+
+type SettingsTab = "analysis" | "pipelines";
 
 interface Pipeline {
     id: number;
@@ -49,6 +59,8 @@ const NO_CATEGORIES: PaletteCategory[] = [];
 
 export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string }) {
     const { td } = useTd();
+    const { t } = useTranslation();
+    const [activeTab, setActiveTab] = useState<SettingsTab>("analysis");
     const [selectedPipelineId, setSelectedPipelineId] = useState<number | null>(null);
     const [sections, setSections] = useState<BuilderSection[]>([]);
     const [activeSectionKey, setActiveSectionKey] = useState<string | null>(null);
@@ -62,9 +74,17 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
         path: route("pipeline.analysis-script.pipelines"),
     });
     const pipelines = pipelinesQuery.data?.pipelines ?? NO_PIPELINES;
+    const selectedPipelineName = pipelines.find((p) => p.id === selectedPipelineId)?.name;
 
     useEffect(() => {
-        if (selectedPipelineId === null && pipelines.length > 0) {
+        if (pipelines.length === 0) {
+            if (selectedPipelineId !== null) setSelectedPipelineId(null);
+            return;
+        }
+        if (
+            selectedPipelineId === null ||
+            !pipelines.some((p) => p.id === selectedPipelineId)
+        ) {
             setSelectedPipelineId(pipelines[0].id);
         }
     }, [pipelines, selectedPipelineId]);
@@ -377,6 +397,17 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
     const handleDownloadSample = () =>
         downloadJson(sampleScriptJson(catalog), "analysis-script-sample.json");
 
+    const handleExportCurrent = () => {
+        const slug = (selectedPipelineName || "pipeline")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "");
+        downloadJson(
+            { ...currentScriptJson(sections), reference: sampleScriptJson(catalog).reference },
+            `analysis-script-${slug || selectedPipelineId}.json`,
+        );
+    };
+
     const handleImportFile = async (file: File) => {
         setImportErrors([]);
         let raw: unknown;
@@ -422,7 +453,7 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
                 <div className="flex flex-wrap items-end justify-between gap-3">
                     <div>
                         <div style={{ fontSize: 14, fontWeight: 600, color: T.TEXT_MUTED, marginBottom: 4 }}>
-                            {td("Pipeline", { source: "en" })}
+                            {t("modules.deal.pipeline")}
                         </div>
                         <MenuSelect
                             value={selectedPipelineId}
@@ -432,137 +463,185 @@ export default function AnalysisScriptBuilder({ pageTitle }: { pageTitle: string
                             width={240}
                         />
                     </div>
-                    {selectedPipelineId && (
-                        <div className="flex items-center gap-3">
-                            <span style={{ fontSize: 14, color: T.TEXT_MUTED }}>
-                                {sections.length} section{sections.length === 1 ? "" : "s"} · {stepCount} step
-                                {stepCount === 1 ? "" : "s"}
-                            </span>
-                            {justSaved && (
-                                <span style={{ fontSize: 14, color: T.GREEN, fontWeight: 600 }}>{td("✓ Saved", { source: "en" })}</span>
-                            )}
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="application/json,.json"
-                                hidden
-                                onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    // Reset so re-picking the same file fires change again.
-                                    e.target.value = "";
-                                    if (file) void handleImportFile(file);
-                                }}
-                            />
-                            <button
-                                type="button"
-                                className="dr-btn dr-btn-ghost"
-                                disabled={loading}
-                                onClick={() => fileInputRef.current?.click()}
-                            >
-                                {td("Import JSON", { source: "en" })}
-                            </button>
-                            <button
-                                type="button"
-                                className="dr-btn dr-btn-ghost"
-                                disabled={loading}
-                                onClick={handleDownloadSample}
-                                title={td("Downloads a sample import file plus every live field key, id and type", { source: "en" })}
-                            >
-                                {td("Sample JSON", { source: "en" })}
-                            </button>
-                            <button
-                                type="button"
-                                className="dr-btn dr-btn-navy"
-                                disabled={saveMutation.isPending}
-                                onClick={handleSave}
-                            >
-                                {saveMutation.isPending ? "Saving…" : "Save Analysis Script"}
-                            </button>
-                        </div>
-                    )}
+                    <Segmented<SettingsTab>
+                        value={activeTab}
+                        onChange={setActiveTab}
+                        ariaLabel={t("modules.deal.dealSettings")}
+                        options={[
+                            { value: "analysis", label: t("modules.deal.analysisScriptTab") },
+                            { value: "pipelines", label: t("modules.deal.pipelineManagementTab") },
+                        ]}
+                    />
                 </div>
 
-                <p style={{ fontSize: 14, color: T.TEXT_MUTED, margin: 0 }}>
-                    {td("Build the call script as sections. Drag fields, questions and instructions from the palette into a section, or add a field group to include a whole custom-field category. Download the sample JSON to get the import format plus every valid field key, id and type; import a filled-in file to load it into the canvas, then Save.", { source: "en" })}
-                </p>
-
-                {importErrors.length > 0 && (
-                    <div
-                        style={{
-                            border: `1px solid ${T.RED}`,
-                            borderRadius: 8,
-                            padding: 12,
-                            fontSize: 14,
-                            color: T.RED,
-                            background: T.WHITE,
-                        }}
-                    >
-                        <div style={{ fontWeight: 600, marginBottom: 6 }}>
-                            {td("Import rejected — nothing was changed:", { source: "en" })}
-                        </div>
-                        <ul style={{ margin: 0, paddingLeft: 18 }}>
-                            {importErrors.slice(0, 20).map((e, i) => (
-                                <li key={i}>{e}</li>
-                            ))}
-                            {importErrors.length > 20 && <li>…and {importErrors.length - 20} more.</li>}
-                        </ul>
-                    </div>
-                )}
-
-                {!selectedPipelineId ? (
-                    <EmptyState
-                        title={td("Select a pipeline", { source: "en" })}
-                        description={td("Choose a pipeline above to edit its analysis script.", { source: "en" })}
+                {activeTab === "pipelines" ? (
+                    <PipelineManagementPanel
+                        pipelineId={selectedPipelineId}
+                        pipelineName={selectedPipelineName}
+                        onPipelineUpdated={() => void pipelinesQuery.refetch()}
                     />
-                ) : loading ? (
-                    <div style={{ fontSize: 15, color: T.TEXT_MUTED }}>{td("Loading…", { source: "en" })}</div>
                 ) : (
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
-                    >
-                        <div
-                            style={{
-                                display: "grid",
-                                gridTemplateColumns: "minmax(300px, 380px) minmax(0, 1fr)",
-                                gap: 16,
-                                alignItems: "start",
-                            }}
-                        >
-                            <div style={{ position: "sticky", top: 16, height: "calc(100vh - 220px)" }}>
-                                <FieldPalette
-                                    dealCustomFields={dealCustomFields}
-                                    leadCustomFields={leadCustomFields}
-                                    categories={categories}
-                                    loading={paletteQuery.isLoading}
-                                    onAddRow={addRow}
-                                    onAddSection={() => addSection()}
-                                    onAddCategorySection={addCategorySection}
-                                />
-                            </div>
-
-                            <div style={{ minWidth: 0 }}>
-                                <ScriptCanvas
-                                    sections={sections}
-                                    activeSectionKey={activeSectionKey}
-                                    onSelectSection={setActiveSectionKey}
-                                    onAddSection={() => addSection()}
-                                    onChangeSection={changeSection}
-                                    onRemoveSection={removeSection}
-                                    onChangeRow={changeRow}
-                                    onRemoveRow={removeRow}
-                                />
-
-                                {sections.length === 0 && (
-                                    <EmptyState
-                                        title={td("No sections yet", { source: "en" })}
-                                        description={td("Add a section, then drag fields into it from the palette.", { source: "en" })}
+                    <>
+                        {selectedPipelineId && (
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <span style={{ fontSize: 14, color: T.TEXT_MUTED }}>
+                                    {sections.length} section{sections.length === 1 ? "" : "s"} · {stepCount}{" "}
+                                    step{stepCount === 1 ? "" : "s"}
+                                </span>
+                                <div className="flex items-center gap-3">
+                                    {justSaved && (
+                                        <span style={{ fontSize: 14, color: T.GREEN, fontWeight: 600 }}>
+                                            {td("✓ Saved", { source: "en" })}
+                                        </span>
+                                    )}
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="application/json,.json"
+                                        hidden
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            // Reset so re-picking the same file fires change again.
+                                            e.target.value = "";
+                                            if (file) void handleImportFile(file);
+                                        }}
                                     />
-                                )}
+                                    <button
+                                        type="button"
+                                        className="dr-btn dr-btn-ghost"
+                                        disabled={loading || sections.length === 0}
+                                        onClick={handleExportCurrent}
+                                        title={t("modules.deal.exportAnalysisJsonHint")}
+                                    >
+                                        {t("modules.deal.exportAnalysisJson")}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="dr-btn dr-btn-ghost"
+                                        disabled={loading}
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        {t("modules.deal.importAnalysisJson")}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="dr-btn dr-btn-ghost"
+                                        disabled={loading}
+                                        onClick={handleDownloadSample}
+                                        title={t("modules.deal.sampleAnalysisJsonHint")}
+                                    >
+                                        {t("modules.deal.sampleAnalysisJson")}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="dr-btn dr-btn-navy"
+                                        disabled={saveMutation.isPending}
+                                        onClick={handleSave}
+                                    >
+                                        {saveMutation.isPending
+                                            ? td("Saving…", { source: "en" })
+                                            : t("modules.deal.saveAnalysisScript")}
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    </DndContext>
+                        )}
+
+                        <p style={{ fontSize: 14, color: T.TEXT_MUTED, margin: 0 }}>
+                            {t("modules.deal.analysisScriptBuilderHint")}
+                        </p>
+
+                        {importErrors.length > 0 && (
+                            <div
+                                style={{
+                                    border: `1px solid ${T.RED}`,
+                                    borderRadius: 8,
+                                    padding: 12,
+                                    fontSize: 14,
+                                    color: T.RED,
+                                    background: T.WHITE,
+                                }}
+                            >
+                                <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                                    {t("modules.deal.importAnalysisRejected")}
+                                </div>
+                                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                                    {importErrors.slice(0, 20).map((e, i) => (
+                                        <li key={i}>{e}</li>
+                                    ))}
+                                    {importErrors.length > 20 && (
+                                        <li>…and {importErrors.length - 20} more.</li>
+                                    )}
+                                </ul>
+                            </div>
+                        )}
+
+                        {!selectedPipelineId ? (
+                            <EmptyState
+                                title={t("modules.deal.selectPipeline")}
+                                description={t("modules.deal.selectPipelineAnalysisHint")}
+                            />
+                        ) : loading ? (
+                            <div style={{ fontSize: 15, color: T.TEXT_MUTED }}>
+                                {td("Loading…", { source: "en" })}
+                            </div>
+                        ) : (
+                            <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleDragEnd}
+                            >
+                                <div
+                                    style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "minmax(300px, 380px) minmax(0, 1fr)",
+                                        gap: 16,
+                                        alignItems: "start",
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            position: "sticky",
+                                            top: 16,
+                                            height: "calc(100vh - 220px)",
+                                        }}
+                                    >
+                                        <FieldPalette
+                                            dealCustomFields={dealCustomFields}
+                                            leadCustomFields={leadCustomFields}
+                                            categories={categories}
+                                            loading={paletteQuery.isLoading}
+                                            onAddRow={addRow}
+                                            onAddSection={() => addSection()}
+                                            onAddCategorySection={addCategorySection}
+                                        />
+                                    </div>
+
+                                    <div style={{ minWidth: 0 }}>
+                                        <ScriptCanvas
+                                            sections={sections}
+                                            activeSectionKey={activeSectionKey}
+                                            onSelectSection={setActiveSectionKey}
+                                            onAddSection={() => addSection()}
+                                            onChangeSection={changeSection}
+                                            onRemoveSection={removeSection}
+                                            onChangeRow={changeRow}
+                                            onRemoveRow={removeRow}
+                                        />
+
+                                        {sections.length === 0 && (
+                                            <EmptyState
+                                                title={td("No sections yet", { source: "en" })}
+                                                description={td(
+                                                    "Add a section, then drag fields into it from the palette.",
+                                                    { source: "en" },
+                                                )}
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            </DndContext>
+                        )}
+                    </>
                 )}
             </div>
             <ConfirmDialog

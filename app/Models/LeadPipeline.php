@@ -54,12 +54,24 @@ class LeadPipeline extends BaseModel
 
     protected $casts = [
         'hidden_from_nav' => 'boolean',
+        'hidden_from_system' => 'boolean',
         'hide_all_categories' => 'boolean',
     ];
 
     public function scopeVisibleInNav($query)
     {
         return $query->where('hidden_from_nav', false);
+    }
+
+    /**
+     * Pipelines that may appear in dropdowns, selects, and forms.
+     * The default pipeline is always included even if the flag was set somehow.
+     */
+    public function scopeVisibleInSystem($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('hidden_from_system', false)->orWhere('default', 1);
+        });
     }
 
     public function stages(): HasMany

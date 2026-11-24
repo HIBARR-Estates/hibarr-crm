@@ -36,6 +36,8 @@ class UpdateLeadPipeline extends CoreRequest
             'name' => 'required|unique:lead_pipelines,name,'.$this->route('lead_pipeline_setting').',id,company_id,' . company()->id,
             'label_color' => 'required',
             'hide_all_categories' => 'nullable|boolean',
+            'hidden_from_nav' => 'nullable|boolean',
+            'hidden_from_system' => 'nullable|boolean',
             'category_ids' => 'nullable|array',
             'category_ids.*' => $categoryRule,
             'category_scopes' => 'nullable|array',
