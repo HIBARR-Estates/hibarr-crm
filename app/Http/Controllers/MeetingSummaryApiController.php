@@ -73,15 +73,18 @@ class MeetingSummaryApiController extends Controller
      */
     private function createOrUpdateSummary(array $meetingSummary, string $meetingId, string $meetingPlatform, array $meetingInfo): JsonResponse
     {
-        // Validate required meeting info fields
-        if (!isset($meetingInfo['deal_id']) || !is_numeric($meetingInfo['deal_id'])) {
-            throw new \InvalidArgumentException('Invalid or missing deal_id in meeting info');
-        }
-        
-        if (!isset($meetingInfo['meeting_type_id']) || !is_numeric($meetingInfo['meeting_type_id'])) {
-            throw new \InvalidArgumentException('Invalid or missing meeting_type_id in meeting info');
-        }
-        
+        // `deal_id` and `meeting_type_id` are nullable on the summary and may
+        // be absent on the meeting: one booked against a lead alone has no
+        // deal, and an older one may have no type. Rejecting those threw an
+        // uncaught exception here and the summary was never stored, so the
+        // meeting stayed on "generating" for good.
+        $meetingInfo['deal_id'] = isset($meetingInfo['deal_id']) && is_numeric($meetingInfo['deal_id'])
+            ? (int) $meetingInfo['deal_id']
+            : null;
+        $meetingInfo['meeting_type_id'] = isset($meetingInfo['meeting_type_id']) && is_numeric($meetingInfo['meeting_type_id'])
+            ? (int) $meetingInfo['meeting_type_id']
+            : null;
+
         // Validate meeting summary is not empty
         if (empty($meetingSummary)) {
             throw new \InvalidArgumentException('Meeting summary cannot be empty');
@@ -95,6 +98,15 @@ class MeetingSummaryApiController extends Controller
 
             if ($leadFollowUp && $leadFollowUp->summary_id) {
                 $summary = MeetingSummary::find($leadFollowUp->summary_id);
+                if ($summary && $summary->source === MeetingSummary::SOURCE_MANUAL) {
+                    // Someone has written or corrected this summary. Their
+                    // words win: the automatic one is kept beside it, and they
+                    // can choose to take it.
+                    $summary->update(['ai_summary_object' => $meetingSummary]);
+
+                    return [$summary, $leadFollowUp, 'kept_manual'];
+                }
+
                 if ($summary) {
                     $summary->update([
                         'summary_object' => $meetingSummary,
@@ -119,12 +131,16 @@ class MeetingSummaryApiController extends Controller
             return [$summary, $leadFollowUp, 'created'];
         });
 
-        DB::afterCommit(fn () => $this->sendSummaryNotification($summary, $leadFollowUp, $action));
+        // Nothing new for the person to be told about when their own version
+        // was kept.
+        if ($action !== 'kept_manual') {
+            DB::afterCommit(fn () => $this->sendSummaryNotification($summary, $leadFollowUp, $action));
+        }
 
-        $status = $action === 'updated' ? 200 : 201;
-        $messageKey = $action === 'updated'
-            ? 'modules.meeting.messages.updated'
-            : 'modules.meeting.messages.created';
+        $status = in_array($action, ['updated', 'kept_manual'], true) ? 200 : 201;
+        $messageKey = $action === 'created'
+            ? 'modules.meeting.messages.created'
+            : 'modules.meeting.messages.updated';
 
         return response()->json(
             Reply::successWithData($messageKey, [

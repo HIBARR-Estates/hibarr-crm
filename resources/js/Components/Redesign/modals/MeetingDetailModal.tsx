@@ -27,6 +27,10 @@ import {
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import MeetingCalendarSyncRow from "@/Components/Redesign/meeting/MeetingCalendarSyncRow";
 import MeetingLocationPanel from "@/Components/Redesign/meeting/MeetingLocationPanel";
+import MeetingLeadBlock from "@/Components/Redesign/meeting/MeetingLeadBlock";
+import { meetingAttendees } from "@/Components/Redesign/meeting/meetingAttendees";
+import { meetingLeadInfo } from "@/Components/Redesign/meeting/meetingPeople";
+import useMeetingUiLabel from "@/Components/Redesign/meeting/useMeetingUiLabel";
 export interface MeetingDetailNestedControls {
     editOpen: boolean;
     rescheduleOpen: boolean;
@@ -160,6 +164,7 @@ export default function MeetingDetailModal({
     footerLeading,
 }: MeetingDetailModalProps) {
     const { td } = useTd();
+    const ui = useMeetingUiLabel();
     const { t } = useTranslation();
     const { formatDate } = useUserDateTime();
     const [editOpen, setEditOpen] = useState(false);
@@ -175,7 +180,8 @@ export default function MeetingDetailModal({
     const item = toWorkspaceMeetingListItem(meeting);
     const dateLine = formatDate(item.startsAt, "-");
     const record = meetingRecordLink(meeting);
-    const attendees = meeting.participant_users ?? [];
+    // Host and participants, not the participants alone.
+    const attendees = meetingAttendees(meeting);
     const ATTENDEES_COLLAPSED_LIMIT = 4;
     const visibleAttendees = showAllAttendees
         ? attendees
@@ -241,7 +247,7 @@ export default function MeetingDetailModal({
                                     onClick={onMarkHeld}
                                     disabled={isUpdating}
                                 >
-                                    {td("Mark held")}
+                                    {t("pages.meetings.ui.mark_held")}
                                 </Button>
                             )}
                         {canEdit && (
@@ -267,10 +273,10 @@ export default function MeetingDetailModal({
                             onChange={setPanel}
                             fullWidth
                             variant="raised"
-                            ariaLabel={td("Meeting views")}
+                            ariaLabel={t("pages.meetings.ui.meeting_views")}
                             options={[
-                                { value: "info", label: td("Meeting info") },
-                                { value: "summary", label: td("Summary") },
+                                { value: "info", label: t("pages.meetings.ui.meeting_info") },
+                                { value: "summary", label: t("pages.meetings.ui.summary") },
                             ]}
                         />
                     </div>
@@ -280,7 +286,14 @@ export default function MeetingDetailModal({
 
                 {(!summaryPanel || panel === "info") && (
                     <>
-                        {record && (
+                        {/* The lead is who the meeting is with, so it comes first,
+                            with how to reach them and the deal under it. A
+                            meeting with no lead on record keeps the deal row. */}
+                        {meetingLeadInfo(meeting) && (
+                            <MeetingLeadBlock meeting={meeting} />
+                        )}
+
+                        {!meetingLeadInfo(meeting) && record && (
                             <button
                                 type="button"
                                 className="mb-3 flex w-full items-center gap-2 text-left"
@@ -326,8 +339,8 @@ export default function MeetingDetailModal({
                                     }}
                                 >
                                     {record.type === "deal"
-                                        ? td("Deal")
-                                        : td("Lead")}
+                                        ? t("pages.meetings.ui.deal")
+                                        : t("pages.meetings.ui.lead")}
                                 </span>
                             </button>
                         )}
@@ -336,7 +349,7 @@ export default function MeetingDetailModal({
                             <span
                                 className={`dr-pill ${PLATFORM_PILL[item.locationType] ?? "dr-pill-gray"}`}
                             >
-                                {td(item.platformLabel, { source: "en" })}
+                                {ui(item.platformLabel)}
                             </span>
                             {(() => {
                                 const status = getMeetingStatusDisplay(item);
@@ -361,7 +374,7 @@ export default function MeetingDetailModal({
                                                 background: status.dotColor,
                                             }}
                                         />
-                                        {td(status.label, { source: "en" })}
+                                        {ui(status.label)}
                                     </span>
                                 );
                             })()}
@@ -566,6 +579,11 @@ export default function MeetingDetailModal({
                                                 <span className="text-[13px]">
                                                     {user.name}
                                                 </span>
+                                                {user.isHost && (
+                                                    <span className="dr-pill dr-pill-blue">
+                                                        {t("pages.meetings.ui.organizer")}
+                                                    </span>
+                                                )}
                                             </span>
                                         ))}
                                     </div>
@@ -590,11 +608,8 @@ export default function MeetingDetailModal({
                                             }}
                                         >
                                             {showAllAttendees
-                                                ? td("Show fewer")
-                                                : td(
-                                                      `Show ${hiddenAttendeeCount} more`,
-                                                      { source: "en" },
-                                                  )}
+                                                ? t("pages.meetings.ui.show_fewer")
+                                                : t("pages.meetings.ui.show_count_more", { count: hiddenAttendeeCount })}
                                         </button>
                                     )}
                                 </>

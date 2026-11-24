@@ -698,4 +698,8 @@ return [
     'missingCompanyId' => 'Missing Company ID in header.',
     'leadDuplicateEmail' => 'Another lead already uses this email address.',
     'leadDuplicateContact' => 'Another lead already uses this :attribute.',
+    'meetingContactNoEmail' => ':name has no email address, so an online meeting can\'t be set up. Add one to the lead, or choose another way to meet.',
+    'meetingContactNoPhone' => ':name has no phone number, so a phone meeting can\'t be set up. Add one to the lead, or choose another way to meet.',
+    'meetingContactNoWay' => ':name has no email address or phone number, so there is no way to reach them. Add one to the lead before scheduling a meeting.',
+
 ];

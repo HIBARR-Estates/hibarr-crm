@@ -1,4 +1,5 @@
 import type { DealFollowup } from "@/Types/api/deal-followup";
+import { meetingAttendees } from "@/Components/Redesign/meeting/meetingAttendees";
 import dayjs from "dayjs";
 import {
     formatUserMonthShort,
@@ -80,8 +81,10 @@ export function toWorkspaceMeetingPreview(meeting: DealFollowup): WorkspaceMeeti
         ? meetingBucket(meeting, getUserDateTimeTimezone())
         : null;
     const { location, locationType } = resolveLocation(meeting);
-    const attendees =
-        meeting.participant_users?.map((user) => user.name).filter(Boolean) ?? [];
+    // Host and participants — the host is stored apart from the participants.
+    const attendees = meetingAttendees(meeting)
+        .map((person) => person.name)
+        .filter(Boolean);
 
     return {
         id: meeting.id,

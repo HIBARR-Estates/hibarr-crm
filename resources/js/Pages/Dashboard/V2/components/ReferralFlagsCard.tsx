@@ -23,11 +23,13 @@ const STATUS_LABEL: Record<string, string> = {
     resolved: "Replied",
 };
 
-/** The flag thread. Raising one happens from the button beside the card title. */
+/** The flag thread. The client name opens the same lead detail as the referral table. */
 export default function ReferralFlagsCard({
     flags,
+    onOpen,
 }: {
     flags: PartnerFlagThreadItem[];
+    onOpen: (leadId: number) => void;
 }) {
     const { td } = useTd();
     const [page, setPage] = useState(1);
@@ -75,10 +77,15 @@ export default function ReferralFlagsCard({
                             gap: 8,
                         }}
                     >
-                        <div style={{ fontSize: 14, fontWeight: 600 }}>
+                        <button
+                            type="button"
+                            className="dv2-row-open"
+                            onClick={() => onOpen(flag.lead_id)}
+                            style={{ fontSize: 14, fontWeight: 600 }}
+                        >
                             {flag.client ??
                                 td("Unnamed referral", { source: "en" })}
-                        </div>
+                        </button>
                         <span
                             className={`dr-pill dr-pill-${STATUS_PILL[flag.status] ?? "gray"}`}
                         >

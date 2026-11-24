@@ -38,6 +38,12 @@ interface FollowUpStorePayload {
 export interface ScheduleTarget {
     type: ScheduleRecordType;
     id: number;
+    /**
+     * With a lead target: the one of its deals this meeting is also linked
+     * to, if the user chose one. The server requires the deal to belong to
+     * the lead.
+     */
+    dealId?: number;
     /** Deal agent / lead owner, when the record has one. */
     hasOwner: boolean;
 }
@@ -67,7 +73,7 @@ export default function useMeetingsScheduleCreate() {
             onSuccess?: (meeting: DealFollowup | undefined) => void,
         ) => {
             if (!target) {
-                setErrors(["Please select the deal or lead to book against."]);
+                setErrors(["Please select the lead to book against."]);
                 return;
             }
 
@@ -90,7 +96,12 @@ export default function useMeetingsScheduleCreate() {
             );
 
             const payload: FollowUpStorePayload = {
-                [target.type === "deal" ? "deal_id" : "lead_id"]: target.id,
+                ...(target.type === "deal"
+                    ? { deal_id: target.id }
+                    : {
+                          lead_id: target.id,
+                          ...(target.dealId ? { deal_id: target.dealId } : {}),
+                      }),
                 next_follow_up_date: formatMeetingDateForApi(form.date),
                 start_time: formatMeetingTimeForApi(form.startTime),
                 meeting_type_id: form.meetingTypeId ?? undefined,

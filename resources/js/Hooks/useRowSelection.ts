@@ -21,6 +21,25 @@ export default function useRowSelection() {
         });
     }, []);
 
+    /**
+     * Drops any selected id that is not in `ids`.
+     *
+     * A list whose visible rows change underneath the selection (a tab, a
+     * page, a filter) calls this with the rows now on screen, so a bulk
+     * action can never reach a row the reader can no longer see. Returns the
+     * same Set when nothing was dropped, so it costs no re-render.
+     */
+    const retainOnly = useCallback((ids: number[]) => {
+        setSelected((current) => {
+            const visible = new Set(ids);
+            const next = new Set<number>();
+            current.forEach((id) => {
+                if (visible.has(id)) next.add(id);
+            });
+            return next.size === current.size ? current : next;
+        });
+    }, []);
+
     const toggleGroupSelection = useCallback(
         (ids: number[], select: boolean) => {
             setSelected((current) => {
@@ -42,6 +61,7 @@ export default function useRowSelection() {
         selected,
         selectedIds,
         clearSelection,
+        retainOnly,
         toggleSelect,
         toggleGroupSelection,
         allSelected,

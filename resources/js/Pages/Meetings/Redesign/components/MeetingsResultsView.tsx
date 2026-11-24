@@ -1,5 +1,6 @@
 import { forwardRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
 import Icon from "@/Components/Redesign/primitives/Icon";
@@ -46,6 +47,10 @@ interface MeetingsResultsViewProps {
     hasAnyMeetings: boolean;
     /** True when the tab has meetings but every one is up in the cards. */
     allInCards: boolean;
+    /** True while filters narrow the list — an empty page may be their doing. */
+    filtered: boolean;
+    /** Drops every filter at once. */
+    onClearFilters: () => void;
 }
 
 /**
@@ -60,6 +65,7 @@ function emptyCopy(
     tab: MeetingsTab,
     hasAnyMeetings: boolean,
     allInCards: boolean,
+    filtered: boolean,
 ): { title: string; body: string } {
     // The tab still counts them, because they are still yours — they have
     // just been lifted into the cards above rather than repeated down here.
@@ -67,33 +73,42 @@ function emptyCopy(
     // plainly contradict itself.
     if (allInCards) {
         return {
-            title: "That is everything",
-            body: "Your remaining meetings are in the cards above.",
+            title: "pages.meetings.ui.that_is_everything",
+            body: "pages.meetings.ui.your_remaining_meetings_are_in_the_cards_above",
+        };
+    }
+
+    // Empty because of the filters, not because there is nothing: saying
+    // "no meetings scheduled" would send someone off to book one that exists.
+    if (filtered) {
+        return {
+            title: "pages.meetings.ui.no_meetings_match_these_filters",
+            body: "pages.meetings.ui.try_removing_a_filter_or_widening_the_date_range",
         };
     }
 
     if (tab === "past") {
         return {
-            title: "No past meetings",
-            body: "Meetings that have finished will be listed here.",
+            title: "pages.meetings.ui.no_past_meetings",
+            body: "pages.meetings.ui.meetings_that_have_finished_will_be_listed_here",
         };
     }
 
     if (!hasAnyMeetings) {
         return {
-            title: "No meetings scheduled",
-            body: "Meetings you book with leads and deals will appear here.",
+            title: "pages.meetings.ui.no_meetings_scheduled",
+            body: "pages.meetings.ui.meetings_you_book_with_leads_and_deals_will",
         };
     }
 
     return tab === "upcoming"
         ? {
-              title: "No more upcoming meetings",
-              body: "You are all caught up. Past meetings are still on the Past tab.",
+              title: "pages.meetings.ui.no_more_upcoming_meetings",
+              body: "pages.meetings.ui.you_are_all_caught_up_past_meetings_are_still",
           }
         : {
-              title: "Nothing left to show",
-              body: "Every meeting matching this view has been dealt with.",
+              title: "pages.meetings.ui.nothing_left_to_show",
+              body: "pages.meetings.ui.every_meeting_matching_this_view_has_been_dealt",
           };
 }
 
@@ -129,10 +144,13 @@ const MeetingsResultsView = forwardRef<
         canSchedule,
         hasAnyMeetings,
         allInCards,
+        filtered,
+        onClearFilters,
     },
     ref,
 ) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const { timezone } = useUserDateTime();
 
     // Folded days, by day key. Local and deliberately not persisted: it is a
@@ -150,20 +168,27 @@ const MeetingsResultsView = forwardRef<
         });
 
     if (meetings.data.length === 0) {
-        const copy = emptyCopy(tab, hasAnyMeetings, allInCards);
+        const copy = emptyCopy(tab, hasAnyMeetings, allInCards, filtered);
         return (
             <div ref={ref}>
                 <EmptyState
                     icon="calendar"
-                    title={td(copy.title)}
-                    description={td(copy.body)}
+                    title={t(copy.title)}
+                    description={t(copy.body)}
                     action={
-                        canSchedule && !allInCards
-                            ? {
-                                  label: td("Schedule a meeting"),
-                                  onClick: onSchedule,
-                              }
-                            : undefined
+                        allInCards
+                            ? undefined
+                            : filtered
+                              ? {
+                                    label: t("pages.meetings.ui.clear_filters"),
+                                    onClick: onClearFilters,
+                                }
+                              : canSchedule
+                                ? {
+                                      label: t("pages.meetings.ui.schedule_a_meeting"),
+                                      onClick: onSchedule,
+                                  }
+                                : undefined
                     }
                 />
                 {/* This page came back empty but earlier ones aren't — e.g.

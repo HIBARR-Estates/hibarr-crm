@@ -66,7 +66,7 @@ export default function MeetingsDayDialog({
             open
             title={td(day.label)}
             subtitle={
-                total === 1 ? `1 ${td("entry")}` : `${total} ${td("entries")}`
+                total === 1 ? `1 ${t("pages.meetings.ui.entry")}` : `${total} ${t("pages.meetings.ui.entries")}`
             }
             onClose={onClose}
             maxWidth={560}
@@ -81,7 +81,7 @@ export default function MeetingsDayDialog({
                             onClick={onCreate}
                             icon={<Icon name="plus" size={15} />}
                         >
-                            {td("Add meeting")}
+                            {t("pages.meetings.ui.add_meeting")}
                         </Button>
                     )}
                 </>
@@ -188,13 +188,13 @@ export default function MeetingsDayDialog({
                         >
                             {userEventHasTime(event)
                                 ? userEventTimeLabel(event)
-                                : td("All day")}
+                                : t("pages.meetings.ui.all_day")}
                         </span>
                         <span
                             className="min-w-0 flex-1 truncate"
                             style={{ fontSize: 14, color: T.TEXT }}
                         >
-                            {event.title?.trim() || td("Untitled")}
+                            {event.title?.trim() || t("pages.meetings.ui.untitled")}
                         </span>
                     </div>
                 ))}
