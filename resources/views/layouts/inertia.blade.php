@@ -28,7 +28,11 @@
     </div>
 
     {{-- Inertia mount point --}}
-    <script src="{{ mix('js/inertia.js') }}" defer></script>
+    @if (config('app.bundler') === 'vite')
+        @vite(['resources/js/inertia.tsx', 'resources/css/tailwind.css', 'resources/js/Components/Redesign/redesign.css'])
+    @else
+        <script src="{{ mix('js/inertia.js') }}" defer></script>
+    @endif
     @inertia
 </body>
 </html>

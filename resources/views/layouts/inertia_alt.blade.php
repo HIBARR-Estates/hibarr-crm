@@ -15,7 +15,11 @@
     {{-- <link type="text/css" rel="stylesheet" media="all" href="{{ mix('css/main.css') }}"> --}}
 
     {{-- Add Tailwind CSS --}}
-    <link type="text/css" rel="stylesheet" media="all" href="{{ mix('css/tailwind.css') }}">
+    @if (config('app.bundler') === 'vite')
+        @vite(['resources/css/tailwind.css', 'resources/js/Components/Redesign/redesign.css'])
+    @else
+        <link type="text/css" rel="stylesheet" media="all" href="{{ mix('css/tailwind.css') }}">
+    @endif
 
     {{-- Inertia Head --}}
     @inertiaHead
@@ -32,9 +36,13 @@
     @routes
     {{-- A1/A3: initial splitChunks must be script-tagged (runtime stays in inertia.js).
          Order: shared libs first, entry last. Async page chunks (A2) load via Webpack publicPath `/`. --}}
-    <script src="{{ mix('js/react.js') }}" defer></script>
-    <script src="{{ mix('js/vendor.js') }}" defer></script>
-    <script src="{{ mix('js/antd.js') }}" defer></script>
-    <script src="{{ mix('js/inertia.js') }}" defer></script>
+    @if (config('app.bundler') === 'vite')
+        @vite('resources/js/inertia.tsx')
+    @else
+        <script src="{{ mix('js/react.js') }}" defer></script>
+        <script src="{{ mix('js/vendor.js') }}" defer></script>
+        <script src="{{ mix('js/antd.js') }}" defer></script>
+        <script src="{{ mix('js/inertia.js') }}" defer></script>
+    @endif
 </body>
 </html>

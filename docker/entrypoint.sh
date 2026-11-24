@@ -140,7 +140,8 @@ if [ "$role" = "app" ] || [ "$role" = "queue" ] || [ "$role" = "scheduler" ]; th
 fi
 
 if [ "$role" = "app" ] && [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
-  php artisan migrate --force --no-interaction || true
+  # No `|| true`: a failed migration must stop the container, not serve a half-migrated schema.
+  php artisan migrate --force --no-interaction
   php artisan storage:link --force --no-interaction 2>/dev/null || true
 fi
 

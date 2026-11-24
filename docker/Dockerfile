@@ -3,21 +3,6 @@
 # HTTP-only Hibarr CRM image (nginx + PHP-FPM). No RoadRunner / gRPC.
 
 # -----------------------------------------------------------------------------
-# Composer dependencies
-# -----------------------------------------------------------------------------
-FROM composer:2 AS vendor
-
-WORKDIR /app
-COPY composer.json composer.lock ./
-RUN composer install \
-        --no-dev \
-        --no-interaction \
-        --prefer-dist \
-        --optimize-autoloader \
-        --no-scripts \
-        --ignore-platform-reqs
-
-# -----------------------------------------------------------------------------
 # Frontend assets (Vite). Blade still requests fixed css/js paths.
 # -----------------------------------------------------------------------------
 FROM node:20-bookworm AS assets
@@ -58,6 +43,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libzip-dev \
         libonig-dev \
         libxml2-dev \
+        libxslt1-dev \
         default-mysql-client \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
@@ -69,6 +55,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         opcache \
         pcntl \
         pdo_mysql \
+        sockets \
+        xsl \
         zip \
     && pecl install redis \
     && docker-php-ext-enable redis \
@@ -97,14 +85,29 @@ RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh /usr/local/bin/healthcheck.sh 
 
 WORKDIR /var/www/html
 
+# Installed here, not in a composer:2 stage, so composer checks the real PHP
+# version and extensions of this image. A missing extension fails the build.
+COPY composer.json composer.lock ./
+RUN composer install \
+        --no-dev \
+        --no-interaction \
+        --prefer-dist \
+        --optimize-autoloader \
+        --no-scripts
+
 COPY . .
-COPY --from=vendor /app/vendor ./vendor
 COPY --from=assets /app/public/build ./public/build
 COPY --from=assets /app/public/css ./public/css
 COPY --from=assets /app/public/js ./public/js
 # The Blade bundle is assembled via mktemp (mode 600). nginx runs as
 # www-data and would 403 js/main.js, which leaves the page preloader up.
 RUN chmod -R a+rX public/build public/css public/js
+
+# Release id for the stale-build banner (AppBuild reads this file). Declared
+# late so a new BUILD_ID only invalidates the layers below.
+ARG BUILD_ID=local
+RUN printf '{"id":"%s"}\n' "${BUILD_ID}" > public/build-version.json \
+    && chmod 644 public/build-version.json
 
 RUN composer dump-autoload --optimize --no-interaction --no-scripts \
     && mkdir -p \
@@ -124,7 +127,7 @@ EXPOSE 80
 
 # Platforms that deploy this image (and ignore a compose healthcheck) run the
 # image check. 302 from / is success. Workers exit 0 without opening port 80.
-HEALTHCHECK --interval=30s --timeout=10s --start-period=150s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=300s --retries=3 \
     CMD /usr/local/bin/healthcheck.sh
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

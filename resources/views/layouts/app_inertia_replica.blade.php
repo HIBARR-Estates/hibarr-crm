@@ -160,7 +160,11 @@
     <!-- Global Required Javascript -->
     <script src="{{ asset('js/main.js') }}"></script>
     <!-- Inertia.js React App -->
-    <script src="{{ asset('js/inertia.js') }}" defer></script>
+    @if (config('app.bundler') === 'vite')
+        @vite('resources/js/inertia.tsx')
+    @else
+        <script src="{{ asset('js/inertia.js') }}" defer></script>
+    @endif
 
     <script>
         $(window).on('load', function () {

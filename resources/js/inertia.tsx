@@ -16,6 +16,12 @@ import {
 } from "@inertia-load-page";
 // import { Ziggy } from "./ziggy";
 
+// A deploy replaces the hashed chunks. A tab still on the old build then fails
+// to import a page; reload once to pick up the new manifest.
+window.addEventListener("vite:preloadError", () => {
+    window.location.reload();
+});
+
 // Declare global route function
 declare global {
     interface Window {
