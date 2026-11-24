@@ -59,9 +59,33 @@ class TrustProxies extends Middleware
         if ($this->shouldForceHttps($request)) {
             $request->headers->set('X-Forwarded-Proto', 'https');
             $request->server->set('HTTPS', 'on');
+            // The container listens on 80. Leaving that port in place after the
+            // scheme flip makes every URL https://host:80, which nothing serves.
+            $this->dropInternalHttpPort($request);
         }
 
         return $next($request);
+    }
+
+    private function dropInternalHttpPort(Request $request): void
+    {
+        $forwardedPort = $request->headers->get('X-Forwarded-Port');
+
+        if ($forwardedPort === null || (int) $forwardedPort === 80) {
+            $request->headers->set('X-Forwarded-Port', '443');
+        }
+
+        foreach (['Host', 'X-Forwarded-Host'] as $header) {
+            $value = $request->headers->get($header);
+
+            if (is_string($value) && str_ends_with($value, ':80')) {
+                $request->headers->set($header, substr($value, 0, -3));
+            }
+        }
+
+        if ((int) $request->server->get('SERVER_PORT') === 80) {
+            $request->server->set('SERVER_PORT', '443');
+        }
     }
 
     private function shouldForceHttps(Request $request): bool

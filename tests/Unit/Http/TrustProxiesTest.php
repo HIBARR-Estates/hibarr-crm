@@ -56,6 +56,31 @@ class TrustProxiesTest extends TestCase
         );
     }
 
+    public function test_https_urls_omit_the_container_port(): void
+    {
+        config([
+            'app.url' => 'https://preview-crm.hibarr.org',
+            'app.redirect_https' => false,
+        ]);
+
+        $request = Request::create('http://preview-crm.hibarr.org/account/employees', 'GET', [], [], [], [
+            'REMOTE_ADDR' => '127.0.0.1',
+            'HTTP_HOST' => 'preview-crm.hibarr.org:80',
+            'HTTP_X_FORWARDED_PROTO' => 'http',
+            'HTTP_X_FORWARDED_PORT' => '80',
+            'SERVER_PORT' => '80',
+        ]);
+
+        $url = '';
+        (new TrustProxies())->handle($request, function (Request $request) use (&$url) {
+            $url = $request->url();
+
+            return response('ok');
+        });
+
+        $this->assertSame('https://preview-crm.hibarr.org/account/employees', $url);
+    }
+
     public function test_cloudflare_visitor_scheme_marks_the_request_https(): void
     {
         config([
