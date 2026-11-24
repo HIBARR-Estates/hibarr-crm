@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
 import Button from "@/Components/Redesign/primitives/Button";
 import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
@@ -73,6 +73,7 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
 
     useEffect(() => {
         if (!open) return;
+        previewSeq.current += 1;
         setTargetValue("");
         setConflict("skip");
         setAddMissing(false);
@@ -114,7 +115,10 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
     };
 
     // Any change to the request invalidates the preview that was shown for the old one.
+    // A preview still in flight for the old request must not repopulate it.
+    const previewSeq = useRef(0);
     const resetReport = () => {
+        previewSeq.current += 1;
         setReport(null);
         setAllowLoss(false);
     };
@@ -128,8 +132,9 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
 
     const handlePreview = async () => {
         if (!sourceField || !target) return;
+        const seq = ++previewSeq.current;
         const result = await mapping.preview(sourceField.id, target, options);
-        setReport(result);
+        if (seq === previewSeq.current) setReport(result);
     };
 
     const handleApply = async () => {

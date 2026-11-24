@@ -309,6 +309,8 @@ class CustomFieldMappingTest extends TestCase
         $source = $this->field(Lead::CUSTOM_FIELD_MODEL, 'Raw date');
         $this->put($source, Lead::CUSTOM_FIELD_MODEL, $good->id, '01.05.1990');
         $this->put($source, Lead::CUSTOM_FIELD_MODEL, $bad->id, 'next friday');
+        $slash = $this->lead();
+        $this->put($source, Lead::CUSTOM_FIELD_MODEL, $slash->id, '07/04/2024'); // US vs EU: ambiguous
 
         $report = $this->service->run(
             ['source_id' => $source->id, 'target_type' => 'defined', 'target_key' => 'lead.date_of_birth'],
@@ -316,7 +318,8 @@ class CustomFieldMappingTest extends TestCase
         );
 
         $this->assertSame(1, $report['mapped']);
-        $this->assertSame(1, $report['skipped_incompatible']);
+        $this->assertSame(2, $report['skipped_incompatible']);
+        $this->assertNull(DB::table('leads')->where('id', $slash->id)->value('date_of_birth'));
         $this->assertSame('1990-05-01', substr((string) DB::table('leads')->where('id', $good->id)->value('date_of_birth'), 0, 10));
     }
 

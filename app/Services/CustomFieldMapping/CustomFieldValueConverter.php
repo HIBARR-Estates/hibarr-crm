@@ -277,13 +277,16 @@ class CustomFieldValueConverter
         }
 
         // Carbon::parse() accepts free text such as "next friday" or "5", which
-        // would silently turn prose into a date. Only accept explicit numeric dates.
-        if (! preg_match('/^\d{4}-\d{1,2}-\d{1,2}([ T]\d{1,2}:\d{2}(:\d{2})?)?$|^\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4}$/', $neutral['value'])) {
+        // would silently turn prose into a date. Only accept explicit numeric
+        // dates: ISO (2024-05-01) and day-first with dots/dashes (01.05.2024).
+        // Slashes are refused on purpose — PHP reads 07/04/2024 month-first,
+        // everyone else day-first, so there is no safe reading to guess.
+        if (! preg_match('/^\d{4}-\d{1,2}-\d{1,2}([ T]\d{1,2}:\d{2}(:\d{2})?)?$|^\d{1,2}[.-]\d{1,2}[.-]\d{4}$/', $neutral['value'])) {
             return null;
         }
 
         try {
-            return Carbon::parse(str_replace('/', '-', $neutral['value']));
+            return Carbon::parse($neutral['value']);
         } catch (Throwable) {
             return null;
         }
