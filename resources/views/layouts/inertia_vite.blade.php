@@ -11,12 +11,8 @@
     {{-- ✅ React Fast Refresh preamble must come first --}}
     @viteReactRefresh
 
-    {{-- ✅ Then load your Vite entrypoints --}}
-    {{-- Tailwind ships via Mix below; only inertia.tsx is a Vite entry (vite.config.mjs). --}}
-    @vite(['resources/js/inertia.tsx'])
-
-    {{-- Optional Mix assets for legacy --}}
-    <link type="text/css" rel="stylesheet" media="all" href="{{ mix('css/tailwind.css') }}">
+    {{-- App shell + Tailwind — both are Vite entries (vite.config.mjs). --}}
+    @vite(['resources/js/inertia.tsx', 'resources/css/tailwind.css'])
 
     @inertiaHead
 </head>

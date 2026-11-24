@@ -1,0 +1,663 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from "@dnd-kit/core";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import Button from "@/Components/Redesign/primitives/Button";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
+import EmptyState from "@/Components/Redesign/primitives/EmptyState";
+import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
+import { REDESIGN_TOKENS as T, REDESIGN_TYPE } from "@/Components/Redesign/tokens";
+import { useApiQuery } from "@/lib/api/client/useApiQuery";
+import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { ApiSuccessResponse } from "@/lib/api/types";
+import { ANALYSIS_FIELD_META } from "@/Pages/Deals/Redesign/config/analysisFieldMeta";
+import type { AnalysisScriptItem } from "@/Pages/Deals/Redesign/components/analysis/types/analysisTypes";
+import FieldPalette, {
+    type PaletteCategory,
+    type PaletteCustomField,
+} from "../AnalysisScript/FieldPalette";
+import ScriptCanvas from "../AnalysisScript/ScriptCanvas";
+import {
+    currentScriptJson,
+    downloadJson,
+    parseScriptJson,
+    sampleScriptJson,
+} from "../AnalysisScript/scriptJson";
+import {
+    itemsToSections,
+    makeKey,
+    sectionsToItems,
+    type BuilderRow,
+    type BuilderSection,
+} from "../AnalysisScript/types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
+import type { DealPipelineRow } from "./types";
+
+const NO_FIELDS: PaletteCustomField[] = [];
+const NO_CATEGORIES: PaletteCategory[] = [];
+
+export default function AnalysisScriptTab({
+    pipelines,
+}: {
+    pipelines: DealPipelineRow[];
+}) {
+    const { td } = useTd();
+    const { t } = useTranslation();
+    const [selectedPipelineId, setSelectedPipelineId] = useState<number | null>(null);
+    const [sections, setSections] = useState<BuilderSection[]>([]);
+    const [activeSectionKey, setActiveSectionKey] = useState<string | null>(null);
+    const [loadedPipelineId, setLoadedPipelineId] = useState<number | null>(null);
+    const [justSaved, setJustSaved] = useState(false);
+    const baselineRef = useRef("");
+    const [pendingPipelineId, setPendingPipelineId] = useState<number | null>(null);
+
+    const selectedPipelineName = pipelines.find((p) => p.id === selectedPipelineId)?.name;
+
+    useEffect(() => {
+        if (pipelines.length === 0) {
+            if (selectedPipelineId !== null) setSelectedPipelineId(null);
+            return;
+        }
+        if (
+            selectedPipelineId === null ||
+            !pipelines.some((p) => p.id === selectedPipelineId)
+        ) {
+            setSelectedPipelineId(pipelines[0].id);
+        }
+    }, [pipelines, selectedPipelineId]);
+
+    const paletteQuery = useApiQuery<{ deal: PaletteCustomField[]; lead: PaletteCustomField[] }>({
+        path: route("pipeline.analysis-script.palette-fields"),
+    });
+    const dealCustomFields = paletteQuery.data?.deal ?? NO_FIELDS;
+    const leadCustomFields = paletteQuery.data?.lead ?? NO_FIELDS;
+
+    const categoriesQuery = useApiQuery<{ categories: PaletteCategory[] }>({
+        path: selectedPipelineId
+            ? route("pipeline.analysis-script.categories", selectedPipelineId)
+            : "",
+        options: { enabled: !!selectedPipelineId },
+    });
+    const categories = categoriesQuery.data?.categories ?? NO_CATEGORIES;
+
+    const scriptQuery = useApiQuery<{ items: AnalysisScriptItem[] }>({
+        path: selectedPipelineId
+            ? route("pipeline.analysis-script.show", selectedPipelineId)
+            : "",
+        options: { enabled: !!selectedPipelineId },
+    });
+
+    const resolveLabel = useCallback(
+        (item: AnalysisScriptItem): { label: string; context?: string | null } => {
+            if (item.type === "custom_field_category") {
+                return {
+                    label:
+                        categories.find((c) => String(c.id) === item.item_key)?.name ??
+                        `Category #${item.item_key}`,
+                };
+            }
+            if (item.type === "deal_custom_field" || item.type === "lead_custom_field") {
+                const pool =
+                    item.type === "deal_custom_field" ? dealCustomFields : leadCustomFields;
+                const f = pool.find((x) => String(x.id) === item.item_key);
+                return {
+                    label: f?.label ?? `Field #${item.item_key}`,
+                    context: f?.category_name ?? null,
+                };
+            }
+            if (item.type === "question") return { label: td("Question", { source: "en" }) };
+            if (item.type === "instruction") return { label: td("Instruction", { source: "en" }) };
+            return { label: ANALYSIS_FIELD_META[item.item_key]?.label ?? item.item_key };
+        },
+        [categories, dealCustomFields, leadCustomFields, td],
+    );
+
+    useEffect(() => {
+        if (!selectedPipelineId) return;
+        if (loadedPipelineId === selectedPipelineId) return;
+        if (!scriptQuery.data || !categoriesQuery.data || !paletteQuery.data) return;
+
+        const next = itemsToSections(scriptQuery.data.items, resolveLabel);
+        setSections(next);
+        setActiveSectionKey(next.find((s) => s.kind === "custom")?.key ?? null);
+        baselineRef.current = JSON.stringify(sectionsToItems(next));
+        setLoadedPipelineId(selectedPipelineId);
+        setJustSaved(false);
+    }, [
+        selectedPipelineId,
+        loadedPipelineId,
+        scriptQuery.data,
+        categoriesQuery.data,
+        paletteQuery.data,
+        resolveLabel,
+    ]);
+
+    const sectionsRef = useRef(sections);
+    sectionsRef.current = sections;
+
+    const saveMutation = useApiMutate<
+        { items: ReturnType<typeof sectionsToItems> },
+        string,
+        ApiSuccessResponse<string>
+    >(
+        selectedPipelineId
+            ? route("pipeline.analysis-script.upsert", selectedPipelineId)
+            : "",
+        "PUT",
+        () => {
+            baselineRef.current = JSON.stringify(sectionsToItems(sectionsRef.current));
+            setJustSaved(true);
+            window.setTimeout(() => setJustSaved(false), 3000);
+        },
+    );
+
+    const isDirty = useMemo(
+        () =>
+            loadedPipelineId !== null &&
+            JSON.stringify(sectionsToItems(sections)) !== baselineRef.current,
+        [sections, loadedPipelineId],
+    );
+
+    useEffect(() => {
+        if (!isDirty) return undefined;
+        const onBeforeUnload = (e: BeforeUnloadEvent) => {
+            e.preventDefault();
+            e.returnValue = "";
+        };
+        window.addEventListener("beforeunload", onBeforeUnload);
+        return () => window.removeEventListener("beforeunload", onBeforeUnload);
+    }, [isDirty]);
+
+    const requestPipelineChange = useCallback(
+        (id: number) => {
+            if (id === selectedPipelineId) return;
+            if (isDirty) {
+                setPendingPipelineId(id);
+                return;
+            }
+            setSelectedPipelineId(id);
+            setLoadedPipelineId(null);
+        },
+        [isDirty, selectedPipelineId],
+    );
+
+    const addSection = useCallback((): string => {
+        const key = makeKey();
+        setSections((prev) => [
+            ...prev,
+            { key, kind: "custom", title: "", description: null, categoryId: null, rows: [] },
+        ]);
+        setActiveSectionKey(key);
+        return key;
+    }, []);
+
+    const addCategorySection = useCallback((category: PaletteCategory) => {
+        setSections((prev) => [
+            ...prev,
+            {
+                key: makeKey(),
+                kind: "category",
+                title: category.name,
+                description: null,
+                categoryId: category.id,
+                rows: [],
+            },
+        ]);
+    }, []);
+
+    const addRow = useCallback(
+        (row: BuilderRow) => {
+            setSections((prev) => {
+                const target =
+                    prev.find((s) => s.key === activeSectionKey && s.kind === "custom") ??
+                    [...prev].reverse().find((s) => s.kind === "custom");
+
+                if (!target) {
+                    const key = makeKey();
+                    setActiveSectionKey(key);
+                    return [
+                        ...prev,
+                        {
+                            key,
+                            kind: "custom" as const,
+                            title: "",
+                            description: null,
+                            categoryId: null,
+                            rows: [row],
+                        },
+                    ];
+                }
+
+                return prev.map((s) =>
+                    s.key === target.key ? { ...s, rows: [...s.rows, row] } : s,
+                );
+            });
+        },
+        [activeSectionKey],
+    );
+
+    const changeSection = useCallback((key: string, patch: Partial<BuilderSection>) => {
+        setSections((prev) => prev.map((s) => (s.key === key ? { ...s, ...patch } : s)));
+    }, []);
+
+    const removeSection = useCallback((key: string) => {
+        setSections((prev) => prev.filter((s) => s.key !== key));
+    }, []);
+
+    const changeRow = useCallback(
+        (sectionKey: string, rowKey: string, patch: Partial<BuilderRow>) => {
+            setSections((prev) =>
+                prev.map((s) =>
+                    s.key !== sectionKey
+                        ? s
+                        : {
+                              ...s,
+                              rows: s.rows.map((r) => (r.key === rowKey ? { ...r, ...patch } : r)),
+                          },
+                ),
+            );
+        },
+        [],
+    );
+
+    const removeRow = useCallback((sectionKey: string, rowKey: string) => {
+        setSections((prev) =>
+            prev.map((s) =>
+                s.key !== sectionKey ? s : { ...s, rows: s.rows.filter((r) => r.key !== rowKey) },
+            ),
+        );
+    }, []);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    );
+
+    const handleDragEnd = useCallback(({ active, over }: DragEndEvent) => {
+        if (!over) return;
+        const a = active.data.current as any;
+        const o = over.data.current as any;
+        if (!a) return;
+
+        setSections((prev) => {
+            const targetKey: string | undefined =
+                o?.kind === "row" || o?.kind === "zone" || o?.kind === "section"
+                    ? o.sectionKey
+                    : undefined;
+            const target = prev.find((s) => s.key === targetKey);
+
+            if (a.kind === "section") {
+                if (o?.kind !== "section" || a.sectionKey === o.sectionKey) return prev;
+                const from = prev.findIndex((s) => s.key === a.sectionKey);
+                const to = prev.findIndex((s) => s.key === o.sectionKey);
+                if (from === -1 || to === -1) return prev;
+                return arrayMove(prev, from, to);
+            }
+
+            if (!target || target.kind === "category") return prev;
+
+            const insertAt =
+                o?.kind === "row"
+                    ? Math.max(0, target.rows.findIndex((r) => r.key === o.rowKey))
+                    : target.rows.length;
+
+            if (a.kind === "palette") {
+                const row: BuilderRow = a.make();
+                return prev.map((s) =>
+                    s.key !== target.key
+                        ? s
+                        : {
+                              ...s,
+                              rows: [
+                                  ...s.rows.slice(0, insertAt),
+                                  row,
+                                  ...s.rows.slice(insertAt),
+                              ],
+                          },
+                );
+            }
+
+            if (a.kind === "row") {
+                const source = prev.find((s) => s.key === a.sectionKey);
+                if (!source) return prev;
+                const moving = source.rows.find((r) => r.key === a.rowKey);
+                if (!moving) return prev;
+
+                if (source.key === target.key) {
+                    const from = source.rows.findIndex((r) => r.key === a.rowKey);
+                    if (from === -1 || from === insertAt) return prev;
+                    return prev.map((s) =>
+                        s.key !== source.key ? s : { ...s, rows: arrayMove(s.rows, from, insertAt) },
+                    );
+                }
+
+                return prev.map((s) => {
+                    if (s.key === source.key) {
+                        return { ...s, rows: s.rows.filter((r) => r.key !== a.rowKey) };
+                    }
+                    if (s.key === target.key) {
+                        return {
+                            ...s,
+                            rows: [
+                                ...s.rows.slice(0, insertAt),
+                                moving,
+                                ...s.rows.slice(insertAt),
+                            ],
+                        };
+                    }
+                    return s;
+                });
+            }
+
+            return prev;
+        });
+    }, []);
+
+    const handleSave = () => {
+        if (!selectedPipelineId) return;
+        saveMutation.mutate(
+            { items: sectionsToItems(sections) },
+            { suppressSuccessToast: true },
+        );
+    };
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [importErrors, setImportErrors] = useState<string[]>([]);
+    const [pendingImport, setPendingImport] = useState<BuilderSection[] | null>(null);
+
+    const catalog = useMemo(
+        () => ({ dealCustomFields, leadCustomFields, categories }),
+        [dealCustomFields, leadCustomFields, categories],
+    );
+
+    const handleDownloadSample = () =>
+        downloadJson(sampleScriptJson(catalog), "analysis-script-sample.json");
+
+    const handleExportCurrent = () => {
+        const slug = (selectedPipelineName || "pipeline")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "");
+        downloadJson(
+            { ...currentScriptJson(sections), reference: sampleScriptJson(catalog).reference },
+            `analysis-script-${slug || selectedPipelineId}.json`,
+        );
+    };
+
+    const handleImportFile = async (file: File) => {
+        setImportErrors([]);
+        let raw: unknown;
+        try {
+            raw = JSON.parse(await file.text());
+        } catch (e) {
+            setImportErrors([`Not valid JSON: ${(e as Error).message}`]);
+            return;
+        }
+
+        const { sections: parsed, errors } = parseScriptJson(raw, catalog);
+        if (errors.length) {
+            setImportErrors(errors);
+            return;
+        }
+        if (sections.length) {
+            setPendingImport(parsed);
+            return;
+        }
+        setSections(parsed);
+    };
+
+    const stepCount = useMemo(
+        () => sections.reduce((n, s) => n + (s.kind === "category" ? 1 : s.rows.length), 0),
+        [sections],
+    );
+
+    const loading =
+        scriptQuery.isLoading || categoriesQuery.isLoading || paletteQuery.isLoading;
+
+    return (
+        <div className="flex flex-col gap-4">
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    flexWrap: "wrap",
+                }}
+            >
+                <div style={{ minWidth: 0, flex: "1 1 240px" }}>
+                    <p
+                        style={{
+                            margin: 0,
+                            fontSize: REDESIGN_TYPE.BODY,
+                            color: T.TEXT_MUTED,
+                            lineHeight: 1.45,
+                        }}
+                    >
+                        {t("modules.deal.analysisScriptBuilderHint")}
+                    </p>
+                </div>
+                <div>
+                    <div
+                        style={{
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: T.TEXT_MUTED,
+                            marginBottom: 4,
+                        }}
+                    >
+                        {t("modules.deal.pipeline")}
+                    </div>
+                    <MenuSelect
+                        value={selectedPipelineId}
+                        options={pipelines.map((p) => ({ value: p.id, label: p.name }))}
+                        onChange={(v) => requestPipelineChange(Number(v))}
+                        placeholder={td("Select a pipeline…", { source: "en" })}
+                        width={220}
+                    />
+                </div>
+            </div>
+
+            {selectedPipelineId && (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span style={{ fontSize: 13, color: T.TEXT_MUTED }}>
+                        {sections.length} section{sections.length === 1 ? "" : "s"} · {stepCount}{" "}
+                        step{stepCount === 1 ? "" : "s"}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {justSaved && (
+                            <span style={{ fontSize: 13, color: T.GREEN, fontWeight: 600 }}>
+                                {td("✓ Saved", { source: "en" })}
+                            </span>
+                        )}
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="application/json,.json"
+                            hidden
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                e.target.value = "";
+                                if (file) void handleImportFile(file);
+                            }}
+                        />
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={loading || sections.length === 0}
+                            onClick={handleExportCurrent}
+                            title={t("modules.deal.exportAnalysisJsonHint")}
+                        >
+                            {t("modules.deal.exportAnalysisJson")}
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={loading}
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            {t("modules.deal.importAnalysisJson")}
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={loading}
+                            onClick={handleDownloadSample}
+                            title={t("modules.deal.sampleAnalysisJsonHint")}
+                        >
+                            {t("modules.deal.sampleAnalysisJson")}
+                        </Button>
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            disabled={saveMutation.isPending}
+                            onClick={handleSave}
+                        >
+                            {saveMutation.isPending
+                                ? td("Saving…", { source: "en" })
+                                : t("modules.deal.saveAnalysisScript")}
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {importErrors.length > 0 && (
+                <div
+                    style={{
+                        border: `1px solid ${T.RED}`,
+                        borderRadius: 8,
+                        padding: 12,
+                        fontSize: 13,
+                        color: T.RED,
+                        background: T.WHITE,
+                    }}
+                >
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                        {t("modules.deal.importAnalysisRejected")}
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                        {importErrors.slice(0, 20).map((e, i) => (
+                            <li key={i}>{e}</li>
+                        ))}
+                        {importErrors.length > 20 && (
+                            <li>…and {importErrors.length - 20} more.</li>
+                        )}
+                    </ul>
+                </div>
+            )}
+
+            {!selectedPipelineId ? (
+                <EmptyState
+                    title={t("modules.deal.selectPipeline")}
+                    description={t("modules.deal.selectPipelineAnalysisHint")}
+                />
+            ) : loading ? (
+                <div style={{ fontSize: 14, color: T.TEXT_MUTED }}>
+                    {td("Loading…", { source: "en" })}
+                </div>
+            ) : (
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                >
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "minmax(260px, 320px) minmax(0, 1fr)",
+                            gap: 14,
+                            alignItems: "start",
+                        }}
+                    >
+                        <div
+                            style={{
+                                position: "sticky",
+                                top: 16,
+                                maxHeight: "calc(100vh - 240px)",
+                                overflow: "auto",
+                            }}
+                        >
+                            <FieldPalette
+                                dealCustomFields={dealCustomFields}
+                                leadCustomFields={leadCustomFields}
+                                categories={categories}
+                                loading={paletteQuery.isLoading}
+                                onAddRow={addRow}
+                                onAddSection={() => addSection()}
+                                onAddCategorySection={addCategorySection}
+                            />
+                        </div>
+
+                        <div style={{ minWidth: 0 }}>
+                            <ScriptCanvas
+                                sections={sections}
+                                activeSectionKey={activeSectionKey}
+                                onSelectSection={setActiveSectionKey}
+                                onAddSection={() => addSection()}
+                                onChangeSection={changeSection}
+                                onRemoveSection={removeSection}
+                                onChangeRow={changeRow}
+                                onRemoveRow={removeRow}
+                            />
+
+                            {sections.length === 0 && (
+                                <EmptyState
+                                    title={td("No sections yet", { source: "en" })}
+                                    description={td(
+                                        "Add a section, then drag fields into it from the palette.",
+                                        { source: "en" },
+                                    )}
+                                />
+                            )}
+                        </div>
+                    </div>
+                </DndContext>
+            )}
+
+            <ConfirmDialog
+                open={pendingPipelineId !== null}
+                title={td("Discard unsaved changes?", { source: "en" })}
+                message={td(
+                    "This script has edits you haven't saved. Switching pipeline will discard them.",
+                    { source: "en" },
+                )}
+                confirmLabel={td("Discard and switch", { source: "en" })}
+                cancelLabel={td("Keep editing", { source: "en" })}
+                danger
+                onConfirm={() => {
+                    setSelectedPipelineId(pendingPipelineId);
+                    setLoadedPipelineId(null);
+                    setPendingPipelineId(null);
+                }}
+                onCancel={() => setPendingPipelineId(null)}
+            />
+            <ConfirmDialog
+                open={pendingImport !== null}
+                title={td("Replace this script?", { source: "en" })}
+                message={td(
+                    "The imported file will replace every section currently on the canvas. Nothing is saved until you hit Save.",
+                    { source: "en" },
+                )}
+                confirmLabel={td("Replace", { source: "en" })}
+                cancelLabel={td("Cancel", { source: "en" })}
+                danger
+                onConfirm={() => {
+                    setSections(pendingImport ?? []);
+                    setActiveSectionKey(
+                        pendingImport?.find((s) => s.kind === "custom")?.key ?? null,
+                    );
+                    setPendingImport(null);
+                }}
+                onCancel={() => setPendingImport(null)}
+            />
+        </div>
+    );
+}

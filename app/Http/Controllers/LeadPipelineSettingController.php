@@ -44,6 +44,9 @@ class LeadPipelineSettingController extends AccountBaseController
         $pipeline = new LeadPipeline();
         $pipeline->name = $request->name;
         $pipeline->label_color = $request->label_color;
+        $pipeline->offering_type = $this->normalizeOfferingType(
+            $request->input('offering_type', LeadPipeline::OFFERING_PROPERTY)
+        );
         $pipeline->added_by = user()->id;
         $pipeline->save();
 
@@ -124,7 +127,11 @@ class LeadPipelineSettingController extends AccountBaseController
             }
         }
 
-        DB::transaction(function () use ($request, $pipeline, $categoryScopes, $fieldScopes, $hideFromNav, $hideFromSystem) {
+        $offeringType = array_key_exists('offering_type', $validated)
+            ? $this->normalizeOfferingType($validated['offering_type'])
+            : null;
+
+        DB::transaction(function () use ($request, $pipeline, $categoryScopes, $fieldScopes, $hideFromNav, $hideFromSystem, $offeringType) {
             $pipeline->name = $request->name;
             $pipeline->label_color = $request->label_color;
             $pipeline->hide_all_categories = $request->boolean('hide_all_categories');
@@ -133,6 +140,9 @@ class LeadPipelineSettingController extends AccountBaseController
             }
             if ($hideFromSystem !== null) {
                 $pipeline->hidden_from_system = $hideFromSystem;
+            }
+            if ($offeringType !== null) {
+                $pipeline->offering_type = $offeringType;
             }
             $pipeline->save();
 
@@ -268,6 +278,7 @@ class LeadPipelineSettingController extends AccountBaseController
                 'hidden_from_nav' => (bool) $pipeline->hidden_from_nav,
                 'hidden_from_system' => (bool) $pipeline->hidden_from_system,
                 'hide_all_categories' => (bool) $pipeline->hide_all_categories,
+                'offering_type' => $pipeline->offeringType(),
             ],
             'stages' => $pipeline->stages->map(fn (PipelineStage $stage) => [
                 'id' => (int) $stage->id,
@@ -318,6 +329,15 @@ class LeadPipelineSettingController extends AccountBaseController
         });
 
         return Reply::success(__('messages.deleteSuccess'));
+    }
+
+    protected function normalizeOfferingType(mixed $value): string
+    {
+        return match ($value) {
+            LeadPipeline::OFFERING_PACKAGE => LeadPipeline::OFFERING_PACKAGE,
+            LeadPipeline::OFFERING_BOTH => LeadPipeline::OFFERING_BOTH,
+            default => LeadPipeline::OFFERING_PROPERTY,
+        };
     }
 
     protected function buildFieldScopeMap($scopes): array

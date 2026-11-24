@@ -1012,11 +1012,11 @@ class DealController extends AccountBaseController
             // Quick action / composer follow in E-29.
             'emailQuickAction' => EmailFeature::quickActionFor(user()),
 
-            // A pipeline that sells packages does not sell individual properties,
-            // so properties / recommendations / offers are hidden for its deals.
-            'pipelineHasPackages' => $deal->lead_pipeline_id
-                ? \App\Models\PackagePipeline::where('pipeline_id', $deal->lead_pipeline_id)->exists()
-                : false,
+            // Explicit pipeline offering_type: package-only hides properties /
+            // recommendations / offers; property-only hides packages; both shows either.
+            'pipelineHasPackages' => (bool) optional($deal->pipeline)->isPackageOffering(),
+            'pipelineOfferingType' => optional($deal->pipeline)?->offeringType()
+                ?? \App\Models\LeadPipeline::OFFERING_PROPERTY,
 
             // ---- C1 deferred (queries run only when Inertia resolves these) ----
             // notes / dealFollowUps / files / tasks are no longer deferred props —

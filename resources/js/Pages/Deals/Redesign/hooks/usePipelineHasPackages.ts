@@ -1,14 +1,17 @@
 import { usePage } from "@inertiajs/react";
 
 /**
- * True when the deal's pipeline has at least one package linked to it
- * (`package_pipeline`, resolved in DealController@show).
+ * True when the deal's pipeline is configured as a package offering
+ * (`lead_pipelines.offering_type = package`, from DealController@show).
  *
- * Such a pipeline sells packages, not individual properties — so the property
- * manager, the recommendations tab and the offers tab are hidden for its deals.
+ * Package pipelines sell packages only — property manager, recommendations and
+ * offers are hidden. Property pipelines sell properties only.
  */
 export default function usePipelineHasPackages(): boolean {
     const { props } = usePage<any>();
 
+    if (props.pipelineOfferingType === "package") return true;
+    if (props.pipelineOfferingType === "property") return false;
+    // Legacy fallback while older responses still ship only the boolean.
     return props.pipelineHasPackages === true;
 }

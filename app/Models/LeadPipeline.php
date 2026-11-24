@@ -49,6 +49,10 @@ class LeadPipeline extends BaseModel
 
     use HasCompany;
 
+    public const OFFERING_PROPERTY = 'property';
+    public const OFFERING_PACKAGE = 'package';
+    public const OFFERING_BOTH = 'both';
+
     protected $default = ['id', 'name'];
     protected $with = [];
 
@@ -57,6 +61,37 @@ class LeadPipeline extends BaseModel
         'hidden_from_system' => 'boolean',
         'hide_all_categories' => 'boolean',
     ];
+
+    public function offeringType(): string
+    {
+        return match ($this->offering_type) {
+            self::OFFERING_PACKAGE => self::OFFERING_PACKAGE,
+            self::OFFERING_BOTH => self::OFFERING_BOTH,
+            default => self::OFFERING_PROPERTY,
+        };
+    }
+
+    /** Package-only pipeline — hides properties, recommendations and offers. */
+    public function isPackageOffering(): bool
+    {
+        return $this->offeringType() === self::OFFERING_PACKAGE;
+    }
+
+    /** Property-only pipeline — hides the package selector. */
+    public function isPropertyOffering(): bool
+    {
+        return $this->offeringType() === self::OFFERING_PROPERTY;
+    }
+
+    public function allowsPackages(): bool
+    {
+        return in_array($this->offeringType(), [self::OFFERING_PACKAGE, self::OFFERING_BOTH], true);
+    }
+
+    public function allowsProperties(): bool
+    {
+        return in_array($this->offeringType(), [self::OFFERING_PROPERTY, self::OFFERING_BOTH], true);
+    }
 
     public function scopeVisibleInNav($query)
     {

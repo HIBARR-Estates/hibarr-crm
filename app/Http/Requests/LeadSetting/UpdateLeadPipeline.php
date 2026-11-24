@@ -38,6 +38,7 @@ class UpdateLeadPipeline extends CoreRequest
             'hide_all_categories' => 'nullable|boolean',
             'hidden_from_nav' => 'nullable|boolean',
             'hidden_from_system' => 'nullable|boolean',
+            'offering_type' => 'nullable|in:property,package,both',
             'category_ids' => 'nullable|array',
             'category_ids.*' => $categoryRule,
             'category_scopes' => 'nullable|array',
