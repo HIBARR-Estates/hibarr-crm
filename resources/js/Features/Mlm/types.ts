@@ -383,6 +383,42 @@ export interface AgentCommissionRateAuditLog {
     changed_by_user?: { id: number; name: string } | null;
 }
 
+/** One package an agent has terms on: what they earn as its closer and as its referrer. */
+export interface PartnerPackageTermsRow {
+    package_id: number;
+    package_name: string;
+    package_value: number;
+    package_currency: string | null;
+    /** What the closer earns on this package when the agent has no override. */
+    package_default: { type: ReferralCommissionType | null; value: number | null };
+    /** Null: no closer override, the package default applies. */
+    commission_type: ReferralCommissionType | null;
+    commission_value: number | null;
+    /** Null: no referral terms on this package. */
+    referral_commission_type: ReferralCommissionType | null;
+    referral_commission_value: number | null;
+}
+
+export interface PartnerPackageTermsPackage {
+    id: number;
+    name: string;
+    value: number;
+    currency: string | null;
+}
+
+export interface PartnerPackageTermsData {
+    rows: PartnerPackageTermsRow[];
+    /** Every package, so the view can offer the ones the agent has no terms on yet. */
+    packages: PartnerPackageTermsPackage[];
+}
+
+export interface PartnerPackageTermsPayload {
+    commission_type: ReferralCommissionType | null;
+    commission_value: number | null;
+    referral_commission_type: ReferralCommissionType | null;
+    referral_commission_value: number | null;
+}
+
 export interface AgentCommissionProfile {
     agent_id: number;
     level: {

@@ -1,3 +1,5 @@
+import axios from "axios";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type {
@@ -16,6 +18,8 @@ import type {
     MlmSettings,
     AgentCommissionProfile,
     AgentCommissionProfileUpdatePayload,
+    PartnerPackageTermsData,
+    PartnerPackageTermsPayload,
     PaginatedResponse,
     MlmCycle,
     MlmCycleFormData,
@@ -364,6 +368,51 @@ export const useUpdateAgentCommissionProfile = (
         "PATCH",
         onSuccess,
     );
+
+/**
+ * What a partner earns on each package, as closer and as referrer. The package
+ * in the path of a write changes per call, so the writes are not tied to one
+ * path as `useApiMutate` is; each returns the full list and the cache is
+ * replaced with it, so no refetch is needed.
+ */
+const partnerPackageTermsPath = (agentId: number) => `${ADMIN_API}/agents/${agentId}/package-terms`;
+
+export const usePartnerPackageTerms = (agentId: number, enabled = true) =>
+    useApiQuery<{ data: PartnerPackageTermsData }>({
+        path: partnerPackageTermsPath(agentId),
+        options: { enabled: enabled && agentId > 0 },
+    });
+
+export const useSavePartnerPackageTerms = (agentId: number) => {
+    const queryClient = useQueryClient();
+    const path = partnerPackageTermsPath(agentId);
+
+    return useMutation({
+        mutationKey: [path, "PUT"],
+        mutationFn: async (input: { packageId: number; terms: PartnerPackageTermsPayload }) => {
+            const res = await axios.put<{ data: PartnerPackageTermsData }>(
+                `${path}/${input.packageId}`,
+                input.terms,
+            );
+            return res.data;
+        },
+        onSuccess: (res) => queryClient.setQueryData([path, undefined], res),
+    });
+};
+
+export const useRemovePartnerPackageTerms = (agentId: number) => {
+    const queryClient = useQueryClient();
+    const path = partnerPackageTermsPath(agentId);
+
+    return useMutation({
+        mutationKey: [path, "DELETE"],
+        mutationFn: async (packageId: number) => {
+            const res = await axios.delete<{ data: PartnerPackageTermsData }>(`${path}/${packageId}`);
+            return res.data;
+        },
+        onSuccess: (res) => queryClient.setQueryData([path, undefined], res),
+    });
+};
 
 // ══════════════════════════════════════════════════════════════════
 // AGENT QUERIES (read-only)

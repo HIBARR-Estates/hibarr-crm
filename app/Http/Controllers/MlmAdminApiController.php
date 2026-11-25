@@ -644,6 +644,67 @@ class MlmAdminApiController extends AccountBaseController
         ]);
     }
 
+    /**
+     * A partner's terms on every package, in one place: what they earn as the
+     * closer and as the referrer. Served only for a partner, and only with the
+     * referral feature on: without it there is nothing partner-specific to show.
+     */
+    public function getAgentPackageTerms(int $agentId): JsonResponse
+    {
+        $agent = $this->partnerOrFail($agentId);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => app(\App\Services\Partner\AgentPackageTerms::class)->forAgent($agent),
+        ]);
+    }
+
+    /** Sets what this partner earns on one package. The same rules and row as Settings → Packages. */
+    public function upsertAgentPackageTerms(Request $request, int $agentId, int $packageId): JsonResponse
+    {
+        $agent = $this->partnerOrFail($agentId);
+        $package = \App\Models\Package::findOrFail($packageId);
+
+        $validated = $request->validate(\App\Actions\Packages\SaveAgentPackageTerms::rules($request, true));
+
+        $result = app(\App\Actions\Packages\SaveAgentPackageTerms::class)
+            ->handleRequest($package, $agent, $request, $validated, company()->id, true);
+
+        if ($result === \App\Actions\Packages\SaveAgentPackageTerms::EMPTY) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'commission_type' => __('messages.packageOverrideNeedsTerms'),
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => app(\App\Services\Partner\AgentPackageTerms::class)->forAgent($agent),
+        ]);
+    }
+
+    public function destroyAgentPackageTerms(int $agentId, int $packageId): JsonResponse
+    {
+        $agent = $this->partnerOrFail($agentId);
+
+        \App\Models\AgentPackageCommissionRate::where('agent_id', $agent->id)
+            ->where('package_id', $packageId)
+            ->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => app(\App\Services\Partner\AgentPackageTerms::class)->forAgent($agent),
+        ]);
+    }
+
+    private function partnerOrFail(int $agentId): \App\Models\LeadAgent
+    {
+        $agent = \App\Models\LeadAgent::where('company_id', company()->id)->findOrFail($agentId);
+
+        abort_unless(FeatureFlags::enabled('crm.partner-referral-commission') && $agent->is_partner, 404);
+
+        return $agent;
+    }
+
     public function updateAgentCommissionProfile(Request $request, int $agentId): JsonResponse
     {
         $agent = \App\Models\LeadAgent::where('company_id', company()->id)->findOrFail($agentId);

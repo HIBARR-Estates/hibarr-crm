@@ -11,7 +11,6 @@ use App\Models\Package;
 use App\Models\PipelineStage;
 use App\Services\PackagePipelineRouterService;
 use App\Services\PackageRoutingFieldCatalog;
-use App\Support\CommissionTerms;
 use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -148,30 +147,15 @@ class PackageSettingsController extends AccountBaseController
     {
         $referralEnabled = $this->referralEnabled();
 
-        $rules = [
-            // With referral terms in play a row can state them alone, so the
-            // closer rule is optional there.
-            'commission_type' => [$referralEnabled ? 'nullable' : 'required', Rule::enum(PackageCommissionType::class)],
-            'commission_value' => $this->commissionValueRules($request),
-        ];
+        $validated = $request->validate(SaveAgentPackageTerms::rules($request, $referralEnabled));
 
-        if ($referralEnabled) {
-            $rules['referral_commission_type'] = ['nullable', Rule::enum(PackageCommissionType::class)];
-            $rules['referral_commission_value'] = $this->commissionValueRules($request, 'referral_commission_type');
-        }
-
-        $validated = $request->validate($rules);
-
-        $result = app(SaveAgentPackageTerms::class)->handle(
+        $result = app(SaveAgentPackageTerms::class)->handleRequest(
             $package,
             $agent,
+            $request,
+            $validated,
             company()->id,
-            setCloser: $request->exists('commission_type'),
-            closer: CommissionTerms::make($validated['commission_type'] ?? null, $validated['commission_value'] ?? null),
-            setReferral: $referralEnabled && $request->exists('referral_commission_type'),
-            referral: $referralEnabled
-                ? CommissionTerms::make($validated['referral_commission_type'] ?? null, $validated['referral_commission_value'] ?? null)
-                : null,
+            $referralEnabled,
         );
 
         if ($result === SaveAgentPackageTerms::EMPTY) {
@@ -321,19 +305,7 @@ class PackageSettingsController extends AccountBaseController
      */
     protected function commissionValueRules(Request $request, string $typeField = 'commission_type'): array
     {
-        return array_merge(
-            [
-                'nullable',
-                'required_if:'.$typeField.','.PackageCommissionType::Percentage->value.','.PackageCommissionType::Fixed->value,
-                'numeric',
-                'min:0',
-            ],
-            // Only a percentage is bounded at 100 — a flat fee is money, and
-            // capping it at 100 would quietly reject a 250 package fee.
-            $request->input($typeField) === PackageCommissionType::Percentage->value
-                ? ['max:100']
-                : []
-        );
+        return SaveAgentPackageTerms::valueRules($request, $typeField);
     }
 
     /**

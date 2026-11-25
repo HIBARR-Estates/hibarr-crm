@@ -40,6 +40,7 @@ import {
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
+import usePartnerReferralCommissionFlag from "@/Hooks/usePartnerReferralCommissionFlag";
 import { usePage } from "@inertiajs/react";
 import {
     useAdminAgentDashboard,
@@ -47,6 +48,7 @@ import {
     useUpdateAgentCommissionProfile,
 } from "@/Features/Mlm/api";
 import {
+    PartnerPackageTerms,
     LevelBadge,
     CommissionStatusBadge,
     ProgressToNextLevel,
@@ -88,6 +90,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
     const currencySymbol = (props as any).default_currency_symbol ?? "";
     const commissionOverrideEnabled =
         props.featureFlags?.["sales.per-agent-commission-override"] === true;
+    const referralCommissionEnabled = usePartnerReferralCommissionFlag();
     const { data, isLoading } = useAdminAgentDashboard(agent.id);
     const {
         data: profileData,
@@ -1000,6 +1003,36 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                     <Empty description={td("No commission profile available", { source: "en" })} />
                                                 )}
                                             </Skeleton>
+                                        </Card>
+                                    </motion.div>
+                                </Col>
+                            </Row>
+                        )}
+
+                        {referralCommissionEnabled && agent.is_partner && (
+                            <Row gutter={[16, 16]} className="mb-6">
+                                <Col xs={24}>
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.4, delay: 0.2 }}
+                                    >
+                                        <Card
+                                            title={
+                                                <div className="flex items-center gap-2">
+                                                    <Award size={18} className="text-indigo-500" />
+                                                    <span>{t("pages.agents.package_terms_title")}</span>
+                                                </div>
+                                            }
+                                            variant="outlined"
+                                        >
+                                            <p className="mb-4 text-sm text-gray-500">
+                                                {t("pages.agents.package_terms_description")}
+                                            </p>
+                                            <PartnerPackageTerms
+                                                agentId={agent.id}
+                                                currencySymbol={currencySymbol}
+                                            />
                                         </Card>
                                     </motion.div>
                                 </Col>

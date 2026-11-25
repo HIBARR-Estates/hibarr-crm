@@ -1603,6 +1603,9 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
             Route::post('agents/{agentId}/assign-level', [App\Http\Controllers\MlmAdminApiController::class, 'assignAgentLevel'])->name('agent_assign_level');
             Route::get('agents/{agentId}/commission-profile', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentCommissionProfile'])->name('agent_commission_profile.show');
             Route::patch('agents/{agentId}/commission-profile', [App\Http\Controllers\MlmAdminApiController::class, 'updateAgentCommissionProfile'])->name('agent_commission_profile.update');
+            Route::get('agents/{agentId}/package-terms', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentPackageTerms'])->name('agent_package_terms.index');
+            Route::put('agents/{agentId}/package-terms/{packageId}', [App\Http\Controllers\MlmAdminApiController::class, 'upsertAgentPackageTerms'])->name('agent_package_terms.upsert');
+            Route::delete('agents/{agentId}/package-terms/{packageId}', [App\Http\Controllers\MlmAdminApiController::class, 'destroyAgentPackageTerms'])->name('agent_package_terms.destroy');
 
             // Level History
             Route::get('level-history', [App\Http\Controllers\MlmAdminApiController::class, 'getLevelHistory'])->name('level_history');

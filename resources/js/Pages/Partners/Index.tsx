@@ -7,6 +7,7 @@ import usePartnerReferralCommissionFlag from "@/Hooks/usePartnerReferralCommissi
 import useTranslation from "@/Hooks/useTranslation";
 import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import { describeReferralTerms } from "@/lib/referralTerms";
+import { PartnerPackageTerms } from "@/Features/Mlm/Components";
 import PageLayout from "@/Components/PageLayout";
 import {
     Button,
@@ -117,6 +118,7 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [debouncedSearch]);
 
+    const [termsTarget, setTermsTarget] = useState<PartnerAgent | null>(null);
     const [addOpen, setAddOpen] = useState(false);
     const [addingId, setAddingId] = useState<number | null>(null);
     const existingIds = rows.map((row) => row.id);
@@ -316,6 +318,16 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                                         String(agent.referred_leads_count),
                                     )}
                                 </Badge>
+                                {referralCommissionEnabled && canManageCommissionProfile && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={<Icon name="edit" size={12} />}
+                                        onClick={() => setTermsTarget(agent)}
+                                    >
+                                        {t("pages.agents.package_terms_manage")}
+                                    </Button>
+                                )}
                                 {agent.can_resend && (
                                     <Button
                                         variant="ghost"
@@ -378,6 +390,21 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canMan
                     </div>
                 )}
             </div>
+
+            <Modal
+                open={termsTarget !== null}
+                title={t("pages.agents.package_terms_modal_title")}
+                subtitle={termsTarget?.user?.name}
+                maxWidth={720}
+                onClose={() => setTermsTarget(null)}
+            >
+                {termsTarget && (
+                    <PartnerPackageTerms
+                        agentId={termsTarget.id}
+                        currencySymbol={currency.symbol || currency.code || ""}
+                    />
+                )}
+            </Modal>
 
             <Modal
                 open={addOpen}

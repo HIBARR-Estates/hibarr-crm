@@ -1,5 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button } from "@/Components/Redesign";
+import {
+    Button,
+    CommissionRuleFields,
+    EMPTY_COMMISSION_RULE as EMPTY_RULE,
+    isRuleComplete as isComplete,
+    ruleForSave,
+    ruleNeedsValue as needsValue,
+} from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import usePartnerReferralCommissionFlag from "@/Hooks/usePartnerReferralCommissionFlag";
 import type {
@@ -28,14 +35,6 @@ interface Props {
 
 const inputClass =
     "h-9 rounded-lg border border-[#e2e5ea] bg-white px-3 text-sm text-[#1a1f2e] outline-none focus:border-[#1a6bb5]";
-
-const EMPTY_RULE: CommissionRule = { type: null, value: null };
-
-const needsValue = (rule: CommissionRule) =>
-    rule.type === "percentage" || rule.type === "fixed";
-
-/** A rule is ready to save when it is unset, or its value is filled in. */
-const isComplete = (rule: CommissionRule) => !needsValue(rule) || rule.value !== null;
 
 /**
  * Per-agent terms on one package. A row holds two roles: what the agent earns as
@@ -102,10 +101,8 @@ export default function AgentOverrides({
         const ok = await onSave(
             pkg.id,
             agentId,
-            { type: closer.type, value: needsValue(closer) ? closer.value : null },
-            referralEnabled
-                ? { type: referral.type, value: needsValue(referral) ? referral.value : null }
-                : null,
+            ruleForSave(closer),
+            referralEnabled ? ruleForSave(referral) : null,
         );
         setSaving(false);
         if (ok) reset();
@@ -205,19 +202,25 @@ export default function AgentOverrides({
                     ))}
                 </select>
 
-                <RuleFields
+                <CommissionRuleFields
                     label={td("As closer", { source: "en" })}
                     unsetLabel={td("Package default", { source: "en" })}
-                    allowNone
+                    percentageLabel={td("Percentage", { source: "en" })}
+                    fixedLabel={td("Fixed", { source: "en" })}
+                    noneLabel={td("No commission", { source: "en" })}
+                    valueLabel={td("value", { source: "en" })}
                     rule={closer}
                     onChange={setCloser}
                     currencySymbol={currencySymbol}
                 />
 
                 {referralEnabled && (
-                    <RuleFields
+                    <CommissionRuleFields
                         label={td("As referrer", { source: "en" })}
                         unsetLabel={td("No referral commission", { source: "en" })}
+                        percentageLabel={td("Percentage", { source: "en" })}
+                        fixedLabel={td("Fixed", { source: "en" })}
+                        valueLabel={td("value", { source: "en" })}
                         percentageHint={td("of the package value", { source: "en" })}
                         rule={referral}
                         onChange={setReferral}
@@ -244,79 +247,6 @@ export default function AgentOverrides({
                     )}
                 </div>
             </div>
-        </div>
-    );
-}
-
-/** One role's type and value, on a row of its own with a label to say which role it is. */
-function RuleFields({
-    label,
-    unsetLabel,
-    percentageHint,
-    allowNone = false,
-    rule,
-    onChange,
-    currencySymbol,
-}: {
-    label: string;
-    unsetLabel: string;
-    percentageHint?: string;
-    allowNone?: boolean;
-    rule: CommissionRule;
-    onChange: (rule: CommissionRule) => void;
-    currencySymbol: string;
-}) {
-    const { td } = useTd();
-    const valued = needsValue(rule);
-
-    return (
-        <div className="flex flex-wrap items-center gap-2">
-            <span className="w-[88px] shrink-0 text-xs font-semibold text-[#5b6472]">{label}</span>
-
-            <select
-                className={`${inputClass} min-w-[170px]`}
-                value={rule.type ?? ""}
-                aria-label={label}
-                onChange={(e) =>
-                    onChange({
-                        type: e.target.value === "" ? null : (e.target.value as PackageCommissionType),
-                        value: null,
-                    })
-                }
-            >
-                <option value="">{unsetLabel}</option>
-                <option value="percentage">{td("Percentage", { source: "en" })}</option>
-                <option value="fixed">{td("Fixed", { source: "en" })}</option>
-                {allowNone && <option value="none">{td("No commission", { source: "en" })}</option>}
-            </select>
-
-            <div className="relative">
-                <input
-                    type="number"
-                    min={0}
-                    max={rule.type === "percentage" ? 100 : undefined}
-                    step="0.01"
-                    disabled={!valued}
-                    aria-label={`${label} ${td("value", { source: "en" })}`}
-                    className={`${inputClass} w-32 pr-9`}
-                    value={rule.value ?? ""}
-                    onChange={(e) =>
-                        onChange({
-                            ...rule,
-                            value: e.target.value === "" ? null : Number(e.target.value),
-                        })
-                    }
-                />
-                {valued && (
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#9ca3af]">
-                        {rule.type === "percentage" ? "%" : currencySymbol}
-                    </span>
-                )}
-            </div>
-
-            {percentageHint && rule.type === "percentage" && (
-                <span className="text-xs text-[#9ca3af]">{percentageHint}</span>
-            )}
         </div>
     );
 }
