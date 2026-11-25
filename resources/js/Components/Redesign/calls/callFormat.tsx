@@ -88,26 +88,38 @@ function formatSeconds(secs: number): string {
     return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-/** Icon tile colours by direction: inbound red, outbound green, unknown grey. The outcome is spelled out next to it. */
-export function directionTone(direction: "inbound" | "outbound" | null): { bg: string; fg: string } {
-    if (direction === "inbound") {
+/** Only missed or failed calls are shown in red; all other outcomes use green icon and dark text. */
+export function isMissedOrFailedCall(outcome: string | null | undefined): boolean {
+    return outcome === "missed" || outcome === "failed";
+}
+
+/** Icon tile colours by outcome: red for missed/failed calls, green for all others. */
+export function outcomeTone(outcome: string | null | undefined): { bg: string; fg: string } {
+    if (isMissedOrFailedCall(outcome)) {
         return { bg: T.RED_SOFT, fg: T.RED };
     }
-    if (direction === "outbound") {
+    return { bg: T.GREEN_LIGHT, fg: T.GREEN };
+}
+
+/** @deprecated Kept for backwards compatibility; prefer `outcomeTone(outcome)`. */
+export function directionTone(direction: "inbound" | "outbound" | null): { bg: string; fg: string } {
+    if (direction === "inbound" || direction === "outbound") {
         return { bg: T.GREEN_LIGHT, fg: T.GREEN };
     }
     return { bg: T.SURFACE_2, fg: T.TEXT_MUTED };
 }
 
-/** Inbound/outbound arrow in a tinted square, coloured by direction. */
+/** Inbound/outbound arrow in a tinted square: red only for missed/failed, green for all others. */
 export function CallDirectionIcon({
     direction,
+    outcome,
     size = 34,
 }: {
     direction: "inbound" | "outbound" | null;
+    outcome?: string | null;
     size?: number;
 }) {
-    const tone = directionTone(direction);
+    const tone = outcomeTone(outcome);
     return (
         <span
             aria-hidden="true"

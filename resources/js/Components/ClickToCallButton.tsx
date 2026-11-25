@@ -166,7 +166,9 @@ export default function ClickToCallButton({
             setDialing(true);
             void softphoneCall(
                 normalizedPhone,
-                entity.type === "lead" ? { leadId: entity.id } : null,
+                entity.type === "lead"
+                    ? { leadId: entity.id, entityType: "lead", entityId: entity.id }
+                    : { leadId: null, entityType: "deal", entityId: entity.id },
                 deviceId,
             )
                 .then(() => {
@@ -175,11 +177,15 @@ export default function ClickToCallButton({
                             phone: normalizedPhone,
                         }),
                     );
+                    const liveCall = softphone.getState().call;
                     void axios
                         .post(route("telephony.softphone.events.store"), {
-                            phone: normalizedPhone,
+                            phone: liveCall?.peer ?? normalizedPhone,
+                            ...(liveCall?.id ? { call_id: liveCall.id } : {}),
+                            ...(deviceId ?? activeDeviceId ? { device_id: deviceId ?? activeDeviceId } : {}),
                             entity_type: entity.type,
                             entity_id: entity.id,
+                            direction: "outbound",
                             event: "call.started",
                         })
                         .catch(() => {

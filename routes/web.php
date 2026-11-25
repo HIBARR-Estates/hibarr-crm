@@ -1497,7 +1497,8 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('telephony/softphone/devices', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'index'])->name('telephony.softphone.devices.index');
     Route::post('telephony/softphone/devices', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'store'])->name('telephony.softphone.devices.store');
     Route::get('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'show'])->name('telephony.softphone.devices.show')->whereNumber('id');
-    Route::get('telephony/softphone/devices/{id}/credentials', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'credentials'])->name('telephony.softphone.devices.credentials')->whereNumber('id');
+    Route::get('telephony/softphone/devices/{id}/credentials', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'credentials'])->name('telephony.softphone.devices.credentials')->whereNumber('id')->middleware('throttle:30,1');
+    Route::post('telephony/softphone/devices/{id}/sign-challenge', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'signChallenge'])->name('telephony.softphone.devices.sign-challenge')->whereNumber('id')->middleware('throttle:120,1');
     Route::post('telephony/softphone/devices/{id}/capacity/reserve', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'reserveCapacity'])->name('telephony.softphone.devices.capacity.reserve')->whereNumber('id');
     Route::post('telephony/softphone/devices/{id}/capacity/release', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'releaseCapacity'])->name('telephony.softphone.devices.capacity.release')->whereNumber('id');
 
