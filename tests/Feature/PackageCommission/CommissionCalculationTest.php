@@ -446,6 +446,35 @@ class CommissionCalculationTest extends PackageCommissionTestCase
         $this->assertSame(1.0, $summary['paid_percentage']);
     }
 
+    public function test_the_summary_does_not_add_a_package_percentage_to_level_percentages(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        // No closer commission on the package, so the deal stays on level commissions
+        // (3% closer + 3% upline), but the referral is still 0.5% of the 8,000 package.
+        $packageId = $this->seedPackage($ctx['company'], 8000);
+        $this->attachPackage($ctx['deal'], $packageId);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->seedAgentPackageRate($ctx['company'], $referrerId, $packageId, null, null, 'percentage', 0.5);
+        $this->refer($ctx, $referrerId);
+
+        $summary = app(MlmCommissionService::class)->getCommissionSummary(Deal::withoutGlobalScopes()->findOrFail($ctx['deal']));
+
+        $this->assertSame(40.0, (float) $this->referral(collect($summary['legs']))['amount']);
+        $this->assertSame(100.0, $summary['paid_total']);
+        $this->assertNull($summary['paid_percentage'], '6% of the deal plus 0.5% of the package is not 6.5% of anything.');
+    }
+
+    public function test_level_percentages_still_sum_when_nothing_is_tied_to_a_package(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->refer($ctx, $referrerId, 'percentage', 2);
+
+        $summary = app(MlmCommissionService::class)->getCommissionSummary(Deal::withoutGlobalScopes()->findOrFail($ctx['deal']));
+
+        $this->assertSame(8.0, $summary['paid_percentage'], '3% + 3% + the 2% referral, all of the deal value.');
+    }
+
     public function test_a_commission_locked_deal_with_no_ledger_rows_is_settled_not_projected(): void
     {
         $ctx = $this->seedDealWithUpline(1000);

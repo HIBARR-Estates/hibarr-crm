@@ -584,6 +584,14 @@ class MlmCommissionService
                 : null;
         }
 
+        // A leg tied to a package is a percentage of that package's value, not of the
+        // deal's: a package with no closer commission leaves the deal on level
+        // commissions, yet a referral on that package is still taken from the package.
+        // Adding the two would print a number that is true of neither.
+        if ($paidLegs->contains(fn (array $leg) => ($leg['package_id'] ?? null) !== null)) {
+            return null;
+        }
+
         return round((float) $paidLegs->sum('percentage'), 2);
     }
 
