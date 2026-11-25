@@ -189,6 +189,25 @@ class SyncAgentCategoriesTest extends PerAgentCommissionOverrideTestCase
         ], $this->packageTermsOf($kept), 'Package 8 is taken over; package 7 keeps what was configured on this row.');
     }
 
+    public function test_removing_a_row_that_is_not_the_template_keeps_its_unique_terms_on_the_row_that_stays(): void
+    {
+        // The first partner row is the template and stays; the second is removed.
+        $kept = $this->partnerRow(1);
+        $removed = $this->partnerRow(2);
+        DB::table('agent_package_commission_rates')->insert([
+            ['company_id' => $this->companyId, 'agent_id' => $kept, 'package_id' => 7, 'commission_type' => null, 'commission_value' => null, 'referral_commission_type' => 'percentage', 'referral_commission_value' => 3],
+            ['company_id' => $this->companyId, 'agent_id' => $removed, 'package_id' => 7, 'commission_type' => null, 'commission_value' => null, 'referral_commission_type' => 'fixed', 'referral_commission_value' => 99],
+            ['company_id' => $this->companyId, 'agent_id' => $removed, 'package_id' => 9, 'commission_type' => 'fixed', 'commission_value' => 50, 'referral_commission_type' => 'fixed', 'referral_commission_value' => 20],
+        ]);
+
+        $this->sync($kept, [1]);
+
+        $this->assertSame([
+            7 => ['type' => null, 'ref_type' => 'percentage', 'ref_value' => 3.0],
+            9 => ['type' => 'fixed', 'ref_type' => 'fixed', 'ref_value' => 20.0],
+        ], $this->packageTermsOf($kept), 'Package 9 is only on the removed row, so it moves over; package 7 keeps what was configured here.');
+    }
+
     public function test_a_resave_that_removes_nothing_does_not_copy_terms_between_rows(): void
     {
         $first = $this->partnerRow(1);

@@ -19,8 +19,8 @@ use App\Models\LeadAgent;
  * Package terms hang off the row, and the database removes them with it, so they
  * are read before a deselected row is deleted and carried to the rows created here.
  * That way changing a partner's only category does not wipe what they were set up on,
- * and when the row the terms were set on is removed, the partner rows that stay get
- * the packages they have no terms for yet (never overwriting terms they do have).
+ * and when any partner row is removed, the partner rows that stay get the packages
+ * they have no terms for yet (never overwriting terms they do have).
  */
 class SyncAgentCategories
 {
@@ -44,28 +44,30 @@ class SyncAgentCategories
             ? [null]
             : array_map(fn ($id) => (int) $id, $categoryIds);
 
-        // A category added to a partner is still that partner: follow the user's
-        // partner row if they have one, not whichever row sorts first.
-        $template = $existing->firstWhere('is_partner', true) ?? $existing->first();
-
-        $templateRemoved = $template !== null && ! in_array(
-            $template->lead_category_id === null ? null : (int) $template->lead_category_id,
+        $isWanted = fn (LeadAgent $row) => in_array(
+            $row->lead_category_id === null ? null : (int) $row->lead_category_id,
             $wanted,
             true
         );
 
-        // Read before any row is deleted: the package terms go with the row.
-        $packageTerms = $template?->is_partner
-            ? AgentPackageCommissionRate::where('agent_id', $template->id)->get()
-            : collect();
+        $removed = $existing->reject($isWanted);
 
-        $existing
-            ->reject(fn (LeadAgent $row) => in_array(
-                $row->lead_category_id === null ? null : (int) $row->lead_category_id,
-                $wanted,
-                true
-            ))
-            ->each->delete();
+        // A category added to a partner is still that partner: follow the user's
+        // partner row if they have one, not whichever row sorts first.
+        $template = $existing->firstWhere('is_partner', true) ?? $existing->first();
+
+        // Read before any row is deleted: the package terms go with the row. The
+        // template's come first so they win where two rows state the same package,
+        // then those of any other partner row that is going away.
+        $packageTerms = collect([$template])
+            ->concat($removed)
+            ->filter(fn (?LeadAgent $row) => $row?->is_partner)
+            ->unique('id')
+            ->flatMap(fn (LeadAgent $row) => AgentPackageCommissionRate::where('agent_id', $row->id)->get());
+
+        $partnerRowRemoved = $removed->contains(fn (LeadAgent $row) => $row->is_partner);
+
+        $removed->each->delete();
 
         foreach ($wanted as $categoryId) {
             $row = LeadAgent::firstOrCreate(
@@ -84,11 +86,11 @@ class SyncAgentCategories
                 ]
             );
 
-            // A new row starts with the partner's terms. When the row they were set on
-            // is the one going away, the rows that stay take them over too, so a
-            // category change never leaves the partner paid nothing on a package. A
-            // package a surviving row already has terms for is left as it is.
-            if ($row->wasRecentlyCreated || ($templateRemoved && $row->is_partner)) {
+            // A new row starts with the partner's terms. When a partner row is going
+            // away, the rows that stay take over what it held, so a category change
+            // never leaves the partner paid nothing on a package. A package a
+            // surviving row already has terms for is left as it is.
+            if ($row->wasRecentlyCreated || ($partnerRowRemoved && $row->is_partner)) {
                 $this->carryPackageTerms($packageTerms, $row);
             }
         }
