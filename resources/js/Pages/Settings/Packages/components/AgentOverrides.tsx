@@ -1,11 +1,21 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button } from "@/Components/Redesign";
+import {
+    Button,
+    CommissionRuleFields,
+    ConfirmDialog,
+    EMPTY_COMMISSION_RULE as EMPTY_RULE,
+    isRuleComplete as isComplete,
+    ruleForSave,
+    ruleNeedsValue as needsValue,
+} from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import usePartnerReferralCommissionFlag from "@/Hooks/usePartnerReferralCommissionFlag";
 import type {
     AgentOption,
     AgentOverride,
-    PackageRow,
+    CommissionRule,
     PackageCommissionType,
+    PackageRow,
 } from "../types";
 
 interface Props {
@@ -17,9 +27,9 @@ interface Props {
     onSave: (
         packageId: number,
         agentId: number,
-        type: PackageCommissionType,
-        /** Null for "none" — there is nothing to enter. */
-        value: number | null,
+        closer: CommissionRule,
+        /** Null leaves the referral role out: the feature is off. */
+        referral: CommissionRule | null,
     ) => Promise<boolean>;
     onRemove: (packageId: number, agentId: number) => void;
 }
@@ -28,8 +38,10 @@ const inputClass =
     "h-9 rounded-lg border border-[#e2e5ea] bg-white px-3 text-sm text-[#1a1f2e] outline-none focus:border-[#1a6bb5]";
 
 /**
- * Per-agent overrides of one package's default rate. An override always states
- * its own shape — it never inherits half of the package default.
+ * Per-agent terms on one package. A row holds two roles: what the agent earns as
+ * the closer of a deal on this package, and, with the referral feature on, what
+ * they earn when a lead they referred buys it. Each role states its own shape;
+ * the closer role left unset keeps the package default.
  */
 export default function AgentOverrides({
     pkg,
@@ -41,10 +53,12 @@ export default function AgentOverrides({
     onRemove,
 }: Props) {
     const { td } = useTd();
+    const referralEnabled = usePartnerReferralCommissionFlag();
     const [agentId, setAgentId] = useState<number | null>(null);
-    const [type, setType] = useState<PackageCommissionType>("percentage");
-    const [value, setValue] = useState<number | null>(null);
+    const [closer, setCloser] = useState<CommissionRule>(EMPTY_RULE);
+    const [referral, setReferral] = useState<CommissionRule>(EMPTY_RULE);
     const [saving, setSaving] = useState(false);
+    const [removeTarget, setRemoveTarget] = useState<AgentOverride | null>(null);
 
     useEffect(() => {
         if (overrides === undefined) onLoad(pkg.id);
@@ -55,33 +69,56 @@ export default function AgentOverrides({
         [overrides],
     );
 
-    const available = useMemo(
-        () => agents.filter((a) => !assigned.has(a.id)),
-        [agents, assigned],
+    const editing = agentId !== null && assigned.has(agentId);
+
+    // An agent already on the package stays selectable while they are being
+    // edited, so their terms can be changed without removing the row first.
+    const selectable = useMemo(
+        () => agents.filter((a) => !assigned.has(a.id) || a.id === agentId),
+        [agents, assigned, agentId],
     );
 
-    const needsValue = type === "percentage" || type === "fixed";
-
-    const add = async () => {
-        if (agentId === null || (needsValue && value === null)) return;
-        setSaving(true);
-        const ok = await onSave(pkg.id, agentId, type, needsValue ? value : null);
-        setSaving(false);
-        if (ok) {
-            setAgentId(null);
-            setValue(null);
-        }
+    const reset = () => {
+        setAgentId(null);
+        setCloser(EMPTY_RULE);
+        setReferral(EMPTY_RULE);
     };
 
-    const rate = (o: AgentOverride) => {
-        if (o.commission_type === "none" || o.commission_value === null) {
+    const edit = (o: AgentOverride) => {
+        setAgentId(o.agent_id);
+        setCloser({ type: o.commission_type, value: o.commission_value });
+        setReferral({
+            type: o.referral_commission_type ?? null,
+            value: o.referral_commission_value ?? null,
+        });
+    };
+
+    const hasTerms = closer.type !== null || (referralEnabled && referral.type !== null);
+    const canSave =
+        agentId !== null && hasTerms && isComplete(closer) && (!referralEnabled || isComplete(referral));
+
+    const save = async () => {
+        if (!canSave || agentId === null) return;
+        setSaving(true);
+        const ok = await onSave(
+            pkg.id,
+            agentId,
+            ruleForSave(closer),
+            referralEnabled ? ruleForSave(referral) : null,
+        );
+        setSaving(false);
+        if (ok) reset();
+    };
+
+    const money = (amount: number) =>
+        `${currencySymbol}${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
+    const describe = (type: PackageCommissionType | null | undefined, value: number | null | undefined, unset: string) => {
+        if (!type) return unset;
+        if (type === "none" || value === null || value === undefined) {
             return td("No commission", { source: "en" });
         }
-        return o.commission_type === "percentage"
-            ? `${o.commission_value}%`
-            : `${currencySymbol}${o.commission_value.toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-              })}`;
+        return type === "percentage" ? `${value}%` : money(value);
     };
 
     return (
@@ -91,31 +128,65 @@ export default function AgentOverrides({
             </div>
 
             {overrides === undefined ? (
-                <p className="text-xs text-[#9ca3af]">
-                    {td("Loading…", { source: "en" })}
-                </p>
+                <p className="text-xs text-[#9ca3af]">{td("Loading…", { source: "en" })}</p>
             ) : overrides.length === 0 ? (
                 <p className="text-xs text-[#9ca3af]">
                     {td("Every agent uses the package default.", { source: "en" })}
                 </p>
             ) : (
-                <div className="mb-3 divide-y divide-[#eef0f3] overflow-hidden rounded-lg border border-[#e2e5ea] bg-white">
+                <div className="mb-4 divide-y divide-[#eef0f3] overflow-hidden rounded-lg border border-[#e2e5ea] bg-white">
                     {overrides.map((o) => (
                         <div
                             key={o.agent_id}
-                            className="flex items-center justify-between px-4 py-2.5"
+                            className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3"
                         >
-                            <span className="text-sm text-[#1a1f2e]">
+                            <span className="min-w-[160px] text-sm font-medium text-[#1a1f2e]">
                                 {o.agent_name}
                             </span>
-                            <div className="flex items-center gap-4">
-                                <span className="text-sm font-semibold text-[#16294d]">
-                                    {rate(o)}
+                            <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+                                <span className="text-sm text-[#5b6472]">
+                                    {td("As closer", { source: "en" })}{" "}
+                                    <span className="font-semibold text-[#16294d]">
+                                        {describe(
+                                            o.commission_type,
+                                            o.commission_value,
+                                            td("Package default", { source: "en" }),
+                                        )}
+                                    </span>
                                 </span>
+                                {referralEnabled && (
+                                    <span className="text-sm text-[#5b6472]">
+                                        {td("As referrer", { source: "en" })}{" "}
+                                        <span className="font-semibold text-[#16294d]">
+                                            {describe(
+                                                o.referral_commission_type,
+                                                o.referral_commission_value,
+                                                td("Not set", { source: "en" }),
+                                            )}
+                                        </span>
+                                    </span>
+                                )}
                                 <button
                                     type="button"
-                                    className="text-xs font-medium text-[#b91c1c] hover:underline"
-                                    onClick={() => onRemove(pkg.id, o.agent_id)}
+                                    className="text-xs font-medium text-[#1a6bb5] hover:underline disabled:opacity-50"
+                                    disabled={saving}
+                                    onClick={() => edit(o)}
+                                >
+                                    {td("Edit", { source: "en" })}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="text-xs font-medium text-[#b91c1c] hover:underline disabled:opacity-50"
+                                    disabled={saving}
+                                    onClick={() => {
+                                        // The row holds the referral terms too, so removing it
+                                        // quietly would also end what the agent earns as referrer.
+                                        if (referralEnabled && o.referral_commission_type) {
+                                            setRemoveTarget(o);
+                                        } else {
+                                            onRemove(pkg.id, o.agent_id);
+                                        }
+                                    }}
                                 >
                                     {td("Remove", { source: "en" })}
                                 </button>
@@ -125,71 +196,87 @@ export default function AgentOverrides({
                 </div>
             )}
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-col gap-3">
                 <select
-                    className={`${inputClass} min-w-[200px]`}
+                    className={`${inputClass} w-full max-w-[280px]`}
                     value={agentId ?? ""}
                     onChange={(e) =>
                         setAgentId(e.target.value === "" ? null : Number(e.target.value))
                     }
+                    disabled={editing || saving}
+                    aria-label={td("Agent", { source: "en" })}
                 >
-                    <option value="">
-                        {td("Select an agent", { source: "en" })}
-                    </option>
-                    {available.map((a) => (
+                    <option value="">{td("Select an agent", { source: "en" })}</option>
+                    {selectable.map((a) => (
                         <option key={a.id} value={a.id}>
                             {a.name}
                         </option>
                     ))}
                 </select>
 
-                <select
-                    className={inputClass}
-                    value={type}
-                    onChange={(e) => {
-                        setType(e.target.value as PackageCommissionType);
-                        setValue(null);
-                    }}
-                >
-                    <option value="percentage">
-                        {td("Percentage", { source: "en" })}
-                    </option>
-                    <option value="fixed">{td("Fixed", { source: "en" })}</option>
-                    <option value="none">{td("No commission", { source: "en" })}</option>
-                </select>
+                <CommissionRuleFields
+                    label={td("As closer", { source: "en" })}
+                    unsetLabel={td("Package default", { source: "en" })}
+                    percentageLabel={td("Percentage", { source: "en" })}
+                    fixedLabel={td("Fixed", { source: "en" })}
+                    noneLabel={td("No commission", { source: "en" })}
+                    valueLabel={td("value", { source: "en" })}
+                    rule={closer}
+                    onChange={setCloser}
+                    currencySymbol={currencySymbol}
+                    disabled={saving}
+                />
 
-                <div className="relative">
-                    <input
-                        type="number"
-                        min={0}
-                        max={type === "percentage" ? 100 : undefined}
-                        step="0.01"
-                        disabled={!needsValue}
-                        className={`${inputClass} w-32 pr-9`}
-                        value={value ?? ""}
-                        onChange={(e) =>
-                            setValue(
-                                e.target.value === "" ? null : Number(e.target.value),
-                            )
-                        }
+                {referralEnabled && (
+                    <CommissionRuleFields
+                        label={td("As referrer", { source: "en" })}
+                        unsetLabel={td("No referral commission", { source: "en" })}
+                        percentageLabel={td("Percentage", { source: "en" })}
+                        fixedLabel={td("Fixed", { source: "en" })}
+                        valueLabel={td("value", { source: "en" })}
+                        percentageHint={td("of the package value", { source: "en" })}
+                        rule={referral}
+                        onChange={setReferral}
+                        currencySymbol={currencySymbol}
+                        disabled={saving}
                     />
-                    {needsValue && (
-                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#9ca3af]">
-                            {type === "percentage" ? "%" : currencySymbol}
-                        </span>
+                )}
+
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={save}
+                        loading={saving}
+                        disabled={!canSave}
+                    >
+                        {editing
+                            ? td("Save changes", { source: "en" })
+                            : td("Add override", { source: "en" })}
+                    </Button>
+                    {agentId !== null && (
+                        <Button variant="ghost" size="sm" onClick={reset} disabled={saving}>
+                            {td("Cancel", { source: "en" })}
+                        </Button>
                     )}
                 </div>
-
-                <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={add}
-                    loading={saving}
-                    disabled={agentId === null || (needsValue && value === null)}
-                >
-                    {td("Add override", { source: "en" })}
-                </Button>
             </div>
+
+            <ConfirmDialog
+                open={removeTarget !== null}
+                title={td("Remove this agent's terms?", { source: "en" })}
+                message={td(
+                    "This removes what they earn as closer and as referrer on this package. To change only one, edit the row instead.",
+                    { source: "en" },
+                )}
+                confirmLabel={td("Remove", { source: "en" })}
+                danger
+                onConfirm={() => {
+                    if (removeTarget) onRemove(pkg.id, removeTarget.agent_id);
+                    setRemoveTarget(null);
+                }}
+                onCancel={() => setRemoveTarget(null)}
+            />
         </div>
     );
 }

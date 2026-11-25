@@ -5,6 +5,8 @@ import {
     parsePastedAmount,
     regroupTypedComma,
     sanitizeAmount,
+    // Node's type stripping needs the explicit .ts extension; the project compiler rejects it.
+    // @ts-expect-error TS5097
 } from "../Pages/Deals/Redesign/adapters/moneyInput.ts";
 
 describe("sanitizeAmount", () => {

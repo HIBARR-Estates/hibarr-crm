@@ -52,7 +52,10 @@ class LeadAgent extends BaseModel
 
     protected $casts = [
         'is_partner' => 'boolean',
-        'referral_pool_rate' => 'decimal:2',
+        // What a partner earns on a referred deal that has no package, taken from
+        // the deal value. Per-package terms live on AgentPackageCommissionRate.
+        'referral_commission_type' => \App\Enums\PackageCommissionType::class,
+        'referral_commission_value' => 'decimal:2',
     ];
 
     public function user(): BelongsTo
