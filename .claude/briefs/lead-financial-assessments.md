@@ -1,6 +1,6 @@
 # Lead financial assessments — plan of action
 
-Status: **PLAN (rev 2) — decisions in §11 resolved; awaiting explicit go-ahead to start the mockup. No code, migrations or mockups have been produced.**
+Status: **PLAN (rev 3) — all decisions in §11 resolved except Q4. Next: mockup (approval gate), then Phase 1.**
 Feature flag (proposed): `crm.lead-financial-assessments`
 
 ## 1. Intent (as understood)
@@ -22,7 +22,7 @@ Feature flag (proposed): `crm.lead-financial-assessments`
 | Concern | Existing surface | Finding |
 |---|---|---|
 | Lead page | `Pages/Leads/Redesign` — tabs in `config/workspaceTabs.ts`, state in `context/LeadWorkspaceContext.tsx`, one `hooks/useLead*.ts` per mutation, qualification tab gated by `crm.lead-qualification-tab` | New "Financials" record tab, same pattern. Deferred prop + `<Deferred>` + skeleton; mutations patch context, no Inertia reload |
-| Mapped fields → API | `Services/LeadFieldCatalog` served by `GET api/lead-fields`; written through `lead_fields` on `contact/create` by `LeadFieldWriter` (accepts a plain value or `{value, mode}`, reports `skipped_lead_fields` with reasons, never fails the request) | **This is the surface to extend (decision D5).** It is column-driven and its cache is **not per-company**, so assessment fields (per-company config, not columns) need a company-aware extension (see §6) |
+| Mapped fields → API | `Services/LeadFieldCatalog` served by `GET api/lead-fields`; written through `lead_fields` on `contact/create` by `LeadFieldWriter`. Also `Qualification\LeadFieldCatalog` + `QualificationLeadFieldWriter` + `QualificationFieldMapping`, and `CustomFieldMapping\DefinedFieldRegistry` + `CustomFieldValueConverter` | **All three are targets (D5).** Each is column/allow-list driven, and the public catalog's cache is **not per-company**, so assessment fields (per-company config, not columns) need company-aware extensions (see §6) |
 | Automations | `LeadAutomationService` → `LeadFieldResolverService::resolve()` (native column / `custom_field_{id}` / `followup_*`); `AutomationFieldCatalog`; builder UI `Pages/Settings/Automation/config/builderFields.ts` + blade rows; operators `= > < contains exists changed` | Add a `financial_*` resolver branch, catalog entries, builder options, and triggers. `changed` only works on native columns (see §7) |
 | Filters | `LeadService::FILTER_KEYS` / `filtersFromRequest` / `sanitizeFilterPayload`, `LeadFilterFacetsService`, `configs/leadFilterConfig.ts`, `LeadSavedView.filters`, flag `crm.leads-filter-v2` | Add filter keys + UI config. Numeric/derived filters need an indexed summary row (see §5) |
 | FX | `ExchangeRateService` (Frankfurter/ECB, 12h cache, **fiat only**) | Reuse for fiat. Crypto gets a sibling `CryptoRateService` backed by a free exchange-data API (D4, §4.4) |
@@ -89,23 +89,41 @@ New **Financials** record tab (flagged), in `Pages/Leads/Redesign/components/fin
 
 Mockup deliverable (after approval): interactive HTML artifact showing the tab (empty / draft / final+verified / stale states), the guided collection drawer, line editor and history, built on the existing redesign tokens (`design-tokens.json`, `Button`, `Modal`, `Badge`).
 
-## 6. Field catalog (external mappings)
+## 6. Mapped fields (catalog, qualification, custom-field mapping, read API)
 
-Scope (D5): the **field catalog external services read and map against** — `GET api/lead-fields` — and its write path, `lead_fields` on `contact/create`. Qualification mappings and custom-field mapping targets are **out of scope** for now (the registry below makes them a small follow-up).
+One `AssessmentFieldRegistry` builds descriptors per company from the **active kinds, types and crypto assets**, so a type an admin adds later shows up in every surface below with no deploy:
+- **Writable line fields** `assessment.{type_key}` (a money amount; companions below).
+- **Read-only metrics** `assessment.metric.{available_now|income_monthly|commitments_monthly|disposable_monthly|assets_total|funding_total|verified|verified_at|age_days|status}`.
 
-One `AssessmentFieldRegistry` builds descriptors per company from the **active kinds, types and crypto assets**, so a type an admin adds later shows up in the catalog with no deploy:
-- **Writable line fields** `assessment.{type_key}` — `type: number`, `group: financial_assessment`, `write_modes: [fill, overwrite, append]`.
-- **Read-only metrics** `assessment.metric.{available_now|income_monthly|commitments_monthly|disposable_monthly|assets_total|funding_total|verified|verified_at|age_days|status}` — `writable: false`, `write_modes: []`, listed so mappings and automations can be designed against them.
+All writers go through `AssessmentService` into the lead's **open draft** (created on first write) and **never finalise** (D2). A finalised assessment is never written to.
 
-Required changes to the existing catalog code:
-- `LeadFieldCatalog::all()/find()/byKey()` are cached under one global key and are not company-aware. Assessment descriptors are per company, so they are merged in **after** the cached column list (or the cache key is company-scoped); the endpoint reads `X-COMPANY-ID` like the other API controllers.
-- Additive response keys on assessment fields only: `accepts` (`currency`, `frequency`, `certainty`, `available_from`, `note`) so a consumer knows the optional companions. Existing fields are unchanged, so current consumers are unaffected.
-- `LeadFieldWriter::apply()` gets a branch for `assessment.*` keys. It keeps the existing contract: plain value **or** `{value, mode, currency?, frequency?, certainty?, available_from?, note?}`, unknown/invalid → `skipped_lead_fields` with the existing reason codes (`not_available`, `invalid_value`, `mode_not_supported`) plus `no_permission`/`assessment_locked`; the request never fails.
-- Mode meaning for lines: `fill` = add only if the open draft has no line of that type; `overwrite` = replace that type's line(s) in the draft; `append` = add another line (e.g. a second bank account).
-- Assessment writes go through `AssessmentService` into the lead's **open draft** (created on first write, `source: api`), never a finalised assessment, and they run in their own transaction because the existing writer only mutates the in-memory lead and lets the caller save. Metrics reject with `mode_not_supported`.
-- Writes by an API client never finalise (D2: finalising is manual).
+### 6a. Public field catalog — `GET api/lead-fields` + `lead_fields` on `contact/create`
+- `LeadFieldCatalog::all()/find()/byKey()` are cached under one global key and are not company-aware. Assessment descriptors are merged in **after** the cached column list (the endpoint reads `X-COMPANY-ID` like the other API controllers).
+- Line fields: `type: number`, `group: financial_assessment`, `write_modes: [fill, overwrite, append]`. Metrics: `writable: false`, `write_modes: []`.
+- Additive response key on assessment fields only: `accepts` (`currency`, `frequency`, `certainty`, `available_from`, `note`). Existing fields and consumers are unchanged.
+- `LeadFieldWriter::apply()` gets an `assessment.*` branch keeping the existing contract: plain value **or** `{value, mode, currency?, frequency?, certainty?, available_from?, note?}`; failures go to `skipped_lead_fields` with the existing codes (`not_available`, `invalid_value`, `mode_not_supported`) plus `no_permission`/`assessment_locked`; the request never fails.
+- Modes: `fill` = add only if the draft has no line of that type; `overwrite` = replace that type's line(s) in the draft; `append` = add another (e.g. a second bank account).
+- Runs in its own transaction (the existing writer only mutates the in-memory lead and lets the caller save). `source: api`.
 
-Not planned unless you ask (Q2): a value-read endpoint such as `GET api/leads/{id}/financial-assessments`. The catalog lets services see and map fields; it does not return a lead's data.
+### 6b. Qualification mappings
+- `Qualification\LeadFieldCatalog::fields($companyId)` adds a **Financial assessment** group of `assessment.{type_key}` entries (no fixed option list).
+- `QualificationFieldMapping` gains a nullable `target_options` JSON column holding the per-mapping companions (`currency`, `frequency`, `certainty`, `available_from`); the mapping UI (`Pages/Leads/QualificationMapping`) shows those controls when an assessment target is picked.
+- `QualificationLeadFieldWriter::apply()` gets an assessment branch inside the existing try/catch, so a bad mapping can never fail the call. Answer → amount: parse the numeric answer; for choice answers `option_map` values are read as amounts (e.g. "€5–10k" → 7500). Unparseable → skipped and logged.
+- Write modes: `overwrite` updates the draft's line (including a line carried forward from the last final — a new answer is newer information, so this is the expected setting); `fill_empty` writes only when the lead has **no** line of that type in the draft or the current final.
+- `source: call`. Never finalises.
+
+### 6c. Custom-field mapping (`DefinedFieldRegistry`)
+- New store `STORE_ASSESSMENT_LINE` and value kind `KIND_AMOUNT`; one target per active type (`assessment.{type_key}`, label "Financial · Salary"), **Lead → Lead and Deal → Lead only** (assessments are lead-owned, so there is no Deal target). Deal → Lead keeps its existing "most recent deal's value wins" rule.
+- `CustomFieldValueConverter::toDefinedField()` gets a `KIND_AMOUNT` branch reusing its numeric normaliser; the run request must supply `currency`, `frequency`, `certainty` for the target (no guessing); unconvertible values are reported as losses exactly like today.
+- Deviation from the registry's own rule ("plain columns only, no money"): allowed because the value never touches a column — it goes through `AssessmentService`, and the settings page is already admin-only. The dry run uses the identical resolution and skips only the write, as today.
+- Writes create **drafts** (`source: import`). Drafts fire no automations and affect no filters, so a bulk run is safe — but someone has to finalise each (see Q4).
+
+### 6d. Read API (needed by external services)
+- `GET api/leads/{leadId}/financial-assessments` (list: id, status, as_of_date, source, verified_at, totals), `GET …/current`, `GET …/{id}` (lines with type/kind key+label, amount, currency, converted amount, frequency, certainty, available_from, contributor; frozen totals incl. rates).
+- Gated by a **new API token scope** (`financial_assessments:read`, registered in `config/api-token-scopes.php` after checking how `ApiTokenScopeService` enforces scopes) — financial data is not covered by the existing lead scopes. Company-scoped via `X-COMPANY-ID` like the other endpoints. Read only; writes stay on the catalog path.
+
+### 6e. Configuration / env
+Provider keys are read from env only (never committed): `CRYPTO_RATE_PROVIDER` (default `coingecko`), `COINGECKO_API_KEY`, `COINMARKETCAP_API_KEY` — wired in `config/services.php` and listed in `.env.example` (done). **You add the real values to each environment.**
 
 ## 7. Automations
 - `LeadFieldResolverService`: `financial_*` branch reading `lead_financial_summaries`.
@@ -129,7 +147,7 @@ Keys (added to `LeadService` filter lists, `sanitizeFilterPayload`, saved views,
 0. **Approve plan → mockup → approve mockup.**
 1. Schema, models, enums, seeders, calculator, assessment service, FX freeze, settings UI for kinds/types. *Tests:* calculator, constraints, lifecycle.
 2. Lead page Financials tab (view + collect), Overview card, hooks, i18n.
-3. Field registry, company-aware extension of `LeadFieldCatalog`, `LeadFieldWriter` assessment branch, `CryptoRateService` + supported-asset settings.
+3. Field registry; public catalog + writer (6a); qualification mapping target (6b, incl. `target_options` migration + mapping UI); custom-field mapping target (6c); read API + token scope (6d); `CryptoRateService` + supported-asset settings.
 4. Automations: resolver, catalog, builder UI, triggers, stale scheduler.
 5. Filters: summary read model, filter keys, UI config, saved views, optional column/export.
 6. Permissions, merge, GDPR, timeline, docs/CHANGELOG, rollout; verification (phpunit, Pint, PHPStan; no JS test runner exists, so browser check with the pre-installed Playwright).
@@ -138,14 +156,14 @@ Keys (added to `LeadService` filter lists, `sanitizeFilterPayload`, saved views,
 
 Resolved:
 - **Q1** `verified_at` = when it was verified; `verified_by_user_id` = who. ✔
-- **D2** Finalising is **always manual** (UI action only; API and qualification never finalise). ✔
-- **D4** Crypto converted via a free exchange-data API (CoinGecko default). Needs an API key in env. ✔
-- **D5** Catalog scope = `api/lead-fields` + `lead_fields` write path (§6). ✔
+- **D1** "Additive" as defined in §1b. ✔
+- **D2** Finalising is **always manual** (UI only; API, qualification and imports never finalise). ✔
+- **D3** Contributor = `contributor_label` + optional `contributor_lead_id`. ✔
+- **D4** Crypto via a free exchange-data API (CoinGecko default); keys supplied by you in env. ✔
+- **D5** Targets: public catalog + `lead_fields`, **qualification mappings and custom-field mapping** (§6). ✔
+- **Q2** A read API is required (§6d). ✔
 - **D6/D7** gRPC and the deal link are deferred. ✔
-- **D8** Branch renamed to `feat/lead-financial-assessments`. ✔
+- **D8** Branch is `feat/lead-financial-assessments`. ✔
 
-Awaiting confirmation:
-- **D1** "Additive" — see §1b; please confirm this is the reading you intend.
-- **D3** Contributor = `contributor_label` + optional `contributor_lead_id` (default stands unless you object).
-- **Q2** Do you want a value-read endpoint for a lead's assessment data, or is catalog-only enough?
-- **Q3** Who provides the CoinGecko (or CoinMarketCap) API key for each environment?
+Open:
+- **Q4** Custom-field mapping creates drafts, each needing a manual finalise. For a large backfill that is impractical. Options: (a) drafts only, finalised one by one *(default)*; (b) an explicit admin checkbox on the mapping run, "finalise as part of this import" (still a deliberate manual admin action; freezes FX per assessment; fails the lead on missing rates).

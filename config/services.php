@@ -218,4 +218,18 @@ return [
         // call for their linked entity ends answered.
         'complete_tasks_on_call_end' => (bool) env('OL_CALL_BRIDGE_COMPLETE_TASKS', true),
     ],
+    // Live crypto -> fiat rates for lead financial assessments (CryptoRateService).
+    // Keys come from env only; fiat conversion uses the keyless ECB feed instead.
+    'crypto_rates' => [
+        'provider' => env('CRYPTO_RATE_PROVIDER', 'coingecko'),
+        'coingecko' => [
+            'api_key' => env('COINGECKO_API_KEY'),
+            'base_url' => env('COINGECKO_BASE_URL', 'https://api.coingecko.com/api/v3'),
+        ],
+        'coinmarketcap' => [
+            'api_key' => env('COINMARKETCAP_API_KEY'),
+            'base_url' => env('COINMARKETCAP_BASE_URL', 'https://pro-api.coinmarketcap.com/v1'),
+        ],
+        'cache_seconds' => (int) env('CRYPTO_RATE_CACHE_SECONDS', 300),
+    ],
 ];
