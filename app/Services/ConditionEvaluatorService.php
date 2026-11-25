@@ -51,13 +51,12 @@ class ConditionEvaluatorService
             return (bool) $fieldChanged;
         }
 
-        // A multi-value field (e.g. every UTM touch) equals the condition when
-        // any of its values does.
-        if ($operator === '=' && is_array($resolvedValue)) {
-            $conditionValue = $this->normalizeValue($conditionValue);
-
+        // A multi-value field (e.g. every UTM touch) satisfies the condition
+        // when any one of its values does, whatever the operator — never
+        // compare the array itself to a scalar.
+        if (is_array($resolvedValue)) {
             foreach ($resolvedValue as $item) {
-                if ($this->normalizeValue($item) == $conditionValue) {
+                if (! is_array($item) && $this->evaluate($item, $condition, $fieldChanged)) {
                     return true;
                 }
             }

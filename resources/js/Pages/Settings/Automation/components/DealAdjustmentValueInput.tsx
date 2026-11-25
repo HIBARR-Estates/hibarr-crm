@@ -1,4 +1,5 @@
 import Segmented from "@/Components/Redesign/primitives/Segmented";
+import useTranslation from "@/Hooks/useTranslation";
 import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
 import { parseDiscountValue, formatDiscountValue } from "../config/builderFields";
 
@@ -16,15 +17,23 @@ interface Props {
  * here is only the company default.
  */
 export default function DealAdjustmentValueInput({ fieldName, value, onChange }: Props) {
+    const { t } = useTranslation();
     const currency = useCompanyCurrency();
     const symbol = currency.symbol || currency.code || "";
 
     const isDiscount = fieldName === "discount_value";
     const { mode, amount } = isDiscount ? parseDiscountValue(value) : { mode: "fixed" as const, amount: value ?? "" };
 
+    // Same limits the server enforces: no negatives, and a percentage tops out
+    // at 100. Out-of-range input is clamped rather than saved.
     const emit = (nextMode: "percent" | "fixed", nextAmount: string) => {
         if (nextAmount === "") return onChange(null);
-        onChange(isDiscount ? formatDiscountValue(nextMode, nextAmount) : nextAmount);
+        let n = Number(nextAmount);
+        if (!Number.isFinite(n)) return;
+        n = Math.max(0, n);
+        if (isDiscount && nextMode === "percent") n = Math.min(100, n);
+        const clamped = n === Number(nextAmount) ? nextAmount : String(n);
+        onChange(isDiscount ? formatDiscountValue(nextMode, clamped) : clamped);
     };
 
     return (
@@ -48,6 +57,7 @@ export default function DealAdjustmentValueInput({ fieldName, value, onChange }:
                 <input
                     type="number"
                     min={0}
+                    max={isDiscount && mode === "percent" ? 100 : undefined}
                     step="0.01"
                     value={amount}
                     onChange={(e) => emit(mode, e.target.value)}
@@ -57,7 +67,7 @@ export default function DealAdjustmentValueInput({ fieldName, value, onChange }:
                 />
             </div>
             {!(isDiscount && mode === "percent") && (
-                <span style={{ fontSize: 11, opacity: 0.7 }}>Applied in each deal's own currency.</span>
+                <span style={{ fontSize: 11, opacity: 0.7 }}>{t("app.automation.adjustmentCurrencyHint")}</span>
             )}
         </div>
     );

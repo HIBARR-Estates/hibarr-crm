@@ -783,6 +783,7 @@ return [
         'firedFor' => 'Сработало для',
         'flow' => 'Процесс',
         'forwardOnly' => 'Только вперёд',
+        'adjustmentCurrencyHint' => 'Применяется в валюте каждой сделки.',
         'if' => 'Если',
         'immediate' => 'Сразу',
         'insertMergeTag' => 'Вставить переменную',

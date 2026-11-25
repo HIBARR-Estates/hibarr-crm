@@ -814,10 +814,22 @@ class DealAutomationService
                 $number = trim($isPercent ? substr($raw, 0, -1) : $raw);
                 $valid = is_numeric($number) && (float) $number >= 0 && (! $isPercent || (float) $number <= 100);
 
-                $subject->discount_type = $valid ? ($isPercent ? 'percent' : 'fixed') : null;
-                $fieldValue = $valid ? round((float) $number, 2) : null;
+                if (! $valid) {
+                    $this->skipInvalidAdjustment($subject, $automation, $fieldName, $fieldValue);
+
+                    return;
+                }
+
+                $subject->discount_type = $isPercent ? 'percent' : 'fixed';
+                $fieldValue = round((float) $number, 2);
             } elseif ($fieldName === 'deduction_amount') {
-                $fieldValue = is_numeric($fieldValue) && (float) $fieldValue >= 0 ? round((float) $fieldValue, 2) : null;
+                if (! is_numeric($fieldValue) || (float) $fieldValue < 0) {
+                    $this->skipInvalidAdjustment($subject, $automation, $fieldName, $fieldValue);
+
+                    return;
+                }
+
+                $fieldValue = round((float) $fieldValue, 2);
             } else {
                 $fieldValue = trim((string) $fieldValue) ?: null;
             }
@@ -849,6 +861,17 @@ class DealAutomationService
                 'automation_name' => $automation?->name,
             ],
         ]);
+    }
+
+    /**
+     * An out-of-range or non-numeric adjustment is skipped, never applied as
+     * "empty" — that would silently wipe the deal's existing discount/deduction.
+     */
+    private function skipInvalidAdjustment(Deal $deal, ?DealAutomation $automation, string $fieldName, mixed $value): void
+    {
+        $shown = is_scalar($value) ? (string) $value : '';
+        Log::warning("SetFieldValue skipped invalid {$fieldName} '{$shown}' for Deal ID: {$deal->id}");
+        $this->logAction($deal, $automation, "Skipped {$fieldName}: invalid value '{$shown}'", DealAutomationLog::STATUS_SKIPPED, 'field');
     }
 
     /**
