@@ -1,6 +1,6 @@
 # Lead financial assessments — plan of action
 
-Status: **PLAN (rev 3) — all decisions in §11 resolved except Q4. Next: mockup (approval gate), then Phase 1.**
+Status: **PLAN (rev 3) — all decisions in §11 resolved except Q4. Mockup published and awaiting approval; Phase 1 starts after that.**
 Feature flag (proposed): `crm.lead-financial-assessments`
 
 ## 1. Intent (as understood)
@@ -87,7 +87,7 @@ New **Financials** record tab (flagged), in `Pages/Leads/Redesign/components/fin
 **View:** headline cards (Available now with override badge, Monthly income, Commitments, Disposable), a verified/stale/needs-proof status strip, lines grouped by kind with certainty chips and proof icons, "changed since previous assessment" deltas, assessment history timeline, plus a compact card on Overview.
 **Collect:** (a) guided drawer opened from the tab or during a call, grouped by kind, pre-filled from the last final, add-line from the configurable type list; (b) inline row editing for quick fixes; (c) automatically from qualification mappings, API and forms (§6), which land in the open draft; finalise / verify / override as explicit actions.
 
-Mockup deliverable (after approval): interactive HTML artifact showing the tab (empty / draft / final+verified / stale states), the guided collection drawer, line editor and history, built on the existing redesign tokens (`design-tokens.json`, `Button`, `Modal`, `Badge`).
+Mockup (published, 7 boards, private): https://claude.ai/artifact/MT7kaadwQst5mfW8kL7L7t — view, empty/auto-draft, guided collection drawer, review and finalise, history/compare, overview card + list filters + automation + field catalog, settings. Original brief: interactive HTML artifact showing the tab (empty / draft / final+verified / stale states), the guided collection drawer, line editor and history, built on the existing redesign tokens (`design-tokens.json`, `Button`, `Modal`, `Badge`).
 
 ## 6. Mapped fields (catalog, qualification, custom-field mapping, read API)
 
