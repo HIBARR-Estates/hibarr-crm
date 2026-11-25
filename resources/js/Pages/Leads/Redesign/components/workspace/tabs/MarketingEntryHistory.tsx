@@ -3,7 +3,27 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import type { LeadEntryRow } from "@/Types/api/leads";
+import { formatDurationShort } from "../../../adapters/contactSla";
 import MarketingSection from "./MarketingSection";
+
+type Translate = (key: string, params?: Record<string, unknown>) => string;
+
+/** How the entry's first-contact clock turned out, in a few words. */
+function contactOutcome(sla: NonNullable<LeadEntryRow["contact_sla"]>, t: Translate): string {
+    const limit = formatDurationShort(sla.first_contact_seconds);
+    if (sla.status === "met") {
+        const time = formatDurationShort(sla.elapsed_working_seconds ?? 0);
+        return sla.met_in_time === false
+            ? t("pages.leads.sla.met_late", { time }) + " · " + t("pages.leads.sla.limit", { limit })
+            : t("pages.leads.sla.met", { time }) + " · " + t("pages.leads.sla.limit", { limit });
+    }
+    if (sla.breached_at) {
+        return t("pages.leads.marketing.entry_contact_breached") + " · " + t("pages.leads.sla.limit", { limit });
+    }
+    return sla.status === "awaiting_owner"
+        ? t("pages.leads.sla.awaiting_owner")
+        : t("pages.leads.marketing.entry_contact_running") + " · " + t("pages.leads.sla.limit", { limit });
+}
 
 function EntryList() {
     const { t } = useTranslation();
@@ -54,6 +74,12 @@ function EntryList() {
                             <div>
                                 <dt>{t("pages.leads.marketing.entry_campaign")}</dt>
                                 <dd>{entry.campaign_label}</dd>
+                            </div>
+                        )}
+                        {entry.contact_sla && (
+                            <div>
+                                <dt>{t("pages.leads.marketing.entry_contact")}</dt>
+                                <dd>{contactOutcome(entry.contact_sla, t)}</dd>
                             </div>
                         )}
                         {entry.utm_source && (

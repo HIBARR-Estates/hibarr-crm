@@ -892,6 +892,9 @@ class DealAutomationService
             return;
         }
 
+        // The assignment is a quiet save (no observer), so the contact clock is told here.
+        app(LeadContactSlaService::class)->safely(fn () => app(LeadContactSlaService::class)->ownerAssigned($lead));
+
         $this->recordCrmEvent('lead_updated', $lead, [
             'generation_type' => 'system_generated',
             'metadata' => [

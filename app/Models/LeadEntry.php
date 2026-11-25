@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * One time a lead came in through a channel, as recorded by the backend (OL) and delivered with the
@@ -20,10 +21,16 @@ class LeadEntry extends BaseModel
     protected $casts = [
         'channel_ancestor_uuids' => 'array',
         'channel_tags' => 'array',
+        'sla' => 'array',
         'payload' => 'array',
         'is_new_lead' => 'boolean',
         'occurred_at' => 'datetime',
     ];
+
+    public function contactSla(): HasOne
+    {
+        return $this->hasOne(LeadContactSla::class, 'lead_entry_id');
+    }
 
     public function lead(): BelongsTo
     {

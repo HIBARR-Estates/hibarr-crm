@@ -35,6 +35,8 @@ class LeadEntryIntakeService
             $entry = $this->store($leadId, $companyId, $payload);
             if ($entry?->wasRecentlyCreated) {
                 $this->route($entry);
+                // After routing, so an owner assigned by an automation starts the clock straight away.
+                app(LeadContactSlaService::class)->openForEntry($entry);
             }
 
             return $entry;
@@ -107,6 +109,7 @@ class LeadEntryIntakeService
                 'channel_path' => $channel['path'],
                 'channel_ancestor_uuids' => array_values($channel['ancestor_uuids'] ?? []),
                 'channel_tags' => array_values($channel['tags'] ?? []),
+                'sla' => $this->validSla($payload['sla'] ?? null, $leadId),
                 'source_entity_type' => $source['entity_type'] ?? null,
                 'source_entity_id' => $source['entity_id'] ?? null,
                 'source_entity_key' => $source['entity_key'] ?? null,
@@ -139,6 +142,45 @@ class LeadEntryIntakeService
 
             throw $e;
         }
+    }
+
+    /**
+     * The entry's first-contact SLA, or null when none was sent or it is malformed. A bad SLA costs
+     * only the clock, never the entry.
+     *
+     * @return array{first_contact_seconds: int, recommended_method: ?string, window: ?array<string, mixed>}|null
+     */
+    private function validSla(mixed $sla, int $leadId): ?array
+    {
+        if (! is_array($sla)) {
+            return null;
+        }
+
+        $validator = Validator::make($sla, [
+            'first_contact_seconds' => 'required|integer|min:1|max:604800',
+            'recommended_method' => 'nullable|in:call,whatsapp,email',
+            'window' => 'nullable|array',
+            'window.timezone' => 'required_with:window|timezone',
+            'window.days' => 'required_with:window|array|min:1',
+            'window.days.*' => 'integer|between:1,7',
+            'window.start' => ['required_with:window', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+            'window.end' => ['required_with:window', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+        ]);
+
+        if ($validator->fails()) {
+            Log::warning('LeadEntryIntakeService: ignoring a malformed SLA', [
+                'lead_id' => $leadId,
+                'errors' => $validator->errors()->toArray(),
+            ]);
+
+            return null;
+        }
+
+        return [
+            'first_contact_seconds' => (int) $sla['first_contact_seconds'],
+            'recommended_method' => $sla['recommended_method'] ?? null,
+            'window' => $sla['window'] ?? null,
+        ];
     }
 
     /**

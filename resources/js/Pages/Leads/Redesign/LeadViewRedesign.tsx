@@ -49,6 +49,7 @@ import useLeadDocuments from "./hooks/useLeadDocuments";
 import useLeadDuplicates from "./hooks/useLeadDuplicates";
 import LeadHeaderRoot from "./components/header/LeadHeaderRoot";
 import AiSummaryCard from "./components/workspace/AiSummaryCard";
+import ContactSlaBanner from "./components/workspace/ContactSlaBanner";
 import DuplicateLeadsCard from "./components/workspace/DuplicateLeadsCard";
 import QuickStats from "./components/workspace/QuickStats";
 import WorkspaceCard from "./components/workspace/WorkspaceCard";
@@ -783,6 +784,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                     />
                                 </div>
                             )}
+
+                            <ContactSlaBanner leadId={lead.id} />
 
                             {duplicates.visible && (
                                 <DuplicateLeadsCard

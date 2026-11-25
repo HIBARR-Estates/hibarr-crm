@@ -23,6 +23,8 @@ abstract class LeadEntryTestCase extends LeadAutomationTestCase
 
         foreach ([
             '2026_11_25_000001_create_lead_entries_table.php',
+            '2026_11_26_000001_add_sla_to_lead_entries_table.php',
+            '2026_11_26_000002_create_lead_contact_slas_table.php',
             '2026_11_25_000003_create_lead_assignment_pools_tables.php',
         ] as $file) {
             (require base_path('database/migrations/'.$file))->up();

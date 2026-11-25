@@ -137,6 +137,15 @@ export interface LeadEntryRow {
     utm_source: string | null;
     utm_medium: string | null;
     form_key: string | null;
+    /** The first-contact clock this entry started, if its channel set a time limit. */
+    contact_sla?: {
+        status: "awaiting_owner" | "running" | "met";
+        first_contact_seconds: number;
+        met_in_time: boolean | null;
+        breached_at: string | null;
+        elapsed_working_seconds: number | null;
+        contact_method: "call" | "whatsapp" | "email" | null;
+    } | null;
 }
 
 export interface LeadUtmTouch {
