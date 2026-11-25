@@ -460,8 +460,16 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                             return (
                             <div key={i} className="flex items-center gap-2 mb-2" style={{ flexWrap: "wrap" }}>
                                 <SearchableSelect
-                                    value={cond.field || undefined}
-                                    onChange={(value) => updateCondition(i, { field: value ?? "" })}
+                                    // The picker only lists first-touch UTM keys; an any-touch
+                                    // condition shows its first-touch twin and keeps its mode
+                                    // when another UTM column is picked.
+                                    value={(utm ? utmFieldKey(utm.column, "first") : cond.field) || undefined}
+                                    onChange={(value) => {
+                                        const picked = parseUtmField(value);
+                                        updateCondition(i, {
+                                            field: picked && utm ? utmFieldKey(picked.column, utm.mode) : (value ?? ""),
+                                        });
+                                    }}
                                     options={fieldGroups}
                                     placeholder={t("app.automation.selectField")}
                                     popupMatchSelectWidth={280}
