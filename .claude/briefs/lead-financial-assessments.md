@@ -1,6 +1,6 @@
 # Lead financial assessments — plan of action
 
-Status: **PLAN (rev 3) — all decisions in §11 resolved except Q4. Mockup published and awaiting approval; Phase 1 starts after that.**
+Status: **Mockup approved. Phase 1 built (see §12); Phases 2-6 not started.**
 Feature flag (proposed): `crm.lead-financial-assessments`
 
 ## 1. Intent (as understood)
@@ -167,3 +167,23 @@ Resolved:
 
 Open:
 - **Q4** Custom-field mapping creates drafts, each needing a manual finalise. For a large backfill that is impractical. Options: (a) drafts only, finalised one by one *(default)*; (b) an explicit admin checkbox on the mapping run, "finalise as part of this import" (still a deliberate manual admin action; freezes FX per assessment; fails the lead on missing rates).
+
+## 12. Phase 1 as built
+
+Scope delivered: schema, enums, models, default seeding, calculator, fiat + crypto rates, assessment service, summary read model, and the lead-settings tab for kinds, types, crypto assets and defaults. Behind `crm.lead-financial-assessments` (off by default).
+
+Calculation rules that the plan left open, now fixed in `AssessmentCalculator` (CALC_VERSION 1) and covered by tests that reproduce the mockup's figures exactly:
+- **Commitments count at every certainty** (an uncertain obligation is still an obligation). Uncertain **income** is reported as `uncertain_income_monthly` and never summed in.
+- **Asset and funding lines ignore frequency** (they are a stock). One-off *income* is not recurring, so it is left out of `income_monthly`.
+- `available_projected` = confirmed + likely assets and funding, regardless of date; `uncertain_total` = uncertain assets and funding.
+- Each line is converted and rounded to cents before summing, so displayed lines add up to the totals.
+- The mockup's funding header showed €210,000 (counted + uncertain). The data model keeps them apart (`funding_total` 180,000, uncertain 30,000), so Phase 2 should show "counted · uncertain" rather than one sum.
+
+Deviations from the plan and mockup, all small:
+- The settings screen is a **tab on the existing Leads settings hub** (deferred, flag-gated) rather than a separate page. The "new kind" form stays inline, as in the mockup. Reorder is not built yet (types sort by creation order).
+- Kinds, types and crypto assets have **no soft delete** (they are deactivated), so no `deleted_at` on those three tables.
+- The `lead_financial_summaries` table is created now, because finalise and verify maintain it; filters and automations read it in Phases 4-5.
+- Reporting-currency choices are the company's **fiat** currencies only; the app's currency list can also hold cryptocurrencies.
+- A 3-letter currency code is accepted when a line is entered and, if it has no ECB rate (or is a disabled crypto ticker), finalise stops with the missing currency named. Longer tickers (e.g. USDT) must be an enabled crypto asset.
+
+Environment note: crypto rates need `COINGECKO_API_KEY` (or `COINMARKETCAP_API_KEY` with `CRYPTO_RATE_PROVIDER=coinmarketcap`) in each environment. The settings tab shows whether the key is set and has a "Test rate fetch" button.

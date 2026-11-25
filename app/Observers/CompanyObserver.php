@@ -174,6 +174,7 @@ class CompanyObserver
         $this->unitType($company);
         $this->leadStages($company);
         $this->leadLifecycleStatuses($company);
+        \App\Services\FinancialAssessment\FinancialAssessmentDefaults::seedForCompany((int) $company->id);
         EntityReminderDefault::seedDefaultsForCompany((int) $company->id);
         ReminderEmailTemplate::seedDefaultsForCompany((int) $company->id);
 

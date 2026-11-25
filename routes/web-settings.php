@@ -34,6 +34,7 @@ use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\GoogleCalendarSettingController;
 use App\Http\Controllers\InvoiceSettingController;
 use App\Http\Controllers\LanguageSettingController;
+use App\Http\Controllers\FinancialAssessmentSettingsController;
 use App\Http\Controllers\LeadAgentSettingController;
 use App\Http\Controllers\LeadLifecycleStatusSettingController;
 use App\Http\Controllers\LeadPipelineSettingController;
@@ -125,6 +126,16 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::post('leads/statuses', [LeadSettingsHubController::class, 'storeStatus'])->name('settings-leads.statuses.store');
     Route::put('leads/statuses/{status}', [LeadSettingsHubController::class, 'updateStatus'])->name('settings-leads.statuses.update');
     Route::delete('leads/statuses/{status}', [LeadSettingsHubController::class, 'destroyStatus'])->name('settings-leads.statuses.destroy');
+
+    /* Financial assessments tab of the leads settings hub (feature flag crm.lead-financial-assessments) */
+    Route::post('leads/financial/kinds', [FinancialAssessmentSettingsController::class, 'storeKind'])->name('settings-leads.financial.kinds.store');
+    Route::put('leads/financial/kinds/{kind}', [FinancialAssessmentSettingsController::class, 'updateKind'])->whereNumber('kind')->name('settings-leads.financial.kinds.update');
+    Route::post('leads/financial/types', [FinancialAssessmentSettingsController::class, 'storeType'])->name('settings-leads.financial.types.store');
+    Route::put('leads/financial/types/{type}', [FinancialAssessmentSettingsController::class, 'updateType'])->whereNumber('type')->name('settings-leads.financial.types.update');
+    Route::post('leads/financial/crypto-assets', [FinancialAssessmentSettingsController::class, 'storeCryptoAsset'])->name('settings-leads.financial.crypto-assets.store');
+    Route::post('leads/financial/crypto-assets/test', [FinancialAssessmentSettingsController::class, 'testRates'])->name('settings-leads.financial.crypto-assets.test');
+    Route::put('leads/financial/crypto-assets/{asset}', [FinancialAssessmentSettingsController::class, 'updateCryptoAsset'])->whereNumber('asset')->name('settings-leads.financial.crypto-assets.update');
+    Route::put('leads/financial/defaults', [FinancialAssessmentSettingsController::class, 'updateDefaults'])->name('settings-leads.financial.defaults.update');
 
     /* Audit log — every recorded write and sign-in event (admin-only) */
     Route::get('audit-log', [AuditLogController::class, 'index'])->name('audit-log.index');

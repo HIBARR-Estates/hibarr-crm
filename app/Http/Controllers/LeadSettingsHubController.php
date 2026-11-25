@@ -10,7 +10,9 @@ use App\Models\LeadOrigin;
 use App\Models\LeadSetting;
 use App\Models\LeadSource;
 use App\Services\Dashboard\DashboardMetricsService;
+use App\Services\FinancialAssessment\FinancialAssessmentSettingsService;
 use App\Services\LeadLifecycleStatusService;
+use App\Support\FeatureFlags;
 use App\Support\MarketingLeadIntake;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -83,6 +85,12 @@ class LeadSettingsHubController extends AccountBaseController
                     ->values()
                     ->all(),
             ],
+            // Financial assessments tab: off until the flag is on. The tab's data is deferred, so it
+            // never blocks the first paint of the other tabs.
+            'financialAssessmentsEnabled' => $financialAssessmentsEnabled = FeatureFlags::enabled('crm.lead-financial-assessments'),
+            'financialAssessments' => $financialAssessmentsEnabled
+                ? Inertia::defer(fn () => app(FinancialAssessmentSettingsService::class)->payload((int) company()->id))
+                : null,
         ]);
     }
 

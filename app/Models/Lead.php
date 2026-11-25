@@ -533,6 +533,23 @@ class Lead extends BaseModel
         return $this->hasMany(LeadQualification::class, 'lead_id');
     }
 
+    public function financialAssessments(): HasMany
+    {
+        return $this->hasMany(FinancialAssessment::class, 'lead_id')->orderByDesc('as_of_date')->orderByDesc('id');
+    }
+
+    /** The lead's current final assessment (at most one; see financial_assessments.current_lead_id). */
+    public function currentFinancialAssessment(): HasOne
+    {
+        return $this->hasOne(FinancialAssessment::class, 'lead_id')
+            ->where('status', \App\Enums\FinancialAssessmentStatus::Final->value);
+    }
+
+    public function financialSummary(): HasOne
+    {
+        return $this->hasOne(LeadFinancialSummary::class, 'lead_id');
+    }
+
     public function activeQualification(): HasOne
     {
         return $this->hasOne(LeadQualification::class, 'lead_id')

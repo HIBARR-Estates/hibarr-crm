@@ -39,6 +39,8 @@ return [
         'crm.flight-itinerary-extraction',
         'crm.deal-analysis',
         'crm.leads-filter-v2',
+        // Additive lead financial assessments: Financials tab, settings, automations, filters, API (plan: .claude/briefs/lead-financial-assessments.md).
+        'crm.lead-financial-assessments',
         'crm.expose-share-links',
         'crm.deal-exposes-tab',
         'crm.tasks-workspace-redesign',

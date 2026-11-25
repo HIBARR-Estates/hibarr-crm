@@ -61,3 +61,64 @@ export interface MarketingIntakeSettings {
     owners: Array<{ id: number; name: string }>;
     departments: MarketingIntakeDepartment[];
 }
+
+export type FinancialKindRole = "income" | "asset" | "funding" | "commitment";
+export type FinancialFrequency = "once" | "monthly" | "yearly";
+export type FinancialCertainty = "confirmed" | "likely" | "uncertain";
+
+export interface FinancialTypeRow {
+    id: number;
+    kind_id: number;
+    key: string;
+    label: string;
+    default_frequency: FinancialFrequency | null;
+    default_certainty: FinancialCertainty | null;
+    sort_order: number;
+    is_active: boolean;
+    is_system: boolean;
+    line_count: number;
+}
+
+export interface FinancialKindRow {
+    id: number;
+    key: string;
+    label: string;
+    role: FinancialKindRole;
+    sort_order: number;
+    is_active: boolean;
+    is_system: boolean;
+    types: FinancialTypeRow[];
+}
+
+export interface FinancialCryptoAssetRow {
+    id: number;
+    ticker: string;
+    provider_id: string;
+    name: string;
+    is_active: boolean;
+}
+
+export interface FinancialAssessmentSettings {
+    kinds: FinancialKindRow[];
+    crypto_assets: FinancialCryptoAssetRow[];
+    defaults: {
+        reporting_currency: string;
+        refresh_after_days: number;
+        currencies: string[];
+    };
+    provider: { name: string | null; configured: boolean };
+    options: {
+        roles: FinancialKindRole[];
+        frequencies: FinancialFrequency[];
+        certainties: FinancialCertainty[];
+    };
+}
+
+export interface FinancialRateTestResult {
+    ok: boolean;
+    ticker: string | null;
+    rate: number | null;
+    source: string | null;
+    currency: string;
+    reason: "no_api_key" | "no_assets" | "no_rate" | null;
+}

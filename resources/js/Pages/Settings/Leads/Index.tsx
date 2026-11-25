@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { App } from "antd";
+import { Deferred } from "@inertiajs/react";
+import { App, Skeleton } from "antd";
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import {
@@ -12,6 +13,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiResponse } from "@/lib/api/types";
+import FinancialAssessmentsSection from "./FinancialAssessmentsSection";
 import FirstContactSlaTab from "./FirstContactSlaTab";
 import LeadOriginsSection from "./LeadOriginsSection";
 import LeadSourcesSection from "./LeadSourcesSection";
@@ -21,6 +23,7 @@ import useLeadSettingsNavigation, {
     type LeadSettingsTab,
 } from "./hooks/useLeadSettingsNavigation";
 import type {
+    FinancialAssessmentSettings,
     LeadOriginRow,
     MarketingIntakeSettings,
     LeadSourcePermissions,
@@ -38,6 +41,8 @@ export default function LeadSettingsIndex({
     currentUserId,
     origins: initialOrigins,
     marketingIntake: initialMarketingIntake,
+    financialAssessmentsEnabled = false,
+    financialAssessments,
 }: {
     pageTitle: string;
     settings: SlaSettings;
@@ -47,11 +52,17 @@ export default function LeadSettingsIndex({
     currentUserId: number;
     origins: LeadOriginRow[];
     marketingIntake: MarketingIntakeSettings;
+    /** Feature flag crm.lead-financial-assessments. */
+    financialAssessmentsEnabled?: boolean;
+    /** Deferred: absent until the server finishes loading it. */
+    financialAssessments?: FinancialAssessmentSettings | null;
 }) {
     const { t } = useTranslation();
     const { td } = useTd();
     const { message } = App.useApp();
-    const { tab, setTab } = useLeadSettingsNavigation();
+    const { tab: requestedTab, setTab } = useLeadSettingsNavigation();
+    // A shared ?tab=financial link must not land on an empty tab while the feature is off.
+    const tab = requestedTab === "financial" && !financialAssessmentsEnabled ? "sources" : requestedTab;
 
     const [hours, setHours] = useState(settings.first_contact_sla_hours);
     const [hasChanges, setHasChanges] = useState(false);
@@ -151,6 +162,14 @@ export default function LeadSettingsIndex({
             key: "sla",
             label: td("First contact", { source: "en" }),
         },
+        ...(financialAssessmentsEnabled
+            ? [
+                  {
+                      key: "financial" as const,
+                      label: t("pages.lead_settings.financial.tab"),
+                  },
+              ]
+            : []),
     ];
 
     return (
@@ -322,6 +341,18 @@ export default function LeadSettingsIndex({
                                 statuses={statuses}
                                 setStatuses={setStatuses}
                             />
+                        )}
+                        {tab === "financial" && financialAssessmentsEnabled && (
+                            <Deferred
+                                data="financialAssessments"
+                                fallback={<Skeleton active paragraph={{ rows: 8 }} />}
+                            >
+                                {financialAssessments ? (
+                                    <FinancialAssessmentsSection
+                                        initial={financialAssessments}
+                                    />
+                                ) : null}
+                            </Deferred>
                         )}
                         {tab === "sla" && (
                             <FirstContactSlaTab
