@@ -116,9 +116,13 @@ export default function FieldModal({
     const isRepeatable = draft.type === "repeatable";
     const isOptionType = (OPTION_VALUE_TYPES as readonly string[]).includes(draft.type);
     const typeOptions = useMemo(() => {
-        const list = isRepeatable ? [...CREATABLE_TYPES, "repeatable"] : CREATABLE_TYPES;
+        // Types outside CREATABLE_TYPES (currency, range, country, password, …)
+        // can't be created here, but an existing field of such a type must still
+        // render its own type in the (locked) selector instead of a blank value.
+        const list: string[] = [...CREATABLE_TYPES];
+        if (draft.type && !list.includes(draft.type)) list.push(draft.type);
         return list.map((type) => ({ value: type, label: FIELD_TYPE_LABELS[type] ?? type }));
-    }, [isRepeatable]);
+    }, [draft.type]);
 
     const categoryOptions = useMemo(
         () =>
@@ -289,7 +293,7 @@ export default function FieldModal({
                         }}
                         options={typeOptions}
                         fullWidth
-                        disabled={isRepeatable}
+                        disabled={isEditing && !(CREATABLE_TYPES as readonly string[]).includes(draft.type)}
                     />
                 </ModalField>
                 <ModalField label={td("Category", { source: "en" })}>
