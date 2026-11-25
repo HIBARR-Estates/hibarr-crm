@@ -426,6 +426,26 @@ class CommissionCalculationTest extends PackageCommissionTestCase
         $this->assertSame(2.0, (float) $this->referral($this->previewLegs($ctx['deal']))['percentage']);
     }
 
+    public function test_a_package_referral_percentage_is_of_the_package_value_not_the_deal(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        // The package is worth far more than the deal it was sold on.
+        // The closer earns nothing on it, so the referral is the only paid leg.
+        $packageId = $this->seedPackage($ctx['company'], 8000, 'none');
+        $this->attachPackage($ctx['deal'], $packageId);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->seedAgentPackageRate($ctx['company'], $referrerId, $packageId, null, null, 'percentage', 1);
+        $this->refer($ctx, $referrerId);
+
+        $leg = $this->referral($this->previewLegs($ctx['deal']));
+
+        $this->assertSame(80.0, (float) $leg['amount'], '1% of the 8,000 package.');
+        $this->assertSame(1.0, (float) $leg['percentage'], 'Not 8%, which is the amount over the 1,000 deal.');
+
+        $summary = app(MlmCommissionService::class)->getCommissionSummary(Deal::withoutGlobalScopes()->findOrFail($ctx['deal']));
+        $this->assertSame(1.0, $summary['paid_percentage']);
+    }
+
     public function test_a_commission_locked_deal_with_no_ledger_rows_is_settled_not_projected(): void
     {
         $ctx = $this->seedDealWithUpline(1000);

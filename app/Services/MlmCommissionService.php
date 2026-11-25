@@ -971,8 +971,11 @@ class MlmCommissionService
                 level: null,
                 // A fixed fee is not a rate, so it carries none: the summary reads a
                 // missing percentage as "paid as an amount" rather than as N% of the deal.
-                percentage: $entry['terms']->isPercentage() && $dealValue > 0
-                    ? round($amount / $dealValue * 100, 2)
+                // A percentage is of the base it was taken from, as a package's closer
+                // percentage is of that package's value: 1% of an 8,000 package is 1%,
+                // not 8% of the 1,000 deal it was sold on.
+                percentage: $entry['terms']->isPercentage() && $entry['base'] > 0
+                    ? round($amount / $entry['base'] * 100, 2)
                     : null,
                 amount: round($amount, 2),
                 type: MlmCommissionType::Referral,
