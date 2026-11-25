@@ -122,4 +122,63 @@ class SyncAgentCategoriesTest extends PerAgentCommissionOverrideTestCase
         $this->assertSame([0], array_keys($rows), 'One row, no category.');
         $this->assertTrue($rows[0]['partner']);
     }
+
+    /** @return array<int, array{type: string|null, ref_type: string|null, ref_value: float|null}> keyed by package */
+    private function packageTermsOf(int $agentId): array
+    {
+        return DB::table('agent_package_commission_rates')
+            ->where('agent_id', $agentId)
+            ->get()
+            ->mapWithKeys(fn ($row) => [(int) $row->package_id => [
+                'type' => $row->commission_type,
+                'ref_type' => $row->referral_commission_type,
+                'ref_value' => $row->referral_commission_value === null ? null : (float) $row->referral_commission_value,
+            ]])
+            ->all();
+    }
+
+    public function test_changing_a_partners_only_category_keeps_their_package_terms(): void
+    {
+        $old = $this->partnerRow(1);
+        DB::table('agent_package_commission_rates')->insert([
+            ['company_id' => $this->companyId, 'agent_id' => $old, 'package_id' => 7, 'commission_type' => 'fixed', 'commission_value' => 100, 'referral_commission_type' => 'percentage', 'referral_commission_value' => 3],
+            ['company_id' => $this->companyId, 'agent_id' => $old, 'package_id' => 8, 'commission_type' => null, 'commission_value' => null, 'referral_commission_type' => 'fixed', 'referral_commission_value' => 150],
+        ]);
+
+        $this->sync($old, [2]);
+
+        $rows = $this->rows();
+        $this->assertArrayNotHasKey(1, $rows, 'The old category row is gone.');
+        $this->assertSame([
+            7 => ['type' => 'fixed', 'ref_type' => 'percentage', 'ref_value' => 3.0],
+            8 => ['type' => null, 'ref_type' => 'fixed', 'ref_value' => 150.0],
+        ], $this->packageTermsOf($rows[2]['id']), 'The partner keeps what they were set up on, closer and referrer roles together.');
+    }
+
+    public function test_a_category_added_to_a_partner_starts_with_their_package_terms(): void
+    {
+        $existing = $this->partnerRow(1);
+        DB::table('agent_package_commission_rates')->insert(
+            ['company_id' => $this->companyId, 'agent_id' => $existing, 'package_id' => 7, 'commission_type' => null, 'commission_value' => null, 'referral_commission_type' => 'percentage', 'referral_commission_value' => 3],
+        );
+
+        $this->sync($existing, [1, 2]);
+
+        $rows = $this->rows();
+        $expected = [7 => ['type' => null, 'ref_type' => 'percentage', 'ref_value' => 3.0]];
+        $this->assertSame($expected, $this->packageTermsOf($rows[2]['id']));
+        $this->assertSame($expected, $this->packageTermsOf($rows[1]['id']), 'The existing row is untouched.');
+    }
+
+    public function test_package_terms_of_someone_who_is_not_a_partner_are_not_copied(): void
+    {
+        $existing = $this->seedRow(1);
+        DB::table('agent_package_commission_rates')->insert(
+            ['company_id' => $this->companyId, 'agent_id' => $existing, 'package_id' => 7, 'commission_type' => 'fixed', 'commission_value' => 100, 'referral_commission_type' => null, 'referral_commission_value' => null],
+        );
+
+        $this->sync($existing, [1, 2]);
+
+        $this->assertSame([], $this->packageTermsOf($this->rows()[2]['id']));
+    }
 }

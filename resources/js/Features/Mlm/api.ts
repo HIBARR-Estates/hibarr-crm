@@ -396,7 +396,12 @@ export const useSavePartnerPackageTerms = (agentId: number) => {
             );
             return res.data;
         },
-        onSuccess: (res) => queryClient.setQueryData([path, undefined], res),
+        onSuccess: async (res) => {
+            // A read that started before this write must not land after it and put
+            // the old rows back.
+            await queryClient.cancelQueries({ queryKey: [path] });
+            queryClient.setQueryData([path, undefined], res);
+        },
     });
 };
 
@@ -410,7 +415,12 @@ export const useRemovePartnerPackageTerms = (agentId: number) => {
             const res = await axios.delete<{ data: PartnerPackageTermsData }>(`${path}/${packageId}`);
             return res.data;
         },
-        onSuccess: (res) => queryClient.setQueryData([path, undefined], res),
+        onSuccess: async (res) => {
+            // A read that started before this write must not land after it and put
+            // the old rows back.
+            await queryClient.cancelQueries({ queryKey: [path] });
+            queryClient.setQueryData([path, undefined], res);
+        },
     });
 };
 

@@ -45,6 +45,15 @@ class AgentPackageTermsTest extends PackageCommissionTestCase
         $this->assertSame([], $this->errors(['referral_commission_type' => 'fixed', 'referral_commission_value' => 250]));
     }
 
+    public function test_a_value_the_column_cannot_store_is_refused(): void
+    {
+        // 0.004 would pass any amount check as written and then be stored as 0.00.
+        $this->assertSame(['referral_commission_value'], $this->errors(['referral_commission_type' => 'percentage', 'referral_commission_value' => 0.004]));
+        $this->assertSame(['referral_commission_value'], $this->errors(['referral_commission_type' => 'fixed', 'referral_commission_value' => 10.005]));
+        $this->assertSame([], $this->errors(['referral_commission_type' => 'percentage', 'referral_commission_value' => 0.25]));
+        $this->assertSame([], $this->errors(['referral_commission_type' => 'fixed', 'referral_commission_value' => 150.5]));
+    }
+
     public function test_the_two_roles_are_checked_independently(): void
     {
         $errors = $this->errors([

@@ -8,6 +8,7 @@ use App\Models\LeadAgent;
 use App\Models\Package;
 use App\Support\CommissionTerms;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
@@ -69,6 +70,9 @@ class SaveAgentPackageTerms
                 'required_if:'.$typeField.','.PackageCommissionType::Percentage->value.','.PackageCommissionType::Fixed->value,
                 'numeric',
                 'min:0',
+                // The value is stored with two decimals. A rate such as 0.004 would pass
+                // the amount checks as written and then be stored as 0.00, paying nothing.
+                'decimal:0,2',
             ],
             // Only a percentage is bounded at 100: a flat fee is money, and capping
             // it at 100 would quietly reject a 250 package fee.
@@ -120,38 +124,45 @@ class SaveAgentPackageTerms
         bool $setReferral,
         ?CommissionTerms $referral,
     ): string {
-        $row = AgentPackageCommissionRate::firstOrNew([
-            'agent_id' => $agent->id,
-            'package_id' => $package->id,
-        ]);
-        // CompanyScope only filters reads; it never fills this in.
-        $row->company_id = $companyId;
+        // Read, change and write under a lock on the agent: two saves that edit
+        // different roles of the same row would otherwise each act on a stale copy,
+        // and one could delete the row the other just filled in.
+        return DB::transaction(function () use ($package, $agent, $companyId, $setCloser, $closer, $setReferral, $referral) {
+            LeadAgent::withoutGlobalScopes()->whereKey($agent->id)->lockForUpdate()->first();
 
-        if ($setCloser) {
-            // None has nothing to store.
-            $row->commission_type = $closer?->type->value;
-            $row->commission_value = $closer?->value;
-        }
+            $row = AgentPackageCommissionRate::firstOrNew([
+                'agent_id' => $agent->id,
+                'package_id' => $package->id,
+            ]);
+            // CompanyScope only filters reads; it never fills this in.
+            $row->company_id = $companyId;
 
-        if ($setReferral) {
-            // "None" and no terms pay a referrer the same, so both are no terms.
-            $referral = $referral?->isNone() ? null : $referral;
-            $row->referral_commission_type = $referral?->type->value;
-            $row->referral_commission_value = $referral?->value;
-        }
-
-        if ($row->commission_type === null && $row->referral_commission_type === null) {
-            if (! $row->exists) {
-                return self::EMPTY;
+            if ($setCloser) {
+                // None has nothing to store.
+                $row->commission_type = $closer?->type->value;
+                $row->commission_value = $closer?->value;
             }
 
-            $row->delete();
+            if ($setReferral) {
+                // "None" and no terms pay a referrer the same, so both are no terms.
+                $referral = $referral?->isNone() ? null : $referral;
+                $row->referral_commission_type = $referral?->type->value;
+                $row->referral_commission_value = $referral?->value;
+            }
 
-            return self::REMOVED;
-        }
+            if ($row->commission_type === null && $row->referral_commission_type === null) {
+                if (! $row->exists) {
+                    return self::EMPTY;
+                }
 
-        $row->save();
+                $row->delete();
 
-        return self::SAVED;
+                return self::REMOVED;
+            }
+
+            $row->save();
+
+            return self::SAVED;
+        });
     }
 }

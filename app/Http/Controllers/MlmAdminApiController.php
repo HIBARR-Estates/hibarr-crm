@@ -727,7 +727,7 @@ class MlmAdminApiController extends AccountBaseController
             // With overrides off this is the only editable field, so the key
             // must be present; an explicit null still clears the saved rate.
             $rules['referral_commission_type'] = ($overrideEnabled ? '' : 'present|').'nullable|in:percentage,fixed,none';
-            $rules['referral_commission_value'] = 'nullable|numeric|min:0|max:9999999999999.99';
+            $rules['referral_commission_value'] = 'nullable|numeric|min:0|decimal:0,2|max:9999999999999.99';
         }
 
         $validated = $request->validate($rules);

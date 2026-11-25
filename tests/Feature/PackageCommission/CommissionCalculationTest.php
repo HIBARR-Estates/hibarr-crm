@@ -399,6 +399,70 @@ class CommissionCalculationTest extends PackageCommissionTestCase
         $this->assertSame(60.0, (float) $this->referral($this->previewLegs($ctx['deal']))['amount']);
     }
 
+    public function test_a_fixed_referral_fee_carries_no_percentage(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $packageId = $this->seedPackage($ctx['company'], 8000, 'percentage', 5);
+        $this->attachPackage($ctx['deal'], $packageId);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->seedAgentPackageRate($ctx['company'], $referrerId, $packageId, null, null, 'fixed', 60);
+        $this->refer($ctx, $referrerId);
+
+        $leg = $this->referral($this->previewLegs($ctx['deal']));
+
+        $this->assertSame(60.0, (float) $leg['amount']);
+        $this->assertNull($leg['percentage'], 'A flat fee is not N% of the deal.');
+
+        $summary = app(MlmCommissionService::class)->getCommissionSummary(Deal::withoutGlobalScopes()->findOrFail($ctx['deal']));
+        $this->assertNull($summary['paid_percentage']);
+    }
+
+    public function test_a_percentage_referral_keeps_its_percentage_of_the_deal(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->refer($ctx, $referrerId, 'percentage', 2);
+
+        $this->assertSame(2.0, (float) $this->referral($this->previewLegs($ctx['deal']))['percentage']);
+    }
+
+    public function test_a_commission_locked_deal_with_no_ledger_rows_is_settled_not_projected(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $this->refer($ctx, $referrerId);
+        // Finalized when no one was owed anything; terms are set afterwards.
+        DB::table('deals')->where('id', $ctx['deal'])->update(['commission_locked' => true]);
+        DB::table('lead_agents')->where('id', $referrerId)->update(['referral_commission_type' => 'percentage', 'referral_commission_value' => 2]);
+
+        $summary = app(MlmCommissionService::class)->getCommissionSummary(Deal::withoutGlobalScopes()->findOrFail($ctx['deal']));
+
+        $this->assertFalse($summary['is_projected'], 'The ledger will never record a payout for terms set after settlement.');
+        $this->assertSame(0.0, $summary['paid_total']);
+        $this->assertTrue($summary['referral']['settled']);
+        $this->assertSame([], $summary['referral']['terms']);
+    }
+
+    public function test_packages_are_walked_in_id_order_when_referrals_share_a_limited_budget(): void
+    {
+        $ctx = $this->seedDealWithUpline(1000);
+        $referrerId = $this->seedAgent($ctx['company'], $this->seedUser($ctx['company'], 'Partner'));
+        $first = $this->seedPackage($ctx['company'], 8000, 'percentage', 5);
+        $second = $this->seedPackage($ctx['company'], 8000, 'percentage', 5);
+        // Attached in reverse, each claiming more than the deal can carry on its own.
+        $this->attachPackage($ctx['deal'], $second);
+        $this->attachPackage($ctx['deal'], $first);
+        $this->seedAgentPackageRate($ctx['company'], $referrerId, $first, null, null, 'fixed', 90);
+        $this->seedAgentPackageRate($ctx['company'], $referrerId, $second, null, null, 'fixed', 90);
+        $this->refer($ctx, $referrerId);
+
+        $amounts = $this->previewLegs($ctx['deal'])
+            ->where('type', MlmCommissionType::Referral->value)
+            ->mapWithKeys(fn ($leg) => [(int) $leg['package_id'] => (float) $leg['amount']]);
+
+        $this->assertGreaterThan($amounts[$second] ?? 0.0, $amounts[$first], 'The lower package id is paid first, whatever order the rows come back in.');
+    }
+
     public function test_a_package_the_referrer_has_no_terms_on_pays_them_nothing(): void
     {
         $ctx = $this->seedDealWithUpline(1000);

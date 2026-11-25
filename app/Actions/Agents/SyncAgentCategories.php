@@ -2,6 +2,7 @@
 
 namespace App\Actions\Agents;
 
+use App\Models\AgentPackageCommissionRate;
 use App\Models\LeadAgent;
 
 /**
@@ -12,6 +13,12 @@ use App\Models\LeadAgent;
  * stays selected keeps its identity and its settings (partner status, referral
  * terms, custom rates), so saving an agent's profile can never reset what was
  * configured on them.
+ *
+ * A category the partner gains is still that partner, so it starts with the
+ * partner's terms: the default referral terms and what they have on each package.
+ * Package terms hang off the row, and the database removes them with it, so they
+ * are read before a deselected row is deleted and carried to the rows created here.
+ * That way changing a partner's only category does not wipe what they were set up on.
  */
 class SyncAgentCategories
 {
@@ -35,6 +42,15 @@ class SyncAgentCategories
             ? [null]
             : array_map(fn ($id) => (int) $id, $categoryIds);
 
+        // A category added to a partner is still that partner: follow the user's
+        // partner row if they have one, not whichever row sorts first.
+        $template = $existing->firstWhere('is_partner', true) ?? $existing->first();
+
+        // Read before any row is deleted: the package terms go with the row.
+        $packageTerms = $template?->is_partner
+            ? AgentPackageCommissionRate::where('agent_id', $template->id)->get()
+            : collect();
+
         $existing
             ->reject(fn (LeadAgent $row) => in_array(
                 $row->lead_category_id === null ? null : (int) $row->lead_category_id,
@@ -43,12 +59,8 @@ class SyncAgentCategories
             ))
             ->each->delete();
 
-        // A category added to a partner is still that partner: follow the user's
-        // partner row if they have one, not whichever row sorts first.
-        $template = $existing->firstWhere('is_partner', true) ?? $existing->first();
-
         foreach ($wanted as $categoryId) {
-            LeadAgent::firstOrCreate(
+            $row = LeadAgent::firstOrCreate(
                 [
                     'user_id' => $agent->user_id,
                     'lead_category_id' => $categoryId,
@@ -61,6 +73,29 @@ class SyncAgentCategories
                     'is_partner' => (bool) $template?->is_partner,
                     'referral_commission_type' => $template?->referral_commission_type,
                     'referral_commission_value' => $template?->referral_commission_value,
+                ]
+            );
+
+            if ($row->wasRecentlyCreated) {
+                $this->carryPackageTerms($packageTerms, $row);
+            }
+        }
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, AgentPackageCommissionRate>  $terms
+     */
+    private function carryPackageTerms($terms, LeadAgent $row): void
+    {
+        foreach ($terms as $term) {
+            AgentPackageCommissionRate::firstOrCreate(
+                ['agent_id' => $row->id, 'package_id' => $term->package_id],
+                [
+                    'company_id' => $term->company_id,
+                    'commission_type' => $term->commission_type,
+                    'commission_value' => $term->commission_value,
+                    'referral_commission_type' => $term->referral_commission_type,
+                    'referral_commission_value' => $term->referral_commission_value,
                 ]
             );
         }

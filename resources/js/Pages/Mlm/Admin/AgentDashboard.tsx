@@ -98,7 +98,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
         refetch: refetchProfile,
     } = useAgentCommissionProfile(
         agent.id,
-        commissionOverrideEnabled || agent.is_partner === true,
+        commissionOverrideEnabled || (referralCommissionEnabled && agent.is_partner === true),
     );
     const [commissionForm] =
         Form.useForm<AgentCommissionProfileUpdatePayload>();
@@ -648,7 +648,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                             </Card>
                         </motion.div>
 
-                        {(commissionOverrideEnabled || agent.is_partner) && (
+                        {(commissionOverrideEnabled || (referralCommissionEnabled && agent.is_partner)) && (
                             <Row gutter={[16, 16]} className="mb-6">
                                 <Col xs={24}>
                                     <motion.div
@@ -791,7 +791,7 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                 />
                                                             </Form.Item>
                                                         )}
-                                                        {agent.is_partner && (
+                                                        {referralCommissionEnabled && agent.is_partner && (
                                                             <div className="mb-2">
                                                                 <div className="mb-1 text-sm">
                                                                     {t("pages.agents.referral_commission")}
@@ -803,6 +803,9 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                     <Form.Item
                                                                         name="referral_commission_type"
                                                                         className="mb-0 w-1/2"
+                                                                        // A cleared select holds undefined, which JSON drops, so the
+                                                                        // server would read "no change" instead of "no terms".
+                                                                        normalize={(value) => value ?? null}
                                                                     >
                                                                         <Select
                                                                             allowClear

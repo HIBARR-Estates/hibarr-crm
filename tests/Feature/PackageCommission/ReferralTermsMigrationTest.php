@@ -49,6 +49,7 @@ class ReferralTermsMigrationTest extends TestCase
         });
 
         DB::table('agent_package_commission_rates')->insert(['company_id' => 1, 'agent_id' => 1, 'package_id' => 1, 'commission_type' => 'fixed', 'commission_value' => 50]);
+        DB::table('agent_commission_rate_audit_logs')->insert(['previous_referral_pool_rate' => 10, 'new_referral_pool_rate' => 20]);
         DB::table('deals')->insert([
             ['referral_pool_rate' => null, 'referral_fixed_amount' => 40],   // agreed amount
             ['referral_pool_rate' => 0, 'referral_fixed_amount' => null],    // not paid
@@ -67,6 +68,11 @@ class ReferralTermsMigrationTest extends TestCase
         $this->assertTrue(Schema::hasColumn('agent_package_commission_rates', 'referral_commission_value'));
         $this->assertTrue(Schema::hasColumn('agent_commission_rate_audit_logs', 'new_referral_commission_type'));
 
+        // History is not rewritten: the old pool-rate audit values stay where they were.
+        $this->assertTrue(Schema::hasColumn('agent_commission_rate_audit_logs', 'new_referral_pool_rate'));
+        $audit = DB::table('agent_commission_rate_audit_logs')->first();
+        $this->assertSame([10.0, 20.0], [(float) $audit->previous_referral_pool_rate, (float) $audit->new_referral_pool_rate]);
+
         $deals = DB::table('deals')->orderBy('id')->get(['referral_commission_type', 'referral_commission_value'])
             ->map(fn ($d) => [$d->referral_commission_type, $d->referral_commission_value === null ? null : (float) $d->referral_commission_value])->all();
         $this->assertSame([['fixed', 40.0], ['none', null], ['none', null], [null, null], [null, null]], $deals);
@@ -76,7 +82,29 @@ class ReferralTermsMigrationTest extends TestCase
         $this->assertSame(2, DB::table('agent_package_commission_rates')->count());
         $this->assertSame('fixed', DB::table('agent_package_commission_rates')->where('agent_id', 1)->value('commission_type'), 'Existing closer overrides are untouched.');
 
+        // Deals given referral terms of their own since: a flat fee and "not paid".
+        DB::table('deals')->where('id', 5)->update(['referral_commission_type' => 'percentage', 'referral_commission_value' => 3]);
+
         $migration->down();
+
+        // What had an equivalent comes back; a percentage of the deal has none.
+        $restored = DB::table('deals')->orderBy('id')->get(['referral_pool_rate', 'referral_fixed_amount'])
+            ->map(fn ($d) => [
+                $d->referral_pool_rate === null ? null : (float) $d->referral_pool_rate,
+                $d->referral_fixed_amount === null ? null : (float) $d->referral_fixed_amount,
+            ])->all();
+        $this->assertSame([[null, 40.0], [0.0, null], [0.0, null], [null, null], [null, null]], $restored);
+
+        // The referral-only row cannot exist in the old schema; the closer row stays,
+        // and the closer type is required again.
+        $this->assertSame(1, DB::table('agent_package_commission_rates')->count());
+        $this->assertSame('fixed', DB::table('agent_package_commission_rates')->value('commission_type'));
+        try {
+            DB::table('agent_package_commission_rates')->insert(['company_id' => 1, 'agent_id' => 3, 'package_id' => 1, 'commission_type' => null]);
+            $this->fail('commission_type should be required again after the rollback.');
+        } catch (\Illuminate\Database\QueryException) {
+            $this->addToAssertionCount(1);
+        }
 
         $this->assertTrue(Schema::hasColumn('deals', 'referral_pool_rate'));
         $this->assertFalse(Schema::hasColumn('deals', 'referral_commission_type'));

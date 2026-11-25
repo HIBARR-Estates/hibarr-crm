@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Deals\UpdateDealReferralTerms;
 use App\DataTables\DealNotesDataTable;
 use App\DataTables\DealsDataTable;
 use App\DataTables\LeadFollowupDataTable;
@@ -9,7 +10,6 @@ use App\DataTables\LeadGDPRDataTable;
 use App\DataTables\ProposalDataTable;
 use App\Email\EmailFeature;
 use App\Email\FollowUps\AttachesSourceEmail;
-use App\Actions\Deals\UpdateDealReferralTerms;
 use App\Enums\AgeRange;
 use App\Enums\MlmCommissionStatus;
 use App\Enums\OutcomeStatus;
@@ -54,7 +54,6 @@ use App\Models\SallyMeetingInsight;
 use App\Models\User;
 use App\Notifications\MeetingLinkGenerationFailed;
 use App\Scopes\ActiveScope;
-use App\Services\MeetingContactability;
 use App\Services\AgentWorkspace\ContactDeals;
 use App\Services\AgentWorkspace\DealPulse;
 use App\Services\AgentWorkspace\LeadVisibility;
@@ -65,6 +64,7 @@ use App\Services\DealAgentAssignmentService;
 use App\Services\DealFilters;
 use App\Services\DealOfferService;
 use App\Services\DealValueResolver;
+use App\Services\MeetingContactability;
 use App\Services\MeetingVisibilityService;
 use App\Services\PackagePipelineRouterService;
 use App\Services\PackageRoutingFieldCatalog;
@@ -2529,7 +2529,7 @@ class DealController extends AccountBaseController
 
         $type = $request->input('referral_commission_type');
         $valueRules = in_array($type, ['percentage', 'fixed'], true)
-            ? ['required', 'numeric', 'min:0', $type === 'percentage' ? 'max:100' : 'max:9999999999999.99']
+            ? ['required', 'numeric', 'min:0', 'decimal:0,2', $type === 'percentage' ? 'max:100' : 'max:9999999999999.99']
             : ['nullable'];
 
         $validated = $request->validate([

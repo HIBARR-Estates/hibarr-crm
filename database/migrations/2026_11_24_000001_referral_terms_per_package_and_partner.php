@@ -20,10 +20,15 @@ use Illuminate\Support\Facades\Schema;
  *   deal value.
  * - deals: an override for a single deal.
  *
- * The superseded pool-percentage columns are dropped. They were behind a feature
- * flag that is off by default, and a "percent of the pool" has no faithful
- * equivalent as a percent of a package or deal value, so partner defaults must
- * be set again. A deal's "agreed amount" and "not paid" settings carry over.
+ * The superseded pool-percentage columns on deals and lead_agents are dropped.
+ * They were behind a feature flag that is off by default, and a "percent of the
+ * pool" has no faithful equivalent as a percent of a package or deal value, so
+ * partner defaults must be set again. A deal's "agreed amount" and "not paid"
+ * settings carry over, and come back on rollback.
+ *
+ * The pool-rate columns on the audit log are kept: they are the only record of
+ * what a partner's rate used to be, and an audit trail is not rewritten to fit a
+ * new meaning. New entries use the new columns.
  */
 return new class extends Migration
 {
@@ -77,16 +82,11 @@ return new class extends Migration
             }
         });
 
+        $this->restoreDealSettings();
+
         Schema::table('lead_agents', function (Blueprint $table) {
             if (! Schema::hasColumn('lead_agents', 'referral_pool_rate')) {
                 $table->decimal('referral_pool_rate', 5, 2)->nullable()->after('custom_override_rate');
-            }
-        });
-
-        Schema::table('agent_commission_rate_audit_logs', function (Blueprint $table) {
-            if (! Schema::hasColumn('agent_commission_rate_audit_logs', 'previous_referral_pool_rate')) {
-                $table->decimal('previous_referral_pool_rate', 5, 2)->nullable();
-                $table->decimal('new_referral_pool_rate', 5, 2)->nullable();
             }
         });
 
@@ -101,6 +101,30 @@ return new class extends Migration
         ] as $table => $columns) {
             $this->dropColumns($table, $columns);
         }
+
+        // A row that held referral terms alone has no closer rule, which the old
+        // schema cannot store. Rows with a closer rule, "none" included, are kept.
+        DB::table('agent_package_commission_rates')->whereNull('commission_type')->delete();
+
+        Schema::table('agent_package_commission_rates', function (Blueprint $table) {
+            $table->string('commission_type', 12)->nullable(false)->change();
+        });
+    }
+
+    /**
+     * What had an equivalent goes back where it was: an agreed amount to the agreed
+     * amount, "not paid" to the zero-rate override. A percentage of a deal's value
+     * has no pool equivalent and is left to inherit.
+     */
+    private function restoreDealSettings(): void
+    {
+        DB::table('deals')
+            ->where('referral_commission_type', 'fixed')
+            ->update(['referral_fixed_amount' => DB::raw('referral_commission_value')]);
+
+        DB::table('deals')
+            ->where('referral_commission_type', 'none')
+            ->update(['referral_pool_rate' => 0]);
     }
 
     /**
@@ -136,7 +160,6 @@ return new class extends Migration
         foreach ([
             'deals' => ['referral_fixed_amount', 'referral_pool_rate'],
             'lead_agents' => ['referral_pool_rate'],
-            'agent_commission_rate_audit_logs' => ['new_referral_pool_rate', 'previous_referral_pool_rate'],
         ] as $table => $columns) {
             $this->dropColumns($table, $columns);
         }

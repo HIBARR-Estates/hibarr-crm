@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Enums\MlmCommissionStatus;
 use App\Enums\MlmCommissionType;
-use App\Enums\PackageCommissionType;
 use App\Models\AgentPackageCommissionRate;
 use App\Models\Currency;
 use App\Models\Deal;
@@ -371,7 +370,10 @@ class MlmCommissionService
                 'package_id' => $leg->package_id !== null ? (int) $leg->package_id : null,
             ]);
 
-        $isProjected = $persistedLegs->isEmpty();
+        // A deal whose commission was finalized is settled even when that wrote no
+        // rows (nobody was owed anything): its figures must not be recalculated from
+        // terms that may have been set since, because the ledger will never record them.
+        $isProjected = $persistedLegs->isEmpty() && ! $deal->commission_locked;
 
         $legs = $isProjected
             ? collect($this->preview($deal))->map(fn (array $leg) => [
@@ -868,7 +870,10 @@ class MlmCommissionService
             return [['terms' => $override, 'package' => null, 'source' => 'deal', 'base' => $dealValue]];
         }
 
-        $packages = $deal->packages()->get();
+        // A fixed order: when the legs together exceed what the deal can carry, the
+        // first package is paid in full and the rest share what is left, so preview
+        // and settlement must walk the packages the same way.
+        $packages = $deal->packages()->get()->sortBy('id')->values();
 
         if ($packages->isEmpty()) {
             $terms = CommissionTerms::make($referrer->referral_commission_type, $referrer->referral_commission_value);
@@ -964,7 +969,11 @@ class MlmCommissionService
                 agent: $referrer,
                 sourceAgent: $closer,
                 level: null,
-                percentage: $dealValue > 0 ? round($amount / $dealValue * 100, 2) : null,
+                // A fixed fee is not a rate, so it carries none: the summary reads a
+                // missing percentage as "paid as an amount" rather than as N% of the deal.
+                percentage: $entry['terms']->isPercentage() && $dealValue > 0
+                    ? round($amount / $dealValue * 100, 2)
+                    : null,
                 amount: round($amount, 2),
                 type: MlmCommissionType::Referral,
                 packageId: $entry['package']?->id,

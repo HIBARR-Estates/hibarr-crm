@@ -166,14 +166,16 @@ export default function AgentOverrides({
                                 )}
                                 <button
                                     type="button"
-                                    className="text-xs font-medium text-[#1a6bb5] hover:underline"
+                                    className="text-xs font-medium text-[#1a6bb5] hover:underline disabled:opacity-50"
+                                    disabled={saving}
                                     onClick={() => edit(o)}
                                 >
                                     {td("Edit", { source: "en" })}
                                 </button>
                                 <button
                                     type="button"
-                                    className="text-xs font-medium text-[#b91c1c] hover:underline"
+                                    className="text-xs font-medium text-[#b91c1c] hover:underline disabled:opacity-50"
+                                    disabled={saving}
                                     onClick={() => onRemove(pkg.id, o.agent_id)}
                                 >
                                     {td("Remove", { source: "en" })}
@@ -191,7 +193,7 @@ export default function AgentOverrides({
                     onChange={(e) =>
                         setAgentId(e.target.value === "" ? null : Number(e.target.value))
                     }
-                    disabled={editing}
+                    disabled={editing || saving}
                     aria-label={td("Agent", { source: "en" })}
                 >
                     <option value="">{td("Select an agent", { source: "en" })}</option>
@@ -212,6 +214,7 @@ export default function AgentOverrides({
                     rule={closer}
                     onChange={setCloser}
                     currencySymbol={currencySymbol}
+                    disabled={saving}
                 />
 
                 {referralEnabled && (
@@ -225,6 +228,7 @@ export default function AgentOverrides({
                         rule={referral}
                         onChange={setReferral}
                         currencySymbol={currencySymbol}
+                        disabled={saving}
                     />
                 )}
 
