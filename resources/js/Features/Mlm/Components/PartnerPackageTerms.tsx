@@ -70,6 +70,19 @@ export default function PartnerPackageTerms({ agentId, currencySymbol }: Partner
         return type === "percentage" ? `${value}%` : money(value);
     };
 
+    // A package is priced in its own currency, not the one commissions pay out in.
+    const packageMoney = (amount: number, currency: string | null) => {
+        if (currency) {
+            try {
+                return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(amount);
+            } catch {
+                // An unrecognised code: fall back to the payout symbol below.
+            }
+        }
+
+        return money(amount);
+    };
+
     const reset = () => {
         setPackageId(null);
         setCloser(EMPTY_COMMISSION_RULE);
@@ -151,7 +164,7 @@ export default function PartnerPackageTerms({ agentId, currencySymbol }: Partner
                                 </span>
                                 <span className="text-xs text-[#9ca3af]">
                                     {t("pages.agents.package_terms_package_value", {
-                                        value: money(row.package_value),
+                                        value: packageMoney(row.package_value, row.package_currency),
                                     })}
                                 </span>
                             </div>

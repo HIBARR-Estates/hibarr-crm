@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
     Button,
     CommissionRuleFields,
+    ConfirmDialog,
     EMPTY_COMMISSION_RULE as EMPTY_RULE,
     isRuleComplete as isComplete,
     ruleForSave,
@@ -57,6 +58,7 @@ export default function AgentOverrides({
     const [closer, setCloser] = useState<CommissionRule>(EMPTY_RULE);
     const [referral, setReferral] = useState<CommissionRule>(EMPTY_RULE);
     const [saving, setSaving] = useState(false);
+    const [removeTarget, setRemoveTarget] = useState<AgentOverride | null>(null);
 
     useEffect(() => {
         if (overrides === undefined) onLoad(pkg.id);
@@ -176,7 +178,15 @@ export default function AgentOverrides({
                                     type="button"
                                     className="text-xs font-medium text-[#b91c1c] hover:underline disabled:opacity-50"
                                     disabled={saving}
-                                    onClick={() => onRemove(pkg.id, o.agent_id)}
+                                    onClick={() => {
+                                        // The row holds the referral terms too, so removing it
+                                        // quietly would also end what the agent earns as referrer.
+                                        if (referralEnabled && o.referral_commission_type) {
+                                            setRemoveTarget(o);
+                                        } else {
+                                            onRemove(pkg.id, o.agent_id);
+                                        }
+                                    }}
                                 >
                                     {td("Remove", { source: "en" })}
                                 </button>
@@ -251,6 +261,22 @@ export default function AgentOverrides({
                     )}
                 </div>
             </div>
+
+            <ConfirmDialog
+                open={removeTarget !== null}
+                title={td("Remove this agent's terms?", { source: "en" })}
+                message={td(
+                    "This removes what they earn as closer and as referrer on this package. To change only one, edit the row instead.",
+                    { source: "en" },
+                )}
+                confirmLabel={td("Remove", { source: "en" })}
+                danger
+                onConfirm={() => {
+                    if (removeTarget) onRemove(pkg.id, removeTarget.agent_id);
+                    setRemoveTarget(null);
+                }}
+                onCancel={() => setRemoveTarget(null)}
+            />
         </div>
     );
 }
