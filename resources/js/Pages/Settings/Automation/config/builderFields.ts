@@ -109,6 +109,41 @@ function customFieldValueOptions(field: CustomFieldOption | undefined): { value:
     return values.map((v) => ({ value: String(v), label: String(v) }));
 }
 
+export type UtmTouchMode = "first" | "any";
+
+const UTM_ANY_PREFIX = "lead_utm_any_";
+const UTM_FIRST_PREFIX = "lead_marketing_";
+
+/** UTM column → form-data endpoint that lists its distinct recorded values
+ * (first + later touches — the same list the lead filter uses). */
+export const UTM_FORM_DATA_TYPES = {
+    utm_source: "lead-utm-sources",
+    utm_medium: "lead-utm-mediums",
+    utm_campaign: "lead-utm-campaigns",
+    utm_content: "lead-utm-contents",
+    utm_term: "lead-utm-terms",
+    utm_audience: "lead-utm-audiences",
+} as const;
+
+export type UtmColumn = keyof typeof UTM_FORM_DATA_TYPES;
+
+/** Splits a condition field key into its UTM column and touch mode, or null
+ * when it isn't a UTM field. `lead_marketing_utm_*` is the first touch;
+ * `lead_utm_any_utm_*` matches any touch (FieldResolverService). */
+export function parseUtmField(fieldKey: string | null | undefined): { column: UtmColumn; mode: UtmTouchMode } | null {
+    if (!fieldKey) return null;
+    const read = (prefix: string, mode: UtmTouchMode) => {
+        if (!fieldKey.startsWith(prefix)) return null;
+        const column = fieldKey.slice(prefix.length);
+        return column in UTM_FORM_DATA_TYPES ? { column: column as UtmColumn, mode } : null;
+    };
+    return read(UTM_FIRST_PREFIX, "first") ?? read(UTM_ANY_PREFIX, "any");
+}
+
+export function utmFieldKey(column: UtmColumn, mode: UtmTouchMode): string {
+    return `${mode === "any" ? UTM_ANY_PREFIX : UTM_FIRST_PREFIX}${column}`;
+}
+
 /** Fixed option list for a condition's Value input, when the selected field
  * has a known finite set of values — a select-typed field (see
  * fieldValueType()) always resolves here or falls back to free text.
@@ -394,6 +429,8 @@ export function fieldValueType(fieldKey: string | null | undefined, catalog: Aut
         const field = catalog.leadCustomFields.find((f) => f.id === id);
         return (field && CUSTOM_FIELD_TYPE_CATEGORY[field.type]) || "unknown";
     }
+
+    if (fieldKey.startsWith(UTM_ANY_PREFIX)) return "string";
 
     if (fieldKey.startsWith("lead_marketing_")) {
         const column = fieldKey.slice("lead_marketing_".length);
