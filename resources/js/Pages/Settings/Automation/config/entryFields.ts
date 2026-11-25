@@ -1,4 +1,4 @@
-import { AutomationCatalog } from "../types";
+import type { AutomationCatalog } from "../types";
 
 /**
  * Condition fields about the entry a lead came in through (see AutomationFieldCatalog::ENTRY_FIELDS and
@@ -34,11 +34,26 @@ export function entryFieldKind(fieldKey: string): EntryFieldKind {
 
 type Option = { value: string; label: string };
 
-/** A channel as the picker shows it: indented by depth so the tree reads, archived ones marked. */
+/**
+ * A channel as the picker shows it: named by its path ("Consultation booking › Consultation (DE)") so the
+ * tree is readable and a selected chip stands on its own, archived ones marked.
+ */
 export function channelOptions(catalog: AutomationCatalog): Option[] {
-    return (catalog.entryChannels ?? []).map((channel) => ({
+    const channels = catalog.entryChannels ?? [];
+    const byUuid = new Map(channels.map((channel) => [channel.uuid, channel]));
+    const trail = (channel: (typeof channels)[number]): string[] => {
+        const names = [channel.name];
+        let parent = channel.parentUuid ? byUuid.get(channel.parentUuid) : undefined;
+        // Three levels at most; the cap only guards against a malformed parent loop.
+        for (let hops = 0; parent && hops < 10; hops += 1) {
+            names.unshift(parent.name);
+            parent = parent.parentUuid ? byUuid.get(parent.parentUuid) : undefined;
+        }
+        return names;
+    };
+    return channels.map((channel) => ({
         value: channel.uuid,
-        label: `${"· ".repeat(channel.depth)}${channel.name}${channel.status === "archived" ? " (archived)" : ""}`,
+        label: `${trail(channel).join(" › ")}${channel.status === "archived" ? " (archived)" : ""}`,
     }));
 }
 
