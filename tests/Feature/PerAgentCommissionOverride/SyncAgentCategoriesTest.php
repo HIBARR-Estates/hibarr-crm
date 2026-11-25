@@ -170,6 +170,38 @@ class SyncAgentCategoriesTest extends PerAgentCommissionOverrideTestCase
         $this->assertSame($expected, $this->packageTermsOf($rows[1]['id']), 'The existing row is untouched.');
     }
 
+    public function test_removing_the_row_the_terms_were_set_on_fills_gaps_on_the_row_that_stays(): void
+    {
+        $removed = $this->partnerRow(1);
+        $kept = $this->partnerRow(2);
+        DB::table('agent_package_commission_rates')->insert([
+            ['company_id' => $this->companyId, 'agent_id' => $removed, 'package_id' => 7, 'commission_type' => null, 'commission_value' => null, 'referral_commission_type' => 'percentage', 'referral_commission_value' => 3],
+            ['company_id' => $this->companyId, 'agent_id' => $removed, 'package_id' => 8, 'commission_type' => null, 'commission_value' => null, 'referral_commission_type' => 'fixed', 'referral_commission_value' => 150],
+            // The row that stays already has its own terms on package 7.
+            ['company_id' => $this->companyId, 'agent_id' => $kept, 'package_id' => 7, 'commission_type' => null, 'commission_value' => null, 'referral_commission_type' => 'fixed', 'referral_commission_value' => 99],
+        ]);
+
+        $this->sync($removed, [2]);
+
+        $this->assertSame([
+            7 => ['type' => null, 'ref_type' => 'fixed', 'ref_value' => 99.0],
+            8 => ['type' => null, 'ref_type' => 'fixed', 'ref_value' => 150.0],
+        ], $this->packageTermsOf($kept), 'Package 8 is taken over; package 7 keeps what was configured on this row.');
+    }
+
+    public function test_a_resave_that_removes_nothing_does_not_copy_terms_between_rows(): void
+    {
+        $first = $this->partnerRow(1);
+        $second = $this->partnerRow(2);
+        DB::table('agent_package_commission_rates')->insert(
+            ['company_id' => $this->companyId, 'agent_id' => $first, 'package_id' => 7, 'commission_type' => null, 'commission_value' => null, 'referral_commission_type' => 'percentage', 'referral_commission_value' => 3],
+        );
+
+        $this->sync($first, [1, 2]);
+
+        $this->assertSame([], $this->packageTermsOf($second), 'Rows keep their own terms unless the row they were set on goes away.');
+    }
+
     public function test_package_terms_of_someone_who_is_not_a_partner_are_not_copied(): void
     {
         $existing = $this->seedRow(1);
