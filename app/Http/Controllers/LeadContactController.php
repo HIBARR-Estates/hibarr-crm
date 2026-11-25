@@ -302,6 +302,7 @@ class LeadContactController extends AccountBaseController
      */
     public const AGENT_CONTACT_UNUSED_PROPS = [
         'utmTouches',
+        'leadEntries',
         'callSummary',
         'dealFileFields',
         'taskLabels',
@@ -560,6 +561,19 @@ class LeadContactController extends AccountBaseController
             // Full UTM history (newest first) for the Marketing tab; lead_marketing keeps only the first touch.
             'utmTouches' => Inertia::defer(
                 fn () => $leadContact->utmTouches()->reorder('id', 'desc')->get(),
+                'marketing'
+            ),
+            // Every way this lead came in (newest first), for the Marketing tab's entry history.
+            'leadEntries' => Inertia::defer(
+                fn () => \App\Models\LeadEntry::query()
+                    ->where('lead_id', $leadContact->id)
+                    ->orderByDesc('occurred_at')
+                    ->orderByDesc('id')
+                    ->limit(50)
+                    ->get([
+                        'id', 'channel_name', 'channel_type', 'channel_path', 'source_entity_type', 'source_label',
+                        'is_new_lead', 'occurred_at', 'campaign_label', 'campaign_key', 'utm_source', 'utm_medium', 'form_key',
+                    ]),
                 'marketing'
             ),
             // Calls tab: count for the tab bar only; the tab loads its rows from

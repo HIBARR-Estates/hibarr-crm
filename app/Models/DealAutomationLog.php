@@ -18,7 +18,7 @@ class DealAutomationLog extends BaseModel
 
     public const STATUS_SKIPPED = 'skipped';
 
-    public const CHANNELS = ['stage', 'field', 'lock', 'email', 'task', 'note', 'meta', 'wait'];
+    public const CHANNELS = ['stage', 'field', 'lock', 'email', 'task', 'note', 'meta', 'wait', 'owner'];
 
     protected $fillable = [
         'company_id',

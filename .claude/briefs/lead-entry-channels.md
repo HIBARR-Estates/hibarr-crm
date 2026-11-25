@@ -406,6 +406,34 @@ Rollout: backend flag on first (entries recorded, not yet routed; check catch-al
 
 ---
 
+## 8b. Implementation status
+
+Built on branch `claude/vigilant-euler-39ffbu` in `hibarr-backend`, `hibarr-backoffice` and this repo. Where the build differs from the design above, the build is the truth.
+
+**Backend (Phases 1 and 2, mostly)**
+- Registry, resolver, `lead_entries` log, `/v1/entry-channels` management routes, `GET /v1/internal/entry-channels` and `/internal/entry-channel-types`, permissions seeder, flags `sales.lead-entry-channels` and `sales.lead-entry-owner-handoff`.
+- **Seam differs from §3.** There is no `leadEntryService.recordEntry`. Contact-only flows (webinar, ebook, Facebook group, signup, property enquiry, lead capture, forms with a CRM push) put an `entryRequest` on the CRM contact extras and `leadCrmSyncService.syncLead` records it once the lead id exists, sending the `entry` block in the same `contact/create`. Deal flows (consultation, package, partner deal) record in the handler and send `entry` on `deal/create`, so routing runs after the deal exists. Reason: recording needs a lead id, and in the unified lead path the lead is created and synced inside one call.
+- The wire contract of §4 is implemented as written, plus `channel.family`, `source.entity_key`, `form_key` and `language`.
+- Wired: `webinar_registration` (both endpoints, plus the legacy one), `consultation_booking` (consultation endpoint), `package_interest`, `lead_magnet`/`ad_form` (form builder, by lead-magnet link), `ad_form` (lead capture), `signup`, `property_enquiry`, `community_join`, `lead_magnet` (ebook), `partner_referral` (partner ingestion, bound to the calling application).
+- **Not wired, because there is no lead to attach an entry to** (an entry needs `leads.id`): public bookings (they create `booking_leads`, and an OL lead only when the CRM has no match) and masterclass registrations (agent recruitment records). §3 said "none" for the gap; that was wrong. Decide whether those flows should create or link a lead.
+- Not built: partner detection (`agents.isPartner`, `applications.partnerAgentId`), partner-scoped campaign keys, `landing_page` candidates and `entryContext`, the entry-only CRM endpoint and the BullMQ retry job (entries left `pending`/`failed` are indexed for it), attribute rules, `GET /internal/lead-entries`, the CRM write routes of §6.
+- Entries for a returning lead with no CRM request (a lead-capture resubmission) are stored `pending`; a form not pushed to the CRM is stored `skipped`.
+
+**Backoffice**: Entry Channels (tree, detail, create/edit, move, archive/restore, bind/unbind) and Unbound Sources (objects in a catch-all, campaigns not configured), under Lead Management, behind `sales.lead-entry-channels`. **Channel management lives here, not in the CRM**, which answers open question 5 for now: §5.5's CRM "Lead entry channels" settings screen was not built, and the CRM only reads the catalog.
+
+**CRM (Phases 3 and 4)**
+- `lead_entries` table and model; `LeadEntryIntakeService` stores the `entry` block of `contact/create` and `deal/create` (idempotent on `ol_entry_uuid`) and fires `lead_entry_received` once per entry, after `lead_*_api`, even when nothing on the lead changed. A malformed entry is ignored, and a failing automation never fails the request.
+- `TRIGGER_LEAD_ENTRY_RECEIVED`, scoped by `entry_channel_uuids` + `entry_channel_include_descendants` (matched by uuid). Lead automations only.
+- Condition fields `entry_*` / `first_entry_*` (`LeadEntryFieldResolver`). Channel and tag fields resolve to lists, so the operator **Contains** means "in this channel or below" / "has this tag". They read the triggering entry (parked in `LeadEntryContext` for the run) and fall back to the latest one, so a resumed wait or date trigger sees the latest entry.
+- `assign_lead_owner` (payload `{strategy, user_id, pool_id, when_owned, notify}`) with `specific_user` and `round_robin`; pools (`lead_assignment_pools`, `lead_assignment_pool_members`, cursor `last_member_id`, locked row) with a screen in the Automation workspace. Every outcome, including a skip, is logged on the `owner` log channel.
+- Lead merge moves entries to the kept lead; the lead's Marketing tab shows an Entry History section (deferred).
+- Flag `crm.lead-entry-routing` (needs `crm.automation-v2`). Entries are stored without it. `OL_DEFAULT_LEAD_OWNER_ID` (default 1) is what `overwrite_if_default_owner` treats as "nobody chose this lead".
+- Not built: `weighted` / `least_open_leads`, `GET /internal/entry-campaigns` and the campaign/partner/attribution-link pickers (those condition values are free text), the erasure path for `lead_entries`, a concurrency test with parallel requests.
+
+**Verification state**: backend, Backoffice and CRM TypeScript are typechecked and linted; backend and Backoffice unit tests pass. **The CRM PHPUnit suite was written but not run** (the session could not install composer dependencies: GitHub download authentication was refused). Run `vendor/bin/phpunit tests/Feature/LeadEntries tests/Unit/Automation/EntryChannelScopeTest.php` first.
+
+---
+
 ## 9. Edge cases to keep in tests
 
 - Same person signs up for a webinar, then books a consultation: two entries, two trigger runs, and the second is skipped when `when_owned = skip`.

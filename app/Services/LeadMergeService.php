@@ -89,6 +89,8 @@ class LeadMergeService
         'sally_suggestion_logs',
         'deal_notes',
         'deal_files',
+        // Every way the duplicate came in moves with it, so entry history survives a merge.
+        'lead_entries',
     ];
 
     /** @var list<string> */
@@ -752,6 +754,7 @@ class LeadMergeService
             'communication_activities' => $count('communication_activities'),
             'flight_itineraries' => $count('lead_flight_itineraries'),
             'partner_flags' => $count('partner_flags'),
+            'lead_entries' => $count('lead_entries'),
             'utm_touches' => $count('lead_utm_touches'),
             'timeline_events' => $count('crm_events', 'model_id', fn ($q) => $q->whereIn('model_type', $leadTypes)),
         ];

@@ -18,9 +18,10 @@ import AutomationDetail from "./AutomationDetail";
 import TemplatesList from "./TemplatesList";
 import TemplateEditor from "./TemplateEditor";
 import MetaEventsList from "./MetaEventsList";
+import PoolsList from "./PoolsList";
 import RunHistory from "./RunHistory";
 
-type SubNavKey = "overview" | "automations" | "templates" | "metaEvents" | "logs";
+type SubNavKey = "overview" | "automations" | "templates" | "metaEvents" | "pools" | "logs";
 
 interface SubNavItem {
     key: SubNavKey;
@@ -44,6 +45,7 @@ function AutomationSettingsBody({ pageTitle }: { pageTitle: string }) {
         goTemplates,
         goEditor,
         goMetaEvents,
+        goPools,
         goLogs,
     } = useAutomationNavigation();
 
@@ -101,6 +103,7 @@ function AutomationSettingsBody({ pageTitle }: { pageTitle: string }) {
             badge: String(metaEvents.length),
             inGroup,
         },
+        { key: "pools", label: t("app.automation.assignmentPools"), icon: "users", inGroup },
         { key: "logs", label: t("app.automation.runHistory"), icon: "clock", inGroup },
     ];
 
@@ -120,6 +123,8 @@ function AutomationSettingsBody({ pageTitle }: { pageTitle: string }) {
                 return currentTemplate ? t("app.automation.editTemplate") : t("app.automation.newTemplate");
             case "metaEvents":
                 return t("app.automation.metaEvents");
+            case "pools":
+                return t("app.automation.assignmentPools");
             case "logs":
                 return t("app.automation.runHistory");
         }
@@ -159,7 +164,9 @@ function AutomationSettingsBody({ pageTitle }: { pageTitle: string }) {
                                                 ? goTemplates()
                                                 : item.key === "metaEvents"
                                                   ? goMetaEvents()
-                                                  : goLogs()
+                                                  : item.key === "pools"
+                                                    ? goPools()
+                                                    : goLogs()
                                     }
                                     className="w-full flex items-center gap-2.5 rounded-lg mb-0.5"
                                     style={{
@@ -241,6 +248,7 @@ function AutomationSettingsBody({ pageTitle }: { pageTitle: string }) {
                         )
                     )}
                     {screen === "metaEvents" && <MetaEventsList onOpenAutomation={goBuilder} />}
+                    {screen === "pools" && <PoolsList />}
                     {screen === "logs" && <RunHistory />}
                 </div>
             </div>

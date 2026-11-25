@@ -43,6 +43,9 @@ return [
         'crm.deal-exposes-tab',
         'crm.tasks-workspace-redesign',
         'crm.automation-v2',
+        // Routes a lead on the entry channel it came in through: the lead_entry_received trigger and the
+        // assign_lead_owner action. Needs crm.automation-v2. Entries are stored whether or not it is on.
+        'crm.lead-entry-routing',
         'crm.custom-fields-cross-model-optimizations',
         'crm.meeting-attendance-confirmation',
         'crm.meeting-host',

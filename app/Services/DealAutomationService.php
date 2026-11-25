@@ -360,6 +360,10 @@ class DealAutomationService
      */
     protected function matchesTriggerScope(DealAutomation $automation, array $context): bool
     {
+        if ($automation->trigger === DealAutomation::TRIGGER_LEAD_ENTRY_RECEIVED) {
+            return $this->matchesEntryChannelScope($automation, $context);
+        }
+
         $meetingTypeIds = array_map('intval', (array) ($automation->meeting_type_ids ?? []));
 
         if ($automation->trigger !== DealAutomation::TRIGGER_MEETING_ATTENDED || $meetingTypeIds === []) {
@@ -373,6 +377,37 @@ class DealAutomationService
         }
 
         Log::info("Skipping automation '{$automation->name}' (ID: {$automation->id}): meeting type is outside its scope.");
+
+        return false;
+    }
+
+    /**
+     * A lead_entry_received automation with channels selected only runs for an entry in one of them,
+     * or, with descendants on, in a channel below one of them. Matched by channel uuid, so renaming
+     * or re-parenting a channel in OL never breaks an automation. No selection means every channel.
+     *
+     * @param  array<string, mixed>  $context  ['entry' => LeadEntry]
+     */
+    protected function matchesEntryChannelScope(DealAutomation $automation, array $context): bool
+    {
+        $scope = array_values(array_filter((array) ($automation->entry_channel_uuids ?? [])));
+        if ($scope === []) {
+            return true;
+        }
+
+        $entry = $context['entry'] ?? null;
+        if (! $entry instanceof \App\Models\LeadEntry) {
+            return false;
+        }
+
+        $includeDescendants = $automation->entry_channel_include_descendants ?? true;
+        $candidates = $includeDescendants ? $entry->channelLineage() : [(string) $entry->channel_uuid];
+
+        if (array_intersect($scope, $candidates) !== []) {
+            return true;
+        }
+
+        Log::info("Skipping automation '{$automation->name}' (ID: {$automation->id}): the entry's channel is outside its scope.");
 
         return false;
     }
@@ -662,6 +697,7 @@ class DealAutomationService
                 'create_task' => $this->performCreateTask($subject, $action, $automation),
                 'create_note' => $this->performCreateNote($subject, $action, $automation),
                 'meta_conversion' => $this->performMetaConversion($subject, $action, $automation),
+                'assign_lead_owner' => $this->performAssignLeadOwner($subject, $action, $automation),
                 default => Log::warning("Action type '{$actionType}' is not supported for lead automations (Lead ID: {$subject->id})."),
             };
 
@@ -811,6 +847,76 @@ class DealAutomationService
                 'automation_name' => $automation?->name,
             ],
         ]);
+    }
+
+    /**
+     * assign_lead_owner (lead automations): hands the lead to a named user or the next person in a
+     * pool, per the action's payload {strategy, user_id, pool_id, when_owned, notify}. Every outcome,
+     * including "left alone because it already has an owner", is logged with who and why, so "why does
+     * X own this lead?" can always be answered. Needs lead entry routing (crm.lead-entry-routing).
+     */
+    protected function performAssignLeadOwner(Lead $lead, $action, ?DealAutomation $automation = null): void
+    {
+        if (! \App\Support\LeadEntryRouting::enabled()) {
+            Log::info("Skipping assign_lead_owner for Lead ID: {$lead->id} — lead entry routing is disabled.");
+
+            return;
+        }
+
+        $config = (array) ($action->payload ?? []);
+        $result = app(LeadAssignmentService::class)->assign($lead, $config);
+
+        $status = $result['outcome'] === LeadAssignmentService::OUTCOME_FAILED
+            ? DealAutomationLog::STATUS_FAILED
+            : ($result['outcome'] === LeadAssignmentService::OUTCOME_SKIPPED
+                ? DealAutomationLog::STATUS_SKIPPED
+                : DealAutomationLog::STATUS_SUCCESS);
+
+        $owner = $result['user_id'] ? User::withoutGlobalScopes()->find($result['user_id']) : null;
+        $description = match ($result['outcome']) {
+            LeadAssignmentService::OUTCOME_ASSIGNED => 'Assigned lead owner: '.($owner?->name ?? "user {$result['user_id']}"),
+            LeadAssignmentService::OUTCOME_SKIPPED => 'Lead owner left unchanged',
+            default => 'Could not assign a lead owner',
+        };
+
+        $this->logAction($lead, $automation, $description, $status, 'owner', [
+            'reason' => $result['reason'],
+            'strategy' => $config['strategy'] ?? null,
+            'pool_id' => $result['pool_id'],
+            'user_id' => $result['user_id'],
+            'previous_owner_id' => $result['previous_owner_id'],
+            'entry_uuid' => LeadEntryContext::triggeringEntryFor($lead)?->ol_entry_uuid,
+        ]);
+
+        if ($result['outcome'] !== LeadAssignmentService::OUTCOME_ASSIGNED || ! $owner) {
+            return;
+        }
+
+        $this->recordCrmEvent('lead_updated', $lead, [
+            'generation_type' => 'system_generated',
+            'metadata' => [
+                'field_name' => 'lead_owner',
+                'field_value' => $result['user_id'],
+                'previous_owner_id' => $result['previous_owner_id'],
+                'automation_id' => $automation?->id,
+                'automation_name' => $automation?->name,
+                'reason' => $result['reason'],
+            ],
+        ]);
+
+        if (! empty($config['notify'])) {
+            DB::afterCommit(function () use ($owner, $lead) {
+                try {
+                    \Illuminate\Support\Facades\Notification::send($owner, new \App\Notifications\LeadOwnerAssigned($lead));
+                } catch (\Throwable $e) {
+                    Log::error('Failed to notify the new lead owner after automation assignment', [
+                        'lead_id' => $lead->id,
+                        'owner_id' => $owner->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            });
+        }
     }
 
     /**

@@ -11,6 +11,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { Automation, ConditionLogic, DealAutomationAction, DealAutomationCondition, SubjectType, TriggerKey } from "./types";
 import { actionTypeIcon, actionTypeLabel, actionTypeSubtitle, triggerLabel, triggerExplanation, TRIGGER_SUBJECT } from "./shared";
+import { channelOptions } from "./config/entryFields";
 import { conditionFieldGroups, conditionValueOptions, DEAL_SETTABLE_FIELDS, fieldValueOptions, fieldValueType, mergeTagGroups, operatorsForFieldType } from "./config/builderFields";
 import { useAutomationWorkspace } from "./context/AutomationWorkspaceContext";
 import useAutomationMutations from "./hooks/useAutomationMutations";
@@ -48,6 +49,24 @@ function newAction(subjectType: SubjectType): DealAutomationAction {
         meta_event_value_source: null,
         wait_duration_value: null,
         wait_duration_unit: "minutes",
+        assign_strategy: "specific_user",
+        assign_user_id: null,
+        assign_pool_id: null,
+        assign_when_owned: "skip",
+        assign_notify: false,
+    };
+}
+
+/** The server keeps assign_lead_owner's config in `payload`; the editor works on flat fields. */
+function hydrateAction(action: DealAutomationAction): DealAutomationAction {
+    if (action.action_type !== "assign_lead_owner" || !action.payload) return action;
+    return {
+        ...action,
+        assign_strategy: action.payload.strategy ?? "specific_user",
+        assign_user_id: action.payload.user_id ?? null,
+        assign_pool_id: action.payload.pool_id ?? null,
+        assign_when_owned: action.payload.when_owned ?? "skip",
+        assign_notify: !!action.payload.notify,
     };
 }
 
@@ -82,6 +101,8 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
     const [dateField, setDateField] = useState<string | null>(automation?.date_field ?? null);
     const [dateRecurrence, setDateRecurrence] = useState<"yearly" | "once" | null>(automation?.date_recurrence ?? null);
     const [meetingTypeIds, setMeetingTypeIds] = useState<number[]>(automation?.meeting_type_ids ?? []);
+    const [entryChannelUuids, setEntryChannelUuids] = useState<string[]>(automation?.entry_channel_uuids ?? []);
+    const [entryIncludeDescendants, setEntryIncludeDescendants] = useState<boolean>(automation?.entry_channel_include_descendants ?? true);
     const [waitMode, setWaitMode] = useState<"immediate" | "wait">(automation?.wait_duration_value ? "wait" : "immediate");
     const [waitValue, setWaitValue] = useState<string>(automation?.wait_duration_value ? String(automation.wait_duration_value) : "5");
     const [waitUnit, setWaitUnit] = useState<string>(automation?.wait_duration_unit ?? "minutes");
@@ -90,7 +111,7 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
     const [conditionLogic, setConditionLogic] = useState<ConditionLogic>(automation?.condition_logic ?? "all");
     const [conditions, setConditions] = useState<DealAutomationCondition[]>(automation?.conditions ?? []);
     const [actions, setActions] = useState<DealAutomationAction[]>(
-        automation?.actions?.length ? automation.actions : [newAction(subjectType)],
+        automation?.actions?.length ? automation.actions.map(hydrateAction) : [newAction(subjectType)],
     );
 
     const saveInProgress = isSaving(automation?.id ?? "new");
@@ -165,6 +186,8 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
             trigger_date_field: trigger === "date_based" ? dateField : null,
             trigger_date_recurrence: trigger === "date_based" ? dateRecurrence : null,
             trigger_meeting_type_ids: trigger === "meeting_attended" ? meetingTypeIds : [],
+            trigger_entry_channel_uuids: trigger === "lead_entry_received" ? entryChannelUuids : [],
+            trigger_entry_channel_include_descendants: trigger === "lead_entry_received" ? entryIncludeDescendants : true,
             wait_duration_value: waitMode === "wait" && waitValue ? Number(waitValue) : null,
             wait_duration_unit: waitMode === "wait" && waitValue ? waitUnit : null,
             priority: Number(priority) || 0,
@@ -347,6 +370,50 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                                         ? t("app.automation.meetingTypeScopeAll")
                                         : t("app.automation.meetingTypeScopeSome")}
                                 </div>
+                            </div>
+                        )}
+
+                        {trigger === "lead_entry_received" && catalog && (
+                            <div className="mt-3">
+                                <label style={fieldLabelStyle}>{t("app.automation.entryChannelScope")}</label>
+                                <Select
+                                    mode="multiple"
+                                    value={entryChannelUuids}
+                                    onChange={(values) => setEntryChannelUuids(values)}
+                                    options={channelOptions(catalog).map((o) => ({ value: o.value, label: o.label }))}
+                                    showSearch
+                                    optionFilterProp="label"
+                                    allowClear
+                                    placeholder={t("app.automation.allChannels")}
+                                    className="w-full"
+                                />
+                                <div className="mt-1.5" style={{ fontSize: 11, color: T.TEXT_HINT }}>
+                                    {entryChannelUuids.length === 0
+                                        ? t("app.automation.entryChannelScopeAll")
+                                        : t("app.automation.entryChannelScopeSome")}
+                                </div>
+                                {entryChannelUuids.length > 0 && (
+                                    <label className="flex items-center gap-2 mt-2" style={{ fontSize: 12, color: T.TEXT_MUTED }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={entryIncludeDescendants}
+                                            onChange={(e) => setEntryIncludeDescendants(e.target.checked)}
+                                        />
+                                        {t("app.automation.includeSubChannels")}
+                                    </label>
+                                )}
+                            </div>
+                        )}
+
+                        {catalog && catalog.entryRoutingEnabled === false && (trigger === "lead_entry_received" || actions.some((a) => a.action_type === "assign_lead_owner")) && (
+                            <div
+                                className="rounded-lg flex items-start gap-2 mt-2.5"
+                                style={{ background: T.AMBER_SOFT, border: `1px solid ${T.AMBER_MID}`, padding: "10px 12px", fontSize: 12, color: T.AMBER }}
+                            >
+                                <span style={{ marginTop: 1 }}>
+                                    <Icon name="info" size={13} />
+                                </span>
+                                <span>{t("app.automation.entryRoutingDisabled")}</span>
                             </div>
                         )}
 
@@ -933,6 +1000,65 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                                             )}
                                         </div>
                                     )}
+                                </div>
+                            )}
+
+                            {step.action_type === "assign_lead_owner" && catalog && (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label style={fieldLabelStyle}>{t("app.automation.assignTo")}</label>
+                                        <SearchableSelect
+                                            value={step.assign_strategy ?? "specific_user"}
+                                            onChange={(value) => updateAction(i, { assign_strategy: value as DealAutomationAction["assign_strategy"] })}
+                                            options={Object.entries(catalog.ownerStrategies ?? {}).map(([key, label]) => ({ value: key, label: td(label) }))}
+                                            className="w-full"
+                                        />
+                                    </div>
+                                    {step.assign_strategy === "round_robin" ? (
+                                        <div>
+                                            <label style={fieldLabelStyle}>{t("app.automation.assignPool")}</label>
+                                            <SearchableSelect
+                                                value={step.assign_pool_id ?? undefined}
+                                                onChange={(value) => updateAction(i, { assign_pool_id: value ?? null })}
+                                                options={(catalog.assignmentPools ?? []).filter((pool) => pool.active).map((pool) => ({ value: pool.id, label: pool.name }))}
+                                                allowClear
+                                                placeholder={t("app.automation.selectPool")}
+                                                className="w-full"
+                                            />
+                                            {(catalog.assignmentPools ?? []).length === 0 && (
+                                                <div className="mt-1.5" style={{ fontSize: 11, color: T.TEXT_HINT }}>{t("app.automation.noPoolsYet")}</div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <label style={fieldLabelStyle}>{t("app.automation.assignUser")}</label>
+                                            <SearchableSelect
+                                                value={step.assign_user_id ?? undefined}
+                                                onChange={(value) => updateAction(i, { assign_user_id: value ?? null })}
+                                                options={catalog.users.map((u) => ({ value: u.id, label: userLabel(u) }))}
+                                                allowClear
+                                                placeholder={t("app.automation.selectUser")}
+                                                className="w-full"
+                                            />
+                                        </div>
+                                    )}
+                                    <div>
+                                        <label style={fieldLabelStyle}>{t("app.automation.whenOwned")}</label>
+                                        <SearchableSelect
+                                            value={step.assign_when_owned ?? "skip"}
+                                            onChange={(value) => updateAction(i, { assign_when_owned: value as DealAutomationAction["assign_when_owned"] })}
+                                            options={Object.entries(catalog.whenOwnedOptions ?? {}).map(([key, label]) => ({ value: key, label: td(label) }))}
+                                            className="w-full"
+                                        />
+                                    </div>
+                                    <label className="flex items-center gap-2 mt-5" style={{ fontSize: 12, color: T.TEXT_MUTED }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={!!step.assign_notify}
+                                            onChange={(e) => updateAction(i, { assign_notify: e.target.checked })}
+                                        />
+                                        {t("app.automation.notifyNewOwner")}
+                                    </label>
                                 </div>
                             )}
 

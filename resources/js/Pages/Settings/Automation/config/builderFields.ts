@@ -1,4 +1,5 @@
 import { AutomationCatalog, ConditionOperator, CustomFieldOption, SubjectType } from "../types";
+import { entryFieldKind, entryFieldValueOptions, isEntryField } from "./entryFields";
 
 /** Mirrors condition-row.blade.php's operator <select> exactly. "changed"
  * evaluates true when the field changed on the same save that fired this
@@ -117,6 +118,8 @@ function customFieldValueOptions(field: CustomFieldOption | undefined): { value:
 export function conditionValueOptions(fieldKey: string | null | undefined, catalog: AutomationCatalog | null): { value: string; label: string }[] | null {
     if (!fieldKey || !catalog) return null;
 
+    if (isEntryField(fieldKey, catalog)) return entryFieldValueOptions(fieldKey, catalog);
+
     if (fieldKey.startsWith("lead_marketing_")) {
         const column = fieldKey.slice("lead_marketing_".length);
         // Stored 0/1 (FieldResolverService reads them raw, uncast).
@@ -213,6 +216,14 @@ export function conditionFieldGroups(subjectType: SubjectType, catalog: Automati
         })),
     });
 
+    // Entry conditions only exist for lead automations (a deal has no single entry).
+    if (subjectType === "lead") {
+        groups.push({
+            label: "Entry Channel",
+            options: Object.entries(catalog.entryFields ?? {}).map(([key, label]) => ({ value: key, label })),
+        });
+    }
+
     return groups.filter((g) => g.options.length > 0);
 }
 
@@ -281,7 +292,7 @@ export function mergeTagGroups(subjectType: SubjectType, catalog: AutomationCata
  * numeric-coerces both sides for `=`/`>`/`<` when the value looks numeric —
  * this is purely about not offering a nonsensical operator in the UI.
  */
-export type FieldValueType = "number" | "date" | "select" | "string" | "file" | "unknown";
+export type FieldValueType = "number" | "date" | "select" | "string" | "file" | "membership" | "unknown";
 
 const NATIVE_FIELD_TYPES: Record<string, FieldValueType> = {
     // DEAL_NATIVE_FIELDS
@@ -383,6 +394,8 @@ const CUSTOM_FIELD_TYPE_CATEGORY: Record<string, FieldValueType> = {
 export function fieldValueType(fieldKey: string | null | undefined, catalog: AutomationCatalog | null): FieldValueType {
     if (!fieldKey || !catalog) return "unknown";
 
+    if (isEntryField(fieldKey, catalog)) return entryFieldKind(fieldKey);
+
     if (fieldKey.startsWith("custom_field_")) {
         const id = Number(fieldKey.slice("custom_field_".length));
         const field = catalog.dealCustomFields.find((f) => f.id === id);
@@ -414,6 +427,8 @@ const OPERATORS_BY_TYPE: Record<FieldValueType, ConditionOperator[]> = {
     select: ["=", "exists", "changed"],
     string: ["=", "contains", "exists", "changed"],
     file: ["exists", "changed"],
+    // Lists (a channel and its ancestors, tags): "contains" is the only comparison that means anything.
+    membership: ["contains", "exists"],
     unknown: ["=", ">", "<", "contains", "exists", "changed"],
 };
 

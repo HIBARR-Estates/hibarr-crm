@@ -25,6 +25,7 @@ use App\Services\DealAutomationService;
 use App\Services\LeadApiChangeRecorder;
 use App\Services\LeadApiFieldMerger;
 use App\Services\LeadCoreFieldsService;
+use App\Services\LeadEntryIntakeService;
 use App\Services\LeadLifecycleStatusService;
 use App\Services\LeadUtmService;
 use Illuminate\Http\Request;
@@ -288,6 +289,9 @@ class DealContactApiController extends Controller
                 if ($shouldFireLeadTrigger) {
                     $this->fireLeadApiTrigger((int) $contactId, $leadWasCreated);
                 }
+                // Last, so lead_*_api automations see the state they always did. Even when the
+                // deal job failed: the lead exists and did come in through this channel.
+                $this->receiveLeadEntry($request, (int) $contactId, $companyId);
             }
 
             $savedReferrerId = $this->leadReferrerIdForCompany((int) $contactId, $companyId);
@@ -592,6 +596,9 @@ class DealContactApiController extends Controller
                 if ($shouldFireLeadTrigger) {
                     $this->fireLeadApiTrigger((int) $contactId, $isNewContact);
                 }
+                // An entry counts even when nothing on the lead changed: a returning lead coming
+                // back through a new channel is exactly what routing has to see.
+                $this->receiveLeadEntry($request, (int) $contactId, $companyId);
 
                 $savedContact = Lead::query()->find($contactId);
                 $preferredContactTimes = $savedContact?->resolvedPreferredContactTimes() ?? [];
@@ -812,6 +819,20 @@ class DealContactApiController extends Controller
             : DealAutomation::TRIGGER_LEAD_UPDATED_API;
 
         app(DealAutomationService::class)->processLead($lead, $trigger);
+    }
+
+    /**
+     * Stores the `entry` block OL sent with this request (the channel the lead came in through) and
+     * runs the automations it triggers. Never throws, and does nothing without an `entry`.
+     */
+    private function receiveLeadEntry(Request $request, int $leadId, int $companyId): void
+    {
+        $entry = $request->input('entry');
+        if (! is_array($entry)) {
+            return;
+        }
+
+        app(LeadEntryIntakeService::class)->receive($leadId, $companyId, $entry);
     }
 
     /**

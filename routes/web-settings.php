@@ -484,6 +484,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('meta-events/send-test', [MetaEventController::class, 'sendTest'])->name('meta-events.send-test');
     Route::resource('meta-events', MetaEventController::class)->except(['show', 'create', 'edit']);
 
+    // Lead assignment pools (used by the assign_lead_owner automation action)
+    Route::resource('lead-assignment-pools', \App\Http\Controllers\LeadAssignmentPoolController::class)->except(['show', 'create', 'edit']);
+
     // CRM Event Engine Settings
     Route::get('company-settings/crm-events', [SettingsController::class, 'crm_events'])->name('company-settings.crm_events');
     Route::post('crm-event-settings/change-status', [CrmEventSettingController::class, 'changeStatus'])->name('crm-event-settings.change-status');

@@ -122,6 +122,23 @@ export interface LeadNextAction {
     meta?: string | null;
 }
 
+/** One time a lead came in through an entry channel (see LeadEntry on the server). */
+export interface LeadEntryRow {
+    id: number;
+    channel_name: string;
+    channel_type: string;
+    channel_path: string;
+    source_entity_type: string | null;
+    source_label: string | null;
+    is_new_lead: boolean;
+    occurred_at: string;
+    campaign_label: string | null;
+    campaign_key: string | null;
+    utm_source: string | null;
+    utm_medium: string | null;
+    form_key: string | null;
+}
+
 export interface LeadUtmTouch {
     id: number;
     lead_id: number;
