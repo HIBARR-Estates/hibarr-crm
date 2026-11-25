@@ -134,6 +134,11 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'lead_custom_fields.*' => 'nullable',
             'custom_fields' => 'nullable|array',
             'custom_fields.*' => 'nullable',
+
+            // Optional native lead fields, validated against the live LeadFieldCatalog (GET /lead-fields):
+            // {"note": {"value": "...", "mode": "append"}, "occupation": "Engineer"}
+            'lead_fields' => 'nullable|array',
+            'lead_fields.*' => 'nullable',
         ];
     }
 
