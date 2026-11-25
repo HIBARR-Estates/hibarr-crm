@@ -27,6 +27,9 @@ use Illuminate\Support\Str;
 
 class DealAutomationService
 {
+    /** Deal columns for the manual value adjustments — setting one recomputes the deal's value. */
+    private const DEAL_ADJUSTMENT_FIELDS = ['discount_value', 'deduction_amount', 'deduction_note'];
+
     use RecordsCrmEvents;
 
     protected FieldResolverService $fieldResolver;
@@ -794,7 +797,42 @@ class DealAutomationService
             return;
         }
 
+        $isAdjustment = $subject instanceof Deal && in_array($fieldName, self::DEAL_ADJUSTMENT_FIELDS, true);
+
+        if ($isAdjustment) {
+            if ($subject->isCommissionLocked()) {
+                $this->logAction($subject, $automation, "Skipped {$fieldName}: commission is locked", DealAutomationLog::STATUS_SKIPPED, 'field');
+
+                return;
+            }
+
+            if ($fieldName === 'discount_value') {
+                // "10%" → percent of the base; "500" → flat amount in the
+                // deal's own currency (same pair the value card edits).
+                $raw = trim((string) $fieldValue);
+                $isPercent = str_ends_with($raw, '%');
+                $number = trim($isPercent ? substr($raw, 0, -1) : $raw);
+                $valid = is_numeric($number) && (float) $number >= 0 && (! $isPercent || (float) $number <= 100);
+
+                $subject->discount_type = $valid ? ($isPercent ? 'percent' : 'fixed') : null;
+                $fieldValue = $valid ? round((float) $number, 2) : null;
+            } elseif ($fieldName === 'deduction_amount') {
+                $fieldValue = is_numeric($fieldValue) && (float) $fieldValue >= 0 ? round((float) $fieldValue, 2) : null;
+            } else {
+                $fieldValue = trim((string) $fieldValue) ?: null;
+            }
+        }
+
         $subject->{$fieldName} = $fieldValue;
+
+        if ($isAdjustment) {
+            // The deal's stored value is derived from these adjustments, so
+            // recompute it alongside — quietly, like the rest of this action.
+            $breakdown = app(\App\Services\DealValueResolver::class)->getBreakdown($subject);
+            $subject->calculated_value = $breakdown['calculated_value'];
+            $subject->value = $breakdown['computed_value'];
+        }
+
         $subject->saveQuietly(); // Bypass observer to prevent cascading
 
         $description = "Set {$fieldName} = {$fieldValue}";

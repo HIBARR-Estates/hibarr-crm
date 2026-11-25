@@ -17,6 +17,7 @@ import { useAutomationWorkspace } from "./context/AutomationWorkspaceContext";
 import useAutomationMutations from "./hooks/useAutomationMutations";
 import TagPickerButton from "./components/TagPickerButton";
 import UnconnectedTagsWarning from "./components/UnconnectedTagsWarning";
+import DealAdjustmentValueInput from "./components/DealAdjustmentValueInput";
 
 interface AutomationBuilderProps {
     automation?: Automation;
@@ -647,7 +648,14 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                                     </div>
                                     <div>
                                         <label style={fieldLabelStyle}>{t("app.automation.value")}</label>
-                                        {(() => {
+                                        {(step.field_name === "discount_value" || step.field_name === "deduction_amount") && (
+                                            <DealAdjustmentValueInput
+                                                fieldName={step.field_name}
+                                                value={step.field_value}
+                                                onChange={(value) => updateAction(i, { field_value: value })}
+                                            />
+                                        )}
+                                        {step.field_name !== "discount_value" && step.field_name !== "deduction_amount" && (() => {
                                             const options = fieldValueOptions(step.field_name);
                                             if (options) {
                                                 return (

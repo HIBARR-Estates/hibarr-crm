@@ -36,6 +36,14 @@ export const DEAL_SETTABLE_FIELDS: Record<string, string> = {
     deposit_confirmation: "Deposit Confirmation",
     reservation_agreement: "Reservation Agreement",
     sales_contract: "Sales Contract",
+    // Manual value adjustments (deals.discount_*, deduction_*). Not editable
+    // anywhere else outside the deal value modal; setting one here recomputes
+    // the deal's value server-side (DealAutomationService::performSetFieldValue).
+    // One field for the whole discount, as on the value card: the value is
+    // "10%" (percent) or "500" (fixed) — see parseDiscountValue().
+    discount_value: "Discount Value",
+    deduction_amount: "Deduction Amount",
+    deduction_note: "Deduction Note",
 };
 
 const DEAL_BOOLEAN_FIELDS = new Set([
@@ -69,6 +77,21 @@ export function fieldValueOptions(fieldName: string | null): { value: string; la
         ];
     }
     return null;
+}
+
+/** Deal value-card adjustments with a dedicated amount input. */
+export const DEAL_ADJUSTMENT_AMOUNT_FIELDS = ["discount_value", "deduction_amount"] as const;
+
+/** A discount action value is "10%" for a percentage or "500" for a fixed
+ * amount — mirrored by DealAutomationService::performSetFieldValue(). */
+export function parseDiscountValue(value: string | null | undefined): { mode: "percent" | "fixed"; amount: string } {
+    const raw = (value ?? "").trim();
+    if (raw.endsWith("%")) return { mode: "percent", amount: raw.slice(0, -1).trim() };
+    return { mode: "fixed", amount: raw };
+}
+
+export function formatDiscountValue(mode: "percent" | "fixed", amount: string): string {
+    return mode === "percent" ? `${amount}%` : amount;
 }
 
 /** Fixed brackets — App\Enums\AgeRange's exact backing values. */
