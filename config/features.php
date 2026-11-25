@@ -109,5 +109,7 @@ return [
         'crm.agent-workspace' => true,
         'softphone.voicemail' => true,
         'crm.softphone' => true,
+        'crm.automation-v2' => true,
+        'crm.deal-view-redesign' => true,
     ],
 ];

@@ -743,6 +743,7 @@ return [
         'targetStage' => 'Target stage',
         'sameAsSource' => 'Same as source',
         'forwardOnly' => 'Forward only',
+        'adjustmentCurrencyHint' => 'Applied in the currency of each deal.',
         'lockDealHint' => 'This locks the deal, preventing further changes to its stage, value, and other key fields.',
         'unconnectedTagsHint' => 'These merge tags aren\'t available to this automation and will send blank:',
         'sendTo' => 'Send to',

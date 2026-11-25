@@ -11,11 +11,13 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { Automation, ConditionLogic, DealAutomationAction, DealAutomationCondition, SubjectType, TriggerKey } from "./types";
 import { actionTypeIcon, actionTypeLabel, actionTypeSubtitle, triggerLabel, triggerExplanation, TRIGGER_SUBJECT } from "./shared";
-import { conditionFieldGroups, conditionValueOptions, DEAL_SETTABLE_FIELDS, fieldValueOptions, fieldValueType, mergeTagGroups, operatorsForFieldType } from "./config/builderFields";
+import { conditionFieldGroups, conditionValueOptions, DEAL_SETTABLE_FIELDS, fieldValueOptions, fieldValueType, mergeTagGroups, operatorsForFieldType, parseUtmField, utmFieldKey, UtmTouchMode } from "./config/builderFields";
+import useUtmValueOptions from "./hooks/useUtmValueOptions";
 import { useAutomationWorkspace } from "./context/AutomationWorkspaceContext";
 import useAutomationMutations from "./hooks/useAutomationMutations";
 import TagPickerButton from "./components/TagPickerButton";
 import UnconnectedTagsWarning from "./components/UnconnectedTagsWarning";
+import DealAdjustmentValueInput from "./components/DealAdjustmentValueInput";
 
 interface AutomationBuilderProps {
     automation?: Automation;
@@ -106,6 +108,7 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
     const allowedActionTypes = catalog ? (subjectType === "deal" ? catalog.dealActionTypes : catalog.leadActionTypes) : [];
 
     const fieldGroups = catalog ? conditionFieldGroups(subjectType, catalog) : [];
+    const utmValueOptions = useUtmValueOptions(conditions.map((c) => c.field));
     const mergeGroups = useMemo(
         () => (catalog ? mergeTagGroups(subjectType, catalog) : []),
         [catalog, subjectType],
@@ -449,19 +452,41 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                             const operators = isStageField
                                 ? operatorsForFieldType(valueType).filter((op) => op.value !== "exists")
                                 : operatorsForFieldType(valueType);
+                            const utm = parseUtmField(cond.field);
                             const selectOptions = isStageField
                                 ? stagesForPipeline(pipelineId).map((s) => ({ value: String(s.id), label: s.name }))
-                                : conditionValueOptions(cond.field, catalog);
+                                : utm
+                                  ? utmValueOptions[utm.column]
+                                  : conditionValueOptions(cond.field, catalog);
                             return (
                             <div key={i} className="flex items-center gap-2 mb-2" style={{ flexWrap: "wrap" }}>
                                 <SearchableSelect
-                                    value={cond.field || undefined}
-                                    onChange={(value) => updateCondition(i, { field: value ?? "" })}
+                                    // The picker only lists first-touch UTM keys; an any-touch
+                                    // condition shows its first-touch twin and keeps its mode
+                                    // when another UTM column is picked.
+                                    value={(utm ? utmFieldKey(utm.column, "first") : cond.field) || undefined}
+                                    onChange={(value) => {
+                                        const picked = parseUtmField(value);
+                                        updateCondition(i, {
+                                            field: picked && utm ? utmFieldKey(picked.column, utm.mode) : (value ?? ""),
+                                        });
+                                    }}
                                     options={fieldGroups}
                                     placeholder={t("app.automation.selectField")}
                                     popupMatchSelectWidth={280}
                                     style={{ flex: "1 1 200px" }}
                                 />
+                                {utm && (
+                                    <SearchableSelect
+                                        value={utm.mode}
+                                        onChange={(value) => updateCondition(i, { field: utmFieldKey(utm.column, value as UtmTouchMode) })}
+                                        options={[
+                                            { value: "first", label: td("First touch") },
+                                            { value: "any", label: td("Any touch (multi-touch)") },
+                                        ]}
+                                        style={{ width: 170 }}
+                                    />
+                                )}
                                 <SearchableSelect
                                     value={cond.operator}
                                     onChange={(value) => updateCondition(i, { operator: value as DealAutomationCondition["operator"] })}
@@ -469,7 +494,19 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                                     style={{ width: 150 }}
                                 />
                                 {cond.operator !== "exists" && cond.operator !== "changed" && (
-                                    selectOptions && selectOptions.length > 0 ? (
+                                    utm ? (
+                                        // Pick a recorded value or type one that isn't listed yet.
+                                        <SearchableSelect
+                                            mode="tags"
+                                            maxCount={1}
+                                            value={cond.value ? [String(cond.value)] : []}
+                                            onChange={(value) => updateCondition(i, { value: (value as string[]).slice(-1)[0] ?? "" })}
+                                            options={selectOptions ?? []}
+                                            allowClear
+                                            placeholder={t("app.automation.selectValue")}
+                                            style={{ flex: "1 1 160px" }}
+                                        />
+                                    ) : selectOptions && selectOptions.length > 0 ? (
                                         <SearchableSelect
                                             value={(cond.value as string) || undefined}
                                             onChange={(value) => updateCondition(i, { value: value ?? "" })}
@@ -611,7 +648,14 @@ export default function AutomationBuilder({ automation, onBack }: AutomationBuil
                                     </div>
                                     <div>
                                         <label style={fieldLabelStyle}>{t("app.automation.value")}</label>
-                                        {(() => {
+                                        {(step.field_name === "discount_value" || step.field_name === "deduction_amount") && (
+                                            <DealAdjustmentValueInput
+                                                fieldName={step.field_name}
+                                                value={step.field_value}
+                                                onChange={(value) => updateAction(i, { field_value: value })}
+                                            />
+                                        )}
+                                        {step.field_name !== "discount_value" && step.field_name !== "deduction_amount" && (() => {
                                             const options = fieldValueOptions(step.field_name);
                                             if (options) {
                                                 return (

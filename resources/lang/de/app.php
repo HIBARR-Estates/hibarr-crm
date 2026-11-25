@@ -785,6 +785,7 @@ return [
         'firedFor' => 'Ausgelöst für',
         'flow' => 'Ablauf',
         'forwardOnly' => 'Nur vorwärts',
+        'adjustmentCurrencyHint' => 'Wird in der eigenen Währung des jeweiligen Deals angewendet.',
         'if' => 'Wenn',
         'immediate' => 'Sofort',
         'insertMergeTag' => 'Platzhalter einfügen',

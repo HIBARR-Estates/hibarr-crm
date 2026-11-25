@@ -783,6 +783,7 @@ return [
         'firedFor' => 'Tetiklenen kayıt',
         'flow' => 'Akış',
         'forwardOnly' => 'Yalnızca ileri',
+        'adjustmentCurrencyHint' => 'Her anlaşmanın kendi para biriminde uygulanır.',
         'if' => 'Eğer',
         'immediate' => 'Hemen',
         'insertMergeTag' => 'Birleştirme etiketi ekle',
