@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -285,8 +285,11 @@ export default function PaymentRequestDetailModal({
 }: PaymentRequestDetailModalProps) {
     const { t } = useTranslation();
     const { td } = useTd();
-    const { requestDocuments, requesting } = usePaymentDocumentRequest();
+    const { requestDocuments, fetchStatus, requesting } = usePaymentDocumentRequest();
     const [requestedId, setRequestedId] = useState<number | null>(null);
+    const receiptRefreshed = useRef<number | null>(null);
+    // Bumped whenever another payment is selected or the modal goes away, so a late receipt refresh is dropped.
+    const receiptRefreshToken = useRef(0);
     const [confirmRequestOpen, setConfirmRequestOpen] = useState(false);
     const { requestVat, settleVat, saving: savingVat } = useVatCollection();
     const [vatAction, setVatAction] = useState<"request" | "cash" | "external" | null>(null);
@@ -294,6 +297,11 @@ export default function PaymentRequestDetailModal({
         setRequestedId(null);
         setConfirmRequestOpen(false);
         setVatAction(null);
+        receiptRefreshed.current = null;
+        const token = receiptRefreshToken;
+        return () => {
+            token.current += 1;
+        };
     }, [request?.id]);
 
     if (!request) return null;
@@ -324,8 +332,31 @@ export default function PaymentRequestDetailModal({
         && request.ui_state !== "invalidated"
         && request.ui_state !== "failed";
     const invoiceUrl = documentsRequested ? documentHref(request, "invoice") : null;
-    // A receipt only needs the request and a collected payment, not the invoice.
-    const receiptUrl = documentsRequested && collected ? documentHref(request, "receipt") : null;
+    // A receipt only needs a collected payment, not the invoice or its request.
+    // Before any request, only someone who may record one can generate it.
+    const receiptUrl = collected && (documentsRequested || request.vat != null || canRequestInvoice)
+        ? documentHref(request, "receipt") : null;
+    // Asking for a receipt is itself the document request, so KDV becomes
+    // due. Read the payment back once the download has been issued.
+    const refreshAfterReceipt = () => {
+        if (request.vat != null || request.deal_id == null) return;
+        const { deal_id: dealId, id } = request;
+        const token = receiptRefreshToken.current;
+        // The server records the request while it makes the download, so
+        // look again a few times in case that takes a moment.
+        [1500, 4000, 9000].forEach((delay, attempt) => {
+            window.setTimeout(async () => {
+                if (attempt > 0 && receiptRefreshed.current === id) return;
+                const updated = await fetchStatus(dealId, id);
+                // Another payment was selected meanwhile: do not touch it.
+                if (token !== receiptRefreshToken.current) return;
+                if (updated?.vat != null) {
+                    receiptRefreshed.current = id;
+                    onDocumentsRequested?.(updated);
+                }
+            }, delay);
+        });
+    };
     const askForInvoice = async () => {
         if (request.deal_id == null) return;
         const updated = await requestDocuments(request.deal_id, request.id);
@@ -343,6 +374,8 @@ export default function PaymentRequestDetailModal({
             : await settleVat(request.deal_id, request.id, vatAction);
         setVatAction(null);
         if (result) {
+            // Drop receipt refreshes that were read before this KDV update.
+            receiptRefreshToken.current += 1;
             // A KDV request carries its payment, so one call refreshes both.
             onVatChanged?.(result.request ?? result.payment);
         }
@@ -440,7 +473,11 @@ export default function PaymentRequestDetailModal({
                         />
                     )}
                     {receiptUrl && (
-                        <DocumentLink href={receiptUrl} label={t("pages.payment_requests.action_receipt")} />
+                        <DocumentLink
+                            href={receiptUrl}
+                            label={t("pages.payment_requests.action_receipt")}
+                            onOpen={refreshAfterReceipt}
+                        />
                     )}
                     {request.proof_url && (
                         <DocumentLink

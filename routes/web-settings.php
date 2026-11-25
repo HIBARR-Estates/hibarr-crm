@@ -20,6 +20,7 @@ use App\Http\Controllers\CrmEventSettingController;
 use App\Http\Controllers\CurrencySettingController;
 use App\Http\Controllers\CustomFieldCategoryController;
 use App\Http\Controllers\CustomFieldController;
+use App\Http\Controllers\CustomFieldMappingController;
 use App\Http\Controllers\CustomFieldSettingsController;
 use App\Http\Controllers\CustomLinkSettingController;
 use App\Http\Controllers\CustomModuleController;
@@ -313,6 +314,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('custom-fields-settings', [CustomFieldSettingsController::class, 'index'])->name('custom-fields-settings.index');
     Route::get('custom-fields/fields-by-group', [CustomFieldController::class, 'fieldsByGroup'])->name('custom-fields.fields-by-group');
     Route::get('custom-fields/pipeline-options', [CustomFieldController::class, 'pipelineOptions'])->name('custom-fields.pipeline-options');
+    Route::post('custom-fields/mapping/preview', [CustomFieldMappingController::class, 'preview'])->name('custom-fields.mapping.preview');
+    Route::post('custom-fields/mapping/apply', [CustomFieldMappingController::class, 'apply'])->name('custom-fields.mapping.apply');
     Route::resource('custom-fields', CustomFieldController::class);
     Route::get('custom-fields/{id}/record-options', [CustomFieldController::class, 'recordOptions'])->name('custom-fields.record-options');
     Route::get('custom-fields/{id}/rule-set', [CustomFieldController::class, 'getRuleSet'])->name('custom-fields.rule-set');
